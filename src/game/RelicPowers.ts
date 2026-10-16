@@ -1,6 +1,6 @@
 import type * as THREE from 'three'
 
-import { RELICS, type RelicId } from '../relics/data'
+import { relicDef, type RelicId } from '../relics/data'
 import { Loadout, type LoadoutState } from '../relics/Loadout'
 import { createEffect } from '../skills'
 import { type BasicHit, type Modifiers, NO_MODIFIERS, type RelicEffect, type SkillContext } from '../skills/Skill'
@@ -44,7 +44,7 @@ export class RelicPowers {
   equip(id: RelicId): LoadoutChange | null {
     const slot = this.loadout.equip(id)
     if (slot < 0 || this.effects[slot]) return null
-    this.effects[slot] = createEffect(id, this.fx)
+    this.effects[slot] = createEffect(relicDef(id), this.fx)
     return this.refresh()
   }
 
@@ -107,7 +107,7 @@ export class RelicPowers {
   private icon(id: RelicId): string {
     let icon = this.icons.get(id)
     if (!icon) {
-      icon = pixelIcon(RELICS[id].icon, RELICS[id].colors)
+      icon = pixelIcon(relicDef(id).icon, relicDef(id).colors)
       this.icons.set(id, icon)
     }
     return icon

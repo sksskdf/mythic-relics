@@ -2,152 +2,28 @@ import * as THREE from 'three'
 
 import { angleDiff, angleTo, inArc, inCircle, inRing } from '../combat/arc'
 import { Health } from '../combat/Health'
+import { DATA } from '../data'
 import { Telegraph } from '../fx/Telegraphs'
 import { type CircleCollider, clampToBounds, type Point2, pushOut } from '../world/colliders'
 import type { NavGrid } from '../world/navGrid'
 import { heightAt } from '../world/terrain'
 import { buildGiantRig, type GiantRig } from './giantModel'
 
-const DEG = Math.PI / 180
+import type { AttackSpec, GiantSpec } from '../data/schema'
 
-/** 공격이 닿는 범위 */
-export type AttackArea =
-  /** 거인 앞쪽 부채꼴 */
-  | { kind: 'sector'; range: number; halfAngle: number }
-  /** 주인공이 서 있던 자리에 떨어지는 원 */
-  | { kind: 'circle'; radius: number }
-  /**
-   * 거인을 중심으로 퍼져 나가는 충격파. startRadius 안쪽은 안전하다.
-   * 회피 버튼이 없으므로 거인 품으로 파고들거나 멀리 벗어나서 피한다.
-   */
-  | { kind: 'ring'; speed: number; startRadius: number; maxRadius: number; width: number }
+export type { AttackArea, AttackSpec, GiantSpec } from '../data/schema'
 
-export interface AttackSpec {
-  name: 'smash' | 'sweep' | 'slam' | 'roar'
-  /** 예고 시간 (초). 이 시간 안에 범위 밖으로 걸어 나가면 피할 수 있다. */
-  windup: number
-  /** 공격 후 빈틈 (초) */
-  recover: number
-  damage: number
-  knockback: number
-  area: AttackArea
-  /** 주인공이 이 거리(중심 사이) 안에 있어야 이 공격을 쓴다. */
-  reach: number
-  /** 다시 쓰기까지 걸리는 시간 (초) */
-  cooldown: number
-}
-
-export interface GiantSpec {
-  king: boolean
-  /** 보스 이름. 보스 확정 유물을 정할 때 쓴다. 졸개는 없음 */
-  boss?: string
-  /** 쓰러뜨렸을 때 주는 경험치 */
-  xp: number
-  /** 몸 색에 곱할 색 (같은 모델로 다른 거인을 만들 때) */
-  tint?: number
-  voxelSize: number
-  radius: number
-  hp: number
-  /** 걷는 속도 (m/s) */
-  speed: number
-  /** 주인공을 알아채는 거리 */
-  aggroRange: number
-  /** 제자리에서 이만큼 멀어지면 돌아간다. */
-  leashRange: number
-  /** 제자리로 돌아가는 동안 1초에 회복하는 생명력 비율 */
-  returnRegen: number
-  /** 한 번에 이 이상 맞으면 휘청이며 하던 공격이 끊긴다. 보스는 끊기지 않는다(슈퍼아머). */
-  poise: number
-  attacks: readonly AttackSpec[]
-}
-
+/** 적 데이터 (src/data/enemies.json) */
+export const ENEMIES: Readonly<Record<string, GiantSpec>> = DATA.enemies
 /** 서리 거인 졸개: 몽둥이 내려찍기 하나 */
-export const GRUNT: GiantSpec = {
-  king: false,
-  xp: 10,
-  voxelSize: 0.1,
-  radius: 0.75,
-  hp: 80,
-  speed: 3.2,
-  aggroRange: 11,
-  leashRange: 24,
-  returnRegen: 0.5,
-  poise: 20,
-  attacks: [
-    {
-      name: 'smash',
-      windup: 0.75,
-      recover: 0.6,
-      damage: 6,
-      knockback: 6,
-      area: { kind: 'sector', range: 2.9, halfAngle: 45 * DEG },
-      reach: 2.6,
-      cooldown: 1.2,
-    },
-  ],
-}
-
+export const GRUNT: GiantSpec = DATA.enemies.grunt!
 /** 거인 왕: 휩쓸기, 내려찍기, (생명력 절반 아래에서) 포효 */
-export const KING: GiantSpec = {
-  king: true,
-  boss: 'giantKing',
-  xp: 120,
-  voxelSize: 0.18,
-  radius: 1.5,
-  hp: 700,
-  speed: 2.6,
-  aggroRange: 15,
-  // 보스는 멀리까지 쫓아오고, 돌아가도 천천히 회복한다. (물러나 숨을 고르는 사이 다 회복하면 공략이 안 된다)
-  leashRange: 60,
-  returnRegen: 0.02,
-  poise: Infinity,
-  attacks: [
-    {
-      name: 'sweep',
-      windup: 0.85,
-      recover: 0.8,
-      damage: 16,
-      knockback: 12,
-      area: { kind: 'sector', range: 5, halfAngle: 75 * DEG },
-      reach: 4.4,
-      cooldown: 2.4,
-    },
-    {
-      name: 'slam',
-      windup: 1.1,
-      recover: 1,
-      damage: 22,
-      knockback: 8,
-      area: { kind: 'circle', radius: 2.4 },
-      reach: 10,
-      cooldown: 4.5,
-    },
-    {
-      name: 'roar',
-      windup: 1,
-      recover: 1.2,
-      damage: 12,
-      knockback: 10,
-      area: { kind: 'ring', speed: 9, startRadius: 3.6, maxRadius: 13, width: 1.2 },
-      reach: 30,
-      cooldown: 16,
-    },
-  ],
-}
-
+export const KING: GiantSpec = DATA.enemies.king!
 /**
  * 우트가르드의 왕 (승급 전설 「우트가르드 원정」의 보스). 환술로 토르를 속인 거인 왕이라 보랏빛을 띤다.
  * 거인 왕과 같은 패턴을 쓰되 더 단단하고, 처음부터 포효를 쓸 수 있다.
  */
-export const UTGARD_KING: GiantSpec = {
-  ...KING,
-  boss: 'utgardKing',
-  xp: 0,
-  tint: 0xd8c2ff,
-  hp: 2500,
-  aggroRange: 30,
-  leashRange: 60,
-}
+export const UTGARD_KING: GiantSpec = DATA.enemies.utgardKing!
 
 /** 거인이 주변을 알기 위해 쓰는 것들 */
 export interface GiantWorld {

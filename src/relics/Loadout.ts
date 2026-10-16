@@ -1,4 +1,4 @@
-import { type God, RELICS, type RelicId } from './data'
+import { type God, relicDef, type RelicId } from './data'
 
 /** 유물 슬롯 수 */
 export const SLOT_COUNT = 4
@@ -21,7 +21,7 @@ export function resolveLoadout(relics: readonly (RelicId | null)[]): LoadoutStat
   const counts = new Map<God, number>()
   for (const id of relics) {
     if (!id) continue
-    const god = RELICS[id].god
+    const god = relicDef(id).god
     counts.set(god, (counts.get(god) ?? 0) + 1)
   }
   let best: God | null = null

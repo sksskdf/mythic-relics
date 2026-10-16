@@ -1,4 +1,4 @@
-import { GODS, type God, RELIC_IDS, type RelicId } from '../relics/data'
+import { GODS, type God, isRelicId, type RelicId } from '../relics/data'
 
 /** 저장 형식 버전. 형식이 바뀌면 올리고, 옛 형식을 옮기는 코드를 둔다. */
 export const SAVE_VERSION = 1
@@ -19,8 +19,8 @@ export interface SaveData {
   divine: number
 }
 
-const isRelic = (v: unknown): v is RelicId => typeof v === 'string' && (RELIC_IDS as string[]).includes(v)
-const isGod = (v: string): v is God => v in GODS
+const isRelic = isRelicId
+const isGod = (v: string): v is God => Object.hasOwn(GODS, v)
 const num = (v: unknown, min: number, max: number, fallback: number) =>
   typeof v === 'number' && Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : fallback
 

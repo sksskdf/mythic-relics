@@ -1,6 +1,6 @@
-import { GRUNT, KING, UTGARD_KING } from '../enemies/Giant'
+import { ENEMIES, GRUNT } from '../enemies/Giant'
 import type { Game } from '../game/Game'
-import { GODS, RELIC_IDS, RELICS } from '../relics/data'
+import { godDef, RELIC_IDS, relicDef } from '../relics/data'
 import { saveStorage } from '../save/SaveData'
 import './devPanel.css'
 
@@ -51,7 +51,7 @@ export class DevPanel {
 
     this.section(body, '유물', [
       ...RELIC_IDS.map<Button>((id) => ({
-        label: RELICS[id].name,
+        label: relicDef(id).name,
         active: () => g.powers.loadout.slots.includes(id),
         run: () => (g.powers.loadout.slots.includes(id) ? g.devUnequip(id) : g.devEquip(id)),
       })),
@@ -107,8 +107,11 @@ export class DevPanel {
           }
         },
       },
-      { label: '거인 왕', run: () => g.encounter.spawn(KING, ahead(7), true) },
-      { label: '우트가르드의 왕', run: () => g.encounter.spawn(UTGARD_KING, ahead(7), true) },
+      // 적 데이터(enemies.json)에 있는 적은 모두 하나씩 불러낼 수 있다.
+      ...Object.values(ENEMIES).map<Button>((spec) => ({
+        label: spec.name,
+        run: () => g.encounter.spawn(spec, ahead(spec.king ? 7 : 3), true),
+      })),
       { label: '모두 제거', run: () => g.encounter.clearAll() },
       { label: '무리·보스 초기화', run: () => g.encounter.resetAll() },
     ])
@@ -195,7 +198,7 @@ export class DevPanel {
     const p = g.hero.object.position
     const god = g.powers.manifested
     const cls = god
-      ? `${GODS[god].titles[g.progress.level(god) - 1]} Lv${g.progress.level(god)} · 경험치 ${Math.round(g.progress.xpRatio(god) * 100)}%`
+      ? `${godDef(god).titles[g.progress.level(god) - 1]} Lv${g.progress.level(god)} · 경험치 ${Math.round(g.progress.xpRatio(god) * 100)}%`
       : '발현 없음'
     this.status.textContent = [
       `FPS ${this.fps.toFixed(0)} · 시간 ${Math.floor(g.time / 60)}:${String(Math.floor(g.time % 60)).padStart(2, '0')}`,

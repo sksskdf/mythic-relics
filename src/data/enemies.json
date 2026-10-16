@@ -1,0 +1,100 @@
+{
+  "grunt": {
+    "name": "서리 거인",
+    "xp": 10,
+    "voxelSize": 0.1,
+    "radius": 0.75,
+    "hp": 80,
+    "speed": 3.2,
+    "aggroRange": 11,
+    "leashRange": 24,
+    "returnRegen": 0.5,
+    "poise": 20,
+    "attacks": [
+      {
+        "name": "smash",
+        "windup": 0.75,
+        "recover": 0.6,
+        "damage": 6,
+        "knockback": 6,
+        "area": {
+          "kind": "sector",
+          "range": 2.9,
+          "halfAngleDeg": 45
+        },
+        "reach": 2.6,
+        "cooldown": 1.2
+      }
+    ]
+  },
+  "king": {
+    "name": "거인 왕",
+    "king": true,
+    "boss": "giantKing",
+    "fixedDrop": "mjolnir",
+    "xp": 120,
+    "voxelSize": 0.18,
+    "radius": 1.5,
+    "hp": 700,
+    "speed": 2.6,
+    "aggroRange": 15,
+    "leashRange": 60,
+    "returnRegen": 0.02,
+    "superArmor": true,
+    "attacks": [
+      {
+        "name": "sweep",
+        "windup": 0.85,
+        "recover": 0.8,
+        "damage": 16,
+        "knockback": 12,
+        "area": {
+          "kind": "sector",
+          "range": 5,
+          "halfAngleDeg": 75
+        },
+        "reach": 4.4,
+        "cooldown": 2.4
+      },
+      {
+        "name": "slam",
+        "windup": 1.1,
+        "recover": 1,
+        "damage": 22,
+        "knockback": 8,
+        "area": {
+          "kind": "circle",
+          "radius": 2.4
+        },
+        "reach": 10,
+        "cooldown": 4.5
+      },
+      {
+        "name": "roar",
+        "windup": 1,
+        "recover": 1.2,
+        "damage": 12,
+        "knockback": 10,
+        "area": {
+          "kind": "ring",
+          "speed": 9,
+          "startRadius": 3.6,
+          "maxRadius": 13,
+          "width": 1.2
+        },
+        "reach": 30,
+        "cooldown": 16
+      }
+    ]
+  },
+  "utgardKing": {
+    "extends": "king",
+    "name": "우트가르드의 왕",
+    "boss": "utgardKing",
+    "xp": 0,
+    "tint": "#d8c2ff",
+    "hp": 2500,
+    "aggroRange": 30,
+    "leashRange": 60
+  }
+}

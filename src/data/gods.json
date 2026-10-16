@@ -1,0 +1,47 @@
+{
+  "thor": {
+    "name": "토르",
+    "titles": [
+      "천둥의 신",
+      "천둥군주",
+      "폭풍왕",
+      "거인의 재앙"
+    ],
+    "archetype": "thunder",
+    "color": "#7fd4ff",
+    "tree": {
+      "column": 0,
+      "row": 0
+    },
+    "passive": {
+      "damageScale": 1.15,
+      "basicLightning": {
+        "damage": 6,
+        "finisherDamage": 14
+      },
+      "chainLightning": {
+        "minLevel": 2,
+        "jumps": 2,
+        "range": 4.5,
+        "damage": 8,
+        "finisherDamage": 14
+      }
+    }
+  },
+  "loki": {
+    "name": "로키",
+    "titles": [
+      "변신술사",
+      "거짓의 혀",
+      "신들의 배신자",
+      "라그나로크의 불씨"
+    ],
+    "archetype": "trickster",
+    "color": "#8fe07a",
+    "tree": {
+      "column": 1,
+      "row": 0
+    },
+    "passive": {}
+  }
+}

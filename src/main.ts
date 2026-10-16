@@ -1,11 +1,7 @@
 import { Game } from './game/Game'
-import { RELIC_IDS, type RelicId } from './relics/data'
+import { isRelicId, RELIC_IDS } from './relics/data'
 import { saveStorage } from './save/SaveData'
 import { TitleScreen } from './ui/TitleScreen'
-
-function isRelicId(value: string): value is RelicId {
-  return (RELIC_IDS as string[]).includes(value)
-}
 
 const container = document.getElementById('app')
 if (!container) throw new Error('#app 요소가 없습니다.')

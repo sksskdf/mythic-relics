@@ -2,12 +2,9 @@ import * as THREE from 'three'
 
 import { EFFECT_LAYER } from '../render/PixelRenderer'
 import { voxelMesh } from '../voxel/mesher'
-import { jarngreipr, lokiMask, megingjord, mjolnir, RELIC_VOXEL } from '../voxel/models/relics'
-import type { VoxelGrid } from '../voxel/VoxelGrid'
+import { RELIC_MODELS, RELIC_VOXEL } from '../voxel/models/relics'
 import { heightAt } from '../world/terrain'
-import { GODS, RELICS, type RelicId } from './data'
-
-const MODELS: Record<RelicId, () => VoxelGrid> = { mjolnir, megingjord, jarngreipr, lokiMask }
+import { godDef, relicDef, type RelicId } from './data'
 
 /** 주울 수 있는 거리 (m) */
 const PICK_RADIUS = 1.1
@@ -39,12 +36,12 @@ export class Pickups {
   drop(id: RelicId, x: number, z: number, armed = true): void {
     const root = new THREE.Group()
     root.position.set(x, heightAt(x, z), z)
-    const grid = MODELS[id]()
+    const grid = RELIC_MODELS[relicDef(id).model]!()
     const model = voxelMesh(grid, { voxelSize: RELIC_VOXEL * 1.2 })
     model.position.y = 0.9
     root.add(model)
 
-    const color = new THREE.Color(GODS[RELICS[id].god].color)
+    const color = new THREE.Color(godDef(relicDef(id).god).color)
     const beam = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.35, depthWrite: false })
     const column = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.42, 6, 8, 1, true), beam)
     column.position.y = 3

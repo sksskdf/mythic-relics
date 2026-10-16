@@ -1,7 +1,7 @@
 import type { Giant, GiantDanger } from '../enemies/Giant'
 import type { Game } from '../game/Game'
 import { angleDiff, angleTo } from '../combat/arc'
-import { RELICS } from '../relics/data'
+import { relicDef } from '../relics/data'
 import type { Point2 } from '../world/colliders'
 
 /** 판단 간격 (초). 사람의 반응 속도쯤으로 둔다. */
@@ -82,7 +82,7 @@ export class Autoplayer {
     }
 
     // 5. 싸울 상대를 고른다. 거인 왕은 토르 유물이 둘 이상이고 생명력이 넉넉할 때만 건드린다.
-    const thorRelics = powers.loadout.slots.filter((id) => id && RELICS[id].god === 'thor').length
+    const thorRelics = powers.loadout.slots.filter((id) => id && relicDef(id).god === 'thor').length
     const boss = encounter.boss
     const bossOk = thorRelics >= 2 && hp > 0.6
     const candidates = enemies.filter((g) => {

@@ -1,4 +1,4 @@
-import { type Archetype, type God, GODS } from '../relics/data'
+import { type Archetype, type God, godDef } from '../relics/data'
 
 export const MAX_LEVEL = 4
 /** 레벨마다 다음 승급까지 필요한 경험치 (Lv1→2, Lv2→3, Lv3→4) */
@@ -37,7 +37,7 @@ export class ClassProgress {
   }
 
   title(god: God): string {
-    return GODS[god].titles[this.level(god) - 1]!
+    return godDef(god).titles[this.level(god) - 1]!
   }
 
   /** 다음 승급까지 필요한 경험치. 최고 레벨이면 0 */
@@ -85,7 +85,7 @@ export class ClassProgress {
   affinity(archetype: Archetype): number {
     let total = 0
     for (const [god, record] of this.records) {
-      if (GODS[god].archetype === archetype) total += record.level - 1
+      if (godDef(god).archetype === archetype) total += record.level - 1
     }
     return total
   }

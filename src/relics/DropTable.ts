@@ -1,7 +1,10 @@
-import { type God, RELIC_IDS, RELICS, type RelicId } from './data'
+import { DATA } from '../data'
+import { type God, RELIC_IDS, relicDef, type RelicId } from './data'
 
-/** 보스마다 반드시 떨어뜨리는 유물 (DESIGN.md 9.3) */
-export const BOSS_RELICS: Readonly<Record<string, RelicId>> = { giantKing: 'mjolnir' }
+/** 보스마다 반드시 떨어뜨리는 유물 (DESIGN.md 9.3). 적 데이터의 fixedDrop에서 모은다. */
+export const BOSS_RELICS: Readonly<Record<string, RelicId>> = Object.fromEntries(
+  Object.values(DATA.enemies).flatMap((e) => (e.boss && e.fixedDrop ? [[e.boss, e.fixedDrop]] : [])),
+)
 
 export interface DropTuning {
   /** 일반 괴물의 기본 드랍 확률 */
@@ -57,8 +60,8 @@ export class DropTable {
     }
     this.misses = 0
     const owners = new Map<God, number>()
-    for (const id of owned) owners.set(RELICS[id].god, (owners.get(RELICS[id].god) ?? 0) + 1)
-    const weights = candidates.map((id) => 1 + (owners.get(RELICS[id].god) ?? 0))
+    for (const id of owned) owners.set(relicDef(id).god, (owners.get(relicDef(id).god) ?? 0) + 1)
+    const weights = candidates.map((id) => 1 + (owners.get(relicDef(id).god) ?? 0))
     let pick = this.rng() * weights.reduce((a, b) => a + b, 0)
     for (let i = 0; i < candidates.length; i++) {
       pick -= weights[i]!

@@ -4,6 +4,7 @@ import type { Lightning } from '../fx/Lightning'
 import type { Puffs } from '../fx/Puffs'
 import type { CombatTarget } from '../game/PlayerCombat'
 import type { HeroController } from '../game/HeroController'
+import type { ModifierKey } from '../data/schema'
 import type { God, RelicId } from '../relics/data'
 import type { DamageStyle } from '../ui/DamageNumbers'
 
@@ -27,25 +28,21 @@ export interface SkillContext {
   setDecoy(decoy: { x: number; z: number; radius: number } | null): void
 }
 
-/** 지속 효과가 바꾸는 수치. 여러 유물의 값은 서로 곱한다. */
-export interface Modifiers {
-  /** 내 공격의 넉백 배율 */
-  knockbackDealt: number
-  /** 내가 받는 넉백 배율 */
-  knockbackTaken: number
-  /** 내가 받는 피해 배율 */
-  damageTaken: number
-  /** 이동 속도 배율 */
-  moveSpeed: number
-}
+/**
+ * 지속 효과가 바꾸는 수치. 여러 유물의 값은 서로 곱한다.
+ * knockbackDealt: 내 공격의 넉백, knockbackTaken: 내가 받는 넉백, damageTaken: 내가 받는 피해, moveSpeed: 이동 속도
+ */
+export type Modifiers = Record<ModifierKey, number>
 
 export const NO_MODIFIERS: Modifiers = { knockbackDealt: 1, knockbackTaken: 1, damageTaken: 1, moveSpeed: 1 }
 
 /** 기본 공격이 맞았을 때의 정보 */
 export interface BasicHit {
   targets: readonly CombatTarget[]
-  /** 3연타 중 몇 번째 타인지 (0부터) */
+  /** 연타 중 몇 번째 타인지 (0부터) */
   comboIndex: number
+  /** 연타 길이 (기본 3) */
+  comboLength: number
   /** 3연타의 마지막 타 */
   finisher: boolean
 }

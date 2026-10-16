@@ -6,10 +6,8 @@ import { Lightning } from '../src/fx/Lightning'
 import { Puffs } from '../src/fx/Puffs'
 import { HeroController } from '../src/game/HeroController'
 import type { CombatTarget } from '../src/game/PlayerCombat'
-import { IronCatch } from '../src/skills/Jarngreipr'
-import { IllusionClone } from '../src/skills/LokiMask'
-import { MightUnleashed } from '../src/skills/Megingjord'
-import { MjolnirThrow } from '../src/skills/Mjolnir'
+import { relicDef } from '../src/relics/data'
+import { DataRelicEffect } from '../src/skills'
 import type { RelicEffect, SkillContext } from '../src/skills/Skill'
 import { ThunderJudgement } from '../src/skills/Ultimate'
 import { buildHeroModel } from '../src/world/heroModel'
@@ -49,6 +47,11 @@ function setup(enemies: CombatTarget[]) {
   return { hero, fx, ctx, decoys }
 }
 
+/** 유물 데이터(src/data/relics.json)로 효과를 만든다. */
+function effect(id: string, fx: THREE.Object3D): DataRelicEffect {
+  return new DataRelicEffect(relicDef(id), fx)
+}
+
 function run(skill: RelicEffect, ctx: SkillContext, seconds: number) {
   for (let t = 0; t < seconds; t += 1 / 60) skill.update(1 / 60, ctx)
 }
@@ -58,22 +61,36 @@ describe('묠니르 망치 투척', () => {
     const hits: number[] = []
     const target = dummy(5, 0, hits)
     const { ctx, fx } = setup([target])
-    const skill = new MjolnirThrow(fx)
-    skill.onBasicHit({ targets: [target], comboIndex: 0, finisher: false }, ctx)
+    const skill = effect('mjolnir', fx)
+    skill.onBasicHit({ targets: [target], comboIndex: 0, comboLength: 3, finisher: false }, ctx)
     run(skill, ctx, 1.5)
     // 첫 타에서는 던지지 않고, 5m 밖이라 주변 번개도 닿지 않는다.
     expect(hits).toEqual([])
     expect(skill.charge).toBeCloseTo(1 / 3)
-    skill.onBasicHit({ targets: [target], comboIndex: 2, finisher: true }, ctx)
+    skill.onBasicHit({ targets: [target], comboIndex: 2, comboLength: 3, finisher: true }, ctx)
     run(skill, ctx, 1.5)
     expect(hits.length).toBe(2)
     expect(skill.charge).toBe(0)
   })
 
+  it('천둥의 신 발현 중에는 망치에 번개가 더해지고, 천둥군주(Lv2)부터 망치 피해가 1.5배다', () => {
+    const hits: number[] = []
+    const target = dummy(5, 0, hits)
+    const { ctx, fx } = setup([target])
+    ctx.manifested = 'thor'
+    ctx.level = 2
+    const skill = effect('mjolnir', fx)
+    skill.onBasicHit({ targets: [target], comboIndex: 2, comboLength: 3, finisher: true }, ctx)
+    run(skill, ctx, 1.5)
+    // 가는 길·오는 길마다 망치 24 + 번개 8
+    expect(hits.filter((h) => h === 24).length).toBe(2)
+    expect(hits.filter((h) => h === 8).length).toBe(2)
+  })
+
   it('지속 효과: 4m 안의 적에게 2초마다 작은 번개가 떨어진다', () => {
     const hits: number[] = []
     const { ctx, fx } = setup([dummy(2, 0, hits), dummy(9, 0, hits)])
-    run(new MjolnirThrow(fx), ctx, 4.1)
+    run(effect('mjolnir', fx), ctx, 4.1)
     expect(hits).toEqual([6, 6])
   })
 })
@@ -83,12 +100,12 @@ describe('메긴교르드 힘의 해방', () => {
     const hits: number[] = []
     const near = [dummy(1.5, 0, hits), dummy(-2.5, 0.5, hits), dummy(8, 0, hits)]
     const { ctx, fx } = setup(near)
-    const skill = new MightUnleashed(fx)
-    const hit = { targets: [near[0]!], comboIndex: 0, finisher: false }
-    for (let i = 0; i < 4; i++) skill.onKill()
+    const skill = effect('megingjord', fx)
+    const hit = { targets: [near[0]!], comboIndex: 0, comboLength: 3, finisher: false }
+    for (let i = 0; i < 4; i++) skill.onKill(near[2]!)
     skill.onBasicHit(hit, ctx)
     expect(hits).toEqual([])
-    skill.onKill()
+    skill.onKill(near[2]!)
     expect(skill.charge).toBe(1)
     skill.onBasicHit(hit, ctx)
     expect(hits.length).toBe(2)
@@ -97,7 +114,7 @@ describe('메긴교르드 힘의 해방', () => {
 
   it('지속 효과: 내 넉백은 1.5배, 받는 넉백은 절반', () => {
     const { fx } = setup([])
-    expect(new MightUnleashed(fx).modifiers).toEqual({ knockbackDealt: 1.5, knockbackTaken: 0.5 })
+    expect(effect('megingjord', fx).modifiers).toEqual({ knockbackDealt: 1.5, knockbackTaken: 0.5 })
   })
 })
 
@@ -105,12 +122,16 @@ describe('야른그레이프르 쇳덩이 되던지기', () => {
   it('맞는 순간 피해를 절반으로 줄이고, 때린 적에게 쇳덩이를 되던진다', () => {
     const hits: number[] = []
     const { ctx, fx } = setup([dummy(3, 0, hits)])
-    const skill = new IronCatch(fx)
+    const skill = effect('jarngreipr', fx)
     expect(skill.beforeHeroHit(20, 3, 0, ctx)).toBe(10)
     // 재사용 대기 중에는 줄이지 않는다.
     expect(skill.beforeHeroHit(20, 3, 0, ctx)).toBe(20)
     run(skill, ctx, 1)
     expect(hits.length).toBe(1)
+    // 4초가 지나면 다시 찬다.
+    run(skill, ctx, 3.1)
+    expect(skill.charge).toBe(1)
+    expect(skill.beforeHeroHit(20, 3, 0, ctx)).toBe(10)
   })
 })
 
@@ -118,7 +139,7 @@ describe('변신의 가면 환영 분신', () => {
   it('12m를 걸어야 충전되고, 가까이 적이 있으면 분신을 남겼다가 사라질 때 치운다', () => {
     const hits: number[] = []
     const { ctx, fx, decoys } = setup([dummy(4, 0, hits)])
-    const skill = new IllusionClone(fx)
+    const skill = effect('lokiMask', fx)
     run(skill, ctx, 1)
     expect(decoys).toEqual([])
     skill.onWalk(6)

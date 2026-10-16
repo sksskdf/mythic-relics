@@ -12,7 +12,7 @@ import { EFFECT_LAYER, PixelRenderer } from '../render/PixelRenderer'
 import { QuarterViewCamera } from '../render/QuarterViewCamera'
 import { METERS_PER_PIXEL, TARGET_RENDER_HEIGHT } from '../render/resolution'
 import { addSilhouette } from '../render/silhouette'
-import { type God, GODS, RELICS, type RelicId } from '../relics/data'
+import { type God, godDef, relicDef, type RelicId } from '../relics/data'
 import type { Giant } from '../enemies/Giant'
 import { DropTable } from '../relics/DropTable'
 import { Pickups } from '../relics/Pickups'
@@ -39,7 +39,7 @@ import { type LoadoutChange, RelicPowers } from './RelicPowers'
 
 export interface GameOptions {
   /** 처음부터 끼고 시작할 유물 (점검용) */
-  startRelics?: RelicId[]
+  startRelics?: readonly RelicId[]
   /** 이어 하기: 이 저장 데이터로 시작한다. */
   load?: SaveData | null
   /** 진행 상황을 브라우저 저장소에 저장한다. (점검용 실행에서는 끈다) */
@@ -62,9 +62,6 @@ const SNOW_CHIPS = [0xf4f8fc, 0xdfe8f1]
 const SANCTUARY = { x: -24, z: -22, radius: 11 }
 /** 주인공의 기본 생명력 */
 const BASE_HP = 100
-/** 연쇄 번개(천둥군주 Lv2): 옮겨 붙는 적 수와 거리 */
-const CHAIN_JUMPS = 2
-const CHAIN_RANGE = 4.5
 /** 적을 쓰러뜨렸을 때 되찾는 생명력 */
 const HEAL_PER_KILL = 4
 const HEAL_PER_BOSS = 30
@@ -78,8 +75,6 @@ export interface PlayEvent {
   type: 'relic' | 'manifest' | 'kill' | 'bossKill' | 'death' | 'legendStart' | 'legendFail' | 'promote' | 'hurt'
   detail?: string
 }
-/** 거인 특효 패시브(천둥의 신 발현): 거인형 적에게 주는 피해 배율 */
-const GIANT_SLAYER = 1.15
 /** 신위 게이지: 스킬로 맞힐 때, 쓰러뜨릴 때 차오르는 양 */
 const DIVINE_PER_SKILL_HIT = 0.01
 const DIVINE_PER_KILL = 0.05
@@ -398,7 +393,7 @@ export class Game {
         slots: this.powers.hudSlots(),
         ultimate: manifested !== null,
         xp: manifested ? this.progress.xpRatio(manifested) : null,
-        xpColor: manifested ? GODS[manifested].color : '',
+        xpColor: manifested ? godDef(manifested).color : '',
       },
       realDt,
     )
@@ -539,7 +534,7 @@ export class Game {
     this.applyStats()
     this.combat.health.reset()
     const p = this.hero.object.position
-    this.hud.showBanner(this.progress.title(god), GODS[god].color)
+    this.hud.showBanner(this.progress.title(god), godDef(god).color)
     for (let i = 0; i < 5; i++) {
       const a = (i / 5) * Math.PI * 2
       this.lightning.fromSky(new THREE.Vector3(p.x + Math.sin(a) * 2, p.y, p.z + Math.cos(a) * 2), 0.18)
@@ -559,7 +554,8 @@ export class Game {
   private damageScale(style: DamageStyle | 'basic'): number {
     let scale = 1 + this.progress.promotions * PER_PROMOTION.damage
     const manifested = this.powers.manifested
-    if (manifested === 'thor') scale *= GIANT_SLAYER
+    // 발현 패시브 (천둥의 신: 거인 특효)
+    if (manifested) scale *= godDef(manifested).passive.damageScale
     if (style === 'thunder') scale *= 1 + this.progress.affinity('thunder') * AFFINITY_DAMAGE
     return scale
   }
@@ -585,7 +581,7 @@ export class Game {
         (id) => this.powers.hasFreeSlot && !this.powers.loadout.has(id),
       )
       for (const id of picked) {
-        this.hud.showToast(RELICS[id].name)
+        this.hud.showToast(relicDef(id).name)
         this.record('relic', id)
         this.markDirty()
         this.onLoadoutChange(this.powers.equip(id), true)
@@ -659,7 +655,7 @@ export class Game {
     if (!after.manifested || before.manifested === after.manifested) return
     if (!announce) return
     this.record('manifest', after.manifested)
-    const god = GODS[after.manifested]
+    const god = godDef(after.manifested)
     this.hud.showBanner(this.progress.title(god.id), god.color)
     // 하늘에서 번개가 주인공에게 내리꽂히고, 주변 적을 밀어낸다.
     const p = this.hero.object.position
@@ -689,20 +685,27 @@ export class Game {
     }
     if (hits.length === 0) return
     this.powers.onBasicHit(
-      { targets: hits.map((h) => h.target), comboIndex: Math.max(0, this.combat.combo.index), finisher: hits[0]!.strong },
+      { targets: hits.map((h) => h.target), comboIndex: Math.max(0, this.combat.combo.index), comboLength: this.combat.combo.swings.length, finisher: hits[0]!.strong },
       this.skillContext,
     )
-    // 천둥의 신 전용 기본 공격: 처음 맞은 적에게 번개가 함께 떨어진다.
+    // 발현 패시브: 처음 맞은 적에게 번개가 함께 떨어지고(천둥의 신), 레벨이 차면 옮겨 붙는다(천둥군주).
     const first = hits[0]!.target
-    if (this.powers.manifested === 'thor' && first.alive) {
+    const manifested = this.powers.manifested
+    const passive = manifested ? godDef(manifested).passive : null
+    if (manifested && passive?.basicLightning && first.alive) {
+      const finisher = hits[0]!.strong
       const p = this.hero.object.position
       const from = new THREE.Vector3(p.x, p.y + 1.6, p.z)
       this.lightning.strike(from, new THREE.Vector3(first.x, p.y + 0.8, first.z), 0.08, 0.12)
       const dx = first.x - p.x
       const dz = first.z - p.z
       const len = Math.hypot(dx, dz) || 1
-      this.dealDamage(first, hits[0]!.strong ? 14 : 6, dx / len, dz / len, 0, 'thunder')
-      if (this.progress.level('thor') >= 2) this.chainLightning(first, hits[0]!.strong ? 14 : 8)
+      const bolt = passive.basicLightning
+      this.dealDamage(first, finisher ? bolt.finisherDamage : bolt.damage, dx / len, dz / len, 0, 'thunder')
+      const chain = passive.chainLightning
+      if (chain && this.progress.level(manifested) >= chain.minLevel) {
+        this.chainLightning(first, finisher ? chain.finisherDamage : chain.damage, chain.jumps, chain.range)
+      }
     }
     const strong = hits.some((h) => h.strong)
     this.hitstop = Math.max(this.hitstop, strong ? 0.09 : 0.045)
@@ -710,12 +713,12 @@ export class Game {
   }
 
   /** 연쇄 번개 (천둥군주): 번개가 가까운 적에게 차례로 옮겨 붙는다. */
-  private chainLightning(from: CombatTarget, damage: number): void {
+  private chainLightning(from: CombatTarget, damage: number, jumps: number, range: number): void {
     const struck = new Set<CombatTarget>([from])
     let current = from
-    for (let i = 0; i < CHAIN_JUMPS; i++) {
+    for (let i = 0; i < jumps; i++) {
       let next: CombatTarget | null = null
-      let best = CHAIN_RANGE
+      let best = range
       for (const enemy of this.encounter.alive) {
         if (struck.has(enemy)) continue
         const dist = Math.hypot(enemy.x - current.x, enemy.z - current.z)

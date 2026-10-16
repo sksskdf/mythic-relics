@@ -86,3 +86,6 @@ export function emberIngot(): VoxelGrid {
   g.box(1, 1, 1, 3, 1, 1, C.gold)
   return g
 }
+
+/** 유물 데이터의 model 이름 → 복셀 모델 */
+export const RELIC_MODELS: Readonly<Record<string, () => VoxelGrid>> = { mjolnir, megingjord, jarngreipr, lokiMask }
