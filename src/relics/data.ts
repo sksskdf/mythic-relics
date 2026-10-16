@@ -15,17 +15,35 @@ export interface RelicDef {
   colors: Readonly<Record<string, string>>
 }
 
+/** 원형 (DESIGN.md 6장). 프로토타입에 쓰는 것만 */
+export type Archetype = 'thunder' | 'trickster'
+
 export interface GodDef {
   id: God
   /** 발현했을 때의 클래스 이름 (Lv1 칭호) */
   title: string
+  /** Lv1~Lv4 칭호 */
+  titles: readonly [string, string, string, string]
+  archetype: Archetype
   /** 발현 연출과 HUD에 쓰는 대표 색 */
   color: string
 }
 
 export const GODS: Readonly<Record<God, GodDef>> = {
-  thor: { id: 'thor', title: '천둥의 신', color: '#7fd4ff' },
-  loki: { id: 'loki', title: '변신술사', color: '#8fe07a' },
+  thor: {
+    id: 'thor',
+    title: '천둥의 신',
+    titles: ['천둥의 신', '천둥군주', '폭풍왕', '거인의 재앙'],
+    archetype: 'thunder',
+    color: '#7fd4ff',
+  },
+  loki: {
+    id: 'loki',
+    title: '변신술사',
+    titles: ['변신술사', '거짓의 혀', '신들의 배신자', '라그나로크의 불씨'],
+    archetype: 'trickster',
+    color: '#8fe07a',
+  },
 }
 
 const IRON = { a: '#d7dee5', b: '#8e98a3', c: '#5b636c', w: '#7a5636', l: '#4f3524', y: '#e6bd4e', o: '#ff9a3c', r: '#ffd27a' }

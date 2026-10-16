@@ -2,8 +2,15 @@
 export class Health {
   hp: number
 
-  constructor(readonly max: number) {
+  constructor(public max: number) {
     this.hp = max
+  }
+
+  /** 최대 생명력을 바꾼다. 늘어난 만큼 지금 생명력도 함께 는다. */
+  setMax(max: number): void {
+    const gained = max - this.max
+    this.max = max
+    this.hp = Math.min(max, Math.max(0, this.hp + Math.max(0, gained)))
   }
 
   get dead(): boolean {

@@ -20,6 +20,15 @@ export const DEFAULT_TUNING: HeroTuning = {
   repathInterval: 0.12,
 }
 
+/** 점을 원 안으로 넣는다. */
+export function clampToCircle(point: Point2, circle: { x: number; z: number; radius: number }): Point2 {
+  const dx = point.x - circle.x
+  const dz = point.z - circle.z
+  const dist = Math.hypot(dx, dz)
+  if (dist <= circle.radius) return point
+  return { x: circle.x + (dx / dist) * circle.radius, z: circle.z + (dz / dist) * circle.radius }
+}
+
 /** 이동 방향을 바라보는 회전값(y축)을 구한다. */
 export function facingAngle(dx: number, dz: number): number {
   return Math.atan2(dx, dz)
@@ -36,6 +45,8 @@ export class HeroController {
   lastMoveTarget: Point2 | null = null
   /** 쓰러졌을 때 등, 이동을 막는다. */
   locked = false
+  /** 움직일 수 있는 원형 범위 (승급 전설의 결계 안 등). 없으면 맵 전체 */
+  arena: { x: number; z: number; radius: number } | null = null
 
   readonly object: THREE.Object3D
   private readonly knock = new THREE.Vector2()
@@ -133,6 +144,7 @@ export class HeroController {
     let next = { x: position.x + dx, z: position.z + dz }
     next = pushOut(next, HERO_RADIUS, this.colliders())
     next = clampToBounds(next, this.halfExtent)
+    if (this.arena) next = clampToCircle(next, this.arena)
     position.x = next.x
     position.z = next.z
     position.y = heightAt(next.x, next.z)

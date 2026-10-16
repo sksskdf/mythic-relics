@@ -18,13 +18,17 @@ export interface HudState {
   slots: readonly HudSlot[]
   /** 클래스가 발현되어 궁극기를 쓸 수 있는가 */
   ultimate: boolean
+  /** 발현한 클래스의 경험치 바 0~1. 발현하지 않았으면 null */
+  xp: number | null
+  /** 경험치 바 색 (발현한 신의 대표 색) */
+  xpColor: string
 }
 
 /** 유물 스킬 칸 수 */
 export const SKILL_SLOTS = 4
 
 /**
- * HUD: 아래쪽에 생명력, 유물 스킬 칸 4개, 궁극기 칸, 신위 게이지, 위쪽에 보스 생명력.
+ * HUD: 아래쪽에 생명력, 유물 스킬 칸 4개, 궁극기 칸, 신위 게이지, 경험치 바(발현했을 때), 위쪽에 보스 생명력.
  * 스킬과 궁극기는 자동으로 나가므로 키 표시가 없고, 글 대신 막대와 그림으로 보여 준다. (텍스트 최소화)
  * 유물 칸을 누르면 그 유물을 빼서 발밑에 내려놓는다.
  */
@@ -43,6 +47,8 @@ export class Hud {
   private readonly bossTrail: HTMLElement
   private readonly banner: HTMLElement
   private readonly toast: HTMLElement
+  private readonly xpBar: HTMLElement
+  private readonly xpFill: HTMLElement
   private bossTrailRatio = 1
 
   constructor(parent: HTMLElement) {
@@ -58,6 +64,8 @@ export class Hud {
     this.toast = this.el('div', 'hud__toast', this.root)
 
     const bar = this.el('div', 'hud__bar', this.root)
+    this.xpBar = this.el('div', 'hud__xp', bar)
+    this.xpFill = this.el('div', 'hud__xp-fill', this.xpBar)
     const life = this.meter('hud__meter hud__meter--life', bar)
     this.lifeFill = life
 
@@ -95,6 +103,14 @@ export class Hud {
       }
       el.shade.style.height = `${Math.round(slot.cooldown * 100)}%`
     })
+
+    this.xpBar.classList.toggle('is-visible', state.xp !== null)
+    if (state.xp !== null) {
+      this.xpFill.style.width = `${(state.xp * 100).toFixed(1)}%`
+      this.xpFill.style.background = state.xpColor
+      // 가득 차면 깜빡여서 승급 전설에 들어갈 수 있음을 알린다.
+      this.xpBar.classList.toggle('is-full', state.xp >= 1)
+    }
 
     this.ultimate.classList.toggle('is-locked', !state.ultimate)
     this.ultimate.classList.toggle('is-ready', state.ultimate && state.divine >= 1)

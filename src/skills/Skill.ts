@@ -14,6 +14,8 @@ export interface SkillContext {
   enemies: readonly CombatTarget[]
   /** 지금 발현된 신 */
   manifested: God | null
+  /** 발현된 클래스의 레벨 (발현하지 않았으면 0) */
+  level: number
   /** 스킬 연출을 붙일 곳 */
   fx: THREE.Object3D
   lightning: Lightning

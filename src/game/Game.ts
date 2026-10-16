@@ -12,8 +12,11 @@ import { EFFECT_LAYER, PixelRenderer } from '../render/PixelRenderer'
 import { QuarterViewCamera } from '../render/QuarterViewCamera'
 import { TARGET_RENDER_HEIGHT } from '../render/resolution'
 import { addSilhouette } from '../render/silhouette'
-import { GODS, RELICS, type RelicId } from '../relics/data'
+import { type God, GODS, RELICS, type RelicId } from '../relics/data'
+import type { Giant } from '../enemies/Giant'
+import { DropTable } from '../relics/DropTable'
 import { Pickups } from '../relics/Pickups'
+import { AFFINITY_DAMAGE, ClassProgress, PER_PROMOTION } from '../progress/ClassProgress'
 import type { SkillContext } from '../skills/Skill'
 import { type DamageStyle, DamageNumbers } from '../ui/DamageNumbers'
 import { Hud } from '../ui/Hud'
@@ -24,6 +27,7 @@ import { heightAt } from '../world/terrain'
 import { buildTestMap, MAP_HALF_EXTENT, type TestMap } from '../world/testMap'
 import { frameDelta } from './clock'
 import { Encounter, TEST_ENCOUNTER } from './Encounter'
+import { UtgardLegend } from './Legend'
 import { HERO_RADIUS, HeroController } from './HeroController'
 import { type CombatTarget, type HitReport, PlayerCombat } from './PlayerCombat'
 import { type LoadoutChange, RelicPowers } from './RelicPowers'
@@ -43,12 +47,13 @@ const HERO_SPAWN = { x: 0, z: 0 }
 const ICE_CHIPS = [0xa8e4f5, 0xe9f4fa, 0x6cbcd9]
 const SNOW_CHIPS = [0xf4f8fc, 0xdfe8f1]
 
-/** 테스트 맵에 놓인 유물. 묠니르는 거인 왕이 떨어뜨린다. (DESIGN.md 9.3 보스 확정 유물) */
-const MAP_RELICS: { id: RelicId; x: number; z: number }[] = [
-  { id: 'megingjord', x: -17, z: 10 },
-  { id: 'jarngreipr', x: 15, z: 13 },
-  { id: 'lokiMask', x: 19, z: -11 },
-]
+/** 승급 전설 「우트가르드 원정」의 성소 위치와 결계 반지름 */
+const SANCTUARY = { x: -24, z: -22, radius: 11 }
+/** 주인공의 기본 생명력 */
+const BASE_HP = 100
+/** 연쇄 번개(천둥군주 Lv2): 옮겨 붙는 적 수와 거리 */
+const CHAIN_JUMPS = 2
+const CHAIN_RANGE = 4.5
 /** 거인 특효 패시브(천둥의 신 발현): 거인형 적에게 주는 피해 배율 */
 const GIANT_SLAYER = 1.15
 /** 신위 게이지: 스킬로 맞힐 때, 쓰러뜨릴 때 차오르는 양 */
@@ -70,6 +75,9 @@ export class Game {
   readonly hud: Hud
   readonly powers: RelicPowers
   readonly pickups = new Pickups()
+  readonly progress = new ClassProgress()
+  readonly drops = new DropTable()
+  readonly legend: UtgardLegend
   frame = 0
 
   private lastTime = performance.now()
@@ -145,6 +153,7 @@ export class Game {
       hero: this.hero,
       enemies: [],
       manifested: null,
+      level: 0,
       fx: this.effects,
       lightning: this.lightning,
       puffs: this.puffs,
@@ -155,11 +164,8 @@ export class Game {
       },
     }
     for (const id of options.startRelics ?? []) this.onLoadoutChange(this.powers.equip(id), false)
-    for (const relic of MAP_RELICS) {
-      if (this.powers.loadout.has(relic.id)) continue
-      const spot = nav.nearestFree(relic) ?? relic
-      this.pickups.drop(relic.id, spot.x, spot.z)
-    }
+    this.legend = new UtgardLegend(nav.nearestFree(SANCTUARY) ?? SANCTUARY, SANCTUARY.radius)
+    this.scene.add(this.legend.object)
     this.hud.onSlotClick = (slot) => this.unequip(slot)
 
     for (const effect of [this.marker.object, this.snow.object, this.puffs.object, this.slashes.object]) {
@@ -204,6 +210,7 @@ export class Game {
     })
     this.updatePowers(dt)
     this.updateEnemies(dt)
+    this.updateLegend(dt)
     this.updateHeroState(dt)
 
     const position = this.hero.object.position
@@ -213,13 +220,20 @@ export class Game {
     this.numbers.update(realDt, this.container.clientHeight, this.pixel.size, this.view.camera)
 
     const boss = this.encounter.boss
+    const manifested = this.powers.manifested
     this.hud.update(
       {
         life: this.combat.health.ratio,
         divine: this.combat.divine,
-        boss: boss && this.encounter.bossEngaged ? boss.health.ratio : null,
+        boss: this.legend.boss?.alive
+          ? this.legend.boss.health.ratio
+          : boss && this.encounter.bossEngaged
+            ? boss.health.ratio
+            : null,
         slots: this.powers.hudSlots(),
-        ultimate: this.powers.manifested !== null,
+        ultimate: manifested !== null,
+        xp: manifested ? this.progress.xpRatio(manifested) : null,
+        xpColor: manifested ? GODS[manifested].color : '',
       },
       realDt,
     )
@@ -260,12 +274,70 @@ export class Game {
       this.debris.burst(giant.object.position, king ? 90 : 30, giant.rig.palette, king ? 3 : 1.6, giant.spec.voxelSize * 2.2)
       this.puffs.burst(giant.object.position, king ? 30 : 12, king ? 4 : 2.2)
       this.view.shake(king ? 0.6 : 0.15)
-      // 거인 왕은 묠니르를 반드시 떨어뜨린다. 이미 가졌거나 땅에 있으면 떨어뜨리지 않는다.
-      if (king && !this.powers.loadout.has('mjolnir') && !this.pickups.list.some((p) => p.id === 'mjolnir')) {
-        const p = giant.object.position
-        this.pickups.drop('mjolnir', p.x, p.z)
-      }
+      this.onGiantKilled(giant)
     }
+  }
+
+  /** 경험치와 유물 드랍. 경험치는 발현한 클래스에만 쌓인다. (DESIGN.md 5.2) */
+  private onGiantKilled(giant: Giant): void {
+    const manifested = this.powers.manifested
+    if (manifested) this.progress.addXp(manifested, giant.spec.xp)
+    const owned = new Set<RelicId>([
+      ...this.powers.loadout.slots.filter((id): id is RelicId => id !== null),
+      ...this.powers.loadout.bag,
+      ...this.pickups.list.map((p) => p.id),
+    ])
+    const relic = this.drops.roll(owned, giant.spec.boss)
+    if (relic) this.pickups.drop(relic, giant.x, giant.z)
+  }
+
+  /** 승급 전설: 성소에 들어서면 시작하고, 이기면 승급한다. */
+  private updateLegend(dt: number): void {
+    this.legend.update(dt, this.encounter, {
+      ready: () => this.powers.manifested === 'thor' && this.progress.readyToPromote('thor'),
+      heroAlive: () => this.combat.alive,
+      heroPosition: () => this.hero.object.position,
+      setArena: (arena) => {
+        this.hero.arena = arena
+      },
+      onStart: () => {
+        this.hud.showBanner('우트가르드 원정', '#d8c2ff')
+        this.view.shake(0.3)
+      },
+      onWin: () => this.promote('thor'),
+      onFail: () => {},
+    })
+  }
+
+  /** 승급: 칭호가 바뀌고, 스킬이 강해지고, 친화도와 기본 능력치가 오른다. */
+  private promote(god: God): void {
+    if (!this.progress.promote(god)) return
+    this.applyStats()
+    this.combat.health.reset()
+    const p = this.hero.object.position
+    this.hud.showBanner(this.progress.title(god), GODS[god].color)
+    for (let i = 0; i < 5; i++) {
+      const a = (i / 5) * Math.PI * 2
+      this.lightning.fromSky(new THREE.Vector3(p.x + Math.sin(a) * 2, p.y, p.z + Math.cos(a) * 2), 0.18)
+    }
+    this.lightning.fromSky(p.clone(), 0.34)
+    this.puffs.burst(p, 40, 5)
+    this.view.shake(0.6)
+    this.hitstop = Math.max(this.hitstop, 0.2)
+  }
+
+  /** 총 승급 횟수에서 나오는 기본 능력치 (DESIGN.md 6.2) */
+  private applyStats(): void {
+    this.combat.health.setMax(BASE_HP + this.progress.promotions * PER_PROMOTION.maxHp)
+  }
+
+  /** 기본 공격과 스킬에 공통으로 곱하는 피해 배율 */
+  private damageScale(style: DamageStyle | 'basic'): number {
+    let scale = 1 + this.progress.promotions * PER_PROMOTION.damage
+    const manifested = this.powers.manifested
+    if (manifested === 'thor') scale *= GIANT_SLAYER
+    if (style === 'thunder') scale *= 1 + this.progress.affinity('thunder') * AFFINITY_DAMAGE
+    return scale
   }
 
   /** 유물 줍기, 자동 스킬, 궁극기 */
@@ -274,6 +346,7 @@ export class Game {
     const ctx = this.skillContext
     ctx.enemies = this.encounter.alive
     ctx.manifested = this.powers.manifested
+    ctx.level = ctx.manifested ? this.progress.level(ctx.manifested) : 0
 
     if (this.combat.alive) {
       const picked = this.pickups.update(
@@ -308,7 +381,7 @@ export class Game {
 
     // 천둥의 신 발현: 거인 특효 패시브와 몸 주변의 푸른 전기
     const thor = this.powers.manifested === 'thor'
-    this.combat.damageScale = thor ? GIANT_SLAYER : 1
+    this.combat.damageScale = this.damageScale('basic')
     this.sparks.enabled = thor && this.combat.alive
   }
 
@@ -322,7 +395,7 @@ export class Game {
     style: DamageStyle,
   ): void {
     if (!target.alive) return
-    const scale = this.powers.manifested === 'thor' ? GIANT_SLAYER : 1
+    const scale = this.damageScale(style)
     const dealt = target.takeHit(damage * scale, dirX, dirZ, knockback)
     if (dealt <= 0) return
     this.scratch.set(target.x, heightAt(target.x, target.z) + target.radius * 3, target.z)
@@ -347,7 +420,7 @@ export class Game {
     if (!after.manifested || before.manifested === after.manifested) return
     if (!announce) return
     const god = GODS[after.manifested]
-    this.hud.showBanner(god.title, god.color)
+    this.hud.showBanner(this.progress.title(god.id), god.color)
     // 하늘에서 번개가 주인공에게 내리꽂히고, 주변 적을 밀어낸다.
     const p = this.hero.object.position
     this.lightning.fromSky(p.clone(), 0.32)
@@ -382,10 +455,42 @@ export class Game {
       const dz = first.z - p.z
       const len = Math.hypot(dx, dz) || 1
       this.dealDamage(first, hits[0]!.strong ? 14 : 6, dx / len, dz / len, 0, 'thunder')
+      if (this.progress.level('thor') >= 2) this.chainLightning(first, hits[0]!.strong ? 14 : 8)
     }
     const strong = hits.some((h) => h.strong)
     this.hitstop = Math.max(this.hitstop, strong ? 0.09 : 0.045)
     this.view.shake(strong ? 0.14 : 0.05)
+  }
+
+  /** 연쇄 번개 (천둥군주): 번개가 가까운 적에게 차례로 옮겨 붙는다. */
+  private chainLightning(from: CombatTarget, damage: number): void {
+    const struck = new Set<CombatTarget>([from])
+    let current = from
+    for (let i = 0; i < CHAIN_JUMPS; i++) {
+      let next: CombatTarget | null = null
+      let best = CHAIN_RANGE
+      for (const enemy of this.encounter.alive) {
+        if (struck.has(enemy)) continue
+        const dist = Math.hypot(enemy.x - current.x, enemy.z - current.z)
+        if (dist < best) {
+          best = dist
+          next = enemy
+        }
+      }
+      if (!next) return
+      const y = heightAt(current.x, current.z) + 1
+      this.lightning.strike(
+        new THREE.Vector3(current.x, y, current.z),
+        new THREE.Vector3(next.x, heightAt(next.x, next.z) + 1, next.z),
+        0.07,
+        0.14,
+      )
+      const dx = next.x - current.x
+      const dz = next.z - current.z
+      this.dealDamage(next, damage, dx / (best || 1), dz / (best || 1), 1, 'thunder')
+      struck.add(next)
+      current = next
+    }
   }
 
   /** 맞았을 때 번쩍임, 쓰러짐과 되살아나기 */

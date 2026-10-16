@@ -16,6 +16,7 @@
 }
 .hud__bar {
   position: absolute;
+  overflow: visible;
   left: 50%;
   bottom: calc(var(--unit) * 2 + env(safe-area-inset-bottom, 0px));
   transform: translateX(-50%);
@@ -203,4 +204,31 @@ button.hud__slot--empty {
   12% { opacity: 1; transform: translate(-50%, 0); }
   75% { opacity: 1; }
   100% { opacity: 0; }
+}
+
+/* 경험치 바: 아래 막대 판의 위쪽 테두리에 붙는 가는 줄 */
+.hud__xp {
+  position: absolute;
+  left: -2px;
+  right: -2px;
+  top: calc(var(--unit) * -1.2 - 2px);
+  height: calc(var(--unit) * 1.2);
+  background: #1d2430;
+  border: 2px solid var(--edge);
+  border-bottom: none;
+  visibility: hidden;
+}
+.hud__xp.is-visible {
+  visibility: visible;
+}
+.hud__xp-fill {
+  height: 100%;
+  width: 0;
+}
+.hud__xp.is-full .hud__xp-fill {
+  animation: hud-xp-full 0.8s ease-in-out infinite alternate;
+}
+@keyframes hud-xp-full {
+  from { filter: brightness(0.9); }
+  to { filter: brightness(1.6); }
 }

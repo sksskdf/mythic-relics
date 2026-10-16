@@ -89,7 +89,7 @@ export class Encounter {
   update(dt: number, base: WorldBase): Giant[] {
     const shattered: Giant[] = []
     for (const giant of this.giants) {
-      const nav = this.navs.get(giant.spec)!
+      const nav = this.navs.get(giant.spec) ?? this.navs.get(giant.spec.king ? KING : GRUNT)!
       giant.update(dt, {
         ...base,
         nav,
@@ -106,6 +106,22 @@ export class Encounter {
   /** 자동 점검용: 지정한 곳에 졸개를 바로 세운다. */
   spawnGrunt(x: number, z: number): Giant {
     return this.addGiant(GRUNT, { x, z })
+  }
+
+  /** 승급 전설 등에서 거인을 따로 세운다. alert면 바로 주인공을 쫓는다. */
+  spawn(spec: GiantSpec, home: Point2, alert: boolean): Giant {
+    const nav = this.navs.get(spec) ?? this.navs.get(spec.king ? KING : GRUNT)!
+    const giant = this.addGiant(spec, nav.nearestFree(home) ?? home)
+    if (alert) giant.alert()
+    return giant
+  }
+
+  /** 거인을 바로 지운다. (승급 전설에 실패했을 때) */
+  remove(giant: Giant): void {
+    const index = this.giants.indexOf(giant)
+    if (index < 0) return
+    giant.dispose()
+    this.giants.splice(index, 1)
   }
 
   private queueSummon(x: number, z: number, count: number): void {

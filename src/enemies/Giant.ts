@@ -39,6 +39,12 @@ export interface AttackSpec {
 
 export interface GiantSpec {
   king: boolean
+  /** 보스 이름. 보스 확정 유물을 정할 때 쓴다. 졸개는 없음 */
+  boss?: string
+  /** 쓰러뜨렸을 때 주는 경험치 */
+  xp: number
+  /** 몸 색에 곱할 색 (같은 모델로 다른 거인을 만들 때) */
+  tint?: number
   voxelSize: number
   radius: number
   hp: number
@@ -56,6 +62,7 @@ export interface GiantSpec {
 /** 서리 거인 졸개: 몽둥이 내려찍기 하나 */
 export const GRUNT: GiantSpec = {
   king: false,
+  xp: 10,
   voxelSize: 0.1,
   radius: 0.75,
   hp: 60,
@@ -80,6 +87,8 @@ export const GRUNT: GiantSpec = {
 /** 거인 왕: 휩쓸기, 내려찍기, (생명력 절반 아래에서) 포효 */
 export const KING: GiantSpec = {
   king: true,
+  boss: 'giantKing',
+  xp: 120,
   voxelSize: 0.18,
   radius: 1.5,
   hp: 900,
@@ -119,6 +128,20 @@ export const KING: GiantSpec = {
       cooldown: 16,
     },
   ],
+}
+
+/**
+ * 우트가르드의 왕 (승급 전설 「우트가르드 원정」의 보스). 환술로 토르를 속인 거인 왕이라 보랏빛을 띤다.
+ * 거인 왕과 같은 패턴을 쓰되 더 단단하고, 처음부터 포효를 쓸 수 있다.
+ */
+export const UTGARD_KING: GiantSpec = {
+  ...KING,
+  boss: 'utgardKing',
+  xp: 0,
+  tint: 0xd8c2ff,
+  hp: 1100,
+  aggroRange: 30,
+  leashRange: 60,
 }
 
 /** 거인이 주변을 알기 위해 쓰는 것들 */
@@ -186,6 +209,7 @@ export class Giant {
     seed = 1,
   ) {
     this.rig = buildGiantRig({ voxelSize: spec.voxelSize, king: spec.king, seed })
+    if (spec.tint !== undefined) this.rig.material.color.setHex(spec.tint)
     this.health = new Health(spec.hp)
     this.collider = { x: home.x, z: home.z, radius: spec.radius }
     this.rig.root.position.set(home.x, heightAt(home.x, home.z), home.z)

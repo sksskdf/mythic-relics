@@ -14,7 +14,7 @@ const HIT_RADIUS = 0.7
 /**
  * 묠니르 「망치 투척」: 가장 가까운 적 쪽으로 망치를 던진다.
  * 망치는 날아가며 닿는 적을 모두 때리고, 손으로 되돌아오며 한 번 더 때린다.
- * 천둥의 신이 발현되어 있으면 맞은 적에게 번개가 떨어진다.
+ * 천둥의 신이 발현되어 있으면 맞은 적에게 번개가 떨어진다. 천둥군주(Lv2)부터는 망치 피해가 1.5배다.
  */
 export class MjolnirThrow implements Skill {
   readonly relic = 'mjolnir'
@@ -84,7 +84,8 @@ export class MjolnirThrow implements Skill {
       if (!enemy.alive || this.hitThisLeg.has(enemy)) continue
       if (Math.hypot(enemy.x - p.x, enemy.z - p.z) > enemy.radius + HIT_RADIUS) continue
       this.hitThisLeg.add(enemy)
-      ctx.hit(enemy, DAMAGE, dirX, dirZ, 3, 'thunder')
+      const damage = ctx.manifested === 'thor' && ctx.level >= 2 ? DAMAGE * 1.5 : DAMAGE
+      ctx.hit(enemy, damage, dirX, dirZ, 3, 'thunder')
       if (ctx.manifested === 'thor') {
         ctx.lightning.fromSky(new THREE.Vector3(enemy.x, p.y - 1.1, enemy.z), 0.12)
         ctx.hit(enemy, 8, dirX, dirZ, 0, 'thunder')

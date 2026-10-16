@@ -36,6 +36,7 @@ function setup(enemies: CombatTarget[]) {
     hero,
     enemies,
     manifested: null,
+    level: 0,
     fx,
     lightning: new Lightning(),
     puffs: new Puffs(8),
