@@ -2,6 +2,7 @@ import { ENEMIES, GRUNT } from '../enemies/Giant'
 import type { Game } from '../game/Game'
 import { godDef, RELIC_IDS, relicDef } from '../relics/data'
 import { saveStorage } from '../save/SaveData'
+import { DebugOverlay } from './DebugOverlay'
 import './devPanel.css'
 
 type Button = { label: string; run: () => void; active?: () => boolean }
@@ -18,6 +19,7 @@ export class DevPanel {
   private fps = 0
   private lastFrameCount = 0
   private lastTime = performance.now()
+  private readonly overlay: DebugOverlay
 
   constructor(
     private readonly game: Game,
@@ -96,9 +98,8 @@ export class DevPanel {
     ])
 
     this.section(body, '적', [
-      { label: '졸개 1', run: () => g.encounter.spawn(GRUNT, ahead(4), true) },
       {
-        label: '졸개 6',
+        label: '서리 거인 6 (둘러싸기)',
         run: () => {
           const p = g.hero.object.position
           for (let i = 0; i < 6; i++) {
@@ -136,6 +137,12 @@ export class DevPanel {
       { label: '되살리기', run: () => g.devRevive() },
     ])
 
+    this.overlay = new DebugOverlay(game)
+    this.section(body, '보기', [
+      { label: '충돌', active: () => this.overlay.colliders, run: () => (this.overlay.colliders = !this.overlay.colliders) },
+      { label: '길찾기', active: () => this.overlay.navigation, run: () => (this.overlay.navigation = !this.overlay.navigation) },
+    ])
+
     this.section(body, '시간', [
       ...[0, 0.5, 1, 2, 4].map<Button>((scale) => ({
         label: scale === 0 ? '멈춤' : `${scale}배`,
@@ -156,6 +163,7 @@ export class DevPanel {
 
     parent.append(this.root)
     const tick = () => {
+      this.overlay.update()
       this.update()
       requestAnimationFrame(tick)
     }

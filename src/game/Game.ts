@@ -82,6 +82,8 @@ export class Game {
   readonly progress = new ClassProgress()
   readonly drops = new DropTable()
   readonly legend: UtgardLegend
+  /** 주인공 길찾기 격자 */
+  readonly nav: NavGrid
   readonly log: PlayEvent[] = []
   frame = 0
   /** 게임 시간 (초). 타격 순간 멈춘 시간은 빠진다. */
@@ -124,6 +126,7 @@ export class Game {
     this.stage = new Stage(this.scene)
     const map = this.stage.map
     const nav = new NavGrid(MAP_HALF_EXTENT, 0.5, map.colliders, HERO_RADIUS)
+    this.nav = nav
     this.encounter = new Encounter(TEST_ENCOUNTER, map.colliders, MAP_HALF_EXTENT)
     this.scene.add(this.encounter.object)
 
@@ -236,6 +239,14 @@ export class Game {
   advance(seconds: number, step = 1 / 30): void {
     for (let t = 0; t < seconds; t += step) this.update(step, false)
   }
+
+  /** 움직이지 않는 충돌체 (나무, 바위 등) */
+  get staticColliders() {
+    return this.stage.map.colliders
+  }
+
+  /** 주인공 몸 반지름 */
+  readonly heroRadius = HERO_RADIUS
 
   /** 현재 저해상도 렌더 크기 (자동 점검용) */
   get renderSize() {

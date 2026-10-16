@@ -1,11 +1,16 @@
 // 자동 플레이 검증: 봇이 이동 명령만으로 처음부터 승급까지 플레이하고, 걸린 시간과 흐름을 기록한다.
 // 사용법: npm run build && node scripts/playtest.mjs [반복 횟수=3] [제한 시간(분)=45]
+// --gate 를 붙이면 승급하지 못했거나 오류가 난 판이 있을 때 실패로 끝난다. (CI)
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { chromium } from 'playwright-core'
 
-const RUNS = Number(process.argv[2] ?? 3)
-const LIMIT_MIN = Number(process.argv[3] ?? 45)
+const args = process.argv.slice(2).filter((a) => !a.startsWith('--'))
+const GATE = process.argv.includes('--gate')
+const RUNS = Number(args[0] ?? 3)
+const LIMIT_MIN = Number(args[1] ?? 45)
+/** 기록할 유물: 데이터 파일에 있는 유물 전부 */
+const RELIC_IDS = Object.keys(JSON.parse(readFileSync(new globalThis.URL('../src/data/relics.json', import.meta.url), 'utf8')))
 const PORT = 4183
 const URL = `http://localhost:${PORT}/?fresh&autoplay`
 const BROWSER = process.env.CHROMIUM_PATH ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'
@@ -57,7 +62,7 @@ try {
     const count = (type) => log.filter((e) => e.type === type).length
     const result = {
       run,
-      relics: Object.fromEntries(['megingjord', 'jarngreipr', 'lokiMask', 'mjolnir'].map((id) => [id, first('relic', id)])),
+      relics: Object.fromEntries(RELIC_IDS.map((id) => [id, first('relic', id)])),
       manifest: first('manifest'),
       bossKill: first('bossKill', 'giantKing'),
       legendStart: first('legendStart'),
@@ -86,3 +91,12 @@ try {
 }
 mkdirSync('test-results', { recursive: true })
 writeFileSync('test-results/playtest.json', JSON.stringify(results, null, 2))
+
+if (GATE) {
+  const failed = results.filter((r) => r.promote === undefined || r.errors.length > 0)
+  if (failed.length > 0) {
+    console.error(`봇 검증 실패: ${failed.length}판이 ${LIMIT_MIN}분 안에 승급하지 못했거나 오류가 났습니다.`)
+    process.exit(1)
+  }
+  console.log('봇 검증 통과')
+}
