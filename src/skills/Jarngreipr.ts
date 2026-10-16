@@ -3,7 +3,7 @@ import * as THREE from 'three'
 import type { CombatTarget } from '../game/PlayerCombat'
 import { voxelMesh } from '../voxel/mesher'
 import { emberIngot, RELIC_VOXEL } from '../voxel/models/relics'
-import { nearestEnemy, type Skill, type SkillContext } from './Skill'
+import { nearestEnemy, type RelicEffect, type SkillContext } from './Skill'
 
 const SPEED = 22
 const DAMAGE = 34
@@ -13,24 +13,32 @@ interface Ingot {
   target: CombatTarget
 }
 
+/** 받아치기가 다시 차는 시간 (초) */
+const RECHARGE = 4
+
 /**
  * 야른그레이프르 「쇳덩이 되던지기」: 거인 게이로드가 던진 달군 쇳덩이를 쇠 장갑으로 받아 되던진 일화에서 왔다.
- * 적의 공격에 맞는 순간 자동으로 발동해 받는 피해를 절반으로 줄이고, 달군 쇳덩이를 그 적에게 되던진다.
+ * - 지속: 받는 피해 10% 감소
+ * - 피격: 맞는 순간 피해를 절반으로 줄이고, 달군 쇳덩이를 그 적에게 되던진다. 충전 1개, 4초마다 다시 찬다.
  * 피하지 못한 공격도 반격 기회가 된다.
  */
-export class IronCatch implements Skill {
+export class IronCatch implements RelicEffect {
   readonly relic = 'jarngreipr'
-  readonly cooldown = 6
-  left = 0
+  readonly modifiers = { damageTaken: 0.9 }
+  private left = 0
 
   private readonly ingots: Ingot[] = []
   private readonly geometrySource = emberIngot()
 
   constructor(private readonly fx: THREE.Object3D) {}
 
+  get charge(): number {
+    return 1 - this.left / RECHARGE
+  }
+
   beforeHeroHit(damage: number, fromX: number, fromZ: number, ctx: SkillContext): number {
     if (this.left > 0) return damage
-    this.left = this.cooldown
+    this.left = RECHARGE
     const hero = ctx.hero.object.position
     // 때린 쪽에 가장 가까운 적에게 되던진다.
     const target = nearestEnemy(ctx.enemies, fromX, fromZ, 3) ?? nearestEnemy(ctx.enemies, hero.x, hero.z, 12)

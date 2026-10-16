@@ -12,8 +12,8 @@ export type Order =
 /**
  * 클릭을 지시로 바꾸는 규칙. 조작은 클릭 하나뿐이고, 무엇을 눌렀는지와 지금 상황으로 뜻을 정한다.
  * - 적을 누르면: 그 적에게 가서 공격한다.
- * - 땅을 누르면: 그곳으로 걷는다. 가는 길에 적이 사거리 안에 들어오면 멈춰서 싸운다.
- * - 싸우는 중에 땅을 누르면: 적을 무시하고 끝까지 걷는다. (빠져나가기, 공격 피하기)
+ * - 땅을 한 번 누르면: 그곳으로 걷는다. 가는 길에 적이 사거리 안에 들어오면 멈춰서 싸운다.
+ * - 땅을 두 번 누르면: 적을 무시하고 끝까지 걷는다. 졸개는 밀고 지나간다. (빠져나가기, 공격 피하기)
  * - 아무 지시가 없으면: 멈춰 선 채 사거리 안의 가장 가까운 적을 자동으로 친다.
  */
 export class HeroOrders {
@@ -38,8 +38,10 @@ export class HeroOrders {
     return this.order?.kind === 'attack' ? this.order.target : null
   }
 
-  /** 마우스를 눌렀다. enemy는 커서 아래의 적 */
-  press(ground: Point2 | null, enemy: CombatTarget | null): void {
+  /**
+   * 마우스를 눌렀다. enemy는 커서 아래의 적, double은 같은 자리를 빠르게 두 번 눌렀는지
+   */
+  press(ground: Point2 | null, enemy: CombatTarget | null, double = false): void {
     if (this.hero.locked) return
     if (enemy?.alive) {
       this.attack(enemy, true)
@@ -47,7 +49,7 @@ export class HeroOrders {
       return
     }
     if (!ground) return
-    const forced = this.combat.engaged || this.order?.kind === 'attack'
+    const forced = double
     this.order = { kind: 'move', forced }
     this.combat.focus = null
     this.hero.moveTo(ground)

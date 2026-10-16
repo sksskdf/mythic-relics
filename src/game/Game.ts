@@ -31,6 +31,7 @@ import { Encounter, TEST_ENCOUNTER } from './Encounter'
 import { UtgardLegend } from './Legend'
 import { HERO_RADIUS, HeroController } from './HeroController'
 import { HeroOrders } from './HeroOrders'
+import { DoubleTapDetector } from '../input/doubleTap'
 import { plowThrough } from './plow'
 import { clampViewHeight, settingsStorage } from '../save/settings'
 import { type CombatTarget, type HitReport, PlayerCombat } from './PlayerCombat'
@@ -139,6 +140,8 @@ export class Game {
   private readonly numbers: DamageNumbers
   private readonly cursor = new THREE.Vector3()
   private readonly scratch = new THREE.Vector3()
+  private readonly lastWalk = new THREE.Vector2()
+  private readonly doubleTap = new DoubleTapDetector()
 
   constructor(
     private readonly container: HTMLElement,
@@ -510,6 +513,11 @@ export class Game {
     ctx.manifested = this.powers.manifested
     ctx.level = ctx.manifested ? this.progress.level(ctx.manifested) : 0
 
+    // 걸은 거리 (이동 연동 효과). 순간이동처럼 한 번에 크게 옮긴 것은 빼고, 밀려난 것은 걸음으로 치지 않는다.
+    const step = Math.hypot(position.x - this.lastWalk.x, position.z - this.lastWalk.y)
+    if (this.hero.isMoving && step < 1) this.powers.onWalk(step, ctx)
+    this.lastWalk.set(position.x, position.z)
+
     if (this.combat.alive) {
       const picked = this.pickups.update(
         dt,
@@ -546,6 +554,12 @@ export class Game {
     // 천둥의 신 발현: 거인 특효 패시브와 몸 주변의 푸른 전기
     const thor = this.powers.manifested === 'thor'
     this.combat.damageScale = this.damageScale('basic')
+    // 유물 지속 효과
+    const mods = this.powers.modifiers
+    this.combat.knockbackScale = mods.knockbackDealt
+    this.combat.knockbackTakenScale = mods.knockbackTaken
+    this.combat.damageTakenScale = mods.damageTaken
+    this.hero.speedScale = mods.moveSpeed
     this.sparks.enabled = thor && this.combat.alive
   }
 
@@ -560,7 +574,8 @@ export class Game {
   ): void {
     if (!target.alive) return
     const scale = this.damageScale(style)
-    const dealt = target.takeHit(damage * scale, dirX, dirZ, knockback)
+    const dealt = target.takeHit(damage * scale, dirX, dirZ, knockback * this.powers.modifiers.knockbackDealt)
+    if (dealt > 0 && !target.alive) this.powers.onKill(target, this.skillContext)
     if (dealt <= 0) return
     this.scratch.set(target.x, heightAt(target.x, target.z) + target.radius * 3, target.z)
     this.numbers.show(this.scratch, dealt, style)
@@ -608,9 +623,16 @@ export class Game {
       // 거인 키는 몸 반지름의 약 3배
       this.scratch.set(x, heightAt(x, z) + radius * 3, z)
       this.numbers.show(this.scratch, hit.damage, hit.strong ? 'strong' : 'normal')
-      if (!hit.target.alive) this.combat.addDivine(DIVINE_PER_KILL)
+      if (!hit.target.alive) {
+        this.combat.addDivine(DIVINE_PER_KILL)
+        this.powers.onKill(hit.target, this.skillContext)
+      }
     }
     if (hits.length === 0) return
+    this.powers.onBasicHit(
+      { targets: hits.map((h) => h.target), comboIndex: Math.max(0, this.combat.combo.index), finisher: hits[0]!.strong },
+      this.skillContext,
+    )
     // 천둥의 신 전용 기본 공격: 처음 맞은 적에게 번개가 함께 떨어진다.
     const first = hits[0]!.target
     if (this.powers.manifested === 'thor' && first.alive) {
@@ -713,7 +735,11 @@ export class Game {
   private readInput(): void {
     const cursor = this.cursorOnGround()
     const ground = cursor ? { x: cursor.x, z: cursor.z } : null
-    if (this.input.wasPressed('move')) this.orders.press(ground, this.enemyUnderCursor())
+    if (this.input.wasPressed('move')) {
+      const { pointer } = this.input
+      const double = this.doubleTap.press(performance.now() / 1000, pointer.x, pointer.y)
+      this.orders.press(ground, this.enemyUnderCursor(), double)
+    }
     else if (this.input.isDown('move')) this.orders.hold(ground)
     else this.orders.release()
   }

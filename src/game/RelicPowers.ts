@@ -2,8 +2,9 @@ import type * as THREE from 'three'
 
 import { RELICS, type RelicId } from '../relics/data'
 import { Loadout, type LoadoutState } from '../relics/Loadout'
-import { createSkill } from '../skills'
-import type { Skill, SkillContext } from '../skills/Skill'
+import { createEffect } from '../skills'
+import { type BasicHit, type Modifiers, NO_MODIFIERS, type RelicEffect, type SkillContext } from '../skills/Skill'
+import type { CombatTarget } from './PlayerCombat'
 import { ThunderJudgement } from '../skills/Ultimate'
 import type { HudSlot } from '../ui/Hud'
 import { pixelIcon } from '../ui/pixelIcon'
@@ -16,18 +17,18 @@ export interface LoadoutChange {
 
 /**
  * 장착한 유물이 주는 힘을 모아 관리한다.
- * - 유물 1개 = 자동 스킬 1개 (가호 상태에서도 나간다)
+ * - 유물 1개 = 지속 효과 + 행동 연동 효과 (가호 상태에서도 붙는다, DESIGN.md 8.3)
  * - 같은 신 유물 3개 이상이면 발현: 궁극기와 패시브가 붙는다
  */
 export class RelicPowers {
   readonly loadout = new Loadout()
-  readonly skills: (Skill | null)[]
+  readonly effects: (RelicEffect | null)[]
   readonly ultimate = new ThunderJudgement()
   state: LoadoutState
   private readonly icons = new Map<RelicId, string>()
 
   constructor(private readonly fx: THREE.Object3D) {
-    this.skills = this.loadout.slots.map(() => null)
+    this.effects = this.loadout.slots.map(() => null)
     this.state = this.loadout.state
   }
 
@@ -42,39 +43,63 @@ export class RelicPowers {
 
   equip(id: RelicId): LoadoutChange | null {
     const slot = this.loadout.equip(id)
-    if (slot < 0 || this.skills[slot]) return null
-    this.skills[slot] = createSkill(id, this.fx)
+    if (slot < 0 || this.effects[slot]) return null
+    this.effects[slot] = createEffect(id, this.fx)
     return this.refresh()
   }
 
   unequip(slot: number): { relic: RelicId; change: LoadoutChange } | null {
     const relic = this.loadout.unequip(slot)
     if (!relic) return null
-    this.skills[slot]?.dispose()
-    this.skills[slot] = null
+    this.effects[slot]?.dispose()
+    this.effects[slot] = null
     return { relic, change: this.refresh() }
   }
 
+  /** 끼고 있는 유물들의 지속 효과 수치를 곱한 값 */
+  get modifiers(): Modifiers {
+    const out = { ...NO_MODIFIERS }
+    for (const effect of this.effects) {
+      for (const [key, value] of Object.entries(effect?.modifiers ?? {}) as [keyof Modifiers, number][]) out[key] *= value
+    }
+    return out
+  }
+
   update(dt: number, ctx: SkillContext): void {
-    for (const skill of this.skills) skill?.update(dt, ctx)
+    for (const effect of this.effects) effect?.update(dt, ctx)
     this.ultimate.update(dt, ctx)
   }
 
-  /** 맞기 직전에 스킬이 끼어들 기회를 준다. (야른그레이프르) */
+  /** 기본 공격이 맞았다. (연타 연동: 묠니르, 다음 타격 강화: 메긴교르드) */
+  onBasicHit(hit: BasicHit, ctx: SkillContext): void {
+    for (const effect of this.effects) effect?.onBasicHit?.(hit, ctx)
+  }
+
+  /** 적을 쓰러뜨렸다. (처치 연동: 메긴교르드) */
+  onKill(target: CombatTarget, ctx: SkillContext): void {
+    for (const effect of this.effects) effect?.onKill?.(target, ctx)
+  }
+
+  /** 주인공이 걸었다. (이동 연동: 변신의 가면) */
+  onWalk(distance: number, ctx: SkillContext): void {
+    for (const effect of this.effects) effect?.onWalk?.(distance, ctx)
+  }
+
+  /** 맞기 직전에 유물이 끼어들 기회를 준다. (피격 연동: 야른그레이프르) */
   beforeHeroHit(damage: number, fromX: number, fromZ: number, ctx: SkillContext): number {
     let result = damage
-    for (const skill of this.skills) {
-      if (skill?.beforeHeroHit) result = skill.beforeHeroHit(result, fromX, fromZ, ctx)
+    for (const effect of this.effects) {
+      if (effect?.beforeHeroHit) result = effect.beforeHeroHit(result, fromX, fromZ, ctx)
     }
     return result
   }
 
   hudSlots(): HudSlot[] {
     return this.loadout.slots.map((id, i) => {
-      const skill = this.skills[i]
+      const effect = this.effects[i]
       return {
         icon: id ? this.icon(id) : null,
-        cooldown: skill ? Math.min(1, skill.left / skill.cooldown) : 0,
+        charge: effect ? Math.max(0, Math.min(1, effect.charge)) : 0,
       }
     })
   }

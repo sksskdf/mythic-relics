@@ -40,6 +40,8 @@ export function facingAngle(dx: number, dz: number): number {
  */
 export class HeroController {
   path: Point2[] = []
+  /** 이동 속도 배율 (유물 지속 효과) */
+  speedScale = 1
   /** 쓰러졌을 때 등, 이동을 막는다. */
   locked = false
   /** 길을 막고 선 거인처럼 움직이는 장애물. 부딪혀 제자리걸음하지 않게 옆으로 비켜 간다. */
@@ -124,7 +126,7 @@ export class HeroController {
   }
 
   private stepPath(dt: number): void {
-    let remaining = this.tuning.moveSpeed * dt
+    let remaining = this.tuning.moveSpeed * this.speedScale * dt
     const position = this.object.position
     while (remaining > 0 && this.path.length > 0) {
       const next = this.path[0]!

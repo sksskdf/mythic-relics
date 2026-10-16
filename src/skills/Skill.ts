@@ -27,19 +27,50 @@ export interface SkillContext {
   setDecoy(decoy: { x: number; z: number; radius: number } | null): void
 }
 
+/** 지속 효과가 바꾸는 수치. 여러 유물의 값은 서로 곱한다. */
+export interface Modifiers {
+  /** 내 공격의 넉백 배율 */
+  knockbackDealt: number
+  /** 내가 받는 넉백 배율 */
+  knockbackTaken: number
+  /** 내가 받는 피해 배율 */
+  damageTaken: number
+  /** 이동 속도 배율 */
+  moveSpeed: number
+}
+
+export const NO_MODIFIERS: Modifiers = { knockbackDealt: 1, knockbackTaken: 1, damageTaken: 1, moveSpeed: 1 }
+
+/** 기본 공격이 맞았을 때의 정보 */
+export interface BasicHit {
+  targets: readonly CombatTarget[]
+  /** 3연타 중 몇 번째 타인지 (0부터) */
+  comboIndex: number
+  /** 3연타의 마지막 타 */
+  finisher: boolean
+}
+
 /**
- * 유물 하나가 주는 자동 스킬. 조작 최소화 원칙에 따라 스스로 대상과 때를 고른다.
- * 재사용 대기시간으로만 제한하고 마나 같은 자원은 없다. (DESIGN.md 8.3)
+ * 유물 하나가 주는 효과. (DESIGN.md 8.3)
+ * - 지속 효과: 끼고 있는 동안 늘 켜져 있다. (modifiers, update의 오라 등)
+ * - 행동 연동 효과: 연타·처치·피격·이동으로 충전이 쌓이고, 다 차면 터진다. 재사용 대기시간은 없다.
  */
-export interface Skill {
+export interface RelicEffect {
   readonly relic: RelicId
-  /** 재사용 대기시간 (초) */
-  readonly cooldown: number
-  /** 남은 재사용 대기시간 (초) */
-  left: number
+  /** 지속 효과가 바꾸는 수치 (없으면 그대로) */
+  readonly modifiers?: Partial<Modifiers>
+  /** 행동 연동 효과의 충전 정도 0~1 (HUD 표시용) */
+  readonly charge: number
+  /** 매 프레임: 오라, 날아가는 투사체 등 */
   update(dt: number, ctx: SkillContext): void
-  /** 주인공이 맞기 직전에 불린다. 실제로 받을 피해를 돌려준다. */
+  /** 기본 공격이 적을 맞혔다. */
+  onBasicHit?(hit: BasicHit, ctx: SkillContext): void
+  /** 적을 쓰러뜨렸다. (어떤 공격으로든) */
+  onKill?(target: CombatTarget, ctx: SkillContext): void
+  /** 주인공이 맞기 직전. 실제로 받을 피해를 돌려준다. */
   beforeHeroHit?(damage: number, fromX: number, fromZ: number, ctx: SkillContext): number
+  /** 주인공이 distance(m)만큼 걸었다. */
+  onWalk?(distance: number, ctx: SkillContext): void
   dispose(): void
 }
 

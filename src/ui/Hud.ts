@@ -4,8 +4,8 @@ import './hud.css'
 export interface HudSlot {
   /** 유물 그림 주소. 빈 칸이면 null */
   icon: string | null
-  /** 재사용 대기 비율 0~1 (1이면 막 사용함) */
-  cooldown: number
+  /** 행동 연동 효과의 충전 정도 0~1 (1이면 다 참) */
+  charge: number
 }
 
 export interface HudState {
@@ -101,7 +101,9 @@ export class Hud {
         el.icon.style.backgroundImage = slot.icon ? `url(${slot.icon})` : ''
         el.root.classList.toggle('hud__slot--empty', !slot.icon)
       }
-      el.shade.style.height = `${Math.round(slot.cooldown * 100)}%`
+      // 아직 차지 않은 만큼 위에서부터 어둡게 덮는다.
+      el.shade.style.height = `${Math.round((1 - slot.charge) * 100)}%`
+      el.root.classList.toggle('is-charged', slot.charge >= 1)
     })
 
     this.xpBar.classList.toggle('is-visible', state.xp !== null)

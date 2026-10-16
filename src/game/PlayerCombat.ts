@@ -50,6 +50,10 @@ export class PlayerCombat {
   focus: CombatTarget | null = null
   /** 기본 공격 피해 배율 (발현 패시브 등) */
   damageScale = 1
+  /** 내 공격의 넉백 배율, 내가 받는 피해·넉백 배율 (유물 지속 효과) */
+  knockbackScale = 1
+  damageTakenScale = 1
+  knockbackTakenScale = 1
 
   private invulnerable = 0
   private sinceHurt = REGEN_DELAY
@@ -113,7 +117,8 @@ export class PlayerCombat {
    */
   takeHit(damage: number, fromX: number, fromZ: number, knockback: number): number {
     if (!this.alive || this.invulnerable > 0) return 0
-    const dealt = this.health.damage(damage)
+    const dealt = this.health.damage(damage * this.damageTakenScale)
+    knockback *= this.knockbackTakenScale
     this.invulnerable = INVULNERABLE_AFTER_HIT
     this.sinceHurt = 0
     const position = this.hero.object.position
@@ -166,7 +171,7 @@ export class PlayerCombat {
       const dx = enemy.x - p.x
       const dz = enemy.z - p.z
       const len = Math.hypot(dx, dz) || 1
-      const dealt = enemy.takeHit(swing.damage * this.damageScale, dx / len, dz / len, swing.knockback)
+      const dealt = enemy.takeHit(swing.damage * this.damageScale, dx / len, dz / len, swing.knockback * this.knockbackScale)
       if (dealt > 0) hits.push({ target: enemy, damage: dealt, strong })
     }
     if (hits.length > 0) this.addDivine(DIVINE_PER_HIT * hits.length)

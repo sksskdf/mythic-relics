@@ -2,21 +2,27 @@ import * as THREE from 'three'
 
 import { EFFECT_LAYER } from '../render/PixelRenderer'
 import { buildHeroModel } from '../world/heroModel'
-import { enemiesWithin, type Skill, type SkillContext } from './Skill'
+import { enemiesWithin, type RelicEffect, type SkillContext } from './Skill'
 
 const LIFE = 4
+/** 분신을 남기려면 걸어야 하는 거리 (m) */
+const WALK = 12
+/** 이 거리 안에 적이 있어야 분신을 남긴다. (아무도 없는 곳에 남기면 헛것이 된다) */
+const NEAR = 6
 const BLAST_RADIUS = 2.6
 const BLAST_DAMAGE = 20
 
 /**
- * 변신의 가면 「환영 분신」: 적 여럿이 다가오면 그 자리에 자기와 똑같은 환영을 남긴다.
- * 거인들은 잠시 환영을 쫓고 때리며, 환영은 사라질 때 터져 주변에 피해를 준다.
- * 주인공은 그 틈에 자리를 옮기거나 거인의 등을 친다.
+ * 변신의 가면 「환영 분신」
+ * - 지속: 이동 속도 10% 증가
+ * - 이동: 12m를 걸을 때마다 충전되고, 가까이 적이 있으면 제자리에 자기와 똑같은 분신을 남긴다.
+ *   거인들은 4초 동안 분신을 쫓고 때리며, 분신은 사라질 때 터져 주변에 피해를 준다.
+ * 움직일수록 강해지는 유물이다. 그 틈에 자리를 옮기거나 거인의 등을 친다.
  */
-export class IllusionClone implements Skill {
+export class IllusionClone implements RelicEffect {
   readonly relic = 'lokiMask'
-  readonly cooldown = 12
-  left = 1
+  readonly modifiers = { moveSpeed: 1.1 }
+  private walked = 0
 
   private readonly decoy = buildHeroModel()
   private readonly material = new THREE.MeshBasicMaterial({ color: 0x8fe07a, transparent: true, opacity: 0.55, depthWrite: false })
@@ -34,6 +40,15 @@ export class IllusionClone implements Skill {
     fx.add(this.decoy.root)
   }
 
+  get charge(): number {
+    return Math.min(1, this.walked / WALK)
+  }
+
+  onWalk(distance: number): void {
+    // 분신이 있는 동안에는 쌓이지 않는다.
+    if (this.life <= 0) this.walked = Math.min(WALK, this.walked + distance)
+  }
+
   update(dt: number, ctx: SkillContext): void {
     const hero = ctx.hero.object.position
     if (this.life > 0) {
@@ -44,11 +59,10 @@ export class IllusionClone implements Skill {
       if (this.life <= 0) this.vanish(ctx)
       return
     }
-    this.left = Math.max(0, this.left - dt)
-    if (this.left > 0) return
-    if (enemiesWithin(ctx.enemies, hero.x, hero.z, 6).length < 2) return
+    if (this.walked < WALK) return
+    if (enemiesWithin(ctx.enemies, hero.x, hero.z, NEAR).length === 0) return
 
-    this.left = this.cooldown
+    this.walked = 0
     this.life = LIFE
     this.decoy.root.position.copy(hero)
     this.decoy.root.rotation.y = ctx.hero.facing
