@@ -58,15 +58,28 @@ const compositeFragment = /* glsl */ `
     }
 
     if (depthEdge > depthThreshold) {
-      color.rgb *= 0.35;
+      // 외곽선은 그냥 검게 하지 않고, 남색 쪽으로 어둡게 해서 부드럽게 보이게 한다.
+      color.rgb = color.rgb * vec3(0.28, 0.3, 0.4);
     } else if (normalEdge > normalThreshold) {
-      color.rgb = min(color.rgb * 1.25, vec3(1.0));
+      color.rgb = min(color.rgb * 1.22, vec3(1.0));
     }
+
+    // 색 보정: 어두운 곳은 차갑게(푸르게), 밝은 곳은 따뜻하게
+    float luma = dot(color.rgb, vec3(0.299, 0.587, 0.114));
+    color.rgb *= mix(vec3(0.78, 0.86, 1.12), vec3(1.06, 1.0, 0.92), smoothstep(0.15, 0.85, luma));
+
+    // 화면 가장자리를 살짝 어둡게
+    vec2 centered = uv - 0.5;
+    float vignette = 1.0 - dot(centered, centered) * 0.55;
+    color.rgb *= vignette;
 
     gl_FragColor = color;
     #include <colorspace_fragment>
   }
 `
+
+/** 눈송이·먼지처럼 법선 버퍼에 그리지 않을 효과용 레이어 */
+export const EFFECT_LAYER = 1
 
 export class PixelRenderer {
   readonly renderer: THREE.WebGLRenderer
@@ -135,8 +148,10 @@ export class PixelRenderer {
   render(scene: THREE.Scene, camera: THREE.Camera): void {
     const { renderer } = this
 
+    camera.layers.enable(EFFECT_LAYER)
     renderer.setRenderTarget(this.colorTarget)
     renderer.render(scene, camera)
+    camera.layers.disable(EFFECT_LAYER)
 
     const background = scene.background
     scene.background = null
@@ -147,6 +162,7 @@ export class PixelRenderer {
     renderer.render(scene, camera)
     scene.overrideMaterial = null
     scene.background = background
+    camera.layers.enable(EFFECT_LAYER)
 
     renderer.setRenderTarget(null)
     renderer.render(this.compositeScene, this.compositeCamera)

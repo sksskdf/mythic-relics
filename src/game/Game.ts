@@ -2,14 +2,16 @@ import * as THREE from 'three'
 
 import { Input } from '../input/Input'
 import { screenToGround } from '../render/picking'
-import { PixelRenderer } from '../render/PixelRenderer'
+import { Puffs } from '../fx/Puffs'
+import { Snowfall } from '../fx/Snowfall'
+import { EFFECT_LAYER, PixelRenderer } from '../render/PixelRenderer'
 import { QuarterViewCamera } from '../render/QuarterViewCamera'
 import { TARGET_RENDER_HEIGHT } from '../render/resolution'
 import { Hud } from '../ui/Hud'
 import { MoveMarker } from '../world/moveMarker'
 import { NavGrid } from '../world/navGrid'
-import { buildPlaceholderHero } from '../world/placeholderHero'
-import { buildTestMap, MAP_HALF_EXTENT } from '../world/testMap'
+import { buildHeroModel } from '../world/heroModel'
+import { buildTestMap, MAP_HALF_EXTENT, type TestMap } from '../world/testMap'
 import { frameDelta } from './clock'
 import { HERO_RADIUS, HeroController } from './HeroController'
 
@@ -29,7 +31,12 @@ export class Game {
   frame = 0
 
   private lastTime = performance.now()
+  private elapsed = 0
+  private footstepTimer = 0
   private readonly sun: THREE.DirectionalLight
+  private readonly map: TestMap
+  private readonly snow = new Snowfall()
+  private readonly puffs = new Puffs()
   private readonly marker = new MoveMarker()
   private readonly cursor = new THREE.Vector3()
 
@@ -42,9 +49,9 @@ export class Game {
     this.hud = new Hud(container)
 
     this.scene.background = new THREE.Color(0x9fb4c8)
-    this.scene.add(new THREE.HemisphereLight(0xe6eeff, 0x55606e, 1.1))
+    this.scene.add(new THREE.HemisphereLight(0xc4d8ff, 0x4a5566, 0.85))
 
-    this.sun = new THREE.DirectionalLight(0xfff4e0, 2.2)
+    this.sun = new THREE.DirectionalLight(0xffe4bd, 2.7)
     this.sun.castShadow = true
     this.sun.shadow.mapSize.set(1024, 1024)
     const shadowCamera = this.sun.shadow.camera
@@ -58,15 +65,20 @@ export class Game {
     this.scene.add(this.sun, this.sun.target)
 
     const map = buildTestMap()
+    this.map = map
     this.scene.add(map.group)
     const nav = new NavGrid(MAP_HALF_EXTENT, 0.5, map.colliders, HERO_RADIUS)
 
-    const heroObject = buildPlaceholderHero()
-    this.scene.add(heroObject)
-    this.hero = new HeroController(heroObject, nav, map.colliders, MAP_HALF_EXTENT)
-    this.scene.add(this.marker.object)
+    const rig = buildHeroModel()
+    this.scene.add(rig.root)
+    this.hero = new HeroController(rig, nav, map.colliders, MAP_HALF_EXTENT)
 
-    this.view.jumpTo(heroObject.position)
+    for (const effect of [this.marker.object, this.snow.object, this.puffs.object]) {
+      effect.traverse((o) => o.layers.set(EFFECT_LAYER))
+      this.scene.add(effect)
+    }
+
+    this.view.jumpTo(rig.root.position)
     this.resize()
     window.addEventListener('resize', () => this.resize())
   }
@@ -83,6 +95,7 @@ export class Game {
   private tick(now: number): void {
     const dt = frameDelta(this.lastTime, now)
     this.lastTime = now
+    this.elapsed += dt
 
     const cursor = this.cursorOnGround()
     this.hero.update(dt, this.input, cursor)
@@ -90,6 +103,7 @@ export class Game {
     this.marker.update(dt)
 
     const position = this.hero.object.position
+    this.updateEffects(dt, position)
     this.view.follow(position, dt)
     this.followSun(position)
 
@@ -105,6 +119,20 @@ export class Game {
     this.pixel.render(this.scene, this.view.camera)
     this.input.endFrame()
     this.frame += 1
+  }
+
+  private updateEffects(dt: number, position: THREE.Vector3): void {
+    if (this.hero.justDodged) this.puffs.burst(position, 14, 2.2)
+    if (this.hero.path.length > 0 && !this.hero.isDodging) {
+      this.footstepTimer -= dt
+      if (this.footstepTimer <= 0) {
+        this.puffs.burst(position, 2, 0.6)
+        this.footstepTimer = 0.28
+      }
+    }
+    this.puffs.update(dt)
+    this.snow.update(dt, position, this.elapsed)
+    this.map.update(this.elapsed)
   }
 
   /** 마우스 커서가 가리키는 땅 위치 */

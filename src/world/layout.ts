@@ -1,6 +1,6 @@
 import { createRng } from './rng'
 
-export type PropKind = 'pine' | 'rock' | 'mound' | 'ruin'
+export type PropKind = 'pine' | 'rock' | 'mound' | 'ruin' | 'deadTree' | 'bush' | 'runestone' | 'brazier'
 
 export interface PropPlacement {
   kind: PropKind
@@ -26,6 +26,10 @@ const KINDS: { kind: PropKind; weight: number }[] = [
   { kind: 'rock', weight: 3 },
   { kind: 'mound', weight: 2 },
   { kind: 'ruin', weight: 1 },
+  { kind: 'deadTree', weight: 2 },
+  { kind: 'bush', weight: 3 },
+  { kind: 'runestone', weight: 1 },
+  { kind: 'brazier', weight: 1 },
 ]
 
 function pickKind(roll: number): PropKind {

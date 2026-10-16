@@ -2,7 +2,9 @@ import * as THREE from 'three'
 
 import type { Input } from '../input/Input'
 import { type CircleCollider, clampToBounds, type Point2, pushOut } from '../world/colliders'
+import type { HeroRig } from '../world/heroModel'
 import type { NavGrid } from '../world/navGrid'
+import { heightAt } from '../world/terrain'
 
 export const HERO_RADIUS = 0.4
 
@@ -41,6 +43,8 @@ export class HeroController {
   path: Point2[] = []
   dodgeTime = 0
   dodgeCooldownLeft = 0
+  /** 이번 프레임에 회피를 시작했는지 (효과용) */
+  justDodged = false
   /** 이번 프레임에 새로 찍은 이동 목표 (클릭 표시용) */
   lastMoveTarget: Point2 | null = null
 
@@ -48,13 +52,17 @@ export class HeroController {
   private repathTimer = 0
   private walkCycle = 0
 
+  readonly object: THREE.Object3D
+
   constructor(
-    readonly object: THREE.Object3D,
+    readonly rig: HeroRig,
     private readonly nav: NavGrid,
     private readonly colliders: readonly CircleCollider[],
     private readonly halfExtent: number,
     readonly tuning: HeroTuning = DEFAULT_TUNING,
-  ) {}
+  ) {
+    this.object = rig.root
+  }
 
   get isDodging(): boolean {
     return this.dodgeTime > 0
@@ -67,6 +75,7 @@ export class HeroController {
   /** 마우스가 가리키는 땅 위치를 받아 한 프레임을 진행한다. */
   update(dt: number, input: Input, cursor: THREE.Vector3 | null): void {
     this.lastMoveTarget = null
+    this.justDodged = false
     this.dodgeCooldownLeft = Math.max(0, this.dodgeCooldownLeft - dt)
 
     if (input.wasPressed('dodge') && this.dodgeCooldownLeft <= 0 && !this.isDodging) {
@@ -103,6 +112,7 @@ export class HeroController {
     }
     this.dodgeDir.normalize()
     this.dodgeTime = this.tuning.dodgeDuration
+    this.justDodged = true
     this.dodgeCooldownLeft = this.tuning.dodgeCooldown
     this.path = []
     this.object.rotation.y = facingAngle(this.dodgeDir.x, this.dodgeDir.y)
@@ -142,23 +152,39 @@ export class HeroController {
     next = clampToBounds(next, this.halfExtent)
     position.x = next.x
     position.z = next.z
+    position.y = heightAt(next.x, next.z)
   }
 
-  /** 걸을 때 몸을 살짝 튕기고, 구를 때는 몸을 낮춘다. */
+  /** 걸을 때 팔다리를 흔들고 망토를 펄럭이며, 구를 때는 몸을 숙여 웅크린다. */
   private animate(dt: number): void {
-    const body = this.object
+    const { body, leftArm, rightArm, leftLeg, rightLeg, cape } = this.rig
     if (this.isDodging) {
-      body.scale.set(1.15, 0.6, 1.15)
-      body.position.y = 0
+      const t = 1 - this.dodgeTime / this.tuning.dodgeDuration
+      body.rotation.x = Math.sin(t * Math.PI) * 1.1
+      body.position.y = -Math.sin(t * Math.PI) * 0.35
+      leftLeg.rotation.x = rightLeg.rotation.x = -0.9
+      leftArm.rotation.x = rightArm.rotation.x = -1.2
+      cape.rotation.x = 0.9
       return
     }
-    body.scale.set(1, 1, 1)
+    body.rotation.x = 0
     if (this.path.length > 0) {
-      this.walkCycle += dt * 12
-      body.position.y = Math.abs(Math.sin(this.walkCycle)) * 0.08
+      this.walkCycle += dt * 11
+      const swing = Math.sin(this.walkCycle)
+      leftLeg.rotation.x = swing * 0.7
+      rightLeg.rotation.x = -swing * 0.7
+      leftArm.rotation.x = -swing * 0.6
+      rightArm.rotation.x = swing * 0.6
+      body.position.y = Math.abs(Math.cos(this.walkCycle)) * 0.06
+      cape.rotation.x = 0.35 + Math.abs(swing) * 0.15
     } else {
-      this.walkCycle = 0
-      body.position.y = 0
+      // 숨 쉬듯 살짝 오르내린다.
+      this.walkCycle += dt * 2
+      const breath = Math.sin(this.walkCycle)
+      leftLeg.rotation.x = rightLeg.rotation.x = 0
+      leftArm.rotation.x = rightArm.rotation.x = breath * 0.04
+      body.position.y = breath * 0.015
+      cape.rotation.x = 0.08 + breath * 0.03
     }
   }
 }
