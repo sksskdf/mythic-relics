@@ -14,7 +14,7 @@ interface Camp {
 }
 
 /** 다시 나타날 때, 주인공이 이보다 가까이 있으면 기다린다. */
-const RESPAWN_CLEAR_DISTANCE = 16
+const RESPAWN_CLEAR_DISTANCE = 10
 const CAMP_RESPAWN = 25
 const BOSS_RESPAWN = 45
 

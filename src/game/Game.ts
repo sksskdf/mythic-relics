@@ -16,6 +16,7 @@ import { type God, GODS, RELICS, type RelicId } from '../relics/data'
 import type { Giant } from '../enemies/Giant'
 import { DropTable } from '../relics/DropTable'
 import { Pickups } from '../relics/Pickups'
+import { type SaveData, SAVE_VERSION, saveStorage } from '../save/SaveData'
 import { AFFINITY_DAMAGE, ClassProgress, PER_PROMOTION } from '../progress/ClassProgress'
 import type { SkillContext } from '../skills/Skill'
 import { type DamageStyle, DamageNumbers } from '../ui/DamageNumbers'
@@ -35,6 +36,10 @@ import { type LoadoutChange, RelicPowers } from './RelicPowers'
 export interface GameOptions {
   /** 처음부터 끼고 시작할 유물 (점검용) */
   startRelics?: RelicId[]
+  /** 이어 하기: 이 저장 데이터로 시작한다. */
+  load?: SaveData | null
+  /** 진행 상황을 브라우저 저장소에 저장한다. (점검용 실행에서는 끈다) */
+  autosave?: boolean
   /** 저해상도 렌더링의 기준 세로 픽셀 수 */
   renderHeight?: number
   /** 화면 세로 방향에 보이는 범위 (미터) */
@@ -54,6 +59,16 @@ const BASE_HP = 100
 /** 연쇄 번개(천둥군주 Lv2): 옮겨 붙는 적 수와 거리 */
 const CHAIN_JUMPS = 2
 const CHAIN_RANGE = 4.5
+/** 바뀐 것이 있을 때 저장하는 간격 (초) */
+const AUTOSAVE_INTERVAL = 3
+
+/** 플레이 기록: 검증과 수치 조정에 쓴다. */
+export interface PlayEvent {
+  /** 게임 시간 (초) */
+  t: number
+  type: 'relic' | 'manifest' | 'kill' | 'bossKill' | 'death' | 'legendStart' | 'legendFail' | 'promote' | 'hurt'
+  detail?: string
+}
 /** 거인 특효 패시브(천둥의 신 발현): 거인형 적에게 주는 피해 배율 */
 const GIANT_SLAYER = 1.15
 /** 신위 게이지: 스킬로 맞힐 때, 쓰러뜨릴 때 차오르는 양 */
@@ -78,7 +93,10 @@ export class Game {
   readonly progress = new ClassProgress()
   readonly drops = new DropTable()
   readonly legend: UtgardLegend
+  readonly log: PlayEvent[] = []
   frame = 0
+  /** 게임 시간 (초). 타격 순간 멈춘 시간은 빠진다. */
+  time = 0
 
   private lastTime = performance.now()
   private elapsed = 0
@@ -86,6 +104,9 @@ export class Game {
   /** 타격 순간 잠깐 멈추는 시간 (초) */
   private hitstop = 0
   private heroFlash = 0
+  private readonly autosave: boolean
+  private dirty = false
+  private saveTimer = AUTOSAVE_INTERVAL
   private deadTime = 0
   private readonly sun: THREE.DirectionalLight
   private readonly map: TestMap
@@ -163,6 +184,8 @@ export class Game {
         this.decoy = decoy
       },
     }
+    this.autosave = options.autosave ?? false
+    if (options.load) this.restore(options.load)
     for (const id of options.startRelics ?? []) this.onLoadoutChange(this.powers.equip(id), false)
     this.legend = new UtgardLegend(nav.nearestFree(SANCTUARY) ?? SANCTUARY, SANCTUARY.radius)
     this.scene.add(this.legend.object)
@@ -178,6 +201,63 @@ export class Game {
     this.view.jumpTo(rig.root.position)
     this.resize()
     window.addEventListener('resize', () => this.resize())
+    // 창을 닫거나 다른 탭으로 갈 때 바로 저장한다.
+    const flush = () => this.saveNow()
+    window.addEventListener('pagehide', flush)
+    document.addEventListener('visibilitychange', () => document.visibilityState === 'hidden' && flush())
+  }
+
+  /** 지금 상태를 저장 데이터로 만든다. */
+  snapshot(): SaveData {
+    const classes: SaveData['classes'] = {}
+    for (const [god, record] of this.progress.records) classes[god] = { ...record }
+    return {
+      version: SAVE_VERSION,
+      slots: [...this.powers.loadout.slots],
+      bag: [...this.powers.loadout.bag],
+      ground: this.pickups.list.map((p) => ({ id: p.id, x: p.x, z: p.z })),
+      classes,
+      dropMisses: this.drops.misses,
+      divine: this.combat.divine,
+    }
+  }
+
+  /** 바뀐 것이 있으면 저장한다. */
+  saveNow(): void {
+    if (!this.autosave || !this.dirty) return
+    this.dirty = false
+    saveStorage.save(this.snapshot())
+  }
+
+  /** 저장 데이터로 이어 한다. 연출 없이 유물을 끼우고 성장 기록을 되돌린다. */
+  private restore(data: SaveData): void {
+    for (const [god, record] of Object.entries(data.classes) as [God, { level: number; xp: number }][]) {
+      Object.assign(this.progress.record(god), record)
+    }
+    this.applyStats()
+    this.combat.health.reset()
+    data.slots.forEach((id) => id && this.onLoadoutChange(this.powers.equip(id), false))
+    this.powers.loadout.bag.push(...data.bag)
+    for (const item of data.ground) this.pickups.drop(item.id, item.x, item.z)
+    this.drops.misses = data.dropMisses
+    this.combat.divine = data.divine
+  }
+
+  /** 진행 상황이 바뀌었다. 잠시 뒤 저장한다. */
+  private markDirty(): void {
+    this.dirty = true
+  }
+
+  private record(type: PlayEvent['type'], detail?: string): void {
+    this.log.push({ t: Math.round(this.time * 10) / 10, type, detail })
+  }
+
+  /**
+   * 화면을 그리지 않고 게임 시간만 seconds초 진행한다. (자동 플레이 검증용)
+   * 입력은 읽지 않으므로 주인공은 hero.moveTo로만 움직인다.
+   */
+  advance(seconds: number, step = 1 / 30): void {
+    for (let t = 0; t < seconds; t += step) this.update(step, false)
   }
 
   /** 현재 저해상도 렌더 크기 (자동 점검용) */
@@ -192,12 +272,30 @@ export class Game {
   private tick(now: number): void {
     const realDt = frameDelta(this.lastTime, now)
     this.lastTime = now
+    this.update(realDt, true)
+    this.view.follow(this.hero.object.position, realDt)
+    this.numbers.update(realDt, this.container.clientHeight, this.pixel.size, this.view.camera)
+    this.updateHud(realDt)
+    this.pixel.render(this.scene, this.view.camera)
+    this.input.endFrame()
+    this.frame += 1
+
+    this.saveTimer -= realDt
+    if (this.saveTimer <= 0) {
+      this.saveTimer = AUTOSAVE_INTERVAL
+      this.saveNow()
+    }
+  }
+
+  /** 게임 한 프레임. live가 false면 입력을 읽지 않는다. */
+  private update(realDt: number, live: boolean): void {
     // 타격 순간에는 게임 시간이 잠깐 멈춘다. 카메라 흔들림과 숫자는 계속 움직인다.
     const dt = this.hitstop > 0 ? 0 : realDt
     this.hitstop = Math.max(0, this.hitstop - realDt)
     this.elapsed += dt
+    this.time += dt
 
-    const cursor = this.cursorOnGround()
+    const cursor = live ? this.cursorOnGround() : null
     this.hero.update(dt, this.input, cursor)
     if (this.hero.lastMoveTarget) this.marker.show(this.hero.lastMoveTarget.x, this.hero.lastMoveTarget.z)
     this.marker.update(dt)
@@ -215,10 +313,10 @@ export class Game {
 
     const position = this.hero.object.position
     this.updateEffects(dt, position)
-    this.view.follow(position, realDt)
     this.followSun(position)
-    this.numbers.update(realDt, this.container.clientHeight, this.pixel.size, this.view.camera)
+  }
 
+  private updateHud(realDt: number): void {
     const boss = this.encounter.boss
     const manifested = this.powers.manifested
     this.hud.update(
@@ -237,10 +335,6 @@ export class Game {
       },
       realDt,
     )
-
-    this.pixel.render(this.scene, this.view.camera)
-    this.input.endFrame()
-    this.frame += 1
   }
 
   private updateEnemies(dt: number): void {
@@ -256,6 +350,7 @@ export class Game {
         const reduced = this.powers.beforeHeroHit(damage, fromX, fromZ, this.skillContext)
         const dealt = this.combat.takeHit(reduced, fromX, fromZ, knockback)
         if (dealt <= 0) return
+        this.record('hurt', String(Math.round(dealt)))
         this.heroFlash = 1
         this.hitstop = Math.max(this.hitstop, 0.05)
         this.view.shake(0.18)
@@ -282,6 +377,8 @@ export class Game {
   private onGiantKilled(giant: Giant): void {
     const manifested = this.powers.manifested
     if (manifested) this.progress.addXp(manifested, giant.spec.xp)
+    this.record(giant.spec.boss ? 'bossKill' : 'kill', giant.spec.boss)
+    this.markDirty()
     const owned = new Set<RelicId>([
       ...this.powers.loadout.slots.filter((id): id is RelicId => id !== null),
       ...this.powers.loadout.bag,
@@ -301,17 +398,20 @@ export class Game {
         this.hero.arena = arena
       },
       onStart: () => {
+        this.record('legendStart')
         this.hud.showBanner('우트가르드 원정', '#d8c2ff')
         this.view.shake(0.3)
       },
       onWin: () => this.promote('thor'),
-      onFail: () => {},
+      onFail: () => this.record('legendFail'),
     })
   }
 
   /** 승급: 칭호가 바뀌고, 스킬이 강해지고, 친화도와 기본 능력치가 오른다. */
   private promote(god: God): void {
     if (!this.progress.promote(god)) return
+    this.record('promote', this.progress.title(god))
+    this.markDirty()
     this.applyStats()
     this.combat.health.reset()
     const p = this.hero.object.position
@@ -357,6 +457,8 @@ export class Game {
       )
       for (const id of picked) {
         this.hud.showToast(RELICS[id].name)
+        this.record('relic', id)
+        this.markDirty()
         this.onLoadoutChange(this.powers.equip(id), true)
       }
       this.powers.update(dt, ctx)
@@ -407,6 +509,7 @@ export class Game {
   private unequip(slot: number): void {
     const result = this.powers.unequip(slot)
     if (!result) return
+    this.markDirty()
     const p = this.hero.object.position
     this.pickups.drop(result.relic, p.x, p.z, false)
     this.onLoadoutChange(result.change, true)
@@ -419,6 +522,7 @@ export class Game {
     if (before.manifested !== after.manifested && !after.manifested) this.decoy = null
     if (!after.manifested || before.manifested === after.manifested) return
     if (!announce) return
+    this.record('manifest', after.manifested)
     const god = GODS[after.manifested]
     this.hud.showBanner(this.progress.title(god.id), god.color)
     // 하늘에서 번개가 주인공에게 내리꽂히고, 주변 적을 밀어낸다.
@@ -504,7 +608,10 @@ export class Game {
       this.deadTime = 0
       return
     }
-    if (this.deadTime === 0) this.hero.stop()
+    if (this.deadTime === 0) {
+      this.hero.stop()
+      this.record('death')
+    }
     this.hero.locked = true
     this.deadTime += dt
     // 옆으로 쓰러진다.

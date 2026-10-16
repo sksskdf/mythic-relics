@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "smoke": "node scripts/smoke.mjs",
-    "check": "npm run build && npm test && npm run smoke"
+    "check": "npm run build && npm test && npm run smoke",
+    "playtest": "node scripts/playtest.mjs"
   },
   "dependencies": {
     "three": "0.186.1"

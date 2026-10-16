@@ -10,7 +10,7 @@ describe('클래스 성장', () => {
     expect(progress.title('thor')).toBe('천둥의 신')
     progress.addXp('thor', 100)
     expect(progress.promote('thor')).toBe(false)
-    progress.addXp('thor', 999)
+    progress.addXp('thor', 99999)
     expect(progress.record('thor').xp).toBe(XP_TO_PROMOTE[0])
     expect(progress.readyToPromote('thor')).toBe(true)
     expect(progress.promote('thor')).toBe(true)
@@ -20,7 +20,7 @@ describe('클래스 성장', () => {
 
   it('승급하면 그 원형 친화도와 총 승급 횟수가 오른다', () => {
     const progress = new ClassProgress()
-    progress.addXp('thor', 999)
+    progress.addXp('thor', 99999)
     progress.promote('thor')
     expect(progress.affinity('thunder')).toBe(1)
     expect(progress.affinity('trickster')).toBe(0)
@@ -48,6 +48,12 @@ describe('유물 드랍', () => {
     expect(drops.roll(owned)).toBeNull()
   })
 
+  it('이미 유물을 가진 신의 남은 유물이 더 잘 나온다', () => {
+    // 후보: 메긴교르드(토르, 가중치 2), 변신의 가면(로키, 1). 0.6이면 앞쪽 2/3 안이라 메긴교르드
+    const drops = new DropTable(sequence(0, 0.6))
+    expect(drops.roll(new Set<RelicId>(['jarngreipr']))).toBe('megingjord')
+  })
+
   it('안 나올수록 확률이 오르고, 나오면 처음으로 돌아간다 (불운 보정)', () => {
     const drops = new DropTable(sequence(0.5))
     const start = drops.chance
@@ -55,7 +61,7 @@ describe('유물 드랍', () => {
     expect(drops.chance).toBeGreaterThan(start)
     // 확률이 0.5를 넘으면 나온다.
     let got = null
-    for (let i = 0; i < 20 && !got; i++) got = drops.roll(new Set())
+    for (let i = 0; i < 300 && !got; i++) got = drops.roll(new Set())
     expect(got).not.toBeNull()
     expect(drops.chance).toBe(start)
   })

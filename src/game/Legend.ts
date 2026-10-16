@@ -24,7 +24,7 @@ export interface LegendHost {
 }
 
 /** 결계 안에서 차례로 몰려오는 졸개 수 */
-const WAVES = [5, 6]
+const WAVES = [6, 8]
 /** 성소 가운데 이만큼 가까이 서면 전설이 시작된다. */
 const ENTER_RADIUS = 1.6
 

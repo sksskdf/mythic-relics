@@ -1,4 +1,4 @@
-import { RELIC_IDS, type RelicId } from './data'
+import { type God, RELIC_IDS, RELICS, type RelicId } from './data'
 
 /** 보스마다 반드시 떨어뜨리는 유물 (DESIGN.md 9.3) */
 export const BOSS_RELICS: Readonly<Record<string, RelicId>> = { giantKing: 'mjolnir' }
@@ -12,13 +12,14 @@ export interface DropTuning {
   pity: number
 }
 
-export const DEFAULT_DROPS: DropTuning = { base: 0.05, boss: 0.7, pity: 0.035 }
+export const DEFAULT_DROPS: DropTuning = { base: 0.015, boss: 0.7, pity: 0.006 }
 
 /**
  * 유물 드랍 규칙. (DESIGN.md 9.3)
  * - 보스 확정 유물: 아직 없으면 반드시 떨어뜨린다.
  * - 나머지는 무작위. 이미 가진 유물(땅에 떨어진 것 포함)은 나오지 않는다.
  * - 불운 보정: 유물이 안 나올수록 확률이 오르고, 나오면 처음으로 돌아간다.
+ * - 이미 유물을 가진 신의 남은 유물이 더 잘 나온다. (그 신 유물 1개마다 가중치 +1) 발현까지의 운 차이를 줄인다.
  */
 export class DropTable {
   /** 마지막으로 유물이 나온 뒤 놓친 횟수 */
@@ -55,6 +56,14 @@ export class DropTable {
       return null
     }
     this.misses = 0
-    return candidates[Math.floor(this.rng() * candidates.length)]!
+    const owners = new Map<God, number>()
+    for (const id of owned) owners.set(RELICS[id].god, (owners.get(RELICS[id].god) ?? 0) + 1)
+    const weights = candidates.map((id) => 1 + (owners.get(RELICS[id].god) ?? 0))
+    let pick = this.rng() * weights.reduce((a, b) => a + b, 0)
+    for (let i = 0; i < candidates.length; i++) {
+      pick -= weights[i]!
+      if (pick < 0) return candidates[i]!
+    }
+    return candidates.at(-1)!
   }
 }

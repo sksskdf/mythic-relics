@@ -92,6 +92,14 @@ try {
   await page.waitForFunction(() => window.__game.legend.phase === 'wave', null, { timeout: 15000 })
   console.log('승급 전설 확인: 성소에서 시작')
 
+  // 저장 점검: 새로 고침해도 주운 유물을 그대로 끼고 이어 한다.
+  await page.evaluate(() => window.__game.saveNow())
+  await page.reload()
+  await page.waitForFunction(() => (window.__game?.frame ?? 0) > 2, null, { timeout: 15000 })
+  const restored = await page.evaluate(() => window.__game.powers.loadout.has('megingjord'))
+  if (!restored) throw new Error('이어 하기 실패: 저장한 유물이 없습니다.')
+  console.log('저장 확인: 새로 고침 뒤 유물 유지')
+
   mkdirSync('test-results', { recursive: true })
   await page.screenshot({ path: 'test-results/smoke.png' })
   await browser.close()

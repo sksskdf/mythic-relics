@@ -2,7 +2,7 @@ import { type Archetype, type God, GODS } from '../relics/data'
 
 export const MAX_LEVEL = 4
 /** 레벨마다 다음 승급까지 필요한 경험치 (Lv1→2, Lv2→3, Lv3→4) */
-export const XP_TO_PROMOTE: readonly number[] = [150, 400, 900]
+export const XP_TO_PROMOTE: readonly number[] = [1000, 2000, 3500]
 
 export interface ClassRecord {
   level: number

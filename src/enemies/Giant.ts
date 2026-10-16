@@ -54,6 +54,8 @@ export interface GiantSpec {
   aggroRange: number
   /** 제자리에서 이만큼 멀어지면 돌아간다. */
   leashRange: number
+  /** 제자리로 돌아가는 동안 1초에 회복하는 생명력 비율 */
+  returnRegen: number
   /** 한 번에 이 이상 맞으면 휘청이며 하던 공격이 끊긴다. 보스는 끊기지 않는다(슈퍼아머). */
   poise: number
   attacks: readonly AttackSpec[]
@@ -65,10 +67,11 @@ export const GRUNT: GiantSpec = {
   xp: 10,
   voxelSize: 0.1,
   radius: 0.75,
-  hp: 60,
+  hp: 80,
   speed: 3.2,
   aggroRange: 11,
   leashRange: 24,
+  returnRegen: 0.5,
   poise: 20,
   attacks: [
     {
@@ -91,10 +94,12 @@ export const KING: GiantSpec = {
   xp: 120,
   voxelSize: 0.18,
   radius: 1.5,
-  hp: 900,
+  hp: 700,
   speed: 2.6,
   aggroRange: 15,
-  leashRange: 30,
+  // 보스는 멀리까지 쫓아오고, 돌아가도 천천히 회복한다. (물러나 숨을 고르는 사이 다 회복하면 공략이 안 된다)
+  leashRange: 60,
+  returnRegen: 0.02,
   poise: Infinity,
   attacks: [
     {
@@ -139,7 +144,7 @@ export const UTGARD_KING: GiantSpec = {
   boss: 'utgardKing',
   xp: 0,
   tint: 0xd8c2ff,
-  hp: 1100,
+  hp: 2500,
   aggroRange: 30,
   leashRange: 60,
 }
@@ -164,6 +169,11 @@ export interface GiantWorld {
   /** 공격 예고를 붙일 곳 */
   effects: THREE.Object3D
 }
+
+/** 예고 중인 공격 범위. ring의 radius는 안전한 안쪽 반지름 */
+export type GiantDanger =
+  | { kind: 'sector'; x: number; z: number; facing: number; radius: number; halfAngle: number; progress: number }
+  | { kind: 'circle' | 'ring'; x: number; z: number; radius: number; progress: number }
 
 export type GiantState = 'idle' | 'chase' | 'return' | 'windup' | 'recover' | 'stagger' | 'dead'
 
@@ -243,6 +253,25 @@ export class Giant {
     return this.state === 'windup' ? this.attack : null
   }
 
+  /**
+   * 지금 예고 중인 공격 범위. 예고 앞부분(40%)이 지나 범위가 고정된 뒤의 값이 실제로 맞는 곳이다.
+   * 화면의 예고 표시와 같은 정보이며, 자동 플레이 검증에서 피할 곳을 정할 때 쓴다.
+   */
+  get danger(): GiantDanger | null {
+    const attack = this.currentAttack
+    if (!attack) return null
+    const progress = Math.min(1, this.stateTime / attack.windup)
+    const area = attack.area
+    switch (area.kind) {
+      case 'sector':
+        return { kind: 'sector', x: this.x, z: this.z, facing: this.rig.root.rotation.y, radius: area.range, halfAngle: area.halfAngle, progress }
+      case 'circle':
+        return { kind: 'circle', x: this.target.x, z: this.target.y, radius: area.radius, progress }
+      case 'ring':
+        return { kind: 'ring', x: this.x, z: this.z, radius: area.startRadius - area.width / 2, progress }
+    }
+  }
+
   /** 주인공을 바로 쫓게 한다. (포효로 불려 왔을 때) */
   alert(): void {
     if (this.state === 'idle' || this.state === 'return') this.setState('chase')
@@ -296,7 +325,7 @@ export class Giant {
         if (hero.alive && distToHero < this.spec.aggroRange) this.setState('chase')
         break
       case 'return':
-        this.health.heal(this.spec.hp * 0.5 * dt)
+        this.health.heal(this.spec.hp * this.spec.returnRegen * dt)
         if (this.walkTo(this.home, dt, world) < 0.5) this.setState('idle')
         else if (hero.alive && distToHero < this.spec.aggroRange * 0.6) this.setState('chase')
         break
