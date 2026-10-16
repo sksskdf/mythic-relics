@@ -1,0 +1,83 @@
+/* 기본 HUD. 화면 크기가 달라도 아래쪽 가운데에 붙어 있고, 크기는 화면 높이에 맞춰 바뀐다. */
+.hud {
+  --unit: clamp(4px, 0.9vh, 10px);
+  --ink: #e9eef5;
+  --muted: #9aa6b5;
+  --panel: rgba(14, 18, 26, 0.82);
+  --edge: #3a4558;
+  --life: #d2443c;
+  --divine: #e3b341;
+  position: fixed;
+  inset: auto 0 calc(var(--unit) * 2 + env(safe-area-inset-bottom, 0px)) 0;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  color: var(--ink);
+  user-select: none;
+}
+.hud__bar {
+  display: flex;
+  align-items: flex-end;
+  gap: calc(var(--unit) * 2);
+  padding: calc(var(--unit) * 1.5);
+  background: var(--panel);
+  border: 2px solid var(--edge);
+  image-rendering: pixelated;
+}
+.hud__meter {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--unit) * 0.6);
+  width: calc(var(--unit) * 22);
+}
+.hud__meter-track {
+  height: calc(var(--unit) * 2.2);
+  background: #1d2430;
+  border: 2px solid var(--edge);
+}
+.hud__meter-fill {
+  height: 100%;
+  width: 100%;
+  background: var(--life);
+  transition: width 0.1s linear;
+}
+.hud__meter--divine .hud__meter-fill {
+  background: var(--divine);
+}
+.hud__slots {
+  display: flex;
+  gap: var(--unit);
+}
+.hud__slot {
+  position: relative;
+  width: calc(var(--unit) * 6);
+  height: calc(var(--unit) * 6);
+  background: #1d2430;
+  border: 2px solid var(--edge);
+}
+.hud__slot--ultimate {
+  border-color: #6b5622;
+}
+.hud__slot--dodge {
+  width: calc(var(--unit) * 8);
+  margin-right: var(--unit);
+}
+.hud__slot.is-pressed {
+  border-color: var(--ink);
+  background: #2c3647;
+}
+.hud__key {
+  position: absolute;
+  left: calc(var(--unit) * 0.4);
+  bottom: calc(var(--unit) * 0.2);
+  font-size: calc(var(--unit) * 1.6);
+  font-weight: 700;
+  color: var(--muted);
+}
+.hud__dodge {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 0;
+  background: rgba(0, 0, 0, 0.55);
+}

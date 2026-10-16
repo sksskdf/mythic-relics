@@ -1,7 +1,16 @@
 import * as THREE from 'three'
 
 import { toonMaterial } from '../render/toon'
+import type { CircleCollider } from './colliders'
 import { generateLayout, type PropPlacement } from './layout'
+
+/** 플레이어가 움직일 수 있는 범위 (맵 한 변의 절반, 미터) */
+export const MAP_HALF_EXTENT = 38
+
+export interface TestMap {
+  group: THREE.Group
+  colliders: CircleCollider[]
+}
 
 const PALETTE = {
   snow: 0xdfe7ee,
@@ -78,9 +87,32 @@ const BUILDERS: Record<PropPlacement['kind'], () => THREE.Object3D> = {
   ruin: makeRuin,
 }
 
+/** 소품 하나가 차지하는 충돌 영역. 눈 둔덕은 밟고 지나갈 수 있어 충돌이 없다. */
+export function collidersFor(p: PropPlacement): CircleCollider[] {
+  switch (p.kind) {
+    case 'pine':
+      return [{ x: p.x, z: p.z, radius: 0.75 * p.size }]
+    case 'rock':
+      return [{ x: p.x, z: p.z, radius: 0.85 * p.size }]
+    case 'ruin': {
+      // 기둥 세 개가 소품의 x축 방향으로 늘어서 있다. (rotation.y 만큼 돌아간 상태)
+      const ax = Math.cos(p.rotation)
+      const az = -Math.sin(p.rotation)
+      return [-1.1, 0, 1.1].map((offset) => ({
+        x: p.x + ax * offset * p.size,
+        z: p.z + az * offset * p.size,
+        radius: 0.45 * p.size,
+      }))
+    }
+    case 'mound':
+      return []
+  }
+}
+
 /** 북유럽 설원 느낌의 테스트 맵을 만든다. */
-export function buildTestMap(seed = 7): THREE.Group {
+export function buildTestMap(seed = 7): TestMap {
   const map = new THREE.Group()
+  const colliders: CircleCollider[] = []
 
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), toonMaterial(PALETTE.snow))
   ground.rotation.x = -Math.PI / 2
@@ -101,6 +133,7 @@ export function buildTestMap(seed = 7): THREE.Group {
     prop.scale.multiplyScalar(placement.size)
     prop.rotation.y = placement.rotation
     map.add(prop)
+    colliders.push(...collidersFor(placement))
   }
-  return map
+  return { group: map, colliders }
 }
