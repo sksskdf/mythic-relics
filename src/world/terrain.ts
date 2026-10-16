@@ -1,6 +1,8 @@
 import * as THREE from 'three'
 
 import { toonMaterial } from '../render/toon'
+import { buildVoxelGeometry, voxelMaterial } from '../voxel/mesher'
+import { VoxelGrid } from '../voxel/VoxelGrid'
 import { createRng } from './rng'
 
 /** 0~1 사이의 부드러운 값 노이즈 (사인파 합성). 같은 좌표면 항상 같은 값이 나온다. */
@@ -111,21 +113,24 @@ export function buildScatter(halfExtent: number, seed = 23): THREE.Group {
   const rng = createRng(seed)
   const dummy = new THREE.Object3D()
 
-  const tuftGeometry = new THREE.ConeGeometry(0.06, 0.45, 3)
-  tuftGeometry.translate(0, 0.22, 0)
-  const tufts = new THREE.InstancedMesh(tuftGeometry, toonMaterial(0x7a7448), 900)
+  // 마른 풀 한 포기: 길이가 다른 잎 세 가닥 (칸 0.07m)
+  const tuftGrid = new VoxelGrid(3, 6, 3)
+  tuftGrid.box(0, 0, 0, 0, 3, 0, 0x7a7448)
+  tuftGrid.box(1, 0, 1, 1, 5, 1, 0x8c8452)
+  tuftGrid.box(2, 0, 2, 2, 2, 2, 0x6a6440)
+  const tufts = new THREE.InstancedMesh(buildVoxelGeometry(tuftGrid, { voxelSize: 0.07 }), voxelMaterial(), 300)
   let t = 0
   while (t < tufts.count) {
     // 풀은 무리 지어 난다.
     const cx = (rng() * 2 - 1) * halfExtent
     const cz = (rng() * 2 - 1) * halfExtent
-    const blades = 3 + Math.floor(rng() * 4)
+    const blades = 2 + Math.floor(rng() * 3)
     for (let b = 0; b < blades && t < tufts.count; b++, t++) {
       const x = cx + (rng() - 0.5) * 0.5
       const z = cz + (rng() - 0.5) * 0.5
       dummy.position.set(x, heightAt(x, z) - 0.05, z)
-      dummy.rotation.set((rng() - 0.5) * 0.6, rng() * Math.PI, (rng() - 0.5) * 0.6)
-      dummy.scale.setScalar(0.7 + rng() * 0.8)
+      dummy.rotation.set(0, Math.floor(rng() * 4) * (Math.PI / 2), 0)
+      dummy.scale.setScalar(0.8 + rng() * 0.5)
       dummy.updateMatrix()
       tufts.setMatrixAt(t, dummy.matrix)
     }
@@ -133,13 +138,16 @@ export function buildScatter(halfExtent: number, seed = 23): THREE.Group {
   tufts.castShadow = true
   group.add(tufts)
 
-  const pebbles = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(0.12, 0), toonMaterial(0x8a909a), 260)
+  const pebbleGrid = new VoxelGrid(2, 1, 2)
+  pebbleGrid.box(0, 0, 0, 1, 0, 1, 0x8a909a)
+  pebbleGrid.set(1, 0, 1, 0x6f7681)
+  const pebbles = new THREE.InstancedMesh(buildVoxelGeometry(pebbleGrid, { voxelSize: 0.1 }), voxelMaterial(), 260)
   for (let i = 0; i < pebbles.count; i++) {
     const x = (rng() * 2 - 1) * halfExtent
     const z = (rng() * 2 - 1) * halfExtent
-    dummy.position.set(x, heightAt(x, z), z)
-    dummy.rotation.set(rng() * 3, rng() * 3, rng() * 3)
-    dummy.scale.set(0.8 + rng(), 0.5 + rng() * 0.4, 0.8 + rng())
+    dummy.position.set(x, heightAt(x, z) - 0.03, z)
+    dummy.rotation.set(0, Math.floor(rng() * 4) * (Math.PI / 2), 0)
+    dummy.scale.set(0.8 + rng() * 0.6, 1, 0.8 + rng() * 0.6)
     dummy.updateMatrix()
     pebbles.setMatrixAt(i, dummy.matrix)
   }
