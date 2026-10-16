@@ -13,5 +13,7 @@
 ## 개발
 - 기술: Three.js + TypeScript + Vite
 - `npm install`: 의존성 설치
-- `npm run dev`: 개발 서버 실행
+- `pnpm dev` (또는 `npm run dev`): 개발 서버를 띄우고 **Electron 창**으로 실행. 코드를 고치면 창 안의 게임이 바로 다시 불린다. F12는 개발자 도구
+- `pnpm dev:web`: 브라우저로 실행 (개발 서버만)
+- `pnpm app`: 빌드한 뒤 Electron으로 실행
 - `npm run check`: 타입 검사, 빌드, 단위 테스트, 브라우저 스모크 테스트를 한 번에 실행

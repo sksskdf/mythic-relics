@@ -4,22 +4,31 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "node scripts/dev-electron.mjs",
+    "dev:web": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "smoke": "node scripts/smoke.mjs",
     "check": "npm run build && npm test && npm run smoke",
-    "playtest": "node scripts/playtest.mjs"
+    "playtest": "node scripts/playtest.mjs",
+    "app": "vite build && electron ."
   },
   "dependencies": {
     "three": "0.186.1"
   },
   "devDependencies": {
     "@types/three": "0.186.0",
+    "electron": "44.5.0",
     "playwright-core": "1.56.1",
     "typescript": "6.0.3",
     "vite": "8.3.1",
     "vitest": "5.0.3"
+  },
+  "main": "electron/main.cjs",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "electron"
+    ]
   }
 }
