@@ -27,7 +27,8 @@ async function waitForServer() {
   throw new Error('미리보기 서버가 뜨지 않았습니다.')
 }
 
-const fmt = (t) => (t === undefined ? '-' : `${Math.floor(t / 60)}:${String(Math.round(t % 60)).padStart(2, '0')}`)
+// 초를 먼저 반올림해야 7:60 같은 표시가 나오지 않는다.
+const fmt = (t) => (t === undefined ? '-' : `${Math.floor(Math.round(t) / 60)}:${String(Math.round(t) % 60).padStart(2, '0')}`)
 
 const results = []
 try {
