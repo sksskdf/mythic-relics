@@ -7,7 +7,7 @@ import { Slashes } from '../fx/Slashes'
 import { Snowfall } from '../fx/Snowfall'
 import { Sparks } from '../fx/Sparks'
 import { Input } from '../input/Input'
-import { screenToGround } from '../render/picking'
+import { screenRay, screenToGround } from '../render/picking'
 import { EFFECT_LAYER, PixelRenderer } from '../render/PixelRenderer'
 import { QuarterViewCamera } from '../render/QuarterViewCamera'
 import { TARGET_RENDER_HEIGHT } from '../render/resolution'
@@ -30,6 +30,7 @@ import { frameDelta } from './clock'
 import { Encounter, TEST_ENCOUNTER } from './Encounter'
 import { UtgardLegend } from './Legend'
 import { HERO_RADIUS, HeroController } from './HeroController'
+import { HeroOrders } from './HeroOrders'
 import { type CombatTarget, type HitReport, PlayerCombat } from './PlayerCombat'
 import { type LoadoutChange, RelicPowers } from './RelicPowers'
 
@@ -59,6 +60,9 @@ const BASE_HP = 100
 /** 연쇄 번개(천둥군주 Lv2): 옮겨 붙는 적 수와 거리 */
 const CHAIN_JUMPS = 2
 const CHAIN_RANGE = 4.5
+/** 적을 쓰러뜨렸을 때 되찾는 생명력 */
+const HEAL_PER_KILL = 4
+const HEAL_PER_BOSS = 30
 /** 바뀐 것이 있을 때 저장하는 간격 (초) */
 const AUTOSAVE_INTERVAL = 3
 
@@ -86,6 +90,7 @@ export class Game {
   readonly input: Input
   readonly hero: HeroController
   readonly combat: PlayerCombat
+  readonly orders: HeroOrders
   readonly encounter: Encounter
   readonly hud: Hud
   readonly powers: RelicPowers
@@ -120,6 +125,11 @@ export class Game {
   private readonly skillContext: SkillContext
   private readonly effects = new THREE.Group()
   private readonly marker = new MoveMarker()
+  /** 공격 대상 발밑의 붉은 고리 */
+  private readonly targetRing = new THREE.Mesh(
+    new THREE.RingGeometry(0.85, 1, 32),
+    new THREE.MeshBasicMaterial({ color: 0xff6a4a, transparent: true, opacity: 0.8, depthWrite: false }),
+  )
   private readonly numbers: DamageNumbers
   private readonly cursor = new THREE.Vector3()
   private readonly scratch = new THREE.Vector3()
@@ -169,6 +179,13 @@ export class Game {
     )
     this.hero.teleport(HERO_SPAWN.x, HERO_SPAWN.z)
     this.combat = new PlayerCombat(this.hero)
+    this.orders = new HeroOrders(this.hero, this.combat)
+    this.hero.obstacles = () => this.encounter.colliders()
+    this.targetRing.rotation.x = -Math.PI / 2
+    this.targetRing.layers.set(EFFECT_LAYER)
+    this.targetRing.renderOrder = 12
+    this.targetRing.visible = false
+    this.scene.add(this.targetRing)
     this.powers = new RelicPowers(this.effects)
     this.skillContext = {
       hero: this.hero,
@@ -295,10 +312,14 @@ export class Game {
     this.elapsed += dt
     this.time += dt
 
-    const cursor = live ? this.cursorOnGround() : null
-    this.hero.update(dt, this.input, cursor)
-    if (this.hero.lastMoveTarget) this.marker.show(this.hero.lastMoveTarget.x, this.hero.lastMoveTarget.z)
+    if (live) this.readInput()
+    this.orders.update(this.encounter.alive)
+    this.hero.update(dt)
+    const moveTarget = this.orders.lastMoveTarget
+    if (moveTarget) this.marker.show(moveTarget.x, moveTarget.z)
+    this.orders.lastMoveTarget = null
     this.marker.update(dt)
+    this.updateTargetRing()
 
     this.combat.update(dt, this.encounter.alive, {
       onSwing: (swing, strong) => {
@@ -378,6 +399,8 @@ export class Game {
     const manifested = this.powers.manifested
     if (manifested) this.progress.addXp(manifested, giant.spec.xp)
     this.record(giant.spec.boss ? 'bossKill' : 'kill', giant.spec.boss)
+    // 적을 쓰러뜨리면 생명력을 조금 되찾는다. 몰려오는 무리를 쓸어 내며 버틸 수 있게 한다.
+    if (this.combat.alive) this.combat.health.heal(giant.spec.boss ? HEAL_PER_BOSS : HEAL_PER_KILL)
     this.markDirty()
     const owned = new Set<RelicId>([
       ...this.powers.loadout.slots.filter((id): id is RelicId => id !== null),
@@ -609,6 +632,7 @@ export class Game {
       return
     }
     if (this.deadTime === 0) {
+      this.orders.clear()
       this.hero.stop()
       this.record('death')
     }
@@ -646,6 +670,46 @@ export class Game {
   }
 
   /** 마우스 커서가 가리키는 땅 위치 */
+  /** 클릭을 지시로 바꾼다. 커서 아래에 적이 있으면 공격, 없으면 이동 */
+  private readInput(): void {
+    const cursor = this.cursorOnGround()
+    const ground = cursor ? { x: cursor.x, z: cursor.z } : null
+    if (this.input.wasPressed('move')) this.orders.press(ground, this.enemyUnderCursor())
+    else if (this.input.isDown('move')) this.orders.hold(ground)
+    else this.orders.release()
+  }
+
+  /** 커서 아래의 적. 거인 몸통(세로 기둥)과 광선이 가장 가까운 적을 고른다. */
+  private enemyUnderCursor(): Giant | null {
+    const { pointer } = this.input
+    const ray = screenRay(pointer.x, pointer.y, this.container.clientHeight, this.pixel.size, this.view.camera)
+    const bottom = new THREE.Vector3()
+    const top = new THREE.Vector3()
+    let best: Giant | null = null
+    let bestDist = Infinity
+    for (const giant of this.encounter.alive) {
+      const y = heightAt(giant.x, giant.z)
+      bottom.set(giant.x, y, giant.z)
+      top.set(giant.x, y + giant.radius * 3.6, giant.z)
+      // 정확히 지나가면 부동소수 오차로 아주 작은 음수가 나올 수 있어 0으로 막는다.
+      const dist = Math.sqrt(Math.max(0, ray.distanceSqToSegment(bottom, top)))
+      if (dist < giant.radius * 1.15 && dist < bestDist) {
+        best = giant
+        bestDist = dist
+      }
+    }
+    return best
+  }
+
+  /** 공격 대상 발밑에 붉은 고리를 띄운다. */
+  private updateTargetRing(): void {
+    const target = this.orders.attackTarget
+    this.targetRing.visible = !!target?.alive
+    if (!target?.alive) return
+    this.targetRing.position.set(target.x, heightAt(target.x, target.z) + 0.08, target.z)
+    this.targetRing.scale.setScalar(target.radius + 0.2)
+  }
+
   private cursorOnGround(): THREE.Vector3 | null {
     const { pointer } = this.input
     return screenToGround(pointer.x, pointer.y, this.container.clientHeight, this.pixel.size, this.view.camera, this.cursor)

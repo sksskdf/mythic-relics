@@ -1,6 +1,5 @@
 import * as THREE from 'three'
 
-import type { Input } from '../input/Input'
 import { type CircleCollider, clampToBounds, type Point2, pushOut } from '../world/colliders'
 import type { HeroRig } from '../world/heroModel'
 import type { NavGrid } from '../world/navGrid'
@@ -41,10 +40,10 @@ export function facingAngle(dx: number, dz: number): number {
  */
 export class HeroController {
   path: Point2[] = []
-  /** 이번 프레임에 새로 찍은 이동 목표 (클릭 표시용) */
-  lastMoveTarget: Point2 | null = null
   /** 쓰러졌을 때 등, 이동을 막는다. */
   locked = false
+  /** 길을 막고 선 거인처럼 움직이는 장애물. 부딪혀 제자리걸음하지 않게 옆으로 비켜 간다. */
+  obstacles: () => readonly CircleCollider[] = () => []
   /** 움직일 수 있는 원형 범위 (승급 전설의 결계 안 등). 없으면 맵 전체 */
   arena: { x: number; z: number; radius: number } | null = null
 
@@ -71,17 +70,14 @@ export class HeroController {
     return this.object.rotation.y
   }
 
-  /** 마우스가 가리키는 땅 위치를 받아 한 프레임을 진행한다. */
-  update(dt: number, input: Input, cursor: THREE.Vector3 | null): void {
-    this.lastMoveTarget = null
+  /** 다시 길을 찾을 때가 되었는가 (누르고 있을 때, 대상을 쫓을 때) */
+  get canRepath(): boolean {
+    return this.repathTimer <= 0
+  }
 
-    if (!this.locked && cursor) {
-      this.repathTimer -= dt
-      if (input.wasPressed('move') || (input.isDown('move') && this.repathTimer <= 0)) {
-        this.moveTo({ x: cursor.x, z: cursor.z })
-        if (input.wasPressed('move')) this.lastMoveTarget = { x: cursor.x, z: cursor.z }
-      }
-    }
+  /** 한 프레임을 진행한다. 어디로 갈지는 HeroOrders가 moveTo로 정한다. */
+  update(dt: number): void {
+    this.repathTimer -= dt
 
     if (this.knock.lengthSq() > 1e-4) {
       this.translate(this.knock.x * dt, this.knock.y * dt)
@@ -131,12 +127,39 @@ export class HeroController {
         this.path.shift()
         continue
       }
-      this.object.rotation.y = facingAngle(dx, dz)
       const step = Math.min(dist, remaining)
-      this.translate((dx / dist) * step, (dz / dist) * step)
+      const [sx, sz] = this.steer(dx / dist, dz / dist)
+      this.object.rotation.y = facingAngle(sx, sz)
+      this.translate(sx * step, sz * step)
       remaining -= step
       if (step >= dist) this.path.shift()
     }
+  }
+
+  /**
+   * 바로 앞을 막은 장애물이 있으면 옆으로 비껴 가는 방향을 돌려준다.
+   * 길찾기는 나무·바위만 알고 움직이는 거인은 모르므로, 여기서 피해 간다.
+   */
+  private steer(dirX: number, dirZ: number): [number, number] {
+    const p = this.object.position
+    let sx = dirX
+    let sz = dirZ
+    for (const c of this.obstacles()) {
+      const ox = c.x - p.x
+      const oz = c.z - p.z
+      const ahead = ox * dirX + oz * dirZ
+      const reach = c.radius + HERO_RADIUS
+      if (ahead <= 0 || ahead > reach + 1.2) continue
+      // 진행 방향 기준으로 장애물이 왼쪽(+)인지 오른쪽(-)인지
+      const side = ox * dirZ - oz * dirX
+      if (Math.abs(side) >= reach + 0.1) continue
+      const away = side >= 0 ? -1 : 1
+      const weight = 1 - Math.abs(side) / (reach + 0.1)
+      sx += dirZ * away * weight * 1.5
+      sz += -dirX * away * weight * 1.5
+    }
+    const len = Math.hypot(sx, sz) || 1
+    return [sx / len, sz / len]
   }
 
   private translate(dx: number, dz: number): void {

@@ -67,6 +67,24 @@ try {
   await page.waitForFunction(() => window.__dummy.health.hp < window.__dummy.health.max, null, { timeout: 15000 })
   console.log('자동 공격 확인: 졸개 생명력', await page.evaluate(() => window.__dummy.health.hp))
 
+  // 클릭 점검: 몬스터를 누르면 그 몬스터를 공격하라는 지시가 된다.
+  const screen = await page.evaluate(() => {
+    const g = window.__game
+    const p = g.hero.object.position
+    window.__clickTarget = g.encounter.spawnGrunt(p.x - 4, p.z + 3)
+    // 화면 좌표를 구한 뒤 클릭하기 전에 움직이지 않게 붙잡아 둔다.
+    window.__clickTarget.update = () => {}
+    const point = window.__clickTarget.object.position.clone()
+    point.y += 1.2
+    point.project(g.view.camera)
+    const size = g.renderSize
+    const height = document.getElementById('app').clientHeight
+    return { x: ((point.x + 1) / 2) * size.width * size.scale, y: height - ((point.y + 1) / 2) * size.height * size.scale }
+  })
+  await page.mouse.click(screen.x, screen.y)
+  await page.waitForFunction(() => window.__game.orders.attackTarget === window.__clickTarget, null, { timeout: 10000 })
+  console.log('클릭 확인: 몬스터를 누르면 공격 지시')
+
   // 유물 점검: 떨어진 유물 위에 서면 저절로 줍고, 토르 유물 3개가 모이면 발현된다.
   await page.evaluate(() => {
     const g = window.__game

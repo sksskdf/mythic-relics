@@ -52,3 +52,11 @@ export function worldToScreen(
     y: screenHeight - ((projected.y + 1) / 2) * spanHeight,
   }
 }
+
+/** 화면 좌표에서 카메라가 쏘는 광선 */
+export function screenRay(x: number, y: number, screenHeight: number, size: RenderSize, camera: THREE.Camera): THREE.Ray {
+  const ndc = screenToNdc(x, y, screenHeight, size)
+  ndcVector.set(ndc.x, ndc.y)
+  raycaster.setFromCamera(ndcVector, camera)
+  return raycaster.ray.clone()
+}

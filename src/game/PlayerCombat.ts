@@ -32,8 +32,8 @@ const DIVINE_PER_HIT = 0.015
 /** 맞은 뒤 다시 맞지 않는 시간 (초) */
 const INVULNERABLE_AFTER_HIT = 0.3
 /** 마지막으로 맞은 뒤 이 시간이 지나면 생명력이 차오른다. */
-const REGEN_DELAY = 4
-const REGEN_PER_SECOND = 8
+const REGEN_DELAY = 3
+const REGEN_PER_SECOND = 12
 
 /**
  * 주인공의 자동 전투. 조작 최소화 원칙에 따라 공격 버튼이 없다.
@@ -46,6 +46,8 @@ export class PlayerCombat {
   /** 신위 게이지 0~1. 궁극기는 M4에서 붙는다. */
   divine = 0
   target: CombatTarget | null = null
+  /** 공격하라고 지정한 적. 있으면 가까운 다른 적 대신 이 적만 친다. */
+  focus: CombatTarget | null = null
   /** 기본 공격 피해 배율 (발현 패시브 등) */
   damageScale = 1
 
@@ -61,6 +63,11 @@ export class PlayerCombat {
   /** 지금 맞을 수 있는가 (쓰러졌거나 무적 시간이면 아니다) */
   get canBeHit(): boolean {
     return this.alive && this.invulnerable <= 0
+  }
+
+  /** 싸우는 중인가: 휘두르는 중이거나, 사거리 안에 칠 적이 있다. */
+  get engaged(): boolean {
+    return this.combo.swinging || this.target !== null
   }
 
   /** 자동 공격을 시작하는 거리: 첫 타 사거리 + 적 몸 반지름 */
@@ -80,7 +87,9 @@ export class PlayerCombat {
     }
 
     const position = this.hero.object.position
-    if (!this.target?.alive || !this.inReach(this.target)) this.target = this.nearest(enemies)
+    if (this.focus && !this.focus.alive) this.focus = null
+    if (this.focus) this.target = this.inReach(this.focus) ? this.focus : null
+    else if (!this.target?.alive || !this.inReach(this.target)) this.target = this.nearest(enemies)
     if (this.target) this.hero.face(angleTo(position.x, position.z, this.target.x, this.target.z))
 
     for (const event of this.combo.update(dt, this.target !== null)) {
