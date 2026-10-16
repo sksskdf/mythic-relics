@@ -232,3 +232,7 @@ button.hud__slot--empty {
   from { filter: brightness(0.9); }
   to { filter: brightness(1.6); }
 }
+
+.hud.is-hidden {
+  display: none;
+}

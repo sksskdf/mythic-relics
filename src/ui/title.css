@@ -1,0 +1,109 @@
+/* 시작 화면. 게임 장면 위에 어둡게 깔고, 제목과 단추만 둔다. */
+.title {
+  --unit: clamp(4px, 0.9vh, 10px);
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--unit) * 7);
+  padding: 16px;
+  background:
+    radial-gradient(ellipse at center, rgba(13, 15, 20, 0.15) 0%, rgba(13, 15, 20, 0.75) 75%),
+    linear-gradient(to bottom, rgba(13, 15, 20, 0.35), rgba(13, 15, 20, 0.6));
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  color: #e9eef5;
+  text-align: center;
+  user-select: none;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+.title.is-shown {
+  opacity: 1;
+}
+.title.is-leaving {
+  opacity: 0;
+  pointer-events: none;
+}
+.title__logo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--unit) * 1.5);
+}
+.title__rune {
+  font-size: calc(var(--unit) * 7);
+  line-height: 1;
+  color: #7fd4ff;
+  text-shadow: 0 0 calc(var(--unit) * 2) #5fc4ff;
+  animation: title-rune 3s ease-in-out infinite;
+}
+@keyframes title-rune {
+  0%, 100% { opacity: 0.65; }
+  50% { opacity: 1; }
+}
+.title__name {
+  margin: 0;
+  font-size: clamp(36px, calc(var(--unit) * 11), 112px);
+  line-height: 0.95;
+  letter-spacing: 0.08em;
+  font-weight: 900;
+  color: #f1e3c4;
+  /* 픽셀 그림처럼 계단식으로 쌓은 그림자 */
+  text-shadow:
+    4px 4px 0 #8a5a2b,
+    8px 8px 0 #3b2414,
+    0 0 calc(var(--unit) * 4) rgba(0, 0, 0, 0.6);
+}
+.title__tag {
+  margin: 0;
+  font-size: clamp(13px, calc(var(--unit) * 2.2), 22px);
+  letter-spacing: 0.3em;
+  color: #9fb4c8;
+}
+.title__menu {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: calc(var(--unit) * 1.5);
+  min-width: min(80vw, calc(var(--unit) * 36));
+}
+.title__button {
+  padding: calc(var(--unit) * 1.6) calc(var(--unit) * 4);
+  font: inherit;
+  font-size: clamp(15px, calc(var(--unit) * 2.4), 24px);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #e9eef5;
+  background: rgba(14, 18, 26, 0.85);
+  border: 2px solid #3a4558;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, transform 0.1s;
+}
+.title__button:hover,
+.title__button:focus-visible {
+  border-color: #7fd4ff;
+  background: rgba(30, 40, 58, 0.95);
+  outline: none;
+}
+.title__button:active {
+  transform: translateY(2px);
+}
+.title__button--primary {
+  border-color: #6b5622;
+  color: #f1e3c4;
+}
+.title__button--new.is-confirm {
+  border-color: #d2443c;
+  color: #ffb3ad;
+}
+.title__build {
+  position: absolute;
+  bottom: calc(var(--unit) * 2);
+  right: calc(var(--unit) * 3);
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.3em;
+  color: #6c7a8c;
+}

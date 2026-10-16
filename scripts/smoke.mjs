@@ -37,6 +37,13 @@ try {
   await page.waitForFunction(() => (window.__game?.frame ?? 0) > 10, null, { timeout: 15000 })
   const frames = await page.evaluate(() => window.__game.frame)
 
+  // 시작 화면: 저장이 없으면 [시작] 하나만 있고, 누르면 플레이가 시작된다.
+  const titleButtons = await page.locator('.title__button').allTextContents()
+  if (titleButtons.join() !== '시작') throw new Error(`시작 화면 단추가 이상합니다: ${titleButtons}`)
+  await page.click('.title__button--primary')
+  await page.waitForFunction(() => window.__game.playing, null, { timeout: 5000 })
+  console.log('시작 화면 확인: [시작]으로 플레이 시작')
+
   // 조작 점검: 우클릭한 곳으로 걸어가는지 확인한다.
   const heroPos = () => page.evaluate(() => {
     const p = window.__game.hero.object.position
@@ -114,9 +121,12 @@ try {
   await page.evaluate(() => window.__game.saveNow())
   await page.reload()
   await page.waitForFunction(() => (window.__game?.frame ?? 0) > 2, null, { timeout: 15000 })
+  // 저장이 있으면 시작 화면에 [이어 하기]가 나온다.
+  await page.click('.title__button--primary')
+  await page.waitForFunction(() => window.__game.playing, null, { timeout: 5000 })
   const restored = await page.evaluate(() => window.__game.powers.loadout.has('megingjord'))
   if (!restored) throw new Error('이어 하기 실패: 저장한 유물이 없습니다.')
-  console.log('저장 확인: 새로 고침 뒤 유물 유지')
+  console.log('저장 확인: 새로 고침 뒤 [이어 하기]로 유물 유지')
 
   mkdirSync('test-results', { recursive: true })
   await page.screenshot({ path: 'test-results/smoke.png' })

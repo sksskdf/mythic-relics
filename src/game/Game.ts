@@ -41,6 +41,8 @@ export interface GameOptions {
   load?: SaveData | null
   /** 진행 상황을 브라우저 저장소에 저장한다. (점검용 실행에서는 끈다) */
   autosave?: boolean
+  /** 시작 화면부터 띄운다. begin()을 부르기 전까지는 배경만 움직인다. */
+  title?: boolean
   /** 저해상도 렌더링의 기준 세로 픽셀 수 */
   renderHeight?: number
   /** 화면 세로 방향에 보이는 범위 (미터) */
@@ -102,6 +104,8 @@ export class Game {
   frame = 0
   /** 게임 시간 (초). 타격 순간 멈춘 시간은 빠진다. */
   time = 0
+  /** 시작 화면이 떠 있는 동안은 false. 배경만 움직이고 입력과 전투는 멈춘다. */
+  playing = true
 
   private lastTime = performance.now()
   private elapsed = 0
@@ -202,6 +206,10 @@ export class Game {
       },
     }
     this.autosave = options.autosave ?? false
+    if (options.title) {
+      this.playing = false
+      this.hud.root.classList.add('is-hidden')
+    }
     if (options.load) this.restore(options.load)
     for (const id of options.startRelics ?? []) this.onLoadoutChange(this.powers.equip(id), false)
     this.legend = new UtgardLegend(nav.nearestFree(SANCTUARY) ?? SANCTUARY, SANCTUARY.radius)
@@ -286,9 +294,21 @@ export class Game {
     this.pixel.renderer.setAnimationLoop((now) => this.tick(now))
   }
 
+  /** 시작 화면을 닫고 플레이를 시작한다. */
+  begin(): void {
+    if (this.playing) return
+    this.playing = true
+    this.hud.root.classList.remove('is-hidden')
+    this.input.endFrame()
+  }
+
   private tick(now: number): void {
     const realDt = frameDelta(this.lastTime, now)
     this.lastTime = now
+    if (!this.playing) {
+      this.updateBackdrop(realDt)
+      return
+    }
     this.update(realDt, true)
     this.view.follow(this.hero.object.position, realDt)
     this.numbers.update(realDt, this.container.clientHeight, this.pixel.size, this.view.camera)
@@ -302,6 +322,20 @@ export class Game {
       this.saveTimer = AUTOSAVE_INTERVAL
       this.saveNow()
     }
+  }
+
+  /** 시작 화면 뒤의 배경: 눈이 내리고 불꽃이 일렁이며, 주인공은 숨만 쉰다. */
+  private updateBackdrop(dt: number): void {
+    this.elapsed += dt
+    this.hero.update(dt)
+    const position = this.hero.object.position
+    this.snow.update(dt, position, this.elapsed)
+    this.map.update(this.elapsed)
+    this.view.follow(position, dt)
+    this.followSun(position)
+    this.pixel.render(this.scene, this.view.camera)
+    this.input.endFrame()
+    this.frame += 1
   }
 
   /** 게임 한 프레임. live가 false면 입력을 읽지 않는다. */
