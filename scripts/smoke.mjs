@@ -67,6 +67,22 @@ try {
   await page.waitForFunction(() => window.__dummy.health.hp < window.__dummy.health.max, null, { timeout: 15000 })
   console.log('자동 공격 확인: 졸개 생명력', await page.evaluate(() => window.__dummy.health.hp))
 
+  // 유물 점검: 땅에 놓인 유물 위로 옮기면 저절로 줍고, 토르 유물 3개가 모이면 발현된다.
+  await page.evaluate(() => {
+    const g = window.__game
+    const pickup = g.pickups.list.find((p) => p.id === 'megingjord')
+    g.hero.teleport(pickup.x, pickup.z)
+  })
+  await page.waitForFunction(() => window.__game.powers.loadout.has('megingjord'), null, { timeout: 15000 })
+  const manifested = await page.evaluate(() => {
+    const g = window.__game
+    g.powers.equip('jarngreipr')
+    g.powers.equip('mjolnir')
+    return g.powers.manifested
+  })
+  if (manifested !== 'thor') throw new Error(`발현 실패: ${manifested}`)
+  console.log('유물 확인: 메긴교르드 줍기, 토르 유물 3개로 발현')
+
   mkdirSync('test-results', { recursive: true })
   await page.screenshot({ path: 'test-results/smoke.png' })
   await browser.close()

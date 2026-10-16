@@ -53,8 +53,29 @@
   position: relative;
   width: calc(var(--unit) * 6);
   height: calc(var(--unit) * 6);
+  padding: 0;
   background: #1d2430;
   border: 2px solid var(--edge);
+}
+button.hud__slot {
+  pointer-events: auto;
+  cursor: pointer;
+}
+button.hud__slot--empty {
+  pointer-events: none;
+}
+.hud__icon {
+  position: absolute;
+  inset: 8%;
+  background: center / contain no-repeat;
+  image-rendering: pixelated;
+}
+/* 재사용 대기 중인 부분을 아래에서부터 어둡게 덮는다. */
+.hud__shade {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 0;
+  background: rgba(0, 0, 0, 0.6);
 }
 /* 유물을 아직 끼지 않은 칸 */
 .hud__slot--empty {
@@ -65,6 +86,10 @@
 .hud__slot--ultimate {
   margin-left: var(--unit);
   border-color: #6b5622;
+}
+.hud__slot--ultimate.is-locked .hud__icon {
+  opacity: 0.15;
+  filter: grayscale(1);
 }
 .hud__slot--ultimate.is-ready {
   border-color: var(--divine);
@@ -131,4 +156,51 @@
 }
 .damage-number--hurt {
   color: #ff6b5e;
+}
+.damage-number--thunder {
+  color: #9fe3ff;
+}
+
+/* 클래스 발현처럼 중요한 순간에만 쓰는 큰 글씨 */
+.hud__banner,
+.hud__toast {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-weight: 800;
+  opacity: 0;
+  text-shadow:
+    3px 0 #141822,
+    -3px 0 #141822,
+    0 3px #141822,
+    0 -3px #141822;
+}
+.hud__banner {
+  top: 22%;
+  font-size: clamp(28px, 6vh, 64px);
+  letter-spacing: 0.1em;
+}
+.hud__toast {
+  bottom: calc(var(--unit) * 14);
+  font-size: clamp(14px, 2.4vh, 24px);
+  color: var(--ink);
+}
+.hud__banner.is-showing {
+  animation: hud-banner 2.4s ease-out forwards;
+}
+.hud__toast.is-showing {
+  animation: hud-toast 1.8s ease-out forwards;
+}
+@keyframes hud-banner {
+  0% { opacity: 0; transform: translateX(-50%) scale(1.6); }
+  10% { opacity: 1; transform: translateX(-50%) scale(1); }
+  75% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes hud-toast {
+  0% { opacity: 0; transform: translate(-50%, 8px); }
+  12% { opacity: 1; transform: translate(-50%, 0); }
+  75% { opacity: 1; }
+  100% { opacity: 0; }
 }

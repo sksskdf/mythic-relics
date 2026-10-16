@@ -46,6 +46,8 @@ export class PlayerCombat {
   /** 신위 게이지 0~1. 궁극기는 M4에서 붙는다. */
   divine = 0
   target: CombatTarget | null = null
+  /** 기본 공격 피해 배율 (발현 패시브 등) */
+  damageScale = 1
 
   private invulnerable = 0
   private sinceHurt = REGEN_DELAY
@@ -54,6 +56,11 @@ export class PlayerCombat {
 
   get alive(): boolean {
     return !this.health.dead
+  }
+
+  /** 지금 맞을 수 있는가 (쓰러졌거나 무적 시간이면 아니다) */
+  get canBeHit(): boolean {
+    return this.alive && this.invulnerable <= 0
   }
 
   /** 자동 공격을 시작하는 거리: 첫 타 사거리 + 적 몸 반지름 */
@@ -150,7 +157,7 @@ export class PlayerCombat {
       const dx = enemy.x - p.x
       const dz = enemy.z - p.z
       const len = Math.hypot(dx, dz) || 1
-      const dealt = enemy.takeHit(swing.damage, dx / len, dz / len, swing.knockback)
+      const dealt = enemy.takeHit(swing.damage * this.damageScale, dx / len, dz / len, swing.knockback)
       if (dealt > 0) hits.push({ target: enemy, damage: dealt, strong })
     }
     if (hits.length > 0) this.addDivine(DIVINE_PER_HIT * hits.length)

@@ -3,7 +3,7 @@ import type * as THREE from 'three'
 import { worldToScreen } from '../render/picking'
 import type { RenderSize } from '../render/resolution'
 
-export type DamageStyle = 'normal' | 'strong' | 'hurt'
+export type DamageStyle = 'normal' | 'strong' | 'hurt' | 'thunder'
 
 interface Popup {
   el: HTMLElement

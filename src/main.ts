@@ -1,4 +1,9 @@
 import { Game } from './game/Game'
+import { RELIC_IDS, type RelicId } from './relics/data'
+
+function isRelicId(value: string): value is RelicId {
+  return (RELIC_IDS as string[]).includes(value)
+}
 
 const container = document.getElementById('app')
 if (!container) throw new Error('#app 요소가 없습니다.')
@@ -8,7 +13,11 @@ if (!container) throw new Error('#app 요소가 없습니다.')
 const params = new URLSearchParams(location.search)
 const resParam = Number(params.get('res'))
 const viewParam = Number(params.get('view'))
+// 유물 점검: ?relics=all 또는 ?relics=mjolnir,megingjord 처럼 붙이면 그 유물을 끼고 시작한다.
+const relicParam = params.get('relics')
+const startRelics = relicParam === 'all' ? RELIC_IDS : (relicParam?.split(',').filter(isRelicId) ?? [])
 const game = new Game(container, {
+  startRelics,
   renderHeight: resParam > 0 ? resParam : undefined,
   viewHeight: viewParam > 0 ? viewParam : undefined,
 })

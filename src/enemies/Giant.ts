@@ -124,6 +124,8 @@ export const KING: GiantSpec = {
 /** 거인이 주변을 알기 위해 쓰는 것들 */
 export interface GiantWorld {
   hero: { x: number; z: number; radius: number; alive: boolean }
+  /** 로키의 환영 분신. 가까이 있으면 거인은 주인공 대신 이것을 쫓고 때린다. */
+  decoy?: { x: number; z: number; radius: number } | null
   nav: NavGrid
   halfExtent: number
   /** 움직이지 않는 충돌체 */
@@ -261,7 +263,7 @@ export class Giant {
       this.knock.multiplyScalar(Math.exp(-9 * dt))
     }
 
-    const hero = world.hero
+    const hero = this.aim(world)
     const distToHero = Math.hypot(hero.x - this.x, hero.z - this.z)
     const distFromHome = Math.hypot(this.x - this.home.x, this.z - this.home.z)
 
@@ -308,6 +310,15 @@ export class Giant {
     this.rig.root.removeFromParent()
   }
 
+  /** 쫓을 대상: 가까운 환영 분신이 있으면 그쪽, 없으면 주인공 */
+  private aim(world: GiantWorld): { x: number; z: number; radius: number; alive: boolean } {
+    const decoy = world.decoy
+    if (decoy && Math.hypot(decoy.x - this.x, decoy.z - this.z) < this.spec.aggroRange * 1.2) {
+      return { ...decoy, alive: true }
+    }
+    return world.hero
+  }
+
   private setState(state: GiantState): void {
     this.state = state
     this.stateTime = 0
@@ -332,8 +343,9 @@ export class Giant {
     this.attack = attack
     this.cooldowns.set(attack, attack.cooldown + attack.windup)
     this.setState('windup')
-    this.target.set(world.hero.x, world.hero.z)
-    this.face(world.hero.x, world.hero.z)
+    const aim = this.aim(world)
+    this.target.set(aim.x, aim.z)
+    this.face(aim.x, aim.z)
     const area = attack.area
     if (area.kind === 'ring') {
       this.roared = true
@@ -354,9 +366,10 @@ export class Giant {
     const attack = this.attack!
     const t = this.stateTime / attack.windup
     // 예고 앞부분 동안만 주인공을 따라 방향과 위치를 맞추고, 그 뒤로는 고정해서 피할 수 있게 한다.
-    if (t < 0.4 && world.hero.alive && attack.area.kind !== 'ring') {
-      this.target.set(world.hero.x, world.hero.z)
-      this.face(world.hero.x, world.hero.z)
+    const aim = this.aim(world)
+    if (t < 0.4 && aim.alive && attack.area.kind !== 'ring') {
+      this.target.set(aim.x, aim.z)
+      this.face(aim.x, aim.z)
     }
     this.placeTelegraph()
     this.telegraph?.setProgress(t)
