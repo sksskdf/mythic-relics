@@ -155,35 +155,44 @@ export class HeroController {
     position.y = heightAt(next.x, next.z)
   }
 
-  /** 걸을 때 팔다리를 흔들고 망토를 펄럭이며, 구를 때는 몸을 숙여 웅크린다. */
+  /**
+   * 걸을 때 팔다리를 흔들고 몸을 살짝 앞으로 기울이며 망토를 펄럭인다.
+   * 도끼를 든 오른팔은 덜 흔든다. 구를 때는 몸을 숙여 웅크린다.
+   */
   private animate(dt: number): void {
-    const { body, leftArm, rightArm, leftLeg, rightLeg, cape } = this.rig
+    const { body, head, leftArm, rightArm, leftLeg, rightLeg, cape } = this.rig
     if (this.isDodging) {
       const t = 1 - this.dodgeTime / this.tuning.dodgeDuration
-      body.rotation.x = Math.sin(t * Math.PI) * 1.1
-      body.position.y = -Math.sin(t * Math.PI) * 0.35
-      leftLeg.rotation.x = rightLeg.rotation.x = -0.9
-      leftArm.rotation.x = rightArm.rotation.x = -1.2
+      const curl = Math.sin(t * Math.PI)
+      body.rotation.x = curl * 1.1
+      body.position.y = -curl * 0.35
+      leftLeg.rotation.x = rightLeg.rotation.x = -0.9 * curl
+      leftArm.rotation.x = rightArm.rotation.x = -1.2 * curl
       cape.rotation.x = 0.9
+      head.rotation.x = 0
       return
     }
-    body.rotation.x = 0
     if (this.path.length > 0) {
       this.walkCycle += dt * 11
       const swing = Math.sin(this.walkCycle)
-      leftLeg.rotation.x = swing * 0.7
-      rightLeg.rotation.x = -swing * 0.7
-      leftArm.rotation.x = -swing * 0.6
-      rightArm.rotation.x = swing * 0.6
+      body.rotation.x = 0.1
+      leftLeg.rotation.x = swing * 0.75
+      rightLeg.rotation.x = -swing * 0.75
+      leftArm.rotation.x = -swing * 0.7
+      rightArm.rotation.x = swing * 0.35 - 0.15
       body.position.y = Math.abs(Math.cos(this.walkCycle)) * 0.06
-      cape.rotation.x = 0.35 + Math.abs(swing) * 0.15
+      head.rotation.x = -0.1 + Math.abs(Math.cos(this.walkCycle)) * 0.04
+      cape.rotation.x = 0.4 + Math.abs(swing) * 0.18
     } else {
       // 숨 쉬듯 살짝 오르내린다.
       this.walkCycle += dt * 2
       const breath = Math.sin(this.walkCycle)
+      body.rotation.x = 0
       leftLeg.rotation.x = rightLeg.rotation.x = 0
-      leftArm.rotation.x = rightArm.rotation.x = breath * 0.04
+      leftArm.rotation.x = breath * 0.04
+      rightArm.rotation.x = -0.1 + breath * 0.04
       body.position.y = breath * 0.015
+      head.rotation.x = breath * 0.02
       cape.rotation.x = 0.08 + breath * 0.03
     }
   }

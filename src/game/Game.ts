@@ -18,6 +18,8 @@ import { HERO_RADIUS, HeroController } from './HeroController'
 export interface GameOptions {
   /** 저해상도 렌더링의 기준 세로 픽셀 수 */
   renderHeight?: number
+  /** 화면 세로 방향에 보이는 범위 (미터) */
+  viewHeight?: number
 }
 
 /** 게임 전체를 묶는 최상위 객체. 렌더러, 장면, 카메라, 입력, 메인 루프를 가진다. */
@@ -46,6 +48,7 @@ export class Game {
   ) {
     this.pixel = new PixelRenderer(container, options.renderHeight ?? TARGET_RENDER_HEIGHT)
     this.input = new Input(this.pixel.renderer.domElement)
+    if (options.viewHeight) this.view.viewHeight = options.viewHeight
     this.hud = new Hud(container)
 
     this.scene.background = new THREE.Color(0x9fb4c8)
