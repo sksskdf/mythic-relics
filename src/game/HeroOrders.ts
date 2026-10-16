@@ -18,8 +18,8 @@ export type Order =
  */
 export class HeroOrders {
   order: Order | null = null
-  /** 이번 프레임에 새로 찍은 이동 목표 (클릭 표시용) */
-  lastMoveTarget: Point2 | null = null
+  /** 이번 프레임에 새로 찍은 이동 목표 (클릭 표시용). forced면 적을 무시하는 이동 */
+  lastMoveTarget: (Point2 & { forced: boolean }) | null = null
   /** 버튼을 누른 채로 커서를 따라가는 중인가 */
   private following = false
 
@@ -27,6 +27,11 @@ export class HeroOrders {
     private readonly hero: HeroController,
     private readonly combat: PlayerCombat,
   ) {}
+
+  /** 적을 무시하고 걷는 중인가 (이때는 졸개를 밀고 지나간다) */
+  get plowing(): boolean {
+    return this.order?.kind === 'move' && this.order.forced && this.hero.isMoving
+  }
 
   /** 지금 공격하라고 지정된 적 (표시용) */
   get attackTarget(): CombatTarget | null {
@@ -46,7 +51,7 @@ export class HeroOrders {
     this.order = { kind: 'move', forced }
     this.combat.focus = null
     this.hero.moveTo(ground)
-    this.lastMoveTarget = { ...ground }
+    this.lastMoveTarget = { ...ground, forced }
     this.following = true
   }
 

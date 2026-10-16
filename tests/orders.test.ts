@@ -1,4 +1,8 @@
+import * as THREE from 'three'
 import { describe, expect, it } from 'vitest'
+
+import { Giant, GRUNT, type GiantWorld, KING } from '../src/enemies/Giant'
+import { plowThrough } from '../src/game/plow'
 
 import { HeroController } from '../src/game/HeroController'
 import { HeroOrders } from '../src/game/HeroOrders'
@@ -87,5 +91,61 @@ describe('클릭 지시', () => {
     orders.press({ x: 0, z: 9 }, null)
     step(4)
     expect(hero.object.position.z).toBeGreaterThan(8.5)
+  })
+})
+
+describe('무리 밀고 지나가기', () => {
+  function surrounded(spec = GRUNT, count = 6) {
+    const giants = Array.from({ length: count }, (_, i) => {
+      const a = (i / count) * Math.PI * 2
+      return new Giant(spec, { x: Math.sin(a) * 1.3, z: Math.cos(a) * 1.3 }, i + 1)
+    })
+    const hero = new HeroController(buildHeroModel(), new NavGrid(20, 0.5, [], 0.4), () => [], 20)
+    const combat = new PlayerCombat(hero)
+    const orders = new HeroOrders(hero, combat)
+    const blocking = () => giants.filter((g) => g.alive && (!orders.plowing || g.blocksPath)).map((g) => g.collider)
+    // HeroController는 생성 때 받은 함수를 쓰므로, 같은 규칙을 장애물에도 건다.
+    ;(hero as unknown as { colliders: () => unknown }).colliders = blocking
+    hero.obstacles = blocking
+    const world: GiantWorld = {
+      hero: { x: 0, z: 0, radius: 0.4, alive: true },
+      nav: new NavGrid(20, 0.5, [], 0.75),
+      halfExtent: 20,
+      staticColliders: [],
+      giants,
+      hitHero: () => {},
+      impact: () => {},
+      summon: () => {},
+      effects: new THREE.Group(),
+    }
+    const step = (seconds: number) => {
+      for (let t = 0; t < seconds; t += 1 / 60) {
+        orders.update(giants)
+        const heading = hero.heading
+        if (orders.plowing && heading) plowThrough(hero.object.position, 0.4, heading, giants)
+        hero.update(1 / 60)
+        world.hero.x = hero.object.position.x
+        world.hero.z = hero.object.position.z
+        for (const g of giants) g.update(1 / 60, world)
+      }
+    }
+    return { giants, hero, combat, orders, step }
+  }
+
+  it('졸개 6마리에 둘러싸여도 싸우는 중에 8m 밖을 누르면 3초 안에 도착한다', () => {
+    const { giants, hero, combat, orders, step } = surrounded()
+    combat.target = giants[0]!
+    orders.press({ x: 8, z: 0 }, null)
+    expect(orders.order).toEqual({ kind: 'move', forced: true })
+    step(3)
+    expect(Math.hypot(hero.object.position.x - 8, hero.object.position.z)).toBeLessThan(0.6)
+  })
+
+  it('보스는 밀리지 않는다', () => {
+    const king = new Giant(KING, { x: 0, z: 0 })
+    expect(king.shove(1, 0, 9)).toBe(false)
+    const grunt = new Giant(GRUNT, { x: 0, z: 0 })
+    expect(grunt.shove(1, 0, 9)).toBe(true)
+    expect(grunt.state).toBe('stagger')
   })
 })

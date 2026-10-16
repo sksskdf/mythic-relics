@@ -24,6 +24,7 @@ export class QuarterViewCamera {
   private readonly up = new THREE.Vector3()
   private readonly forward = new THREE.Vector3()
   private renderHeight = 1
+  private renderWidth = 1
   /** 흔들림 세기 (미터). 시간이 지나면 줄어든다. */
   private shakeAmount = 0
   private readonly shakeOffset = new THREE.Vector2()
@@ -47,6 +48,7 @@ export class QuarterViewCamera {
   /** 저해상도 렌더 크기에 맞춰 화면에 보이는 범위를 정한다. */
   setRenderSize(width: number, height: number): void {
     this.renderHeight = height
+    this.renderWidth = width
     const halfHeight = this.viewHeight / 2
     const halfWidth = (halfHeight * width) / height
     this.camera.left = -halfWidth
@@ -54,6 +56,13 @@ export class QuarterViewCamera {
     this.camera.top = halfHeight
     this.camera.bottom = -halfHeight
     this.camera.updateProjectionMatrix()
+  }
+
+  /** 화면 세로 방향에 보이는 범위(미터)를 바꾼다. 확대·축소에 쓴다. */
+  setViewHeight(viewHeight: number): void {
+    this.viewHeight = viewHeight
+    this.setRenderSize(this.renderWidth, this.renderHeight)
+    this.apply()
   }
 
   /** 바로 그 위치로 옮긴다. */

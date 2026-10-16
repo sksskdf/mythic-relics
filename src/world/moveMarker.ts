@@ -13,7 +13,9 @@ export class MoveMarker {
     this.object.visible = false
   }
 
-  show(x: number, z: number): void {
+  /** forced면 적을 무시하는 이동이라 흰색으로, 아니면 파란색으로 보인다. */
+  show(x: number, z: number, forced = false): void {
+    ;(this.object.material as THREE.MeshBasicMaterial).color.setHex(forced ? 0xf2f7ff : 0x5fd0ff)
     this.object.position.set(x, 0.03, z)
     this.life = this.duration
     this.object.visible = true

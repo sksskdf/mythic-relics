@@ -75,9 +75,12 @@ export class Encounter {
     return this.giants.filter((g) => g.alive)
   }
 
-  /** 주인공과 다른 거인이 비켜 가야 하는 원들 */
-  colliders(): CircleCollider[] {
-    return this.giants.filter((g) => g.alive).map((g) => g.collider)
+  /**
+   * 주인공과 다른 거인이 비켜 가야 하는 원들.
+   * onlyBlocking이면 밀리지 않는 거인(보스)만 돌려준다. (적을 무시하고 걷는 주인공은 졸개를 밀고 지나간다)
+   */
+  colliders(onlyBlocking = false): CircleCollider[] {
+    return this.giants.filter((g) => g.alive && (!onlyBlocking || g.blocksPath)).map((g) => g.collider)
   }
 
   /** 보스가 싸움에 끼어들었는지 (HUD 표시용) */

@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { screenToGround, screenToNdc, worldToScreen } from '../src/render/picking'
 import { QuarterViewCamera } from '../src/render/QuarterViewCamera'
 import { computeRenderSize } from '../src/render/resolution'
+import { clampViewHeight, VIEW_HEIGHT } from '../src/save/settings'
 
 describe('screenToNdc', () => {
   it('정확히 나누어떨어지는 화면에서는 가운데가 (0, 0)이다', () => {
@@ -45,5 +46,27 @@ describe('worldToScreen', () => {
     const screen = worldToScreen(point, 721, size, view.camera)
     const back = screenToGround(screen.x, screen.y, 721, size, view.camera)
     expect(back!.distanceTo(point)).toBeLessThan(0.01)
+  })
+})
+
+describe('확대·축소', () => {
+  it('보이는 범위를 바꿔도 화면 좌표 ↔ 땅 좌표 변환이 맞는다', () => {
+    const view = new QuarterViewCamera()
+    const size = computeRenderSize(1280, 720)
+    view.setRenderSize(size.width, size.height)
+    view.jumpTo(new THREE.Vector3(2, 0, -1))
+    for (const viewHeight of [12, 22, 34]) {
+      view.setViewHeight(viewHeight)
+      const point = new THREE.Vector3(5, 0, 1)
+      const screen = worldToScreen(point, 720, size, view.camera)
+      const back = screenToGround(screen.x, screen.y, 720, size, view.camera)
+      expect(back!.distanceTo(point)).toBeLessThan(0.05)
+    }
+  })
+
+  it('확대·축소는 정해진 범위를 넘지 않는다', () => {
+    expect(clampViewHeight(5)).toBe(VIEW_HEIGHT.min)
+    expect(clampViewHeight(100)).toBe(VIEW_HEIGHT.max)
+    expect(clampViewHeight(20)).toBe(20)
   })
 })

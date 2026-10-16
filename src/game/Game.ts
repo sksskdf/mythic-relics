@@ -31,6 +31,8 @@ import { Encounter, TEST_ENCOUNTER } from './Encounter'
 import { UtgardLegend } from './Legend'
 import { HERO_RADIUS, HeroController } from './HeroController'
 import { HeroOrders } from './HeroOrders'
+import { plowThrough } from './plow'
+import { clampViewHeight, settingsStorage } from '../save/settings'
 import { type CombatTarget, type HitReport, PlayerCombat } from './PlayerCombat'
 import { type LoadoutChange, RelicPowers } from './RelicPowers'
 
@@ -144,7 +146,9 @@ export class Game {
   ) {
     this.pixel = new PixelRenderer(container, options.renderHeight ?? TARGET_RENDER_HEIGHT)
     this.input = new Input(this.pixel.renderer.domElement)
-    if (options.viewHeight) this.view.viewHeight = options.viewHeight
+    // 확대·축소: 주소의 ?view= 가 있으면 그 값, 없으면 저장한 설정
+    this.view.viewHeight = options.viewHeight ?? settingsStorage.load().viewHeight
+    this.pixel.renderer.domElement.addEventListener('wheel', (e) => this.onWheel(e), { passive: false })
     this.hud = new Hud(container)
     this.numbers = new DamageNumbers(container)
 
@@ -153,12 +157,8 @@ export class Game {
 
     this.sun = new THREE.DirectionalLight(0xffe4bd, 2.7)
     this.sun.castShadow = true
-    this.sun.shadow.mapSize.set(1024, 1024)
+    this.sun.shadow.mapSize.set(2048, 2048)
     const shadowCamera = this.sun.shadow.camera
-    shadowCamera.left = -18
-    shadowCamera.right = 18
-    shadowCamera.top = 18
-    shadowCamera.bottom = -18
     shadowCamera.near = 1
     shadowCamera.far = 60
     this.sun.shadow.bias = -0.002
@@ -178,13 +178,14 @@ export class Game {
     this.hero = new HeroController(
       rig,
       nav,
-      () => [...map.colliders, ...this.encounter.colliders()],
+      // 적을 무시하고 걸을 때는 보스만 길을 막고, 졸개는 밀고 지나간다.
+      () => [...map.colliders, ...this.encounter.colliders(this.orders?.plowing ?? false)],
       MAP_HALF_EXTENT,
     )
     this.hero.teleport(HERO_SPAWN.x, HERO_SPAWN.z)
     this.combat = new PlayerCombat(this.hero)
     this.orders = new HeroOrders(this.hero, this.combat)
-    this.hero.obstacles = () => this.encounter.colliders()
+    this.hero.obstacles = () => this.encounter.colliders(this.orders.plowing)
     this.targetRing.rotation.x = -Math.PI / 2
     this.targetRing.layers.set(EFFECT_LAYER)
     this.targetRing.renderOrder = 12
@@ -348,9 +349,13 @@ export class Game {
 
     if (live) this.readInput()
     this.orders.update(this.encounter.alive)
+    const heading = this.hero.heading
+    if (this.orders.plowing && heading) {
+      plowThrough(this.hero.object.position, HERO_RADIUS, heading, this.encounter.alive)
+    }
     this.hero.update(dt)
     const moveTarget = this.orders.lastMoveTarget
-    if (moveTarget) this.marker.show(moveTarget.x, moveTarget.z)
+    if (moveTarget) this.marker.show(moveTarget.x, moveTarget.z, moveTarget.forced)
     this.orders.lastMoveTarget = null
     this.marker.update(dt)
     this.updateTargetRing()
@@ -755,9 +760,35 @@ export class Game {
     this.sun.target.position.copy(focus)
   }
 
+  /** 마우스 휠로 확대·축소한다. 설정에 저장되어 다시 켜도 유지된다. */
+  private onWheel(e: WheelEvent): void {
+    e.preventDefault()
+    const next = clampViewHeight(this.view.viewHeight * (e.deltaY > 0 ? 1.1 : 1 / 1.1))
+    if (next === this.view.viewHeight) return
+    this.setViewHeight(next)
+    settingsStorage.save({ viewHeight: next })
+  }
+
+  /** 확대·축소. 그림자가 그려지는 범위도 보이는 범위에 맞춘다. */
+  setViewHeight(viewHeight: number): void {
+    this.view.setViewHeight(clampViewHeight(viewHeight))
+    this.fitShadow()
+  }
+
+  private fitShadow(): void {
+    const half = this.view.viewHeight * 1.15
+    const shadowCamera = this.sun.shadow.camera
+    shadowCamera.left = -half
+    shadowCamera.right = half
+    shadowCamera.top = half
+    shadowCamera.bottom = -half
+    shadowCamera.updateProjectionMatrix()
+  }
+
   private resize(): void {
     const { clientWidth: width, clientHeight: height } = this.container
     const size = this.pixel.setScreenSize(width, height)
     this.view.setRenderSize(size.width, size.height)
+    this.fitShadow()
   }
 }

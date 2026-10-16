@@ -66,6 +66,14 @@ export class HeroController {
     return this.path.length > 0
   }
 
+  /** 지금 걸어가는 방향 (다음 경유지 쪽). 서 있으면 null */
+  get heading(): Point2 | null {
+    const next = this.path[0]
+    if (!next) return null
+    const p = this.object.position
+    return { x: next.x - p.x, z: next.z - p.z }
+  }
+
   get facing(): number {
     return this.object.rotation.y
   }

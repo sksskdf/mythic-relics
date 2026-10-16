@@ -277,6 +277,26 @@ export class Giant {
     if (this.state === 'idle' || this.state === 'return') this.setState('chase')
   }
 
+  /** 보스처럼 밀리지 않고 길을 막는 거인인가 */
+  get blocksPath(): boolean {
+    return this.spec.poise === Infinity
+  }
+
+  /**
+   * 적을 무시하고 걷는 주인공에게 밀려났다. 졸개는 옆으로 밀리며 잠깐 휘청이고 하던 공격이 끊긴다.
+   * 보스는 밀리지 않는다.
+   * @returns 밀려났으면 true
+   */
+  shove(dirX: number, dirZ: number, speed: number): boolean {
+    if (!this.alive || this.blocksPath) return false
+    this.knock.set(this.knock.x + dirX * speed, this.knock.y + dirZ * speed)
+    if (this.state !== 'stagger') {
+      this.clearTelegraph()
+      this.setState('stagger')
+    }
+    return true
+  }
+
   /**
    * 주인공의 공격에 맞았다.
    * @returns 실제로 깎인 생명력

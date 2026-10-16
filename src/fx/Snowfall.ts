@@ -6,10 +6,11 @@ import { createRng } from '../world/rng'
 export class Snowfall {
   readonly object: THREE.Points
   private readonly velocities: Float32Array
-  private readonly half = 16
+  /** 가장 멀리 축소해도 화면을 덮도록 넉넉히 잡는다. */
+  private readonly half = 30
   private readonly height = 14
 
-  constructor(count = 700, seed = 5) {
+  constructor(count = 2200, seed = 5) {
     const rng = createRng(seed)
     const positions = new Float32Array(count * 3)
     this.velocities = new Float32Array(count)
