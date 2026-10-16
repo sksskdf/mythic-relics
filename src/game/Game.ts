@@ -10,7 +10,7 @@ import { Input } from '../input/Input'
 import { screenRay, screenToGround } from '../render/picking'
 import { EFFECT_LAYER, PixelRenderer } from '../render/PixelRenderer'
 import { QuarterViewCamera } from '../render/QuarterViewCamera'
-import { TARGET_RENDER_HEIGHT } from '../render/resolution'
+import { METERS_PER_PIXEL, TARGET_RENDER_HEIGHT } from '../render/resolution'
 import { addSilhouette } from '../render/silhouette'
 import { type God, GODS, RELICS, type RelicId } from '../relics/data'
 import type { Giant } from '../enemies/Giant'
@@ -21,7 +21,7 @@ import { AFFINITY_DAMAGE, ClassProgress, PER_PROMOTION } from '../progress/Class
 import type { SkillContext } from '../skills/Skill'
 import { type DamageStyle, DamageNumbers } from '../ui/DamageNumbers'
 import { Hud } from '../ui/Hud'
-import { MoveMarker } from '../world/moveMarker'
+import { MoveMarker, PathLine, TargetMarker } from '../world/moveMarker'
 import { NavGrid } from '../world/navGrid'
 import { buildHeroModel } from '../world/heroModel'
 import { heightAt } from '../world/terrain'
@@ -135,14 +135,14 @@ export class Game {
   private readonly effects = new THREE.Group()
   private readonly marker = new MoveMarker()
   /** 공격 대상 발밑의 붉은 고리 */
-  private readonly targetRing = new THREE.Mesh(
-    new THREE.RingGeometry(0.85, 1, 32),
-    new THREE.MeshBasicMaterial({ color: 0xff6a4a, transparent: true, opacity: 0.8, depthWrite: false }),
-  )
+  private readonly targetMarker = new TargetMarker()
+  /** 적을 무시하고 걷는 동안 목적지까지 긋는 점선 */
+  private readonly pathLine = new PathLine()
   private readonly numbers: DamageNumbers
   private readonly cursor = new THREE.Vector3()
   private readonly scratch = new THREE.Vector3()
   private readonly lastWalk = new THREE.Vector2()
+  private readonly metersPerPixel: number
   private readonly doubleTap = new DoubleTapDetector()
 
   constructor(
@@ -153,6 +153,9 @@ export class Game {
     this.input = new Input(this.pixel.renderer.domElement)
     // 확대·축소: 주소의 ?view= 가 있으면 그 값, 없으면 저장한 설정
     this.view.viewHeight = options.viewHeight ?? settingsStorage.load().viewHeight
+    // ?res= 로 픽셀 밀도를 바꿔 볼 수 있다. 기본은 프로토타입의 밀도
+    this.metersPerPixel = options.renderHeight ? 16 / options.renderHeight : METERS_PER_PIXEL
+    this.pixel.setTargetHeight(this.view.viewHeight / this.metersPerPixel)
     this.pixel.renderer.domElement.addEventListener('wheel', (e) => this.onWheel(e), { passive: false })
     this.hud = new Hud(container)
     this.numbers = new DamageNumbers(container)
@@ -191,11 +194,7 @@ export class Game {
     this.combat = new PlayerCombat(this.hero)
     this.orders = new HeroOrders(this.hero, this.combat)
     this.hero.obstacles = () => this.encounter.colliders(this.orders.plowing)
-    this.targetRing.rotation.x = -Math.PI / 2
-    this.targetRing.layers.set(EFFECT_LAYER)
-    this.targetRing.renderOrder = 12
-    this.targetRing.visible = false
-    this.scene.add(this.targetRing)
+    this.scene.add(this.targetMarker.object, this.pathLine.object)
     this.powers = new RelicPowers(this.effects)
     this.skillContext = {
       hero: this.hero,
@@ -364,7 +363,9 @@ export class Game {
     if (moveTarget) this.marker.show(moveTarget.x, moveTarget.z, moveTarget.forced)
     this.orders.lastMoveTarget = null
     this.marker.update(dt)
-    this.updateTargetRing()
+    const target = this.orders.attackTarget
+    this.targetMarker.update(dt, target?.alive ? target : null)
+    this.pathLine.update(this.hero.object.position, this.orders.plowing ? this.orders.destination : null)
 
     this.combat.update(dt, this.encounter.alive, {
       onSwing: (swing, strong) => {
@@ -824,15 +825,6 @@ export class Game {
     return best
   }
 
-  /** 공격 대상 발밑에 붉은 고리를 띄운다. */
-  private updateTargetRing(): void {
-    const target = this.orders.attackTarget
-    this.targetRing.visible = !!target?.alive
-    if (!target?.alive) return
-    this.targetRing.position.set(target.x, heightAt(target.x, target.z) + 0.08, target.z)
-    this.targetRing.scale.setScalar(target.radius + 0.2)
-  }
-
   private cursorOnGround(): THREE.Vector3 | null {
     const { pointer } = this.input
     return screenToGround(pointer.x, pointer.y, this.container.clientHeight, this.pixel.size, this.view.camera, this.cursor)
@@ -855,8 +847,12 @@ export class Game {
 
   /** 확대·축소. 그림자가 그려지는 범위도 보이는 범위에 맞춘다. */
   setViewHeight(viewHeight: number): void {
-    this.view.setViewHeight(clampViewHeight(viewHeight))
-    this.fitShadow()
+    const next = clampViewHeight(viewHeight)
+    // 보이는 범위가 넓어지면 렌더 해상도도 같이 늘려 픽셀 하나의 크기(밀도)를 지킨다.
+    this.pixel.setTargetHeight(next / this.metersPerPixel)
+    this.view.viewHeight = next
+    this.resize()
+    this.view.setViewHeight(next)
   }
 
   private fitShadow(): void {

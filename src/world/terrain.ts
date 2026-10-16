@@ -67,7 +67,8 @@ function groundColorAt(x: number, z: number, jitter: number, out: THREE.Color): 
 /** 기복이 있는 눈밭. 색은 0.5미터 칸 단위로 칠한 저해상도 텍스처로 입힌다. */
 export function buildGround(halfExtent: number, seed = 11): THREE.Mesh {
   const size = halfExtent * 2 + 8
-  const segments = 96
+  // 격자 한 칸이 1m를 넘으면 땅 표면이 heightAt과 어긋나 바닥에 붙인 표시(예고·이동 표시)가 묻힌다.
+  const segments = Math.ceil(size / 0.8)
   const geometry = new THREE.PlaneGeometry(size, size, segments, segments)
   geometry.rotateX(-Math.PI / 2)
   const position = geometry.attributes.position!

@@ -20,6 +20,8 @@ export class HeroOrders {
   order: Order | null = null
   /** 이번 프레임에 새로 찍은 이동 목표 (클릭 표시용). forced면 적을 무시하는 이동 */
   lastMoveTarget: (Point2 & { forced: boolean }) | null = null
+  /** 지금 걸어가고 있는 목적지 (이동 지시일 때) */
+  destination: Point2 | null = null
   /** 버튼을 누른 채로 커서를 따라가는 중인가 */
   private following = false
 
@@ -53,6 +55,7 @@ export class HeroOrders {
     this.order = { kind: 'move', forced }
     this.combat.focus = null
     this.hero.moveTo(ground)
+    this.destination = { ...ground }
     this.lastMoveTarget = { ...ground, forced }
     this.following = true
   }
@@ -60,7 +63,10 @@ export class HeroOrders {
   /** 누른 채로 커서를 움직이고 있다. */
   hold(ground: Point2 | null): void {
     if (!this.following || !ground || this.order?.kind !== 'move' || this.hero.locked) return
-    if (this.hero.canRepath) this.hero.moveTo(ground)
+    if (this.hero.canRepath) {
+      this.hero.moveTo(ground)
+      this.destination = { ...ground }
+    }
   }
 
   release(): void {

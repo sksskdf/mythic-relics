@@ -18,6 +18,7 @@ import type { VoxelGrid } from '../voxel/VoxelGrid'
 import { toonMaterial } from '../render/toon'
 import type { CircleCollider } from './colliders'
 import { generateLayout, type PropPlacement } from './layout'
+import { createRng } from './rng'
 import { buildGround, buildScatter, heightAt, POND, pondLevel } from './terrain'
 
 /** 플레이어가 움직일 수 있는 범위 (맵 한 변의 절반, 미터) */
@@ -172,13 +173,48 @@ function buildPond(): THREE.Group {
   return pond
 }
 
+/** 움직일 수 있는 범위 밖에 둘러치는 숲의 두께 (m) */
+const BORDER_DEPTH = 30
+
+/**
+ * 맵 가장자리 밖을 빽빽한 숲과 바위로 둘러친다. 길을 막는 벽 역할이자, 축소했을 때 맵 끝을 가리는 배경이다.
+ * 밖으로는 나갈 수 없으므로 충돌체는 두지 않는다.
+ */
+function buildBorder(seed: number): THREE.Group {
+  const group = new THREE.Group()
+  const rng = createRng(seed * 31 + 5)
+  const inner = MAP_HALF_EXTENT + 1
+  const outer = MAP_HALF_EXTENT + BORDER_DEPTH - 2
+  const kinds: PropPlacement['kind'][] = ['pine', 'pine', 'pine', 'pine', 'rock', 'deadTree', 'mound']
+  let placed = 0
+  for (let tries = 0; placed < 420 && tries < 5000; tries++) {
+    const x = (rng() * 2 - 1) * outer
+    const z = (rng() * 2 - 1) * outer
+    // 안쪽 사각형(움직일 수 있는 곳) 밖의 띠에만 둔다. 가장자리에 가까울수록 빽빽하게.
+    const edge = Math.max(Math.abs(x), Math.abs(z))
+    if (edge < inner) continue
+    if (rng() > 1 - (edge - inner) / (outer - inner) * 0.5) continue
+    const kind = kinds[Math.floor(rng() * kinds.length)]!
+    const built = BUILDERS[kind](placed % VARIANTS)()
+    const prop = castAndReceive(built.object)
+    prop.position.set(x, heightAt(x, z), z)
+    prop.scale.multiplyScalar(0.9 + rng() * 0.6)
+    prop.rotation.y = rng() * Math.PI * 2
+    group.add(prop)
+    placed += 1
+  }
+  return group
+}
+
 /** 북유럽 설원 느낌의 테스트 맵을 만든다. */
 export function buildTestMap(seed = 7): TestMap {
   const map = new THREE.Group()
   const colliders: CircleCollider[] = []
   const animators: Animator[] = []
 
-  map.add(buildGround(MAP_HALF_EXTENT))
+  // 땅은 움직일 수 있는 범위보다 넓게 깔아서, 멀리 축소해도 맵 끝이 허공으로 보이지 않게 한다.
+  map.add(buildGround(MAP_HALF_EXTENT + BORDER_DEPTH))
+  map.add(buildBorder(seed))
   map.add(buildScatter(MAP_HALF_EXTENT))
 
   const pond = buildPond()

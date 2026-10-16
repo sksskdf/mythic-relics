@@ -94,7 +94,7 @@ export class PixelRenderer {
 
   constructor(
     container: HTMLElement,
-    private readonly targetHeight = TARGET_RENDER_HEIGHT,
+    private targetHeight = TARGET_RENDER_HEIGHT,
   ) {
     this.renderer = new THREE.WebGLRenderer({ antialias: false })
     this.renderer.setPixelRatio(1)
@@ -131,6 +131,11 @@ export class PixelRenderer {
     const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.compositeMaterial)
     quad.frustumCulled = false
     this.compositeScene.add(quad)
+  }
+
+  /** 저해상도 렌더의 기준 세로 픽셀 수를 바꾼다. 다음 setScreenSize부터 적용된다. */
+  setTargetHeight(height: number): void {
+    this.targetHeight = height
   }
 
   /** 화면 크기가 바뀌면 저해상도 버퍼 크기와 확대 배율을 다시 계산한다. */
