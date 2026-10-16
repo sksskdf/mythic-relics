@@ -37,7 +37,7 @@ try {
   await page.waitForFunction(() => (window.__game?.frame ?? 0) > 10, null, { timeout: 15000 })
   const frames = await page.evaluate(() => window.__game.frame)
 
-  // 조작 점검: 우클릭한 곳으로 걸어가는지, Space로 회피하는지 확인한다.
+  // 조작 점검: 우클릭한 곳으로 걸어가는지 확인한다.
   const heroPos = () => page.evaluate(() => {
     const p = window.__game.hero.object.position
     return { x: p.x, z: p.z }
@@ -55,9 +55,17 @@ try {
     { timeout: 20000 },
   )
   const moved = await heroPos()
-  await page.keyboard.press('Space')
-  await page.waitForFunction(() => window.__game.hero.dodgeCooldownLeft > 0, null, { timeout: 10000 })
-  console.log(`이동 확인: (${before.x.toFixed(1)}, ${before.z.toFixed(1)}) → (${moved.x.toFixed(1)}, ${moved.z.toFixed(1)}), 회피 확인`)
+  console.log(`이동 확인: (${before.x.toFixed(1)}, ${before.z.toFixed(1)}) → (${moved.x.toFixed(1)}, ${moved.z.toFixed(1)})`)
+
+  // 자동 공격 점검: 멈춰 있는 주인공 바로 앞에 졸개를 세우면, 버튼 없이도 때려서 생명력이 줄어야 한다.
+  await page.waitForFunction(() => !window.__game.hero.isMoving, null, { timeout: 20000 })
+  await page.evaluate(() => {
+    const g = window.__game
+    const p = g.hero.object.position
+    window.__dummy = g.encounter.spawnGrunt(p.x + 1.6, p.z)
+  })
+  await page.waitForFunction(() => window.__dummy.health.hp < window.__dummy.health.max, null, { timeout: 15000 })
+  console.log('자동 공격 확인: 졸개 생명력', await page.evaluate(() => window.__dummy.health.hp))
 
   mkdirSync('test-results', { recursive: true })
   await page.screenshot({ path: 'test-results/smoke.png' })

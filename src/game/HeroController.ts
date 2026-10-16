@@ -11,21 +11,12 @@ export const HERO_RADIUS = 0.4
 export interface HeroTuning {
   /** 걷는 속도 (m/s) */
   moveSpeed: number
-  /** 회피 거리 (m) */
-  dodgeDistance: number
-  /** 회피에 걸리는 시간 (초) */
-  dodgeDuration: number
-  /** 회피 재사용 대기시간 (초) */
-  dodgeCooldown: number
-  /** 우클릭을 누르고 있을 때 경로를 다시 찾는 간격 (초) */
+  /** 마우스를 누르고 있을 때 경로를 다시 찾는 간격 (초) */
   repathInterval: number
 }
 
 export const DEFAULT_TUNING: HeroTuning = {
   moveSpeed: 6,
-  dodgeDistance: 4,
-  dodgeDuration: 0.3,
-  dodgeCooldown: 0.8,
   repathInterval: 0.12,
 }
 
@@ -35,54 +26,45 @@ export function facingAngle(dx: number, dz: number): number {
 }
 
 /**
- * 주인공 이동과 회피를 담당한다.
- * - 우클릭: 그 지점까지 길을 찾아 걸어간다. 누르고 있으면 커서를 계속 따라간다.
- * - Space: 커서 방향으로 구른다. 구르는 동안은 무적 판정(M3에서 사용).
+ * 주인공 이동을 담당한다. 조작 최소화 원칙에 따라 플레이어가 직접 하는 일은 이것뿐이다.
+ * - 클릭: 그 지점까지 길을 찾아 걸어간다. 누르고 있으면 커서를 계속 따라간다.
+ * - 맞으면 밀려난다(넉백). 쓰러져 있는 동안에는 움직이지 않는다.
  */
 export class HeroController {
   path: Point2[] = []
-  dodgeTime = 0
-  dodgeCooldownLeft = 0
-  /** 이번 프레임에 회피를 시작했는지 (효과용) */
-  justDodged = false
   /** 이번 프레임에 새로 찍은 이동 목표 (클릭 표시용) */
   lastMoveTarget: Point2 | null = null
-
-  private readonly dodgeDir = new THREE.Vector2()
-  private repathTimer = 0
-  private walkCycle = 0
+  /** 쓰러졌을 때 등, 이동을 막는다. */
+  locked = false
 
   readonly object: THREE.Object3D
+  private readonly knock = new THREE.Vector2()
+  private repathTimer = 0
+  private walkCycle = 0
 
   constructor(
     readonly rig: HeroRig,
     private readonly nav: NavGrid,
-    private readonly colliders: readonly CircleCollider[],
+    private readonly colliders: () => readonly CircleCollider[],
     private readonly halfExtent: number,
     readonly tuning: HeroTuning = DEFAULT_TUNING,
   ) {
     this.object = rig.root
   }
 
-  get isDodging(): boolean {
-    return this.dodgeTime > 0
+  get isMoving(): boolean {
+    return this.path.length > 0
   }
 
-  get isMoving(): boolean {
-    return this.path.length > 0 || this.isDodging
+  get facing(): number {
+    return this.object.rotation.y
   }
 
   /** 마우스가 가리키는 땅 위치를 받아 한 프레임을 진행한다. */
   update(dt: number, input: Input, cursor: THREE.Vector3 | null): void {
     this.lastMoveTarget = null
-    this.justDodged = false
-    this.dodgeCooldownLeft = Math.max(0, this.dodgeCooldownLeft - dt)
 
-    if (input.wasPressed('dodge') && this.dodgeCooldownLeft <= 0 && !this.isDodging) {
-      this.startDodge(cursor)
-    }
-
-    if (cursor && !this.isDodging) {
+    if (!this.locked && cursor) {
       this.repathTimer -= dt
       if (input.wasPressed('move') || (input.isDown('move') && this.repathTimer <= 0)) {
         this.moveTo({ x: cursor.x, z: cursor.z })
@@ -90,9 +72,11 @@ export class HeroController {
       }
     }
 
-    if (this.isDodging) this.stepDodge(dt)
-    else this.stepPath(dt)
-
+    if (this.knock.lengthSq() > 1e-4) {
+      this.translate(this.knock.x * dt, this.knock.y * dt)
+      this.knock.multiplyScalar(Math.exp(-10 * dt))
+    }
+    if (!this.locked) this.stepPath(dt)
     this.animate(dt)
   }
 
@@ -103,26 +87,25 @@ export class HeroController {
     this.repathTimer = this.tuning.repathInterval
   }
 
-  private startDodge(cursor: THREE.Vector3 | null): void {
-    const position = this.object.position
-    if (cursor) this.dodgeDir.set(cursor.x - position.x, cursor.z - position.z)
-    if (!cursor || this.dodgeDir.lengthSq() < 1e-4) {
-      // 커서가 없거나 발밑이면 지금 바라보는 방향으로 구른다.
-      this.dodgeDir.set(Math.sin(this.object.rotation.y), Math.cos(this.object.rotation.y))
-    }
-    this.dodgeDir.normalize()
-    this.dodgeTime = this.tuning.dodgeDuration
-    this.justDodged = true
-    this.dodgeCooldownLeft = this.tuning.dodgeCooldown
+  stop(): void {
     this.path = []
-    this.object.rotation.y = facingAngle(this.dodgeDir.x, this.dodgeDir.y)
   }
 
-  private stepDodge(dt: number): void {
-    const step = Math.min(dt, this.dodgeTime)
-    const speed = this.tuning.dodgeDistance / this.tuning.dodgeDuration
-    this.translate(this.dodgeDir.x * speed * step, this.dodgeDir.y * speed * step)
-    this.dodgeTime -= step
+  /** 지정한 각도를 바라본다. */
+  face(angle: number): void {
+    this.object.rotation.y = angle
+  }
+
+  /** 밀어낸다 (m/s). 시간이 지나면 줄어든다. */
+  push(vx: number, vz: number): void {
+    this.knock.set(this.knock.x + vx, this.knock.y + vz)
+  }
+
+  /** 지정한 위치로 순간이동한다. (부활 등) */
+  teleport(x: number, z: number): void {
+    this.object.position.set(x, heightAt(x, z), z)
+    this.path = []
+    this.knock.set(0, 0)
   }
 
   private stepPath(dt: number): void {
@@ -148,7 +131,7 @@ export class HeroController {
   private translate(dx: number, dz: number): void {
     const position = this.object.position
     let next = { x: position.x + dx, z: position.z + dz }
-    next = pushOut(next, HERO_RADIUS, this.colliders)
+    next = pushOut(next, HERO_RADIUS, this.colliders())
     next = clampToBounds(next, this.halfExtent)
     position.x = next.x
     position.z = next.z
@@ -157,21 +140,11 @@ export class HeroController {
 
   /**
    * 걸을 때 팔다리를 흔들고 몸을 살짝 앞으로 기울이며 망토를 펄럭인다.
-   * 도끼를 든 오른팔은 덜 흔든다. 구를 때는 몸을 숙여 웅크린다.
+   * 도끼를 든 오른팔은 덜 흔든다. 공격 중의 팔 동작은 전투 쪽에서 덮어쓴다.
    */
   private animate(dt: number): void {
     const { body, head, leftArm, rightArm, leftLeg, rightLeg, cape } = this.rig
-    if (this.isDodging) {
-      const t = 1 - this.dodgeTime / this.tuning.dodgeDuration
-      const curl = Math.sin(t * Math.PI)
-      body.rotation.x = curl * 1.1
-      body.position.y = -curl * 0.35
-      leftLeg.rotation.x = rightLeg.rotation.x = -0.9 * curl
-      leftArm.rotation.x = rightArm.rotation.x = -1.2 * curl
-      cape.rotation.x = 0.9
-      head.rotation.x = 0
-      return
-    }
+    body.rotation.y = 0
     if (this.path.length > 0) {
       this.walkCycle += dt * 11
       const swing = Math.sin(this.walkCycle)

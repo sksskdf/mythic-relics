@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { describe, expect, it } from 'vitest'
 
-import { screenToGround, screenToNdc } from '../src/render/picking'
+import { screenToGround, screenToNdc, worldToScreen } from '../src/render/picking'
 import { QuarterViewCamera } from '../src/render/QuarterViewCamera'
 import { computeRenderSize } from '../src/render/resolution'
 
@@ -32,5 +32,18 @@ describe('screenToGround', () => {
     const hit = screenToGround(960, 540, 1080, size, view.camera)
     expect(hit).not.toBeNull()
     expect(hit!.distanceTo(focus)).toBeLessThan(0.1)
+  })
+})
+
+describe('worldToScreen', () => {
+  it('땅 위의 점을 화면으로 옮긴 뒤 다시 찍으면 같은 점이 나온다', () => {
+    const view = new QuarterViewCamera()
+    const size = computeRenderSize(1281, 721)
+    view.setRenderSize(size.width, size.height)
+    view.jumpTo(new THREE.Vector3(0, 0, 0))
+    const point = new THREE.Vector3(3, 0, 2)
+    const screen = worldToScreen(point, 721, size, view.camera)
+    const back = screenToGround(screen.x, screen.y, 721, size, view.camera)
+    expect(back!.distanceTo(point)).toBeLessThan(0.01)
   })
 })

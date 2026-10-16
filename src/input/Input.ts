@@ -10,6 +10,8 @@ export class Input {
 
   private readonly held = new Set<Action>()
   private readonly pressed = new Set<Action>()
+  /** 동작마다 지금 눌려 있는 입력 이름 (왼쪽·오른쪽 버튼을 함께 누를 때를 위해) */
+  private readonly heldCodes = new Map<Action, Set<string>>()
 
   constructor(
     private readonly element: HTMLElement,
@@ -28,7 +30,10 @@ export class Input {
       this.press(e.code)
     })
     window.addEventListener('keyup', (e) => this.release(e.code))
-    window.addEventListener('blur', () => this.held.clear())
+    window.addEventListener('blur', () => {
+      this.held.clear()
+      this.heldCodes.clear()
+    })
   }
 
   isDown(action: Action): boolean {
@@ -48,11 +53,17 @@ export class Input {
     if (!action) return
     if (!this.held.has(action)) this.pressed.add(action)
     this.held.add(action)
+    const codes = this.heldCodes.get(action) ?? new Set<string>()
+    codes.add(code)
+    this.heldCodes.set(action, codes)
   }
 
   private release(code: string): void {
     const action = resolveAction(this.bindings, code)
-    if (action) this.held.delete(action)
+    if (!action) return
+    const codes = this.heldCodes.get(action)
+    codes?.delete(code)
+    if (!codes || codes.size === 0) this.held.delete(action)
   }
 
   private updatePointer(e: PointerEvent): void {

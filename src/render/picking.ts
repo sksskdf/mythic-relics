@@ -34,3 +34,21 @@ export function screenToGround(
   raycaster.setFromCamera(ndcVector, camera)
   return raycaster.ray.intersectPlane(ground, out)
 }
+
+const projected = new THREE.Vector3()
+
+/** 월드 좌표를 화면 좌표(CSS 픽셀, 왼쪽 위 기준)로 바꾼다. screenToNdc의 반대 방향 */
+export function worldToScreen(
+  point: THREE.Vector3,
+  screenHeight: number,
+  size: RenderSize,
+  camera: THREE.Camera,
+): { x: number; y: number } {
+  projected.copy(point).project(camera)
+  const spanWidth = size.width * size.scale
+  const spanHeight = size.height * size.scale
+  return {
+    x: ((projected.x + 1) / 2) * spanWidth,
+    y: screenHeight - ((projected.y + 1) / 2) * spanHeight,
+  }
+}

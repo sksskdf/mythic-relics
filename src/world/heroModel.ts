@@ -1,9 +1,10 @@
 import * as THREE from 'three'
 
-import { voxelMesh } from '../voxel/mesher'
+import { toonGradient } from '../render/toon'
+import { voxelMesh as makeMesh } from '../voxel/mesher'
 import { HERO_VOXEL, heroArm, heroAxe, heroCape, heroHead, heroLeg, heroTorso } from '../voxel/models/hero'
 
-/** 걷기·회피 동작에 쓰는 관절들 */
+/** 걷기·공격 동작에 쓰는 관절들 */
 export interface HeroRig {
   root: THREE.Group
   /** 몸통 전체 (위아래로 튀거나 숙일 때 쓴다) */
@@ -16,6 +17,8 @@ export interface HeroRig {
   cape: THREE.Group
   /** 오른손에 쥔 무기. 유물을 끼면 이 자리에 다른 무기가 붙는다. */
   weapon: THREE.Group
+  /** 주인공 전용 재질 (맞았을 때 번쩍이게 한다) */
+  material: THREE.MeshToonMaterial
 }
 
 /** 관절(회전 기준점)을 만들고 그 아래에 부위를 붙인다. */
@@ -32,6 +35,9 @@ function joint(x: number, y: number, z: number, child: THREE.Object3D): THREE.Gr
  */
 export function buildHeroModel(): HeroRig {
   const s = HERO_VOXEL
+  const material = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonGradient() })
+  const voxelMesh = (grid: Parameters<typeof makeMesh>[0], options: Parameters<typeof makeMesh>[1]) =>
+    makeMesh(grid, options, material)
   const root = new THREE.Group()
   const body = new THREE.Group()
   root.add(body)
@@ -66,5 +72,5 @@ export function buildHeroModel(): HeroRig {
   const cape = joint(0, shoulderY + s, -3 * s, voxelMesh(heroCape(), { voxelSize: s, pivot: [4, 12, 1] }))
   body.add(cape)
 
-  return { root, body, head, leftArm, rightArm, leftLeg, rightLeg, cape, weapon }
+  return { root, body, head, leftArm, rightArm, leftLeg, rightLeg, cape, weapon, material }
 }

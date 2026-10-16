@@ -8,27 +8,27 @@
   --life: #d2443c;
   --divine: #e3b341;
   position: fixed;
-  inset: auto 0 calc(var(--unit) * 2 + env(safe-area-inset-bottom, 0px)) 0;
-  display: flex;
-  justify-content: center;
+  inset: 0;
   pointer-events: none;
   font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
   color: var(--ink);
   user-select: none;
 }
 .hud__bar {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--unit) * 2 + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
   display: flex;
   align-items: flex-end;
   gap: calc(var(--unit) * 2);
   padding: calc(var(--unit) * 1.5);
   background: var(--panel);
   border: 2px solid var(--edge);
-  image-rendering: pixelated;
 }
 .hud__meter {
   display: flex;
   flex-direction: column;
-  gap: calc(var(--unit) * 0.6);
   width: calc(var(--unit) * 22);
 }
 .hud__meter-track {
@@ -56,28 +56,79 @@
   background: #1d2430;
   border: 2px solid var(--edge);
 }
+/* 유물을 아직 끼지 않은 칸 */
+.hud__slot--empty {
+  background: transparent;
+  border-style: dashed;
+  opacity: 0.6;
+}
 .hud__slot--ultimate {
+  margin-left: var(--unit);
   border-color: #6b5622;
 }
-.hud__slot--dodge {
-  width: calc(var(--unit) * 8);
-  margin-right: var(--unit);
+.hud__slot--ultimate.is-ready {
+  border-color: var(--divine);
+  box-shadow: 0 0 calc(var(--unit) * 1.2) var(--divine);
 }
-.hud__slot.is-pressed {
-  border-color: var(--ink);
-  background: #2c3647;
-}
-.hud__key {
+
+/* 보스 생명력: 화면 위쪽 가운데 */
+.hud__boss {
   position: absolute;
-  left: calc(var(--unit) * 0.4);
-  bottom: calc(var(--unit) * 0.2);
-  font-size: calc(var(--unit) * 1.6);
-  font-weight: 700;
-  color: var(--muted);
+  left: 50%;
+  top: calc(var(--unit) * 3 + env(safe-area-inset-top, 0px));
+  transform: translateX(-50%);
+  width: min(70vw, calc(var(--unit) * 70));
+  padding: var(--unit);
+  background: var(--panel);
+  border: 2px solid var(--edge);
+  visibility: hidden;
 }
-.hud__dodge {
+.hud__boss.is-visible {
+  visibility: visible;
+}
+.hud__boss-track {
+  position: relative;
+  height: calc(var(--unit) * 1.8);
+  background: #1d2430;
+}
+.hud__boss-trail,
+.hud__boss-fill {
   position: absolute;
-  inset: auto 0 0 0;
-  height: 0;
-  background: rgba(0, 0, 0, 0.55);
+  inset: 0 auto 0 0;
+}
+.hud__boss-trail {
+  background: #f1e3c4;
+}
+.hud__boss-fill {
+  background: #7fc6e6;
+}
+
+/* 피해 숫자 */
+.damage-numbers {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+}
+.damage-number {
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-size: clamp(12px, 2.2vh, 26px);
+  font-weight: 800;
+  color: #ffffff;
+  text-shadow:
+    2px 0 #141822,
+    -2px 0 #141822,
+    0 2px #141822,
+    0 -2px #141822;
+  will-change: transform;
+}
+.damage-number--strong {
+  color: #ffd75e;
+  font-size: clamp(16px, 3vh, 34px);
+}
+.damage-number--hurt {
+  color: #ff6b5e;
 }

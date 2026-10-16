@@ -24,6 +24,9 @@ export class QuarterViewCamera {
   private readonly up = new THREE.Vector3()
   private readonly forward = new THREE.Vector3()
   private renderHeight = 1
+  /** 흔들림 세기 (미터). 시간이 지나면 줄어든다. */
+  private shakeAmount = 0
+  private readonly shakeOffset = new THREE.Vector2()
 
   constructor(yawDegrees = 45, pitchDegrees = 35, distance = 40) {
     const yaw = THREE.MathUtils.degToRad(yawDegrees)
@@ -63,14 +66,31 @@ export class QuarterViewCamera {
   follow(target: THREE.Vector3, dt: number): void {
     const t = 1 - Math.exp(-this.followSpeed * dt)
     this.focus.lerp(target, t)
+    this.updateShake(dt)
     this.apply()
+  }
+
+  /** 화면을 흔든다. 여러 번 부르면 가장 센 값을 쓴다. */
+  shake(amount: number): void {
+    this.shakeAmount = Math.max(this.shakeAmount, amount)
+  }
+
+  private updateShake(dt: number): void {
+    this.shakeAmount = Math.max(0, this.shakeAmount - dt * 1.6)
+    if (this.shakeAmount <= 0) {
+      this.shakeOffset.set(0, 0)
+      return
+    }
+    const angle = Math.random() * Math.PI * 2
+    this.shakeOffset.set(Math.cos(angle), Math.sin(angle)).multiplyScalar(this.shakeAmount)
   }
 
   private apply(): void {
     // 화면의 가로·세로 방향 성분을 픽셀 크기에 맞춰 반올림한다.
     const pixel = this.viewHeight / this.renderHeight
-    const x = snapToGrid(this.focus.dot(this.right), pixel)
-    const y = snapToGrid(this.focus.dot(this.up), pixel)
+    // 흔들림도 픽셀 단위로 움직여야 화면이 뭉개지지 않는다.
+    const x = snapToGrid(this.focus.dot(this.right) + this.shakeOffset.x, pixel)
+    const y = snapToGrid(this.focus.dot(this.up) + this.shakeOffset.y, pixel)
     // 화면 깊이 방향은 그림에 영향을 주지 않으므로 그대로 둔다.
     const z = this.focus.dot(this.forward)
     const snapped = this.right
