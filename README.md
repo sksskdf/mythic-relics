@@ -6,7 +6,9 @@
 - `DESIGN.md`: 기획 전체
 - `CLASSES.md`: 신화권, 클래스, 상위·히든 클래스 목록
 - `ENDGAME.md`: 엔드게임 세부
-- `ROADMAP.md`: 프로토타입 로드맵
+- `ROADMAP.md`: 전체 로드맵 (단계, 마일스톤, 작업, 일정, 위험)
+- `PROTOTYPE.md`: 프로토타입 계획과 구현 기록 (완료)
+- `PLAYTEST.md`: 프로토타입 플레이 검증 결과
 
 ## 개발
 - 기술: Three.js + TypeScript + Vite
