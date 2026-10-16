@@ -77,7 +77,11 @@
 
 ---
 
-## 2. 기술 선택 (M0에서 확정)
+## 2. 기술 선택
+
+**확정: A안 (Three.js + TypeScript + Vite).** 테스트는 Vitest(단위)와 Playwright(브라우저 스모크)를 쓴다.
+
+### 검토 내용
 
 | 항목 | A. Three.js + TypeScript | B. Godot 4 |
 | --- | --- | --- |
