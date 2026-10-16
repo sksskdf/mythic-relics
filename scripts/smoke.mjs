@@ -128,6 +128,23 @@ try {
   if (!restored) throw new Error('이어 하기 실패: 저장한 유물이 없습니다.')
   console.log('저장 확인: 새로 고침 뒤 [이어 하기]로 유물 유지')
 
+  // 개발 패널: ?dev 로 열고 단추로 유물·적·전설을 바로 바꿔 본다.
+  await page.goto(`${URL}?dev`)
+  await page.waitForSelector('.devpanel button', { timeout: 15000 })
+  const devButton = (section, label) =>
+    page.locator('.devpanel__section', { has: page.locator('h3', { hasText: section }) }).getByRole('button', { name: label, exact: true })
+  await devButton('유물', '토르 3개').click()
+  if ((await page.evaluate(() => window.__game.powers.manifested)) !== 'thor') throw new Error('개발 패널: 토르 3개 실패')
+  const enemiesBefore = await page.evaluate(() => window.__game.encounter.alive.length)
+  await devButton('적', '졸개 6').click()
+  if ((await page.evaluate(() => window.__game.encounter.alive.length)) !== enemiesBefore + 6) throw new Error('개발 패널: 졸개 소환 실패')
+  await devButton('적', '모두 제거').click()
+  if ((await page.evaluate(() => window.__game.encounter.alive.length)) !== 0) throw new Error('개발 패널: 모두 제거 실패')
+  await devButton('승급 전설', '바로 시작').click()
+  await page.waitForFunction(() => window.__game.legend.phase === 'wave', null, { timeout: 15000 })
+  await page.screenshot({ path: 'test-results/devpanel.png' }).catch(() => {})
+  console.log('개발 패널 확인: 유물 장착, 적 소환·제거, 승급 전설 바로 시작')
+
   mkdirSync('test-results', { recursive: true })
   await page.screenshot({ path: 'test-results/smoke.png' })
   await browser.close()

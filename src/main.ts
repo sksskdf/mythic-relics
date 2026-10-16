@@ -21,7 +21,9 @@ const startRelics = relicParam === 'all' ? RELIC_IDS : (relicParam?.split(',').f
 // 이어 하기: 저장된 진행 상황이 있으면 시작 화면에서 이어 할 수 있다.
 // ?fresh 를 붙이면 저장을 지우고 시작 화면 없이 바로 처음부터 시작한다. (새로 고침해도 다시 지우지 않게 주소에서 뺀다)
 // 유물을 지정한 점검용 실행은 저장을 읽지도 쓰지도 않고, 시작 화면도 건너뛴다.
-const testRun = relicParam !== null
+// 개발 모드: ?dev 를 붙이면(또는 pnpm dev --dev) 개발 패널이 뜬다. 저장을 읽지도 쓰지도 않고 시작 화면도 건너뛴다.
+const devMode = params.has('dev')
+const testRun = relicParam !== null || devMode
 const fresh = params.has('fresh')
 if (fresh) {
   saveStorage.clear()
@@ -55,6 +57,10 @@ if (showTitle) {
 
 // 자동 점검(스모크 테스트)에서 게임 상태를 읽을 수 있게 노출한다.
 ;(window as unknown as { __game: Game }).__game = game
+
+if (devMode) {
+  void import('./dev/DevPanel').then(({ DevPanel }) => new DevPanel(game, container))
+}
 
 // 자동 플레이 검증: ?autoplay 를 붙이면 검증용 봇을 불러온다. (scripts/playtest.mjs 가 쓴다)
 if (params.has('autoplay')) {

@@ -48,6 +48,8 @@ export class PlayerCombat {
   target: CombatTarget | null = null
   /** 공격하라고 지정한 적. 있으면 가까운 다른 적 대신 이 적만 친다. */
   focus: CombatTarget | null = null
+  /** 개발 패널: 맞아도 피해를 받지 않는다. */
+  godMode = false
   /** 기본 공격 피해 배율 (발현 패시브 등) */
   damageScale = 1
   /** 내 공격의 넉백 배율, 내가 받는 피해·넉백 배율 (유물 지속 효과) */
@@ -116,7 +118,7 @@ export class PlayerCombat {
    * @returns 실제로 깎인 생명력 (무적 시간이면 0)
    */
   takeHit(damage: number, fromX: number, fromZ: number, knockback: number): number {
-    if (!this.alive || this.invulnerable > 0) return 0
+    if (!this.alive || this.invulnerable > 0 || this.godMode) return 0
     const dealt = this.health.damage(damage * this.damageTakenScale)
     knockback *= this.knockbackTakenScale
     this.invulnerable = INVULNERABLE_AFTER_HIT

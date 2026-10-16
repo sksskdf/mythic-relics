@@ -34,6 +34,7 @@
 - `npm run check`: 타입 검사 + 빌드 + 단위 테스트 + 스모크. **커밋 전에 반드시 통과시킨다.**
 - `npm run build && npm run playtest [횟수] [제한 분]`: 이동만 쓰는 봇이 처음부터 승급까지 플레이하고 시간·피격 등을 기록한다 (`test-results/playtest.json`). 수치를 바꾸면 돌려 본다.
 - `npm run build && node scripts/shot.mjs <파일.png> "<주소 뒤 값>" "<게임 안 코드>" [프레임]`: 원하는 상태의 스크린숏. 화면이 바뀌는 작업은 스크린숏을 직접 보고 확인한다.
+- 개발 모드: `pnpm dev --dev`(또는 `pnpm dev:tools`), 브라우저는 `?dev`. 오른쪽 개발 패널(`src/dev/DevPanel.ts`)에서 유물·클래스·이동·적·전설·시간을 바꾼다. 새 시스템을 만들면 패널에도 시험 단추를 더한다.
 - 점검용 주소: `?relics=all` / `?relics=mjolnir,megingjord` (유물 끼고 시작, 저장 안 함), `?fresh` (저장 지우고 시작), `?view=` (시야 높이), `?autoplay` (봇).
 - 이 환경의 브라우저는 소프트웨어 렌더링이라 초당 몇 프레임밖에 안 나온다. 실제 속도의 느낌은 사용자에게 확인을 부탁한다.
 - 브라우저 실행 경로: `/opt/pw-browsers/chromium-1194/chrome-linux/chrome` (swiftshader 옵션은 스크립트에 있음).

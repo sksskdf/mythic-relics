@@ -109,6 +109,8 @@ export class Game {
   time = 0
   /** 시작 화면이 떠 있는 동안은 false. 배경만 움직이고 입력과 전투는 멈춘다. */
   playing = true
+  /** 개발 패널: 게임 시간 배속 (0이면 멈춤) */
+  timeScale = 1
 
   private lastTime = performance.now()
   private elapsed = 0
@@ -345,6 +347,7 @@ export class Game {
   /** 게임 한 프레임. live가 false면 입력을 읽지 않는다. */
   private update(realDt: number, live: boolean): void {
     // 타격 순간에는 게임 시간이 잠깐 멈춘다. 카메라 흔들림과 숫자는 계속 움직인다.
+    realDt *= this.timeScale
     const dt = this.hitstop > 0 ? 0 : realDt
     this.hitstop = Math.max(0, this.hitstop - realDt)
     this.elapsed += dt
@@ -470,6 +473,61 @@ export class Game {
       onWin: () => this.promote('thor'),
       onFail: () => this.record('legendFail'),
     })
+  }
+
+  // ── 개발 패널용 ──────────────────────────────────────────
+
+  /** 유물을 끼운다. 발현 연출도 그대로 나온다. */
+  devEquip(id: RelicId): void {
+    if (this.powers.loadout.has(id) || !this.powers.hasFreeSlot) return
+    this.onLoadoutChange(this.powers.equip(id), true)
+    this.markDirty()
+  }
+
+  /** 유물 하나를 뺀다. (땅에 내려놓지 않고 없앤다) */
+  devUnequip(id: RelicId): void {
+    const slot = this.powers.loadout.slots.indexOf(id)
+    if (slot < 0) return
+    const result = this.powers.unequip(slot)
+    if (result) this.onLoadoutChange(result.change, false)
+    this.markDirty()
+  }
+
+  /** 유물을 모두 뺀다. (땅에 내려놓지 않고 없앤다) */
+  devUnequipAll(): void {
+    this.powers.loadout.slots.forEach((id, slot) => {
+      if (!id) return
+      const result = this.powers.unequip(slot)
+      if (result) this.onLoadoutChange(result.change, false)
+    })
+    this.markDirty()
+  }
+
+  /** 발현한 클래스의 경험치를 채우고 바로 승급한다. */
+  devPromote(): void {
+    const god = this.powers.manifested
+    if (!god) return
+    this.progress.addXp(god, 1e9)
+    this.promote(god)
+  }
+
+  /** 클래스 성장(레벨·경험치)을 처음으로 되돌린다. */
+  devResetClasses(): void {
+    this.progress.records.clear()
+    this.applyStats()
+    this.combat.health.reset()
+    this.markDirty()
+  }
+
+  devTeleport(x: number, z: number): void {
+    this.orders.clear()
+    this.hero.teleport(x, z)
+    this.view.jumpTo(this.hero.object.position)
+  }
+
+  devRevive(): void {
+    this.combat.revive()
+    this.hero.rig.body.rotation.z = 0
   }
 
   /** 승급: 칭호가 바뀌고, 스킬이 강해지고, 친화도와 기본 능력치가 오른다. */

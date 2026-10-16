@@ -111,6 +111,28 @@ export class Encounter {
     return this.addGiant(GRUNT, { x, z })
   }
 
+  /** 무리와 보스가 처음 있던 곳 (개발 패널의 순간이동용) */
+  get spots(): { camps: Point2[]; boss: Point2 } {
+    return { camps: this.camps.map((c) => c.center), boss: this.bossHome }
+  }
+
+  /** 개발 패널: 모든 거인을 지우고 무리와 거인 왕을 처음처럼 다시 세운다. */
+  resetAll(): void {
+    for (const giant of [...this.giants]) this.remove(giant)
+    for (const camp of this.camps) {
+      camp.giants = []
+      this.fillCamp(camp)
+    }
+    this.spawnBoss()
+  }
+
+  /** 개발 패널: 살아 있는 거인을 모두 지운다. (무리는 정해진 시간 뒤 다시 나타난다) */
+  clearAll(): void {
+    for (const giant of [...this.giants]) this.remove(giant)
+    for (const camp of this.camps) camp.giants = []
+    this.boss = null
+  }
+
   /** 승급 전설 등에서 거인을 따로 세운다. alert면 바로 주인공을 쫓는다. */
   spawn(spec: GiantSpec, home: Point2, alert: boolean): Giant {
     const nav = this.navs.get(spec) ?? this.navs.get(spec.king ? KING : GRUNT)!
