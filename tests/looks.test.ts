@@ -15,11 +15,12 @@ function meshes(group: THREE.Object3D): THREE.Mesh[] {
 }
 
 describe('외형 목록', () => {
-  it('기운(aura) 칸을 빼면 모든 외형에 복셀 모델이 있다', () => {
-    for (const id of LOOK_IDS) {
-      if (lookDef(id).slot === 'aura') continue
-      expect(LOOK_MODELS[id], id).toBeTypeOf('function')
-    }
+  it('모든 외형에 복셀 모델이 있다', () => {
+    for (const id of LOOK_IDS) expect(LOOK_MODELS[id], id).toBeTypeOf('function')
+  })
+
+  it('표식은 기운 연출을 함께 가진다', () => {
+    for (const id of LOOK_IDS) if (lookDef(id).slot === 'mark') expect(lookDef(id).aura, id).toBeDefined()
   })
 
   it('처음 모습은 토르를 떠올리지 않는 모험가다 (뿔·날개 투구, 붉은 망토 없음)', () => {
@@ -102,5 +103,15 @@ describe('주인공 모델', () => {
     rig.wear({ ...BASE_OUTFIT, weapon: 'mjolnirHammer', arms: 'ironGauntlets' })
     expect(rig.weapon.parent).toBe(rig.rightArm)
     expect(meshes(rig.weapon)).toHaveLength(1)
+  })
+})
+
+describe('조사 붙이기', async () => {
+  const { josa } = await import('../src/ui/josa')
+  it('받침에 따라 으로/로, 을/를을 고른다', () => {
+    expect(josa('토르', '으로')).toBe('토르로')
+    expect(josa('천둥의 신', '으로')).toBe('천둥의 신으로')
+    expect(josa('우트가르드 원정', '을')).toBe('우트가르드 원정을')
+    expect(josa('천둥의 길', '으로')).toBe('천둥의 길로')
   })
 })

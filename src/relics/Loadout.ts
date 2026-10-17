@@ -1,8 +1,8 @@
-import { type God, relicDef, type RelicId } from './data'
+import { type God, godDef, relicDef, type RelicId } from './data'
 
 /** 유물 슬롯 수 */
 export const SLOT_COUNT = 4
-/** 같은 신의 유물이 이 개수 이상이면 클래스가 발현된다. */
+/** 같은 신의 유물이 이 개수 이상이면 클래스가 발현된다. (신마다 다를 수 있다: gods.json의 manifestCount) */
 export const MANIFEST_COUNT = 3
 
 export interface LoadoutState {
@@ -36,7 +36,7 @@ export function resolveLoadout(relics: readonly (RelicId | null)[]): LoadoutStat
       tie = true
     }
   }
-  const manifested = best && !tie && bestCount >= MANIFEST_COUNT ? best : null
+  const manifested = best && !tie && bestCount >= godDef(best).manifestCount ? best : null
   const blessings = [...counts.keys()].filter((god) => god !== manifested)
   return { manifested, blessings }
 }
@@ -72,5 +72,31 @@ export class Loadout {
     const id = this.slots[slot] ?? null
     this.slots[slot] = null
     return id
+  }
+
+  /** 칸의 유물을 가방에 넣는다. (유물 화면) */
+  stow(slot: number): RelicId | null {
+    const id = this.unequip(slot)
+    if (id) this.bag.push(id)
+    return id
+  }
+
+  /** 가방의 유물을 칸에 끼운다. 칸에 다른 유물이 있으면 그것은 가방으로 간다. (유물 화면) */
+  wield(id: RelicId, slot: number): RelicId | null {
+    const index = this.bag.indexOf(id)
+    if (index < 0 || slot < 0 || slot >= SLOT_COUNT) return null
+    this.bag.splice(index, 1)
+    const previous = this.stow(slot)
+    this.slots[slot] = id
+    return previous
+  }
+
+  /** 바꿔 끼면 발현·가호가 어떻게 되는지 미리 본다. slot에 id를 끼운다고 친다. (id가 null이면 비운다고 친다) */
+  preview(slot: number, id: RelicId | null): LoadoutState {
+    const next = [...this.slots]
+    const already = next.indexOf(id)
+    if (id && already >= 0) next[already] = null
+    next[slot] = id
+    return resolveLoadout(next)
   }
 }

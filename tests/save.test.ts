@@ -14,6 +14,7 @@ const sample: SaveData = {
     unlocked: ['adventurerHood', 'adventurerTunic', 'adventurerSleeves', 'adventurerBoots', 'shortSword', 'mjolnirHammer', 'thorCape'],
     choices: { weapon: 'shortSword', cape: null },
   },
+  body: { skin: 2, hair: 1, cloth: 3 },
 }
 
 describe('저장 데이터', () => {
@@ -45,11 +46,11 @@ describe('저장 데이터', () => {
 
   it('외형 보관함: 얻지 않은 외형이나 다른 칸의 외형을 고른 것은 버린다', () => {
     const data = parseSave(
-      JSON.stringify({ ...sample, looks: { unlocked: ['thorCape', 'excalibur'], choices: { cape: 'lokiCape', head: 'thorCape', aura: null } } }),
+      JSON.stringify({ ...sample, looks: { unlocked: ['thorCape', 'excalibur'], choices: { cape: 'lokiCape', head: 'thorCape', face: null, mark: 'thorStormHalo' } } }),
     )
     expect(data?.looks.unlocked).toContain('thorCape')
     expect(data?.looks.unlocked).not.toContain('excalibur')
-    expect(data?.looks.choices).toEqual({ aura: null })
+    expect(data?.looks.choices).toEqual({ face: null })
   })
 
   it('이전 버전(v1) 저장도 불러지고, 가진 유물과 발현해 본 클래스의 외형을 얻은 것으로 친다', () => {
@@ -60,5 +61,12 @@ describe('저장 데이터', () => {
     expect(data?.looks.unlocked).toEqual(expect.arrayContaining(['shortSword', 'mjolnirHammer', 'megingjordBelt', 'ironGauntlets', 'thorHelm', 'thorCape']))
     expect(data?.looks.unlocked).not.toContain('lokiMaskFace')
     expect(data?.looks.choices).toEqual({})
+  })
+
+  it('기본 모습은 범위 밖이거나 없으면 기본값', () => {
+    const odd = parseSave(JSON.stringify({ ...sample, body: { skin: 9, hair: -1, cloth: 'red' } }))
+    expect(odd?.body).toEqual({ skin: 0, hair: 0, cloth: 0 })
+    const { body: _body, ...old } = sample
+    expect(parseSave(JSON.stringify(old))?.body).toEqual({ skin: 0, hair: 0, cloth: 0 })
   })
 })

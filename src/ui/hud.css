@@ -1,62 +1,91 @@
-/* 기본 HUD. 화면 크기가 달라도 아래쪽 가운데에 붙어 있고, 크기는 화면 높이에 맞춰 바뀐다. */
+/* 기본 HUD. 화면 크기가 달라도 아래쪽 가운데에 떠 있고, 크기는 화면 높이에 맞춰 바뀐다. */
 .hud {
   --unit: clamp(4px, 0.9vh, 10px);
-  --ink: #e9eef5;
-  --muted: #9aa6b5;
-  --panel: rgba(14, 18, 26, 0.82);
-  --edge: #3a4558;
-  --life: #d2443c;
-  --divine: #e3b341;
+  --ink: var(--c-ink-1);
   position: fixed;
   inset: 0;
   pointer-events: none;
-  font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  font-family: var(--font-body);
   color: var(--ink);
   user-select: none;
 }
-.hud__bar {
+/* 아래 가운데에 떠 있는 묶음: 판 없이 바닥 쪽만 살짝 어둡게 깐다 */
+.hud__dock {
   position: absolute;
-  overflow: visible;
   left: 50%;
-  bottom: calc(var(--unit) * 2 + env(safe-area-inset-bottom, 0px));
+  bottom: calc(var(--unit) * 2.4 + env(safe-area-inset-bottom, 0px));
   transform: translateX(-50%);
   display: flex;
-  align-items: flex-end;
-  gap: calc(var(--unit) * 2);
-  padding: calc(var(--unit) * 1.5);
-  background: var(--panel);
-  border: 2px solid var(--edge);
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--unit) * 1.2);
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.6));
 }
-.hud__meter {
+.hud::before {
+  content: '';
+  position: absolute;
+  inset: auto 0 0 0;
+  height: calc(var(--unit) * 16);
+  background: linear-gradient(to top, rgba(7, 8, 11, 0.55), transparent);
+}
+
+/* 생명: parts.css의 막대 */
+.hud__life {
+  width: calc(var(--unit) * 34);
+}
+
+/* 왼쪽 위 지금의 나: 초상, 레벨 보석, 걸린 힘 칩 */
+.hud__status {
+  position: absolute;
+  left: calc(var(--unit) * 2 + env(safe-area-inset-left, 0px));
+  top: calc(var(--unit) * 2 + env(safe-area-inset-top, 0px));
+  display: flex;
+  align-items: center;
+  gap: calc(var(--unit) * 1.2);
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.6));
+}
+.hud__portrait {
+  padding: 0;
+  border: 0;
+  background: none;
+  pointer-events: auto;
+  cursor: pointer;
+}
+.hud__portrait.is-empty > img {
+  width: 24px;
+  height: 24px;
+}
+.hud__status-side {
   display: flex;
   flex-direction: column;
-  width: calc(var(--unit) * 22);
+  align-items: flex-start;
+  gap: 6px;
 }
-.hud__meter-track {
-  height: calc(var(--unit) * 2.2);
-  background: #1d2430;
-  border: 2px solid var(--edge);
+.hud__chips {
+  display: flex;
+  gap: 6px;
 }
-.hud__meter-fill {
-  height: 100%;
-  width: 100%;
-  background: var(--life);
-  transition: width 0.1s linear;
+.hud__chip--glyph > img {
+  width: 12px;
+  height: 12px;
 }
-.hud__meter--divine .hud__meter-fill {
-  background: var(--divine);
-}
+
 .hud__slots {
   display: flex;
+  align-items: center;
   gap: var(--unit);
 }
+/* 유물 칸: 우묵한 홈. 충전은 그늘을 시계 방향으로 걷어 낸다 */
 .hud__slot {
+  --charge: 1;
+  --glow: var(--c-charge);
   position: relative;
-  width: calc(var(--unit) * 6);
-  height: calc(var(--unit) * 6);
+  width: calc(var(--unit) * 5.6);
+  height: calc(var(--unit) * 5.6);
   padding: 0;
-  background: #1d2430;
-  border: 2px solid var(--edge);
+  border: 0;
+  background: var(--c-stone-lo);
+  box-shadow: inset 2px 2px 0 var(--c-groove), inset -1px -1px 0 var(--c-stone-hi), 0 0 0 1px rgba(7, 8, 11, 0.8);
 }
 button.hud__slot {
   pointer-events: auto;
@@ -67,34 +96,62 @@ button.hud__slot--empty {
 }
 .hud__icon {
   position: absolute;
-  inset: 8%;
+  inset: 12%;
   background: center / contain no-repeat;
   image-rendering: pixelated;
 }
-/* 유물 효과가 아직 차지 않은 만큼 위에서부터 어둡게 덮는다. */
-.hud__shade {
+.hud__sweep {
   position: absolute;
-  inset: 0 0 auto 0;
-  height: 0;
-  background: rgba(0, 0, 0, 0.6);
+  inset: 0;
+  background: conic-gradient(transparent calc(var(--charge) * 1turn), rgba(7, 8, 11, 0.66) 0);
 }
-/* 유물을 아직 끼지 않은 칸 */
+.hud__slot.is-charged {
+  box-shadow: inset 2px 2px 0 var(--c-groove), 0 0 0 1px var(--glow), 0 0 calc(var(--unit) * 1.4) color-mix(in srgb, var(--glow) 55%, transparent);
+}
+/* 유물을 아직 끼지 않은 칸: 홈만 희미하게 */
 .hud__slot--empty {
-  background: transparent;
-  border-style: dashed;
-  opacity: 0.6;
+  opacity: 0.45;
 }
-.hud__slot--ultimate {
-  margin-left: var(--unit);
-  border-color: #6b5622;
+.hud__slot--empty .hud__sweep {
+  display: none;
 }
-.hud__slot--ultimate.is-locked .hud__icon {
-  opacity: 0.15;
+
+/* 궁극기: 마름모. 신위가 차는 만큼 둘레의 금빛 고리가 채워진다 */
+.hud__ult {
+  --charge: 0;
+  position: relative;
+  width: calc(var(--unit) * 6.4);
+  height: calc(var(--unit) * 6.4);
+  margin-left: calc(var(--unit) * 1.2);
+  transform: rotate(45deg) scale(0.86);
+}
+.hud__ult-ring {
+  position: absolute;
+  inset: 0;
+  background: conic-gradient(from -45deg, var(--c-gilt) calc(var(--charge) * 1turn), var(--c-groove) 0);
+}
+.hud__ult-core {
+  position: absolute;
+  inset: 3px;
+  background: var(--c-stone-lo);
+  box-shadow: inset 2px 2px 0 var(--c-groove);
+}
+.hud__ult-core .hud__icon {
+  transform: rotate(-45deg);
+  inset: 14%;
+}
+.hud__ult.is-locked {
+  opacity: 0.35;
+}
+.hud__ult.is-locked .hud__icon {
   filter: grayscale(1);
 }
-.hud__slot--ultimate.is-ready {
-  border-color: var(--divine);
-  box-shadow: 0 0 calc(var(--unit) * 1.2) var(--divine);
+.hud__ult.is-ready {
+  animation: hud-ult 1.4s ease-in-out infinite;
+}
+@keyframes hud-ult {
+  0%, 100% { filter: drop-shadow(0 0 2px var(--c-gilt)); }
+  50% { filter: drop-shadow(0 0 calc(var(--unit) * 1.4) var(--c-gold-soft)); }
 }
 
 /* 보스 생명력: 화면 위쪽 가운데 */
@@ -104,29 +161,15 @@ button.hud__slot--empty {
   top: calc(var(--unit) * 3 + env(safe-area-inset-top, 0px));
   transform: translateX(-50%);
   width: min(70vw, calc(var(--unit) * 70));
-  padding: var(--unit);
-  background: var(--panel);
-  border: 2px solid var(--edge);
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.6));
   visibility: hidden;
 }
 .hud__boss.is-visible {
   visibility: visible;
 }
 .hud__boss-track {
-  position: relative;
-  height: calc(var(--unit) * 1.8);
-  background: #1d2430;
-}
-.hud__boss-trail,
-.hud__boss-fill {
-  position: absolute;
-  inset: 0 auto 0 0;
-}
-.hud__boss-trail {
-  background: #f1e3c4;
-}
-.hud__boss-fill {
-  background: #7fc6e6;
+  --fill: #8a4cf0;
+  --h: 12px;
 }
 
 /* 피해 숫자 */
@@ -135,14 +178,14 @@ button.hud__slot--empty {
   inset: 0;
   pointer-events: none;
   overflow: hidden;
-  font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  font-family: var(--font-body);
 }
 .damage-number {
   position: absolute;
   left: 0;
   top: 0;
-  font-size: clamp(12px, 2.2vh, 26px);
-  font-weight: 800;
+  /* 픽셀 글꼴이 흐려지지 않게 12px의 배수로만 키운다. */
+  font: 700 max(12px, round(down, 2.2vh, 12px)) / 1 var(--font-body);
   color: #ffffff;
   text-shadow:
     2px 0 #141822,
@@ -153,7 +196,7 @@ button.hud__slot--empty {
 }
 .damage-number--strong {
   color: #ffd75e;
-  font-size: clamp(16px, 3vh, 34px);
+  font: max(15px, round(down, 3vh, 15px)) / 1 var(--font-display);
 }
 .damage-number--hurt {
   color: #ff6b5e;
@@ -169,7 +212,6 @@ button.hud__slot--empty {
   left: 50%;
   transform: translateX(-50%);
   white-space: nowrap;
-  font-weight: 800;
   opacity: 0;
   text-shadow:
     3px 0 #141822,
@@ -179,12 +221,12 @@ button.hud__slot--empty {
 }
 .hud__banner {
   top: 22%;
-  font-size: clamp(28px, 6vh, 64px);
+  font: max(30px, round(down, 6vh, 15px)) / 1.2 var(--font-display);
   letter-spacing: 0.1em;
 }
 .hud__toast {
   bottom: calc(var(--unit) * 14);
-  font-size: clamp(14px, 2.4vh, 24px);
+  font: max(12px, round(down, 2.4vh, 12px)) / 1.4 var(--font-body);
   color: var(--ink);
 }
 .hud__banner.is-showing {
@@ -206,16 +248,12 @@ button.hud__slot--empty {
   100% { opacity: 0; }
 }
 
-/* 경험치 바: 아래 막대 판의 위쪽 테두리에 붙는 가는 줄 */
+/* 경험치: 화면 맨 아래 끝에서 끝까지 이어진 가는 줄 (발현했을 때만) */
 .hud__xp {
   position: absolute;
-  left: -2px;
-  right: -2px;
-  top: calc(var(--unit) * -1.2 - 2px);
-  height: calc(var(--unit) * 1.2);
-  background: #1d2430;
-  border: 2px solid var(--edge);
-  border-bottom: none;
+  inset: auto 0 env(safe-area-inset-bottom, 0px) 0;
+  height: 3px;
+  background: rgba(7, 8, 11, 0.7);
   visibility: hidden;
 }
 .hud__xp.is-visible {
@@ -224,6 +262,7 @@ button.hud__slot--empty {
 .hud__xp-fill {
   height: 100%;
   width: 0;
+  box-shadow: 0 0 6px currentColor;
 }
 .hud__xp.is-full .hud__xp-fill {
   animation: hud-xp-full 0.8s ease-in-out infinite alternate;
@@ -237,7 +276,116 @@ button.hud__slot--empty {
   display: none;
 }
 
-/* 행동 연동 효과가 다 찬 유물 칸 */
-.hud__slot.is-charged {
-  border-color: #7fd4ff;
+/* 올리면 뜨는 짧은 설명 */
+.hud__tippable {
+  pointer-events: auto;
+}
+.hud__tip {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 30;
+  max-width: 260px;
+  padding: var(--sp-3) var(--sp-4);
+  font: var(--t-body);
+  color: var(--c-ink-2);
+  white-space: pre-line;
+  background: #111216;
+  box-shadow: 0 0 0 1px var(--c-stone-hi), 0 0 0 3px var(--c-groove), var(--shadow);
+  pointer-events: none;
+}
+.hud__tip b {
+  display: block;
+  margin-bottom: 2px;
+  font: var(--t-strong);
+  color: var(--c-ink-1);
+}
+
+/* 발현·승급 때 무엇이 강해졌는지 보여 주는 카드 */
+.hud__gains {
+  --glow: var(--c-moon);
+  position: absolute;
+  left: 50%;
+  top: 9%;
+  min-width: 300px;
+  padding: var(--sp-5) var(--sp-6) var(--sp-6);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--glow) 16%, rgba(12, 13, 16, 0.92)), rgba(12, 13, 16, 0.92) 60%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--glow) 60%, transparent), 0 0 0 2px #050608, 0 0 24px color-mix(in srgb, var(--glow) 35%, transparent);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(-50%);
+}
+.hud__gains.is-showing {
+  visibility: visible;
+  animation: hud-gains 5s ease-out forwards;
+}
+@keyframes hud-gains {
+  0% { opacity: 0; transform: translate(-50%, 12px) scale(0.96); }
+  6% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  88% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.hud__gains-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-5);
+  margin-bottom: var(--sp-4);
+}
+.hud__gains-kind {
+  font: var(--t-small);
+  letter-spacing: 0.2em;
+  color: var(--c-gilt);
+}
+.hud__gains-title {
+  font: var(--t-title);
+  color: var(--glow);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--glow) 60%, transparent);
+}
+.hud__gains ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.hud__gains li {
+  font: var(--t-body);
+  color: var(--c-ink-1);
+  opacity: 0;
+  animation: hud-gains-line 0.3s ease-out forwards;
+}
+.hud__gains li::before {
+  content: '▲ ';
+  color: var(--c-good);
+}
+@keyframes hud-gains-line {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: none; }
+}
+.hud__gains-from {
+  color: var(--c-ink-3);
+}
+.hud__gains-arrow {
+  margin: 0 var(--sp-3);
+  color: var(--c-ink-4);
+}
+.hud__gains-to {
+  color: var(--c-good);
+}
+
+/* 발현할 때 화면 전체가 신의 색으로 번쩍인다 */
+.hud__flash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 55%, color-mix(in srgb, var(--flash, #fff) 70%, #fff), transparent 75%);
+  opacity: 0;
+  pointer-events: none;
+}
+.hud__flash.is-showing {
+  animation: hud-flash 0.7s ease-out;
+}
+@keyframes hud-flash {
+  0% { opacity: 0.85; }
+  100% { opacity: 0; }
 }

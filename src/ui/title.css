@@ -1,4 +1,4 @@
-/* 시작 화면. 게임 장면 위에 어둡게 깔고, 제목과 단추만 둔다. */
+/* 시작·로딩 화면. 새긴 돌의 어둠 위에 문장 고리와 돌에 판 제목만 둔다. (DESIGN.md 10.5) */
 .title {
   --unit: clamp(4px, 0.9vh, 10px);
   position: fixed;
@@ -7,20 +7,14 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: calc(var(--unit) * 7);
+  gap: calc(var(--unit) * 6);
   padding: 16px;
-  background:
-    radial-gradient(ellipse at center, rgba(13, 15, 20, 0.15) 0%, rgba(13, 15, 20, 0.75) 75%),
-    linear-gradient(to bottom, rgba(13, 15, 20, 0.35), rgba(13, 15, 20, 0.6));
-  font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
-  color: #e9eef5;
+  background: radial-gradient(ellipse at 50% 35%, var(--c-stone-glow), var(--c-page) 70%);
+  font-family: var(--font-body);
+  color: var(--c-ink-1);
   text-align: center;
   user-select: none;
-  opacity: 0;
-  transition: opacity 0.6s ease;
-}
-.title.is-shown {
-  opacity: 1;
+  transition: opacity 0.45s ease;
 }
 .title.is-leaving {
   opacity: 0;
@@ -30,80 +24,233 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: calc(var(--unit) * 1.5);
+  gap: calc(var(--unit) * 2);
 }
-.title__rune {
-  font-size: calc(var(--unit) * 7);
-  line-height: 1;
-  color: #7fd4ff;
-  text-shadow: 0 0 calc(var(--unit) * 2) #5fc4ff;
-  animation: title-rune 3s ease-in-out infinite;
+/* 로딩 중: 글 없이 문장 고리 하나만 가운데에서 숨 쉬듯 흐려졌다 진해진다 */
+.title.is-loading .title__ring {
+  animation: title-breath 2.4s ease-in-out infinite;
 }
-@keyframes title-rune {
-  0%, 100% { opacity: 0.65; }
+.title.is-loading .title__name,
+.title.is-loading .title__tag,
+.title.is-loading .title__menu,
+.title.is-loading .title__build {
+  display: none;
+}
+/* 처음 실행: 준비되면 제목과 [시작]이 떠오른다 */
+.title__name,
+.title__tag,
+.title__build {
+  animation: title-appear 0.4s ease both;
+}
+@keyframes title-breath {
+  0%, 100% { opacity: 0.35; }
   50% { opacity: 1; }
+}
+.title__ring {
+  /* 64픽셀 그림을 정수배로만 키운다 */
+  width: calc(64px * var(--ring-scale, 2));
+  height: calc(64px * var(--ring-scale, 2));
+  image-rendering: pixelated;
+}
+@media (min-height: 760px) {
+  .title__ring { --ring-scale: 3; }
 }
 .title__name {
   margin: 0;
-  font-size: clamp(36px, calc(var(--unit) * 11), 112px);
-  line-height: 0.95;
+  font: max(30px, round(down, calc(var(--unit) * 8), 15px)) / 1 var(--font-display);
   letter-spacing: 0.08em;
-  font-weight: 900;
-  color: #f1e3c4;
-  /* 픽셀 그림처럼 계단식으로 쌓은 그림자 */
-  text-shadow:
-    4px 4px 0 #8a5a2b,
-    8px 8px 0 #3b2414,
-    0 0 calc(var(--unit) * 4) rgba(0, 0, 0, 0.6);
+  color: var(--c-stone-ink);
+  /* 돌에 판 글자: 위는 밝게 깎이고 아래로 깊게 그림자가 진다 */
+  text-shadow: 0 -1px 0 #fafcff, 0 3px 0 #101216, 0 4px 0 #050608;
+}
+.title__name span {
+  color: var(--c-moon);
+  text-shadow: 0 0 12px rgba(216, 221, 230, 0.5), 0 3px 0 #101216;
 }
 .title__tag {
   margin: 0;
-  font-size: clamp(13px, calc(var(--unit) * 2.2), 22px);
-  letter-spacing: 0.3em;
-  color: #9fb4c8;
+  font: var(--t-body);
+  letter-spacing: 0.5em;
+  color: var(--c-bone);
 }
 .title__menu {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: calc(var(--unit) * 1.5);
-  min-width: min(80vw, calc(var(--unit) * 36));
+  min-width: min(80vw, 240px);
+  min-height: 40px;
 }
 .title__button {
-  padding: calc(var(--unit) * 1.6) calc(var(--unit) * 4);
-  font: inherit;
-  font-size: clamp(15px, calc(var(--unit) * 2.4), 24px);
-  font-weight: 700;
+  padding: 8px 14px;
+  font: var(--t-title);
   letter-spacing: 0.1em;
-  color: #e9eef5;
-  background: rgba(14, 18, 26, 0.85);
-  border: 2px solid #3a4558;
+  color: var(--c-ink-1);
+  border: 0;
+  background: var(--c-stone-hi);
+  box-shadow: var(--stone-raised), 0 0 0 3px var(--c-gilt);
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s, transform 0.1s;
+  opacity: 0;
+  animation: title-appear 0.3s ease forwards;
+}
+@keyframes title-appear {
+  to { opacity: 1; }
 }
 .title__button:hover,
 .title__button:focus-visible {
-  border-color: #7fd4ff;
-  background: rgba(30, 40, 58, 0.95);
-  outline: none;
+  background: #4a4e58;
+  outline: 1px solid var(--c-moon);
+  outline-offset: 4px;
 }
 .title__button:active {
   transform: translateY(2px);
-}
-.title__button--primary {
-  border-color: #6b5622;
-  color: #f1e3c4;
-}
-.title__button--new.is-confirm {
-  border-color: #d2443c;
-  color: #ffb3ad;
 }
 .title__build {
   position: absolute;
   bottom: calc(var(--unit) * 2);
   right: calc(var(--unit) * 3);
   margin: 0;
-  font-size: 11px;
+  font: var(--t-small);
   letter-spacing: 0.3em;
-  color: #6c7a8c;
+  color: var(--c-ink-4);
+}
+
+/* 저장 슬롯 */
+.title-slots {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  width: min(86vw, 340px);
+}
+.title-slot {
+  --glow: var(--c-moon);
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-5);
+  min-height: 64px;
+  padding: var(--sp-3) var(--sp-5);
+  text-align: left;
+  color: var(--c-ink-1);
+  border: 0;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--glow) 14%, var(--c-stone)), var(--c-stone) 70%);
+  box-shadow: var(--stone-raised);
+  cursor: pointer;
+  animation: title-appear 0.3s ease both;
+}
+.title-slot:hover,
+.title-slot:focus-visible {
+  outline: 1px solid var(--glow);
+  outline-offset: 3px;
+}
+.title-slot.is-empty {
+  justify-content: center;
+  color: var(--c-ink-3);
+  background: var(--c-stone-lo);
+  box-shadow: inset 2px 2px 0 var(--c-groove), inset -1px -1px 0 var(--c-stone-hi), 0 0 0 2px var(--c-groove);
+}
+.title-slot.is-empty:hover {
+  color: var(--c-ink-1);
+}
+.title-slot__plus {
+  font: var(--t-title);
+}
+.title-slot__words {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font: var(--t-body);
+}
+.title-slot__title {
+  font: var(--t-title);
+  color: var(--glow);
+}
+.title-slot__meta {
+  font: var(--t-small);
+  color: var(--c-ink-3);
+}
+.title-slot__delete {
+  position: absolute;
+  right: var(--sp-3);
+  top: var(--sp-2);
+  padding: 0 var(--sp-2);
+  font: var(--t-small);
+  color: var(--c-ink-4);
+}
+.title-slot__delete:hover,
+.title-slot__delete.is-confirm {
+  color: var(--c-bad);
+}
+
+/* 캐릭터 만들기: 제목은 작게 비키고 미리 보기와 색 고르기 */
+.title.is-creating .title__tag,
+.title.is-creating .title__name {
+  display: none;
+}
+.title.is-creating .title__ring {
+  --ring-scale: 1;
+}
+.title-creator {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: var(--sp-6);
+  animation: title-appear 0.3s ease both;
+}
+.title-creator__stage .hero-preview {
+  width: 216px;
+  height: 288px;
+  image-rendering: pixelated;
+  background: radial-gradient(ellipse at 50% 85%, rgba(216, 221, 230, 0.16), transparent 55%), var(--c-stone-lo);
+  box-shadow: inset 2px 2px 0 var(--c-groove), inset -1px -1px 0 var(--c-stone-hi), 0 0 0 2px var(--c-groove);
+}
+.title-creator__pickers {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  text-align: left;
+}
+.title-creator__label {
+  display: block;
+  margin-bottom: var(--sp-2);
+  font: var(--t-small);
+  color: var(--c-ink-3);
+}
+.title-creator__swatches {
+  display: flex;
+  gap: var(--sp-3);
+}
+.title-swatch {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  box-shadow: 0 0 0 1px #050608, 0 0 0 2px var(--c-stone-hi);
+  cursor: pointer;
+}
+.title-swatch.is-on {
+  box-shadow: 0 0 0 1px #050608, 0 0 0 3px var(--c-gilt);
+}
+.title-creator__actions {
+  display: flex;
+  gap: var(--sp-4);
+  width: 100%;
+  justify-content: center;
+}
+.title-creator__actions .title__button {
+  min-width: 120px;
+}
+.title__button--ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  color: var(--c-ink-3);
+  background: var(--c-stone-lo);
+  box-shadow: var(--stone-raised);
+}
+.title__button--ghost img {
+  width: 12px;
+  height: 12px;
+  image-rendering: pixelated;
 }

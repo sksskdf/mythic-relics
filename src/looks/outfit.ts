@@ -1,4 +1,5 @@
-import { BASE_OUTFIT, LOOK_SLOTS, lookDef, type LookSlot, STARTING_LOOKS } from './catalog'
+import { type BodyLook, DEFAULT_BODY } from './body'
+import { BASE_OUTFIT, lookDef, type LookSlot, STARTING_LOOKS, WARDROBE_SLOTS } from './catalog'
 
 /** 칸마다 걸칠 외형. null이면 그 칸은 비어 있다. */
 export type Outfit = Record<LookSlot, string | null>
@@ -9,7 +10,7 @@ export type LookChoice = 'auto' | string | null
 export interface OutfitSources {
   /** 장착한 유물들의 외형 id */
   relicLooks: readonly string[]
-  /** 발현한 신의 외형 (칸 → id). 발현하지 않았으면 비어 있다 */
+  /** 발현한 신의 외형 (칸 → id, 표식 포함). 발현하지 않았으면 비어 있다 */
   manifestLooks: Readonly<Partial<Record<LookSlot, string>>>
 }
 
@@ -31,6 +32,8 @@ export function autoOutfit(sources: OutfitSources): Outfit {
 export class Wardrobe {
   readonly unlocked = new Set<string>(STARTING_LOOKS)
   readonly choices = new Map<LookSlot, LookChoice>()
+  /** 처음에 고른 기본 모습 (피부·머리카락·옷 색) */
+  body: BodyLook = { ...DEFAULT_BODY }
 
   /** 외형을 얻는다. 새로 얻은 것만 돌려준다. */
   unlock(ids: Iterable<string>): string[] {
@@ -43,8 +46,9 @@ export class Wardrobe {
     return added
   }
 
-  /** 칸에 무엇을 입을지 고른다. 아직 얻지 않았거나 다른 칸의 외형이면 무시한다. */
+  /** 칸에 무엇을 입을지 고른다. 아직 얻지 않았거나 다른 칸의 외형이면 무시한다. 표식은 고를 수 없다. */
   choose(slot: LookSlot, choice: LookChoice): boolean {
+    if (slot === 'mark') return false
     if (choice !== 'auto' && choice !== null && (!this.unlocked.has(choice) || lookDef(choice).slot !== slot)) return false
     if (choice === 'auto') this.choices.delete(slot)
     else this.choices.set(slot, choice)
@@ -55,10 +59,10 @@ export class Wardrobe {
     return this.choices.has(slot) ? this.choices.get(slot)! : 'auto'
   }
 
-  /** 칸마다 고른 것을 적용한 최종 모습 */
+  /** 칸마다 고른 것을 적용한 최종 모습. 표식은 언제나 발현을 따른다. */
   dress(auto: Outfit): Outfit {
     const outfit = { ...auto }
-    for (const slot of LOOK_SLOTS) {
+    for (const slot of WARDROBE_SLOTS) {
       const choice = this.choice(slot)
       if (choice !== 'auto') outfit[slot] = choice
     }

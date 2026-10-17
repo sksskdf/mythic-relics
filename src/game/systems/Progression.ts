@@ -2,6 +2,8 @@ import * as THREE from 'three'
 
 import type { Giant } from '../../enemies/Giant'
 import { PER_PROMOTION } from '../../progress/ClassProgress'
+import { levelGains } from '../../progress/levelGains'
+import { classIcon } from '../../ui/classIcons'
 import { type God, godDef, type RelicId } from '../../relics/data'
 import type { GameContext } from '../context'
 
@@ -59,13 +61,24 @@ export class ProgressionSystem {
   /** 승급: 칭호가 바뀌고, 스킬이 강해지고, 친화도와 기본 능력치가 오른다. */
   promote(god: God): void {
     const { progress, combat, hero, hud, fx, view, feel, bus } = this.ctx
+    const hpBefore = BASE_HP + progress.promotions * PER_PROMOTION.maxHp
+    const dmgBefore = 1 + progress.promotions * PER_PROMOTION.damage
     if (!progress.promote(god)) return
     bus.emit('promoted', { god, title: progress.title(god) })
     bus.emit('progressChanged', {})
     this.applyStats()
     combat.health.reset()
     const p = hero.object.position
-    hud.showBanner(progress.title(god), godDef(god).color)
+    // 무엇이 얼마나 강해졌는지: 기본 능력치는 전→후, 그 단계에서 새로 생긴 힘은 한 줄씩
+    const hpAfter = BASE_HP + progress.promotions * PER_PROMOTION.maxHp
+    const dmgAfter = 1 + progress.promotions * PER_PROMOTION.damage
+    const level = progress.level(god)
+    const lines = [
+      `최대 생명 ${hpBefore} → ${hpAfter}`,
+      `모든 피해 ×${dmgBefore.toFixed(2)} → ×${dmgAfter.toFixed(2)}`,
+      ...levelGains(god, level).filter((g) => g.kind !== 'hp' && g.kind !== 'damage').map((g) => g.text),
+    ]
+    hud.showGains(`승급 · Lv${level}`, progress.title(god), godDef(god).color, classIcon(godDef(god).name), lines)
     for (let i = 0; i < 5; i++) {
       const a = (i / 5) * Math.PI * 2
       fx.lightning.fromSky(new THREE.Vector3(p.x + Math.sin(a) * 2, p.y, p.z + Math.cos(a) * 2), 0.18)

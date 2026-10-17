@@ -8,9 +8,9 @@
   max-height: calc(100vh - 16px);
   overflow-y: auto;
   background: rgba(12, 16, 23, 0.92);
-  border: 1px solid #3a4558;
-  color: #e3e9f0;
-  font: 12px/1.4 ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  border: 1px solid var(--c-line-2);
+  color: var(--c-ink-1);
+  font: var(--t-body);
 }
 .devpanel__head {
   display: flex;
@@ -18,7 +18,17 @@
   align-items: center;
   padding: 6px 10px;
   background: #1c2531;
-  color: #ffd27a;
+  color: var(--c-gold-soft);
+}
+/* 접었을 때: 본문을 숨기고 머리줄만 작게 남긴다. */
+.devpanel.is-folded {
+  width: auto;
+  overflow: visible;
+}
+.devpanel.is-folded .devpanel__head {
+  gap: 8px;
+  padding: 3px 6px;
+  font: var(--t-small);
 }
 /* display를 정하면 hidden 속성이 무시되므로 접었을 때는 따로 숨긴다. */
 .devpanel__body[hidden] {
@@ -32,28 +42,91 @@
 }
 .devpanel__status {
   margin: 0;
-  padding: 6px 8px;
+  padding: 4px 6px;
   background: #0b0f15;
   color: #9fe3ff;
+  font: var(--t-small);
   white-space: pre-wrap;
 }
-.devpanel__section h3 {
-  margin: 0 0 4px;
-  font-size: 11px;
-  color: #93a2b4;
-  font-weight: 700;
+.devpanel__fps {
+  margin-left: auto;
+  margin-right: 8px;
+  font: var(--t-small);
+  color: var(--c-ink-3);
+}
+.devpanel__tabs {
+  display: flex;
+  border-bottom: 1px solid var(--c-line-2);
+}
+.devpanel__tabs .devpanel__tab {
+  flex: 1;
+  padding: 4px 0;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--c-ink-3);
+}
+.devpanel__tabs .devpanel__tab.is-on {
+  color: var(--c-gold-soft);
+  border-bottom-color: var(--c-gold);
+  background: none;
+}
+.devpanel__page {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.devpanel__page[hidden] {
+  display: none;
 }
 .devpanel__row {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 4px;
+}
+.devpanel__relics {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 40px);
+  gap: 4px;
+}
+.devpanel .devpanel__relic {
+  --god: var(--c-line-2);
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  background-color: var(--c-bg-3);
+  background-size: 75%;
+  background-position: center;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  opacity: 0.45;
+}
+.devpanel .devpanel__relic.is-on {
+  opacity: 1;
+  background-color: color-mix(in srgb, var(--god) 22%, var(--c-bg-3));
+  border-color: var(--god);
+}
+.devpanel__select {
+  display: inline-flex;
+  flex: 1;
+  min-width: 0;
+}
+.devpanel__select select {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  color: var(--c-ink-1);
+  background: #0b0f15;
+  border: 1px solid var(--c-line-2);
+  border-right: 0;
 }
 .devpanel button {
   font: inherit;
   padding: 3px 7px;
-  color: #e3e9f0;
+  color: var(--c-ink-1);
   background: #222c3a;
-  border: 1px solid #3a4558;
+  border: 1px solid var(--c-line-2);
   cursor: pointer;
 }
 .devpanel button:hover,

@@ -100,6 +100,7 @@ export class DataRelicEffect implements RelicEffect {
   }
 
   dispose(): void {
+    this.aura?.dispose()
     this.action.dispose()
   }
 }

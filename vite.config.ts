@@ -11,7 +11,7 @@ function checkGameData(): Plugin {
   return {
     name: 'check-game-data',
     buildStart() {
-      parseGameData({ gods: read('gods'), relics: read('relics'), enemies: read('enemies') })
+      parseGameData({ gods: read('gods'), relics: read('relics'), enemies: read('enemies'), classes: read('classes') })
     },
   }
 }

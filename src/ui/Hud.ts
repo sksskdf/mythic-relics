@@ -1,5 +1,7 @@
-import { BOLT_ICON, pixelIcon } from './pixelIcon'
+import { classIcon } from './classIcons'
 import './hud.css'
+import { BOLT_ICON, pixelIcon } from './pixelIcon'
+import { glyph, unknownSigil } from './sigils'
 
 export interface HudSlot {
   /** 유물 그림 주소. 빈 칸이면 null */
@@ -22,76 +24,146 @@ export interface HudState {
   xp: number | null
   /** 경험치 바 색 (발현한 신의 대표 색) */
   xpColor: string
+  /** 왼쪽 위 초상: 발현한 클래스. 발현하지 않았으면 null */
+  portrait: { name: string; title: string; color: string; level: number } | null
+  /** 가호로 붙은 신들 */
+  blessings: readonly { name: string; color: string }[]
+  /** 경험치가 가득 차 승급 전설에 들어갈 수 있다 */
+  promote: boolean
 }
 
 /** 유물 스킬 칸 수 */
 export const SKILL_SLOTS = 4
 
 /**
- * HUD: 아래쪽에 생명력, 유물 스킬 칸 4개, 궁극기 칸, 신위 게이지, 경험치 바(발현했을 때), 위쪽에 보스 생명력.
+ * HUD: 왼쪽 위에 지금의 나, 아래 가운데에 떠 있는 묶음 하나. (DESIGN.md 10.5)
+ * - 지금의 나: 발현한 클래스 초상, 레벨 보석, 걸린 힘 칩(가호, 승급 대기). 누르면 정보 화면의 상태 탭.
+ * - 생명: 금속 테 안의 막대(parts.css). 깎인 만큼 밝은 잔상이 잠깐 남았다가 따라 줄어든다.
+ * - 유물 칸 4개: 충전은 칸 위를 시계 방향으로 걷어 내는 그늘로, 다 차면 칸이 빛난다.
+ * - 궁극기: 마름모 칸. 신위가 차는 만큼 둘레의 금빛 고리가 채워지고, 다 차면 숨 쉬듯 빛난다.
+ * - 경험치: 화면 맨 아래 끝에서 끝까지 이어진 가는 줄 (발현했을 때만).
  * 스킬과 궁극기는 자동으로 나가므로 키 표시가 없고, 글 대신 막대와 그림으로 보여 준다. (텍스트 최소화)
- * 유물 칸을 누르면 그 유물을 빼서 발밑에 내려놓는다.
+ * 유물 칸에 커서를 올리면 설명 카드가 뜨고, 누르면 유물 화면이 열린다. (E4)
  */
 export class Hud {
   readonly root: HTMLElement
   /** 유물 칸을 눌렀을 때 */
   onSlotClick: (slot: number) => void = () => {}
+  /** 유물 칸에 커서를 올렸을 때 (벗어나면 slot이 null) */
+  onSlotHover: (slot: number | null, anchor: DOMRect | null) => void = () => {}
+  /** 왼쪽 위 초상을 눌렀을 때 */
+  onPortraitClick: () => void = () => {}
 
-  private readonly lifeFill: HTMLElement
-  private readonly divineFill: HTMLElement
+  private readonly life: HTMLElement
+  private readonly portrait: HTMLElement
+  private readonly portraitIcon: HTMLImageElement
+  private readonly gems: HTMLElement[] = []
+  private readonly chips: HTMLElement
+  private statusKey = ''
+  private statusTip = ''
+  private readonly tip: HTMLElement
   private readonly ultimate: HTMLElement
   private readonly ultimateIcon: HTMLElement
-  private readonly slotEls: { root: HTMLElement; icon: HTMLElement; shade: HTMLElement; src: string | null }[] = []
+  private readonly slotEls: { root: HTMLElement; icon: HTMLElement; src: string | null }[] = []
   private readonly bossBar: HTMLElement
-  private readonly bossFill: HTMLElement
-  private readonly bossTrail: HTMLElement
+  private readonly bossTrack: HTMLElement
   private readonly banner: HTMLElement
   private readonly toast: HTMLElement
+  private readonly gains: HTMLElement
+  private readonly flashEl: HTMLElement
   private readonly xpBar: HTMLElement
   private readonly xpFill: HTMLElement
   private bossTrailRatio = 1
+  private lifeTrailRatio = 1
 
   constructor(parent: HTMLElement) {
     this.root = document.createElement('div')
     this.root.className = 'hud'
 
     this.bossBar = this.el('div', 'hud__boss', this.root)
-    const bossTrack = this.el('div', 'hud__boss-track', this.bossBar)
-    this.bossTrail = this.el('div', 'hud__boss-trail', bossTrack)
-    this.bossFill = this.el('div', 'hud__boss-fill', bossTrack)
+    this.bossTrack = this.bar('ui-bar ui-bar--capped hud__boss-track', this.bossBar)
+
+    // 지금의 나
+    const status = this.el('div', 'hud__status', this.root)
+    this.portrait = this.el('button', 'ui-portrait is-empty hud__portrait', status)
+    this.portrait.setAttribute('aria-label', '상태')
+    this.portrait.addEventListener('pointerdown', (e) => {
+      e.stopPropagation()
+      this.onPortraitClick()
+    })
+    this.tipOn(this.portrait, () => (this.statusTip || '이름 없는 모험가\n한 신의 유물을 모두 끼면 그 신의 힘이 깨어난다.') + '\n누르면 자세한 상태')
+    this.portraitIcon = document.createElement('img')
+    this.portraitIcon.alt = ''
+    this.portraitIcon.src = unknownSigil()
+    this.portrait.append(this.portraitIcon)
+    const side = this.el('div', 'hud__status-side', status)
+    const gems = this.el('div', 'ui-gems ui-gems--small', side)
+    for (let i = 0; i < 4; i++) this.gems.push(this.el('i', '', gems))
+    this.chips = this.el('div', 'hud__chips', side)
 
     this.banner = this.el('div', 'hud__banner', this.root)
     this.toast = this.el('div', 'hud__toast', this.root)
+    this.flashEl = this.el('div', 'hud__flash', this.root)
+    this.gains = this.el('div', 'hud__gains', this.root)
 
-    const bar = this.el('div', 'hud__bar', this.root)
-    this.xpBar = this.el('div', 'hud__xp', bar)
+    this.xpBar = this.el('div', 'hud__xp', this.root)
     this.xpFill = this.el('div', 'hud__xp-fill', this.xpBar)
-    const life = this.meter('hud__meter hud__meter--life', bar)
-    this.lifeFill = life
 
-    const slots = this.el('div', 'hud__slots', bar)
+    const dock = this.el('div', 'hud__dock', this.root)
+    this.life = this.bar('ui-bar ui-bar--capped hud__life', dock)
+    this.tipOn(this.life, '생명\n다 떨어지면 쓰러졌다가 잠시 뒤 일어난다.')
+
+    const slots = this.el('div', 'hud__slots', dock)
     for (let i = 0; i < SKILL_SLOTS; i++) {
       const root = this.el('button', 'hud__slot hud__slot--empty', slots)
       root.addEventListener('pointerdown', (e) => {
         e.stopPropagation()
+        this.onSlotHover(null, null)
         this.onSlotClick(i)
       })
+      root.addEventListener('pointerenter', () => this.onSlotHover(i, root.getBoundingClientRect()))
+      root.addEventListener('pointerleave', () => this.onSlotHover(null, null))
       const icon = this.el('div', 'hud__icon', root)
-      const shade = this.el('div', 'hud__shade', root)
-      this.slotEls.push({ root, icon, shade, src: null })
+      this.el('div', 'hud__sweep', root)
+      this.slotEls.push({ root, icon, src: null })
     }
-    this.ultimate = this.el('div', 'hud__slot hud__slot--ultimate', slots)
-    this.ultimateIcon = this.el('div', 'hud__icon', this.ultimate)
+    this.ultimate = this.el('div', 'hud__ult', slots)
+    this.tipOn(this.ultimate, '궁극기\n싸울수록 둘레의 금빛 고리가 차오르고, 가득 차면 발현한 신의 궁극기가 저절로 나간다.')
+    this.el('div', 'hud__ult-ring', this.ultimate)
+    this.ultimateIcon = this.el('div', 'hud__icon', this.el('div', 'hud__ult-core', this.ultimate))
     this.ultimateIcon.style.backgroundImage = `url(${pixelIcon(BOLT_ICON.rows, BOLT_ICON.colors)})`
 
-    this.divineFill = this.meter('hud__meter hud__meter--divine', bar)
-
+    this.tip = this.el('div', 'hud__tip', this.root)
+    this.tip.hidden = true
     parent.appendChild(this.root)
   }
 
+  /** 올리면 위쪽에 짧은 설명. 첫 줄은 굵게 */
+  private tipOn(target: HTMLElement, text: string | (() => string)): void {
+    target.classList.add('hud__tippable')
+    target.addEventListener('pointerenter', () => {
+      const [first, ...rest] = (typeof text === 'function' ? text() : text).split('\n')
+      const b = document.createElement('b')
+      b.textContent = first!
+      this.tip.replaceChildren(b, rest.join('\n'))
+      this.tip.hidden = false
+      const r = target.getBoundingClientRect()
+      const w = this.tip.offsetWidth
+      const left = Math.min(Math.max(8, r.left + r.width / 2 - w / 2), innerWidth - w - 8)
+      const below = r.top < innerHeight / 2
+      const top = below ? r.bottom + 8 : r.top - this.tip.offsetHeight - 8
+      this.tip.style.transform = `translate(${Math.round(left)}px, ${Math.round(top)}px)`
+    })
+    target.addEventListener('pointerleave', () => (this.tip.hidden = true))
+  }
+
   update(state: HudState, dt: number): void {
-    this.lifeFill.style.width = `${Math.round(state.life * 100)}%`
-    this.divineFill.style.width = `${Math.round(state.divine * 100)}%`
+    // 깎인 생명은 잔상으로 잠깐 남았다가 따라 줄어든다. 차오를 때는 바로 따라간다.
+    this.lifeTrailRatio = Math.max(state.life, this.lifeTrailRatio - dt * 0.6)
+    this.life.style.setProperty('--pct', state.life.toFixed(3))
+    this.life.style.setProperty('--trail', this.lifeTrailRatio.toFixed(3))
+    this.life.classList.toggle('is-low', state.life <= 0.3)
+    this.updateStatus(state)
 
     state.slots.forEach((slot, i) => {
       const el = this.slotEls[i]
@@ -101,8 +173,8 @@ export class Hud {
         el.icon.style.backgroundImage = slot.icon ? `url(${slot.icon})` : ''
         el.root.classList.toggle('hud__slot--empty', !slot.icon)
       }
-      // 아직 차지 않은 만큼 위에서부터 어둡게 덮는다.
-      el.shade.style.height = `${Math.round((1 - slot.charge) * 100)}%`
+      // 찬 만큼 그늘을 시계 방향으로 걷어 낸다.
+      el.root.style.setProperty('--charge', slot.charge.toFixed(3))
       el.root.classList.toggle('is-charged', slot.charge >= 1)
     })
 
@@ -110,10 +182,12 @@ export class Hud {
     if (state.xp !== null) {
       this.xpFill.style.width = `${(state.xp * 100).toFixed(1)}%`
       this.xpFill.style.background = state.xpColor
+      this.xpFill.style.color = state.xpColor
       // 가득 차면 깜빡여서 승급 전설에 들어갈 수 있음을 알린다.
       this.xpBar.classList.toggle('is-full', state.xp >= 1)
     }
 
+    this.ultimate.style.setProperty('--charge', state.ultimate ? state.divine.toFixed(3) : '0')
     this.ultimate.classList.toggle('is-locked', !state.ultimate)
     this.ultimate.classList.toggle('is-ready', state.ultimate && state.divine >= 1)
 
@@ -121,10 +195,35 @@ export class Hud {
     if (state.boss !== null) {
       // 깎인 부분이 잠깐 남았다가 따라 줄어들어, 얼마나 깎였는지 보이게 한다.
       this.bossTrailRatio = Math.max(state.boss, this.bossTrailRatio - dt * 0.5)
-      this.bossFill.style.width = `${(state.boss * 100).toFixed(1)}%`
-      this.bossTrail.style.width = `${(this.bossTrailRatio * 100).toFixed(1)}%`
+      this.bossTrack.style.setProperty('--pct', state.boss.toFixed(3))
+      this.bossTrack.style.setProperty('--trail', this.bossTrailRatio.toFixed(3))
     } else {
       this.bossTrailRatio = 1
+    }
+  }
+
+  /** 왼쪽 위 지금의 나: 바뀌었을 때만 다시 그린다. */
+  private updateStatus(state: HudState): void {
+    const { portrait, blessings, promote } = state
+    this.statusTip = portrait ? `${portrait.title}\n${portrait.name} Lv${portrait.level}${promote ? ' · 승급 준비됨' : ''}` : ''
+    const key = `${portrait?.name}|${portrait?.level}|${blessings.map((b) => b.name).join()}|${promote}`
+    if (key === this.statusKey) return
+    this.statusKey = key
+    this.portrait.classList.toggle('is-empty', !portrait)
+    this.portrait.style.setProperty('--glow', portrait?.color ?? '')
+    this.portraitIcon.src = portrait ? classIcon(portrait.name) : unknownSigil()
+    this.gems.forEach((gem, i) => gem.classList.toggle('is-on', !!portrait && i < portrait.level))
+    ;(this.gems[0]!.parentElement as HTMLElement).style.setProperty('--gem', portrait?.color ?? '')
+    this.chips.replaceChildren()
+    for (const b of blessings) {
+      const chip = this.el('span', 'ui-chip', this.chips)
+      chip.style.setProperty('--glow', b.color)
+      chip.append(this.img(classIcon(b.name)))
+    }
+    if (promote) {
+      const chip = this.el('span', 'ui-chip is-glowing hud__chip--glyph', this.chips)
+      chip.style.setProperty('--glow', 'var(--c-gilt)')
+      chip.append(this.img(glyph('promote', '#ffd27a', '#a8862e')))
     }
   }
 
@@ -133,6 +232,43 @@ export class Hud {
     this.banner.textContent = text
     this.banner.style.color = color
     this.restartAnimation(this.banner)
+  }
+
+  /**
+   * 무엇이 얼마나 강해졌는지 보여 주는 카드 (발현·승급). 가운데 위에 몇 초 떠 있다가 사라진다.
+   * lines의 각 줄은 얻은 것 하나. "→"가 있으면 앞은 흐리게, 뒤는 밝게 보인다.
+   */
+  showGains(kind: string, title: string, color: string, icon: string, lines: readonly string[]): void {
+    const card = this.gains
+    card.replaceChildren()
+    card.style.setProperty('--glow', color)
+    const head = document.createElement('div')
+    head.className = 'hud__gains-head'
+    const portrait = this.el('div', 'ui-portrait', head)
+    portrait.style.setProperty('--glow', color)
+    portrait.append(this.img(icon))
+    const words = this.el('div', '', head)
+    this.el('div', 'hud__gains-kind', words).textContent = kind
+    this.el('div', 'hud__gains-title', words).textContent = title
+    card.append(head)
+    const list = this.el('ul', '', card)
+    lines.forEach((line, i) => {
+      const li = this.el('li', '', list)
+      li.style.animationDelay = `${0.35 + i * 0.12}s`
+      const [from, to] = line.split(' → ')
+      if (to !== undefined) {
+        this.el('span', 'hud__gains-from', li).textContent = from!
+        this.el('span', 'hud__gains-arrow', li).textContent = '→'
+        this.el('span', 'hud__gains-to', li).textContent = to
+      } else li.textContent = line
+    })
+    this.restartAnimation(card)
+  }
+
+  /** 화면 전체가 신의 색으로 한 번 번쩍인다. (발현) */
+  flash(color: string): void {
+    this.flashEl.style.setProperty('--flash', color)
+    this.restartAnimation(this.flashEl)
   }
 
   /** 유물을 주웠을 때처럼 가벼운 알림을 작게 띄운다. */
@@ -147,16 +283,25 @@ export class Hud {
     el.classList.add('is-showing')
   }
 
+  private img(src: string): HTMLImageElement {
+    const img = document.createElement('img')
+    img.src = src
+    img.alt = ''
+    return img
+  }
+
+  /** 막대 (parts.css의 .ui-bar): 왼쪽 마름모 장식과 25% 눈금 */
+  private bar(className: string, parent: HTMLElement): HTMLElement {
+    const bar = this.el('div', className, parent)
+    this.el('span', 'ui-bar__cap', bar)
+    this.el('span', 'ui-bar__ticks', bar)
+    return bar
+  }
+
   private el(tag: string, className: string, parent: HTMLElement): HTMLElement {
     const el = document.createElement(tag)
     el.className = className
     parent.appendChild(el)
     return el
-  }
-
-  private meter(className: string, parent: HTMLElement): HTMLElement {
-    const root = this.el('div', className, parent)
-    const track = this.el('div', 'hud__meter-track', root)
-    return this.el('div', 'hud__meter-fill', track)
   }
 }

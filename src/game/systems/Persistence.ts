@@ -50,6 +50,7 @@ export class Persistence {
       dropMisses: drops.misses,
       divine: combat.divine,
       looks: { unlocked: [...wardrobe.unlocked], choices: Object.fromEntries(wardrobe.choices) },
+      body: { ...wardrobe.body },
     }
   }
 
@@ -57,6 +58,7 @@ export class Persistence {
   restore(data: SaveData, host: RestoreHost): void {
     const { progress, combat, powers, pickups, drops, wardrobe } = this.ctx
     wardrobe.unlock(data.looks.unlocked)
+    wardrobe.body = { ...data.body }
     for (const [slot, choice] of Object.entries(data.looks.choices) as [LookSlot, string | null][]) wardrobe.choose(slot, choice)
     host.applyLooks()
     for (const [god, record] of Object.entries(data.classes) as [God, { level: number; xp: number }][]) {

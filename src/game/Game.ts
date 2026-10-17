@@ -4,7 +4,7 @@ import { Input } from '../input/Input'
 import { PixelRenderer } from '../render/PixelRenderer'
 import { QuarterViewCamera } from '../render/QuarterViewCamera'
 import { renderHeightFor, TARGET_RENDER_HEIGHT } from '../render/resolution'
-import { godDef, type RelicId } from '../relics/data'
+import { godDef, relicDef, type RelicId } from '../relics/data'
 import { Wardrobe } from '../looks/outfit'
 import { DropTable } from '../relics/DropTable'
 import { Pickups } from '../relics/Pickups'
@@ -13,9 +13,13 @@ import { ClassProgress } from '../progress/ClassProgress'
 import type { SkillContext } from '../skills/Skill'
 import { DamageNumbers } from '../ui/DamageNumbers'
 import { Hud } from '../ui/Hud'
-import { WardrobePanel } from '../ui/WardrobePanel'
+import { GameMenu, type HeroStats } from '../ui/GameMenu'
+import type { RelicCardContext } from '../ui/relicCard'
+import { RelicTooltip } from '../ui/RelicTooltip'
 import { NavGrid } from '../world/navGrid'
 import { buildHeroModel } from '../world/heroModel'
+import type { BodyLook } from '../looks/body'
+import { TITLE_REQUEST } from '../save/SaveData'
 import { MAP_HALF_EXTENT } from '../world/testMap'
 import { clampViewHeight, settingsStorage } from '../save/settings'
 import { frameDelta } from './clock'
@@ -41,7 +45,7 @@ import { RelicSystem } from './systems/Relics'
 export interface GameOptions {
   /** 처음부터 끼고 시작할 유물 (점검용) */
   startRelics?: readonly RelicId[]
-  /** 이어 하기: 이 저장 데이터로 시작한다. */
+  /** 저장 데이터가 있으면 거기서 이어서 시작한다. */
   load?: SaveData | null
   /** 진행 상황을 브라우저 저장소에 저장한다. (점검용 실행에서는 끈다) */
   autosave?: boolean
@@ -105,7 +109,13 @@ export class Game {
   /** 외형: 장착에 따른 모습, 외형 보관함 */
   readonly appearance: AppearanceSystem
   /** 외형 보관함 화면 */
-  readonly wardrobePanel: WardrobePanel
+  /** 정보 화면 (유물·클래스·외형). 열려 있는 동안 게임이 멈춘다 */
+  readonly menu: GameMenu
+  private readonly tooltip: RelicTooltip
+  /** 지금 떠 있는 카드가 땅의 유물 카드인가 */
+  private groundTooltip = false
+  /** 커서를 올린 HUD 유물 칸 (카드를 그 위에 띄운다) */
+  private hoveredSlot: { slot: number; x: number; y: number } | null = null
   private readonly relics: RelicSystem
   private readonly growth: ProgressionSystem
   private readonly life: HeroLife
@@ -196,16 +206,57 @@ export class Game {
     this.relics = new RelicSystem(this.ctx)
     this.appearance = new AppearanceSystem(this.ctx)
     const appearance = this.appearance
-    this.wardrobePanel = new WardrobePanel(this.hud.root, {
-      wardrobe: this.wardrobe,
-      get autoOutfit() {
-        return appearance.auto
+    const relics = this.relics
+    const powers = this.powers
+    this.menu = new GameMenu(this.hud.root, {
+      get slots() {
+        return powers.loadout.slots
       },
-      choose: (slot, choice) => appearance.choose(slot, choice),
+      get bag() {
+        return powers.loadout.bag
+      },
+      get loadout() {
+        return powers.state
+      },
+      preview: (slot, id) => powers.loadout.preview(slot, id),
+      wield: (id, slot) => relics.wield(id, slot),
+      stow: (slot) => relics.stow(slot),
+      drop: (slot) => relics.unequip(slot, true),
+      progress: this.progress,
+      cardContext: (id, preview) => this.cardContext(id, preview),
+      stats: () => this.heroStats(),
+      toTitle: () => this.toTitle(),
+      wardrobe: {
+        wardrobe: this.wardrobe,
+        get autoOutfit() {
+          return appearance.auto
+        },
+        choose: (slot, choice) => appearance.choose(slot, choice),
+      },
     })
-    // 새 외형은 옷걸이 단추의 점으로만 알린다. (유물 이름 알림과 겹치지 않게)
-    this.bus.on('looksUnlocked', () => this.wardrobePanel.markNew())
-    this.bus.on('outfitChanged', () => this.wardrobePanel.refresh())
+    this.menu.onToggle = (open) => {
+      this.tooltip.hide()
+      this.hoveredSlot = null
+      // 창을 여닫는 클릭이 이동 지시로 새지 않게 입력을 비운다.
+      this.input.endFrame()
+      if (!open) this.orders.release()
+    }
+    this.hud.onPortraitClick = () => this.menu.show('status')
+    this.tooltip = new RelicTooltip(container)
+    // 새 외형은 메뉴 단추의 점으로만 알린다. (유물 이름 알림과 겹치지 않게)
+    this.bus.on('looksUnlocked', () => this.menu.markNew())
+    this.bus.on('outfitChanged', () => this.menu.refresh())
+    this.bus.on('loadoutChanged', () => this.menu.refresh())
+    // HUD 유물 칸: 커서를 올리면 설명 카드, 누르면 유물 화면
+    this.hud.onSlotClick = (slot) => this.menu.show('relics', slot)
+    this.hud.onSlotHover = (slot, anchor) => {
+      const id = slot === null ? null : this.powers.loadout.slots[slot]
+      if (!id || !anchor) {
+        this.hoveredSlot = null
+        return this.tooltip.hide()
+      }
+      this.hoveredSlot = { slot: slot!, x: anchor.left + anchor.width / 2, y: anchor.top }
+    }
     this.growth = new ProgressionSystem(this.ctx)
     this.life = new HeroLife(this.ctx)
     this.persistence = new Persistence(this.ctx, options.autosave ?? false)
@@ -250,6 +301,23 @@ export class Game {
   }
 
   /** 바뀐 것이 있으면 저장한다. */
+  /** 저장하고 처음 화면(슬롯 고르기)으로 돌아간다. 다시 불러와 시작 화면을 띄운다. */
+  toTitle(): void {
+    this.bus.emit('progressChanged', {})
+    this.persistence.saveNow()
+    try {
+      sessionStorage.setItem(TITLE_REQUEST, '1')
+    } catch {
+      // 표시를 못 남기면 마지막 슬롯으로 바로 이어진다.
+    }
+    location.reload()
+  }
+
+  /** 처음에 고른 기본 모습을 입힌다. (캐릭터 만들기) */
+  setBody(body: BodyLook): void {
+    this.appearance.setBody(body)
+  }
+
   saveNow(): void {
     this.persistence.saveNow()
   }
@@ -294,14 +362,97 @@ export class Game {
       this.updateBackdrop(realDt)
       return
     }
-    this.update(realDt, true)
-    this.view.follow(this.hero.object.position, realDt)
+    // 정보 화면이 열려 있으면 게임은 멈추고 화면만 그린다. (E4-07)
+    if (!this.paused) {
+      this.update(realDt, true)
+      this.view.follow(this.hero.object.position, realDt)
+      this.updateGroundTooltip()
+    }
     this.numbers.update(realDt, this.container.clientHeight, this.pixel.size, this.view.camera, this.view.subpixel)
     this.updateHud(realDt)
     this.pixel.render(this.scene, this.view.camera, this.view.subpixel)
     this.input.endFrame()
     this.frame += 1
     this.persistence.update(realDt)
+  }
+
+  /** 정보 화면이 열려 있어 게임이 멈췄는가 */
+  get paused(): boolean {
+    return this.menu.open
+  }
+
+  /** 설명 카드에 넣을 지금 상태: 자리, 충전, 세트, 발현 강화 조건 */
+  /** 정보 화면 상태 탭에 넣을 지금의 능력치와 걸린 힘 */
+  heroStats(): HeroStats {
+    const mods = this.powers.modifiers
+    const { manifested, blessings } = this.powers.state
+    const powers: HeroStats['powers'] = []
+    if (manifested) {
+      const god = godDef(manifested)
+      const what: string[] = []
+      if (god.passive.damageScale !== 1) what.push(`피해 ×${god.passive.damageScale}`)
+      if (god.passive.basicLightning) what.push('기본 공격에 번개')
+      if (god.passive.chainLightning) what.push(`Lv${god.passive.chainLightning.minLevel}부터 번개가 옮겨 붙음`)
+      powers.push({ kind: 'god', name: god.name, color: god.color, label: this.progress.title(manifested), what: what.join(' · ') })
+    }
+    for (const g of blessings) {
+      const god = godDef(g)
+      powers.push({ kind: 'god', name: god.name, color: god.color, label: `${god.name}의 가호`, what: '유물의 힘만 쓴다' })
+    }
+    for (const id of this.powers.loadout.slots) {
+      if (!id) continue
+      const def = relicDef(id)
+      powers.push({ kind: 'relic', name: id, color: godDef(def.god).color, label: def.name, what: def.passive.description })
+    }
+    return {
+      hp: this.combat.health.hp,
+      maxHp: this.combat.health.max,
+      damage: this.damage.scale('basic'),
+      damageTaken: mods.damageTaken,
+      moveSpeed: mods.moveSpeed,
+      knockbackDealt: mods.knockbackDealt,
+      knockbackTaken: mods.knockbackTaken,
+      divine: this.combat.divine,
+      promotions: this.progress.promotions,
+      powers,
+    }
+  }
+
+  cardContext(id: RelicId, preview?: RelicCardContext['preview']): RelicCardContext {
+    const { loadout } = this.powers
+    const slot = loadout.slots.indexOf(id)
+    const manifested = this.powers.manifested
+    return {
+      place: slot >= 0 ? { kind: 'slot', slot } : loadout.bag.includes(id) ? { kind: 'bag' } : { kind: 'ground' },
+      ...(slot >= 0 ? { charge: this.powers.effects[slot]?.charge ?? 0 } : {}),
+      equipped: loadout.slots,
+      owned: new Set([...loadout.slots.filter((x): x is RelicId => x !== null), ...loadout.bag]),
+      manifested,
+      level: manifested ? this.progress.level(manifested) : 0,
+      ...(preview ? { preview } : {}),
+    }
+  }
+
+  /** 땅에 떨어진 유물에 커서를 올리면 설명 카드를 띄운다. HUD 칸에 올렸으면 그 카드를 (충전이 움직이므로) 계속 새로 그린다. */
+  private updateGroundTooltip(): void {
+    if (this.hoveredSlot) {
+      const id = this.powers.loadout.slots[this.hoveredSlot.slot]
+      if (id) this.tooltip.show(relicDef(id), this.cardContext(id), this.hoveredSlot.x, this.hoveredSlot.y, true)
+      return
+    }
+    const ground = this.playerInput.cursorOnGround()
+    const near = ground && this.pickups.list.find((p) => Math.hypot(p.x - ground.x, p.z - ground.z) < 1.1)
+    if (near) {
+      const { pointer } = this.input
+      const place = { kind: 'ground' } as const
+      const free = this.powers.loadout.slots.indexOf(null)
+      const preview = free >= 0 ? { before: this.powers.state, after: this.powers.loadout.preview(free, near.id) } : undefined
+      this.tooltip.show(relicDef(near.id), { ...this.cardContext(near.id, preview), place }, pointer.x, pointer.y)
+      this.groundTooltip = true
+    } else if (this.groundTooltip) {
+      this.tooltip.hide()
+      this.groundTooltip = false
+    }
   }
 
   /** 시작 화면 뒤의 배경: 눈이 내리고 불꽃이 일렁이며, 주인공은 숨만 쉰다. */
@@ -390,6 +541,11 @@ export class Game {
         ultimate: manifested !== null,
         xp: manifested ? this.progress.xpRatio(manifested) : null,
         xpColor: manifested ? godDef(manifested).color : '',
+        portrait: manifested
+          ? { name: godDef(manifested).name, title: this.progress.title(manifested), color: godDef(manifested).color, level: this.progress.level(manifested) }
+          : null,
+        blessings: this.powers.state.blessings.map((g) => ({ name: godDef(g).name, color: godDef(g).color })),
+        promote: manifested !== null && this.progress.readyToPromote(manifested),
       },
       realDt,
     )

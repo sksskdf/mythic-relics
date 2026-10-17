@@ -1,6 +1,6 @@
-/** 가장 가까이 볼 때(시야 12m)의 렌더 세로 픽셀 수. 이 때의 픽셀 크기가 그래픽의 기준이다. (사용자 의견으로 180 → 216 → 248로 올림) */
+/** 가장 가까이 볼 때(시야 12m)의 렌더 세로 픽셀 수. 이 때의 픽셀 크기가 그래픽의 기준이다. (사용자 의견으로 180 → 216 → 248 → 285로 올림) */
 export const BASE_VIEW_HEIGHT = 12
-export const BASE_RENDER_HEIGHT = 248
+export const BASE_RENDER_HEIGHT = 285
 /** ?res= 를 주지 않았을 때 쓰는 기본값 (점검용 옵션과 호환) */
 export const TARGET_RENDER_HEIGHT = BASE_RENDER_HEIGHT
 

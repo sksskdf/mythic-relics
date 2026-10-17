@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 
+import { type BodyLook, bodyKey, bodyPalette, DEFAULT_BODY } from '../looks/body'
 import { BASE_OUTFIT, LOOK_SLOTS, type LookSlot } from '../looks/catalog'
 import type { Outfit } from '../looks/outfit'
 import { attachSilhouette, silhouetteMaterial } from '../render/silhouette'
@@ -20,6 +21,8 @@ export interface HeroRig {
   leftLeg: THREE.Group
   rightLeg: THREE.Group
   cape: THREE.Group
+  /** 발현 표식 자리 (등) */
+  mark: THREE.Group
   /** 오른손에 쥔 무기 자리 */
   weapon: THREE.Group
   /** 주인공 전용 재질 (맞았을 때 번쩍이게 한다) */
@@ -30,6 +33,8 @@ export interface HeroRig {
   wear(outfit: Outfit): void
   /** 나무·바위 뒤에 가려질 때 보이는 단색 실루엣을 켠다. */
   setSilhouette(color: THREE.ColorRepresentation): void
+  /** 처음에 고른 기본 모습(피부·머리카락·옷 색)을 바꾼다. 입은 외형을 모두 다시 칠한다. */
+  setBody(body: BodyLook): void
 }
 
 /** 칸마다 모델의 원점(관절 자리). 같은 칸의 모델은 같은 자리에 붙는다. */
@@ -51,21 +56,25 @@ function pivotFor(slot: LookSlot, grid: VoxelGrid): MeshOptions['pivot'] {
       return [grid.sizeX / 2, 5.5, 1.5]
     case 'cape':
       return [4, 12, 1]
-    case 'aura':
-      return undefined
+    case 'mark':
+      return [grid.sizeX / 2, 0, grid.sizeZ]
   }
 }
 
 /** 외형 지오메트리는 한 번 만들어 모든 주인공(분신 포함)이 함께 쓴다. */
 const geometries = new Map<string, THREE.BufferGeometry>()
-function lookGeometry(id: string, slot: LookSlot): THREE.BufferGeometry | null {
+function lookGeometry(id: string, slot: LookSlot, body: BodyLook): THREE.BufferGeometry | null {
   const build = LOOK_MODELS[id]
   if (!build) return null
-  let geometry = geometries.get(id)
+  const key = `${id}|${bodyKey(body)}`
+  let geometry = geometries.get(key)
   if (!geometry) {
     const grid = build()
+    // 처음에 고른 피부·머리카락·옷 색으로 바꿔 칠한다.
+    const palette = bodyPalette(body)
+    if (palette.size > 0) grid.forEach((x, y, z, hex) => palette.has(hex) && grid.set(x, y, z, palette.get(hex)!))
     geometry = buildVoxelGeometry(grid, { voxelSize: HERO_VOXEL, pivot: pivotFor(slot, grid) })
-    geometries.set(id, geometry)
+    geometries.set(key, geometry)
   }
   return geometry
 }
@@ -79,10 +88,11 @@ function joint(x: number, y: number, z: number): THREE.Group {
 
 /**
  * 복셀로 만든 주인공. 투구 끝까지 약 2미터이고, 발이 원점(y=0)에 닿는다. 앞은 +z 방향이다.
- * 머리·얼굴·몸·허리·팔·다리·무기·망토 칸에 외형 모델을 바꿔 끼운다. (E3)
+ * 머리·얼굴·몸·허리·손·다리·무기·등·표식 칸에 외형 모델을 바꿔 끼운다. (E3)
  * 처음에는 어느 신도 떠올리지 않는 평범한 모험가 모습이다.
  */
-export function buildHeroModel(outfit: Outfit = BASE_OUTFIT): HeroRig {
+export function buildHeroModel(outfit: Outfit = BASE_OUTFIT, initialBody: BodyLook = DEFAULT_BODY): HeroRig {
+  let bodyLook = initialBody
   const s = HERO_VOXEL
   const material = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonGradient() })
   const root = new THREE.Group()
@@ -108,7 +118,9 @@ export function buildHeroModel(outfit: Outfit = BASE_OUTFIT): HeroRig {
   const face = joint(0, s, 4 * s)
   head.add(face)
   const cape = joint(0, shoulderY + s, -3 * s)
-  body.add(leftLeg, rightLeg, torso, leftArm, rightArm, head, cape)
+  // 표식은 어깨뼈 높이, 망토 바로 뒤에 붙는다. (벼락 고리, 두 뱀, 여섯 팔)
+  const mark = joint(0, shoulderY - 2 * s, -3.6 * s)
+  body.add(leftLeg, rightLeg, torso, leftArm, rightArm, head, cape, mark)
 
   /** 칸 → 모델을 붙이는 관절들 (팔·다리는 양쪽) */
   const mounts: Record<LookSlot, THREE.Group[]> = {
@@ -120,7 +132,7 @@ export function buildHeroModel(outfit: Outfit = BASE_OUTFIT): HeroRig {
     legs: [leftLeg, rightLeg],
     weapon: [weapon],
     cape: [cape],
-    aura: [],
+    mark: [mark],
   }
   const worn = new Map<LookSlot, THREE.Mesh[]>()
   let ghost: THREE.Material | null = null
@@ -130,7 +142,7 @@ export function buildHeroModel(outfit: Outfit = BASE_OUTFIT): HeroRig {
     for (const mesh of worn.get(slot) ?? []) mesh.removeFromParent()
     worn.delete(slot)
     current[slot] = id
-    const geometry = id ? lookGeometry(id, slot) : null
+    const geometry = id ? lookGeometry(id, slot, bodyLook) : null
     if (!geometry) return
     const meshes = mounts[slot].map((mount) => {
       const mesh = new THREE.Mesh(geometry, material)
@@ -152,11 +164,16 @@ export function buildHeroModel(outfit: Outfit = BASE_OUTFIT): HeroRig {
     leftLeg,
     rightLeg,
     cape,
+    mark,
     weapon,
     material,
     outfit: current,
     wear(next) {
       for (const slot of LOOK_SLOTS) if (next[slot] !== current[slot]) put(slot, next[slot])
+    },
+    setBody(next) {
+      bodyLook = next
+      for (const slot of LOOK_SLOTS) put(slot, current[slot])
     },
     setSilhouette(color) {
       ghost = silhouetteMaterial(color)

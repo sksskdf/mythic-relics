@@ -255,7 +255,164 @@ export function lokiCape(): VoxelGrid {
   return g
 }
 
-/** 외형 id → 복셀 모델. 기운(aura) 칸은 모델이 아니라 연출이라 여기에 없다. */
+// ───────────────────────────── 표식 (발현 정체성) ─────────────────────────────
+
+/** 격자 위에 두께 있는 선을 긋는다. (z 한 장) */
+function line(g: VoxelGrid, x0: number, y0: number, x1: number, y1: number, z: number, hex: number, thick = 1): void {
+  const steps = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0), 1)
+  for (let i = 0; i <= steps; i++) {
+    const x = Math.round(x0 + ((x1 - x0) * i) / steps)
+    const y = Math.round(y0 + ((y1 - y0) * i) / steps)
+    for (let t = 0; t < thick; t++) g.set(x + t, y, z, hex)
+  }
+}
+
+/** 토르의 표식 「벼락 고리」: 머리 뒤에 뜬 들쭉날쭉한 번개 고리 (15×15×1) */
+export function thorStormHalo(): VoxelGrid {
+  const g = new VoxelGrid(15, 17, 1)
+  const c = 7
+  for (let a = 0; a < 56; a++) {
+    const t = (a / 56) * Math.PI * 2
+    // 반지름을 들쭉날쭉하게 해 번개처럼 보이게 한다.
+    const r = 6 + (a % 4 === 0 ? 1 : a % 4 === 2 ? -1 : 0)
+    g.set(Math.round(c + Math.cos(t) * r), Math.round(c + Math.sin(t) * r), 0, a % 3 === 0 ? 0xffffff : 0x9fe3ff)
+  }
+  // 고리 위아래로 튀는 짧은 번개
+  line(g, 7, 16, 6, 14, 0, 0xffffff)
+  line(g, 1, 10, 0, 11, 0, 0x9fe3ff)
+  line(g, 13, 10, 14, 11, 0, 0x9fe3ff)
+  return g
+}
+
+/** 로키의 표식 「어깨의 두 뱀」: 양 어깨에서 솟아 바깥으로 고개를 튼 초록 뱀 둘 (16×12×3) */
+export function lokiSerpents(): VoxelGrid {
+  const g = new VoxelGrid(16, 12, 3)
+  const body = 0x3f8a3a
+  const belly = 0xb9d36a
+  for (const side of [-1, 1] as const) {
+    const base = side < 0 ? 3 : 12
+    // S자로 솟는 몸통
+    const path: [number, number][] = [[0, 0], [0, 1], [-1, 2], [-1, 3], [0, 4], [1, 5], [1, 6], [0, 7], [-1, 8], [-1, 9]]
+    for (const [dx, y] of path) {
+      const x = base + dx * side * -1
+      g.box(x, y, 1, x + 1, y, 1, body)
+      g.set(x, y, 2, belly)
+    }
+    // 바깥을 보는 머리와 갈라진 혀
+    const hx = base + (side < 0 ? -2 : 2)
+    g.box(Math.min(hx, base), 10, 0, Math.max(hx, base) + 1, 11, 2, body)
+    g.set(hx + (side < 0 ? -1 : 2), 10, 1, 0xd23c3c)
+    g.set(base + (side < 0 ? -1 : 2), 11, 2, 0xe6bd4e)
+  }
+  return g
+}
+
+/** 아수라의 표식 「칼을 쥔 여섯 팔」: 등에서 부챗살처럼 뻗은 네 팔이 저마다 칼을 쥐었다 (28×18×3) */
+export function asuraArms(): VoxelGrid {
+  const g = new VoxelGrid(28, 18, 3)
+  const skin = 0x7a2a2a
+  const band = 0x1c1416
+  const steel = 0xc9d0d8
+  const edge = 0xff4a4a
+  const arms: [number, number, number, number][] = [
+    // 팔꿈치 끝 (x, y), 칼끝 (x, y)
+    [7, 9, 0, 17],
+    [6, 4, 0, 1],
+    [20, 9, 27, 17],
+    [21, 4, 27, 1],
+  ]
+  const root: [number, number] = [14, 6]
+  for (const [ex, ey, tx, ty] of arms) {
+    line(g, root[0], root[1], ex, ey, 1, skin, 2)
+    g.box(ex, ey, 0, ex + 1, ey, 2, band)
+    // 칼: 팔 끝에서 칼끝까지 강철, 한 칸 바깥은 붉은 날
+    line(g, ex, ey, tx, ty, 1, steel)
+    line(g, ex, ey, tx, ty, 2, edge)
+  }
+  g.box(12, 4, 0, 15, 8, 1, skin)
+  return g
+}
+
+// ───────────────────────────── 아수라: 모든 부위가 검 ─────────────────────────────
+
+const A = { steel: 0xc9d0d8, steelDark: 0x7d8792, edge: 0xff4a4a, hilt: 0x1c1416, gold: 0xc9a23a, crimson: 0x6a1a22 }
+
+/** 아메노오하바리: 머리 뒤로 칼날이 부챗살처럼 꽂힌 관 */
+export function ohabariCrown(): VoxelGrid {
+  const g = new VoxelGrid(12, 12, 9)
+  face(g)
+  g.set(4, 5, 6, A.crimson)
+  g.set(7, 5, 6, A.crimson)
+  g.box(2, 6, 0, 9, 8, 5, A.hilt)
+  g.box(2, 7, 1, 9, 7, 6, A.gold)
+  for (const [x, top] of [[3, 10], [5, 11], [6, 11], [8, 10]] as const) {
+    g.box(x, 8, 2, x, top, 2, A.steel)
+    g.set(x, top, 2, A.edge)
+  }
+  return g
+}
+
+/** 쿠사나기노츠루기: 곧은 양날 검 (손으로 쥐는 곳이 원점) */
+export function kusanagiBlade(): VoxelGrid {
+  const g = new VoxelGrid(2, 7, 13)
+  g.box(0, 5, 0, 1, 5, 2, A.hilt)
+  g.box(0, 4, 3, 1, 6, 3, A.gold)
+  g.box(0, 5, 4, 1, 5, 12, A.steel)
+  g.box(0, 6, 4, 1, 6, 11, 0xe9f4fa)
+  g.box(0, 4, 5, 1, 4, 11, A.steelDark)
+  return g
+}
+
+/** 토츠카노츠루기: 허리에 비스듬히 찬 긴 칼과 붉은 띠 (12×3×9) */
+export function totsukaSash(): VoxelGrid {
+  const g = new VoxelGrid(12, 3, 9)
+  g.box(0, 0, 0, 11, 2, 8, A.crimson)
+  g.box(0, 1, 0, 11, 1, 8, A.hilt)
+  // 왼쪽 허리에 칼집, 앞으로 칼자루
+  g.box(0, 0, 2, 0, 2, 8, A.hilt)
+  g.box(1, 2, 7, 2, 2, 8, A.gold)
+  return g
+}
+
+/** 후츠노미타마: 팔뚝을 덮은 칼날 장갑, 손등에서 칼날이 뻗는다 (4×8×4) */
+export function futsuGauntlets(): VoxelGrid {
+  const g = new VoxelGrid(4, 8, 4)
+  g.box(1, 4, 1, 2, 7, 2, A.crimson)
+  g.box(0, 0, 0, 3, 4, 3, A.hilt)
+  g.box(0, 4, 0, 3, 4, 3, A.gold)
+  g.box(1, 0, 3, 2, 3, 3, A.steel)
+  g.set(1, 0, 3, A.edge)
+  return g
+}
+
+/** 칼날 갑주: 가슴에 엇갈린 칼날, 어깨에 칼날 견갑 */
+export function asuraBladeArmor(): VoxelGrid {
+  const g = new VoxelGrid(10, 9, 7)
+  g.box(0, 0, 0, 9, 1, 6, A.crimson)
+  g.box(1, 2, 1, 8, 7, 5, A.hilt)
+  g.box(0, 6, 1, 9, 7, 5, A.steelDark)
+  for (let i = 0; i <= 5; i++) {
+    g.set(2 + i, 2 + i, 6, A.steel)
+    g.set(7 - i, 2 + i, 6, A.steel)
+  }
+  g.set(4, 4, 6, A.edge)
+  g.set(5, 4, 6, A.edge)
+  g.box(0, 8, 1, 1, 8, 5, A.steel)
+  g.box(8, 8, 1, 9, 8, 5, A.steel)
+  return g
+}
+
+/** 칼날 정강이받이 */
+export function asuraBladeGreaves(): VoxelGrid {
+  const g = new VoxelGrid(3, 9, 4)
+  g.box(0, 0, 0, 2, 2, 3, A.hilt)
+  g.box(0, 3, 0, 2, 8, 2, A.crimson)
+  g.box(0, 2, 3, 2, 6, 3, A.steel)
+  g.set(1, 6, 3, A.edge)
+  return g
+}
+
+/** 외형 id → 복셀 모델 */
 export const LOOK_MODELS: Readonly<Record<string, () => VoxelGrid>> = {
   adventurerHood,
   adventurerTunic,
@@ -272,4 +429,13 @@ export const LOOK_MODELS: Readonly<Record<string, () => VoxelGrid>> = {
   lokiCrown,
   lokiTunic,
   lokiCape,
+  thorStormHalo,
+  lokiSerpents,
+  ohabariCrown,
+  kusanagiBlade,
+  totsukaSash,
+  futsuGauntlets,
+  asuraBladeArmor,
+  asuraBladeGreaves,
+  asuraArms,
 }

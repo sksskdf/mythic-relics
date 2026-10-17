@@ -37,6 +37,7 @@ export interface Action {
 /** 지속 효과 중 매 프레임 도는 것 (오라) */
 export interface Aura {
   update(dt: number, ctx: SkillContext): void
+  dispose(): void
 }
 
 /** 세진 효과: 맞은 적에게 번개가 함께 떨어진다. */
@@ -57,26 +58,53 @@ function away(fromX: number, fromZ: number, to: CombatTarget): [number, number] 
 
 // ───────────────────────────── 오라 ─────────────────────────────
 
-/** 주변 적 몇에게 주기적으로 작은 번개 */
+/**
+ * 주변 적 몇에게 주기적으로 작은 번개.
+ * 끼고 있는 동안 발밑에 효과 범위가 옅은 고리로 보이고, 번개가 칠 때 고리가 밝게 번쩍인다.
+ */
 class Sparks implements Aura {
   private timer: number
+  private ring: THREE.Mesh | null = null
+  private readonly material = new THREE.MeshBasicMaterial({ color: 0x9fe3ff, transparent: true, opacity: 0.16, depthWrite: false })
+  private flash = 0
 
   constructor(private readonly p: Readonly<Record<string, number>>) {
     this.timer = p.interval!
   }
 
   update(dt: number, ctx: SkillContext): void {
+    const hero = ctx.hero.object.position
+    if (!this.ring) {
+      const r = this.p.radius!
+      this.ring = new THREE.Mesh(new THREE.RingGeometry(r - 0.12, r, 48), this.material)
+      this.ring.rotation.x = -Math.PI / 2
+      this.ring.layers.set(EFFECT_LAYER)
+      this.ring.renderOrder = 11
+      ctx.fx.add(this.ring)
+    }
+    this.ring.position.set(hero.x, hero.y + 0.06, hero.z)
+    this.flash = Math.max(0, this.flash - dt * 3)
+    this.material.opacity = 0.16 + this.flash * 0.5
+
     this.timer -= dt
     if (this.timer > 0) return
     this.timer = this.p.interval!
-    const hero = ctx.hero.object.position
     const near = enemiesWithin(ctx.enemies, hero.x, hero.z, this.p.radius!)
       .sort((a, b) => Math.hypot(a.x - hero.x, a.z - hero.z) - Math.hypot(b.x - hero.x, b.z - hero.z))
       .slice(0, this.p.targets!)
+    if (near.length > 0) this.flash = 1
     for (const enemy of near) {
-      ctx.lightning.fromSky(new THREE.Vector3(enemy.x, hero.y, enemy.z), 0.08)
+      const at = new THREE.Vector3(enemy.x, hero.y, enemy.z)
+      ctx.lightning.fromSky(at, 0.14)
+      ctx.puffs.burst(at, 4, 1)
       ctx.hit(enemy, this.p.damage!, 0, 0, 0, 'thunder')
     }
+  }
+
+  dispose(): void {
+    this.ring?.removeFromParent()
+    this.ring?.geometry.dispose()
+    this.material.dispose()
   }
 }
 

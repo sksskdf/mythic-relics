@@ -13,7 +13,7 @@ export function clampViewHeight(value: number): number {
   return Math.min(VIEW_HEIGHT.max, Math.max(VIEW_HEIGHT.min, value))
 }
 
-/** 설정은 진행 상황과 따로 저장한다. 새로 하기를 해도 그대로 남는다. */
+/** 설정은 진행 상황과 따로 저장한다. 진행 상황을 지워도 그대로 남는다. */
 export const settingsStorage = {
   load(): Settings {
     try {

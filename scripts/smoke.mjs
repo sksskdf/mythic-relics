@@ -37,12 +37,17 @@ try {
   await page.waitForFunction(() => (window.__game?.frame ?? 0) > 10, null, { timeout: 15000 })
   const frames = await page.evaluate(() => window.__game.frame)
 
-  // 시작 화면: 저장이 없으면 [시작] 하나만 있고, 누르면 플레이가 시작된다.
-  const titleButtons = await page.locator('.title__button').allTextContents()
-  if (titleButtons.join() !== '시작') throw new Error(`시작 화면 단추가 이상합니다: ${titleButtons}`)
+  // 시작 화면: 처음 실행이면 로딩이 끝난 뒤 저장 슬롯 3개(모두 빈 슬롯). 빈 슬롯 → 캐릭터 만들기 → [시작]
+  await page.waitForSelector('.title-slot', { timeout: 15000 })
+  const emptySlots = await page.locator('.title-slot.is-empty').count()
+  if (emptySlots !== 3) throw new Error(`시작 화면: 빈 슬롯이 ${emptySlots}개입니다.`)
+  await page.locator('.title-slot').first().click()
+  await page.locator('.title-swatch').nth(2).click()
   await page.click('.title__button--primary')
   await page.waitForFunction(() => window.__game.playing, null, { timeout: 5000 })
-  console.log('시작 화면 확인: [시작]으로 플레이 시작')
+  const skin = await page.evaluate(() => window.__game.wardrobe.body.skin)
+  if (skin !== 2) throw new Error(`캐릭터 만들기: 고른 피부가 ${skin}입니다.`)
+  console.log('시작 화면 확인: 빈 슬롯 → 캐릭터 만들기(피부 고름) → [시작]으로 플레이 시작')
 
   // 조작 점검: 우클릭한 곳으로 걸어가는지 확인한다.
   const heroPos = () => page.evaluate(() => {
@@ -129,6 +134,34 @@ try {
   if ((await page.evaluate(() => window.__game.hero.rig.outfit.head)) !== 'thorHelm') throw new Error('외형: 발현했는데 모습이 그대로입니다.')
   // 발현 번개가 걷히고 나서 찍는다.
   await lookShot('4-manifest', 12)
+  // 왼쪽 위 상태: 발현한 클래스 초상과 레벨 보석
+  if ((await page.locator('.hud__portrait.is-empty').count()) !== 0) throw new Error('상태: 발현했는데 초상이 비어 있습니다.')
+  // 정보 화면(E4): 문장 단추로 열면 게임이 멈추고 상태 탭부터 보인다.
+  await page.click('.menu-button')
+  if (!(await page.evaluate(() => window.__game.paused))) throw new Error('정보 화면: 열었는데 게임이 멈추지 않습니다.')
+  const statRows = await page.locator('.menu-status__stat').count()
+  if (statRows !== 8) throw new Error(`상태 탭: 능력치 줄이 ${statRows}개입니다.`)
+  await page.screenshot({ path: 'test-results/menu-status.png' })
+  // 유물 탭: 유물을 가방에 넣고 다시 끼면 HUD·외형·발현이 바로 바뀐다.
+  await page.locator('.menu__tab').nth(1).click()
+  const beltSlot = await page.evaluate(() => window.__game.powers.loadout.slots.indexOf('megingjord'))
+  await page.locator('.menu-relics__slot').nth(beltSlot).click()
+  await page.getByRole('button', { name: '가방에 넣기' }).click()
+  const stowed = await page.evaluate(() => {
+    const g = window.__game
+    return { manifested: g.powers.manifested, waist: g.hero.rig.outfit.waist, bag: [...g.powers.loadout.bag] }
+  })
+  if (stowed.manifested !== null || stowed.waist !== null || !stowed.bag.includes('megingjord')) throw new Error(`정보 화면: 가방에 넣기 실패 ${JSON.stringify(stowed)}`)
+  await page.locator('.menu-relics__item').first().hover()
+  if (!(await page.locator('.rc__preview').textContent()).includes('발현')) throw new Error('정보 화면: 끼우면 발현한다는 미리 보기가 없습니다.')
+  await page.locator('.menu-relics__item').first().click()
+  if ((await page.evaluate(() => window.__game.powers.manifested)) !== 'thor') throw new Error('정보 화면: 다시 끼웠는데 발현하지 않습니다.')
+  await page.click('.menu__tab:nth-child(3)')
+  if (!(await page.locator('.menu-classes__now').textContent()).includes('천둥의 신')) throw new Error('정보 화면: 클래스 탭에 지금 클래스가 없습니다.')
+  await page.keyboard.press('Escape')
+  if (await page.evaluate(() => window.__game.paused)) throw new Error('정보 화면: 닫았는데 게임이 멈춰 있습니다.')
+  console.log('정보 화면 확인: 상태 탭 능력치 8줄, 열면 멈춤, 가방에 넣기·다시 끼기와 미리 보기, 클래스 탭, Esc로 닫기')
+
   // 보관함에서 무기를 짧은 검으로 고르면 묠니르를 껴도 검을 든다. (새로 고침 뒤에도 유지되는지 아래에서 확인)
   await page.evaluate(() => window.__game.appearance.choose('weapon', 'shortSword'))
   if ((await page.evaluate(() => window.__game.hero.rig.outfit.weapon)) !== 'shortSword') throw new Error('외형: 보관함 선택이 적용되지 않습니다.')
@@ -147,34 +180,54 @@ try {
   await page.evaluate(() => window.__game.saveNow())
   await page.reload()
   await page.waitForFunction(() => (window.__game?.frame ?? 0) > 2, null, { timeout: 15000 })
-  // 저장이 있으면 시작 화면에 [이어 하기]가 나온다.
-  await page.click('.title__button--primary')
-  await page.waitForFunction(() => window.__game.playing, null, { timeout: 5000 })
+  // 저장이 있으면 단추 없이 로딩 화면이 걷히고 바로 이어서 플레이한다.
+  await page.waitForFunction(() => window.__game?.playing, null, { timeout: 15000 })
+  if (await page.locator('.title__button').count()) throw new Error('두 번째 실행인데 시작 단추가 나왔습니다.')
   const restored = await page.evaluate(() => window.__game.powers.loadout.has('megingjord'))
-  if (!restored) throw new Error('이어 하기 실패: 저장한 유물이 없습니다.')
-  if ((await page.evaluate(() => window.__game.hero.rig.outfit.weapon)) !== 'shortSword') throw new Error('이어 하기 실패: 고른 외형이 없습니다.')
-  console.log('저장 확인: 새로 고침 뒤 [이어 하기]로 유물과 고른 외형 유지')
+  if (!restored) throw new Error('이어서 플레이 실패: 저장한 유물이 없습니다.')
+  if ((await page.evaluate(() => window.__game.hero.rig.outfit.weapon)) !== 'shortSword') throw new Error('이어서 플레이 실패: 고른 외형이 없습니다.')
+  console.log('저장 확인: 새로 고침하면 단추 없이 바로 이어서, 유물과 고른 외형 유지')
+
+  // 처음 화면으로: 정보 화면의 단추를 두 번 누르면 저장하고 슬롯 고르기로 돌아가고, 그 슬롯을 누르면 이어 간다.
+  await page.click('.menu-button')
+  await page.click('.menu__home')
+  await page.click('.menu__home')
+  await page.waitForSelector('.title-slot:not(.is-empty)', { timeout: 15000 })
+  await page.locator('.title-slot:not(.is-empty)').first().click()
+  await page.waitForFunction(() => window.__game?.playing, null, { timeout: 15000 })
+  if (!(await page.evaluate(() => window.__game.powers.loadout.has('megingjord')))) throw new Error('처음 화면에서 슬롯을 골랐는데 유물이 없습니다.')
+  console.log('처음 화면 확인: 정보 화면에서 처음 화면으로, 슬롯을 골라 그대로 이어 감')
 
   // 개발 패널: ?dev 로 열고 단추로 유물·적·전설을 바로 바꿔 본다.
   await page.goto(`${URL}?dev`)
   await page.waitForSelector('.devpanel button', { timeout: 15000 })
-  const devButton = (section, label) =>
-    page.locator('.devpanel__section', { has: page.locator('h3', { hasText: section }) }).getByRole('button', { name: label, exact: true })
+  const devTab = (name) => page.locator('.devpanel__tab', { hasText: name }).click()
+  const devButton = (label) => page.locator('.devpanel__page:not([hidden])').getByRole('button', { name: label, exact: true })
   // 접기·펴기: 접으면 단추들이 보이지 않아야 한다.
   await page.click('.devpanel__fold')
   if (await page.locator('.devpanel__body').isVisible()) throw new Error('개발 패널: 접기가 동작하지 않습니다.')
+  const folded = await page.locator('.devpanel').boundingBox()
+  if (!folded || folded.width > 160 || folded.height > 40) throw new Error(`개발 패널: 접었는데 너무 큽니다 ${JSON.stringify(folded)}`)
   await page.click('.devpanel__fold')
-  await devButton('유물', '토르 3개').click()
-  if ((await page.evaluate(() => window.__game.powers.manifested)) !== 'thor') throw new Error('개발 패널: 토르 3개 실패')
+  await devTab('유물')
+  await page.selectOption('.devpanel__page:not([hidden]) select', 'thor')
+  await devButton('묶음 끼기').click()
+  if ((await page.evaluate(() => window.__game.powers.manifested)) !== 'thor') throw new Error('개발 패널: 토르 묶음 실패')
+  await devTab('세계')
   const enemiesBefore = await page.evaluate(() => window.__game.encounter.alive.length)
-  await devButton('적', '서리 거인 6 (둘러싸기)').click()
+  await devButton('×6').click()
+  await page.selectOption('.devpanel__page:not([hidden]) .devpanel__select >> nth=1 >> select', 'grunt')
+  await devButton('적 부르기').click()
   if ((await page.evaluate(() => window.__game.encounter.alive.length)) !== enemiesBefore + 6) throw new Error('개발 패널: 졸개 소환 실패')
-  await devButton('보기', '충돌').click()
-  await devButton('보기', '길찾기').click()
+  await devTab('보기')
+  await devButton('충돌').click()
+  await devButton('길찾기').click()
   await page.waitForTimeout(300)
-  await devButton('적', '모두 제거').click()
+  await devTab('세계')
+  await devButton('적 모두 제거').click()
   if ((await page.evaluate(() => window.__game.encounter.alive.length)) !== 0) throw new Error('개발 패널: 모두 제거 실패')
-  await devButton('승급 전설', '바로 시작').click()
+  await devTab('클래스')
+  await devButton('승급 전설 시작').click()
   await page.waitForFunction(() => window.__game.legend.phase === 'wave', null, { timeout: 15000 })
   await page.screenshot({ path: 'test-results/devpanel.png' }).catch(() => {})
   console.log('개발 패널 확인: 접기·펴기, 유물 장착, 적 소환·제거, 충돌·길찾기 보기, 승급 전설 바로 시작')

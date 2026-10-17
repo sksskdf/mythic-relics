@@ -58,7 +58,7 @@ export class PlayerInput {
   }
 
   /** 마우스 커서가 가리키는 땅 위치 */
-  private cursorOnGround(): THREE.Vector3 | null {
+  cursorOnGround(): THREE.Vector3 | null {
     const { pointer } = this.input
     return screenToGround(pointer.x, pointer.y, this.container.clientHeight, this.pixel.size, this.ctx.view.camera, this.cursor, this.ctx.view.subpixel)
   }

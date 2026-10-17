@@ -1,4 +1,5 @@
-import type { LookSlot } from '../../looks/catalog'
+import { type BodyLook, bodyKey } from '../../looks/body'
+import { lookDef, type LookSlot } from '../../looks/catalog'
 import { autoOutfit, type LookChoice, type Outfit } from '../../looks/outfit'
 import { godDef, relicDef } from '../../relics/data'
 import type { GameContext } from '../context'
@@ -8,6 +9,7 @@ import type { GameContext } from '../context'
  * 처음 걸쳐 본 외형은 보관함에 들어간다. 모습만 바뀌고 능력은 그대로다.
  */
 export class AppearanceSystem {
+  private bodyKey = '000'
   constructor(private readonly ctx: GameContext) {
     ctx.bus.on('loadoutChanged', () => this.refresh())
     this.refresh()
@@ -19,7 +21,7 @@ export class AppearanceSystem {
     const manifested = powers.manifested
     return autoOutfit({
       relicLooks: powers.loadout.slots.filter((id) => id !== null).map((id) => relicDef(id).look),
-      manifestLooks: manifested ? godDef(manifested).looks : {},
+      manifestLooks: manifested ? { ...godDef(manifested).looks, mark: godDef(manifested).mark } : {},
     })
   }
 
@@ -42,18 +44,35 @@ export class AppearanceSystem {
     this.apply()
   }
 
+  /** 처음에 고른 기본 모습을 바꾼다. (캐릭터 만들기) */
+  setBody(body: BodyLook): void {
+    this.ctx.wardrobe.body = { ...body }
+    this.ctx.bus.emit('progressChanged', {})
+    this.apply()
+  }
+
   /** 얻은 외형을 모두 다시 적용한다. (불러오기 뒤) */
   apply(): void {
     const { hero, wardrobe, bus } = this.ctx
+    if (this.bodyKey !== bodyKey(wardrobe.body)) {
+      this.bodyKey = bodyKey(wardrobe.body)
+      hero.rig.setBody(wardrobe.body)
+    }
     hero.rig.wear(wardrobe.dress(this.auto))
     bus.emit('outfitChanged', {})
   }
 
-  /** 프레임마다: 기운(aura) 칸의 연출을 켜고 끈다. 쓰러져 있으면 끈다. */
+  /** 프레임마다: 표식에 딸린 기운 연출을 켜고 끈다. 쓰러져 있으면 끈다. 아수라의 팔은 천천히 숨 쉬듯 흔들린다. */
   update(): void {
     const { hero, combat, fx } = this.ctx
-    const aura = combat.alive ? hero.rig.outfit.aura : null
-    fx.sparks.enabled = aura === 'thorSparks'
-    fx.shadow.enabled = aura === 'lokiShadow'
+    const mark = hero.rig.outfit.mark
+    const aura = combat.alive && mark ? lookDef(mark).aura : undefined
+    fx.sparks.enabled = aura === 'sparks'
+    fx.shadow.enabled = aura === 'shadow'
+    fx.asura.enabled = aura === 'asura'
+    this.sway += 1 / 60
+    hero.rig.mark.rotation.z = aura === 'asura' ? Math.sin(this.sway * 1.7) * 0.06 : 0
   }
+
+  private sway = 0
 }

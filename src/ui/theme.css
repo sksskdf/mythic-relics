@@ -1,0 +1,176 @@
+/*
+ * 디자인 시스템 (DESIGN.md 10.5)
+ * 모든 화면(HUD, 시작 화면, 정보 화면, 설명 카드, 피해 숫자)은 여기 있는 토큰과 부품만 쓴다.
+ * - 글꼴: 갈무리(Galmuri) 픽셀 글꼴. 한글이 또렷하고 픽셀 그래픽과 어울린다. 정해진 크기(배수)에서만 쓴다.
+ * - 색: 바탕 4단, 글자 4단, 선 2단, 강조(금색)와 상태색, 신의 색
+ * - 모양: 둥근 모서리 없음, 2px 픽셀 테두리, 안쪽 한 줄 밝은 선(베벨)
+ */
+
+@font-face {
+  font-family: 'Galmuri11';
+  src: url('./fonts/Galmuri11.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Galmuri11';
+  src: url('./fonts/Galmuri11-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Galmuri9';
+  src: url('./fonts/Galmuri9.woff2') format('woff2');
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Galmuri14';
+  src: url('./fonts/Galmuri14.woff2') format('woff2');
+  font-display: swap;
+}
+
+:root {
+  /* 글꼴: 픽셀 글꼴은 설계 크기의 배수에서만 또렷하다. (Galmuri9 10px, Galmuri11 12px, Galmuri14 15px) */
+  --font-body: 'Galmuri11', ui-monospace, monospace;
+  --font-small: 'Galmuri9', 'Galmuri11', ui-monospace, monospace;
+  --font-display: 'Galmuri14', 'Galmuri11', ui-monospace, monospace;
+  --t-small: 10px/1.6 var(--font-small);
+  --t-body: 12px/1.6 var(--font-body);
+  --t-strong: 700 12px/1.6 var(--font-body);
+  --t-title: 15px/1.4 var(--font-display);
+  --t-display: 30px/1.2 var(--font-display);
+  --t-hero: 60px/1.1 var(--font-display);
+
+  /* 바탕: 0 가장 어두운 뒷막 → 3 우묵한 칸·막대 홈 */
+  --c-bg-0: rgba(7, 9, 13, 0.6);
+  --c-bg-1: #0d1118;
+  --c-bg-2: #141a24;
+  --c-bg-3: #1d2430;
+  --c-panel: rgba(13, 17, 24, 0.94);
+  /* 새긴 돌: 공통 화면의 틀. 위·왼쪽은 밝게 깎고 아래·오른쪽은 깊게 판다 */
+  --c-page: #0c0d10;
+  --c-stone: #2b2d33;
+  --c-stone-hi: #3e414a;
+  --c-stone-lo: #17181c;
+  --c-groove: #0d0e11;
+  --c-stone-glow: #23252c;
+  --c-stone-ink: #c9ced7;
+  --stone-raised: inset 2px 2px 0 #50545f, inset -2px -2px 0 var(--c-stone-lo), 0 0 0 2px var(--c-groove);
+  /* 공통 빛: 달빛과 뼈빛, 중요한 단추 하나에만 금 테두리 */
+  --c-moon: #d8dde6;
+  --c-bone: #bfb6a2;
+  --c-gilt: #c9a24a;
+  /* 선 */
+  --c-line-1: #222a36;
+  --c-line-2: #3a4558;
+  --c-bevel: rgba(255, 255, 255, 0.06);
+  /* 글자: 1 본문 → 4 꺼진 것 */
+  --c-ink-1: #e9eef5;
+  --c-ink-2: #b9c3cf;
+  --c-ink-3: #8d98a6;
+  --c-ink-4: #5d6876;
+  /* 강조와 상태 */
+  --c-gold: #e3b341;
+  --c-gold-soft: #ffd27a;
+  --c-good: #9fe3a0;
+  --c-bad: #ff8a7a;
+  --c-life: #d2443c;
+  --c-divine: #e3b341;
+  --c-charge: #7fd4ff;
+  --c-lore: #8d7c62;
+  /* 신의 색 (gods.json과 같게) */
+  --c-thor: #7fd4ff;
+  --c-loki: #8fe07a;
+
+  /* 간격 */
+  --sp-1: 2px;
+  --sp-2: 4px;
+  --sp-3: 6px;
+  --sp-4: 8px;
+  --sp-5: 12px;
+  --sp-6: 16px;
+  --sp-7: 24px;
+
+  /* 모양 */
+  --bw: 2px;
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+}
+
+/* 픽셀 글꼴은 흐리게 다듬지 않는다. */
+body,
+button {
+  -webkit-font-smoothing: none;
+  font-smooth: never;
+}
+
+/* ───────────── 부품 ───────────── */
+
+/* 판: 창, 카드, HUD 띠 */
+.ui-panel {
+  background: var(--c-panel);
+  border: var(--bw) solid var(--c-line-2);
+  box-shadow:
+    inset 0 0 0 1px var(--c-bevel),
+    var(--shadow);
+  color: var(--c-ink-1);
+  font: var(--t-body);
+}
+
+/* 작은 이름표 (구획 제목) */
+.ui-label {
+  margin: var(--sp-5) 0 var(--sp-3);
+  font: var(--t-small);
+  font-weight: normal;
+  color: var(--c-ink-3);
+  letter-spacing: 0.04em;
+}
+.ui-label:first-child {
+  margin-top: 0;
+}
+
+/* 흐린 안내 문장 */
+.ui-muted {
+  margin: var(--sp-2) 0;
+  font: var(--t-small);
+  color: var(--c-ink-3);
+}
+
+/* 단추와 칩 */
+.ui-btn,
+.ui-pill {
+  font: var(--t-body);
+  color: var(--c-ink-1);
+  background: var(--c-bg-3);
+  border: 1px solid var(--c-line-2);
+  box-shadow: inset 0 1px 0 var(--c-bevel);
+  cursor: pointer;
+}
+.ui-btn {
+  padding: var(--sp-3) var(--sp-5);
+  border-width: var(--bw);
+}
+.ui-pill {
+  padding: var(--sp-1) var(--sp-4);
+}
+.ui-btn:hover,
+.ui-pill:hover {
+  border-color: var(--c-ink-3);
+}
+.ui-btn.is-on,
+.ui-pill.is-on {
+  border-color: var(--c-gold);
+  background: #3a3220;
+}
+.ui-btn:focus-visible,
+.ui-pill:focus-visible {
+  outline: 1px solid var(--c-gold-soft);
+  outline-offset: 1px;
+}
+
+/* 구획선 */
+.ui-divider {
+  height: 1px;
+  margin: var(--sp-4) 0;
+  background: var(--c-line-1);
+  border: 0;
+}
