@@ -389,3 +389,37 @@ button.hud__slot--empty {
   0% { opacity: 0.85; }
   100% { opacity: 0; }
 }
+
+/* 원천 결정: 왼쪽 위 상태 아래 */
+.hud__essence {
+  position: absolute;
+  left: calc(var(--unit) * 2 + env(safe-area-inset-left, 0px));
+  top: calc(var(--unit) * 2 + 64px + env(safe-area-inset-top, 0px));
+  display: flex;
+  gap: var(--sp-4);
+  padding: var(--sp-2) var(--sp-4);
+  background: rgba(7, 8, 11, 0.55);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+.hud__essence-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 44px;
+  font: var(--t-small);
+  color: var(--c-ink-1);
+}
+.hud__essence-cell img {
+  width: 12px;
+  height: 12px;
+  image-rendering: pixelated;
+}
+.hud__essence-cell.is-bump span {
+  animation: hud-bump 0.25s ease-out;
+}
+@keyframes hud-bump {
+  from { color: #fff; text-shadow: 0 0 6px #fff; }
+}
+.hud__essence[hidden] {
+  display: none;
+}

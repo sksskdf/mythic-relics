@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { parseCycle } from '../src/progress/Cycle'
 import { parseSave, SAVE_VERSION, type SaveData } from '../src/save/SaveData'
 
 const sample: SaveData = {
@@ -15,6 +16,7 @@ const sample: SaveData = {
     choices: { weapon: 'shortSword', cape: null },
   },
   body: { skin: 2, hair: 1, cloth: 3 },
+  cycle: parseCycle({ essence: { flame: 12.5 }, training: { wind: 2 }, rebirths: 1 }),
 }
 
 describe('저장 데이터', () => {

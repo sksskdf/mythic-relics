@@ -27,9 +27,13 @@ describe('클래스 트리 (src/data/classes.json)와 CLASSES.md', () => {
     })
   })
 
-  it('원형 상위·정점 클래스 20개가 문서와 같다', () => {
-    const rows = table(md, '### 5.1 원형 상위 클래스', '| 원형 | 상위 클래스')
-    expect(tree.archetypes.map((a) => [a.name, a.upper.name, a.apex.name])).toEqual(rows)
+  it('원천 상위 4개와 원천 짝 6개가 문서와 같다', () => {
+    const rows = table(md, '### 5.1 원천 상위 클래스', '| 원천 | 상위 클래스')
+    const name = (id: string) => tree.sources.find((x) => x.id === id)!.name
+    expect([
+      ...tree.sources.map((x) => [x.name, x.upper.name]),
+      ...tree.pairs.map((p) => [`${name(p.sources[0])} + ${name(p.sources[1])}`, p.name]),
+    ]).toEqual(rows.map((r) => [r[0], r[1]]))
   })
 
   it('신화권 상위 클래스 10개가 문서와 같다', () => {
@@ -42,10 +46,15 @@ describe('클래스 트리 (src/data/classes.json)와 CLASSES.md', () => {
     expect(tree.hidden.map((h) => [h.name, ...h.titles])).toEqual(rows)
   })
 
-  it('원형마다 기본 클래스가 4개씩, 서로 다른 신화권에 있다', () => {
-    for (const archetype of tree.archetypes) {
-      const owners = tree.mythologies.filter((m) => m.classes.some((c) => c.archetype === archetype.id))
-      expect(owners, archetype.name).toHaveLength(4)
+  it('원천마다 기본 클래스가 10개씩이고, 문서의 신화권 표와 원천이 같다', () => {
+    for (const source of tree.sources) {
+      const classes = tree.mythologies.flatMap((m) => m.classes).filter((c) => c.source === source.id)
+      expect(classes, source.name).toHaveLength(10)
     }
+    tree.mythologies.forEach((myth, i) => {
+      const rows = table(md, `### 3.${i + 1} ${myth.name}`, '| 신 | 클래스(Lv1) | 원천')
+      const name = (id: string) => tree.sources.find((x) => x.id === id)!.name
+      expect(myth.classes.map((c) => name(c.source))).toEqual(rows.map((r) => r[2]))
+    })
   })
 })

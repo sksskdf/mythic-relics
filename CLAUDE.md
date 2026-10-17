@@ -47,12 +47,12 @@
 | --- | --- |
 | `src/data/` | **게임 데이터**: `relics.json`(유물), `gods.json`(신·클래스), `enemies.json`(적), `classes.json`(클래스 트리, `CLASSES.md`와 같아야 함), `schema.ts`(형식과 검사). 숫자는 여기서 고친다 |
 | `src/game/` | `Game.ts`(조립, 메인 루프), `events.ts`(이벤트 버스), `context.ts`(시스템 공용 상태), `Stage`(빛·맵), `HeroController`(이동), `HeroOrders`(클릭 → 지시), `PlayerCombat`(자동 공격), `Encounter`(적 무리·보스), `Legend`(승급 전설), `RelicPowers`(장착한 유물 효과) |
-| `src/game/systems/` | 규칙: `Damage`(피해), `Relics`(줍기·장착·발현), `Progression`(경험치·드랍·승급), `HeroLife`(쓰러짐·부활), `Persistence`(저장), `PlayerInput`(클릭), `Effects`(연출). 시스템끼리는 버스로만 주고받는다 |
+| `src/game/systems/` | 규칙: `Damage`(피해), `Relics`(줍기·장착·발현), `Progression`(경험치·드랍·승급), `HeroLife`(쓰러짐·부활), `Persistence`(저장), `PlayerInput`(클릭), `Effects`(연출), `CycleSystem`(원천 결정·단련·윤회·종말 보스). 시스템끼리는 버스로만 주고받는다 |
 | `src/enemies/` | 거인 AI(`Giant.ts`: 상태, 공격 예고, 패턴)와 모델 |
 | `src/skills/` | 유물 효과(`index.ts`: 데이터 → 효과), 행동·오라 종류(`actions.ts`), 궁극기 |
 | `src/looks/` | 외형: 칸과 외형 목록(`catalog.ts`), 장착 → 모습·보관함(`outfit.ts`). 모델은 `src/voxel/models/looks.ts`, 적용은 `systems/Appearance.ts` |
 | `src/relics/` | 유물·신 데이터, 장착(발현·가호 판정), 드랍 규칙, 땅의 유물 |
-| `src/progress/` | 클래스 레벨·경험치·친화도 |
+| `src/progress/` | 클래스 레벨·경험치·원천 숙련, 단계별로 얻는 것(`levelGains`), 순환 성장(`Cycle`: 결정·단련·윤회·별자리·태초의 법) |
 | `src/save/` | 저장 형식과 검사 |
 | `src/render/` | 픽셀 렌더러, 쿼터뷰 카메라, 화면 ↔ 월드 좌표, 실루엣 |
 | `src/voxel/` | 복셀 격자, 메시 생성, 모델(`models/`) |

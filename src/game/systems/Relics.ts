@@ -64,8 +64,8 @@ export class RelicSystem {
     const mods = powers.modifiers
     combat.knockbackScale = mods.knockbackDealt
     combat.knockbackTakenScale = mods.knockbackTaken
-    combat.damageTakenScale = mods.damageTaken
-    hero.speedScale = mods.moveSpeed
+    combat.damageTakenScale = mods.damageTaken * this.ctx.cycle.damageTakenScale
+    hero.speedScale = mods.moveSpeed * this.ctx.cycle.moveSpeedScale
   }
 
   /** 유물을 끼운다. announce가 false면 발현 연출 없이 (불러오기·점검용) */
@@ -81,8 +81,10 @@ export class RelicSystem {
     const manifested = powers.manifested
     if (manifested) {
       fx.power.setGlow(godDef(manifested).color, 2 + progress.level(manifested))
+      fx.power.setAscension(godDef(manifested).color, progress.level(manifested))
       return
     }
+    fx.power.setAscension(null, 0)
     let best: string | null = null
     for (const [god, n] of counts) if (!best || n > counts.get(best)!) best = god
     fx.power.setGlow(best ? godDef(best as never).color : null, best ? counts.get(best)! : 0)
@@ -136,6 +138,10 @@ export class RelicSystem {
     const god = godDef(after.manifested)
     hud.flash(god.color)
     fx.power.burst(hero.object.position, god.color, 4)
+    // 칼날 폭풍의 신(아수라왕)은 발현하는 순간 여섯 팔이 사방으로 칼을 휘두른다.
+    if (god.passive.bladeStorm) {
+      for (let i = 0; i < 6; i++) fx.slashes.spawn(hero.object.position, (i / 6) * Math.PI * 2, 2.6, 0.5, true, i % 2 ? 0xff4a5a : 0xb0101c)
+    }
     // 발현하면 무엇이 생기는지: 그 신의 힘과 지금 레벨까지 열린 것
     const lines: string[] = []
     for (let lv = 1; lv <= progress.level(god.id); lv++) {

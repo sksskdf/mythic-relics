@@ -19,6 +19,7 @@ import { RelicTooltip } from '../ui/RelicTooltip'
 import { NavGrid } from '../world/navGrid'
 import { buildHeroModel } from '../world/heroModel'
 import type { BodyLook } from '../looks/body'
+import { Cycle } from '../progress/Cycle'
 import { TITLE_REQUEST } from '../save/SaveData'
 import { MAP_HALF_EXTENT } from '../world/testMap'
 import { clampViewHeight, settingsStorage } from '../save/settings'
@@ -34,6 +35,7 @@ import { PlayerCombat } from './PlayerCombat'
 import { RelicPowers } from './RelicPowers'
 import { Stage } from './Stage'
 import { AppearanceSystem } from './systems/Appearance'
+import { CycleSystem } from './systems/CycleSystem'
 import { DamageSystem } from './systems/Damage'
 import { Effects } from './systems/Effects'
 import { HERO_SPAWN, HeroLife } from './systems/HeroLife'
@@ -88,6 +90,8 @@ export class Game {
   readonly progress = new ClassProgress()
   readonly drops = new DropTable()
   readonly wardrobe = new Wardrobe()
+  /** 순환 성장 (E4.5) */
+  readonly cycle = new Cycle()
   readonly legend: UtgardLegend
   /** 주인공 길찾기 격자 */
   readonly nav: NavGrid
@@ -108,6 +112,7 @@ export class Game {
   private readonly damage: DamageSystem
   /** 외형: 장착에 따른 모습, 외형 보관함 */
   readonly appearance: AppearanceSystem
+  readonly cycleSystem: CycleSystem
   /** 외형 보관함 화면 */
   /** 정보 화면 (유물·클래스·외형). 열려 있는 동안 게임이 멈춘다 */
   readonly menu: GameMenu
@@ -200,14 +205,17 @@ export class Game {
       progress: this.progress,
       drops: this.drops,
       wardrobe: this.wardrobe,
+      cycle: this.cycle,
       skills,
     }
     this.damage = new DamageSystem(this.ctx)
     this.relics = new RelicSystem(this.ctx)
     this.appearance = new AppearanceSystem(this.ctx)
+    this.cycleSystem = new CycleSystem(this.ctx)
     const appearance = this.appearance
     const relics = this.relics
     const powers = this.powers
+    const cycleSystem = this.cycleSystem
     this.menu = new GameMenu(this.hud.root, {
       get slots() {
         return powers.loadout.slots
@@ -226,6 +234,17 @@ export class Game {
       cardContext: (id, preview) => this.cardContext(id, preview),
       stats: () => this.heroStats(),
       toTitle: () => this.toTitle(),
+      cycle: {
+        state: this.cycle,
+        train: (source, count) => cycleSystem.train(source, count),
+        rebirth: (challenge) => cycleSystem.rebirth(challenge),
+        lightStar: (id) => cycleSystem.lightStar(id),
+        chooseLaw: (id) => cycleSystem.chooseLaw(id),
+        summonDoom: () => cycleSystem.summonDoom(),
+        get doomActive() {
+          return cycleSystem.doomActive
+        },
+      },
       wardrobe: {
         wardrobe: this.wardrobe,
         get autoOutfit() {
@@ -492,6 +511,7 @@ export class Game {
       onHits: (hits) => this.damage.onHeroHits(hits),
     })
     this.relics.update(dt)
+    this.cycleSystem.update(dt)
     this.combat.damageScale = this.damage.scale('basic')
     this.updateEnemies(dt)
     this.growth.update(dt)
@@ -546,6 +566,8 @@ export class Game {
           : null,
         blessings: this.powers.state.blessings.map((g) => ({ name: godDef(g).name, color: godDef(g).color })),
         promote: manifested !== null && this.progress.readyToPromote(manifested),
+        essence: this.cycle.essence,
+        essenceOpen: this.cycle.opened.has('train'),
       },
       realDt,
     )

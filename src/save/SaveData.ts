@@ -1,3 +1,4 @@
+import { type CycleData, parseCycle } from '../progress/Cycle'
 import { type BodyLook, parseBody } from '../looks/body'
 import { isLookId, lookDef, type LookSlot, STARTING_LOOKS, WARDROBE_SLOTS } from '../looks/catalog'
 import type { LookChoice } from '../looks/outfit'
@@ -28,6 +29,8 @@ export interface SaveData {
   looks: { unlocked: string[]; choices: Partial<Record<LookSlot, LookChoice>> }
   /** 처음에 고른 기본 모습. 옛 저장에는 없어서 기본값 */
   body: BodyLook
+  /** 순환 성장 (E4.5). 옛 저장에는 없어서 처음 상태 */
+  cycle: CycleData
 }
 
 const isRelic = isRelicId
@@ -86,6 +89,7 @@ export function parseSave(text: string | null): SaveData | null {
     divine: num(data.divine, 0, 1, 0),
     looks: data.version === 1 ? migrateLooks(slots, bag, classes) : parseLooks(data.looks),
     body: parseBody(data.body),
+    cycle: parseCycle(data.cycle),
   }
 }
 

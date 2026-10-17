@@ -58,7 +58,7 @@ export class ProgressionSystem {
     if (relic) pickups.drop(relic, giant.x, giant.z)
   }
 
-  /** 승급: 칭호가 바뀌고, 스킬이 강해지고, 친화도와 기본 능력치가 오른다. */
+  /** 승급: 칭호가 바뀌고, 스킬이 강해지고, 원천 숙련과 기본 능력치가 오른다. */
   promote(god: God): void {
     const { progress, combat, hero, hud, fx, view, feel, bus } = this.ctx
     const hpBefore = BASE_HP + progress.promotions * PER_PROMOTION.maxHp
@@ -85,13 +85,16 @@ export class ProgressionSystem {
     }
     fx.lightning.fromSky(p.clone(), 0.34)
     fx.puffs.burst(p, 40, 5)
+    // 승급: 그 신의 색으로 가장 큰 빛기둥과 번쩍임. 레벨이 오를수록 크다.
+    fx.power.burst(p, godDef(god).color, 3 + progress.level(god))
+    hud.flash(godDef(god).color)
     view.shake(0.6)
     feel.stop(0.2)
   }
 
   /** 총 승급 횟수에서 나오는 기본 능력치 (DESIGN.md 6.2) */
   applyStats(): void {
-    this.ctx.combat.health.setMax(BASE_HP + this.ctx.progress.promotions * PER_PROMOTION.maxHp)
+    this.ctx.combat.health.setMax(BASE_HP + this.ctx.progress.promotions * PER_PROMOTION.maxHp + this.ctx.cycle.bonusHp)
   }
 
   /** 클래스 성장(레벨·경험치)을 처음으로 되돌린다. */

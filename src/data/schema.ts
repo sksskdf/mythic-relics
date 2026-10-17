@@ -94,8 +94,8 @@ export interface GodDef {
   title: string
   /** Lv1~Lv4 칭호 */
   titles: readonly [string, string, string, string]
-  /** 원형 (DESIGN.md 6장). 같은 원형끼리 친화도를 나눠 쓴다. */
-  archetype: string
+  /** 원천 (DESIGN.md 6장): 힘을 모으는 방식. 같은 원천끼리 숙련을 나눠 쓴다. */
+  source: SourceId
   /** 발현 연출과 HUD에 쓰는 대표 색 */
   color: string
   /** 클래스 창 트리에서의 자리 (E4) */
@@ -121,6 +121,8 @@ export interface ClassPassive {
   basicLightning?: { damage: number; finisherDamage: number }
   /** 번개가 가까운 적에게 옮겨 붙는다. minLevel부터 */
   chainLightning?: { minLevel: number; jumps: number; range: number; damage: number; finisherDamage: number }
+  /** 칼날 폭풍 (아수라왕): 기본 공격이 맞을 때마다 등의 팔들이 주변 적에게 칼을 휘두른다. 칼 수 = base + perLevel × (레벨 − 1) */
+  bladeStorm?: { damage: number; radius: number; base: number; perLevel: number }
 }
 
 /** 외형 id가 있고, 그 외형이 그 칸의 것인지 검사한다. */
@@ -143,7 +145,7 @@ export function parseGods(raw: unknown, path = 'gods.json'): Record<string, GodD
   const out: Record<string, GodDef> = {}
   for (const [id, o] of table(raw, path)) {
     const p = `${path}.${id}`
-    onlyKeys(o, p, ['name', 'titles', 'archetype', 'color', 'tree', 'passive', 'looks', 'legend', 'mark', 'hidden', 'manifestCount'])
+    onlyKeys(o, p, ['name', 'titles', 'source', 'color', 'tree', 'passive', 'looks', 'legend', 'mark', 'hidden', 'manifestCount'])
     const titles = list(o, 'titles', p)
     if (titles.length !== 4 || titles.some((t) => typeof t !== 'string' || t.trim() === '')) {
       throw new DataError(`${p}.titles`, 'Lv1~Lv4 칭호 네 개여야 합니다')
@@ -151,13 +153,19 @@ export function parseGods(raw: unknown, path = 'gods.json'): Record<string, GodD
     const tree = obj(o.tree, `${p}.tree`)
     onlyKeys(tree, `${p}.tree`, ['column', 'row'])
     const passiveRaw = obj(o.passive ?? {}, `${p}.passive`)
-    onlyKeys(passiveRaw, `${p}.passive`, ['damageScale', 'basicLightning', 'chainLightning'])
+    onlyKeys(passiveRaw, `${p}.passive`, ['damageScale', 'basicLightning', 'chainLightning', 'bladeStorm'])
     const passive: ClassPassive = { damageScale: optNum(passiveRaw, 'damageScale', `${p}.passive`, { min: 0 }) ?? 1 }
     if (passiveRaw.basicLightning !== undefined) {
       const q = `${p}.passive.basicLightning`
       const b = obj(passiveRaw.basicLightning, q)
       onlyKeys(b, q, ['damage', 'finisherDamage'])
       passive.basicLightning = { damage: num(b, 'damage', q, { min: 0 }), finisherDamage: num(b, 'finisherDamage', q, { min: 0 }) }
+    }
+    if (passiveRaw.bladeStorm !== undefined) {
+      const q = `${p}.passive.bladeStorm`
+      const b = obj(passiveRaw.bladeStorm, q)
+      onlyKeys(b, q, ['damage', 'radius', 'base', 'perLevel'])
+      passive.bladeStorm = { damage: num(b, 'damage', q, { min: 0 }), radius: num(b, 'radius', q, { min: 0 }), base: num(b, 'base', q, { min: 0 }), perLevel: num(b, 'perLevel', q, { min: 0 }) }
     }
     if (passiveRaw.chainLightning !== undefined) {
       const q = `${p}.passive.chainLightning`
@@ -176,7 +184,7 @@ export function parseGods(raw: unknown, path = 'gods.json'): Record<string, GodD
       name: str(o, 'name', p),
       title: titles[0] as string,
       titles: titles as [string, string, string, string],
-      archetype: str(o, 'archetype', p),
+      source: oneOf(o, 'source', p, SOURCE_IDS),
       color: color(o, 'color', p),
       tree: { column: num(tree, 'column', `${p}.tree`), row: num(tree, 'row', `${p}.tree`) },
       passive,
@@ -609,9 +617,10 @@ export function parseEnemies(raw: unknown, path = 'enemies.json'): Record<string
 
 // ───────────────────────────── 클래스 트리 ─────────────────────────────
 
-/** 원형 10종 (DESIGN.md 6장, CLASSES.md 1장) */
-export const ARCHETYPE_IDS = ['thunder', 'sea', 'death', 'sun', 'moon', 'trickster', 'war', 'wisdom', 'earth', 'chaos'] as const
-export type ArchetypeId = (typeof ARCHETYPE_IDS)[number]
+/** (DESIGN.md 6장, CLASSES.md 1장) */
+/** 원천 넷: 불꽃(때릴수록), 사냥(쓰러뜨릴수록), 바람(걸을수록), 바위(버틸수록) */
+export const SOURCE_IDS = ['flame', 'hunt', 'wind', 'stone'] as const
+export type SourceId = (typeof SOURCE_IDS)[number]
 
 export interface TreeClass {
   name: string
@@ -622,16 +631,19 @@ export interface TreeClass {
 }
 
 export interface BaseClass extends TreeClass {
-  archetype: ArchetypeId
+  source: SourceId
   /** 게임에 들어 있는 신이면 gods.json의 id */
   god?: string
 }
 
 export interface ClassTree {
-  archetypes: readonly { id: ArchetypeId; name: string; upper: TreeClass; apex: TreeClass }[]
+  /** 원천 넷과 그 상위 클래스 (같은 원천 클래스 둘을 Lv3) */
+  sources: readonly { id: SourceId; name: string; gain: string; upper: TreeClass }[]
+  /** 원천 짝 여섯: 두 원천의 클래스를 하나씩 Lv3 */
+  pairs: readonly (TreeClass & { sources: readonly [SourceId, SourceId] })[]
   mythologies: readonly { id: string; name: string; stage: string; classes: readonly BaseClass[]; upper: TreeClass }[]
-  /** 히든 클래스. 원형이 없으면 그때 가장 높은 친화도를 쓴다 */
-  hidden: readonly (TreeClass & { archetype: ArchetypeId | null; god?: string })[]
+  /** 히든 클래스. 원천이 없으면 그때 가장 높은 숙련을 쓴다 */
+  hidden: readonly (TreeClass & { source: SourceId | null; god?: string })[]
 }
 
 function treeClass(raw: unknown, path: string, extra: readonly string[] = []): TreeClass {
@@ -644,22 +656,31 @@ function treeClass(raw: unknown, path: string, extra: readonly string[] = []): T
   return { name: str(o, 'name', path), titles: titles as [string, string, string, string], hint: str(o, 'hint', path) }
 }
 
-/** 클래스 트리 (CLASSES.md를 옮긴 것). 게임에 들어 있는 신은 gods.json과 원형·칭호가 맞아야 한다. */
+/** 클래스 트리 (CLASSES.md를 옮긴 것). 게임에 들어 있는 신은 gods.json과 원천·칭호가 맞아야 한다. */
 export function parseClassTree(raw: unknown, gods: Record<string, GodDef>, path = 'classes.json'): ClassTree {
   const o = obj(raw, path)
-  onlyKeys(o, path, ['archetypes', 'mythologies', 'hidden'])
-  const archetypes = list(o, 'archetypes', path).map((a, i) => {
-    const p = `${path}.archetypes[${i}]`
+  onlyKeys(o, path, ['sources', 'pairs', 'mythologies', 'hidden'])
+  const sources = list(o, 'sources', path).map((a, i) => {
+    const p = `${path}.sources[${i}]`
     const ao = obj(a, p)
-    onlyKeys(ao, p, ['id', 'name', 'upper', 'apex'])
-    return {
-      id: oneOf(ao, 'id', p, ARCHETYPE_IDS),
-      name: str(ao, 'name', p),
-      upper: treeClass(ao.upper, `${p}.upper`),
-      apex: treeClass(ao.apex, `${p}.apex`),
-    }
+    onlyKeys(ao, p, ['id', 'name', 'gain', 'upper'])
+    return { id: oneOf(ao, 'id', p, SOURCE_IDS), name: str(ao, 'name', p), gain: str(ao, 'gain', p), upper: treeClass(ao.upper, `${p}.upper`) }
   })
-  if (archetypes.length !== ARCHETYPE_IDS.length) throw new DataError(`${path}.archetypes`, `원형 ${ARCHETYPE_IDS.length}개가 모두 있어야 합니다`)
+  if (sources.map((x) => x.id).join() !== SOURCE_IDS.join()) throw new DataError(`${path}.sources`, `원천 ${SOURCE_IDS.join(', ')}이 이 순서로 모두 있어야 합니다`)
+  const seenPairs = new Set<string>()
+  const pairs = list(o, 'pairs', path).map((x, i) => {
+    const p = `${path}.pairs[${i}]`
+    const base = treeClass(x, p, ['sources'])
+    const two = list(obj(x, p), 'sources', p)
+    if (two.length !== 2 || two.some((v) => !(SOURCE_IDS as readonly unknown[]).includes(v)) || two[0] === two[1]) {
+      throw new DataError(`${p}.sources`, '서로 다른 원천 둘이어야 합니다')
+    }
+    const key = [...two].sort().join()
+    if (seenPairs.has(key)) throw new DataError(`${p}.sources`, '같은 원천 짝이 두 번 나옵니다')
+    seenPairs.add(key)
+    return { ...base, sources: two as [SourceId, SourceId] }
+  })
+  if (pairs.length !== 6) throw new DataError(`${path}.pairs`, '원천 짝 여섯이 모두 있어야 합니다')
   const linked = new Set<string>()
   const mythologies = list(o, 'mythologies', path).map((m, i) => {
     const p = `${path}.mythologies[${i}]`
@@ -667,42 +688,42 @@ export function parseClassTree(raw: unknown, gods: Record<string, GodDef>, path 
     onlyKeys(mo, p, ['id', 'name', 'stage', 'classes', 'upper'])
     const classes = list(mo, 'classes', p).map((c, j): BaseClass => {
       const cp = `${p}.classes[${j}]`
-      const base = treeClass(c, cp, ['archetype', 'god'])
+      const base = treeClass(c, cp, ['source', 'god'])
       const co = obj(c, cp)
-      const archetype = oneOf(co, 'archetype', cp, ARCHETYPE_IDS)
-      if (co.god === undefined) return { ...base, archetype }
+      const source = oneOf(co, 'source', cp, SOURCE_IDS)
+      if (co.god === undefined) return { ...base, source }
       const god = str(co, 'god', cp)
       const def = gods[god]
       if (!def) throw new DataError(`${cp}.god`, `gods.json에 없는 신입니다 ("${god}")`)
-      if (def.archetype !== archetype) throw new DataError(`${cp}.archetype`, `gods.json의 원형(${def.archetype})과 다릅니다`)
+      if (def.source !== source) throw new DataError(`${cp}.source`, `gods.json의 원천(${def.source})과 다릅니다`)
       if (def.titles.join() !== base.titles.join()) throw new DataError(`${cp}.titles`, 'gods.json의 칭호와 다릅니다')
       linked.add(god)
-      return { ...base, archetype, god }
+      return { ...base, source, god }
     })
     return { id: str(mo, 'id', p), name: str(mo, 'name', p), stage: str(mo, 'stage', p), classes, upper: treeClass(mo.upper, `${p}.upper`) }
   })
-  const link = (god: string, base: TreeClass, archetype: ArchetypeId | null, cp: string): void => {
+  const link = (god: string, base: TreeClass, source: SourceId | null, cp: string): void => {
     const def = gods[god]
     if (!def) throw new DataError(`${cp}.god`, `gods.json에 없는 신입니다 ("${god}")`)
-    if (archetype !== null && def.archetype !== archetype) throw new DataError(`${cp}.archetype`, `gods.json의 원형(${def.archetype})과 다릅니다`)
+    if (source !== null && def.source !== source) throw new DataError(`${cp}.source`, `gods.json의 원천(${def.source})과 다릅니다`)
     if (def.titles.join() !== base.titles.join()) throw new DataError(`${cp}.titles`, 'gods.json의 칭호와 다릅니다')
     linked.add(god)
   }
   const hidden = list(o, 'hidden', path).map((h, i) => {
     const p = `${path}.hidden[${i}]`
     const ho = obj(h, p)
-    const base = treeClass(h, p, ['archetype', 'god'])
-    const archetype = ho.archetype === null ? null : oneOf(ho, 'archetype', p, ARCHETYPE_IDS)
-    if (ho.god === undefined) return { ...base, archetype }
+    const base = treeClass(h, p, ['source', 'god'])
+    const source = ho.source === null ? null : oneOf(ho, 'source', p, SOURCE_IDS)
+    if (ho.god === undefined) return { ...base, source }
     const god = str(ho, 'god', p)
-    link(god, base, archetype, p)
+    link(god, base, source, p)
     if (!gods[god]!.hidden) throw new DataError(`${p}.god`, '히든 클래스에는 hidden 신만 이을 수 있습니다')
-    return { ...base, archetype, god }
+    return { ...base, source, god }
   })
   for (const god of Object.keys(gods)) {
     if (!linked.has(god)) throw new DataError(path, `gods.json의 "${god}"이(가) 클래스 트리에 없습니다`)
   }
-  return { archetypes, mythologies, hidden }
+  return { sources, pairs, mythologies, hidden }
 }
 
 // ───────────────────────────── 전체 ─────────────────────────────
@@ -765,10 +786,5 @@ export function parseGameData(
     if (!enemies[id]) throw new DataError(`enemies.json.${id}`, '게임이 직접 쓰는 적이라 빠지면 안 됩니다')
   }
   const classes = parseClassTree(raw.classes, gods)
-  for (const god of Object.values(gods)) {
-    if (!(ARCHETYPE_IDS as readonly string[]).includes(god.archetype)) {
-      throw new DataError(`gods.json.${god.id}.archetype`, `${ARCHETYPE_IDS.join(', ')} 중 하나여야 합니다`)
-    }
-  }
   return { gods, relics, enemies, classes }
 }

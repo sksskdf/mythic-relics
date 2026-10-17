@@ -15,7 +15,7 @@ export class Slashes {
   private readonly pool: Slash[] = []
   private next = 0
 
-  constructor(size = 6) {
+  constructor(size = 18) {
     for (let i = 0; i < size; i++) {
       const material = new THREE.MeshBasicMaterial({
         color: 0xffffff,
@@ -41,7 +41,7 @@ export class Slashes {
    * @param halfAngle 궤적 절반 각도
    * @param strong 마지막 타처럼 강한 공격이면 금빛으로 더 굵게
    */
-  spawn(origin: THREE.Vector3, facing: number, range: number, halfAngle: number, strong: boolean): void {
+  spawn(origin: THREE.Vector3, facing: number, range: number, halfAngle: number, strong: boolean, color?: number): void {
     const slash = this.pool[this.next]!
     this.next = (this.next + 1) % this.pool.length
     const inner = range * (strong ? 0.45 : 0.6)
@@ -49,7 +49,7 @@ export class Slashes {
     slash.mesh.geometry = new THREE.RingGeometry(inner, range, 24, 1, -Math.PI / 2 - halfAngle, halfAngle * 2)
     slash.mesh.position.set(origin.x, origin.y + (strong ? 0.5 : 0.9), origin.z)
     slash.mesh.rotation.set(-Math.PI / 2, facing, 0)
-    slash.material.color.setHex(strong ? 0xffe08a : 0xf2f7ff)
+    slash.material.color.setHex(color ?? (strong ? 0xffe08a : 0xf2f7ff))
     slash.maxLife = slash.life = strong ? 0.2 : 0.13
     slash.mesh.visible = true
   }

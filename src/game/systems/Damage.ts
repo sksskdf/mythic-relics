@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 
-import { AFFINITY_DAMAGE, PER_PROMOTION } from '../../progress/ClassProgress'
+import { MASTERY_DAMAGE, PER_PROMOTION } from '../../progress/ClassProgress'
 import { godDef } from '../../relics/data'
 import type { DamageStyle } from '../../ui/DamageNumbers'
 import { heightAt } from '../../world/terrain'
@@ -21,13 +21,18 @@ export class DamageSystem {
   constructor(private readonly ctx: GameContext) {}
 
   /** 기본 공격과 스킬에 공통으로 곱하는 피해 배율 */
-  scale(style: DamageStyle | 'basic'): number {
+  scale(_style: DamageStyle | 'basic'): number {
     const { progress, powers } = this.ctx
     let scale = 1 + progress.promotions * PER_PROMOTION.damage
     const manifested = powers.manifested
     // 발현 패시브 (천둥의 신: 거인 특효)
-    if (manifested) scale *= godDef(manifested).passive.damageScale
-    if (style === 'thunder') scale *= 1 + progress.affinity('thunder') * AFFINITY_DAMAGE
+    if (manifested) {
+      scale *= godDef(manifested).passive.damageScale
+      // 원천 숙련: 발현한 신과 같은 원천의 승급 횟수만큼
+      scale *= 1 + progress.mastery(godDef(manifested).source) * MASTERY_DAMAGE
+    }
+    // 불꽃 단련
+    scale *= this.ctx.cycle.damageScale
     return scale
   }
 
@@ -57,6 +62,7 @@ export class DamageSystem {
       }
     }
     if (hits.length === 0) return
+    bus.emit('basicHits', { targets: hits.map((h) => h.target) })
     powers.onBasicHit(
       {
         targets: hits.map((h) => h.target),
@@ -83,6 +89,22 @@ export class DamageSystem {
       const chain = passive.chainLightning
       if (chain && progress.level(manifested) >= chain.minLevel) {
         this.chainLightning(first, finisher ? chain.finisherDamage : chain.damage, chain.jumps, chain.range)
+      }
+    }
+    // 발현 패시브: 칼날 폭풍 (아수라왕). 등의 팔들이 가까운 적들에게 차례로 칼을 휘두른다.
+    const storm = passive?.bladeStorm
+    if (manifested && storm) {
+      const level = progress.level(manifested)
+      const blades = Math.round(storm.base + storm.perLevel * (level - 1))
+      const p = hero.object.position
+      const near = this.ctx.encounter.alive.filter((e) => Math.hypot(e.x - p.x, e.z - p.z) < storm.radius)
+      for (let i = 0; i < blades && near.length > 0; i++) {
+        const enemy = near[i % near.length]!
+        const dx = enemy.x - p.x
+        const dz = enemy.z - p.z
+        const len = Math.hypot(dx, dz) || 1
+        fx.slashes.spawn(new THREE.Vector3(enemy.x, heightAt(enemy.x, enemy.z), enemy.z), Math.random() * Math.PI * 2, 1 + Math.random() * 0.4, 0.8, false, i % 2 ? 0xff4a5a : 0xb0101c)
+        this.deal(enemy, storm.damage, dx / len, dz / len, 1.5, 'normal')
       }
     }
     const strong = hits.some((h) => h.strong)

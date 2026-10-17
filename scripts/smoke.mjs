@@ -143,7 +143,7 @@ try {
   if (statRows !== 8) throw new Error(`상태 탭: 능력치 줄이 ${statRows}개입니다.`)
   await page.screenshot({ path: 'test-results/menu-status.png' })
   // 유물 탭: 유물을 가방에 넣고 다시 끼면 HUD·외형·발현이 바로 바뀐다.
-  await page.locator('.menu__tab').nth(1).click()
+  await page.locator('.menu__tab').nth(2).click()
   const beltSlot = await page.evaluate(() => window.__game.powers.loadout.slots.indexOf('megingjord'))
   await page.locator('.menu-relics__slot').nth(beltSlot).click()
   await page.getByRole('button', { name: '가방에 넣기' }).click()
@@ -156,10 +156,21 @@ try {
   if (!(await page.locator('.rc__preview').textContent()).includes('발현')) throw new Error('정보 화면: 끼우면 발현한다는 미리 보기가 없습니다.')
   await page.locator('.menu-relics__item').first().click()
   if ((await page.evaluate(() => window.__game.powers.manifested)) !== 'thor') throw new Error('정보 화면: 다시 끼웠는데 발현하지 않습니다.')
-  await page.click('.menu__tab:nth-child(3)')
+  await page.click('.menu__tab:nth-child(4)')
   if (!(await page.locator('.menu-classes__now').textContent()).includes('천둥의 신')) throw new Error('정보 화면: 클래스 탭에 지금 클래스가 없습니다.')
   await page.keyboard.press('Escape')
   if (await page.evaluate(() => window.__game.paused)) throw new Error('정보 화면: 닫았는데 게임이 멈춰 있습니다.')
+  // 순환 탭: 결정이 있으면 단련할 수 있다
+  await page.evaluate(() => {
+    window.__game.cycle.essence.flame = 100
+    window.__game.cycle.opened.add('train')
+  })
+  await page.click('.menu-button')
+  await page.locator('.menu__tab').nth(1).click()
+  await page.locator('.menu-cycle__train').first().click()
+  if ((await page.evaluate(() => window.__game.cycle.training.flame)) !== 1) throw new Error('순환 탭: 불꽃 단련이 오르지 않았습니다.')
+  await page.keyboard.press('Escape')
+  console.log('순환 확인: 결정으로 불꽃 단련 Lv1')
   console.log('정보 화면 확인: 상태 탭 능력치 8줄, 열면 멈춤, 가방에 넣기·다시 끼기와 미리 보기, 클래스 탭, Esc로 닫기')
 
   // 보관함에서 무기를 짧은 검으로 고르면 묠니르를 껴도 검을 든다. (새로 고침 뒤에도 유지되는지 아래에서 확인)
