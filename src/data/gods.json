@@ -26,6 +26,12 @@
         "damage": 8,
         "finisherDamage": 14
       }
+    },
+    "looks": {
+      "head": "thorHelm",
+      "torso": "thorTunic",
+      "cape": "thorCape",
+      "aura": "thorSparks"
     }
   },
   "loki": {
@@ -42,6 +48,12 @@
       "column": 1,
       "row": 0
     },
-    "passive": {}
+    "passive": {},
+    "looks": {
+      "head": "lokiCrown",
+      "torso": "lokiTunic",
+      "cape": "lokiCape",
+      "aura": "lokiShadow"
+    }
   }
 }

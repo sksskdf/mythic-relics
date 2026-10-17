@@ -1,6 +1,7 @@
 import { ENEMIES, GRUNT } from '../enemies/Giant'
 import type { Game } from '../game/Game'
 import { godDef, RELIC_IDS, relicDef } from '../relics/data'
+import { LOOK_IDS, LOOK_SLOTS } from '../looks/catalog'
 import { saveStorage } from '../save/SaveData'
 import { DebugOverlay } from './DebugOverlay'
 import './devPanel.css'
@@ -127,6 +128,23 @@ export class DevPanel {
           }
           g.progress.addXp('thor', 1e9)
           g.devTeleport(g.legend.center.x, g.legend.center.z)
+        },
+      },
+    ])
+
+    this.section(body, '외형', [
+      { label: '보관함', active: () => g.wardrobePanel.open, run: () => g.wardrobePanel.toggle() },
+      {
+        label: '모두 얻기',
+        run: () => {
+          g.wardrobe.unlock(LOOK_IDS)
+          g.wardrobePanel.refresh()
+        },
+      },
+      {
+        label: '모두 자동',
+        run: () => {
+          for (const slot of LOOK_SLOTS) g.appearance.choose(slot, 'auto')
         },
       },
     ])

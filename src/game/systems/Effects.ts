@@ -4,6 +4,7 @@ import type { Giant } from '../../enemies/Giant'
 import { Debris } from '../../fx/Debris'
 import { Lightning } from '../../fx/Lightning'
 import { Puffs } from '../../fx/Puffs'
+import { ShadowAura } from '../../fx/ShadowAura'
 import { Slashes } from '../../fx/Slashes'
 import { Snowfall } from '../../fx/Snowfall'
 import { Sparks } from '../../fx/Sparks'
@@ -12,6 +13,7 @@ import { MoveMarker, PathLine, TargetMarker } from '../../world/moveMarker'
 import { heightAt } from '../../world/terrain'
 import type { HeroController } from '../HeroController'
 import type { HeroOrders } from '../HeroOrders'
+import type { CombatTarget } from '../PlayerCombat'
 
 const ICE_CHIPS = [0xa8e4f5, 0xe9f4fa, 0x6cbcd9]
 const SNOW_CHIPS = [0xf4f8fc, 0xdfe8f1]
@@ -24,6 +26,8 @@ export class Effects {
   readonly lightning = new Lightning()
   /** 천둥의 신 발현 중 몸 주변의 푸른 전기 */
   readonly sparks = new Sparks()
+  /** 변신술사 발현 중 발밑의 그림자 */
+  readonly shadow = new ShadowAura()
   readonly snow = new Snowfall()
   /** 유물 스킬 연출을 붙이는 곳 */
   readonly skills = new THREE.Group()
@@ -40,17 +44,18 @@ export class Effects {
       effect.traverse((o) => o.layers.set(EFFECT_LAYER))
       scene.add(effect)
     }
-    scene.add(this.targetMarker.object, this.pathLine.object, this.skills, this.debris.object, this.lightning.object)
+    scene.add(this.targetMarker.object, this.pathLine.object, this.skills, this.debris.object, this.lightning.object, this.shadow.object)
   }
 
   /** 지시 표시: 누른 곳, 공격 대상, 적을 무시한 이동의 경로 */
-  updateMarkers(dt: number, hero: HeroController, orders: HeroOrders): void {
+  updateMarkers(dt: number, hero: HeroController, orders: HeroOrders, enemies: readonly CombatTarget[]): void {
     const moveTarget = orders.lastMoveTarget
     if (moveTarget) this.marker.show(moveTarget.x, moveTarget.z, moveTarget.forced)
     orders.lastMoveTarget = null
     this.marker.update(dt)
     const target = orders.attackTarget
-    this.targetMarker.update(dt, target?.alive ? target : null)
+    // 치워진 적(개발 패널의 모두 제거 등)에는 표시를 남기지 않는다.
+    this.targetMarker.update(dt, target?.alive && enemies.includes(target) ? target : null)
     this.pathLine.update(hero.object.position, orders.plowing ? orders.destination : null)
   }
 
@@ -66,6 +71,7 @@ export class Effects {
     this.puffs.update(dt)
     this.lightning.update(dt)
     this.sparks.update(dt, position)
+    this.shadow.update(dt, position)
     this.slashes.update(dt)
     this.debris.update(dt)
     this.snow.update(dt, position, elapsed)

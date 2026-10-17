@@ -55,6 +55,7 @@ if (showTitle) {
 ;(window as unknown as { __game: Game }).__game = game
 
 if (devMode) {
+  document.body.classList.add('devmode')
   void import('./dev/DevPanel').then(({ DevPanel }) => new DevPanel(game, container))
 }
 

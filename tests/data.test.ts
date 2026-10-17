@@ -48,6 +48,8 @@ describe('게임 데이터', () => {
       ['맞을 때 터지는데 시간 충전이 아님', (d) => (d.relics.jarngreipr.trigger.charge = { by: 'kill', count: 3 }), /시간으로 충전/],
       ['그림에 색이 없는 글자', (d) => (d.relics.lokiMask.icon[0] = 'Z...........'), /"Z" 글자의 색/],
       ['없는 모델', (d) => (d.relics.mjolnir.model = 'axe'), /없는 모델/],
+      ['없는 외형', (d) => (d.relics.mjolnir.look = 'axe'), /mjolnir\.look: 없는 외형/],
+      ['발현 외형이 다른 칸의 것', (d) => (d.gods.thor.looks.head = 'thorCape'), /thor\.looks\.head: head 칸의 외형이 아닙니다/],
       ['칭호가 넷이 아님', (d) => d.gods.thor.titles.pop(), /thor\.titles: Lv1~Lv4/],
       ['색 형식', (d) => (d.gods.loki.color = 'green'), /loki\.color: #rrggbb/],
       ['서로 이어받는 적', (d) => (d.enemies.king.extends = 'utgardKing'), /서로를 이어받고/],

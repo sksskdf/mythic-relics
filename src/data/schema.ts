@@ -6,6 +6,8 @@
  * 이 파일은 three.js 등 다른 모듈에 기대지 않는다. (빌드 설정에서도 불러 쓴다)
  */
 
+import { LOOK_SLOTS, LOOKS, type LookSlot } from '../looks/catalog'
+
 export class DataError extends Error {
   constructor(path: string, message: string) {
     super(`${path}: ${message}`)
@@ -100,6 +102,8 @@ export interface GodDef {
   tree: { column: number; row: number }
   /** 발현 패시브 */
   passive: ClassPassive
+  /** 발현했을 때의 외형 (칸 → 외형 id) */
+  looks: Readonly<Partial<Record<LookSlot, string>>>
 }
 
 export interface ClassPassive {
@@ -111,11 +115,27 @@ export interface ClassPassive {
   chainLightning?: { minLevel: number; jumps: number; range: number; damage: number; finisherDamage: number }
 }
 
+/** 외형 id가 있고, 그 외형이 그 칸의 것인지 검사한다. */
+function lookOf(id: unknown, slot: LookSlot | null, path: string): string {
+  if (typeof id !== 'string' || !Object.hasOwn(LOOKS, id)) throw new DataError(path, `없는 외형입니다 ("${String(id)}", src/looks/catalog.ts)`)
+  const def = LOOKS[id]!
+  if (slot && def.slot !== slot) throw new DataError(path, `${slot} 칸의 외형이 아닙니다 ("${id}"는 ${def.slot})`)
+  return id
+}
+
+function parseLooks(raw: unknown, path: string): Partial<Record<LookSlot, string>> {
+  const o = obj(raw, path)
+  onlyKeys(o, path, LOOK_SLOTS)
+  const out: Partial<Record<LookSlot, string>> = {}
+  for (const slot of LOOK_SLOTS) if (o[slot] !== undefined) out[slot] = lookOf(o[slot], slot, `${path}.${slot}`)
+  return out
+}
+
 export function parseGods(raw: unknown, path = 'gods.json'): Record<string, GodDef> {
   const out: Record<string, GodDef> = {}
   for (const [id, o] of table(raw, path)) {
     const p = `${path}.${id}`
-    onlyKeys(o, p, ['name', 'titles', 'archetype', 'color', 'tree', 'passive'])
+    onlyKeys(o, p, ['name', 'titles', 'archetype', 'color', 'tree', 'passive', 'looks'])
     const titles = list(o, 'titles', p)
     if (titles.length !== 4 || titles.some((t) => typeof t !== 'string' || t.trim() === '')) {
       throw new DataError(`${p}.titles`, 'Lv1~Lv4 칭호 네 개여야 합니다')
@@ -152,6 +172,7 @@ export function parseGods(raw: unknown, path = 'gods.json'): Record<string, GodD
       color: color(o, 'color', p),
       tree: { column: num(tree, 'column', `${p}.tree`), row: num(tree, 'row', `${p}.tree`) },
       passive,
+      looks: parseLooks(o.looks ?? {}, `${p}.looks`),
     }
   }
   if (Object.keys(out).length === 0) throw new DataError(path, '신이 하나도 없습니다')
@@ -163,10 +184,6 @@ export function parseGods(raw: unknown, path = 'gods.json'): Record<string, GodD
 /** 지속 효과로 바꿀 수 있는 수치. 여러 유물의 값은 서로 곱한다. */
 export const MODIFIER_KEYS = ['knockbackDealt', 'knockbackTaken', 'damageTaken', 'moveSpeed'] as const
 export type ModifierKey = (typeof MODIFIER_KEYS)[number]
-
-/** 외형이 바뀌는 몸 부위 (E3) */
-export const RELIC_PARTS = ['weapon', 'waist', 'hands', 'face'] as const
-export type RelicPart = (typeof RELIC_PARTS)[number]
 
 /**
  * 오라·행동의 종류와 숫자 값 이름. 동작은 코드(src/skills/actions.ts)에 있고, 데이터는 종류를 고르고 숫자를 정한다.
@@ -233,8 +250,8 @@ export interface RelicDef {
   id: string
   name: string
   god: string
-  /** 외형이 바뀌는 부위 (E3) */
-  part: RelicPart
+  /** 끼면 몸에 보이는 외형 (src/looks/catalog.ts). 칸은 외형이 정한다 */
+  look: string
   /** 복셀 모델 이름 (src/voxel/models/relics.ts) */
   model: string
   /** 유물 설명 (E4 설명 카드) */
@@ -323,7 +340,7 @@ export interface RelicRefs {
 
 export function parseRelic(id: string, raw: unknown, refs: RelicRefs, path = `relics.json.${id}`): RelicDef {
   const o = obj(raw, path)
-  onlyKeys(o, path, ['name', 'god', 'part', 'model', 'description', 'icon', 'colors', 'passive', 'trigger'])
+  onlyKeys(o, path, ['name', 'god', 'look', 'model', 'description', 'icon', 'colors', 'passive', 'trigger'])
   const god = str(o, 'god', path)
   if (!refs.gods.includes(god)) throw new DataError(`${path}.god`, `gods.json에 없는 신입니다 ("${god}")`)
   const model = str(o, 'model', path)
@@ -378,7 +395,7 @@ export function parseRelic(id: string, raw: unknown, refs: RelicRefs, path = `re
     id,
     name: str(o, 'name', path),
     god,
-    part: oneOf(o, 'part', path, RELIC_PARTS),
+    look: lookOf(o.look, null, `${path}.look`),
     model,
     description: str(o, 'description', path),
     ...parseIcon(o, path),

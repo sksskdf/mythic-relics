@@ -1,3 +1,4 @@
+import type { LookSlot } from '../../looks/catalog'
 import type { God, RelicId } from '../../relics/data'
 import { type SaveData, SAVE_VERSION, saveStorage } from '../../save/SaveData'
 import type { GameContext } from '../context'
@@ -11,6 +12,8 @@ export interface RestoreHost {
   equip(id: RelicId): void
   /** 성장 기록에 맞춰 기본 능력치를 다시 계산한다. */
   applyStats(): void
+  /** 외형 보관함을 되돌린 뒤 다시 입는다. */
+  applyLooks(): void
 }
 
 /**
@@ -35,7 +38,7 @@ export class Persistence {
 
   /** 지금 상태를 저장 데이터로 만든다. */
   snapshot(): SaveData {
-    const { progress, powers, pickups, drops, combat } = this.ctx
+    const { progress, powers, pickups, drops, combat, wardrobe } = this.ctx
     const classes: SaveData['classes'] = {}
     for (const [god, record] of progress.records) classes[god] = { ...record }
     return {
@@ -46,12 +49,16 @@ export class Persistence {
       classes,
       dropMisses: drops.misses,
       divine: combat.divine,
+      looks: { unlocked: [...wardrobe.unlocked], choices: Object.fromEntries(wardrobe.choices) },
     }
   }
 
   /** 저장 데이터로 이어 한다. 연출 없이 유물을 끼우고 성장 기록을 되돌린다. */
   restore(data: SaveData, host: RestoreHost): void {
-    const { progress, combat, powers, pickups, drops } = this.ctx
+    const { progress, combat, powers, pickups, drops, wardrobe } = this.ctx
+    wardrobe.unlock(data.looks.unlocked)
+    for (const [slot, choice] of Object.entries(data.looks.choices) as [LookSlot, string | null][]) wardrobe.choose(slot, choice)
+    host.applyLooks()
     for (const [god, record] of Object.entries(data.classes) as [God, { level: number; xp: number }][]) {
       Object.assign(progress.record(god), record)
     }

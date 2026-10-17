@@ -92,6 +92,23 @@ try {
   await page.waitForFunction(() => window.__game.orders.attackTarget === window.__clickTarget, null, { timeout: 10000 })
   console.log('클릭 확인: 몬스터를 누르면 공격 지시')
 
+  // 외형 점검(E3): 기본 / 유물 1개 / 유물 2개 / 발현, 네 장면을 찍어 남긴다. (주인공 둘레만)
+  const lookShot = async (name, frames = 2) => {
+    const f = await page.evaluate(() => window.__game.frame)
+    await page.waitForFunction(([f, n]) => window.__game.frame > f + n, [f, frames], { timeout: 30000 })
+    const center = await page.evaluate(() => ({ w: innerWidth, h: innerHeight }))
+    await page.screenshot({ path: `test-results/look-${name}.png`, clip: { x: center.w / 2 - 160, y: center.h / 2 - 150, width: 320, height: 260 } })
+  }
+  await page.evaluate(() => {
+    const g = window.__game
+    g.encounter.clearAll()
+    // 나무에 가리지 않는 트인 곳에서 찍는다.
+    g.devTeleport(2, -3)
+    g.hero.face(0.6)
+  })
+  if ((await page.evaluate(() => window.__game.hero.rig.outfit.head)) !== 'adventurerHood') throw new Error('외형: 기본 모습이 모험가가 아닙니다.')
+  await lookShot('1-base')
+
   // 유물 점검: 떨어진 유물 위에 서면 저절로 줍고, 토르 유물 3개가 모이면 발현된다.
   await page.evaluate(() => {
     const g = window.__game
@@ -99,14 +116,23 @@ try {
     g.pickups.drop('megingjord', p.x, p.z)
   })
   await page.waitForFunction(() => window.__game.powers.loadout.has('megingjord'), null, { timeout: 15000 })
+  if ((await page.evaluate(() => window.__game.hero.rig.outfit.waist)) !== 'megingjordBelt') throw new Error('외형: 줍자마자 허리띠가 보이지 않습니다.')
+  await lookShot('2-one-relic')
+  await page.evaluate(() => window.__game.devEquip('jarngreipr'))
+  await lookShot('3-two-relics')
   const manifested = await page.evaluate(() => {
     const g = window.__game
-    g.powers.equip('jarngreipr')
-    g.powers.equip('mjolnir')
+    g.devEquip('mjolnir')
     return g.powers.manifested
   })
   if (manifested !== 'thor') throw new Error(`발현 실패: ${manifested}`)
-  console.log('유물 확인: 메긴교르드 줍기, 토르 유물 3개로 발현')
+  if ((await page.evaluate(() => window.__game.hero.rig.outfit.head)) !== 'thorHelm') throw new Error('외형: 발현했는데 모습이 그대로입니다.')
+  // 발현 번개가 걷히고 나서 찍는다.
+  await lookShot('4-manifest', 12)
+  // 보관함에서 무기를 짧은 검으로 고르면 묠니르를 껴도 검을 든다. (새로 고침 뒤에도 유지되는지 아래에서 확인)
+  await page.evaluate(() => window.__game.appearance.choose('weapon', 'shortSword'))
+  if ((await page.evaluate(() => window.__game.hero.rig.outfit.weapon)) !== 'shortSword') throw new Error('외형: 보관함 선택이 적용되지 않습니다.')
+  console.log('유물·외형 확인: 메긴교르드 줍기, 토르 유물 3개로 발현, 부위별 외형과 보관함 (test-results/look-*.png)')
 
   // 승급 전설 점검: 경험치 바를 채우고 성소에 서면 「우트가르드 원정」이 시작된다.
   await page.evaluate(() => {
@@ -126,7 +152,8 @@ try {
   await page.waitForFunction(() => window.__game.playing, null, { timeout: 5000 })
   const restored = await page.evaluate(() => window.__game.powers.loadout.has('megingjord'))
   if (!restored) throw new Error('이어 하기 실패: 저장한 유물이 없습니다.')
-  console.log('저장 확인: 새로 고침 뒤 [이어 하기]로 유물 유지')
+  if ((await page.evaluate(() => window.__game.hero.rig.outfit.weapon)) !== 'shortSword') throw new Error('이어 하기 실패: 고른 외형이 없습니다.')
+  console.log('저장 확인: 새로 고침 뒤 [이어 하기]로 유물과 고른 외형 유지')
 
   // 개발 패널: ?dev 로 열고 단추로 유물·적·전설을 바로 바꿔 본다.
   await page.goto(`${URL}?dev`)

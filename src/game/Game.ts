@@ -4,8 +4,8 @@ import { Input } from '../input/Input'
 import { PixelRenderer } from '../render/PixelRenderer'
 import { QuarterViewCamera } from '../render/QuarterViewCamera'
 import { renderHeightFor, TARGET_RENDER_HEIGHT } from '../render/resolution'
-import { addSilhouette } from '../render/silhouette'
 import { godDef, type RelicId } from '../relics/data'
+import { Wardrobe } from '../looks/outfit'
 import { DropTable } from '../relics/DropTable'
 import { Pickups } from '../relics/Pickups'
 import type { SaveData } from '../save/SaveData'
@@ -13,6 +13,7 @@ import { ClassProgress } from '../progress/ClassProgress'
 import type { SkillContext } from '../skills/Skill'
 import { DamageNumbers } from '../ui/DamageNumbers'
 import { Hud } from '../ui/Hud'
+import { WardrobePanel } from '../ui/WardrobePanel'
 import { NavGrid } from '../world/navGrid'
 import { buildHeroModel } from '../world/heroModel'
 import { MAP_HALF_EXTENT } from '../world/testMap'
@@ -28,6 +29,7 @@ import { plowThrough } from './plow'
 import { PlayerCombat } from './PlayerCombat'
 import { RelicPowers } from './RelicPowers'
 import { Stage } from './Stage'
+import { AppearanceSystem } from './systems/Appearance'
 import { DamageSystem } from './systems/Damage'
 import { Effects } from './systems/Effects'
 import { HERO_SPAWN, HeroLife } from './systems/HeroLife'
@@ -81,6 +83,7 @@ export class Game {
   readonly pickups = new Pickups()
   readonly progress = new ClassProgress()
   readonly drops = new DropTable()
+  readonly wardrobe = new Wardrobe()
   readonly legend: UtgardLegend
   /** 주인공 길찾기 격자 */
   readonly nav: NavGrid
@@ -99,6 +102,10 @@ export class Game {
   private readonly feel = new Feel()
   private readonly numbers: DamageNumbers
   private readonly damage: DamageSystem
+  /** 외형: 장착에 따른 모습, 외형 보관함 */
+  readonly appearance: AppearanceSystem
+  /** 외형 보관함 화면 */
+  readonly wardrobePanel: WardrobePanel
   private readonly relics: RelicSystem
   private readonly growth: ProgressionSystem
   private readonly life: HeroLife
@@ -132,7 +139,7 @@ export class Game {
     this.scene.add(this.encounter.object)
 
     const rig = buildHeroModel()
-    addSilhouette(rig.root, 0x5b7fb8)
+    rig.setSilhouette(0x5b7fb8)
     this.scene.add(rig.root)
     this.hero = new HeroController(
       rig,
@@ -182,10 +189,23 @@ export class Game {
       pickups: this.pickups,
       progress: this.progress,
       drops: this.drops,
+      wardrobe: this.wardrobe,
       skills,
     }
     this.damage = new DamageSystem(this.ctx)
     this.relics = new RelicSystem(this.ctx)
+    this.appearance = new AppearanceSystem(this.ctx)
+    const appearance = this.appearance
+    this.wardrobePanel = new WardrobePanel(this.hud.root, {
+      wardrobe: this.wardrobe,
+      get autoOutfit() {
+        return appearance.auto
+      },
+      choose: (slot, choice) => appearance.choose(slot, choice),
+    })
+    // 새 외형은 옷걸이 단추의 점으로만 알린다. (유물 이름 알림과 겹치지 않게)
+    this.bus.on('looksUnlocked', () => this.wardrobePanel.markNew())
+    this.bus.on('outfitChanged', () => this.wardrobePanel.refresh())
     this.growth = new ProgressionSystem(this.ctx)
     this.life = new HeroLife(this.ctx)
     this.persistence = new Persistence(this.ctx, options.autosave ?? false)
@@ -200,6 +220,7 @@ export class Game {
       this.persistence.restore(options.load, {
         equip: (id) => this.relics.equip(id, false),
         applyStats: () => this.growth.applyStats(),
+        applyLooks: () => this.appearance.apply(),
       })
     }
     for (const id of options.startRelics ?? []) this.relics.equip(id, false)
@@ -312,7 +333,7 @@ export class Game {
     const heading = this.hero.heading
     if (this.orders.plowing && heading) plowThrough(this.hero.object.position, HERO_RADIUS, heading, this.encounter.alive)
     this.hero.update(dt)
-    this.fx.updateMarkers(dt, this.hero, this.orders)
+    this.fx.updateMarkers(dt, this.hero, this.orders, this.encounter.alive)
 
     // 전투: 자동 공격 → 유물 → 적 → 성장 → 생사
     this.combat.update(dt, this.encounter.alive, {
@@ -324,6 +345,7 @@ export class Game {
     this.updateEnemies(dt)
     this.growth.update(dt)
     this.life.update(dt)
+    this.appearance.update()
 
     const position = this.hero.object.position
     this.fx.update(dt, this.hero, this.elapsed)

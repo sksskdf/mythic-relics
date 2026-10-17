@@ -1,7 +1,13 @@
-import { GODS, type God, isRelicId, type RelicId } from '../relics/data'
+import { isLookId, LOOK_SLOTS, lookDef, type LookSlot, STARTING_LOOKS } from '../looks/catalog'
+import type { LookChoice } from '../looks/outfit'
+import { GODS, godDef, type God, isRelicId, relicDef, type RelicId } from '../relics/data'
 
-/** 저장 형식 버전. 형식이 바뀌면 올리고, 옛 형식을 옮기는 코드를 둔다. */
-export const SAVE_VERSION = 1
+/**
+ * 저장 형식 버전. 형식이 바뀌면 올리고, 옛 형식을 옮기는 코드를 둔다.
+ * - v1: 유물, 클래스, 드랍 보정, 신위
+ * - v2: 외형 보관함(얻은 외형, 칸마다 고른 것) 추가 (E3)
+ */
+export const SAVE_VERSION = 2
 
 export interface SaveData {
   version: typeof SAVE_VERSION
@@ -17,6 +23,8 @@ export interface SaveData {
   dropMisses: number
   /** 신위 게이지 */
   divine: number
+  /** 외형 보관함: 얻은 외형과 칸마다 고른 것 ('auto', 외형 id, 비우기 null) */
+  looks: { unlocked: string[]; choices: Partial<Record<LookSlot, LookChoice>> }
 }
 
 const isRelic = isRelicId
@@ -38,7 +46,7 @@ export function parseSave(text: string | null): SaveData | null {
   }
   if (typeof raw !== 'object' || raw === null) return null
   const data = raw as Record<string, unknown>
-  if (data.version !== SAVE_VERSION) return null
+  if (data.version !== SAVE_VERSION && data.version !== 1) return null
 
   const seen = new Set<RelicId>()
   const unique = (id: unknown): id is RelicId => {
@@ -73,7 +81,31 @@ export function parseSave(text: string | null): SaveData | null {
     classes,
     dropMisses: Math.round(num(data.dropMisses, 0, 1000, 0)),
     divine: num(data.divine, 0, 1, 0),
+    looks: data.version === 1 ? migrateLooks(slots, bag, classes) : parseLooks(data.looks),
   }
+}
+
+/** v1 → v2: 그때까지 가진 유물과 발현해 본 클래스의 외형을 얻은 것으로 친다. 고른 것은 모두 "자동" */
+function migrateLooks(slots: (RelicId | null)[], bag: RelicId[], classes: SaveData['classes']): SaveData['looks'] {
+  const unlocked = new Set(STARTING_LOOKS)
+  for (const id of [...slots, ...bag]) if (id) unlocked.add(relicDef(id).look)
+  for (const god of Object.keys(classes)) for (const look of Object.values(godDef(god).looks)) unlocked.add(look)
+  return { unlocked: [...unlocked], choices: {} }
+}
+
+function parseLooks(raw: unknown): SaveData['looks'] {
+  const o = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
+  const unlocked = new Set(STARTING_LOOKS)
+  for (const id of Array.isArray(o.unlocked) ? o.unlocked : []) if (isLookId(id)) unlocked.add(id)
+  const choices: SaveData['looks']['choices'] = {}
+  const rawChoices = (typeof o.choices === 'object' && o.choices !== null ? o.choices : {}) as Record<string, unknown>
+  for (const slot of LOOK_SLOTS) {
+    const choice = rawChoices[slot]
+    if (choice === null) choices[slot] = null
+    // 얻지 않았거나 다른 칸의 외형이면 버린다. ("자동"은 적지 않아도 기본값)
+    else if (isLookId(choice) && unlocked.has(choice) && lookDef(choice).slot === slot) choices[slot] = choice
+  }
+  return { unlocked: [...unlocked], choices }
 }
 
 const KEY = 'mythic-relics/save'

@@ -2,7 +2,7 @@
   "mjolnir": {
     "name": "묠니르",
     "god": "thor",
-    "part": "weapon",
+    "look": "mjolnirHammer",
     "model": "mjolnir",
     "description": "난쟁이 형제가 벼린 토르의 망치. 던지면 반드시 손으로 돌아온다.",
     "icon": [
@@ -71,7 +71,7 @@
   "megingjord": {
     "name": "메긴교르드",
     "god": "thor",
-    "part": "waist",
+    "look": "megingjordBelt",
     "model": "megingjord",
     "description": "조이면 힘이 두 배가 되는 토르의 허리띠.",
     "icon": [
@@ -128,7 +128,7 @@
   "jarngreipr": {
     "name": "야른그레이프르",
     "god": "thor",
-    "part": "hands",
+    "look": "ironGauntlets",
     "model": "jarngreipr",
     "description": "묠니르를 쥐려면 꼭 끼어야 하는 쇠 장갑. 거인 게이로드가 던진 달군 쇳덩이를 받아 되던졌다.",
     "icon": [
@@ -179,7 +179,7 @@
   "lokiMask": {
     "name": "변신의 가면",
     "god": "loki",
-    "part": "face",
+    "look": "lokiMaskFace",
     "model": "lokiMask",
     "description": "쓰는 이의 얼굴을 바꾸는 로키의 가면.",
     "icon": [

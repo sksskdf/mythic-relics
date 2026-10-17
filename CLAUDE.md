@@ -49,6 +49,7 @@
 | `src/game/systems/` | 규칙: `Damage`(피해), `Relics`(줍기·장착·발현), `Progression`(경험치·드랍·승급), `HeroLife`(쓰러짐·부활), `Persistence`(저장), `PlayerInput`(클릭), `Effects`(연출). 시스템끼리는 버스로만 주고받는다 |
 | `src/enemies/` | 거인 AI(`Giant.ts`: 상태, 공격 예고, 패턴)와 모델 |
 | `src/skills/` | 유물 효과(`index.ts`: 데이터 → 효과), 행동·오라 종류(`actions.ts`), 궁극기 |
+| `src/looks/` | 외형: 칸과 외형 목록(`catalog.ts`), 장착 → 모습·보관함(`outfit.ts`). 모델은 `src/voxel/models/looks.ts`, 적용은 `systems/Appearance.ts` |
 | `src/relics/` | 유물·신 데이터, 장착(발현·가호 판정), 드랍 규칙, 땅의 유물 |
 | `src/progress/` | 클래스 레벨·경험치·친화도 |
 | `src/save/` | 저장 형식과 검사 |

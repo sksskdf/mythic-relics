@@ -1,5 +1,6 @@
 import type * as THREE from 'three'
 
+import type { Wardrobe } from '../looks/outfit'
 import type { DropTable } from '../relics/DropTable'
 import type { Pickups } from '../relics/Pickups'
 import type { ClassProgress } from '../progress/ClassProgress'
@@ -50,6 +51,8 @@ export interface GameContext {
   readonly pickups: Pickups
   readonly progress: ClassProgress
   readonly drops: DropTable
+  /** 외형 보관함 (얻은 외형, 칸마다 고른 것) */
+  readonly wardrobe: Wardrobe
   /** 유물 스킬이 세계와 주고받는 것 (프레임마다 적 목록 등을 채운다) */
   readonly skills: SkillContext
 }

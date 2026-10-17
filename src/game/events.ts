@@ -29,6 +29,10 @@ export interface GameEvents {
   /** 승급 전설이 시작됐다 / 실패했다. */
   legendStarted: Record<string, never>
   legendFailed: Record<string, never>
+  /** 새 외형을 얻었다. */
+  looksUnlocked: { ids: string[] }
+  /** 주인공의 모습이 바뀌었다. (장착이나 보관함 선택) */
+  outfitChanged: Record<string, never>
   /** 저장할 만한 것이 바뀌었다. */
   progressChanged: Record<string, never>
 }

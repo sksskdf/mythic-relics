@@ -25,7 +25,7 @@ export class RelicSystem {
   }
 
   update(dt: number): void {
-    const { hero, combat, powers, pickups, progress, encounter, skills, fx, feel, bus } = this.ctx
+    const { hero, combat, powers, pickups, progress, encounter, skills, feel, bus } = this.ctx
     const position = hero.object.position
     skills.enemies = encounter.alive
     skills.manifested = powers.manifested
@@ -64,8 +64,6 @@ export class RelicSystem {
     combat.knockbackTakenScale = mods.knockbackTaken
     combat.damageTakenScale = mods.damageTaken
     hero.speedScale = mods.moveSpeed
-    // 천둥의 신 발현: 몸 주변의 푸른 전기
-    fx.sparks.enabled = powers.manifested === 'thor' && combat.alive
   }
 
   /** 유물을 끼운다. announce가 false면 발현 연출 없이 (불러오기·점검용) */
