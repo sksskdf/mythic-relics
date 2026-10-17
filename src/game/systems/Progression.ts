@@ -91,7 +91,7 @@ export class ProgressionSystem {
 
   /** 총 승급 횟수에서 나오는 기본 능력치 (DESIGN.md 6.2) */
   applyStats(): void {
-    this.ctx.combat.health.setMax(BASE_HP + this.ctx.progress.promotions * PER_PROMOTION.maxHp)
+    this.ctx.combat.health.setMax(BASE_HP + this.ctx.progress.promotions * PER_PROMOTION.maxHp + this.ctx.cycle.bonusHp)
   }
 
   /** 클래스 성장(레벨·경험치)을 처음으로 되돌린다. */

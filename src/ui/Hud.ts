@@ -1,7 +1,9 @@
 import { classIcon } from './classIcons'
 import './hud.css'
 import { BOLT_ICON, pixelIcon } from './pixelIcon'
-import { glyph, unknownSigil } from './sigils'
+import { smallSigilRing } from './emblem'
+import { shortNumber } from './format'
+import { glyph, sourceSigil, unknownSigil } from './sigils'
 
 export interface HudSlot {
   /** 유물 그림 주소. 빈 칸이면 null */
@@ -26,6 +28,8 @@ export interface HudState {
   xpColor: string
   /** 왼쪽 위 초상: 발현한 클래스. 발현하지 않았으면 null */
   portrait: { name: string; title: string; color: string; level: number } | null
+  /** 원천 결정 보유량 (불꽃·사냥·바람·바위) */
+  essence: Readonly<Record<string, number>>
   /** 가호로 붙은 신들 */
   blessings: readonly { name: string; color: string }[]
   /** 경험치가 가득 차 승급 전설에 들어갈 수 있다 */
@@ -60,6 +64,7 @@ export class Hud {
   private readonly gems: HTMLElement[] = []
   private readonly chips: HTMLElement
   private statusKey = ''
+  private readonly essenceEls = new Map<string, { cell: HTMLElement; count: HTMLElement; shown: string }>()
   private statusTip = ''
   private readonly tip: HTMLElement
   private readonly ultimate: HTMLElement
@@ -100,6 +105,16 @@ export class Hud {
     const gems = this.el('div', 'ui-gems ui-gems--small', side)
     for (let i = 0; i < 4; i++) this.gems.push(this.el('i', '', gems))
     this.chips = this.el('div', 'hud__chips', side)
+    // 원천 결정: 문장과 수 넷
+    const essence = this.el('div', 'hud__essence', this.root)
+    for (const id of ['flame', 'hunt', 'wind', 'stone']) {
+      const cell = this.el('span', 'hud__essence-cell', essence)
+      cell.append(this.img(sourceSigil(id)))
+      const count = this.el('span', '', cell)
+      count.textContent = '0'
+      this.essenceEls.set(id, { cell, count, shown: '0' })
+    }
+    this.tipOn(essence, '원천 결정\n불꽃은 때릴수록, 사냥은 쓰러뜨릴수록, 바람은 걸을수록, 바위는 맞을수록 모인다. 정보 화면 › 순환에서 단련에 쓴다.')
 
     this.banner = this.el('div', 'hud__banner', this.root)
     this.toast = this.el('div', 'hud__toast', this.root)
@@ -164,6 +179,15 @@ export class Hud {
     this.life.style.setProperty('--trail', this.lifeTrailRatio.toFixed(3))
     this.life.classList.toggle('is-low', state.life <= 0.3)
     this.updateStatus(state)
+    for (const [id, el] of this.essenceEls) {
+      const text = shortNumber(state.essence[id] ?? 0)
+      if (text === el.shown) continue
+      el.shown = text
+      el.count.textContent = text
+      el.cell.classList.remove('is-bump')
+      void el.cell.offsetWidth
+      el.cell.classList.add('is-bump')
+    }
 
     state.slots.forEach((slot, i) => {
       const el = this.slotEls[i]
@@ -246,7 +270,7 @@ export class Hud {
     head.className = 'hud__gains-head'
     const portrait = this.el('div', 'ui-portrait', head)
     portrait.style.setProperty('--glow', color)
-    portrait.append(this.img(icon))
+    portrait.append(this.img(icon || smallSigilRing()))
     const words = this.el('div', '', head)
     this.el('div', 'hud__gains-kind', words).textContent = kind
     this.el('div', 'hud__gains-title', words).textContent = title

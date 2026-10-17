@@ -1,3 +1,4 @@
+import type { Cycle } from '../progress/Cycle'
 import type * as THREE from 'three'
 
 import type { Wardrobe } from '../looks/outfit'
@@ -51,6 +52,8 @@ export interface GameContext {
   readonly pickups: Pickups
   readonly progress: ClassProgress
   readonly drops: DropTable
+  /** 순환 성장: 원천 결정, 단련, 윤회 (E4.5) */
+  readonly cycle: Cycle
   /** 외형 보관함 (얻은 외형, 칸마다 고른 것) */
   readonly wardrobe: Wardrobe
   /** 유물 스킬이 세계와 주고받는 것 (프레임마다 적 목록 등을 채운다) */

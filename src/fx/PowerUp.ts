@@ -2,6 +2,12 @@ import * as THREE from 'three'
 
 import { EFFECT_LAYER } from '../render/PixelRenderer'
 
+interface Mote {
+  mesh: THREE.Mesh
+  from: THREE.Vector3
+  age: number
+}
+
 interface Burst {
   pillar: THREE.Mesh
   ring: THREE.Mesh
@@ -18,6 +24,7 @@ interface Burst {
 export class PowerUp {
   readonly object = new THREE.Group()
   private readonly bursts: Burst[] = []
+  private readonly motes: Mote[] = []
   private readonly glow: THREE.Mesh
   private readonly glowMaterial: THREE.MeshBasicMaterial
   private glowLevel = 0
@@ -59,6 +66,17 @@ export class PowerUp {
     this.bursts.push({ pillar, ring, motes, age: 0, life: 0.7 + strength * 0.25, strength })
   }
 
+  /** 원천 결정 한 조각: 그 자리에서 튀어 올랐다가 주인공에게 빨려 든다. 너무 많으면 건너뛴다. */
+  essence(from: THREE.Vector3, color: string | number): void {
+    if (this.motes.length > 60) return
+    const mesh = new THREE.Mesh(this.moteGeometry, new THREE.MeshBasicMaterial({ color, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }))
+    mesh.scale.set(1.4, 0.8, 1.4)
+    mesh.layers.set(EFFECT_LAYER)
+    mesh.position.copy(from)
+    this.object.add(mesh)
+    this.motes.push({ mesh, from: from.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.8, 0, (Math.random() - 0.5) * 0.8)), age: 0 })
+  }
+
   /** 발밑 빛: color는 가장 많이 낀 신의 색, level 0(없음)~6(발현 Lv4) */
   setGlow(color: string | number | null, level: number): void {
     this.glowLevel = color === null ? 0 : level
@@ -94,6 +112,29 @@ export class PowerUp {
           ;(o.material as THREE.Material).dispose()
         }
         this.bursts.splice(i, 1)
+      }
+    }
+    // 결정 조각: 0.15초 튀어 오르고 0.45초 동안 주인공 가슴께로
+    for (let i = this.motes.length - 1; i >= 0; i--) {
+      const m = this.motes[i]!
+      m.age += dt
+      const t = m.age
+      if (t < 0.15) {
+        m.mesh.position.set(m.from.x, m.from.y + t * 6, m.from.z)
+      } else {
+        const k = Math.min(1, (t - 0.15) / 0.45)
+        const e = k * k
+        m.mesh.position.set(
+          m.from.x + (center.x - m.from.x) * e,
+          m.from.y + 0.9 + (center.y + 1.1 - m.from.y - 0.9) * e,
+          m.from.z + (center.z - m.from.z) * e,
+        )
+      }
+      m.mesh.rotation.y += dt * 8
+      if (t >= 0.6) {
+        this.object.remove(m.mesh)
+        ;(m.mesh.material as THREE.Material).dispose()
+        this.motes.splice(i, 1)
       }
     }
     // 발밑 빛: 단계에 따라 크기·밝기, 천천히 맥박친다

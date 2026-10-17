@@ -1,7 +1,10 @@
 import { DATA } from '../data'
 import { MAX_LEVEL } from '../progress/ClassProgress'
 import type { ClassProgress } from '../progress/ClassProgress'
+import { type Cycle, LAWS, type LawId, REBIRTH_NEED, RING_NEXT, RING_PREV, STARS, type StarId, TRAINING_TEXT, UNLOCKS } from '../progress/Cycle'
 import { allLevelGains } from '../progress/levelGains'
+import type { SourceId } from '../data/schema'
+import { shortNumber } from './format'
 import { type God, godDef, relicDef, type RelicId } from '../relics/data'
 import type { LoadoutState } from '../relics/Loadout'
 import { relicCard, type RelicCardContext, relicIcon } from './relicCard'
@@ -12,11 +15,12 @@ import { glyph, SOURCE_COLORS, sourceSigil, unknownSigil } from './sigils'
 import { type WardrobeHost, WardrobePane } from './WardrobePane'
 import './menu.css'
 
-export type MenuTab = 'status' | 'relics' | 'classes' | 'looks'
+export type MenuTab = 'status' | 'cycle' | 'relics' | 'classes' | 'looks'
 
 /** 탭은 그림으로만 보여 주고, 이름은 올렸을 때 힌트로 띄운다. */
-const TABS: readonly [MenuTab, 'status' | 'relics' | 'classes' | 'looks', string][] = [
+const TABS: readonly [MenuTab, MenuTab, string][] = [
   ['status', 'status', '상태'],
+  ['cycle', 'cycle', '순환'],
   ['relics', 'relics', '유물'],
   ['classes', 'classes', '클래스'],
   ['looks', 'looks', '외형'],
@@ -45,9 +49,21 @@ export interface HeroStats {
 /** 탭에 올리면 나오는 설명 */
 const TAB_HINTS: Record<MenuTab, string> = {
   status: '상태\n지금 내 능력치와 걸려 있는 힘',
+  cycle: '순환\n원천 결정으로 단련하고, 윤회해 더 빨리 강해진다',
   relics: '유물\n낀 유물과 가방. 눌러서 바꿔 끼고, 바꾸면 어떻게 되는지 미리 본다',
   classes: '클래스\n지금 클래스의 레벨과 다음 승급 방법, 만난 신들',
   looks: '외형\n부위마다 보이는 모습을 고른다',
+}
+
+/** 순환 탭이 게임에서 읽고 부르는 것 */
+export interface CycleHost {
+  readonly state: Cycle
+  train(source: SourceId): boolean
+  rebirth(challenge: SourceId | null): boolean
+  lightStar(id: StarId): boolean
+  chooseLaw(id: LawId): boolean
+  summonDoom(): boolean
+  readonly doomActive: boolean
 }
 
 /** 메뉴가 게임에서 읽고 부르는 것 */
@@ -65,6 +81,7 @@ export interface MenuHost {
   /** 설명 카드에 넣을 지금 상태 */
   cardContext(id: RelicId, preview?: { before: LoadoutState; after: LoadoutState }): RelicCardContext
   stats(): HeroStats
+  readonly cycle: CycleHost
   /** 저장하고 처음 화면(슬롯 고르기)으로 */
   toTitle(): void
 }
@@ -116,6 +133,8 @@ export class GameMenu {
   private readonly tabButtons = new Map<MenuTab, HTMLButtonElement>()
   private readonly wardrobe: WardrobePane
   private tab: MenuTab = 'status'
+  /** 다음 윤회에 걸 도전 */
+  private nextChallenge: SourceId | null = null
   /** 유물 화면에서 고른 칸 */
   private selectedSlot = 0
   /** 유물 화면에서 커서를 올린 가방 유물 */
@@ -252,9 +271,167 @@ export class GameMenu {
     for (const [id, b] of this.tabButtons) b.classList.toggle('is-on', id === this.tab)
     this.body.replaceChildren()
     if (this.tab === 'status') this.renderStatus()
+    else if (this.tab === 'cycle') this.renderCycle()
     else if (this.tab === 'relics') this.renderRelics()
     else if (this.tab === 'classes') this.renderClasses()
     else this.wardrobe.render(this.body)
+  }
+
+  // ───────────────────────────── 순환 ─────────────────────────────
+
+  /**
+   * 순환 탭 (E4.5 회색 박스): 원천 넷의 단련, 윤회, 그리고 윤회할수록 하나씩 열리는 장치.
+   * 아직 열리지 않은 장치는 자물쇠와 "윤회 n회"만 보여 준다.
+   */
+  private renderCycle(): void {
+    const { cycle } = this.host
+    const c = cycle.state
+    const wrap = el('div', 'menu-cycle')
+    const sourceName = (id: SourceId) => DATA.classes.sources.find((x) => x.id === id)!.name
+
+    // 원천 넷
+    const grid = el('div', 'menu-cycle__sources')
+    for (const x of DATA.classes.sources) {
+      const card = el('section', 'menu-cycle__source')
+      card.style.setProperty('--god', SOURCE_COLORS[x.id]![0])
+      const head = el('div', 'menu-cycle__head')
+      head.append(img(sourceSigil(x.id)), el('b', '', x.name), el('small', '', `${x.gain} 모인다`))
+      card.append(head)
+      const amount = el('div', 'menu-cycle__amount')
+      amount.append(el('b', '', shortNumber(c.essence[x.id])), el('span', 'ui-tag ui-tag--plain', `×${c.gainScale(x.id).toFixed(2)}`))
+      this.hintOn(amount, `${x.name} 결정\n들어오는 배율 ×${c.gainScale(x.id).toFixed(2)}: 숙련, 고리의 앞 원천(${sourceName(RING_PREV[x.id])}) 단련, 윤회, 별자리${c.resonating(x.id) ? ', 공명' : ''}${c.challenge === x.id ? '\n도전 중이라 들어오지 않는다' : ''}`)
+      card.append(amount)
+      const level = c.training[x.id]
+      card.append(el('div', 'menu-cycle__now', level > 0 ? TRAINING_TEXT[x.id](level) : '아직 단련하지 않았다'))
+      card.append(el('div', 'menu-cycle__next', `다음: ${TRAINING_TEXT[x.id](level + 1)} · ${sourceName(RING_NEXT[x.id])} 결정 +${(level + 1) * 4}%`))
+      const cost = c.cost(x.id)
+      const btn = el('button', 'menu-cycle__train')
+      btn.type = 'button'
+      btn.disabled = !c.canTrain(x.id)
+      btn.append(el('span', '', `단련 Lv${level + 1}`), el('b', '', shortNumber(cost)))
+      btn.addEventListener('click', () => {
+        if (cycle.train(x.id)) this.render()
+      })
+      card.append(btn)
+      grid.append(card)
+    }
+    wrap.append(grid)
+
+    // 윤회
+    const rebirth = el('section', 'menu-cycle__panel')
+    rebirth.append(el('div', 'menu-cycle__title', `윤회${c.rebirths > 0 ? ` · ${c.rebirths}회` : ''}`))
+    const bar = el('div', 'ui-bar ui-bar--thin')
+    bar.style.setProperty('--fill', 'var(--c-moon)')
+    bar.style.setProperty('--pct', Math.min(1, c.runTotal / REBIRTH_NEED).toFixed(3))
+    const ash = c.ashForRebirth()
+    const row = el('div', 'menu-cycle__row')
+    row.append(
+      el('span', '', ash > 0 ? `지금 윤회하면 재 +${ash}, 모든 결정 ×${(1 + (c.rebirths + 1) * 0.1).toFixed(1)}` : `이번 판에 결정 ${shortNumber(c.runTotal)} / ${REBIRTH_NEED}`),
+    )
+    const go = el('button', 'menu-cycle__go')
+    go.type = 'button'
+    go.disabled = ash <= 0
+    go.textContent = '윤회'
+    go.addEventListener('click', () => {
+      if (!go.classList.contains('is-confirm')) {
+        go.classList.add('is-confirm')
+        go.textContent = '한 번 더: 단련·결정이 사라진다'
+        return
+      }
+      if (cycle.rebirth(this.nextChallenge)) {
+        this.nextChallenge = null
+        this.render()
+      }
+    })
+    row.append(go)
+    rebirth.append(bar, row)
+    this.hintOn(rebirth.firstElementChild as HTMLElement, '윤회\n세계를 처음으로 되돌린다. 단련과 결정은 사라지고 유물·클래스 레벨은 남는다. 재와 영구 배율을 얻고, 윤회할수록 새 장치가 열린다.')
+    wrap.append(rebirth)
+
+    // 차례로 열리는 장치
+    const devices = el('div', 'menu-cycle__devices')
+    const device = (at: number, name: string, body: () => HTMLElement | null) => {
+      const box = el('section', `menu-cycle__panel${c.rebirths >= at ? '' : ' is-locked'}`)
+      box.append(el('div', 'menu-cycle__title', name))
+      if (c.rebirths < at) {
+        const lock = el('div', 'menu-cycle__lock')
+        lock.append(img(glyph('lock', '#5d6876', '#2a3240')), el('span', '', `윤회 ${at}회에 열린다`))
+        box.append(lock)
+      } else {
+        const content = body()
+        if (content) box.append(content)
+      }
+      devices.append(box)
+    }
+    device(UNLOCKS.rebirthToStars, `별자리 · 재 ${c.ash}`, () => {
+      const list = el('div', 'menu-cycle__stars')
+      for (const id of Object.keys(STARS) as StarId[]) {
+        const def = STARS[id]
+        const level = c.star(id)
+        const b = el('button', 'menu-cycle__star')
+        b.type = 'button'
+        b.disabled = level >= def.max || c.ash < def.cost(level)
+        b.append(img(glyph('star', level > 0 ? '#ffd27a' : '#8d98a6', level > 0 ? '#a8862e' : '#3a4558')), el('b', '', def.name), el('small', '', level > 0 ? def.text(level) : def.text(1)))
+        const gems = el('span', 'ui-gems ui-gems--small')
+        gems.style.setProperty('--gem', '#ffd27a')
+        for (let i = 0; i < def.max; i++) gems.append(el('i', i < level ? 'is-on' : ''))
+        b.append(gems, el('span', 'menu-cycle__cost', level >= def.max ? '다 밝힘' : `재 ${def.cost(level)}`))
+        b.addEventListener('click', () => {
+          if (cycle.lightStar(id)) this.render()
+        })
+        list.append(b)
+      }
+      return list
+    })
+    device(UNLOCKS.autoTrain, '자동 단련', () => el('div', 'menu-cycle__text', '살 수 있는 단련 중 가장 싼 것을 저절로 올린다.'))
+    device(UNLOCKS.resonance, '원천 공명', () => {
+      const on = DATA.classes.sources.filter((x) => c.resonating(x.id)).map((x) => x.name)
+      return el('div', 'menu-cycle__text', on.length > 0 ? `공명 중: ${on.join(', ')} 결정 +10%` : '두 원천의 단련이 모두 Lv5가 되면 서로 결정 +10%.')
+    })
+    device(UNLOCKS.doom, `종말${c.dooms > 0 ? ` · ${c.dooms}회` : ''}`, () => {
+      const box = el('div', 'menu-cycle__doom')
+      if (c.lawPending) {
+        box.append(el('div', 'menu-cycle__text', '태초의 법을 하나 고른다. 윤회의 규칙이 바뀐다.'))
+        for (const id of Object.keys(LAWS) as LawId[]) {
+          if (c.laws.includes(id)) continue
+          const b = el('button', 'menu-cycle__law')
+          b.type = 'button'
+          b.append(el('b', '', LAWS[id].name), el('small', '', LAWS[id].text))
+          b.addEventListener('click', () => {
+            if (cycle.chooseLaw(id)) this.render()
+          })
+          box.append(b)
+        }
+      } else {
+        const b = el('button', 'menu-cycle__go')
+        b.type = 'button'
+        b.disabled = cycle.doomActive
+        b.textContent = cycle.doomActive ? '종말 보스가 와 있다' : '종말 보스 부르기'
+        b.addEventListener('click', () => {
+          if (cycle.summonDoom()) this.toggle(false)
+        })
+        box.append(b)
+      }
+      if (c.laws.length > 0) box.append(el('div', 'menu-cycle__text', `태초의 법: ${c.laws.map((l) => LAWS[l].name).join(', ')}`))
+      return box
+    })
+    device(UNLOCKS.challenge, '도전', () => {
+      const box = el('div', 'menu-cycle__challenges')
+      box.append(el('div', 'menu-cycle__text', c.challenge ? `지금 도전: ${sourceName(c.challenge)} 없이. 다음 윤회 때 끝난다.` : '다음 윤회에 걸 도전을 고른다. 그 원천 결정 없이 한 판을 끝내면 그 원천이 영구히 +25%.'))
+      for (const x of DATA.classes.sources) {
+        const b = el('button', `ui-pill${this.nextChallenge === x.id ? ' is-on' : ''}${c.cleared.has(x.id) ? ' is-done' : ''}`)
+        b.type = 'button'
+        b.append(img(sourceSigil(x.id)), `${x.name} 없이${c.cleared.has(x.id) ? ' ✓' : ''}`)
+        b.addEventListener('click', () => {
+          this.nextChallenge = this.nextChallenge === x.id ? null : x.id
+          this.render()
+        })
+        box.append(b)
+      }
+      return box
+    })
+    wrap.append(devices)
+    this.body.append(wrap)
   }
 
   // ───────────────────────────── 상태 ─────────────────────────────

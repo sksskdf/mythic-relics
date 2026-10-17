@@ -44,6 +44,10 @@ const GLYPHS: Record<string, readonly string[]> = {
   classes: ['.....aa.....', '.....aa.....', '....abba....', 'aaaaabbaaaaa', '.abbbbbbbba.', '..abbbbbba..', '...abbbba...', '..abba.abba.', '..aa.....aa.', '.a.........a', '............', '............'],
   // 외형 탭: 옷걸이
   looks: ['............', '.....aa.....', '....a..a....', '.......a....', '......a.....', '.....aa.....', '....abba....', '...abbbba...', '..abbbbbba..', '.abbbbbbbba.', '.aaaaaaaaaa.', '............'],
+  // 순환 탭: 맞물려 도는 두 화살표
+  cycle: ['....aaaa....', '..aa....a...', '.a.......a..', '.a......aaa.', 'a........a..', 'a...........', '...........a', '..a........a', '.aaa......a.', '..a.......a.', '...a....aa..', '....aaaa....'],
+  // 별자리
+  star: ['.....a......', '.....a......', '....aba.....', 'aaaabbbaaaa.', '.abbbbbbba..', '..abbbbba...', '..abbabba...', '.abba.abba..', '.aa.....aa..', '............', '............', '............'],
   // 상태 탭: 사람
   status: ['....aaaa....', '...abbbba...', '...abbbba...', '...abbbba...', '....abba....', '.....aa.....', '..aaaaaaaa..', '.abbbbbbbba.', 'abbbbbbbbbba', 'abbbbbbbbbba', 'abbbbbbbbbba', '............'],
   // 생명

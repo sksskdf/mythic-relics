@@ -159,7 +159,7 @@ export class DevPanel {
         button('레벨 초기화', () => g.devResetClasses()),
       ),
       row(
-        button('신위 가득', () => (g.combat.divine = 1)),
+        button('궁극기 충전', () => (g.combat.divine = 1)),
         button('외형 모두 얻기', () => {
           g.wardrobe.unlock(LOOK_IDS)
           g.menu.refresh()
@@ -169,6 +169,19 @@ export class DevPanel {
         }),
       ),
       row(button('승급 전설 시작', () => this.startLegend())),
+      // 순환 성장 (E4.5)
+      row(
+        button('결정 +1000', () => {
+          for (const k of ['flame', 'hunt', 'wind', 'stone'] as const) g.cycle.gain(k, 1000 / g.cycle.gainScale(k) || 0)
+          g.menu.refresh()
+        }),
+        button('윤회 +1', () => {
+          g.cycle.rebirths += 1
+          g.cycle.ash += 5
+          g.menu.refresh()
+        }),
+        button('종말 보스', () => g.cycleSystem.summonDoom()),
+      ),
     )
   }
 

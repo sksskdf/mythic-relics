@@ -12,6 +12,8 @@ export interface GameEvents {
   giantKilled: { giant: Giant }
   /** 스킬이나 기본 공격으로 대상을 쓰러뜨렸다. (유물 처치 연동) */
   targetKilled: { target: CombatTarget }
+  /** 기본 공격이 맞았다. (불꽃 결정) */
+  basicHits: { targets: readonly CombatTarget[] }
   /** 유물을 주웠다. */
   relicPicked: { id: RelicId }
   /** 장착이 바뀌었다. announce가 false면 연출 없이 (불러오기 등) */

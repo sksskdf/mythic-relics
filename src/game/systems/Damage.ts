@@ -31,6 +31,8 @@ export class DamageSystem {
       // 원천 숙련: 발현한 신과 같은 원천의 승급 횟수만큼
       scale *= 1 + progress.mastery(godDef(manifested).source) * MASTERY_DAMAGE
     }
+    // 불꽃 단련
+    scale *= this.ctx.cycle.damageScale
     return scale
   }
 
@@ -60,6 +62,7 @@ export class DamageSystem {
       }
     }
     if (hits.length === 0) return
+    bus.emit('basicHits', { targets: hits.map((h) => h.target) })
     powers.onBasicHit(
       {
         targets: hits.map((h) => h.target),

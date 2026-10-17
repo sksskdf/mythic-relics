@@ -64,8 +64,8 @@ export class RelicSystem {
     const mods = powers.modifiers
     combat.knockbackScale = mods.knockbackDealt
     combat.knockbackTakenScale = mods.knockbackTaken
-    combat.damageTakenScale = mods.damageTaken
-    hero.speedScale = mods.moveSpeed
+    combat.damageTakenScale = mods.damageTaken * this.ctx.cycle.damageTakenScale
+    hero.speedScale = mods.moveSpeed * this.ctx.cycle.moveSpeedScale
   }
 
   /** 유물을 끼운다. announce가 false면 발현 연출 없이 (불러오기·점검용) */
