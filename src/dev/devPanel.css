@@ -8,9 +8,9 @@
   max-height: calc(100vh - 16px);
   overflow-y: auto;
   background: rgba(12, 16, 23, 0.92);
-  border: 1px solid #3a4558;
-  color: #e3e9f0;
-  font: 12px/1.4 ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  border: 1px solid var(--c-line-2);
+  color: var(--c-ink-1);
+  font: var(--t-body);
 }
 .devpanel__head {
   display: flex;
@@ -18,7 +18,17 @@
   align-items: center;
   padding: 6px 10px;
   background: #1c2531;
-  color: #ffd27a;
+  color: var(--c-gold-soft);
+}
+/* 접었을 때: 본문을 숨기고 머리줄만 작게 남긴다. */
+.devpanel.is-folded {
+  width: auto;
+  overflow: visible;
+}
+.devpanel.is-folded .devpanel__head {
+  gap: 8px;
+  padding: 3px 6px;
+  font: var(--t-small);
 }
 /* display를 정하면 hidden 속성이 무시되므로 접었을 때는 따로 숨긴다. */
 .devpanel__body[hidden] {
@@ -39,7 +49,7 @@
 }
 .devpanel__section h3 {
   margin: 0 0 4px;
-  font-size: 11px;
+  font: var(--t-small);
   color: #93a2b4;
   font-weight: 700;
 }
@@ -51,9 +61,9 @@
 .devpanel button {
   font: inherit;
   padding: 3px 7px;
-  color: #e3e9f0;
+  color: var(--c-ink-1);
   background: #222c3a;
-  border: 1px solid #3a4558;
+  border: 1px solid var(--c-line-2);
   cursor: pointer;
 }
 .devpanel button:hover,

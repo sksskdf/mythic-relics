@@ -1,12 +1,11 @@
 import { DATA } from '../data'
-import type { TreeClass } from '../data/schema'
 import { MAX_LEVEL } from '../progress/ClassProgress'
 import type { ClassProgress } from '../progress/ClassProgress'
 import { godDef, relicDef, type RelicId } from '../relics/data'
 import type { LoadoutState } from '../relics/Loadout'
 import { josa } from './josa'
 import { pixelIcon } from './pixelIcon'
-import { relicCard, relicIcon } from './relicCard'
+import { relicCard, type RelicCardContext, relicIcon } from './relicCard'
 import { type WardrobeHost, WardrobePane } from './WardrobePane'
 import './menu.css'
 
@@ -49,6 +48,8 @@ export interface MenuHost {
   drop(slot: number): void
   readonly progress: ClassProgress
   readonly wardrobe: WardrobeHost
+  /** 설명 카드에 넣을 지금 상태 */
+  cardContext(id: RelicId, preview?: { before: LoadoutState; after: LoadoutState }): RelicCardContext
 }
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, text?: string): HTMLElementTagNameMap[K] {
@@ -83,6 +84,8 @@ export class GameMenu {
   private selectedSlot = 0
   /** 유물 화면에서 커서를 올린 가방 유물 */
   private hovered: RelicId | null = null
+  /** 클래스 트리 힌트 말풍선 */
+  private readonly hint: HTMLElement
   /** 열고 닫을 때 (게임 멈춤) */
   onToggle: (open: boolean) => void = () => {}
 
@@ -124,6 +127,10 @@ export class GameMenu {
     addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && this.open) this.toggle(false)
     })
+    this.hint = el('div', 'menu-hint')
+    this.hint.hidden = true
+    frame.append(this.hint)
+    this.body.addEventListener('scroll', () => (this.hint.hidden = true))
     this.wardrobe = new WardrobePane(host.wardrobe)
     parent.append(this.button, this.window)
   }
@@ -163,7 +170,26 @@ export class GameMenu {
     if (this.open) this.render()
   }
 
+  /** 커서를 올리거나(데스크톱) 누르면(터치) 힌트를 그 칸 아래에 띄운다. */
+  private hintOn(target: HTMLElement, text: string): void {
+    const show = () => {
+      this.hint.textContent = text
+      this.hint.hidden = false
+      const frame = this.hint.parentElement!.getBoundingClientRect()
+      const r = target.getBoundingClientRect()
+      const width = this.hint.offsetWidth
+      const left = Math.min(Math.max(8, r.left - frame.left), frame.width - width - 8)
+      const below = r.bottom - frame.top + 6
+      const top = below + this.hint.offsetHeight > frame.height - 8 ? r.top - frame.top - this.hint.offsetHeight - 6 : below
+      this.hint.style.transform = `translate(${Math.round(left)}px, ${Math.round(top)}px)`
+    }
+    target.addEventListener('pointerenter', show)
+    target.addEventListener('pointerleave', () => (this.hint.hidden = true))
+    target.addEventListener('click', show)
+  }
+
   private render(): void {
+    this.hint.hidden = true
     for (const [id, b] of this.tabButtons) b.classList.toggle('is-on', id === this.tab)
     this.body.replaceChildren()
     if (this.tab === 'relics') this.renderRelics()
@@ -245,20 +271,9 @@ export class GameMenu {
       detail.append(el('p', 'menu__muted', '빈 칸입니다. 가방의 유물을 누르면 이 칸에 낍니다.'))
       return
     }
-    detail.append(relicCard(relicDef(id)))
-    if (this.hovered) {
-      const before = host.loadout
-      const after = host.preview(this.selectedSlot, this.hovered)
-      const box = el('div', 'menu-relics__preview')
-      box.append(el('b', '', `${this.selectedSlot + 1}번 칸에 끼우면`))
-      box.append(el('div', '', stateText(after)))
-      if (before.manifested && before.manifested !== after.manifested) {
-        box.append(el('div', 'menu-relics__warn', `${godDef(before.manifested).title} 발현이 풀립니다.`))
-      } else if (after.manifested && before.manifested !== after.manifested) {
-        box.append(el('div', 'menu-relics__good', `${josa(godDef(after.manifested).title, '으로')} 발현합니다.`))
-      }
-      detail.append(box)
-    }
+    const preview = this.hovered ? { before: host.loadout, after: host.preview(this.selectedSlot, this.hovered) } : undefined
+    detail.append(relicCard(relicDef(id), host.cardContext(id, preview)))
+    if (this.hovered) detail.append(el('p', 'menu__muted', `누르면 ${this.selectedSlot + 1}번 칸에 낍니다.`))
   }
 
   // ───────────────────────────── 클래스 ─────────────────────────────
@@ -309,14 +324,15 @@ export class GameMenu {
     }
     wrap.append(affinity)
 
-    // 클래스 트리
+    // 클래스 트리: 아직 깨어나지 않은 클래스는 ?로 가리고, 올리거나 누르면 힌트를 보여 준다.
     const levelOf = (godId: string | undefined): number => (godId && progress.records.has(godId) ? progress.level(godId) : 0)
-    const classChip = (c: TreeClass & { god?: string }, stage: string): HTMLElement => {
-      const level = levelOf(c.god)
-      const playable = c.god !== undefined
-      const chip = el('span', `menu-tree__class${level > 0 ? ' is-owned' : playable ? ' is-playable' : ''}`)
-      chip.textContent = level > 0 ? `${c.titles[level - 1]} Lv${level}` : c.titles[0]
-      chip.title = playable ? `${c.name}` : `${c.name} (${stage} 제작)`
+    const archeName = (id: string | null) => (id ? tree.archetypes.find((a) => a.id === id)!.name : '가장 높은 친화도')
+    const node = (open: boolean, label: string, hint: string, extra = ''): HTMLElement => {
+      const chip = el('button', `menu-tree__class${open ? ' is-owned' : ' is-locked'}${extra}`)
+      chip.type = 'button'
+      chip.textContent = open ? label : '?'
+      chip.setAttribute('aria-label', open ? label : '잠긴 클래스')
+      this.hintOn(chip, hint)
       return chip
     }
 
@@ -325,42 +341,51 @@ export class GameMenu {
     for (const myth of tree.mythologies) {
       const row = el('div', 'menu-tree__row')
       row.append(el('span', 'menu-tree__myth', myth.name))
-      for (const c of myth.classes) row.append(classChip(c, myth.stage))
+      for (const c of myth.classes) {
+        const level = levelOf(c.god)
+        const where = c.god ? '이 세계 어딘가에 그 유물이 잠들어 있습니다.' : `아직 닿지 않은 땅의 신입니다. (${myth.stage} 확장)`
+        const hint =
+          level > 0
+            ? `${c.name} · ${archeName(c.archetype)} 원형\nLv${level} ${c.titles[level - 1]}${level < MAX_LEVEL ? ` → Lv${level + 1} ${c.titles[level]}` : ' (최고 레벨)'}`
+            : `${myth.name} · ${archeName(c.archetype)} 원형의 신\n이 신의 유물 3개를 함께 끼면 깨어납니다.\n${where}`
+        row.append(node(level > 0, `${c.titles[level - 1] ?? c.titles[0]} Lv${level}`, hint, c.god && level === 0 ? ' is-near' : ''))
+      }
       base.append(row)
     }
     wrap.append(base)
 
     const count = (archetype: string, minLevel: number) =>
       tree.mythologies.flatMap((m) => m.classes).filter((c) => c.archetype === archetype && levelOf(c.god) >= minLevel).length
-    wrap.append(el('h4', 'menu__label', '원형 상위 · 정점 (같은 원형 2개 Lv3 / 4개 모두 Lv4)'))
+    wrap.append(el('h4', 'menu__label', '원형 상위 · 정점'))
     const arche = el('div', 'menu-tree')
     for (const a of tree.archetypes) {
       const row = el('div', 'menu-tree__row')
       row.append(el('span', 'menu-tree__myth', a.name))
       const upper = count(a.id, 3)
       const apex = count(a.id, 4)
-      row.append(el('span', `menu-tree__class${upper >= 2 ? ' is-owned' : ''}`, `${a.upper.name} ${Math.min(upper, 2)}/2`))
-      row.append(el('span', `menu-tree__class${apex >= 4 ? ' is-owned' : ''}`, `${a.apex.name} ${apex}/4`))
+      row.append(node(upper >= 2, a.upper.name, `${a.name} 원형의 상위 클래스\n같은 원형 클래스 2개를 Lv3 이상으로 키우면 깨어납니다. (${Math.min(upper, 2)}/2)`))
+      row.append(node(apex >= 4, a.apex.name, `${a.name} 원형의 정점 클래스\n같은 원형 클래스 4개를 모두 Lv4로 키우면 깨어납니다. (${apex}/4)`))
       arche.append(row)
     }
     wrap.append(arche)
 
-    wrap.append(el('h4', 'menu__label', '신화권 상위 (그 신화권 4개 모두 Lv3)'))
+    wrap.append(el('h4', 'menu__label', '신화권 상위'))
     const mythUpper = el('div', 'menu-tree')
     for (const m of tree.mythologies) {
       const done = m.classes.filter((c) => levelOf(c.god) >= 3).length
       const row = el('div', 'menu-tree__row')
       row.append(el('span', 'menu-tree__myth', m.name))
-      row.append(el('span', `menu-tree__class${done >= 4 ? ' is-owned' : ''}`, `${m.upper.name} ${done}/4`))
+      row.append(node(done >= 4, m.upper.name, `${m.name}의 상위 클래스\n${m.name}의 신 넷을 모두 Lv3 이상으로 키우면 깨어납니다. (${done}/4)`))
       mythUpper.append(row)
     }
     wrap.append(mythUpper)
 
-    wrap.append(el('h4', 'menu__label', '히든 클래스 (조건은 세계 곳곳의 단서로만 알려진다)'))
+    wrap.append(el('h4', 'menu__label', '히든 클래스'))
     const hidden = el('div', 'menu-tree__hidden')
     for (const h of tree.hidden) {
-      const name = h.archetype ? tree.archetypes.find((a) => a.id === h.archetype)!.name : '가장 높은 친화도'
-      hidden.append(el('span', 'menu-tree__class is-hidden', `??? · ${name}`))
+      hidden.append(
+        node(false, h.name, `숨겨진 클래스 · ${archeName(h.archetype)}\n조건은 글로 남아 있지 않습니다. 벽화와 조각상, 보스의 몸짓에서 단서를 찾으세요.`, ' is-hidden'),
+      )
     }
     wrap.append(hidden)
     this.body.append(wrap)

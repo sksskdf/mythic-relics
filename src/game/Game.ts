@@ -14,6 +14,7 @@ import type { SkillContext } from '../skills/Skill'
 import { DamageNumbers } from '../ui/DamageNumbers'
 import { Hud } from '../ui/Hud'
 import { GameMenu } from '../ui/GameMenu'
+import type { RelicCardContext } from '../ui/relicCard'
 import { RelicTooltip } from '../ui/RelicTooltip'
 import { NavGrid } from '../world/navGrid'
 import { buildHeroModel } from '../world/heroModel'
@@ -111,6 +112,8 @@ export class Game {
   private readonly tooltip: RelicTooltip
   /** 지금 떠 있는 카드가 땅의 유물 카드인가 */
   private groundTooltip = false
+  /** 커서를 올린 HUD 유물 칸 (카드를 그 위에 띄운다) */
+  private hoveredSlot: { slot: number; x: number; y: number } | null = null
   private readonly relics: RelicSystem
   private readonly growth: ProgressionSystem
   private readonly life: HeroLife
@@ -218,6 +221,7 @@ export class Game {
       stow: (slot) => relics.stow(slot),
       drop: (slot) => relics.unequip(slot, true),
       progress: this.progress,
+      cardContext: (id, preview) => this.cardContext(id, preview),
       wardrobe: {
         wardrobe: this.wardrobe,
         get autoOutfit() {
@@ -228,6 +232,7 @@ export class Game {
     })
     this.menu.onToggle = (open) => {
       this.tooltip.hide()
+      this.hoveredSlot = null
       // 창을 여닫는 클릭이 이동 지시로 새지 않게 입력을 비운다.
       this.input.endFrame()
       if (!open) this.orders.release()
@@ -241,8 +246,11 @@ export class Game {
     this.hud.onSlotClick = (slot) => this.menu.show('relics', slot)
     this.hud.onSlotHover = (slot, anchor) => {
       const id = slot === null ? null : this.powers.loadout.slots[slot]
-      if (!id || !anchor) return this.tooltip.hide()
-      this.tooltip.show(relicDef(id), anchor.left + anchor.width / 2, anchor.top, true)
+      if (!id || !anchor) {
+        this.hoveredSlot = null
+        return this.tooltip.hide()
+      }
+      this.hoveredSlot = { slot: slot!, x: anchor.left + anchor.width / 2, y: anchor.top }
     }
     this.growth = new ProgressionSystem(this.ctx)
     this.life = new HeroLife(this.ctx)
@@ -351,13 +359,37 @@ export class Game {
     return this.menu.open
   }
 
-  /** 땅에 떨어진 유물에 커서를 올리면 설명 카드를 띄운다. (HUD 칸 카드가 떠 있으면 그대로 둔다) */
+  /** 설명 카드에 넣을 지금 상태: 자리, 충전, 세트, 발현 강화 조건 */
+  cardContext(id: RelicId, preview?: RelicCardContext['preview']): RelicCardContext {
+    const { loadout } = this.powers
+    const slot = loadout.slots.indexOf(id)
+    const manifested = this.powers.manifested
+    return {
+      place: slot >= 0 ? { kind: 'slot', slot } : loadout.bag.includes(id) ? { kind: 'bag' } : { kind: 'ground' },
+      ...(slot >= 0 ? { charge: this.powers.effects[slot]?.charge ?? 0 } : {}),
+      equipped: loadout.slots,
+      owned: new Set([...loadout.slots.filter((x): x is RelicId => x !== null), ...loadout.bag]),
+      manifested,
+      level: manifested ? this.progress.level(manifested) : 0,
+      ...(preview ? { preview } : {}),
+    }
+  }
+
+  /** 땅에 떨어진 유물에 커서를 올리면 설명 카드를 띄운다. HUD 칸에 올렸으면 그 카드를 (충전이 움직이므로) 계속 새로 그린다. */
   private updateGroundTooltip(): void {
+    if (this.hoveredSlot) {
+      const id = this.powers.loadout.slots[this.hoveredSlot.slot]
+      if (id) this.tooltip.show(relicDef(id), this.cardContext(id), this.hoveredSlot.x, this.hoveredSlot.y, true)
+      return
+    }
     const ground = this.playerInput.cursorOnGround()
     const near = ground && this.pickups.list.find((p) => Math.hypot(p.x - ground.x, p.z - ground.z) < 1.1)
     if (near) {
       const { pointer } = this.input
-      this.tooltip.show(relicDef(near.id), pointer.x, pointer.y)
+      const place = { kind: 'ground' } as const
+      const free = this.powers.loadout.slots.indexOf(null)
+      const preview = free >= 0 ? { before: this.powers.state, after: this.powers.loadout.preview(free, near.id) } : undefined
+      this.tooltip.show(relicDef(near.id), { ...this.cardContext(near.id, preview), place }, pointer.x, pointer.y)
       this.groundTooltip = true
     } else if (this.groundTooltip) {
       this.tooltip.hide()

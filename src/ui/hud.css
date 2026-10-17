@@ -1,16 +1,16 @@
 /* 기본 HUD. 화면 크기가 달라도 아래쪽 가운데에 붙어 있고, 크기는 화면 높이에 맞춰 바뀐다. */
 .hud {
   --unit: clamp(4px, 0.9vh, 10px);
-  --ink: #e9eef5;
-  --muted: #9aa6b5;
+  --ink: var(--c-ink-1);
+  --muted: var(--c-ink-3);
   --panel: rgba(14, 18, 26, 0.82);
-  --edge: #3a4558;
-  --life: #d2443c;
-  --divine: #e3b341;
+  --edge: var(--c-line-2);
+  --life: var(--c-life);
+  --divine: var(--c-gold);
   position: fixed;
   inset: 0;
   pointer-events: none;
-  font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  font-family: var(--font-body);
   color: var(--ink);
   user-select: none;
 }
@@ -26,6 +26,9 @@
   padding: calc(var(--unit) * 1.5);
   background: var(--panel);
   border: 2px solid var(--edge);
+  box-shadow:
+    inset 0 0 0 1px var(--c-bevel),
+    var(--shadow);
 }
 .hud__meter {
   display: flex;
@@ -34,7 +37,7 @@
 }
 .hud__meter-track {
   height: calc(var(--unit) * 2.2);
-  background: #1d2430;
+  background: var(--c-bg-3);
   border: 2px solid var(--edge);
 }
 .hud__meter-fill {
@@ -55,7 +58,7 @@
   width: calc(var(--unit) * 6);
   height: calc(var(--unit) * 6);
   padding: 0;
-  background: #1d2430;
+  background: var(--c-bg-3);
   border: 2px solid var(--edge);
 }
 button.hud__slot {
@@ -115,7 +118,7 @@ button.hud__slot--empty {
 .hud__boss-track {
   position: relative;
   height: calc(var(--unit) * 1.8);
-  background: #1d2430;
+  background: var(--c-bg-3);
 }
 .hud__boss-trail,
 .hud__boss-fill {
@@ -135,14 +138,14 @@ button.hud__slot--empty {
   inset: 0;
   pointer-events: none;
   overflow: hidden;
-  font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  font-family: var(--font-body);
 }
 .damage-number {
   position: absolute;
   left: 0;
   top: 0;
-  font-size: clamp(12px, 2.2vh, 26px);
-  font-weight: 800;
+  /* 픽셀 글꼴이 흐려지지 않게 12px의 배수로만 키운다. */
+  font: 700 max(12px, round(down, 2.2vh, 12px)) / 1 var(--font-body);
   color: #ffffff;
   text-shadow:
     2px 0 #141822,
@@ -153,7 +156,7 @@ button.hud__slot--empty {
 }
 .damage-number--strong {
   color: #ffd75e;
-  font-size: clamp(16px, 3vh, 34px);
+  font: max(15px, round(down, 3vh, 15px)) / 1 var(--font-display);
 }
 .damage-number--hurt {
   color: #ff6b5e;
@@ -169,7 +172,6 @@ button.hud__slot--empty {
   left: 50%;
   transform: translateX(-50%);
   white-space: nowrap;
-  font-weight: 800;
   opacity: 0;
   text-shadow:
     3px 0 #141822,
@@ -179,12 +181,12 @@ button.hud__slot--empty {
 }
 .hud__banner {
   top: 22%;
-  font-size: clamp(28px, 6vh, 64px);
+  font: max(30px, round(down, 6vh, 15px)) / 1.2 var(--font-display);
   letter-spacing: 0.1em;
 }
 .hud__toast {
   bottom: calc(var(--unit) * 14);
-  font-size: clamp(14px, 2.4vh, 24px);
+  font: max(12px, round(down, 2.4vh, 12px)) / 1.4 var(--font-body);
   color: var(--ink);
 }
 .hud__banner.is-showing {
@@ -213,7 +215,7 @@ button.hud__slot--empty {
   right: -2px;
   top: calc(var(--unit) * -1.2 - 2px);
   height: calc(var(--unit) * 1.2);
-  background: #1d2430;
+  background: var(--c-bg-3);
   border: 2px solid var(--edge);
   border-bottom: none;
   visibility: hidden;

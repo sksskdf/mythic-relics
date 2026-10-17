@@ -36,6 +36,8 @@ export class DevPanel {
     fold.addEventListener('click', () => {
       const open = body.hidden
       body.hidden = !open
+      // 접으면 오른쪽 위에 작은 꼬리표만 남긴다.
+      this.root.classList.toggle('is-folded', !open)
       fold.textContent = open ? '접기' : '펴기'
       fold.setAttribute('aria-expanded', String(open))
     })

@@ -1,3 +1,4 @@
+import './ui/theme.css'
 import { Game } from './game/Game'
 import { isRelicId, RELIC_IDS } from './relics/data'
 import { saveStorage } from './save/SaveData'
