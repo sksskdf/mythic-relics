@@ -228,6 +228,121 @@
       }
     }
   },
+  "laevateinn": {
+    "name": "레바테인",
+    "god": "loki",
+    "look": "laevateinnBlade",
+    "model": "laevateinn",
+    "description": "로키가 저승 문 앞에서 벼린, 초록 불꽃이 감긴 칼.",
+    "icon": [
+      "..........gw",
+      ".........gfg",
+      "........gfg.",
+      ".......gfg..",
+      "......gfg...",
+      ".....gfg....",
+      "..k.gfg.....",
+      "...kfg......",
+      "...dk.......",
+      "..d.k.......",
+      ".d...k......",
+      "............"
+    ],
+    "colors": {
+      "g": "#5fd06a",
+      "f": "#2a3a2c",
+      "w": "#d8ffb0",
+      "k": "#1d2620",
+      "d": "#2f6a3a"
+    },
+    "passive": {
+      "description": "이동 속도가 5% 빨라진다.",
+      "modifiers": {
+        "moveSpeed": 1.05
+      }
+    },
+    "trigger": {
+      "name": "불꽃 휘두르기",
+      "description": "3연타의 마지막 타에 앞을 넓게 초록 불꽃으로 쓸어 낸다.",
+      "charge": {
+        "by": "combo"
+      },
+      "release": {
+        "on": "basicHit"
+      },
+      "action": {
+        "kind": "flameSweep",
+        "damage": 20,
+        "range": 4.2,
+        "halfAngle": 75,
+        "knockback": 5
+      },
+      "bonus": [
+        {
+          "manifested": "loki",
+          "damageScale": 1.3
+        }
+      ]
+    }
+  },
+  "mistletoe": {
+    "name": "겨우살이 가지",
+    "god": "loki",
+    "look": "mistletoeCharm",
+    "model": "mistletoe",
+    "description": "빛의 신 발드르를 쓰러뜨린 작은 가지.",
+    "icon": [
+      "............",
+      ".w.l....l.w.",
+      "..ll....ll..",
+      "...b....b...",
+      "....b..b....",
+      ".....bb.....",
+      "....lbbl....",
+      ".....bb.....",
+      ".....b......",
+      ".....b......",
+      "....b.......",
+      "............"
+    ],
+    "colors": {
+      "b": "#6b5434",
+      "l": "#6fbf4a",
+      "w": "#f2f4e8"
+    },
+    "passive": {
+      "description": "받는 피해가 5% 줄어든다.",
+      "modifiers": {
+        "damageTaken": 0.95
+      }
+    },
+    "trigger": {
+      "name": "발드르의 화살",
+      "description": "3마리를 쓰러뜨리면 가장 먼 적에게 가지를 던져 길 위의 적을 모두 꿰뚫는다.",
+      "charge": {
+        "by": "kill",
+        "count": 3
+      },
+      "release": {
+        "on": "full",
+        "enemyWithin": 10
+      },
+      "action": {
+        "kind": "pierce",
+        "damage": 32,
+        "range": 12,
+        "speed": 26,
+        "hitRadius": 0.8,
+        "knockback": 4
+      },
+      "bonus": [
+        {
+          "manifested": "loki",
+          "damageScale": 1.3
+        }
+      ]
+    }
+  },
   "kusanagi": {
     "name": "쿠사나기노츠루기",
     "god": "asura",

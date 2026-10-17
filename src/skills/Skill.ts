@@ -3,6 +3,7 @@ import type * as THREE from 'three'
 import type { SoundCue } from '../audio/sounds'
 import type { Lightning } from '../fx/Lightning'
 import type { Puffs } from '../fx/Puffs'
+import type { Slashes } from '../fx/Slashes'
 import type { CombatTarget } from '../game/PlayerCombat'
 import type { HeroController } from '../game/HeroController'
 import type { ModifierKey } from '../data/schema'
@@ -22,6 +23,7 @@ export interface SkillContext {
   fx: THREE.Object3D
   lightning: Lightning
   puffs: Puffs
+  slashes: Slashes
   /** 주인공이 적에게 피해를 준다. 배율, 피해 숫자, 신위 게이지는 Game이 처리한다. */
   hit(target: CombatTarget, damage: number, dirX: number, dirZ: number, knockback: number, style: DamageStyle): void
   shake(amount: number): void

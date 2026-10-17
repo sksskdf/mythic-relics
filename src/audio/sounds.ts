@@ -16,7 +16,12 @@ export type SoundCue =
   | 'quake'
   | 'ingotThrow'
   | 'decoy'
+  | 'flameSweep'
+  | 'pierce'
+  | 'clone'
   | 'ultimate'
+  | 'legion'
+  | 'bladeDance'
   | 'telegraph'
   | 'impact'
   | 'hurt'
@@ -209,6 +214,33 @@ export const SOUNDS: Record<SoundCue, SoundRecipe> = {
       s.noise(t, { from: 3000, to: 800, q: 4, duration: 0.5, gain: 0.3, attack: 0.1 })
     },
   },
+  // 레바테인: 불꽃이 확 번지며 쓸고 지나간다
+  flameSweep: {
+    duration: 0.45,
+    volume: 0.45,
+    play: (s, t) => {
+      s.noise(t, { from: 400, to: 2600, q: 0.8, duration: 0.35, gain: 1, attack: 0.04 })
+      s.noise(t + 0.05, { filter: 'lowpass', from: 900, to: 200, duration: 0.4, gain: 0.6 })
+    },
+  },
+  // 겨우살이: 가늘게 휙 날아간다
+  pierce: {
+    duration: 0.4,
+    volume: 0.35,
+    play: (s, t) => {
+      s.noise(t, { filter: 'highpass', from: 2500, to: 5000, duration: 0.3, gain: 0.8, attack: 0.02 })
+      s.tone(t, { from: 1400, to: 700, duration: 0.3, gain: 0.25 })
+    },
+  },
+  // 그림자 분신의 일격: 짧고 흐릿하게
+  clone: {
+    duration: 0.12,
+    volume: 0.22,
+    play: (s, t) => {
+      s.noise(t, { from: vary(1600, 0.2), to: 600, q: 2, duration: 0.1, gain: 1, attack: 0.01 })
+      s.tone(t, { type: 'triangle', from: vary(520, 0.1), to: 260, duration: 0.08, gain: 0.3 })
+    },
+  },
   ultimate: {
     duration: 1.4,
     volume: 0.7,
@@ -216,6 +248,25 @@ export const SOUNDS: Record<SoundCue, SoundRecipe> = {
       s.tone(t, { type: 'sawtooth', from: 110, to: 440, duration: 0.5, gain: 0.3, attack: 0.2 })
       s.noise(t + 0.45, { filter: 'highpass', from: 2000, to: 600, duration: 0.2, gain: 1 })
       s.noise(t + 0.45, { filter: 'lowpass', from: 500, to: 50, duration: 0.9, gain: 0.9 })
+    },
+  },
+  // 환영 군단 (로키 궁극기): 일그러진 웃음 같은 오르내림과 흩어지는 소리
+  legion: {
+    duration: 1.2,
+    volume: 0.55,
+    play: (s, t) => {
+      for (let i = 0; i < 3; i++) s.tone(t + i * 0.08, { type: 'sawtooth', from: 330 + i * 110, to: 165, duration: 0.6, gain: 0.15, attack: 0.05 })
+      s.noise(t, { from: 3000, to: 500, q: 3, duration: 1, gain: 0.5, attack: 0.2 })
+    },
+  },
+  // 육비난무 (아수라왕 궁극기): 쇠가 겹겹이 울린다
+  bladeDance: {
+    duration: 1,
+    volume: 0.55,
+    play: (s, t) => {
+      for (let i = 0; i < 6; i++) s.noise(t + i * 0.07, { filter: 'highpass', from: 3000 + i * 300, duration: 0.08, gain: 0.8 })
+      s.tone(t, { type: 'triangle', from: 1760, duration: 0.8, gain: 0.2 })
+      s.tone(t, { from: 90, to: 45, duration: 0.6, gain: 0.6 })
     },
   },
   // 공격 예고: 낮은 뿔피리 두 음. 무엇이 오는지 귀로도 알게

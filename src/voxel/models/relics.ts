@@ -104,6 +104,34 @@ export const totsuka = (): VoxelGrid => sword(0xe9eef5, 0x6a1a22, 0xff4a4a, 14)
 export const futsu = (): VoxelGrid => sword(0xd7dee5, 0xc9a23a, 0x7fd4ff, 12)
 export const ohabari = (): VoxelGrid => sword(0xffd0a0, 0x3b2414, 0xff7a2a, 12)
 
+/** 레바테인: 검은 칼에 초록 불꽃이 감긴 로키의 칼 */
+export function laevateinn(): VoxelGrid {
+  const g = sword(0x2a3a2c, 0x1d2620, 0x2f6a3a, 13)
+  for (let y = 1; y < 12; y += 2) {
+    g.set(1, y, 1, 0x8fe07a)
+    g.set(3, y + 1, 1, 0x5fd06a)
+  }
+  g.set(2, 0, 1, 0xd8ffb0)
+  return g
+}
+
+/** 겨우살이 가지: 갈라진 잔가지에 초록 잎과 흰 열매 */
+export function mistletoe(): VoxelGrid {
+  const g = new VoxelGrid(9, 12, 3)
+  const twig = 0x6b5434
+  // 줄기와 두 갈래
+  g.box(4, 0, 1, 4, 6, 1, twig)
+  for (let i = 0; i < 4; i++) {
+    g.set(3 - i, 6 + i, 1, twig)
+    g.set(5 + i, 6 + i, 1, twig)
+  }
+  // 잎: 갈래마다 짝을 지어
+  for (const [x, y] of [[1, 9], [2, 10], [7, 9], [6, 10], [3, 5], [5, 4]] as const) g.box(x, y, 0, x, y, 2, 0x6fbf4a)
+  // 흰 열매
+  for (const [x, y] of [[0, 10], [8, 10], [4, 7], [1, 11], [7, 11]] as const) g.set(x, y, 1, 0xf2f4e8)
+  return g
+}
+
 /** 유물 데이터의 model 이름 → 복셀 모델 */
 export const RELIC_MODELS: Readonly<Record<string, () => VoxelGrid>> = {
   mjolnir,
@@ -114,4 +142,6 @@ export const RELIC_MODELS: Readonly<Record<string, () => VoxelGrid>> = {
   totsuka,
   futsu,
   ohabari,
+  laevateinn,
+  mistletoe,
 }

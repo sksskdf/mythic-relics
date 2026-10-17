@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 
 import { godDef, relicDef, type RelicId } from '../../relics/data'
-import { levelGains } from '../../progress/levelGains'
+import { levelGains, ULTIMATE_NAMES } from '../../progress/levelGains'
 import { classIcon } from '../../ui/classIcons'
 import type { GameContext } from '../context'
 import type { LoadoutChange } from '../RelicPowers'
@@ -54,7 +54,7 @@ export class RelicSystem {
     // 궁극기: 발현 상태에서 신위 게이지가 가득 차고, 쓸 만한 때가 오면 저절로 나간다.
     const boss = encounter.boss
     const bossNear = !!boss && boss.alive && Math.hypot(boss.x - position.x, boss.z - position.z) < 10
-    if (combat.alive && powers.manifested && combat.divine >= 1 && !powers.ultimate.active && powers.ultimate.worthUsing(skills, bossNear)) {
+    if (combat.alive && powers.manifested && combat.divine >= 1 && !powers.ultimateActive && powers.ultimate.worthUsing(skills, bossNear)) {
       combat.divine = 0
       powers.ultimate.start(skills)
       feel.stop(0.12)
@@ -65,6 +65,7 @@ export class RelicSystem {
     combat.knockbackScale = mods.knockbackDealt
     combat.knockbackTakenScale = mods.knockbackTaken
     combat.damageTakenScale = mods.damageTaken * this.ctx.cycle.damageTakenScale
+    combat.attackSpeed = powers.manifested ? godDef(powers.manifested).passive.attackSpeed : 1
     hero.speedScale = mods.moveSpeed * this.ctx.cycle.moveSpeedScale
   }
 
@@ -147,7 +148,7 @@ export class RelicSystem {
     for (let lv = 1; lv <= progress.level(god.id); lv++) {
       for (const g of levelGains(god.id, lv)) if (lv === 1 || g.kind === 'power') lines.push(g.text)
     }
-    lines.push('궁극기 사용 가능')
+    lines.push(`궁극기 「${ULTIMATE_NAMES[god.ultimate]}」`)
     hud.showGains('발현', progress.title(god.id), god.color, classIcon(god.name), lines)
     // 하늘에서 번개가 주인공에게 내리꽂히고, 주변 적을 밀어낸다.
     const p = hero.object.position

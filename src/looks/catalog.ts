@@ -54,8 +54,10 @@ const list: LookDef[] = [
   { id: 'thorTunic', slot: 'torso', name: '털 어깨 전투복' },
   { id: 'thorCape', slot: 'cape', name: '붉은 망토' },
   { id: 'thorStormHalo', slot: 'mark', name: '벼락 고리', aura: 'sparks' },
-  // 로키: 유물(얼굴) / 발현(머리·몸·등) / 표식
+  // 로키: 유물(얼굴·무기·허리) / 발현(머리·몸·등) / 표식
   { id: 'lokiMaskFace', slot: 'face', name: '변신의 가면' },
+  { id: 'laevateinnBlade', slot: 'weapon', name: '레바테인' },
+  { id: 'mistletoeCharm', slot: 'waist', name: '겨우살이 가지' },
   { id: 'lokiCrown', slot: 'head', name: '뿔 장식 관' },
   { id: 'lokiTunic', slot: 'torso', name: '초록 비단옷' },
   { id: 'lokiCape', slot: 'cape', name: '초록 망토' },

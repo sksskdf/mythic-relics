@@ -52,6 +52,8 @@ export class PlayerCombat {
   godMode = false
   /** 기본 공격 피해 배율 (발현 패시브 등) */
   damageScale = 1
+  /** 기본 공격 빠르기 배율 (변신술사의 빠른 연타) */
+  attackSpeed = 1
   /** 내 공격의 넉백 배율, 내가 받는 피해·넉백 배율 (유물 지속 효과) */
   knockbackScale = 1
   damageTakenScale = 1
@@ -98,7 +100,7 @@ export class PlayerCombat {
     else if (!this.target?.alive || !this.inReach(this.target)) this.target = this.nearest(enemies)
     if (this.target) this.hero.face(angleTo(position.x, position.z, this.target.x, this.target.z))
 
-    for (const event of this.combo.update(dt, this.target !== null)) {
+    for (const event of this.combo.update(dt * this.attackSpeed, this.target !== null)) {
       if (event.type === 'end') continue
       const swing = this.combo.swings[event.index]!
       const strong = event.index === this.combo.swings.length - 1

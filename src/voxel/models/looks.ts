@@ -161,6 +161,32 @@ export function lokiMaskFace(): VoxelGrid {
   return g
 }
 
+/** 레바테인: 검은 칼날을 초록 불꽃이 감싼 칼 (2×7×13, kusanagiBlade와 같은 쥐는 자리) */
+export function laevateinnBlade(): VoxelGrid {
+  const g = new VoxelGrid(2, 7, 13)
+  g.box(0, 5, 0, 1, 5, 2, 0x1d2620)
+  g.box(0, 4, 3, 1, 6, 3, L.lokiGreen)
+  g.box(0, 5, 4, 1, 5, 12, 0x2a3a2c)
+  // 날을 따라 번갈아 일렁이는 초록 불꽃
+  for (let z = 4; z <= 12; z++) g.set(z % 2, z % 3 === 0 ? 6 : 4, z, z % 2 ? 0x8fe07a : 0x5fd06a)
+  g.box(0, 6, 12, 1, 6, 12, 0xd8ffb0)
+  return g
+}
+
+/** 겨우살이 가지: 허리끈에 꽂은 잔가지 (12×3×9, totsukaSash와 같은 크기) */
+export function mistletoeCharm(): VoxelGrid {
+  const g = new VoxelGrid(12, 3, 9)
+  g.box(0, 1, 0, 11, 1, 8, L.oliveDark)
+  // 왼쪽 앞에 꽂은 가지: 잎과 흰 열매
+  g.box(2, 0, 8, 2, 2, 8, 0x6b5434)
+  g.set(1, 2, 8, 0x6fbf4a)
+  g.set(3, 2, 8, 0x6fbf4a)
+  g.set(1, 0, 8, 0x6fbf4a)
+  g.set(2, 2, 7, 0xf2f4e8)
+  g.set(3, 0, 8, 0xf2f4e8)
+  return g
+}
+
 // ───────────────────────────── 발현: 천둥의 신 ─────────────────────────────
 
 /** 천둥의 날개 투구: 둥근 투구 양옆에 흰 날개, 붉은 수염 */
@@ -423,6 +449,8 @@ export const LOOK_MODELS: Readonly<Record<string, () => VoxelGrid>> = {
   megingjordBelt,
   ironGauntlets,
   lokiMaskFace,
+  laevateinnBlade,
+  mistletoeCharm,
   thorHelm,
   thorTunic,
   thorCape,

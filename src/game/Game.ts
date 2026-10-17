@@ -193,6 +193,7 @@ export class Game {
       fx: this.fx.skills,
       lightning: this.fx.lightning,
       puffs: this.fx.puffs,
+      slashes: this.fx.slashes,
       hit: (target, damage, dirX, dirZ, knockback, style) => this.damage.deal(target, damage, dirX, dirZ, knockback, style),
       shake: (amount) => this.view.shake(amount),
       sound: (cue, x, z) => this.bus.emit('sound', { cue, x, z }),
@@ -489,6 +490,9 @@ export class Game {
       if (god.passive.damageScale !== 1) what.push(`피해 ×${god.passive.damageScale}`)
       if (god.passive.basicLightning) what.push('기본 공격에 번개')
       if (god.passive.chainLightning) what.push(`Lv${god.passive.chainLightning.minLevel}부터 번개가 옮겨 붙음`)
+      if (god.passive.shadowClones) what.push('그림자 분신이 함께 싸움')
+      if (god.passive.attackSpeed !== 1) what.push(`빠른 연타 ×${god.passive.attackSpeed}`)
+      if (god.passive.bladeStorm) what.push('칼날 폭풍')
       powers.push({ kind: 'god', name: god.name, color: god.color, label: this.progress.title(manifested), what: what.join(' · ') })
     }
     for (const g of blessings) {

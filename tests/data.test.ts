@@ -20,7 +20,7 @@ function broken(edit: (d: { gods: any; relics: any; enemies: any; classes: any }
 
 describe('게임 데이터', () => {
   it('지금 데이터 파일은 검사를 통과한다', () => {
-    expect(Object.keys(DATA.relics)).toEqual(['mjolnir', 'megingjord', 'jarngreipr', 'lokiMask', 'kusanagi', 'totsuka', 'futsu', 'ohabari'])
+    expect(Object.keys(DATA.relics)).toEqual(['mjolnir', 'megingjord', 'jarngreipr', 'lokiMask', 'laevateinn', 'mistletoe', 'kusanagi', 'totsuka', 'futsu', 'ohabari'])
     expect(Object.keys(DATA.gods)).toEqual(['thor', 'loki', 'asura'])
     expect(DATA.enemies.king!.poise).toBe(Infinity)
     expect(DATA.enemies.king!.fixedDrop).toBe('mjolnir')

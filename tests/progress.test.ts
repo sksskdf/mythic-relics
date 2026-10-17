@@ -43,14 +43,16 @@ describe('유물 드랍', () => {
   it('이미 가진 유물은 나오지 않는다', () => {
     const drops = new DropTable(sequence(0, 0))
     const owned = new Set<RelicId>(['mjolnir', 'megingjord', 'jarngreipr'])
-    expect(drops.roll(owned)).toBe('lokiMask')
-    owned.add('lokiMask')
+    for (const id of ['lokiMask', 'laevateinn', 'mistletoe'] as const) {
+      expect(drops.roll(owned)).toBe(id)
+      owned.add(id)
+    }
     expect(drops.roll(owned)).toBeNull()
   })
 
   it('이미 유물을 가진 신의 남은 유물이 더 잘 나온다', () => {
-    // 후보: 메긴교르드(토르, 가중치 2), 변신의 가면(로키, 1). 0.6이면 앞쪽 2/3 안이라 메긴교르드
-    const drops = new DropTable(sequence(0, 0.6))
+    // 후보: 메긴교르드(토르, 가중치 2), 로키 유물 셋(각 1). 합 5에서 0.3이면 앞쪽 1.5라 메긴교르드
+    const drops = new DropTable(sequence(0, 0.3))
     expect(drops.roll(new Set<RelicId>(['jarngreipr']))).toBe('megingjord')
   })
 

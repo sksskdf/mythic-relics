@@ -112,15 +112,30 @@ export interface GodDef {
   hidden: boolean
   /** 발현에 필요한 같은 신 유물 수 (보통 3, 아수라 4) */
   manifestCount: number
+  /** 궁극기 (E6: 클래스마다 다르다) */
+  ultimate: UltimateKind
 }
+
+/** 궁극기 종류 (src/skills/Ultimate.ts) */
+export const ULTIMATE_KINDS = ['thunderJudgement', 'illusionLegion', 'bladeDance'] as const
+export type UltimateKind = (typeof ULTIMATE_KINDS)[number]
 
 export interface ClassPassive {
   /** 이 클래스로 주는 모든 피해 배율 (천둥의 신: 거인 특효) */
   damageScale: number
   /** 기본 공격이 맞을 때 첫 적에게 함께 떨어지는 번개 */
   basicLightning?: { damage: number; finisherDamage: number }
-  /** 번개가 가까운 적에게 옮겨 붙는다. minLevel부터 */
-  chainLightning?: { minLevel: number; jumps: number; range: number; damage: number; finisherDamage: number }
+  /** 번개가 가까운 적에게 옮겨 붙는다. minLevel부터. topJumps가 있으면 Lv4에서 그만큼 옮겨 붙는다 */
+  chainLightning?: { minLevel: number; jumps: number; topJumps?: number; range: number; damage: number; finisherDamage: number }
+  /** 폭풍 (천둥): minLevel부터 interval초마다 주변 적 targets명에게 번개가 저절로 떨어진다 */
+  storm?: { minLevel: number; interval: number; targets: number; radius: number; damage: number }
+  /** 기본 공격 빠르기 배율 (변신술사: 빠른 연타) */
+  attackSpeed: number
+  /**
+   * 그림자 분신 (변신술사): 곁을 따라다니며 interval초마다 가까운 적에게 달려들어 벤다.
+   * counts는 Lv1~4의 분신 수. burstMinLevel부터 일격이 불꽃으로 터진다
+   */
+  shadowClones?: { counts: readonly [number, number, number, number]; interval: number; damage: number; range: number; burstMinLevel: number; burstRadius: number; burstDamage: number }
   /** 칼날 폭풍 (아수라왕): 기본 공격이 맞을 때마다 등의 팔들이 주변 적에게 칼을 휘두른다. 칼 수 = base + perLevel × (레벨 − 1) */
   bladeStorm?: { damage: number; radius: number; base: number; perLevel: number }
 }
@@ -145,7 +160,7 @@ export function parseGods(raw: unknown, path = 'gods.json'): Record<string, GodD
   const out: Record<string, GodDef> = {}
   for (const [id, o] of table(raw, path)) {
     const p = `${path}.${id}`
-    onlyKeys(o, p, ['name', 'titles', 'source', 'color', 'tree', 'passive', 'looks', 'legend', 'mark', 'hidden', 'manifestCount'])
+    onlyKeys(o, p, ['name', 'titles', 'source', 'color', 'tree', 'passive', 'looks', 'legend', 'mark', 'hidden', 'manifestCount', 'ultimate'])
     const titles = list(o, 'titles', p)
     if (titles.length !== 4 || titles.some((t) => typeof t !== 'string' || t.trim() === '')) {
       throw new DataError(`${p}.titles`, 'Lv1~Lv4 칭호 네 개여야 합니다')
@@ -153,8 +168,39 @@ export function parseGods(raw: unknown, path = 'gods.json'): Record<string, GodD
     const tree = obj(o.tree, `${p}.tree`)
     onlyKeys(tree, `${p}.tree`, ['column', 'row'])
     const passiveRaw = obj(o.passive ?? {}, `${p}.passive`)
-    onlyKeys(passiveRaw, `${p}.passive`, ['damageScale', 'basicLightning', 'chainLightning', 'bladeStorm'])
-    const passive: ClassPassive = { damageScale: optNum(passiveRaw, 'damageScale', `${p}.passive`, { min: 0 }) ?? 1 }
+    onlyKeys(passiveRaw, `${p}.passive`, ['damageScale', 'basicLightning', 'chainLightning', 'bladeStorm', 'storm', 'attackSpeed', 'shadowClones'])
+    const passive: ClassPassive = {
+      damageScale: optNum(passiveRaw, 'damageScale', `${p}.passive`, { min: 0 }) ?? 1,
+      attackSpeed: optNum(passiveRaw, 'attackSpeed', `${p}.passive`, { min: 0.5, max: 2 }) ?? 1,
+    }
+    if (passiveRaw.storm !== undefined) {
+      const q = `${p}.passive.storm`
+      const b = obj(passiveRaw.storm, q)
+      onlyKeys(b, q, ['minLevel', 'interval', 'targets', 'radius', 'damage'])
+      passive.storm = {
+        minLevel: num(b, 'minLevel', q, { min: 1, max: 4 }),
+        interval: num(b, 'interval', q, { min: 0.1 }),
+        targets: num(b, 'targets', q, { min: 1 }),
+        radius: num(b, 'radius', q, { min: 0 }),
+        damage: num(b, 'damage', q, { min: 0 }),
+      }
+    }
+    if (passiveRaw.shadowClones !== undefined) {
+      const q = `${p}.passive.shadowClones`
+      const b = obj(passiveRaw.shadowClones, q)
+      onlyKeys(b, q, ['counts', 'interval', 'damage', 'range', 'burstMinLevel', 'burstRadius', 'burstDamage'])
+      const counts = list(b, 'counts', q)
+      if (counts.length !== 4 || counts.some((n) => typeof n !== 'number' || n < 0 || n > 6)) throw new DataError(`${q}.counts`, 'Lv1~Lv4 분신 수 네 개(0~6)여야 합니다')
+      passive.shadowClones = {
+        counts: counts as unknown as [number, number, number, number],
+        interval: num(b, 'interval', q, { min: 0.1 }),
+        damage: num(b, 'damage', q, { min: 0 }),
+        range: num(b, 'range', q, { min: 0 }),
+        burstMinLevel: num(b, 'burstMinLevel', q, { min: 1, max: 5 }),
+        burstRadius: num(b, 'burstRadius', q, { min: 0 }),
+        burstDamage: num(b, 'burstDamage', q, { min: 0 }),
+      }
+    }
     if (passiveRaw.basicLightning !== undefined) {
       const q = `${p}.passive.basicLightning`
       const b = obj(passiveRaw.basicLightning, q)
@@ -170,10 +216,12 @@ export function parseGods(raw: unknown, path = 'gods.json'): Record<string, GodD
     if (passiveRaw.chainLightning !== undefined) {
       const q = `${p}.passive.chainLightning`
       const c = obj(passiveRaw.chainLightning, q)
-      onlyKeys(c, q, ['minLevel', 'jumps', 'range', 'damage', 'finisherDamage'])
+      onlyKeys(c, q, ['minLevel', 'jumps', 'topJumps', 'range', 'damage', 'finisherDamage'])
+      const topJumps = optNum(c, 'topJumps', q, { min: 1 })
       passive.chainLightning = {
         minLevel: num(c, 'minLevel', q, { min: 1, max: 4 }),
         jumps: num(c, 'jumps', q, { min: 1 }),
+        ...(topJumps === undefined ? {} : { topJumps }),
         range: num(c, 'range', q, { min: 0 }),
         damage: num(c, 'damage', q, { min: 0 }),
         finisherDamage: num(c, 'finisherDamage', q, { min: 0 }),
@@ -193,6 +241,7 @@ export function parseGods(raw: unknown, path = 'gods.json'): Record<string, GodD
       mark: lookOf(o.mark, 'mark', `${p}.mark`),
       hidden: bool(o, 'hidden', p),
       manifestCount: optNum(o, 'manifestCount', p, { min: 2, max: 4 }) ?? 3,
+      ultimate: oneOf(o, 'ultimate', p, ULTIMATE_KINDS),
     }
     if (out[id]!.looks.mark !== undefined) throw new DataError(`${p}.looks.mark`, '표식은 looks가 아니라 mark에 적습니다')
   }
@@ -223,6 +272,10 @@ export const ACTION_PARAMS = {
   ingotThrow: ['damage', 'speed', 'knockback'],
   /** 제자리에 분신을 남겨 적의 시선을 끈다. 사라질 때 터진다 */
   decoy: ['life', 'blastRadius', 'blastDamage', 'knockback'],
+  /** 앞쪽 부채꼴을 불꽃으로 쓸어 낸다 (halfAngle은 도) */
+  flameSweep: ['damage', 'range', 'halfAngle', 'knockback'],
+  /** 가장 먼 적 쪽으로 던져 길 위의 적을 모두 꿰뚫는다 */
+  pierce: ['damage', 'range', 'speed', 'hitRadius', 'knockback'],
 } as const
 export type AuraKind = keyof typeof AURA_PARAMS
 export type ActionKind = keyof typeof ACTION_PARAMS

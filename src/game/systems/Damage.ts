@@ -88,8 +88,10 @@ export class DamageSystem {
       const bolt = passive.basicLightning
       this.deal(first, finisher ? bolt.finisherDamage : bolt.damage, dx / len, dz / len, 0, 'thunder')
       const chain = passive.chainLightning
-      if (chain && progress.level(manifested) >= chain.minLevel) {
-        this.chainLightning(first, finisher ? chain.finisherDamage : chain.damage, chain.jumps, chain.range)
+      const level = progress.level(manifested)
+      if (chain && level >= chain.minLevel) {
+        const jumps = level >= 4 && chain.topJumps ? chain.topJumps : chain.jumps
+        this.chainLightning(first, finisher ? chain.finisherDamage : chain.damage, jumps, chain.range)
       }
     }
     // 발현 패시브: 칼날 폭풍 (아수라왕). 등의 팔들이 가까운 적들에게 차례로 칼을 휘두른다.
