@@ -137,7 +137,7 @@ button {
 
 /* 단추와 칩 */
 .ui-btn,
-.ui-chip {
+.ui-pill {
   font: var(--t-body);
   color: var(--c-ink-1);
   background: var(--c-bg-3);
@@ -149,20 +149,20 @@ button {
   padding: var(--sp-3) var(--sp-5);
   border-width: var(--bw);
 }
-.ui-chip {
+.ui-pill {
   padding: var(--sp-1) var(--sp-4);
 }
 .ui-btn:hover,
-.ui-chip:hover {
+.ui-pill:hover {
   border-color: var(--c-ink-3);
 }
 .ui-btn.is-on,
-.ui-chip.is-on {
+.ui-pill.is-on {
   border-color: var(--c-gold);
   background: #3a3220;
 }
 .ui-btn:focus-visible,
-.ui-chip:focus-visible {
+.ui-pill:focus-visible {
   outline: 1px solid var(--c-gold-soft);
   outline-offset: 1px;
 }

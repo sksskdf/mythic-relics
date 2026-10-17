@@ -275,3 +275,117 @@ button.hud__slot--empty {
 .hud.is-hidden {
   display: none;
 }
+
+/* 올리면 뜨는 짧은 설명 */
+.hud__tippable {
+  pointer-events: auto;
+}
+.hud__tip {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 30;
+  max-width: 260px;
+  padding: var(--sp-3) var(--sp-4);
+  font: var(--t-body);
+  color: var(--c-ink-2);
+  white-space: pre-line;
+  background: #111216;
+  box-shadow: 0 0 0 1px var(--c-stone-hi), 0 0 0 3px var(--c-groove), var(--shadow);
+  pointer-events: none;
+}
+.hud__tip b {
+  display: block;
+  margin-bottom: 2px;
+  font: var(--t-strong);
+  color: var(--c-ink-1);
+}
+
+/* 발현·승급 때 무엇이 강해졌는지 보여 주는 카드 */
+.hud__gains {
+  --glow: var(--c-moon);
+  position: absolute;
+  left: 50%;
+  top: 9%;
+  min-width: 300px;
+  padding: var(--sp-5) var(--sp-6) var(--sp-6);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--glow) 16%, rgba(12, 13, 16, 0.92)), rgba(12, 13, 16, 0.92) 60%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--glow) 60%, transparent), 0 0 0 2px #050608, 0 0 24px color-mix(in srgb, var(--glow) 35%, transparent);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(-50%);
+}
+.hud__gains.is-showing {
+  visibility: visible;
+  animation: hud-gains 5s ease-out forwards;
+}
+@keyframes hud-gains {
+  0% { opacity: 0; transform: translate(-50%, 12px) scale(0.96); }
+  6% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  88% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.hud__gains-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-5);
+  margin-bottom: var(--sp-4);
+}
+.hud__gains-kind {
+  font: var(--t-small);
+  letter-spacing: 0.2em;
+  color: var(--c-gilt);
+}
+.hud__gains-title {
+  font: var(--t-title);
+  color: var(--glow);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--glow) 60%, transparent);
+}
+.hud__gains ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.hud__gains li {
+  font: var(--t-body);
+  color: var(--c-ink-1);
+  opacity: 0;
+  animation: hud-gains-line 0.3s ease-out forwards;
+}
+.hud__gains li::before {
+  content: '▲ ';
+  color: var(--c-good);
+}
+@keyframes hud-gains-line {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: none; }
+}
+.hud__gains-from {
+  color: var(--c-ink-3);
+}
+.hud__gains-arrow {
+  margin: 0 var(--sp-3);
+  color: var(--c-ink-4);
+}
+.hud__gains-to {
+  color: var(--c-good);
+}
+
+/* 발현할 때 화면 전체가 신의 색으로 번쩍인다 */
+.hud__flash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 55%, color-mix(in srgb, var(--flash, #fff) 70%, #fff), transparent 75%);
+  opacity: 0;
+  pointer-events: none;
+}
+.hud__flash.is-showing {
+  animation: hud-flash 0.7s ease-out;
+}
+@keyframes hud-flash {
+  0% { opacity: 0.85; }
+  100% { opacity: 0; }
+}

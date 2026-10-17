@@ -69,7 +69,7 @@ export class WardrobePane {
     const current = wardrobe.choice(this.selected)
     const auto = autoOutfit[this.selected]
     const add = (label: string | null, choice: LookChoice, icon?: 'auto' | 'none', hint?: string) => {
-      const chip = el('button', 'ui-chip wardrobe__chip')
+      const chip = el('button', 'ui-pill wardrobe__chip')
       chip.type = 'button'
       if (icon) {
         const i = el('img', '')
@@ -94,7 +94,10 @@ export class WardrobePane {
       for (const id of wardrobe.options(this.selected)) if (id !== auto || current !== 'auto') add(lookDef(id).name, id)
       if (OPTIONAL.has(this.selected)) add(null, null, 'none', '비우기')
     }
-    options.append(chips)
+    options.append(
+      el('div', 'wardrobe__options-label', this.selected === 'mark' ? '표식은 발현한 신이 정한다' : `${SLOT_NAMES[this.selected]}: 커서를 올리면 입혀 보고, 누르면 고른다`),
+      chips,
+    )
     pane.append(options)
     container.append(pane)
     this.preview.start()

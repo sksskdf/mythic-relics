@@ -522,7 +522,7 @@ export class Game {
         xp: manifested ? this.progress.xpRatio(manifested) : null,
         xpColor: manifested ? godDef(manifested).color : '',
         portrait: manifested
-          ? { name: godDef(manifested).name, color: godDef(manifested).color, level: this.progress.level(manifested) }
+          ? { name: godDef(manifested).name, title: this.progress.title(manifested), color: godDef(manifested).color, level: this.progress.level(manifested) }
           : null,
         blessings: this.powers.state.blessings.map((g) => ({ name: godDef(g).name, color: godDef(g).color })),
         promote: manifested !== null && this.progress.readyToPromote(manifested),

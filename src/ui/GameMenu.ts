@@ -1,11 +1,13 @@
 import { DATA } from '../data'
 import { MAX_LEVEL } from '../progress/ClassProgress'
 import type { ClassProgress } from '../progress/ClassProgress'
+import { allLevelGains } from '../progress/levelGains'
 import { type God, godDef, relicDef, type RelicId } from '../relics/data'
 import type { LoadoutState } from '../relics/Loadout'
 import { relicCard, type RelicCardContext, relicIcon } from './relicCard'
 import { classIcon } from './classIcons'
 import { smallSigilRing } from './emblem'
+import { josa } from './josa'
 import { archetypeSigil, glyph, unknownSigil } from './sigils'
 import { type WardrobeHost, WardrobePane } from './WardrobePane'
 import './menu.css'
@@ -38,6 +40,14 @@ export interface HeroStats {
   promotions: number
   /** 지금 걸린 힘: 발현, 가호, 낀 유물의 지속 효과 */
   powers: { kind: 'god' | 'relic'; name: string; color: string; label: string; what: string }[]
+}
+
+/** 탭에 올리면 나오는 설명 */
+const TAB_HINTS: Record<MenuTab, string> = {
+  status: '상태\n지금 내 능력치와 걸려 있는 힘',
+  relics: '유물\n낀 유물과 가방. 눌러서 바꿔 끼고, 바꾸면 어떻게 되는지 미리 본다',
+  classes: '클래스\n지금 클래스의 레벨과 다음 승급 방법, 만난 신들',
+  looks: '외형\n부위마다 보이는 모습을 고른다',
 }
 
 /** 메뉴가 게임에서 읽고 부르는 것 */
@@ -134,9 +144,9 @@ export class GameMenu {
       const b = el('button', 'menu__tab')
       b.type = 'button'
       b.setAttribute('aria-label', label)
-      b.append(img(glyph(icon)))
+      b.append(img(glyph(icon)), el('span', '', label))
       b.addEventListener('click', () => this.show(id))
-      this.hintOn(b, label)
+      this.hintOn(b, TAB_HINTS[id])
       this.tabButtons.set(id, b)
       tabs.append(b)
     }
@@ -199,7 +209,11 @@ export class GameMenu {
   /** 커서를 올리거나(데스크톱) 누르면(터치) 힌트를 그 칸 근처에 띄운다. */
   private hintOn(target: HTMLElement, text: string | (() => string)): void {
     const show = () => {
-      this.hint.textContent = typeof text === 'function' ? text() : text
+      const words = typeof text === 'function' ? text() : text
+      const [first, ...rest] = words.split('\n')
+      this.hint.replaceChildren()
+      if (rest.length > 0) this.hint.append(el('b', '', first!), rest.join('\n'))
+      else this.hint.textContent = words
       this.hint.hidden = false
       const frame = this.hint.parentElement!.getBoundingClientRect()
       const r = target.getBoundingClientRect()
@@ -279,18 +293,18 @@ export class GameMenu {
         tag.style.setProperty('--tag', delta.good ? 'var(--c-good)' : 'var(--c-bad)')
         r.append(tag)
       }
-      this.hintOn(r, hint)
+      this.hintOn(r, hint.includes('\n') ? hint : `${name}\n${hint}`)
       grid.append(r)
     }
     const changed = (v: number, higherIsGood: boolean) => (Math.abs(v - 1) < 0.005 ? undefined : { text: pct(v), good: v > 1 === higherIsGood })
-    row('heart', '생명', `${Math.round(stats.hp)} / ${stats.maxHp}`, '승급할 때마다 최대 생명이 늘어난다.')
-    row('sword', '주는 피해', `×${stats.damage.toFixed(2)}`, '승급 횟수와 발현한 신의 힘', changed(stats.damage, true))
+    row('heart', '생명', `${Math.round(stats.hp)} / ${stats.maxHp}`, '생명\n승급할 때마다 최대 생명 +15. 승급하면 가득 찬다.')
+    row('sword', '주는 피해', `×${stats.damage.toFixed(2)}`, '주는 피해\n승급할 때마다 +5%, 발현한 신의 힘이 곱해진다.', changed(stats.damage, true))
     row('shield', '받는 피해', `×${stats.damageTaken.toFixed(2)}`, '낀 유물의 지속 효과', changed(stats.damageTaken, false))
     row('boot', '이동 속도', `${Math.round(stats.moveSpeed * 100)}%`, '낀 유물의 지속 효과', changed(stats.moveSpeed, true))
     row('push', '밀쳐 내기', `×${stats.knockbackDealt.toFixed(2)}`, '내 공격이 적을 미는 힘', changed(stats.knockbackDealt, true))
     row('stand', '버티기', `×${stats.knockbackTaken.toFixed(2)}`, '내가 밀려나는 정도. 낮을수록 잘 버틴다.', changed(stats.knockbackTaken, false))
-    row('divine', '신위', `${Math.round(stats.divine * 100)}%`, '스킬로 맞히고 쓰러뜨릴수록 차오른다. 가득 차면 궁극기.')
-    row('promote', '승급', `${stats.promotions}회`, '승급할 때마다 모든 클래스의 기본 능력치가 오른다.')
+    row('divine', '궁극기 충전', `${Math.round(stats.divine * 100)}%`, '궁극기 충전\n스킬로 맞히고 적을 쓰러뜨릴수록 차오른다. 가득 차면 발현한 신의 궁극기가 저절로 나간다.')
+    row('promote', '승급', `${stats.promotions}회`, '승급\n어느 클래스든 승급할 때마다 생명 +15, 모든 피해 +5%. 모든 클래스에 함께 적용된다.')
     right.append(grid)
 
     if (stats.powers.length > 0) {
@@ -424,6 +438,52 @@ export class GameMenu {
    * - 숨겨진 별은 이름 없이 흐리게 떠 있다.
    * 모든 ?는 올리거나 누르면 그 신화의 이야기로 된 힌트를 보여 준다.
    */
+  /**
+   * 다음 승급까지의 두 걸음(경험치 채우기 → 승급 전설)과, Lv1~4 단계마다 얻는 것.
+   * 지난 단계는 밝게, 다음 단계는 금빛 테로 강조한다.
+   */
+  private promotionGuide(god: God): HTMLElement {
+    const { progress } = this.host
+    const def = godDef(god)
+    const level = progress.level(god)
+    const box = el('section', 'menu-promo')
+    box.style.setProperty('--god', def.color)
+
+    if (level < MAX_LEVEL) {
+      const steps = el('div', 'menu-promo__steps')
+      const ratio = progress.xpRatio(god)
+      const ready = progress.readyToPromote(god)
+      const step1 = el('div', `menu-promo__step${ready ? ' is-done' : ' is-now'}`)
+      step1.append(el('span', 'menu-promo__no', '1'), el('span', '', `${josa(def.name, '으로')} 발현한 채 싸워 경험치를 채운다`))
+      const bar = el('div', 'ui-bar ui-bar--thin')
+      bar.style.setProperty('--fill', def.color)
+      bar.style.setProperty('--pct', ratio.toFixed(3))
+      step1.append(bar, el('b', '', `${Math.round(ratio * 100)}%`))
+      const step2 = el('div', `menu-promo__step${ready ? ' is-now' : ''}`)
+      step2.append(
+        el('span', 'menu-promo__no', '2'),
+        el('span', '', def.legend ? `성소의 결계에 들어가 승급 전설 「${def.legend}」에서 이긴다` : '이 신의 승급 전설은 아직 이 세계에 없다'),
+      )
+      steps.append(el('div', 'menu-promo__head', `다음 승급: Lv${level + 1} ${def.titles[level]}`), step1, step2)
+      box.append(steps)
+    }
+
+    const ladder = el('div', 'menu-promo__ladder')
+    allLevelGains(god).forEach((gains, i) => {
+      const lv = i + 1
+      const row = el('div', `menu-promo__level${lv <= level ? ' is-have' : ''}${lv === level + 1 ? ' is-next' : ''}`)
+      const head = el('div', 'menu-promo__lv')
+      head.append(el('span', 'ui-tag' + (lv <= level ? ' ui-tag--solid' : ' ui-tag--plain'), `Lv${lv}`), el('span', '', def.titles[i]!))
+      const list = el('ul', '')
+      for (const g of gains) list.append(el('li', `is-${g.kind}`, g.text))
+      if (gains.length === 0) list.append(el('li', '', '발현'))
+      row.append(head, list)
+      ladder.append(row)
+    })
+    box.append(ladder)
+    return box
+  }
+
   private renderClasses(): void {
     const { progress, loadout } = this.host
     const tree = DATA.classes
@@ -473,6 +533,9 @@ export class GameMenu {
       this.hintOn(now, '한 신의 유물이 모이면 그 신의 힘이 깨어난다.')
     }
     wrap.append(now)
+
+    // 다음 승급 방법과 단계마다 얻는 것
+    if (current) wrap.append(this.promotionGuide(current))
 
     // 원형 문장 10개: 친화도는 점으로
     const sigils = el('div', 'menu-classes__sigils')

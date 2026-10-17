@@ -25,7 +25,7 @@ export interface HudState {
   /** 경험치 바 색 (발현한 신의 대표 색) */
   xpColor: string
   /** 왼쪽 위 초상: 발현한 클래스. 발현하지 않았으면 null */
-  portrait: { name: string; color: string; level: number } | null
+  portrait: { name: string; title: string; color: string; level: number } | null
   /** 가호로 붙은 신들 */
   blessings: readonly { name: string; color: string }[]
   /** 경험치가 가득 차 승급 전설에 들어갈 수 있다 */
@@ -60,6 +60,8 @@ export class Hud {
   private readonly gems: HTMLElement[] = []
   private readonly chips: HTMLElement
   private statusKey = ''
+  private statusTip = ''
+  private readonly tip: HTMLElement
   private readonly ultimate: HTMLElement
   private readonly ultimateIcon: HTMLElement
   private readonly slotEls: { root: HTMLElement; icon: HTMLElement; src: string | null }[] = []
@@ -67,6 +69,8 @@ export class Hud {
   private readonly bossTrack: HTMLElement
   private readonly banner: HTMLElement
   private readonly toast: HTMLElement
+  private readonly gains: HTMLElement
+  private readonly flashEl: HTMLElement
   private readonly xpBar: HTMLElement
   private readonly xpFill: HTMLElement
   private bossTrailRatio = 1
@@ -87,6 +91,7 @@ export class Hud {
       e.stopPropagation()
       this.onPortraitClick()
     })
+    this.tipOn(this.portrait, () => (this.statusTip || '이름 없는 모험가\n한 신의 유물을 모두 끼면 그 신의 힘이 깨어난다.') + '\n누르면 자세한 상태')
     this.portraitIcon = document.createElement('img')
     this.portraitIcon.alt = ''
     this.portraitIcon.src = unknownSigil()
@@ -98,12 +103,15 @@ export class Hud {
 
     this.banner = this.el('div', 'hud__banner', this.root)
     this.toast = this.el('div', 'hud__toast', this.root)
+    this.flashEl = this.el('div', 'hud__flash', this.root)
+    this.gains = this.el('div', 'hud__gains', this.root)
 
     this.xpBar = this.el('div', 'hud__xp', this.root)
     this.xpFill = this.el('div', 'hud__xp-fill', this.xpBar)
 
     const dock = this.el('div', 'hud__dock', this.root)
     this.life = this.bar('ui-bar ui-bar--capped hud__life', dock)
+    this.tipOn(this.life, '생명\n다 떨어지면 쓰러졌다가 잠시 뒤 일어난다.')
 
     const slots = this.el('div', 'hud__slots', dock)
     for (let i = 0; i < SKILL_SLOTS; i++) {
@@ -120,11 +128,33 @@ export class Hud {
       this.slotEls.push({ root, icon, src: null })
     }
     this.ultimate = this.el('div', 'hud__ult', slots)
+    this.tipOn(this.ultimate, '궁극기\n싸울수록 둘레의 금빛 고리가 차오르고, 가득 차면 발현한 신의 궁극기가 저절로 나간다.')
     this.el('div', 'hud__ult-ring', this.ultimate)
     this.ultimateIcon = this.el('div', 'hud__icon', this.el('div', 'hud__ult-core', this.ultimate))
     this.ultimateIcon.style.backgroundImage = `url(${pixelIcon(BOLT_ICON.rows, BOLT_ICON.colors)})`
 
+    this.tip = this.el('div', 'hud__tip', this.root)
+    this.tip.hidden = true
     parent.appendChild(this.root)
+  }
+
+  /** 올리면 위쪽에 짧은 설명. 첫 줄은 굵게 */
+  private tipOn(target: HTMLElement, text: string | (() => string)): void {
+    target.classList.add('hud__tippable')
+    target.addEventListener('pointerenter', () => {
+      const [first, ...rest] = (typeof text === 'function' ? text() : text).split('\n')
+      const b = document.createElement('b')
+      b.textContent = first!
+      this.tip.replaceChildren(b, rest.join('\n'))
+      this.tip.hidden = false
+      const r = target.getBoundingClientRect()
+      const w = this.tip.offsetWidth
+      const left = Math.min(Math.max(8, r.left + r.width / 2 - w / 2), innerWidth - w - 8)
+      const below = r.top < innerHeight / 2
+      const top = below ? r.bottom + 8 : r.top - this.tip.offsetHeight - 8
+      this.tip.style.transform = `translate(${Math.round(left)}px, ${Math.round(top)}px)`
+    })
+    target.addEventListener('pointerleave', () => (this.tip.hidden = true))
   }
 
   update(state: HudState, dt: number): void {
@@ -175,6 +205,7 @@ export class Hud {
   /** 왼쪽 위 지금의 나: 바뀌었을 때만 다시 그린다. */
   private updateStatus(state: HudState): void {
     const { portrait, blessings, promote } = state
+    this.statusTip = portrait ? `${portrait.title}\n${portrait.name} Lv${portrait.level}${promote ? ' · 승급 준비됨' : ''}` : ''
     const key = `${portrait?.name}|${portrait?.level}|${blessings.map((b) => b.name).join()}|${promote}`
     if (key === this.statusKey) return
     this.statusKey = key
@@ -201,6 +232,43 @@ export class Hud {
     this.banner.textContent = text
     this.banner.style.color = color
     this.restartAnimation(this.banner)
+  }
+
+  /**
+   * 무엇이 얼마나 강해졌는지 보여 주는 카드 (발현·승급). 가운데 위에 몇 초 떠 있다가 사라진다.
+   * lines의 각 줄은 얻은 것 하나. "→"가 있으면 앞은 흐리게, 뒤는 밝게 보인다.
+   */
+  showGains(kind: string, title: string, color: string, icon: string, lines: readonly string[]): void {
+    const card = this.gains
+    card.replaceChildren()
+    card.style.setProperty('--glow', color)
+    const head = document.createElement('div')
+    head.className = 'hud__gains-head'
+    const portrait = this.el('div', 'ui-portrait', head)
+    portrait.style.setProperty('--glow', color)
+    portrait.append(this.img(icon))
+    const words = this.el('div', '', head)
+    this.el('div', 'hud__gains-kind', words).textContent = kind
+    this.el('div', 'hud__gains-title', words).textContent = title
+    card.append(head)
+    const list = this.el('ul', '', card)
+    lines.forEach((line, i) => {
+      const li = this.el('li', '', list)
+      li.style.animationDelay = `${0.35 + i * 0.12}s`
+      const [from, to] = line.split(' → ')
+      if (to !== undefined) {
+        this.el('span', 'hud__gains-from', li).textContent = from!
+        this.el('span', 'hud__gains-arrow', li).textContent = '→'
+        this.el('span', 'hud__gains-to', li).textContent = to
+      } else li.textContent = line
+    })
+    this.restartAnimation(card)
+  }
+
+  /** 화면 전체가 신의 색으로 한 번 번쩍인다. (발현) */
+  flash(color: string): void {
+    this.flashEl.style.setProperty('--flash', color)
+    this.restartAnimation(this.flashEl)
   }
 
   /** 유물을 주웠을 때처럼 가벼운 알림을 작게 띄운다. */

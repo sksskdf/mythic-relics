@@ -3,6 +3,7 @@ import * as THREE from 'three'
 import type { Giant } from '../../enemies/Giant'
 import { Debris } from '../../fx/Debris'
 import { Lightning } from '../../fx/Lightning'
+import { PowerUp } from '../../fx/PowerUp'
 import { Puffs } from '../../fx/Puffs'
 import { ShadowAura } from '../../fx/ShadowAura'
 import { Slashes } from '../../fx/Slashes'
@@ -31,6 +32,8 @@ export class Effects {
   /** 아수라 발현 중 검붉은 스산한 기운 */
   readonly asura = new ShadowAura(0x3a0408, 0xa3141c, 2.2)
   readonly snow = new Snowfall()
+  /** 유물을 끼고 발현할 때의 빛기둥과 발밑 빛 */
+  readonly power = new PowerUp()
   /** 유물 스킬 연출을 붙이는 곳 */
   readonly skills = new THREE.Group()
   private readonly marker = new MoveMarker()
@@ -46,7 +49,7 @@ export class Effects {
       effect.traverse((o) => o.layers.set(EFFECT_LAYER))
       scene.add(effect)
     }
-    scene.add(this.targetMarker.object, this.pathLine.object, this.skills, this.debris.object, this.lightning.object, this.shadow.object, this.asura.object)
+    scene.add(this.targetMarker.object, this.pathLine.object, this.skills, this.debris.object, this.lightning.object, this.shadow.object, this.asura.object, this.power.object)
   }
 
   /** 지시 표시: 누른 곳, 공격 대상, 적을 무시한 이동의 경로 */
@@ -75,6 +78,7 @@ export class Effects {
     this.sparks.update(dt, position)
     this.shadow.update(dt, position)
     this.asura.update(dt, position)
+    this.power.update(dt, position)
     this.slashes.update(dt)
     this.debris.update(dt)
     this.snow.update(dt, position, elapsed)
