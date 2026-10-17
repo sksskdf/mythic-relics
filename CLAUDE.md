@@ -68,6 +68,7 @@
 
 ## Git
 
-- 작업 브랜치: `claude/epic-babbage-e33i2f`. `git push -u origin claude/epic-babbage-e33i2f`.
+- 브랜치 이름은 작업이 무엇인지 바로 알 수 있게 짓는다: `feature/<마일스톤>-<내용>` (예: `feature/e3-appearance`), 고치기는 `fix/<내용>`.
+- 마일스톤이 끝나면 main에 병합하고, 다음 마일스톤은 main에서 새 브랜치를 만든다. 다 쓴 브랜치는 지운다.
 - 요청이 없으면 PR을 만들지 않는다.
 - 커밋 메시지는 한국어, 마지막에 세션이 알려 주는 Co-Authored-By·Claude-Session 줄을 붙인다. 모델 이름은 코드·문서에 쓰지 않는다.
