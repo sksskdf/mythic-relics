@@ -8,7 +8,7 @@ import { relicCard, type RelicCardContext, relicIcon } from './relicCard'
 import { classIcon } from './classIcons'
 import { smallSigilRing } from './emblem'
 import { josa } from './josa'
-import { archetypeSigil, glyph, unknownSigil } from './sigils'
+import { glyph, SOURCE_COLORS, sourceSigil, unknownSigil } from './sigils'
 import { type WardrobeHost, WardrobePane } from './WardrobePane'
 import './menu.css'
 
@@ -106,7 +106,7 @@ function pips(level: number, max = MAX_LEVEL): HTMLElement {
  * 정보 화면. (E4) HUD 오른쪽 위 책 단추로 연다. 열려 있는 동안 게임은 멈춘다.
  * 글을 최소로 쓰고 그림·점·막대로 보여 준다. 자세한 말은 올리거나 누를 때 힌트로만 띄운다. (DESIGN.md 2.1, 10.5)
  * - 유물: 장착 칸 4개와 가방, 바꿔 끼기, 바꾸면 어떻게 되는지는 카드 안에서 미리 보기
- * - 클래스: 지금 클래스, 원형 문장, 발견한 만큼만 드러나는 신들의 지도
+ * - 클래스: 지금 클래스와 다음 승급, 원천 넷, 발견한 만큼만 드러나는 신들의 지도
  * - 외형: 가운데 미리 보기와 몸 둘레의 부위 칸
  */
 export class GameMenu {
@@ -453,7 +453,7 @@ export class GameMenu {
    * 신들의 지도. 처음부터 모든 체계를 늘어놓지 않고, 발견한 만큼만 드러난다.
    * - 아는 땅(유물이 이 세계에 있는 신화권)은 신 넷이 자리로 보이고, 깨운 신은 칭호가, 나머지는 ?가 된다.
    * - 모르는 땅은 문장 하나(?)로만 보인다.
-   * - 높은 자리(원형·신화권의 상위)는 그 길에 처음 발을 디딘 뒤에야 ?로 나타난다.
+   * - 높은 자리(원천·신화권의 상위)는 그 길에 처음 발을 디딘 뒤에야 ?로 나타난다.
    * - 숨겨진 별은 이름 없이 흐리게 떠 있다.
    * 모든 ?는 올리거나 누르면 그 신화의 이야기로 된 힌트를 보여 준다.
    */
@@ -556,15 +556,19 @@ export class GameMenu {
     // 다음 승급 방법과 단계마다 얻는 것
     if (current) wrap.append(this.promotionGuide(current))
 
-    // 원형 문장 10개: 친화도는 점으로
-    const sigils = el('div', 'menu-classes__sigils')
-    for (const a of tree.archetypes) {
-      const value = progress.affinity(a.id)
-      const known = tree.mythologies.some((m) => m.classes.some((c) => c.archetype === a.id && levelOf(c.god) > 0))
-      const cell = el('span', `menu-classes__sigil${known ? ' is-known' : ''}`)
-      cell.append(img(known ? archetypeSigil(a.id) : archetypeSigil(a.id, '#3a4558', '#222a36')))
+    // 원천 넷: 이름, 차오르는 때, 숙련은 보석 점으로
+    const sigils = el('div', 'menu-classes__sources')
+    for (const x of tree.sources) {
+      const value = progress.mastery(x.id)
+      const known = tree.mythologies.some((m) => m.classes.some((c) => c.source === x.id && levelOf(c.god) > 0))
+      const cell = el('span', `menu-classes__source${known ? ' is-known' : ''}`)
+      cell.style.setProperty('--god', SOURCE_COLORS[x.id]![0])
+      cell.append(img(sourceSigil(x.id, known)))
+      const words = el('span', 'menu-classes__source-words')
+      words.append(el('b', '', x.name), el('small', '', x.gain))
+      cell.append(words)
       if (value > 0) cell.append(pips(Math.min(value, 4), 4))
-      this.hintOn(cell, known ? `${a.name}\n친화도 ${value}` : '아직 이 힘을 모른다.')
+      this.hintOn(cell, `${x.name}\n${x.gain} 차오르는 힘. 같은 원천의 신이 승급할 때마다 숙련이 오르고, 그 원천의 신으로 발현하면 피해가 늘어난다.${value > 0 ? `\n숙련 ${value}` : ''}`)
       sigils.append(cell)
     }
     wrap.append(sigils)
@@ -616,17 +620,22 @@ export class GameMenu {
     }
     wrap.append(map)
 
-    // 원형의 높은 자리: 그 원형의 신이 한 번이라도 승급한 뒤에 나타난다.
+    // 원천의 높은 자리: 그 원천의 신이 한 번이라도 승급한 뒤에 나타난다. 짝은 두 원천 모두 승급한 뒤에.
     const heights = el('div', 'menu-tree__heights')
-    const count = (archetype: string, minLevel: number) =>
-      tree.mythologies.flatMap((m) => m.classes).filter((c) => c.archetype === archetype && levelOf(c.god) >= minLevel).length
-    for (const a of tree.archetypes) {
-      if (count(a.id, 2) === 0) continue
-      const upper = count(a.id, 3) >= 2
+    const count = (source: string, minLevel: number) =>
+      [...tree.mythologies.flatMap((m) => m.classes), ...tree.hidden].filter((c) => c.source === source && levelOf(c.god) >= minLevel).length
+    for (const x of tree.sources) {
+      if (count(x.id, 2) === 0) continue
       const pair = el('span', 'menu-tree__height')
-      pair.append(img(archetypeSigil(a.id)))
-      pair.append(node(upper, a.upper.name, a.upper.hint))
-      if (upper) pair.append(node(count(a.id, 4) >= 4, a.apex.name, a.apex.hint))
+      pair.append(img(sourceSigil(x.id)))
+      pair.append(node(count(x.id, 3) >= 2, x.upper.name, x.upper.hint))
+      heights.append(pair)
+    }
+    for (const p of tree.pairs) {
+      if (p.sources.some((s) => count(s, 2) === 0)) continue
+      const pair = el('span', 'menu-tree__height')
+      pair.append(img(sourceSigil(p.sources[0])), img(sourceSigil(p.sources[1])))
+      pair.append(node(p.sources.every((s) => count(s, 3) >= 1), p.name, p.hint))
       heights.append(pair)
     }
     if (heights.childElementCount > 0) wrap.append(heights)

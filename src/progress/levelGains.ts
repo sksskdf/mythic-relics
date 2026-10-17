@@ -1,10 +1,10 @@
 import { DATA } from '../data'
 import { type God, godDef, relicDef, RELIC_IDS } from '../relics/data'
-import { AFFINITY_DAMAGE, MAX_LEVEL, PER_PROMOTION } from './ClassProgress'
+import { MASTERY_DAMAGE, MAX_LEVEL, PER_PROMOTION } from './ClassProgress'
 
 /** 한 단계에서 얻는 것 하나. kind는 그림을 고를 때 쓴다. */
 export interface LevelGain {
-  kind: 'hp' | 'damage' | 'affinity' | 'power'
+  kind: 'hp' | 'damage' | 'mastery' | 'power'
   text: string
 }
 
@@ -21,11 +21,8 @@ export function levelGains(god: God, level: number): LevelGain[] {
   } else {
     out.push({ kind: 'hp', text: `최대 생명 +${PER_PROMOTION.maxHp}` })
     out.push({ kind: 'damage', text: `모든 피해 +${Math.round(PER_PROMOTION.damage * 100)}%` })
-    const archetype = DATA.classes.archetypes.find((a) => a.id === def.archetype)
-    if (archetype) {
-      const extra = def.archetype === 'thunder' ? ` (번개 피해 +${Math.round(AFFINITY_DAMAGE * 100)}%)` : ''
-      out.push({ kind: 'affinity', text: `${archetype.name} 친화도 +1${extra}` })
-    }
+    const source = DATA.classes.sources.find((x) => x.id === def.source)
+    if (source) out.push({ kind: 'mastery', text: `${source.name} 숙련 +1 (${source.name} 신으로 발현 중 피해 +${Math.round(MASTERY_DAMAGE * 100)}%)` })
   }
   const chain = def.passive.chainLightning
   if (chain && chain.minLevel === level) out.push({ kind: 'power', text: `번개가 주변 적 ${chain.jumps}명에게 옮겨 붙음` })

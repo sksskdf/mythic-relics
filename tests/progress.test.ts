@@ -18,12 +18,12 @@ describe('클래스 성장', () => {
     expect(progress.record('thor').xp).toBe(0)
   })
 
-  it('승급하면 그 원형 친화도와 총 승급 횟수가 오른다', () => {
+  it('승급하면 그 원천 숙련과 총 승급 횟수가 오른다', () => {
     const progress = new ClassProgress()
     progress.addXp('thor', 99999)
     progress.promote('thor')
-    expect(progress.affinity('thunder')).toBe(1)
-    expect(progress.affinity('trickster')).toBe(0)
+    expect(progress.mastery('flame')).toBe(1)
+    expect(progress.mastery('wind')).toBe(0)
     expect(progress.promotions).toBe(1)
   })
 })

@@ -1,27 +1,24 @@
 import { pixelIcon } from './pixelIcon'
 
-/** 12×12 픽셀 문장. 글자 하나가 한 칸, '.'은 빈칸, 'a' 밝은 색, 'b' 어두운 색 */
-const ARCHETYPE_SIGILS: Record<string, readonly string[]> = {
-  // 천둥·폭풍: 번개
-  thunder: ['......aa....', '.....aa.....', '....aa......', '...aab......', '..aaaaaa....', '.....aab....', '....aab.....', '...aab......', '..aab.......', '..ab........', '............', '............'],
-  // 바다·물: 겹친 물결
-  sea: ['............', '............', '..aa....aa..', '.a..a..a..a.', 'a....aa....a', '............', '..bb....bb..', '.b..b..b..b.', 'b....bb....b', '............', '............', '............'],
-  // 죽음·저승: 해골
-  death: ['............', '...aaaaaa...', '..aaaaaaaa..', '..abbaabba..', '..abbaabba..', '..aaaaaaaa..', '...aaabaa...', '....aaaa....', '....a.a.a...', '............', '............', '............'],
-  // 태양·빛: 해
-  sun: ['.....a......', '..a..a..a...', '...a...a....', '.....aa.....', '....aaaa....', 'aa.aaaaaa.aa', '....aaaa....', '.....aa.....', '...a...a....', '..a..a..a...', '.....a......', '............'],
-  // 달·밤: 초승달
-  moon: ['............', '....aaa.....', '...aa.......', '..aa........', '..aa........', '..aa........', '..aa........', '...aa.......', '....aaa.....', '......b.....', '............', '............'],
-  // 트릭스터: 가면
-  trickster: ['............', '.a........a.', '.aa......aa.', '.aaaaaaaaaa.', '.abbaaaabba.', '.abbaaaabba.', '.aaaaaaaaaa.', '..aaabbaaa..', '...aaaaaa...', '....aaaa....', '............', '............'],
-  // 전쟁: 엇갈린 칼
-  war: ['a..........a', '.a........a.', '..a......a..', '...a....a...', '....a..a....', '.....aa.....', '.....aa.....', '....b..b....', '...b....b...', '..bb....bb..', '.bb......bb.', '............'],
-  // 지혜·마법: 눈
-  wisdom: ['............', '............', '...aaaaaa...', '..a......a..', '.a..bbbb..a.', 'a..bbaabb..a', '.a..bbbb..a.', '..a......a..', '...aaaaaa...', '............', '............', '............'],
-  // 대지·풍요: 나무
-  earth: ['.....aa.....', '...aaaaaa...', '..aaaaaaaa..', '.aaaaaaaaaa.', '..aaaaaaaa..', '...aaaaaa...', '.....bb.....', '.....bb.....', '....bbbb....', '...b.bb.b...', '............', '............'],
-  // 혼돈·파괴: 소용돌이
-  chaos: ['............', '...aaaaa....', '..a.....a...', '.a..aaa..a..', '.a.a...a.a..', '.a.a.a.a.a..', '.a.a..aa.a..', '.a..a....a..', '..a..aaaa...', '...a........', '....aaaa....', '............'],
+/** 원천 넷의 문장 (12×12)과 색: 불꽃 불씨, 사냥 핏방울, 바람 소용돌이, 바위 돌 조각 */
+const SOURCE_SIGILS: Record<string, readonly string[]> = {
+  flame: ['.....a......', '....aa......', '....aba.....', '...abba..a..', '...abbba.a..', '..abbbbbaa..', '..abbcbbba..', '.abbcccbbba.', '.abccccbba..', '..abcccba...', '...abbba....', '....aaa.....'],
+  hunt: ['.....a......', '.....a......', '....aba.....', '....aba.....', '...abbba....', '...abbba....', '..abbbbba...', '..abbcbbba..', '..abcccbba..', '..abbcbbba..', '...abbbba...', '....aaaa....'],
+  wind: ['............', '..aaaaaa....', '.a......a...', '........a...', '..aaaa..a...', '.a....a.a...', '.a..a.a.a...', '.a...a..a...', '..aaa..a....', '......a.....', '.aaaaa......', '............'],
+  stone: ['............', '....aaaa....', '...abbbba...', '..abbcbbba..', '.abbcbbbbba.', '.abbbbbcbba.', 'abbbbbbbbbba', 'abcbbbbbbbba', 'abbbbbcbbbba', '.abbbbbbbba.', '..aaaaaaaa..', '............'],
+}
+/** 원천의 색 (밝은 색, 어두운 색, 속 색) */
+export const SOURCE_COLORS: Record<string, readonly [string, string, string]> = {
+  flame: ['#ffb84a', '#d9542a', '#fff0a8'],
+  hunt: ['#ff7a7a', '#a3141c', '#ffd0d0'],
+  wind: ['#9fe3ff', '#3f8aa8', '#e9f6ff'],
+  stone: ['#c9c2b0', '#6a6658', '#efe8d6'],
+}
+
+/** 원천 문장 그림 주소. 모르는 원천은 어둡게 */
+export function sourceSigil(id: string, known = true): string {
+  const [a, b, c] = known ? SOURCE_COLORS[id]! : ['#3a4558', '#222a36', '#2a3240']
+  return draw(`s:${id}:${known}`, SOURCE_SIGILS[id]!, a, b, c)
 }
 
 /** 잠긴 것·모르는 곳 */
@@ -69,19 +66,14 @@ const GLYPHS: Record<string, readonly string[]> = {
 
 const cache = new Map<string, string>()
 
-function draw(key: string, rows: readonly string[], light: string, dark: string): string {
-  const id = `${key}|${light}|${dark}`
+function draw(key: string, rows: readonly string[], light: string, dark: string, inner = light): string {
+  const id = `${key}|${light}|${dark}|${inner}`
   let url = cache.get(id)
   if (!url) {
-    url = pixelIcon(rows, { a: light, b: dark })
+    url = pixelIcon(rows, { a: light, b: dark, c: inner })
     cache.set(id, url)
   }
   return url
-}
-
-/** 원형 문장 그림 주소 */
-export function archetypeSigil(id: string | null, light = '#e9eef5', dark = '#8d98a6'): string {
-  return draw(`a:${id}`, (id && ARCHETYPE_SIGILS[id]) || UNKNOWN, light, dark)
 }
 
 /** 모르는 것(?) 그림 주소 */

@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 
-import { AFFINITY_DAMAGE, PER_PROMOTION } from '../../progress/ClassProgress'
+import { MASTERY_DAMAGE, PER_PROMOTION } from '../../progress/ClassProgress'
 import { godDef } from '../../relics/data'
 import type { DamageStyle } from '../../ui/DamageNumbers'
 import { heightAt } from '../../world/terrain'
@@ -21,13 +21,16 @@ export class DamageSystem {
   constructor(private readonly ctx: GameContext) {}
 
   /** 기본 공격과 스킬에 공통으로 곱하는 피해 배율 */
-  scale(style: DamageStyle | 'basic'): number {
+  scale(_style: DamageStyle | 'basic'): number {
     const { progress, powers } = this.ctx
     let scale = 1 + progress.promotions * PER_PROMOTION.damage
     const manifested = powers.manifested
     // 발현 패시브 (천둥의 신: 거인 특효)
-    if (manifested) scale *= godDef(manifested).passive.damageScale
-    if (style === 'thunder') scale *= 1 + progress.affinity('thunder') * AFFINITY_DAMAGE
+    if (manifested) {
+      scale *= godDef(manifested).passive.damageScale
+      // 원천 숙련: 발현한 신과 같은 원천의 승급 횟수만큼
+      scale *= 1 + progress.mastery(godDef(manifested).source) * MASTERY_DAMAGE
+    }
     return scale
   }
 

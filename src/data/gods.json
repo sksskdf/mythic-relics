@@ -7,7 +7,7 @@
       "폭풍왕",
       "거인의 재앙"
     ],
-    "archetype": "thunder",
+    "source": "flame",
     "color": "#7fd4ff",
     "tree": {
       "column": 0,
@@ -43,7 +43,7 @@
       "신들의 배신자",
       "라그나로크의 불씨"
     ],
-    "archetype": "trickster",
+    "source": "wind",
     "color": "#8fe07a",
     "tree": {
       "column": 1,
@@ -65,7 +65,7 @@
       "삼면육비",
       "제석천에 맞선 왕"
     ],
-    "archetype": "war",
+    "source": "flame",
     "color": "#e0414f",
     "tree": {
       "column": 2,

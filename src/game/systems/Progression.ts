@@ -58,7 +58,7 @@ export class ProgressionSystem {
     if (relic) pickups.drop(relic, giant.x, giant.z)
   }
 
-  /** 승급: 칭호가 바뀌고, 스킬이 강해지고, 친화도와 기본 능력치가 오른다. */
+  /** 승급: 칭호가 바뀌고, 스킬이 강해지고, 원천 숙련과 기본 능력치가 오른다. */
   promote(god: God): void {
     const { progress, combat, hero, hud, fx, view, feel, bus } = this.ctx
     const hpBefore = BASE_HP + progress.promotions * PER_PROMOTION.maxHp

@@ -7,8 +7,8 @@ export type { GodDef, RelicDef } from '../data/schema'
 export type God = string
 /** 유물 id (relics.json의 키) */
 export type RelicId = string
-/** 원형 (DESIGN.md 6장) */
-export type Archetype = string
+/** 원천 (DESIGN.md 6장): 불꽃·사냥·바람·바위 */
+export type { SourceId as Source } from '../data/schema'
 
 /** 신·클래스 데이터 (src/data/gods.json) */
 export const GODS: Readonly<Record<God, GodDef>> = DATA.gods

@@ -1,11 +1,11 @@
 import { pixelIcon } from './pixelIcon'
 
 /**
- * 게임의 얼굴인 문장 고리: 열 원형의 작은 문장이 유물 보석을 둘러싼다. (DESIGN.md 10.5)
+ * 게임의 얼굴인 문장 고리: 열 신화권을 뜻하는 작은 문장이 유물 보석을 둘러싼다. (DESIGN.md 10.5)
  * 시작·로딩 화면과 메뉴 단추에 쓴다. 64×64 픽셀로 그려 CSS로 정수배 확대한다.
  */
 
-/** 고리에 새긴 열 원형의 작은 문장 (4×4). 순서: 천둥, 바다, 죽음, 태양, 달, 트릭스터, 전쟁, 지혜, 대지, 혼돈 */
+/** 고리에 새긴 열 개의 작은 문장 (4×4) */
 const RING_SIGILS = [
   ['..a.', '.a..', 'aaa.', '.a..'],
   ['....', 'a.a.', '.a.a', '....'],
@@ -42,7 +42,7 @@ export function sigilRing(): string {
     dot(Math.round(c + Math.cos(t) * 29), Math.round(c + Math.sin(t) * 29), '#4a4d56')
     dot(Math.round(c + Math.cos(t) * 27), Math.round(c + Math.sin(t) * 27), '#2b2d33')
   }
-  // 원형 문장 열 개
+  // 작은 문장 열 개
   RING_SIGILS.forEach((rows, i) => {
     const t = (i / RING_SIGILS.length) * Math.PI * 2 - Math.PI / 2
     const ox = Math.round(c + Math.cos(t) * 21) - 2

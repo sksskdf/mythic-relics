@@ -1,4 +1,4 @@
-import { type Archetype, type God, godDef } from '../relics/data'
+import { type God, godDef, type Source } from '../relics/data'
 
 export const MAX_LEVEL = 4
 /** 레벨마다 다음 승급까지 필요한 경험치 (Lv1→2, Lv2→3, Lv3→4) */
@@ -11,14 +11,14 @@ export interface ClassRecord {
 
 /** 승급 한 번마다 오르는 기본 능력치 (DESIGN.md 6.2: 총 승급 횟수에서 나온다) */
 export const PER_PROMOTION = { maxHp: 15, damage: 0.05 }
-/** 원형 친화도 1마다 그 원형 스킬 피해가 늘어나는 비율 */
-export const AFFINITY_DAMAGE = 0.1
+/** 원천 숙련 1마다, 그 원천의 신으로 발현해 있을 때 모든 피해가 늘어나는 비율 */
+export const MASTERY_DAMAGE = 0.1
 
 /**
  * 클래스 성장 기록. (DESIGN.md 5.2)
  * - 발현 상태로 괴물을 잡으면 그 클래스에 경험치가 쌓인다. 가호 상태에서는 쌓이지 않는다.
  * - 경험치 바가 가득 차면 승급 대기. 승급 전설을 깨면 다음 레벨로 오른다.
- * - 승급하면 그 원형의 친화도가 오르고, 총 승급 횟수만큼 기본 능력치가 오른다.
+ * - 승급하면 그 원천의 숙련가 오르고, 총 승급 횟수만큼 기본 능력치가 오른다.
  */
 export class ClassProgress {
   readonly records = new Map<God, ClassRecord>()
@@ -81,11 +81,11 @@ export class ClassProgress {
     return total
   }
 
-  /** 원형 친화도: 그 원형에 속한 클래스들의 승급 횟수 합 */
-  affinity(archetype: Archetype): number {
+  /** 원천 숙련: 그 원천에 속한 클래스들의 승급 횟수 합 */
+  mastery(source: Source): number {
     let total = 0
     for (const [god, record] of this.records) {
-      if (godDef(god).archetype === archetype) total += record.level - 1
+      if (godDef(god).source === source) total += record.level - 1
     }
     return total
   }

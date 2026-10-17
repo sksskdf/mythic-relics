@@ -52,7 +52,7 @@
 | `src/skills/` | 유물 효과(`index.ts`: 데이터 → 효과), 행동·오라 종류(`actions.ts`), 궁극기 |
 | `src/looks/` | 외형: 칸과 외형 목록(`catalog.ts`), 장착 → 모습·보관함(`outfit.ts`). 모델은 `src/voxel/models/looks.ts`, 적용은 `systems/Appearance.ts` |
 | `src/relics/` | 유물·신 데이터, 장착(발현·가호 판정), 드랍 규칙, 땅의 유물 |
-| `src/progress/` | 클래스 레벨·경험치·친화도 |
+| `src/progress/` | 클래스 레벨·경험치·원천 숙련, 단계별로 얻는 것(`levelGains`) |
 | `src/save/` | 저장 형식과 검사 |
 | `src/render/` | 픽셀 렌더러, 쿼터뷰 카메라, 화면 ↔ 월드 좌표, 실루엣 |
 | `src/voxel/` | 복셀 격자, 메시 생성, 모델(`models/`) |
