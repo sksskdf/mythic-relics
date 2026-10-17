@@ -91,6 +91,22 @@ export class DamageSystem {
         this.chainLightning(first, finisher ? chain.finisherDamage : chain.damage, chain.jumps, chain.range)
       }
     }
+    // 발현 패시브: 칼날 폭풍 (아수라왕). 등의 팔들이 가까운 적들에게 차례로 칼을 휘두른다.
+    const storm = passive?.bladeStorm
+    if (manifested && storm) {
+      const level = progress.level(manifested)
+      const blades = Math.round(storm.base + storm.perLevel * (level - 1))
+      const p = hero.object.position
+      const near = this.ctx.encounter.alive.filter((e) => Math.hypot(e.x - p.x, e.z - p.z) < storm.radius)
+      for (let i = 0; i < blades && near.length > 0; i++) {
+        const enemy = near[i % near.length]!
+        const dx = enemy.x - p.x
+        const dz = enemy.z - p.z
+        const len = Math.hypot(dx, dz) || 1
+        fx.slashes.spawn(new THREE.Vector3(enemy.x, heightAt(enemy.x, enemy.z), enemy.z), Math.random() * Math.PI * 2, 1 + Math.random() * 0.4, 0.8, false, i % 2 ? 0xff4a5a : 0xb0101c)
+        this.deal(enemy, storm.damage, dx / len, dz / len, 1.5, 'normal')
+      }
+    }
     const strong = hits.some((h) => h.strong)
     feel.stop(strong ? 0.09 : 0.045)
     view.shake(strong ? 0.14 : 0.05)

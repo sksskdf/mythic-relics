@@ -161,7 +161,10 @@ try {
   await page.keyboard.press('Escape')
   if (await page.evaluate(() => window.__game.paused)) throw new Error('정보 화면: 닫았는데 게임이 멈춰 있습니다.')
   // 순환 탭: 결정이 있으면 단련할 수 있다
-  await page.evaluate(() => (window.__game.cycle.essence.flame = 100))
+  await page.evaluate(() => {
+    window.__game.cycle.essence.flame = 100
+    window.__game.cycle.opened.add('train')
+  })
   await page.click('.menu-button')
   await page.locator('.menu__tab').nth(1).click()
   await page.locator('.menu-cycle__train').first().click()

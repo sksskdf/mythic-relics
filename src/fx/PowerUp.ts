@@ -25,9 +25,15 @@ export class PowerUp {
   readonly object = new THREE.Group()
   private readonly bursts: Burst[] = []
   private readonly motes: Mote[] = []
+  private readonly rising: { mesh: THREE.Mesh; age: number }[] = []
   private readonly glow: THREE.Mesh
   private readonly glowMaterial: THREE.MeshBasicMaterial
   private glowLevel = 0
+  /** 발현 레벨에 따른 모습: 0 없음, 1~4 */
+  private ascension = 0
+  private readonly ascendColor = new THREE.Color()
+  private riseTimer = 0
+  private readonly halos: THREE.Mesh[] = []
   private glowShown = 0
   private time = 0
   private readonly pillarGeometry = new THREE.CylinderGeometry(0.55, 0.75, 1, 12, 1, true)
@@ -40,6 +46,31 @@ export class PowerUp {
     this.glow.rotation.x = -Math.PI / 2
     this.glow.layers.set(EFFECT_LAYER)
     this.object.add(this.glow)
+    // 머리 위 빛 고리 둘 (Lv3에 하나, Lv4에 둘)
+    for (let i = 0; i < 2; i++) {
+      const halo = new THREE.Mesh(
+        new THREE.TorusGeometry(0.42 + i * 0.16, 0.035, 6, 32),
+        new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }),
+      )
+      halo.rotation.x = -Math.PI / 2
+      halo.visible = false
+      halo.layers.set(EFFECT_LAYER)
+      this.object.add(halo)
+      this.halos.push(halo)
+    }
+  }
+
+  /**
+   * 발현 레벨만큼 화려해진다: 레벨마다 몸에서 피어오르는 빛 조각이 많아지고,
+   * Lv3에 머리 위 빛 고리, Lv4에 고리 둘과 더 큰 발밑 빛.
+   */
+  setAscension(color: string | number | null, level: number): void {
+    this.ascension = color === null ? 0 : level
+    if (color !== null) this.ascendColor.set(color)
+    this.halos.forEach((h, i) => {
+      h.visible = this.ascension >= 3 + i
+      ;(h.material as THREE.MeshBasicMaterial).color.copy(this.ascendColor)
+    })
   }
 
   /** 빛기둥 한 번. strength 1 = 유물 하나, 3 = 발현 */
@@ -114,6 +145,38 @@ export class PowerUp {
         this.bursts.splice(i, 1)
       }
     }
+    // 발현 레벨: 몸에서 빛 조각이 피어오르고, 머리 위 고리가 돈다
+    if (this.ascension > 0) {
+      this.riseTimer -= dt
+      if (this.riseTimer <= 0) {
+        this.riseTimer = 0.5 / this.ascension
+        const a = Math.random() * Math.PI * 2
+        const r = 0.3 + Math.random() * 0.4
+        const m = new THREE.Mesh(this.moteGeometry, new THREE.MeshBasicMaterial({ color: this.ascendColor, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }))
+        m.position.set(center.x + Math.sin(a) * r, center.y + 0.2 + Math.random() * 0.6, center.z + Math.cos(a) * r)
+        m.userData.speed = 0.8 + Math.random() * (0.5 + this.ascension * 0.3)
+        m.layers.set(EFFECT_LAYER)
+        this.object.add(m)
+        this.rising.push({ mesh: m, age: 0 })
+      }
+    }
+    for (let i = this.rising.length - 1; i >= 0; i--) {
+      const r = this.rising[i]!
+      r.age += dt
+      r.mesh.position.y += (r.mesh.userData.speed as number) * dt
+      ;(r.mesh.material as THREE.MeshBasicMaterial).opacity = Math.max(0, 1 - r.age / 1.2)
+      if (r.age >= 1.2) {
+        this.object.remove(r.mesh)
+        ;(r.mesh.material as THREE.Material).dispose()
+        this.rising.splice(i, 1)
+      }
+    }
+    this.halos.forEach((h, i) => {
+      if (!h.visible) return
+      h.position.set(center.x, center.y + 2.15 + i * 0.12 + Math.sin(this.time * 2 + i) * 0.04, center.z)
+      h.rotation.z += dt * (i ? -1.2 : 0.8)
+      ;(h.material as THREE.MeshBasicMaterial).opacity = 0.75 + Math.sin(this.time * 3 + i) * 0.2
+    })
     // 결정 조각: 0.15초 튀어 오르고 0.45초 동안 주인공 가슴께로
     for (let i = this.motes.length - 1; i >= 0; i--) {
       const m = this.motes[i]!

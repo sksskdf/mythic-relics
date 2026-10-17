@@ -30,6 +30,8 @@ export interface HudState {
   portrait: { name: string; title: string; color: string; level: number } | null
   /** 원천 결정 보유량 (불꽃·사냥·바람·바위) */
   essence: Readonly<Record<string, number>>
+  /** 순환이 열렸는가 (첫 발현 뒤). 그 전에는 결정 수를 감춘다 */
+  essenceOpen: boolean
   /** 가호로 붙은 신들 */
   blessings: readonly { name: string; color: string }[]
   /** 경험치가 가득 차 승급 전설에 들어갈 수 있다 */
@@ -64,6 +66,7 @@ export class Hud {
   private readonly gems: HTMLElement[] = []
   private readonly chips: HTMLElement
   private statusKey = ''
+  private essenceBox!: HTMLElement
   private readonly essenceEls = new Map<string, { cell: HTMLElement; count: HTMLElement; shown: string }>()
   private statusTip = ''
   private readonly tip: HTMLElement
@@ -107,6 +110,7 @@ export class Hud {
     this.chips = this.el('div', 'hud__chips', side)
     // 원천 결정: 문장과 수 넷
     const essence = this.el('div', 'hud__essence', this.root)
+    this.essenceBox = essence
     for (const id of ['flame', 'hunt', 'wind', 'stone']) {
       const cell = this.el('span', 'hud__essence-cell', essence)
       cell.append(this.img(sourceSigil(id)))
@@ -179,6 +183,7 @@ export class Hud {
     this.life.style.setProperty('--trail', this.lifeTrailRatio.toFixed(3))
     this.life.classList.toggle('is-low', state.life <= 0.3)
     this.updateStatus(state)
+    this.essenceBox.hidden = !state.essenceOpen
     for (const [id, el] of this.essenceEls) {
       const text = shortNumber(state.essence[id] ?? 0)
       if (text === el.shown) continue

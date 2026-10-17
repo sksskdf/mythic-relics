@@ -1295,3 +1295,29 @@
   .menu-cycle__devices,
   .menu-cycle__stars { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+.menu-cycle__help {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  margin-left: var(--sp-3);
+  font: var(--t-small);
+  color: var(--c-ink-3);
+  vertical-align: 2px;
+  box-shadow: inset 0 0 0 1px var(--c-stone-hi);
+  cursor: help;
+}
+.menu-cycle__help:hover {
+  color: var(--c-ink-1);
+  box-shadow: inset 0 0 0 1px var(--c-moon);
+}
+.menu-cycle__units {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.menu-cycle__unit-box {
+  display: flex;
+  gap: var(--sp-2);
+}

@@ -62,6 +62,10 @@ export const LAWS = {
 } as const
 export type LawId = keyof typeof LAWS
 
+/** 순환의 단계: 단련은 첫 발현에, 윤회는 첫 승급에 열린다. 그 뒤 장치는 윤회 횟수로 열린다 (UNLOCKS). */
+export type Stage = 'train' | 'rebirth'
+export const STAGES: readonly Stage[] = ['train', 'rebirth']
+
 const zero = (): Record<SourceId, number> => ({ flame: 0, hunt: 0, wind: 0, stone: 0 })
 
 export interface CycleData {
@@ -78,6 +82,8 @@ export interface CycleData {
   cleared: SourceId[]
   dooms: number
   laws: LawId[]
+  /** 열린 단계: 단련(첫 발현), 윤회(첫 승급) */
+  opened: Stage[]
 }
 
 export class Cycle {
@@ -91,6 +97,7 @@ export class Cycle {
   cleared = new Set<SourceId>()
   dooms = 0
   laws: LawId[] = []
+  opened = new Set<Stage>()
   /** 원천 숙련 (승급에서 온다). 시스템이 채운다. */
   mastery: (source: SourceId) => number = () => 0
   /** 총 승급 횟수 (단련 할인). 시스템이 채운다. */
@@ -144,14 +151,36 @@ export class Cycle {
   }
 
   canTrain(source: SourceId): boolean {
-    return this.essence[source] >= this.cost(source)
+    return this.opened.has('train') && this.essence[source] >= this.cost(source)
   }
 
-  train(source: SourceId): boolean {
-    if (!this.canTrain(source)) return false
-    this.essence[source] -= this.cost(source)
-    this.training[source] += 1
-    return true
+  /** 단련: count번 (Infinity면 살 수 있는 만큼). 실제로 올린 단계 수를 돌려준다. */
+  train(source: SourceId, count = 1): number {
+    let done = 0
+    while (done < count && this.canTrain(source)) {
+      this.essence[source] -= this.cost(source)
+      this.training[source] += 1
+      done += 1
+    }
+    return done
+  }
+
+  /** count번(Infinity면 살 수 있는 만큼) 단련할 때 실제로 오를 단계와 비용 합. 하나도 못 사면 다음 한 단계 비용 */
+  quote(source: SourceId, count: number): { levels: number; cost: number } {
+    const saved = this.training[source]
+    let levels = 0
+    let cost = 0
+    let left = this.essence[source]
+    while (levels < count && levels < 500) {
+      const next = this.cost(source)
+      if (left < next) break
+      left -= next
+      cost += next
+      levels += 1
+      this.training[source] += 1
+    }
+    this.training[source] = saved
+    return { levels, cost: levels > 0 ? cost : this.cost(source) }
   }
 
   /** 자동 단련: 살 수 있는 것 중 가장 싼 것 하나 */
@@ -165,7 +194,7 @@ export class Cycle {
 
   /** 윤회하면 얻을 재 */
   ashForRebirth(): number {
-    if (this.runTotal < REBIRTH_NEED) return 0
+    if (!this.opened.has('rebirth') || this.runTotal < REBIRTH_NEED) return 0
     const base = Math.floor(Math.sqrt(this.runTotal / REBIRTH_NEED) * 3)
     return Math.floor(base * (this.laws.includes('ash') ? 1.5 : 1))
   }
@@ -247,6 +276,7 @@ export class Cycle {
       cleared: [...this.cleared],
       dooms: this.dooms,
       laws: [...this.laws],
+      opened: [...this.opened],
     }
   }
 
@@ -261,6 +291,7 @@ export class Cycle {
     this.cleared = new Set(data.cleared)
     this.dooms = data.dooms
     this.laws = [...data.laws]
+    this.opened = new Set(data.opened)
   }
 }
 
@@ -289,5 +320,6 @@ export function parseCycle(raw: unknown): CycleData {
     cleared: (Array.isArray(o.cleared) ? o.cleared : []).filter(isSource),
     dooms: Math.floor(n(o.dooms, 1e6)),
     laws: (Array.isArray(o.laws) ? o.laws : []).filter((l): l is LawId => typeof l === 'string' && Object.hasOwn(LAWS, l)),
+    opened: (Array.isArray(o.opened) ? o.opened : []).filter((v): v is Stage => (STAGES as readonly unknown[]).includes(v)),
   }
 }

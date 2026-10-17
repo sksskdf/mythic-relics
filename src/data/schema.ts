@@ -121,6 +121,8 @@ export interface ClassPassive {
   basicLightning?: { damage: number; finisherDamage: number }
   /** 번개가 가까운 적에게 옮겨 붙는다. minLevel부터 */
   chainLightning?: { minLevel: number; jumps: number; range: number; damage: number; finisherDamage: number }
+  /** 칼날 폭풍 (아수라왕): 기본 공격이 맞을 때마다 등의 팔들이 주변 적에게 칼을 휘두른다. 칼 수 = base + perLevel × (레벨 − 1) */
+  bladeStorm?: { damage: number; radius: number; base: number; perLevel: number }
 }
 
 /** 외형 id가 있고, 그 외형이 그 칸의 것인지 검사한다. */
@@ -151,13 +153,19 @@ export function parseGods(raw: unknown, path = 'gods.json'): Record<string, GodD
     const tree = obj(o.tree, `${p}.tree`)
     onlyKeys(tree, `${p}.tree`, ['column', 'row'])
     const passiveRaw = obj(o.passive ?? {}, `${p}.passive`)
-    onlyKeys(passiveRaw, `${p}.passive`, ['damageScale', 'basicLightning', 'chainLightning'])
+    onlyKeys(passiveRaw, `${p}.passive`, ['damageScale', 'basicLightning', 'chainLightning', 'bladeStorm'])
     const passive: ClassPassive = { damageScale: optNum(passiveRaw, 'damageScale', `${p}.passive`, { min: 0 }) ?? 1 }
     if (passiveRaw.basicLightning !== undefined) {
       const q = `${p}.passive.basicLightning`
       const b = obj(passiveRaw.basicLightning, q)
       onlyKeys(b, q, ['damage', 'finisherDamage'])
       passive.basicLightning = { damage: num(b, 'damage', q, { min: 0 }), finisherDamage: num(b, 'finisherDamage', q, { min: 0 }) }
+    }
+    if (passiveRaw.bladeStorm !== undefined) {
+      const q = `${p}.passive.bladeStorm`
+      const b = obj(passiveRaw.bladeStorm, q)
+      onlyKeys(b, q, ['damage', 'radius', 'base', 'perLevel'])
+      passive.bladeStorm = { damage: num(b, 'damage', q, { min: 0 }), radius: num(b, 'radius', q, { min: 0 }), base: num(b, 'base', q, { min: 0 }), perLevel: num(b, 'perLevel', q, { min: 0 }) }
     }
     if (passiveRaw.chainLightning !== undefined) {
       const q = `${p}.passive.chainLightning`

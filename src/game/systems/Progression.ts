@@ -85,6 +85,9 @@ export class ProgressionSystem {
     }
     fx.lightning.fromSky(p.clone(), 0.34)
     fx.puffs.burst(p, 40, 5)
+    // 승급: 그 신의 색으로 가장 큰 빛기둥과 번쩍임. 레벨이 오를수록 크다.
+    fx.power.burst(p, godDef(god).color, 3 + progress.level(god))
+    hud.flash(godDef(god).color)
     view.shake(0.6)
     feel.stop(0.2)
   }

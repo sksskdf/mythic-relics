@@ -2,26 +2,32 @@ import { describe, expect, it } from 'vitest'
 
 import { Cycle, parseCycle, REBIRTH_NEED, UNLOCKS } from '../src/progress/Cycle'
 
+const open = (c: Cycle): Cycle => {
+  c.opened.add('train')
+  c.opened.add('rebirth')
+  return c
+}
+
 describe('순환 성장', () => {
   it('결정이 들어오고 단련하면 비용이 오르고 능력치가 붙는다', () => {
-    const c = new Cycle()
+    const c = open(new Cycle())
     c.gain('flame', 100)
     expect(c.essence.flame).toBe(100)
     const first = c.cost('flame')
-    expect(c.train('flame')).toBe(true)
+    expect(c.train('flame')).toBe(1)
     expect(c.cost('flame')).toBeGreaterThan(first)
     expect(c.damageScale).toBeCloseTo(1.05)
   })
 
   it('고리의 앞 원천 단련이 뒤 원천 결정을 늘린다 (바람 → 불꽃)', () => {
-    const c = new Cycle()
+    const c = open(new Cycle())
     c.training.wind = 5
     expect(c.gainScale('flame')).toBeCloseTo(1.2)
     expect(c.gainScale('hunt')).toBe(1)
   })
 
   it('숙련과 승급이 결정 배율과 단련 할인이 된다', () => {
-    const c = new Cycle()
+    const c = open(new Cycle())
     const before = c.cost('stone')
     c.mastery = (s) => (s === 'stone' ? 2 : 0)
     c.promotions = () => 3
@@ -30,7 +36,7 @@ describe('순환 성장', () => {
   })
 
   it('윤회하면 단련과 결정을 버리고 재를 얻으며, 다음 판은 더 빨리 모인다', () => {
-    const c = new Cycle()
+    const c = open(new Cycle())
     expect(c.rebirth()).toBe(0)
     c.gain('hunt', REBIRTH_NEED * 4)
     c.train('hunt')
@@ -43,8 +49,18 @@ describe('순환 성장', () => {
     expect(c.gainScale('hunt')).toBeCloseTo(1.1 * 1.2)
   })
 
-  it('장치는 윤회 횟수에 따라 차례로 열린다', () => {
+  it('단련은 첫 발현, 윤회는 첫 승급 전에는 잠겨 있다', () => {
     const c = new Cycle()
+    c.gain('flame', 10_000)
+    expect(c.train('flame')).toBe(0)
+    expect(c.ashForRebirth()).toBe(0)
+    c.opened.add('train')
+    expect(c.train('flame', 10)).toBe(10)
+    expect(c.quote('flame', Infinity).levels).toBeGreaterThan(0)
+  })
+
+  it('장치는 윤회 횟수에 따라 차례로 열린다', () => {
+    const c = open(new Cycle())
     c.essence.flame = 1000
     expect(c.autoTrain()).toBeNull()
     c.rebirths = UNLOCKS.autoTrain
@@ -53,7 +69,7 @@ describe('순환 성장', () => {
   })
 
   it('도전을 건 원천은 결정이 들어오지 않고, 끝내면 영구 +25%', () => {
-    const c = new Cycle()
+    const c = open(new Cycle())
     c.rebirths = UNLOCKS.challenge
     c.gain('wind', REBIRTH_NEED)
     c.rebirth('wind')
@@ -66,7 +82,7 @@ describe('순환 성장', () => {
   })
 
   it('태초의 법: 흐르는 원천은 고리의 다음 원천으로 10%가 함께 들어온다', () => {
-    const c = new Cycle()
+    const c = open(new Cycle())
     c.conquer()
     expect(c.chooseLaw('flow')).toBe(true)
     expect(c.lawPending).toBe(false)
@@ -75,7 +91,7 @@ describe('순환 성장', () => {
   })
 
   it('저장 형식을 검사하고, 틀린 값은 버린다', () => {
-    const c = new Cycle()
+    const c = open(new Cycle())
     c.gain('stone', 50)
     c.conquer()
     c.chooseLaw('keep')
@@ -116,7 +132,7 @@ describe('순환 성장 곡선 (간이 모의)', () => {
   }
 
   it('윤회를 거듭할수록 같은 지점까지 더 빨리 닿는다', () => {
-    const c = new Cycle()
+    const c = open(new Cycle())
     const times: number[] = []
     for (let i = 0; i < 4; i++) {
       times.push(timeToRebirth(c))

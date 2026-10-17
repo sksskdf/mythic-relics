@@ -44,6 +44,18 @@ export class CycleSystem {
       const p = ctx.hero.object.position
       this.gain('stone', damage / GAIN.hurtPerEssence, p.x, p.z)
     })
+    // 단계 열기: 첫 발현에 단련, 첫 승급에 윤회
+    const open = (stage: 'train' | 'rebirth', text: string) => {
+      if (cycle.opened.has(stage)) return
+      cycle.opened.add(stage)
+      ctx.hud.showToast(text)
+      bus.emit('progressChanged', {})
+    }
+    bus.on('manifested', () => open('train', '순환이 열렸다: 단련 (정보 화면 › 순환)'))
+    bus.on('promoted', () => open('rebirth', '순환이 열렸다: 윤회 (정보 화면 › 순환)'))
+    // 이미 발현·승급한 적 있는 저장이면 바로 연다
+    if (progress.records.size > 0) cycle.opened.add('train')
+    if (progress.promotions > 0) cycle.opened.add('rebirth')
     bus.on('giantKilled', ({ giant }) => {
       if (giant !== this.doomBoss) return
       this.doomBoss = null
@@ -65,6 +77,8 @@ export class CycleSystem {
 
   update(dt: number): void {
     const { cycle, hero, combat, progress, bus } = this.ctx
+    if (!cycle.opened.has('train') && progress.records.size > 0) cycle.opened.add('train')
+    if (!cycle.opened.has('rebirth') && progress.promotions > 0) cycle.opened.add('rebirth')
     // 걸은 거리 → 바람
     const p = hero.object.position
     const step = Math.hypot(p.x - this.lastPos.x, p.z - this.lastPos.y)
@@ -94,14 +108,13 @@ export class CycleSystem {
 
   // ── 정보 화면에서 부르는 것 ──
 
-  train(source: SourceId): boolean {
-    const before = this.ctx.cycle.training[source]
-    if (!this.ctx.cycle.train(source)) return false
+  train(source: SourceId, count = 1): number {
+    const done = this.ctx.cycle.train(source, count)
+    if (done === 0) return 0
     const p = this.ctx.hero.object.position
-    this.ctx.fx.power.burst(p, SOURCE_COLORS[source]![0], 1)
+    this.ctx.fx.power.burst(p, SOURCE_COLORS[source]![0], Math.min(3, 1 + Math.floor(done / 10)))
     this.ctx.bus.emit('progressChanged', {})
-    void before
-    return true
+    return done
   }
 
   lightStar(id: StarId): boolean {

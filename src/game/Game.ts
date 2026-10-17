@@ -236,7 +236,7 @@ export class Game {
       toTitle: () => this.toTitle(),
       cycle: {
         state: this.cycle,
-        train: (source) => cycleSystem.train(source),
+        train: (source, count) => cycleSystem.train(source, count),
         rebirth: (challenge) => cycleSystem.rebirth(challenge),
         lightStar: (id) => cycleSystem.lightStar(id),
         chooseLaw: (id) => cycleSystem.chooseLaw(id),
@@ -567,6 +567,7 @@ export class Game {
         blessings: this.powers.state.blessings.map((g) => ({ name: godDef(g).name, color: godDef(g).color })),
         promote: manifested !== null && this.progress.readyToPromote(manifested),
         essence: this.cycle.essence,
+        essenceOpen: this.cycle.opened.has('train'),
       },
       realDt,
     )

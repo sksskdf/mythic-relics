@@ -420,3 +420,6 @@ button.hud__slot--empty {
 @keyframes hud-bump {
   from { color: #fff; text-shadow: 0 0 6px #fff; }
 }
+.hud__essence[hidden] {
+  display: none;
+}

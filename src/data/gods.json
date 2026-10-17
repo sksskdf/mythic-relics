@@ -72,7 +72,13 @@
       "row": 1
     },
     "passive": {
-      "damageScale": 1.1
+      "damageScale": 1.1,
+      "bladeStorm": {
+        "damage": 7,
+        "radius": 4,
+        "base": 3,
+        "perLevel": 1
+      }
     },
     "looks": {
       "torso": "asuraBladeArmor",

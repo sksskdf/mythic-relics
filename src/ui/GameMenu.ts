@@ -55,10 +55,22 @@ const TAB_HINTS: Record<MenuTab, string> = {
   looks: '외형\n부위마다 보이는 모습을 고른다',
 }
 
+/** 순환 탭의 ? 설명 */
+const CYCLE_HELP = {
+  cycle: '순환\n싸울수록 원천 결정이 모이고, 결정으로 단련하고, 승급과 윤회를 거칠수록 같은 길을 더 빨리 강해지며 지나간다. 단계마다 새 장치가 열린다.',
+  train: '단련 (2고리)\n원천 결정을 써서 그 원천의 능력치를 올린다. 오를수록 비싸지고, 승급할 때마다 싸진다. 한 원천을 단련하면 고리의 다음 원천(바람→불꽃→사냥→바위→바람) 결정이 4%씩 더 들어온다.',
+  rebirth: '윤회 (4고리)\n세계를 처음으로 되돌린다. 단련과 결정은 사라지고 유물·클래스 레벨은 남는다. 재와 영구 배율 +10%를 얻고, 윤회할수록 새 장치가 열린다.',
+  stars: '별자리\n윤회의 재로 별을 밝혀 영구히 강해진다. 윤회해도 사라지지 않는다.',
+  auto: '자동 단련\n살 수 있는 단련 중 가장 싼 것을 1.2초마다 저절로 올린다.',
+  resonance: '원천 공명\n두 원천의 단련이 모두 Lv5 이상이면 그 원천들의 결정이 10% 더 들어온다.',
+  doom: '종말 (5고리)\n종말 보스를 불러 쓰러뜨리면 윤회의 규칙을 바꾸는 태초의 법을 하나 고른다.',
+  challenge: '도전\n다음 윤회에 원천 하나를 끊고 한 판을 끝내면, 그 원천 결정이 영구히 25% 더 들어온다.',
+}
+
 /** 순환 탭이 게임에서 읽고 부르는 것 */
 export interface CycleHost {
   readonly state: Cycle
-  train(source: SourceId): boolean
+  train(source: SourceId, count: number): number
   rebirth(challenge: SourceId | null): boolean
   lightStar(id: StarId): boolean
   chooseLaw(id: LawId): boolean
@@ -135,6 +147,8 @@ export class GameMenu {
   private tab: MenuTab = 'status'
   /** 다음 윤회에 걸 도전 */
   private nextChallenge: SourceId | null = null
+  /** 단련 단위 */
+  private trainUnit: 1 | 10 | 100 | 'max' = 1
   /** 유물 화면에서 고른 칸 */
   private selectedSlot = 0
   /** 유물 화면에서 커서를 올린 가방 유물 */
@@ -288,6 +302,42 @@ export class GameMenu {
     const c = cycle.state
     const wrap = el('div', 'menu-cycle')
     const sourceName = (id: SourceId) => DATA.classes.sources.find((x) => x.id === id)!.name
+    /** 제목 옆의 ?: 올리거나 누르면 그 단계의 설명 */
+    const titled = (text: string, help: string): HTMLElement => {
+      const t = el('div', 'menu-cycle__title', text)
+      const q = el('span', 'menu-cycle__help', '?')
+      this.hintOn(q, help)
+      t.append(q)
+      return t
+    }
+
+    // 순환 전체: 첫 발현 전에는 잠겨 있다. 결정은 그 전에도 모인다.
+    if (!c.opened.has('train')) {
+      const locked = el('section', 'menu-cycle__panel is-locked')
+      locked.append(titled('순환', CYCLE_HELP.cycle))
+      const lock = el('div', 'menu-cycle__lock')
+      lock.append(img(glyph('lock', '#5d6876', '#2a3240')), el('span', '', '한 신의 유물을 모두 끼워 그 힘을 깨우면 열린다'))
+      locked.append(lock, el('div', 'menu-cycle__text', `모아 둔 결정: ${DATA.classes.sources.map((x) => `${x.name} ${shortNumber(c.essence[x.id])}`).join(' · ')}`))
+      wrap.append(locked)
+      this.body.append(wrap)
+      return
+    }
+
+    // 단련 단위
+    const units = el('div', 'menu-cycle__units')
+    units.append(titled('단련', CYCLE_HELP.train))
+    const unitBox = el('div', 'menu-cycle__unit-box')
+    for (const u of [1, 10, 100, 'max'] as const) {
+      const b = el('button', `ui-pill${this.trainUnit === u ? ' is-on' : ''}`, u === 'max' ? '최대' : `×${u}`)
+      b.type = 'button'
+      b.addEventListener('click', () => {
+        this.trainUnit = u
+        this.render()
+      })
+      unitBox.append(b)
+    }
+    units.append(unitBox)
+    wrap.append(units)
 
     // 원천 넷
     const grid = el('div', 'menu-cycle__sources')
@@ -304,13 +354,15 @@ export class GameMenu {
       const level = c.training[x.id]
       card.append(el('div', 'menu-cycle__now', level > 0 ? TRAINING_TEXT[x.id](level) : '아직 단련하지 않았다'))
       card.append(el('div', 'menu-cycle__next', `다음: ${TRAINING_TEXT[x.id](level + 1)} · ${sourceName(RING_NEXT[x.id])} 결정 +${(level + 1) * 4}%`))
-      const cost = c.cost(x.id)
+      const want = this.trainUnit === 'max' ? Infinity : this.trainUnit
+      const q = c.quote(x.id, want)
       const btn = el('button', 'menu-cycle__train')
       btn.type = 'button'
-      btn.disabled = !c.canTrain(x.id)
-      btn.append(el('span', '', `단련 Lv${level + 1}`), el('b', '', shortNumber(cost)))
+      btn.disabled = q.levels === 0
+      const gainLv = q.levels > 0 ? q.levels : 1
+      btn.append(el('span', '', `Lv${level} → ${level + gainLv}`), el('b', '', shortNumber(q.cost)))
       btn.addEventListener('click', () => {
-        if (cycle.train(x.id)) this.render()
+        if (cycle.train(x.id, want) > 0) this.render()
       })
       card.append(btn)
       grid.append(card)
@@ -319,7 +371,16 @@ export class GameMenu {
 
     // 윤회
     const rebirth = el('section', 'menu-cycle__panel')
-    rebirth.append(el('div', 'menu-cycle__title', `윤회${c.rebirths > 0 ? ` · ${c.rebirths}회` : ''}`))
+    rebirth.append(titled(`윤회${c.rebirths > 0 ? ` · ${c.rebirths}회` : ''}`, CYCLE_HELP.rebirth))
+    if (!c.opened.has('rebirth')) {
+      rebirth.classList.add('is-locked')
+      const lock = el('div', 'menu-cycle__lock')
+      lock.append(img(glyph('lock', '#5d6876', '#2a3240')), el('span', '', '처음으로 승급하면 열린다'))
+      rebirth.append(lock)
+      wrap.append(rebirth)
+      this.body.append(wrap)
+      return
+    }
     const bar = el('div', 'ui-bar ui-bar--thin')
     bar.style.setProperty('--fill', 'var(--c-moon)')
     bar.style.setProperty('--pct', Math.min(1, c.runTotal / REBIRTH_NEED).toFixed(3))
@@ -345,14 +406,13 @@ export class GameMenu {
     })
     row.append(go)
     rebirth.append(bar, row)
-    this.hintOn(rebirth.firstElementChild as HTMLElement, '윤회\n세계를 처음으로 되돌린다. 단련과 결정은 사라지고 유물·클래스 레벨은 남는다. 재와 영구 배율을 얻고, 윤회할수록 새 장치가 열린다.')
     wrap.append(rebirth)
 
     // 차례로 열리는 장치
     const devices = el('div', 'menu-cycle__devices')
-    const device = (at: number, name: string, body: () => HTMLElement | null) => {
+    const device = (at: number, name: string, help: string, body: () => HTMLElement | null) => {
       const box = el('section', `menu-cycle__panel${c.rebirths >= at ? '' : ' is-locked'}`)
-      box.append(el('div', 'menu-cycle__title', name))
+      box.append(titled(c.rebirths >= at ? name : '?', c.rebirths >= at ? help : `윤회 ${at}회에 열리는 장치`))
       if (c.rebirths < at) {
         const lock = el('div', 'menu-cycle__lock')
         lock.append(img(glyph('lock', '#5d6876', '#2a3240')), el('span', '', `윤회 ${at}회에 열린다`))
@@ -363,7 +423,7 @@ export class GameMenu {
       }
       devices.append(box)
     }
-    device(UNLOCKS.rebirthToStars, `별자리 · 재 ${c.ash}`, () => {
+    device(UNLOCKS.rebirthToStars, `별자리 · 재 ${c.ash}`, CYCLE_HELP.stars, () => {
       const list = el('div', 'menu-cycle__stars')
       for (const id of Object.keys(STARS) as StarId[]) {
         const def = STARS[id]
@@ -383,12 +443,12 @@ export class GameMenu {
       }
       return list
     })
-    device(UNLOCKS.autoTrain, '자동 단련', () => el('div', 'menu-cycle__text', '살 수 있는 단련 중 가장 싼 것을 저절로 올린다.'))
-    device(UNLOCKS.resonance, '원천 공명', () => {
+    device(UNLOCKS.autoTrain, '자동 단련', CYCLE_HELP.auto, () => el('div', 'menu-cycle__text', '살 수 있는 단련 중 가장 싼 것을 저절로 올린다.'))
+    device(UNLOCKS.resonance, '원천 공명', CYCLE_HELP.resonance, () => {
       const on = DATA.classes.sources.filter((x) => c.resonating(x.id)).map((x) => x.name)
       return el('div', 'menu-cycle__text', on.length > 0 ? `공명 중: ${on.join(', ')} 결정 +10%` : '두 원천의 단련이 모두 Lv5가 되면 서로 결정 +10%.')
     })
-    device(UNLOCKS.doom, `종말${c.dooms > 0 ? ` · ${c.dooms}회` : ''}`, () => {
+    device(UNLOCKS.doom, `종말${c.dooms > 0 ? ` · ${c.dooms}회` : ''}`, CYCLE_HELP.doom, () => {
       const box = el('div', 'menu-cycle__doom')
       if (c.lawPending) {
         box.append(el('div', 'menu-cycle__text', '태초의 법을 하나 고른다. 윤회의 규칙이 바뀐다.'))
@@ -415,7 +475,7 @@ export class GameMenu {
       if (c.laws.length > 0) box.append(el('div', 'menu-cycle__text', `태초의 법: ${c.laws.map((l) => LAWS[l].name).join(', ')}`))
       return box
     })
-    device(UNLOCKS.challenge, '도전', () => {
+    device(UNLOCKS.challenge, '도전', CYCLE_HELP.challenge, () => {
       const box = el('div', 'menu-cycle__challenges')
       box.append(el('div', 'menu-cycle__text', c.challenge ? `지금 도전: ${sourceName(c.challenge)} 없이. 다음 윤회 때 끝난다.` : '다음 윤회에 걸 도전을 고른다. 그 원천 결정 없이 한 판을 끝내면 그 원천이 영구히 +25%.'))
       for (const x of DATA.classes.sources) {
