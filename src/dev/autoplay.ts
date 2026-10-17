@@ -1,6 +1,8 @@
 import type { Giant, GiantDanger } from '../enemies/Giant'
 import type { Game } from '../game/Game'
 import { angleDiff, angleTo } from '../combat/arc'
+import { SOURCE_IDS } from '../data/schema'
+import type { StarId } from '../progress/Cycle'
 import { relicDef } from '../relics/data'
 import type { Point2 } from '../world/colliders'
 
@@ -24,6 +26,10 @@ const PATROL: Point2[] = [
 export class Autoplayer {
   private thinkTimer = 0
   private patrol = 0
+  /** 순환까지 돌리는가: 단련하고, 모이면 윤회한다 (scripts/playtest.mjs --loops) */
+  cycle = false
+  /** 윤회한 게임 시각 */
+  readonly rebirths: number[] = []
 
   constructor(private readonly game: Game) {}
 
@@ -35,8 +41,27 @@ export class Autoplayer {
       if (this.thinkTimer <= 0) {
         this.thinkTimer = THINK
         this.think()
+        if (this.cycle) this.loop()
       }
       this.game.advance(step, step)
+    }
+  }
+
+  /**
+   * 순환: 살 수 있는 단련 중 가장 싼 것을 사고, 윤회할 수 있으면 바로 윤회한다.
+   * 재는 별자리에 쓴다 (결정 → 비용 → 생명 → 불씨 차례로 싼 것부터)
+   */
+  private loop(): void {
+    const { cycle, cycleSystem, legend } = this.game
+    for (let i = 0; i < 50; i++) {
+      const cheapest = SOURCE_IDS.filter((s) => cycle.canTrain(s)).sort((a, b) => cycle.cost(a) - cycle.cost(b))[0]
+      if (!cheapest || cycleSystem.train(cheapest) === 0) break
+    }
+    if (legend.phase !== 'idle' || cycle.ashForRebirth() <= 0) return
+    if (cycleSystem.rebirth(null)) {
+      this.rebirths.push(this.game.time)
+      const order: StarId[] = ['gain', 'cheap', 'hp', 'start']
+      for (let i = 0; i < 20; i++) if (!order.some((id) => cycle.lightStar(id))) break
     }
   }
 

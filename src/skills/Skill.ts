@@ -1,5 +1,6 @@
 import type * as THREE from 'three'
 
+import type { SoundCue } from '../audio/sounds'
 import type { Lightning } from '../fx/Lightning'
 import type { Puffs } from '../fx/Puffs'
 import type { CombatTarget } from '../game/PlayerCombat'
@@ -24,6 +25,8 @@ export interface SkillContext {
   /** 주인공이 적에게 피해를 준다. 배율, 피해 숫자, 신위 게이지는 Game이 처리한다. */
   hit(target: CombatTarget, damage: number, dirX: number, dirZ: number, knockback: number, style: DamageStyle): void
   shake(amount: number): void
+  /** 소리를 낸다. x·z가 있으면 그 자리에서 */
+  sound(cue: SoundCue, x?: number, z?: number): void
   /** 거인이 대신 쫓을 환영 분신을 세우거나 치운다. */
   setDecoy(decoy: { x: number; z: number; radius: number } | null): void
 }

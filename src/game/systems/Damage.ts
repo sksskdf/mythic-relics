@@ -43,6 +43,7 @@ export class DamageSystem {
     const dealt = target.takeHit(damage * this.scale(style), dirX, dirZ, knockback * powers.modifiers.knockbackDealt)
     if (dealt > 0 && !target.alive) bus.emit('targetKilled', { target })
     if (dealt <= 0) return
+    if (style === 'thunder') bus.emit('sound', { cue: 'thunder', x: target.x, z: target.z })
     this.scratch.set(target.x, heightAt(target.x, target.z) + target.radius * 3, target.z)
     numbers.show(this.scratch, dealt, style)
     combat.addDivine(DIVINE_PER_SKILL_HIT + (target.alive ? 0 : DIVINE_PER_KILL))
@@ -104,10 +105,12 @@ export class DamageSystem {
         const dz = enemy.z - p.z
         const len = Math.hypot(dx, dz) || 1
         fx.slashes.spawn(new THREE.Vector3(enemy.x, heightAt(enemy.x, enemy.z), enemy.z), Math.random() * Math.PI * 2, 1 + Math.random() * 0.4, 0.8, false, i % 2 ? 0xff4a5a : 0xb0101c)
+        bus.emit('sound', { cue: 'blade', x: enemy.x, z: enemy.z })
         this.deal(enemy, storm.damage, dx / len, dz / len, 1.5, 'normal')
       }
     }
     const strong = hits.some((h) => h.strong)
+    bus.emit('sound', { cue: strong ? 'hitStrong' : 'hit', x: first.x, z: first.z })
     feel.stop(strong ? 0.09 : 0.045)
     view.shake(strong ? 0.14 : 0.05)
   }

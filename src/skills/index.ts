@@ -62,6 +62,7 @@ export class DataRelicEffect implements RelicEffect {
   private fire(ctx: SkillContext, cue: Cue): void {
     this.progress = 0
     this.action.fire(ctx, cue, this.boost(ctx))
+    ctx.sound(this.def.trigger.action.kind)
   }
 
   update(dt: number, ctx: SkillContext): void {

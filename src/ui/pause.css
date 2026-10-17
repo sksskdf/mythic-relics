@@ -1,0 +1,119 @@
+/* 일시 정지 메뉴와 설정 (E5-04·05) */
+.pause {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  display: grid;
+  place-items: center;
+  padding: var(--sp-6);
+  background: rgba(8, 10, 14, 0.6);
+  pointer-events: auto;
+  font: var(--t-body);
+  color: var(--c-ink-1);
+}
+.pause[hidden] {
+  display: none;
+}
+.pause__frame {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  width: min(320px, 100%);
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  padding: var(--sp-6);
+}
+.pause__title {
+  margin: 0 0 var(--sp-3);
+  font: var(--t-title);
+  font-weight: normal;
+  text-align: center;
+  color: var(--c-moon);
+  letter-spacing: 0.2em;
+}
+.pause__button {
+  width: 100%;
+}
+.pause__button.is-open {
+  border-color: var(--c-ink-3);
+  background: var(--c-bg-2);
+}
+.pause__button.is-confirm {
+  color: var(--c-bad);
+  border-color: var(--c-bad);
+}
+.pause__settings {
+  padding: var(--sp-2) var(--sp-4) var(--sp-4);
+  background: var(--c-bg-1);
+  border: 1px solid var(--c-line-1);
+}
+.pause__settings[hidden] {
+  display: none;
+}
+.pause__settings > .ui-label:first-child {
+  margin-top: var(--sp-3);
+}
+.pause__row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  min-height: 24px;
+}
+.pause__name {
+  flex: 0 0 72px;
+  font: var(--t-small);
+  color: var(--c-ink-2);
+}
+.pause__value {
+  flex: 0 0 24px;
+  text-align: right;
+  font: var(--t-small);
+  color: var(--c-ink-3);
+}
+.pause__pills {
+  display: flex;
+  gap: var(--sp-2);
+}
+.pause__pills > .ui-pill {
+  font: var(--t-small);
+}
+
+/* 음량 막대: 우묵한 홈과 금색 손잡이 */
+.pause__range {
+  flex: 1;
+  min-width: 0;
+  height: 16px;
+  margin: 0;
+  background: none;
+  appearance: none;
+  cursor: pointer;
+}
+.pause__range::-webkit-slider-runnable-track {
+  height: 6px;
+  background: var(--c-bg-3);
+  border: 1px solid var(--c-line-2);
+}
+.pause__range::-webkit-slider-thumb {
+  width: 8px;
+  height: 14px;
+  margin-top: -5px;
+  appearance: none;
+  background: var(--c-gold);
+  border: 1px solid var(--c-groove);
+}
+.pause__range::-moz-range-track {
+  height: 6px;
+  background: var(--c-bg-3);
+  border: 1px solid var(--c-line-2);
+}
+.pause__range::-moz-range-thumb {
+  width: 8px;
+  height: 14px;
+  border: 1px solid var(--c-groove);
+  border-radius: 0;
+  background: var(--c-gold);
+}
+.pause__range:focus-visible {
+  outline: 1px solid var(--c-gold-soft);
+  outline-offset: 2px;
+}

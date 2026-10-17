@@ -151,6 +151,7 @@ export class CycleSystem {
     if (cycle.challenge) lines.push(`도전 중: ${sourceName(cycle.challenge)} 없이`)
     hud.flash('#d8dde6')
     fx.power.burst(hero.object.position, '#d8dde6', 4)
+    bus.emit('sound', { cue: 'rebirth' })
     hud.showGains(`윤회 ${cycle.rebirths}회`, '세계가 처음으로 돌아갔다', '#d8dde6', '', lines)
     bus.emit('progressChanged', {})
     return true

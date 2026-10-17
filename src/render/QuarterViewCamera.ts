@@ -29,6 +29,8 @@ export class QuarterViewCamera {
   private renderWidth = 1
   /** 흔들림 세기 (미터). 시간이 지나면 줄어든다. */
   private shakeAmount = 0
+  /** 흔들림 배율: 설정에서 끄면 0 */
+  shakeScale = 1
   private readonly shakeOffset = new THREE.Vector2()
   /** 픽셀에 맞추며 버린 나머지 (저해상도 픽셀 단위, -0.5~0.5). 키워 그릴 때 이만큼 밀어 그린다. */
   readonly subpixel = new THREE.Vector2()
@@ -85,7 +87,7 @@ export class QuarterViewCamera {
 
   /** 화면을 흔든다. 여러 번 부르면 가장 센 값을 쓴다. */
   shake(amount: number): void {
-    this.shakeAmount = Math.max(this.shakeAmount, amount)
+    this.shakeAmount = Math.max(this.shakeAmount, amount * this.shakeScale)
   }
 
   private updateShake(dt: number): void {

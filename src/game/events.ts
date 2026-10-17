@@ -1,3 +1,4 @@
+import type { SoundCue } from '../audio/sounds'
 import type { Giant } from '../enemies/Giant'
 import type { God, RelicId } from '../relics/data'
 import type { CombatTarget } from './PlayerCombat'
@@ -37,6 +38,8 @@ export interface GameEvents {
   outfitChanged: Record<string, never>
   /** 저장할 만한 것이 바뀌었다. */
   progressChanged: Record<string, never>
+  /** 소리를 낼 순간 (휘두름, 스킬, 예고 등). x·z가 있으면 그 자리에서 난다 */
+  sound: { cue: SoundCue; x?: number; z?: number }
 }
 
 type Listener<T> = (payload: T) => void

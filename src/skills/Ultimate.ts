@@ -35,6 +35,7 @@ export class ThunderJudgement {
     ctx.lightning.fromSky(hero.clone(), 0.3)
     ctx.puffs.burst(hero, 20, 3)
     ctx.shake(0.4)
+    ctx.sound('ultimate')
   }
 
   update(dt: number, ctx: SkillContext): void {
@@ -52,6 +53,7 @@ export class ThunderJudgement {
     ctx.lightning.fromSky(point, 0.24)
     ctx.puffs.burst(point, 8, 2)
     ctx.shake(0.22)
+    ctx.sound('thunder', point.x, point.z)
     // 번개가 떨어진 자리 주변도 함께 맞는다.
     for (const enemy of enemiesWithin(ctx.enemies, point.x, point.z, 1.6)) {
       const dx = enemy.x - point.x
