@@ -1,23 +1,36 @@
 import { describe, expect, it } from 'vitest'
 
-import { computeRenderSize } from '../src/render/resolution'
+import { computeRenderSize, METERS_PER_PIXEL } from '../src/render/resolution'
 
 describe('computeRenderSize', () => {
-  it('1920×1080 화면은 480×270을 4배로 확대한다', () => {
-    expect(computeRenderSize(1920, 1080)).toEqual({ width: 480, height: 270, scale: 4 })
+  it('세로 픽셀 수는 정한 대로 두고, 화면 세로에 꼭 맞게 키운다', () => {
+    expect(computeRenderSize(1920, 1080, 270)).toEqual({ width: 480, height: 270, scale: 4 })
+    const size = computeRenderSize(1280, 720, 255)
+    expect(size.height).toBe(255)
+    expect(size.height * size.scale).toBeCloseTo(720)
   })
 
-  it('확대 배율은 항상 정수이고, 렌더 크기에 배율을 곱하면 화면을 덮는다', () => {
+  it('렌더 크기에 배율을 곱하면 화면을 덮는다', () => {
     for (const [w, h] of [[1280, 720], [1366, 768], [2560, 1440], [800, 600], [390, 844]] as const) {
-      const size = computeRenderSize(w, h)
-      expect(Number.isInteger(size.scale)).toBe(true)
-      expect(size.width * size.scale).toBeGreaterThanOrEqual(w)
-      expect(size.height * size.scale).toBeGreaterThanOrEqual(h)
+      for (const target of [180, 330, 510]) {
+        const size = computeRenderSize(w, h, target)
+        expect(size.width * size.scale).toBeGreaterThanOrEqual(w)
+        expect(size.height * size.scale).toBeCloseTo(h)
+      }
     }
   })
 
-  it('아주 작은 화면에서도 배율이 1 아래로 내려가지 않는다', () => {
-    expect(computeRenderSize(100, 50).scale).toBe(1)
-    expect(computeRenderSize(0, 0)).toEqual({ width: 1, height: 1, scale: 1 })
+  it('확대·축소해도 픽셀 하나가 덮는 월드 크기는 같다 (시야 ÷ 세로 픽셀 수)', () => {
+    for (const view of [12, 22, 34]) {
+      const size = computeRenderSize(1280, 720, view / METERS_PER_PIXEL)
+      expect(view / size.height).toBeCloseTo(METERS_PER_PIXEL, 3)
+    }
+  })
+
+  it('크기가 0인 화면에서도 깨지지 않는다', () => {
+    const size = computeRenderSize(0, 0, 270)
+    expect(size.height).toBe(270)
+    expect(Number.isFinite(size.scale) && size.scale > 0).toBe(true)
+    expect(size.width).toBeGreaterThanOrEqual(1)
   })
 })

@@ -9,7 +9,7 @@ const compositeVertex = /* glsl */ `
 `
 
 /**
- * 저해상도 색·깊이·법선 버퍼를 합쳐 화면에 정수 배율로 그린다.
+ * 저해상도 색·깊이·법선 버퍼를 합쳐 저해상도 그림 한 장을 만든다. (외곽선, 하이라이트, 색 보정)
  * - 깊이 차이가 큰 경계(물체의 바깥 윤곽)는 어둡게 칠해 외곽선을 만든다.
  * - 법선이 크게 꺾이는 경계(모서리)는 살짝 밝게 칠해 손으로 찍은 하이라이트처럼 보이게 한다.
  */
@@ -18,7 +18,6 @@ const compositeFragment = /* glsl */ `
   uniform sampler2D tDepth;
   uniform sampler2D tNormal;
   uniform vec2 renderSize;
-  uniform float scale;
   uniform float depthThreshold;
   uniform float normalThreshold;
 
@@ -31,7 +30,7 @@ const compositeFragment = /* glsl */ `
   }
 
   void main() {
-    vec2 texel = floor(gl_FragCoord.xy / scale);
+    vec2 texel = floor(gl_FragCoord.xy);
     vec2 uv = (texel + 0.5) / renderSize;
     vec4 color = texture2D(tColor, uv);
 
@@ -74,6 +73,24 @@ const compositeFragment = /* glsl */ `
     color.rgb *= vignette;
 
     gl_FragColor = color;
+  }
+`
+
+/**
+ * 저해상도 그림을 화면 크기로 키운다. 배율이 정수가 아니어도 픽셀 크기가 고르게 보이도록,
+ * 픽셀 안쪽은 그대로 두고 픽셀 경계의 화면 1픽셀 폭만 이웃과 섞는다. (sharp bilinear)
+ */
+const upscaleFragment = /* glsl */ `
+  uniform sampler2D tImage;
+  uniform vec2 renderSize;
+  uniform float scale;
+
+  void main() {
+    vec2 texel = gl_FragCoord.xy / scale;
+    vec2 base = floor(texel - 0.5);
+    vec2 f = texel - 0.5 - base;
+    vec2 blend = clamp((f - 0.5) * scale + 0.5, 0.0, 1.0);
+    gl_FragColor = texture2D(tImage, (base + 0.5 + blend) / renderSize);
     #include <colorspace_fragment>
   }
 `
@@ -87,6 +104,10 @@ export class PixelRenderer {
 
   private readonly colorTarget: THREE.WebGLRenderTarget
   private readonly normalTarget: THREE.WebGLRenderTarget
+  /** 외곽선·색 보정까지 마친 저해상도 그림 */
+  private readonly imageTarget: THREE.WebGLRenderTarget
+  private readonly upscaleScene = new THREE.Scene()
+  private readonly upscaleMaterial: THREE.ShaderMaterial
   private readonly normalMaterial = new THREE.MeshNormalMaterial()
   private readonly compositeScene = new THREE.Scene()
   private readonly compositeCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
@@ -112,6 +133,12 @@ export class PixelRenderer {
       depthTexture: new THREE.DepthTexture(1, 1),
     })
     this.normalTarget = new THREE.WebGLRenderTarget(1, 1, targetOptions)
+    // 키울 때 경계만 섞으므로 선형 필터로 읽는다.
+    this.imageTarget = new THREE.WebGLRenderTarget(1, 1, {
+      minFilter: THREE.LinearFilter,
+      magFilter: THREE.LinearFilter,
+      generateMipmaps: false,
+    })
 
     this.compositeMaterial = new THREE.ShaderMaterial({
       vertexShader: compositeVertex,
@@ -121,7 +148,6 @@ export class PixelRenderer {
         tDepth: { value: this.colorTarget.depthTexture },
         tNormal: { value: this.normalTarget.texture },
         renderSize: { value: new THREE.Vector2(1, 1) },
-        scale: { value: 1 },
         depthThreshold: { value: 0.0015 },
         normalThreshold: { value: 0.6 },
       },
@@ -131,6 +157,21 @@ export class PixelRenderer {
     const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.compositeMaterial)
     quad.frustumCulled = false
     this.compositeScene.add(quad)
+
+    this.upscaleMaterial = new THREE.ShaderMaterial({
+      vertexShader: compositeVertex,
+      fragmentShader: upscaleFragment,
+      uniforms: {
+        tImage: { value: this.imageTarget.texture },
+        renderSize: { value: new THREE.Vector2(1, 1) },
+        scale: { value: 1 },
+      },
+      depthTest: false,
+      depthWrite: false,
+    })
+    const screenQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.upscaleMaterial)
+    screenQuad.frustumCulled = false
+    this.upscaleScene.add(screenQuad)
   }
 
   /** 저해상도 렌더의 기준 세로 픽셀 수를 바꾼다. 다음 setScreenSize부터 적용된다. */
@@ -144,9 +185,11 @@ export class PixelRenderer {
     this.renderer.setSize(width, height, false)
     this.colorTarget.setSize(this.size.width, this.size.height)
     this.normalTarget.setSize(this.size.width, this.size.height)
-    const uniforms = this.compositeMaterial.uniforms
-    ;(uniforms.renderSize!.value as THREE.Vector2).set(this.size.width, this.size.height)
-    uniforms.scale!.value = this.size.scale
+    this.imageTarget.setSize(this.size.width, this.size.height)
+    ;(this.compositeMaterial.uniforms.renderSize!.value as THREE.Vector2).set(this.size.width, this.size.height)
+    const upscale = this.upscaleMaterial.uniforms
+    ;(upscale.renderSize!.value as THREE.Vector2).set(this.size.width, this.size.height)
+    upscale.scale!.value = this.size.scale
     return this.size
   }
 
@@ -169,7 +212,9 @@ export class PixelRenderer {
     scene.background = background
     camera.layers.enable(EFFECT_LAYER)
 
-    renderer.setRenderTarget(null)
+    renderer.setRenderTarget(this.imageTarget)
     renderer.render(this.compositeScene, this.compositeCamera)
+    renderer.setRenderTarget(null)
+    renderer.render(this.upscaleScene, this.compositeCamera)
   }
 }
