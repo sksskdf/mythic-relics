@@ -267,20 +267,20 @@ function line(g: VoxelGrid, x0: number, y0: number, x1: number, y1: number, z: n
   }
 }
 
-/** 토르의 표식 「벼락 고리」: 머리 뒤에 뜬 들쭉날쭉한 번개 고리 (17×17×1) */
+/** 토르의 표식 「벼락 고리」: 머리 뒤에 뜬 들쭉날쭉한 번개 고리 (15×15×1) */
 export function thorStormHalo(): VoxelGrid {
-  const g = new VoxelGrid(17, 17, 1)
-  const c = 8
-  for (let a = 0; a < 64; a++) {
-    const t = (a / 64) * Math.PI * 2
+  const g = new VoxelGrid(15, 17, 1)
+  const c = 7
+  for (let a = 0; a < 56; a++) {
+    const t = (a / 56) * Math.PI * 2
     // 반지름을 들쭉날쭉하게 해 번개처럼 보이게 한다.
-    const r = 7 + (a % 4 === 0 ? 1 : a % 4 === 2 ? -1 : 0)
+    const r = 6 + (a % 4 === 0 ? 1 : a % 4 === 2 ? -1 : 0)
     g.set(Math.round(c + Math.cos(t) * r), Math.round(c + Math.sin(t) * r), 0, a % 3 === 0 ? 0xffffff : 0x9fe3ff)
   }
   // 고리 위아래로 튀는 짧은 번개
-  line(g, 8, 16, 7, 14, 0, 0xffffff)
-  line(g, 2, 11, 0, 12, 0, 0x9fe3ff)
-  line(g, 14, 11, 16, 12, 0, 0x9fe3ff)
+  line(g, 7, 16, 6, 14, 0, 0xffffff)
+  line(g, 1, 10, 0, 11, 0, 0x9fe3ff)
+  line(g, 13, 10, 14, 11, 0, 0x9fe3ff)
   return g
 }
 

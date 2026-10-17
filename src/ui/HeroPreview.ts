@@ -15,7 +15,7 @@ export class HeroPreview {
   readonly canvas: HTMLCanvasElement
   private renderer: THREE.WebGLRenderer | null = null
   private readonly scene = new THREE.Scene()
-  private readonly camera = new THREE.OrthographicCamera(-1.05, 1.05, 1.4, -1.4, 0.1, 20)
+  private readonly camera = new THREE.OrthographicCamera(-1.15, 1.15, 1.55, -1.5, 0.1, 20)
   private readonly rig: HeroRig
   private frame = 0
   private angle = 0.6
