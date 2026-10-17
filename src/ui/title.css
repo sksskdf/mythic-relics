@@ -26,9 +26,21 @@
   align-items: center;
   gap: calc(var(--unit) * 2);
 }
-/* 로딩 중: 고리와 제목이 숨 쉬듯 흐려졌다 진해진다 */
-.title.is-loading .title__logo {
+/* 로딩 중: 글 없이 문장 고리 하나만 가운데에서 숨 쉬듯 흐려졌다 진해진다 */
+.title.is-loading .title__ring {
   animation: title-breath 2.4s ease-in-out infinite;
+}
+.title.is-loading .title__name,
+.title.is-loading .title__tag,
+.title.is-loading .title__menu,
+.title.is-loading .title__build {
+  display: none;
+}
+/* 처음 실행: 준비되면 제목과 [시작]이 떠오른다 */
+.title__name,
+.title__tag,
+.title__build {
+  animation: title-appear 0.4s ease both;
 }
 @keyframes title-breath {
   0%, 100% { opacity: 0.35; }

@@ -1,3 +1,5 @@
+import { pixelIcon } from './pixelIcon'
+
 /**
  * 게임의 얼굴인 문장 고리: 열 원형의 작은 문장이 유물 보석을 둘러싼다. (DESIGN.md 10.5)
  * 시작·로딩 화면과 메뉴 단추에 쓴다. 64×64 픽셀로 그려 CSS로 정수배 확대한다.
@@ -57,4 +59,28 @@ export function sigilRing(): string {
   }
   cached = canvas.toDataURL()
   return cached
+}
+
+const SMALL_RING = [
+  '.....aaaaaa.....',
+  '...aa......aa...',
+  '..a....g.....a..',
+  '.a.....g......a.',
+  '.a....ggg.....a.',
+  'a....gwwbg.....a',
+  'a...gwwwbbg....a',
+  'a..ggwwbbbgg...a',
+  'a...gwbbbbg....a',
+  'a....gbbbg.....a',
+  '.a....ggg.....a.',
+  '.a.....g......a.',
+  '..a....g.....a..',
+  '...aa......aa...',
+  '.....aaaaaa.....',
+  '................',
+]
+
+/** 작은 문장 고리 (16×16): 정보 화면 단추 */
+export function smallSigilRing(): string {
+  return pixelIcon(SMALL_RING, { a: '#6a6e78', g: GILT, w: '#f4f8ff', b: '#8fa0bd' })
 }

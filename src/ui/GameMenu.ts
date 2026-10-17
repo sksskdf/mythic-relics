@@ -3,8 +3,9 @@ import { MAX_LEVEL } from '../progress/ClassProgress'
 import type { ClassProgress } from '../progress/ClassProgress'
 import { type God, godDef, relicDef, type RelicId } from '../relics/data'
 import type { LoadoutState } from '../relics/Loadout'
-import { pixelIcon } from './pixelIcon'
 import { relicCard, type RelicCardContext, relicIcon } from './relicCard'
+import { classIcon } from './classIcons'
+import { smallSigilRing } from './emblem'
 import { archetypeSigil, glyph, unknownSigil } from './sigils'
 import { type WardrobeHost, WardrobePane } from './WardrobePane'
 import './menu.css'
@@ -17,25 +18,6 @@ const TABS: readonly [MenuTab, 'relics' | 'classes' | 'looks', string][] = [
   ['classes', 'classes', '클래스'],
   ['looks', 'looks', '외형'],
 ]
-
-/** 메뉴 단추 그림: 펼친 책 */
-const BOOK_ICON = {
-  rows: [
-    '............',
-    '............',
-    '.aaaa..aaaa.',
-    '.abbba.abbb.',
-    '.abbbbabbbb.',
-    '.abbbbabbbb.',
-    '.abbbbabbbb.',
-    '.abbbbabbbb.',
-    '.abbbbabbbb.',
-    '.aaaaaaaaaa.',
-    '.....aa.....',
-    '............',
-  ],
-  colors: { a: '#e9eef5', b: '#5b7fb8' },
-}
 
 /** 메뉴가 게임에서 읽고 부르는 것 */
 export interface MenuHost {
@@ -104,7 +86,7 @@ export class GameMenu {
     this.button = el('button', 'menu-button')
     this.button.type = 'button'
     this.button.setAttribute('aria-label', '정보 화면')
-    this.button.style.backgroundImage = `url(${pixelIcon(BOOK_ICON.rows, BOOK_ICON.colors)})`
+    this.button.style.backgroundImage = `url(${smallSigilRing()})`
     this.button.addEventListener('click', () => this.toggle())
 
     this.window = el('div', 'menu')
@@ -222,7 +204,7 @@ export class GameMenu {
       const god = godDef(manifested)
       const badge = el('span', 'menu-relics__manifest', god.title)
       badge.style.setProperty('--god', god.color)
-      badge.prepend(img(archetypeSigil(god.archetype, god.color, '#0d1118')))
+      badge.prepend(img(classIcon(god.name)))
       this.hintOn(badge, `${god.name} 발현`)
       state.append(badge)
     }
@@ -230,7 +212,7 @@ export class GameMenu {
       const god = godDef(g)
       const chip = el('span', 'menu-relics__blessing')
       chip.style.setProperty('--god', god.color)
-      chip.append(img(archetypeSigil(god.archetype, god.color, '#0d1118')))
+      chip.append(img(classIcon(god.name)))
       this.hintOn(chip, `${god.name}의 가호`)
       state.append(chip)
     }
@@ -335,7 +317,7 @@ export class GameMenu {
       const god = godDef(current)
       const level = progress.level(current)
       now.style.setProperty('--god', god.color)
-      now.append(img(archetypeSigil(god.archetype, god.color, '#0d1118'), 'menu-classes__emblem'))
+      now.append(img(classIcon(god.name), 'menu-classes__emblem'))
       const info = el('div', 'menu-classes__info')
       const title = el('div', 'menu-classes__title', progress.title(current))
       title.append(pips(level))
@@ -387,10 +369,13 @@ export class GameMenu {
     wrap.append(sigils)
 
     // 신들의 지도
-    const node = (open: boolean, label: string, hint: string, extra = '', color?: string): HTMLElement => {
+    const node = (open: boolean, label: string, hint: string, extra = '', color?: string, icon?: string): HTMLElement => {
       const chip = el('button', `menu-tree__node${open ? ' is-open' : ''}${extra}`)
       chip.type = 'button'
-      if (open) chip.textContent = label
+      if (open) {
+        if (icon) chip.append(img(icon))
+        chip.append(label)
+      }
       else chip.append(img(unknownSigil(extra.includes('is-near') ? '#8d98a6' : '#3a4558')))
       if (color) chip.style.setProperty('--god', color)
       chip.setAttribute('aria-label', open ? label : '알 수 없는 자리')
@@ -416,7 +401,7 @@ export class GameMenu {
         const title = c.titles[Math.max(0, level - 1)]!
         gods.append(
           level > 0
-            ? node(true, title, `${c.name}\n${c.hint}`, '', color)
+            ? node(true, title, `${c.name}\n${c.hint}`, '', color, classIcon(c.name))
             : node(false, c.name, c.hint, c.god ? ' is-near' : ''),
         )
       }

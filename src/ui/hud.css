@@ -1,12 +1,7 @@
-/* 기본 HUD. 화면 크기가 달라도 아래쪽 가운데에 붙어 있고, 크기는 화면 높이에 맞춰 바뀐다. */
+/* 기본 HUD. 화면 크기가 달라도 아래쪽 가운데에 떠 있고, 크기는 화면 높이에 맞춰 바뀐다. */
 .hud {
   --unit: clamp(4px, 0.9vh, 10px);
   --ink: var(--c-ink-1);
-  --muted: var(--c-ink-3);
-  --panel: rgba(14, 18, 26, 0.82);
-  --edge: var(--c-line-2);
-  --life: var(--c-life);
-  --divine: var(--c-gold);
   position: fixed;
   inset: 0;
   pointer-events: none;
@@ -14,52 +9,76 @@
   color: var(--ink);
   user-select: none;
 }
-.hud__bar {
+/* 아래 가운데에 떠 있는 묶음: 판 없이 바닥 쪽만 살짝 어둡게 깐다 */
+.hud__dock {
   position: absolute;
-  overflow: visible;
   left: 50%;
-  bottom: calc(var(--unit) * 2 + env(safe-area-inset-bottom, 0px));
+  bottom: calc(var(--unit) * 2.4 + env(safe-area-inset-bottom, 0px));
   transform: translateX(-50%);
   display: flex;
-  align-items: flex-end;
-  gap: calc(var(--unit) * 2);
-  padding: calc(var(--unit) * 1.5);
-  background: var(--panel);
-  border: 2px solid var(--edge);
-  box-shadow:
-    inset 0 0 0 1px var(--c-bevel),
-    var(--shadow);
-}
-.hud__meter {
-  display: flex;
   flex-direction: column;
-  width: calc(var(--unit) * 22);
+  align-items: center;
+  gap: calc(var(--unit) * 1.2);
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.6));
 }
-.hud__meter-track {
-  height: calc(var(--unit) * 2.2);
-  background: var(--c-bg-3);
-  border: 2px solid var(--edge);
+.hud::before {
+  content: '';
+  position: absolute;
+  inset: auto 0 0 0;
+  height: calc(var(--unit) * 16);
+  background: linear-gradient(to top, rgba(7, 8, 11, 0.55), transparent);
 }
-.hud__meter-fill {
-  height: 100%;
-  width: 100%;
-  background: var(--life);
-  transition: width 0.1s linear;
+
+/* 생명: 양 끝을 비스듬히 자른 얇은 막대, 10칸 눈금, 깎인 만큼 잔상 */
+.hud__life {
+  position: relative;
+  width: calc(var(--unit) * 34);
+  height: calc(var(--unit) * 1.6);
+  background: var(--c-groove);
+  clip-path: polygon(var(--unit) 0, 100% 0, calc(100% - var(--unit)) 100%, 0 100%);
 }
-.hud__meter--divine .hud__meter-fill {
-  background: var(--divine);
+.hud__life-trail,
+.hud__life-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
 }
+.hud__life-trail {
+  background: var(--c-moon);
+  opacity: 0.85;
+}
+.hud__life-fill {
+  background: linear-gradient(to bottom, #f0685e, var(--c-life) 55%, #9e2c26);
+  transition: width 0.08s linear;
+}
+.hud__life::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(to right, transparent 0 calc(10% - 2px), rgba(7, 8, 11, 0.7) calc(10% - 2px) 10%);
+}
+.hud.is-low .hud__life-fill {
+  animation: hud-low 0.9s ease-in-out infinite alternate;
+}
+@keyframes hud-low {
+  to { filter: brightness(1.5); }
+}
+
 .hud__slots {
   display: flex;
+  align-items: center;
   gap: var(--unit);
 }
+/* 유물 칸: 우묵한 홈. 충전은 그늘을 시계 방향으로 걷어 낸다 */
 .hud__slot {
+  --charge: 1;
+  --glow: var(--c-charge);
   position: relative;
-  width: calc(var(--unit) * 6);
-  height: calc(var(--unit) * 6);
+  width: calc(var(--unit) * 5.6);
+  height: calc(var(--unit) * 5.6);
   padding: 0;
-  background: var(--c-bg-3);
-  border: 2px solid var(--edge);
+  border: 0;
+  background: var(--c-stone-lo);
+  box-shadow: inset 2px 2px 0 var(--c-groove), inset -1px -1px 0 var(--c-stone-hi), 0 0 0 1px rgba(7, 8, 11, 0.8);
 }
 button.hud__slot {
   pointer-events: auto;
@@ -70,34 +89,62 @@ button.hud__slot--empty {
 }
 .hud__icon {
   position: absolute;
-  inset: 8%;
+  inset: 12%;
   background: center / contain no-repeat;
   image-rendering: pixelated;
 }
-/* 유물 효과가 아직 차지 않은 만큼 위에서부터 어둡게 덮는다. */
-.hud__shade {
+.hud__sweep {
   position: absolute;
-  inset: 0 0 auto 0;
-  height: 0;
-  background: rgba(0, 0, 0, 0.6);
+  inset: 0;
+  background: conic-gradient(transparent calc(var(--charge) * 1turn), rgba(7, 8, 11, 0.66) 0);
 }
-/* 유물을 아직 끼지 않은 칸 */
+.hud__slot.is-charged {
+  box-shadow: inset 2px 2px 0 var(--c-groove), 0 0 0 1px var(--glow), 0 0 calc(var(--unit) * 1.4) color-mix(in srgb, var(--glow) 55%, transparent);
+}
+/* 유물을 아직 끼지 않은 칸: 홈만 희미하게 */
 .hud__slot--empty {
-  background: transparent;
-  border-style: dashed;
-  opacity: 0.6;
+  opacity: 0.45;
 }
-.hud__slot--ultimate {
-  margin-left: var(--unit);
-  border-color: #6b5622;
+.hud__slot--empty .hud__sweep {
+  display: none;
 }
-.hud__slot--ultimate.is-locked .hud__icon {
-  opacity: 0.15;
+
+/* 궁극기: 마름모. 신위가 차는 만큼 둘레의 금빛 고리가 채워진다 */
+.hud__ult {
+  --charge: 0;
+  position: relative;
+  width: calc(var(--unit) * 6.4);
+  height: calc(var(--unit) * 6.4);
+  margin-left: calc(var(--unit) * 1.2);
+  transform: rotate(45deg) scale(0.86);
+}
+.hud__ult-ring {
+  position: absolute;
+  inset: 0;
+  background: conic-gradient(from -45deg, var(--c-gilt) calc(var(--charge) * 1turn), var(--c-groove) 0);
+}
+.hud__ult-core {
+  position: absolute;
+  inset: 3px;
+  background: var(--c-stone-lo);
+  box-shadow: inset 2px 2px 0 var(--c-groove);
+}
+.hud__ult-core .hud__icon {
+  transform: rotate(-45deg);
+  inset: 14%;
+}
+.hud__ult.is-locked {
+  opacity: 0.35;
+}
+.hud__ult.is-locked .hud__icon {
   filter: grayscale(1);
 }
-.hud__slot--ultimate.is-ready {
-  border-color: var(--divine);
-  box-shadow: 0 0 calc(var(--unit) * 1.2) var(--divine);
+.hud__ult.is-ready {
+  animation: hud-ult 1.4s ease-in-out infinite;
+}
+@keyframes hud-ult {
+  0%, 100% { filter: drop-shadow(0 0 2px var(--c-gilt)); }
+  50% { filter: drop-shadow(0 0 calc(var(--unit) * 1.4) var(--c-gold-soft)); }
 }
 
 /* 보스 생명력: 화면 위쪽 가운데 */
@@ -107,9 +154,7 @@ button.hud__slot--empty {
   top: calc(var(--unit) * 3 + env(safe-area-inset-top, 0px));
   transform: translateX(-50%);
   width: min(70vw, calc(var(--unit) * 70));
-  padding: var(--unit);
-  background: var(--panel);
-  border: 2px solid var(--edge);
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.6));
   visibility: hidden;
 }
 .hud__boss.is-visible {
@@ -118,7 +163,8 @@ button.hud__slot--empty {
 .hud__boss-track {
   position: relative;
   height: calc(var(--unit) * 1.8);
-  background: var(--c-bg-3);
+  background: var(--c-groove);
+  clip-path: polygon(var(--unit) 0, 100% 0, calc(100% - var(--unit)) 100%, 0 100%);
 }
 .hud__boss-trail,
 .hud__boss-fill {
@@ -126,10 +172,11 @@ button.hud__slot--empty {
   inset: 0 auto 0 0;
 }
 .hud__boss-trail {
-  background: #f1e3c4;
+  background: var(--c-moon);
+  opacity: 0.85;
 }
 .hud__boss-fill {
-  background: #7fc6e6;
+  background: linear-gradient(to bottom, #b06cff, #7a3fd0 55%, #4e2690);
 }
 
 /* 피해 숫자 */
@@ -208,16 +255,12 @@ button.hud__slot--empty {
   100% { opacity: 0; }
 }
 
-/* 경험치 바: 아래 막대 판의 위쪽 테두리에 붙는 가는 줄 */
+/* 경험치: 화면 맨 아래 끝에서 끝까지 이어진 가는 줄 (발현했을 때만) */
 .hud__xp {
   position: absolute;
-  left: -2px;
-  right: -2px;
-  top: calc(var(--unit) * -1.2 - 2px);
-  height: calc(var(--unit) * 1.2);
-  background: var(--c-bg-3);
-  border: 2px solid var(--edge);
-  border-bottom: none;
+  inset: auto 0 env(safe-area-inset-bottom, 0px) 0;
+  height: 3px;
+  background: rgba(7, 8, 11, 0.7);
   visibility: hidden;
 }
 .hud__xp.is-visible {
@@ -226,6 +269,7 @@ button.hud__slot--empty {
 .hud__xp-fill {
   height: 100%;
   width: 0;
+  box-shadow: 0 0 6px currentColor;
 }
 .hud__xp.is-full .hud__xp-fill {
   animation: hud-xp-full 0.8s ease-in-out infinite alternate;
@@ -237,9 +281,4 @@ button.hud__slot--empty {
 
 .hud.is-hidden {
   display: none;
-}
-
-/* 행동 연동 효과가 다 찬 유물 칸 */
-.hud__slot.is-charged {
-  border-color: #7fd4ff;
 }

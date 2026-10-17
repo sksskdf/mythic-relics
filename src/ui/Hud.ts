@@ -28,7 +28,11 @@ export interface HudState {
 export const SKILL_SLOTS = 4
 
 /**
- * HUD: 아래쪽에 생명력, 유물 스킬 칸 4개, 궁극기 칸, 신위 게이지, 경험치 바(발현했을 때), 위쪽에 보스 생명력.
+ * HUD: 큰 판 없이 아래 가운데에 떠 있는 묶음 하나. (DESIGN.md 10.5)
+ * - 생명: 양 끝을 비스듬히 자른 얇은 막대. 깎인 만큼 밝은 잔상이 잠깐 남았다가 따라 줄어든다.
+ * - 유물 칸 4개: 충전은 칸 위를 시계 방향으로 걷어 내는 그늘로, 다 차면 칸이 빛난다.
+ * - 궁극기: 마름모 칸. 신위가 차는 만큼 둘레의 금빛 고리가 채워지고, 다 차면 숨 쉬듯 빛난다.
+ * - 경험치: 화면 맨 아래 끝에서 끝까지 이어진 가는 줄 (발현했을 때만).
  * 스킬과 궁극기는 자동으로 나가므로 키 표시가 없고, 글 대신 막대와 그림으로 보여 준다. (텍스트 최소화)
  * 유물 칸에 커서를 올리면 설명 카드가 뜨고, 누르면 유물 화면이 열린다. (E4)
  */
@@ -40,10 +44,10 @@ export class Hud {
   onSlotHover: (slot: number | null, anchor: DOMRect | null) => void = () => {}
 
   private readonly lifeFill: HTMLElement
-  private readonly divineFill: HTMLElement
+  private readonly lifeTrail: HTMLElement
   private readonly ultimate: HTMLElement
   private readonly ultimateIcon: HTMLElement
-  private readonly slotEls: { root: HTMLElement; icon: HTMLElement; shade: HTMLElement; src: string | null }[] = []
+  private readonly slotEls: { root: HTMLElement; icon: HTMLElement; src: string | null }[] = []
   private readonly bossBar: HTMLElement
   private readonly bossFill: HTMLElement
   private readonly bossTrail: HTMLElement
@@ -52,6 +56,7 @@ export class Hud {
   private readonly xpBar: HTMLElement
   private readonly xpFill: HTMLElement
   private bossTrailRatio = 1
+  private lifeTrailRatio = 1
 
   constructor(parent: HTMLElement) {
     this.root = document.createElement('div')
@@ -65,13 +70,15 @@ export class Hud {
     this.banner = this.el('div', 'hud__banner', this.root)
     this.toast = this.el('div', 'hud__toast', this.root)
 
-    const bar = this.el('div', 'hud__bar', this.root)
-    this.xpBar = this.el('div', 'hud__xp', bar)
+    this.xpBar = this.el('div', 'hud__xp', this.root)
     this.xpFill = this.el('div', 'hud__xp-fill', this.xpBar)
-    const life = this.meter('hud__meter hud__meter--life', bar)
-    this.lifeFill = life
 
-    const slots = this.el('div', 'hud__slots', bar)
+    const dock = this.el('div', 'hud__dock', this.root)
+    const life = this.el('div', 'hud__life', dock)
+    this.lifeTrail = this.el('div', 'hud__life-trail', life)
+    this.lifeFill = this.el('div', 'hud__life-fill', life)
+
+    const slots = this.el('div', 'hud__slots', dock)
     for (let i = 0; i < SKILL_SLOTS; i++) {
       const root = this.el('button', 'hud__slot hud__slot--empty', slots)
       root.addEventListener('pointerdown', (e) => {
@@ -82,21 +89,23 @@ export class Hud {
       root.addEventListener('pointerenter', () => this.onSlotHover(i, root.getBoundingClientRect()))
       root.addEventListener('pointerleave', () => this.onSlotHover(null, null))
       const icon = this.el('div', 'hud__icon', root)
-      const shade = this.el('div', 'hud__shade', root)
-      this.slotEls.push({ root, icon, shade, src: null })
+      this.el('div', 'hud__sweep', root)
+      this.slotEls.push({ root, icon, src: null })
     }
-    this.ultimate = this.el('div', 'hud__slot hud__slot--ultimate', slots)
-    this.ultimateIcon = this.el('div', 'hud__icon', this.ultimate)
+    this.ultimate = this.el('div', 'hud__ult', slots)
+    this.el('div', 'hud__ult-ring', this.ultimate)
+    this.ultimateIcon = this.el('div', 'hud__icon', this.el('div', 'hud__ult-core', this.ultimate))
     this.ultimateIcon.style.backgroundImage = `url(${pixelIcon(BOLT_ICON.rows, BOLT_ICON.colors)})`
-
-    this.divineFill = this.meter('hud__meter hud__meter--divine', bar)
 
     parent.appendChild(this.root)
   }
 
   update(state: HudState, dt: number): void {
-    this.lifeFill.style.width = `${Math.round(state.life * 100)}%`
-    this.divineFill.style.width = `${Math.round(state.divine * 100)}%`
+    // 깎인 생명은 잔상으로 잠깐 남았다가 따라 줄어든다. 차오를 때는 바로 따라간다.
+    this.lifeTrailRatio = Math.max(state.life, this.lifeTrailRatio - dt * 0.6)
+    this.lifeFill.style.width = `${(state.life * 100).toFixed(1)}%`
+    this.lifeTrail.style.width = `${(this.lifeTrailRatio * 100).toFixed(1)}%`
+    this.root.classList.toggle('is-low', state.life <= 0.3)
 
     state.slots.forEach((slot, i) => {
       const el = this.slotEls[i]
@@ -106,8 +115,8 @@ export class Hud {
         el.icon.style.backgroundImage = slot.icon ? `url(${slot.icon})` : ''
         el.root.classList.toggle('hud__slot--empty', !slot.icon)
       }
-      // 아직 차지 않은 만큼 위에서부터 어둡게 덮는다.
-      el.shade.style.height = `${Math.round((1 - slot.charge) * 100)}%`
+      // 찬 만큼 그늘을 시계 방향으로 걷어 낸다.
+      el.root.style.setProperty('--charge', slot.charge.toFixed(3))
       el.root.classList.toggle('is-charged', slot.charge >= 1)
     })
 
@@ -115,10 +124,12 @@ export class Hud {
     if (state.xp !== null) {
       this.xpFill.style.width = `${(state.xp * 100).toFixed(1)}%`
       this.xpFill.style.background = state.xpColor
+      this.xpFill.style.color = state.xpColor
       // 가득 차면 깜빡여서 승급 전설에 들어갈 수 있음을 알린다.
       this.xpBar.classList.toggle('is-full', state.xp >= 1)
     }
 
+    this.ultimate.style.setProperty('--charge', state.ultimate ? state.divine.toFixed(3) : '0')
     this.ultimate.classList.toggle('is-locked', !state.ultimate)
     this.ultimate.classList.toggle('is-ready', state.ultimate && state.divine >= 1)
 
@@ -157,11 +168,5 @@ export class Hud {
     el.className = className
     parent.appendChild(el)
     return el
-  }
-
-  private meter(className: string, parent: HTMLElement): HTMLElement {
-    const root = this.el('div', className, parent)
-    const track = this.el('div', 'hud__meter-track', root)
-    return this.el('div', 'hud__meter-fill', track)
   }
 }
