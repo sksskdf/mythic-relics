@@ -1,3 +1,4 @@
+import { type BodyLook, parseBody } from '../looks/body'
 import { isLookId, lookDef, type LookSlot, STARTING_LOOKS, WARDROBE_SLOTS } from '../looks/catalog'
 import type { LookChoice } from '../looks/outfit'
 import { GODS, godDef, type God, isRelicId, relicDef, type RelicId } from '../relics/data'
@@ -25,6 +26,8 @@ export interface SaveData {
   divine: number
   /** 외형 보관함: 얻은 외형과 칸마다 고른 것 ('auto', 외형 id, 비우기 null) */
   looks: { unlocked: string[]; choices: Partial<Record<LookSlot, LookChoice>> }
+  /** 처음에 고른 기본 모습. 옛 저장에는 없어서 기본값 */
+  body: BodyLook
 }
 
 const isRelic = isRelicId
@@ -82,6 +85,7 @@ export function parseSave(text: string | null): SaveData | null {
     dropMisses: Math.round(num(data.dropMisses, 0, 1000, 0)),
     divine: num(data.divine, 0, 1, 0),
     looks: data.version === 1 ? migrateLooks(slots, bag, classes) : parseLooks(data.looks),
+    body: parseBody(data.body),
   }
 }
 
@@ -108,30 +112,71 @@ function parseLooks(raw: unknown): SaveData['looks'] {
   return { unlocked: [...unlocked], choices }
 }
 
-const KEY = 'mythic-relics/save'
+/** 게임에서 「처음 화면으로」를 누르면 남기는 표시 (다시 불러온 뒤 슬롯 고르기를 띄운다) */
+export const TITLE_REQUEST = 'mythic-relics/to-title'
+
+/** 저장 슬롯 수 */
+export const SLOT_COUNT = 3
+const LEGACY_KEY = 'mythic-relics/save'
+const LAST_KEY = 'mythic-relics/last-slot'
+const slotKey = (slot: number) => `mythic-relics/save/${slot}`
+
+function read(key: string): string | null {
+  try {
+    return localStorage.getItem(key)
+  } catch {
+    return null
+  }
+}
 
 /**
- * 브라우저 저장소. 사생활 보호 모드 등에서 저장소를 못 쓰면 조용히 넘어간다. (저장 없이도 게임은 돌아간다)
+ * 브라우저 저장소. 슬롯 3개, 마지막으로 플레이한 슬롯을 기억해 다음 실행에 바로 이어 간다.
+ * 사생활 보호 모드 등에서 저장소를 못 쓰면 조용히 넘어간다. (저장 없이도 게임은 돌아간다)
  */
 export const saveStorage = {
-  load(): SaveData | null {
+  /** 지금 쓰는 슬롯. 고르기 전(-1)에는 저장하지 않는다. */
+  slot: -1,
+  /** 마지막으로 플레이한 슬롯. 한 번도 안 했으면 null. 슬롯이 없던 옛 저장은 0번으로 옮긴다. */
+  lastSlot(): number | null {
+    const legacy = read(LEGACY_KEY)
+    if (legacy !== null && read(slotKey(0)) === null) {
+      try {
+        localStorage.setItem(slotKey(0), legacy)
+        localStorage.removeItem(LEGACY_KEY)
+        localStorage.setItem(LAST_KEY, '0')
+      } catch {
+        // 옮기지 못하면 다음 실행에 다시 해 본다.
+      }
+    }
+    const n = Number(read(LAST_KEY))
+    return read(LAST_KEY) !== null && Number.isInteger(n) && n >= 0 && n < SLOT_COUNT ? n : null
+  },
+  /** 이 슬롯으로 플레이한다. 다음 실행에 바로 이어 간다. */
+  use(slot: number): void {
+    saveStorage.slot = slot
     try {
-      return parseSave(localStorage.getItem(KEY))
+      localStorage.setItem(LAST_KEY, String(slot))
     } catch {
-      return null
+      // 기억하지 못하면 다음 실행에 슬롯을 다시 고른다.
     }
   },
+  load(slot?: number): SaveData | null {
+    return parseSave(read(slotKey(slot ?? saveStorage.slot)))
+  },
   save(data: SaveData): boolean {
+    if (saveStorage.slot < 0) return false
     try {
-      localStorage.setItem(KEY, JSON.stringify(data))
+      localStorage.setItem(slotKey(saveStorage.slot), JSON.stringify(data))
       return true
     } catch {
       return false
     }
   },
-  clear(): void {
+  clear(slot?: number): void {
+    const n = slot ?? saveStorage.slot
     try {
-      localStorage.removeItem(KEY)
+      localStorage.removeItem(slotKey(n))
+      if (read(LAST_KEY) === String(n)) localStorage.removeItem(LAST_KEY)
     } catch {
       // 저장소를 못 쓰면 지울 것도 없다.
     }

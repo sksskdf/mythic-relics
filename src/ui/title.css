@@ -113,3 +113,144 @@
   letter-spacing: 0.3em;
   color: var(--c-ink-4);
 }
+
+/* 저장 슬롯 */
+.title-slots {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  width: min(86vw, 340px);
+}
+.title-slot {
+  --glow: var(--c-moon);
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-5);
+  min-height: 64px;
+  padding: var(--sp-3) var(--sp-5);
+  text-align: left;
+  color: var(--c-ink-1);
+  border: 0;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--glow) 14%, var(--c-stone)), var(--c-stone) 70%);
+  box-shadow: var(--stone-raised);
+  cursor: pointer;
+  animation: title-appear 0.3s ease both;
+}
+.title-slot:hover,
+.title-slot:focus-visible {
+  outline: 1px solid var(--glow);
+  outline-offset: 3px;
+}
+.title-slot.is-empty {
+  justify-content: center;
+  color: var(--c-ink-3);
+  background: var(--c-stone-lo);
+  box-shadow: inset 2px 2px 0 var(--c-groove), inset -1px -1px 0 var(--c-stone-hi), 0 0 0 2px var(--c-groove);
+}
+.title-slot.is-empty:hover {
+  color: var(--c-ink-1);
+}
+.title-slot__plus {
+  font: var(--t-title);
+}
+.title-slot__words {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font: var(--t-body);
+}
+.title-slot__title {
+  font: var(--t-title);
+  color: var(--glow);
+}
+.title-slot__meta {
+  font: var(--t-small);
+  color: var(--c-ink-3);
+}
+.title-slot__delete {
+  position: absolute;
+  right: var(--sp-3);
+  top: var(--sp-2);
+  padding: 0 var(--sp-2);
+  font: var(--t-small);
+  color: var(--c-ink-4);
+}
+.title-slot__delete:hover,
+.title-slot__delete.is-confirm {
+  color: var(--c-bad);
+}
+
+/* 캐릭터 만들기: 제목은 작게 비키고 미리 보기와 색 고르기 */
+.title.is-creating .title__tag,
+.title.is-creating .title__name {
+  display: none;
+}
+.title.is-creating .title__ring {
+  --ring-scale: 1;
+}
+.title-creator {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: var(--sp-6);
+  animation: title-appear 0.3s ease both;
+}
+.title-creator__stage .hero-preview {
+  width: 216px;
+  height: 288px;
+  image-rendering: pixelated;
+  background: radial-gradient(ellipse at 50% 85%, rgba(216, 221, 230, 0.16), transparent 55%), var(--c-stone-lo);
+  box-shadow: inset 2px 2px 0 var(--c-groove), inset -1px -1px 0 var(--c-stone-hi), 0 0 0 2px var(--c-groove);
+}
+.title-creator__pickers {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  text-align: left;
+}
+.title-creator__label {
+  display: block;
+  margin-bottom: var(--sp-2);
+  font: var(--t-small);
+  color: var(--c-ink-3);
+}
+.title-creator__swatches {
+  display: flex;
+  gap: var(--sp-3);
+}
+.title-swatch {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  box-shadow: 0 0 0 1px #050608, 0 0 0 2px var(--c-stone-hi);
+  cursor: pointer;
+}
+.title-swatch.is-on {
+  box-shadow: 0 0 0 1px #050608, 0 0 0 3px var(--c-gilt);
+}
+.title-creator__actions {
+  display: flex;
+  gap: var(--sp-4);
+  width: 100%;
+  justify-content: center;
+}
+.title-creator__actions .title__button {
+  min-width: 120px;
+}
+.title__button--ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  color: var(--c-ink-3);
+  background: var(--c-stone-lo);
+  box-shadow: var(--stone-raised);
+}
+.title__button--ghost img {
+  width: 12px;
+  height: 12px;
+  image-rendering: pixelated;
+}

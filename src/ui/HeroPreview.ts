@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 
+import type { BodyLook } from '../looks/body'
 import type { Outfit } from '../looks/outfit'
 import { buildHeroModel, type HeroRig } from '../world/heroModel'
 
@@ -39,6 +40,11 @@ export class HeroPreview {
 
   wear(outfit: Outfit): void {
     this.rig.wear(outfit)
+  }
+
+  /** 기본 모습(피부·머리카락·옷 색)을 바꿔 칠한다. */
+  setBody(body: BodyLook): void {
+    this.rig.setBody(body)
   }
 
   /** 화면에 붙었을 때 돌기 시작한다. 떼어지면 저절로 멈춘다. */

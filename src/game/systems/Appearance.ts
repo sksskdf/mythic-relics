@@ -1,3 +1,4 @@
+import { type BodyLook, bodyKey } from '../../looks/body'
 import { lookDef, type LookSlot } from '../../looks/catalog'
 import { autoOutfit, type LookChoice, type Outfit } from '../../looks/outfit'
 import { godDef, relicDef } from '../../relics/data'
@@ -8,6 +9,7 @@ import type { GameContext } from '../context'
  * 처음 걸쳐 본 외형은 보관함에 들어간다. 모습만 바뀌고 능력은 그대로다.
  */
 export class AppearanceSystem {
+  private bodyKey = '000'
   constructor(private readonly ctx: GameContext) {
     ctx.bus.on('loadoutChanged', () => this.refresh())
     this.refresh()
@@ -42,9 +44,20 @@ export class AppearanceSystem {
     this.apply()
   }
 
+  /** 처음에 고른 기본 모습을 바꾼다. (캐릭터 만들기) */
+  setBody(body: BodyLook): void {
+    this.ctx.wardrobe.body = { ...body }
+    this.ctx.bus.emit('progressChanged', {})
+    this.apply()
+  }
+
   /** 얻은 외형을 모두 다시 적용한다. (불러오기 뒤) */
   apply(): void {
     const { hero, wardrobe, bus } = this.ctx
+    if (this.bodyKey !== bodyKey(wardrobe.body)) {
+      this.bodyKey = bodyKey(wardrobe.body)
+      hero.rig.setBody(wardrobe.body)
+    }
     hero.rig.wear(wardrobe.dress(this.auto))
     bus.emit('outfitChanged', {})
   }

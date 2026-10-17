@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 
+import { type BodyLook, bodyKey, bodyPalette, DEFAULT_BODY } from '../looks/body'
 import { BASE_OUTFIT, LOOK_SLOTS, type LookSlot } from '../looks/catalog'
 import type { Outfit } from '../looks/outfit'
 import { attachSilhouette, silhouetteMaterial } from '../render/silhouette'
@@ -32,6 +33,8 @@ export interface HeroRig {
   wear(outfit: Outfit): void
   /** 나무·바위 뒤에 가려질 때 보이는 단색 실루엣을 켠다. */
   setSilhouette(color: THREE.ColorRepresentation): void
+  /** 처음에 고른 기본 모습(피부·머리카락·옷 색)을 바꾼다. 입은 외형을 모두 다시 칠한다. */
+  setBody(body: BodyLook): void
 }
 
 /** 칸마다 모델의 원점(관절 자리). 같은 칸의 모델은 같은 자리에 붙는다. */
@@ -60,14 +63,18 @@ function pivotFor(slot: LookSlot, grid: VoxelGrid): MeshOptions['pivot'] {
 
 /** 외형 지오메트리는 한 번 만들어 모든 주인공(분신 포함)이 함께 쓴다. */
 const geometries = new Map<string, THREE.BufferGeometry>()
-function lookGeometry(id: string, slot: LookSlot): THREE.BufferGeometry | null {
+function lookGeometry(id: string, slot: LookSlot, body: BodyLook): THREE.BufferGeometry | null {
   const build = LOOK_MODELS[id]
   if (!build) return null
-  let geometry = geometries.get(id)
+  const key = `${id}|${bodyKey(body)}`
+  let geometry = geometries.get(key)
   if (!geometry) {
     const grid = build()
+    // 처음에 고른 피부·머리카락·옷 색으로 바꿔 칠한다.
+    const palette = bodyPalette(body)
+    if (palette.size > 0) grid.forEach((x, y, z, hex) => palette.has(hex) && grid.set(x, y, z, palette.get(hex)!))
     geometry = buildVoxelGeometry(grid, { voxelSize: HERO_VOXEL, pivot: pivotFor(slot, grid) })
-    geometries.set(id, geometry)
+    geometries.set(key, geometry)
   }
   return geometry
 }
@@ -84,7 +91,8 @@ function joint(x: number, y: number, z: number): THREE.Group {
  * 머리·얼굴·몸·허리·손·다리·무기·등·표식 칸에 외형 모델을 바꿔 끼운다. (E3)
  * 처음에는 어느 신도 떠올리지 않는 평범한 모험가 모습이다.
  */
-export function buildHeroModel(outfit: Outfit = BASE_OUTFIT): HeroRig {
+export function buildHeroModel(outfit: Outfit = BASE_OUTFIT, initialBody: BodyLook = DEFAULT_BODY): HeroRig {
+  let bodyLook = initialBody
   const s = HERO_VOXEL
   const material = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonGradient() })
   const root = new THREE.Group()
@@ -134,7 +142,7 @@ export function buildHeroModel(outfit: Outfit = BASE_OUTFIT): HeroRig {
     for (const mesh of worn.get(slot) ?? []) mesh.removeFromParent()
     worn.delete(slot)
     current[slot] = id
-    const geometry = id ? lookGeometry(id, slot) : null
+    const geometry = id ? lookGeometry(id, slot, bodyLook) : null
     if (!geometry) return
     const meshes = mounts[slot].map((mount) => {
       const mesh = new THREE.Mesh(geometry, material)
@@ -162,6 +170,10 @@ export function buildHeroModel(outfit: Outfit = BASE_OUTFIT): HeroRig {
     outfit: current,
     wear(next) {
       for (const slot of LOOK_SLOTS) if (next[slot] !== current[slot]) put(slot, next[slot])
+    },
+    setBody(next) {
+      bodyLook = next
+      for (const slot of LOOK_SLOTS) put(slot, current[slot])
     },
     setSilhouette(color) {
       ghost = silhouetteMaterial(color)

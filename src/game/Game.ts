@@ -18,6 +18,8 @@ import type { RelicCardContext } from '../ui/relicCard'
 import { RelicTooltip } from '../ui/RelicTooltip'
 import { NavGrid } from '../world/navGrid'
 import { buildHeroModel } from '../world/heroModel'
+import type { BodyLook } from '../looks/body'
+import { TITLE_REQUEST } from '../save/SaveData'
 import { MAP_HALF_EXTENT } from '../world/testMap'
 import { clampViewHeight, settingsStorage } from '../save/settings'
 import { frameDelta } from './clock'
@@ -223,6 +225,7 @@ export class Game {
       progress: this.progress,
       cardContext: (id, preview) => this.cardContext(id, preview),
       stats: () => this.heroStats(),
+      toTitle: () => this.toTitle(),
       wardrobe: {
         wardrobe: this.wardrobe,
         get autoOutfit() {
@@ -298,6 +301,23 @@ export class Game {
   }
 
   /** 바뀐 것이 있으면 저장한다. */
+  /** 저장하고 처음 화면(슬롯 고르기)으로 돌아간다. 다시 불러와 시작 화면을 띄운다. */
+  toTitle(): void {
+    this.bus.emit('progressChanged', {})
+    this.persistence.saveNow()
+    try {
+      sessionStorage.setItem(TITLE_REQUEST, '1')
+    } catch {
+      // 표시를 못 남기면 마지막 슬롯으로 바로 이어진다.
+    }
+    location.reload()
+  }
+
+  /** 처음에 고른 기본 모습을 입힌다. (캐릭터 만들기) */
+  setBody(body: BodyLook): void {
+    this.appearance.setBody(body)
+  }
+
   saveNow(): void {
     this.persistence.saveNow()
   }

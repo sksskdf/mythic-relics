@@ -1,3 +1,4 @@
+import { type BodyLook, DEFAULT_BODY } from './body'
 import { BASE_OUTFIT, lookDef, type LookSlot, STARTING_LOOKS, WARDROBE_SLOTS } from './catalog'
 
 /** 칸마다 걸칠 외형. null이면 그 칸은 비어 있다. */
@@ -31,6 +32,8 @@ export function autoOutfit(sources: OutfitSources): Outfit {
 export class Wardrobe {
   readonly unlocked = new Set<string>(STARTING_LOOKS)
   readonly choices = new Map<LookSlot, LookChoice>()
+  /** 처음에 고른 기본 모습 (피부·머리카락·옷 색) */
+  body: BodyLook = { ...DEFAULT_BODY }
 
   /** 외형을 얻는다. 새로 얻은 것만 돌려준다. */
   unlock(ids: Iterable<string>): string[] {

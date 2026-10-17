@@ -37,13 +37,17 @@ try {
   await page.waitForFunction(() => (window.__game?.frame ?? 0) > 10, null, { timeout: 15000 })
   const frames = await page.evaluate(() => window.__game.frame)
 
-  // 시작 화면: 처음 실행이면 로딩이 끝난 뒤 [시작] 하나만 있고, 누르면 플레이가 시작된다.
-  await page.waitForSelector('.title__button', { timeout: 15000 })
-  const titleButtons = await page.locator('.title__button').allTextContents()
-  if (titleButtons.join() !== '시작') throw new Error(`시작 화면 단추가 이상합니다: ${titleButtons}`)
+  // 시작 화면: 처음 실행이면 로딩이 끝난 뒤 저장 슬롯 3개(모두 빈 슬롯). 빈 슬롯 → 캐릭터 만들기 → [시작]
+  await page.waitForSelector('.title-slot', { timeout: 15000 })
+  const emptySlots = await page.locator('.title-slot.is-empty').count()
+  if (emptySlots !== 3) throw new Error(`시작 화면: 빈 슬롯이 ${emptySlots}개입니다.`)
+  await page.locator('.title-slot').first().click()
+  await page.locator('.title-swatch').nth(2).click()
   await page.click('.title__button--primary')
   await page.waitForFunction(() => window.__game.playing, null, { timeout: 5000 })
-  console.log('시작 화면 확인: [시작]으로 플레이 시작')
+  const skin = await page.evaluate(() => window.__game.wardrobe.body.skin)
+  if (skin !== 2) throw new Error(`캐릭터 만들기: 고른 피부가 ${skin}입니다.`)
+  console.log('시작 화면 확인: 빈 슬롯 → 캐릭터 만들기(피부 고름) → [시작]으로 플레이 시작')
 
   // 조작 점검: 우클릭한 곳으로 걸어가는지 확인한다.
   const heroPos = () => page.evaluate(() => {
@@ -183,6 +187,16 @@ try {
   if (!restored) throw new Error('이어서 플레이 실패: 저장한 유물이 없습니다.')
   if ((await page.evaluate(() => window.__game.hero.rig.outfit.weapon)) !== 'shortSword') throw new Error('이어서 플레이 실패: 고른 외형이 없습니다.')
   console.log('저장 확인: 새로 고침하면 단추 없이 바로 이어서, 유물과 고른 외형 유지')
+
+  // 처음 화면으로: 정보 화면의 단추를 두 번 누르면 저장하고 슬롯 고르기로 돌아가고, 그 슬롯을 누르면 이어 간다.
+  await page.click('.menu-button')
+  await page.click('.menu__home')
+  await page.click('.menu__home')
+  await page.waitForSelector('.title-slot:not(.is-empty)', { timeout: 15000 })
+  await page.locator('.title-slot:not(.is-empty)').first().click()
+  await page.waitForFunction(() => window.__game?.playing, null, { timeout: 15000 })
+  if (!(await page.evaluate(() => window.__game.powers.loadout.has('megingjord')))) throw new Error('처음 화면에서 슬롯을 골랐는데 유물이 없습니다.')
+  console.log('처음 화면 확인: 정보 화면에서 처음 화면으로, 슬롯을 골라 그대로 이어 감')
 
   // 개발 패널: ?dev 로 열고 단추로 유물·적·전설을 바로 바꿔 본다.
   await page.goto(`${URL}?dev`)

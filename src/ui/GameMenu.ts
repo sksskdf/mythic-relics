@@ -65,6 +65,8 @@ export interface MenuHost {
   /** 설명 카드에 넣을 지금 상태 */
   cardContext(id: RelicId, preview?: { before: LoadoutState; after: LoadoutState }): RelicCardContext
   stats(): HeroStats
+  /** 저장하고 처음 화면(슬롯 고르기)으로 */
+  toTitle(): void
 }
 
 /** 능력치 그림의 밝은 색과 어두운 색 */
@@ -150,11 +152,28 @@ export class GameMenu {
       this.tabButtons.set(id, b)
       tabs.append(b)
     }
+    // 처음 화면으로: 저장하고 슬롯 고르기로 돌아간다. 잘못 누르지 않게 한 번 더 눌러야 한다.
+    const home = el('button', 'menu__home')
+    home.type = 'button'
+    home.append(img(glyph('drop', '#b9c3cf', '#5d6876')), el('span', '', '처음 화면'))
+    home.addEventListener('click', () => {
+      if (home.classList.contains('is-confirm')) {
+        host.toTitle()
+        return
+      }
+      home.classList.add('is-confirm')
+      home.lastElementChild!.textContent = '한 번 더 누르면 이동'
+      setTimeout(() => {
+        home.classList.remove('is-confirm')
+        home.lastElementChild!.textContent = '처음 화면'
+      }, 2500)
+    })
+    this.hintOn(home, '처음 화면\n지금까지를 저장하고 슬롯 고르기 화면으로 돌아간다')
     const close = el('button', 'menu__close', '×')
     close.type = 'button'
     close.setAttribute('aria-label', '닫기')
     close.addEventListener('click', () => this.toggle(false))
-    head.append(tabs, close)
+    head.append(tabs, home, close)
     this.body = el('div', 'menu__body')
     frame.append(head, this.body, this.hint)
     this.window.append(frame)
