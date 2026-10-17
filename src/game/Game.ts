@@ -3,7 +3,7 @@ import * as THREE from 'three'
 import { Input } from '../input/Input'
 import { PixelRenderer } from '../render/PixelRenderer'
 import { QuarterViewCamera } from '../render/QuarterViewCamera'
-import { METERS_PER_PIXEL, TARGET_RENDER_HEIGHT } from '../render/resolution'
+import { renderHeightFor, TARGET_RENDER_HEIGHT } from '../render/resolution'
 import { addSilhouette } from '../render/silhouette'
 import { godDef, type RelicId } from '../relics/data'
 import { DropTable } from '../relics/DropTable'
@@ -104,7 +104,8 @@ export class Game {
   private readonly life: HeroLife
   private readonly persistence: Persistence
   private readonly playerInput: PlayerInput
-  private readonly metersPerPixel: number
+  /** 가장 크게 확대했을 때(시야 12m)의 렌더 세로 픽셀 수. ?res= 로 바꿔 볼 수 있다 */
+  private readonly baseRenderHeight: number
   private lastTime = performance.now()
   private elapsed = 0
 
@@ -117,8 +118,8 @@ export class Game {
     // 확대·축소: 주소의 ?view= 가 있으면 그 값, 없으면 저장한 설정
     this.view.viewHeight = options.viewHeight ?? settingsStorage.load().viewHeight
     // ?res= 로 픽셀 밀도를 바꿔 볼 수 있다. 기본은 프로토타입의 밀도
-    this.metersPerPixel = options.renderHeight ? 16 / options.renderHeight : METERS_PER_PIXEL
-    this.pixel.setTargetHeight(this.view.viewHeight / this.metersPerPixel)
+    this.baseRenderHeight = options.renderHeight ?? TARGET_RENDER_HEIGHT
+    this.pixel.setTargetHeight(renderHeightFor(this.view.viewHeight, this.baseRenderHeight))
     this.pixel.renderer.domElement.addEventListener('wheel', (e) => this.onWheel(e), { passive: false })
     this.hud = new Hud(container)
     this.numbers = new DamageNumbers(container)
@@ -429,8 +430,8 @@ export class Game {
   /** 확대·축소. 그림자가 그려지는 범위도 보이는 범위에 맞춘다. */
   setViewHeight(viewHeight: number): void {
     const next = clampViewHeight(viewHeight)
-    // 보이는 범위가 넓어지면 렌더 해상도도 같이 늘려 픽셀 하나의 크기(밀도)를 지킨다.
-    this.pixel.setTargetHeight(next / this.metersPerPixel)
+    // 가장 크게 확대했을 때의 픽셀 크기를 기준으로, 넓게 볼 때는 뭉개지지 않을 만큼만 해상도를 올린다.
+    this.pixel.setTargetHeight(renderHeightFor(next, this.baseRenderHeight))
     this.view.viewHeight = next
     this.resize()
     this.view.setViewHeight(next)

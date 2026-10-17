@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { computeRenderSize, METERS_PER_PIXEL } from '../src/render/resolution'
+import { computeRenderSize, renderHeightFor } from '../src/render/resolution'
 
 describe('computeRenderSize', () => {
   it('세로 픽셀 수는 정한 대로 두고, 화면 세로에 꼭 맞게 키운다', () => {
@@ -20,11 +20,14 @@ describe('computeRenderSize', () => {
     }
   })
 
-  it('확대·축소해도 픽셀 하나가 덮는 월드 크기는 같다 (시야 ÷ 세로 픽셀 수)', () => {
-    for (const view of [12, 22, 34]) {
-      const size = computeRenderSize(1280, 720, view / METERS_PER_PIXEL)
-      expect(view / size.height).toBeCloseTo(METERS_PER_PIXEL, 3)
-    }
+  it('가장 크게 확대했을 때(12m)가 기준이고, 축소하면 해상도를 천천히만 올린다', () => {
+    expect(renderHeightFor(12)).toBe(180)
+    const mid = renderHeightFor(19)
+    const far = renderHeightFor(34)
+    expect(mid).toBeGreaterThan(180)
+    expect(far).toBeGreaterThan(mid)
+    // 화면 픽셀 크기는 기준의 3분의 2 아래로 내려가지 않는다. (시야를 따라 그대로 늘리면 3분의 1까지 작아진다)
+    expect(180 / far).toBeGreaterThan(2 / 3)
   })
 
   it('크기가 0인 화면에서도 깨지지 않는다', () => {

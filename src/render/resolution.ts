@@ -1,12 +1,24 @@
-/** ?res= 로 저해상도 기준 높이를 정할 때 쓰는 기본값 (시야 16m를 이 픽셀 수로 그린다) */
-export const TARGET_RENDER_HEIGHT = 240
+/** 가장 가까이 볼 때(시야 12m)의 렌더 세로 픽셀 수. 이 때의 픽셀 크기가 그래픽의 기준이다. */
+export const BASE_VIEW_HEIGHT = 12
+export const BASE_RENDER_HEIGHT = 180
+/** ?res= 를 주지 않았을 때 쓰는 기본값 (점검용 옵션과 호환) */
+export const TARGET_RENDER_HEIGHT = BASE_RENDER_HEIGHT
 
 /**
- * 픽셀 하나가 덮는 월드 크기(미터). 가장 가까이 볼 때(시야 12m)를 180픽셀로 그리는 밀도다.
- * 확대·축소해도 이 밀도를 그대로 지키므로, 복셀 하나는 언제나 같은 수의 픽셀로 그려지고 그림이 달라지지 않는다.
- * 보이는 범위가 바뀌면 그 그림을 화면에 맞게 키우거나 줄일 뿐이다.
+ * 축소할 때 렌더 해상도를 얼마나 따라 올릴지 (0~1).
+ * - 0: 화면에 보이는 픽셀 크기가 시야와 상관없이 같다. 대신 멀리 볼수록 복셀이 픽셀보다 작아져 뭉개진다.
+ * - 1: 픽셀 하나가 덮는 월드 크기가 같다. 대신 멀리 볼수록 화면의 픽셀이 작아져 더 매끈(선명)해진다.
+ * 기준(가장 크게 확대한 모습)의 픽셀 크기를 최대한 지키면서 뭉개지지 않을 만큼만 올린다.
  */
-export const METERS_PER_PIXEL = 12 / 180
+export const ZOOM_DETAIL = 0.3
+
+/**
+ * 시야 높이(m)에 맞는 렌더 세로 픽셀 수.
+ * 시야 12m에서 baseHeight, 넓어질수록 (시야 / 12)^ZOOM_DETAIL 배로 천천히 늘어난다.
+ */
+export function renderHeightFor(viewHeight: number, baseHeight = BASE_RENDER_HEIGHT): number {
+  return Math.round(baseHeight * Math.pow(viewHeight / BASE_VIEW_HEIGHT, ZOOM_DETAIL))
+}
 
 export interface RenderSize {
   /** 저해상도 렌더 타깃의 가로 픽셀 수 */
