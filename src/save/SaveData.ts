@@ -1,4 +1,4 @@
-import { isLookId, LOOK_SLOTS, lookDef, type LookSlot, STARTING_LOOKS } from '../looks/catalog'
+import { isLookId, lookDef, type LookSlot, STARTING_LOOKS, WARDROBE_SLOTS } from '../looks/catalog'
 import type { LookChoice } from '../looks/outfit'
 import { GODS, godDef, type God, isRelicId, relicDef, type RelicId } from '../relics/data'
 
@@ -99,7 +99,7 @@ function parseLooks(raw: unknown): SaveData['looks'] {
   for (const id of Array.isArray(o.unlocked) ? o.unlocked : []) if (isLookId(id)) unlocked.add(id)
   const choices: SaveData['looks']['choices'] = {}
   const rawChoices = (typeof o.choices === 'object' && o.choices !== null ? o.choices : {}) as Record<string, unknown>
-  for (const slot of LOOK_SLOTS) {
+  for (const slot of WARDROBE_SLOTS) {
     const choice = rawChoices[slot]
     if (choice === null) choices[slot] = null
     // 얻지 않았거나 다른 칸의 외형이면 버린다. ("자동"은 적지 않아도 기본값)

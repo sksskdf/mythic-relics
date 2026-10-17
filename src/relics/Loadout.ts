@@ -1,8 +1,8 @@
-import { type God, relicDef, type RelicId } from './data'
+import { type God, godDef, relicDef, type RelicId } from './data'
 
 /** 유물 슬롯 수 */
 export const SLOT_COUNT = 4
-/** 같은 신의 유물이 이 개수 이상이면 클래스가 발현된다. */
+/** 같은 신의 유물이 이 개수 이상이면 클래스가 발현된다. (신마다 다를 수 있다: gods.json의 manifestCount) */
 export const MANIFEST_COUNT = 3
 
 export interface LoadoutState {
@@ -36,7 +36,7 @@ export function resolveLoadout(relics: readonly (RelicId | null)[]): LoadoutStat
       tie = true
     }
   }
-  const manifested = best && !tie && bestCount >= MANIFEST_COUNT ? best : null
+  const manifested = best && !tie && bestCount >= godDef(best).manifestCount ? best : null
   const blessings = [...counts.keys()].filter((god) => god !== manifested)
   return { manifested, blessings }
 }

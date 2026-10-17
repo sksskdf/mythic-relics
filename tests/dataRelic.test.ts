@@ -27,7 +27,7 @@ vi.mock('../src/data/relics.json', async (importOriginal) => {
       testRelic: {
         name: '시험용 뿔잔',
         god: 'thor',
-        look: 'ironGauntlets',
+        look: 'lokiMaskFace',
         model: 'megingjord',
         description: '시험용 유물. 확인 뒤 지운다.',
         icon: Array.from({ length: 12 }, () => 'aaaaaaaaaaaa'),

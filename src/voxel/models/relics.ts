@@ -87,5 +87,31 @@ export function emberIngot(): VoxelGrid {
   return g
 }
 
+/** 땅에 꽂힌 검 (아수라의 네 검). 칼끝이 아래, 손잡이가 위 */
+function sword(blade: number, hilt: number, guard: number, length = 12): VoxelGrid {
+  const g = new VoxelGrid(5, length + 5, 3)
+  g.box(2, 0, 1, 2, length - 1, 1, blade)
+  g.box(2, 1, 1, 2, length - 2, 1, blade)
+  g.set(2, 0, 1, 0xffffff)
+  g.box(0, length, 0, 4, length, 2, guard)
+  g.box(2, length + 1, 1, 2, length + 3, 1, hilt)
+  g.set(2, length + 4, 1, guard)
+  return g
+}
+
+export const kusanagi = (): VoxelGrid => sword(0xbfe9ff, 0x1c1416, 0xe6bd4e, 13)
+export const totsuka = (): VoxelGrid => sword(0xe9eef5, 0x6a1a22, 0xff4a4a, 14)
+export const futsu = (): VoxelGrid => sword(0xd7dee5, 0xc9a23a, 0x7fd4ff, 12)
+export const ohabari = (): VoxelGrid => sword(0xffd0a0, 0x3b2414, 0xff7a2a, 12)
+
 /** 유물 데이터의 model 이름 → 복셀 모델 */
-export const RELIC_MODELS: Readonly<Record<string, () => VoxelGrid>> = { mjolnir, megingjord, jarngreipr, lokiMask }
+export const RELIC_MODELS: Readonly<Record<string, () => VoxelGrid>> = {
+  mjolnir,
+  megingjord,
+  jarngreipr,
+  lokiMask,
+  kusanagi,
+  totsuka,
+  futsu,
+  ohabari,
+}

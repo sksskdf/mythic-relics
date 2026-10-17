@@ -20,6 +20,8 @@ export interface HeroRig {
   leftLeg: THREE.Group
   rightLeg: THREE.Group
   cape: THREE.Group
+  /** 발현 표식 자리 (등) */
+  mark: THREE.Group
   /** 오른손에 쥔 무기 자리 */
   weapon: THREE.Group
   /** 주인공 전용 재질 (맞았을 때 번쩍이게 한다) */
@@ -51,8 +53,8 @@ function pivotFor(slot: LookSlot, grid: VoxelGrid): MeshOptions['pivot'] {
       return [grid.sizeX / 2, 5.5, 1.5]
     case 'cape':
       return [4, 12, 1]
-    case 'aura':
-      return undefined
+    case 'mark':
+      return [grid.sizeX / 2, 0, grid.sizeZ]
   }
 }
 
@@ -79,7 +81,7 @@ function joint(x: number, y: number, z: number): THREE.Group {
 
 /**
  * 복셀로 만든 주인공. 투구 끝까지 약 2미터이고, 발이 원점(y=0)에 닿는다. 앞은 +z 방향이다.
- * 머리·얼굴·몸·허리·팔·다리·무기·망토 칸에 외형 모델을 바꿔 끼운다. (E3)
+ * 머리·얼굴·몸·허리·손·다리·무기·등·표식 칸에 외형 모델을 바꿔 끼운다. (E3)
  * 처음에는 어느 신도 떠올리지 않는 평범한 모험가 모습이다.
  */
 export function buildHeroModel(outfit: Outfit = BASE_OUTFIT): HeroRig {
@@ -108,7 +110,9 @@ export function buildHeroModel(outfit: Outfit = BASE_OUTFIT): HeroRig {
   const face = joint(0, s, 4 * s)
   head.add(face)
   const cape = joint(0, shoulderY + s, -3 * s)
-  body.add(leftLeg, rightLeg, torso, leftArm, rightArm, head, cape)
+  // 표식은 어깨뼈 높이, 망토 바로 뒤에 붙는다. (벼락 고리, 두 뱀, 여섯 팔)
+  const mark = joint(0, shoulderY - 2 * s, -3.6 * s)
+  body.add(leftLeg, rightLeg, torso, leftArm, rightArm, head, cape, mark)
 
   /** 칸 → 모델을 붙이는 관절들 (팔·다리는 양쪽) */
   const mounts: Record<LookSlot, THREE.Group[]> = {
@@ -120,7 +124,7 @@ export function buildHeroModel(outfit: Outfit = BASE_OUTFIT): HeroRig {
     legs: [leftLeg, rightLeg],
     weapon: [weapon],
     cape: [cape],
-    aura: [],
+    mark: [mark],
   }
   const worn = new Map<LookSlot, THREE.Mesh[]>()
   let ghost: THREE.Material | null = null
@@ -152,6 +156,7 @@ export function buildHeroModel(outfit: Outfit = BASE_OUTFIT): HeroRig {
     leftLeg,
     rightLeg,
     cape,
+    mark,
     weapon,
     material,
     outfit: current,

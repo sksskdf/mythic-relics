@@ -1,5 +1,5 @@
 import { DATA } from '../data'
-import { type God, RELIC_IDS, relicDef, type RelicId } from './data'
+import { type God, godDef, RELIC_IDS, relicDef, type RelicId } from './data'
 
 /** 보스마다 반드시 떨어뜨리는 유물 (DESIGN.md 9.3). 적 데이터의 fixedDrop에서 모은다. */
 export const BOSS_RELICS: Readonly<Record<string, RelicId>> = Object.fromEntries(
@@ -32,7 +32,10 @@ export class DropTable {
     private readonly rng: () => number = Math.random,
     readonly tuning: DropTuning = DEFAULT_DROPS,
     /** 무작위로 나올 수 있는 유물 (보스 확정 유물은 빼 둔다) */
-    private readonly pool: readonly RelicId[] = RELIC_IDS.filter((id) => !Object.values(BOSS_RELICS).includes(id)),
+    // 히든 클래스의 유물은 무작위로 떨어지지 않는다. (특정 전설에서만 얻는다, ENDGAME.md)
+    private readonly pool: readonly RelicId[] = RELIC_IDS.filter(
+      (id) => !Object.values(BOSS_RELICS).includes(id) && !godDef(relicDef(id).god).hidden,
+    ),
   ) {}
 
   /** 지금 일반 괴물을 잡았을 때의 드랍 확률 */

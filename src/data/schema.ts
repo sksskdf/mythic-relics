@@ -106,6 +106,12 @@ export interface GodDef {
   looks: Readonly<Partial<Record<LookSlot, string>>>
   /** 승급 전설 이름. 아직 없으면 비어 있다 */
   legend?: string
+  /** 발현 표식: 이 클래스의 정체성을 드러내는 고정 외형 (등에 붙고 기운 연출이 딸린다) */
+  mark: string
+  /** 히든 클래스의 신. 유물이 무작위로 떨어지지 않는다 */
+  hidden: boolean
+  /** 발현에 필요한 같은 신 유물 수 (보통 3, 아수라 4) */
+  manifestCount: number
 }
 
 export interface ClassPassive {
@@ -137,7 +143,7 @@ export function parseGods(raw: unknown, path = 'gods.json'): Record<string, GodD
   const out: Record<string, GodDef> = {}
   for (const [id, o] of table(raw, path)) {
     const p = `${path}.${id}`
-    onlyKeys(o, p, ['name', 'titles', 'archetype', 'color', 'tree', 'passive', 'looks', 'legend'])
+    onlyKeys(o, p, ['name', 'titles', 'archetype', 'color', 'tree', 'passive', 'looks', 'legend', 'mark', 'hidden', 'manifestCount'])
     const titles = list(o, 'titles', p)
     if (titles.length !== 4 || titles.some((t) => typeof t !== 'string' || t.trim() === '')) {
       throw new DataError(`${p}.titles`, 'Lv1~Lv4 칭호 네 개여야 합니다')
@@ -176,7 +182,11 @@ export function parseGods(raw: unknown, path = 'gods.json'): Record<string, GodD
       passive,
       looks: parseLooks(o.looks ?? {}, `${p}.looks`),
       ...(o.legend === undefined ? {} : { legend: str(o, 'legend', p) }),
+      mark: lookOf(o.mark, 'mark', `${p}.mark`),
+      hidden: bool(o, 'hidden', p),
+      manifestCount: optNum(o, 'manifestCount', p, { min: 2, max: 4 }) ?? 3,
     }
+    if (out[id]!.looks.mark !== undefined) throw new DataError(`${p}.looks.mark`, '표식은 looks가 아니라 mark에 적습니다')
   }
   if (Object.keys(out).length === 0) throw new DataError(path, '신이 하나도 없습니다')
   return out
@@ -607,6 +617,8 @@ export interface TreeClass {
   name: string
   /** Lv1~Lv4 칭호 */
   titles: readonly [string, string, string, string]
+  /** 잠겨 있을 때 보여 주는 힌트. 조건을 바로 말하지 않고 그 신화의 이야기로 암시한다 */
+  hint: string
 }
 
 export interface BaseClass extends TreeClass {
@@ -619,17 +631,17 @@ export interface ClassTree {
   archetypes: readonly { id: ArchetypeId; name: string; upper: TreeClass; apex: TreeClass }[]
   mythologies: readonly { id: string; name: string; stage: string; classes: readonly BaseClass[]; upper: TreeClass }[]
   /** 히든 클래스. 원형이 없으면 그때 가장 높은 친화도를 쓴다 */
-  hidden: readonly (TreeClass & { archetype: ArchetypeId | null })[]
+  hidden: readonly (TreeClass & { archetype: ArchetypeId | null; god?: string })[]
 }
 
 function treeClass(raw: unknown, path: string, extra: readonly string[] = []): TreeClass {
   const o = obj(raw, path)
-  onlyKeys(o, path, ['name', 'titles', ...extra])
+  onlyKeys(o, path, ['name', 'titles', 'hint', ...extra])
   const titles = list(o, 'titles', path)
   if (titles.length !== 4 || titles.some((t) => typeof t !== 'string' || t.trim() === '')) {
     throw new DataError(`${path}.titles`, 'Lv1~Lv4 칭호 네 개여야 합니다')
   }
-  return { name: str(o, 'name', path), titles: titles as [string, string, string, string] }
+  return { name: str(o, 'name', path), titles: titles as [string, string, string, string], hint: str(o, 'hint', path) }
 }
 
 /** 클래스 트리 (CLASSES.md를 옮긴 것). 게임에 들어 있는 신은 gods.json과 원형·칭호가 맞아야 한다. */
@@ -669,15 +681,27 @@ export function parseClassTree(raw: unknown, gods: Record<string, GodDef>, path 
     })
     return { id: str(mo, 'id', p), name: str(mo, 'name', p), stage: str(mo, 'stage', p), classes, upper: treeClass(mo.upper, `${p}.upper`) }
   })
-  for (const god of Object.keys(gods)) {
-    if (!linked.has(god)) throw new DataError(path, `gods.json의 "${god}"이(가) 클래스 트리에 없습니다`)
+  const link = (god: string, base: TreeClass, archetype: ArchetypeId | null, cp: string): void => {
+    const def = gods[god]
+    if (!def) throw new DataError(`${cp}.god`, `gods.json에 없는 신입니다 ("${god}")`)
+    if (archetype !== null && def.archetype !== archetype) throw new DataError(`${cp}.archetype`, `gods.json의 원형(${def.archetype})과 다릅니다`)
+    if (def.titles.join() !== base.titles.join()) throw new DataError(`${cp}.titles`, 'gods.json의 칭호와 다릅니다')
+    linked.add(god)
   }
   const hidden = list(o, 'hidden', path).map((h, i) => {
     const p = `${path}.hidden[${i}]`
     const ho = obj(h, p)
-    const base = treeClass(h, p, ['archetype'])
-    return { ...base, archetype: ho.archetype === null ? null : oneOf(ho, 'archetype', p, ARCHETYPE_IDS) }
+    const base = treeClass(h, p, ['archetype', 'god'])
+    const archetype = ho.archetype === null ? null : oneOf(ho, 'archetype', p, ARCHETYPE_IDS)
+    if (ho.god === undefined) return { ...base, archetype }
+    const god = str(ho, 'god', p)
+    link(god, base, archetype, p)
+    if (!gods[god]!.hidden) throw new DataError(`${p}.god`, '히든 클래스에는 hidden 신만 이을 수 있습니다')
+    return { ...base, archetype, god }
   })
+  for (const god of Object.keys(gods)) {
+    if (!linked.has(god)) throw new DataError(path, `gods.json의 "${god}"이(가) 클래스 트리에 없습니다`)
+  }
   return { archetypes, mythologies, hidden }
 }
 
@@ -690,6 +714,33 @@ export interface GameData {
   classes: ClassTree
 }
 
+/**
+ * 유물·클래스·외형의 정합 (DESIGN.md 10.4)
+ * - 유물의 외형은 표식 칸일 수 없다.
+ * - 같은 신의 유물끼리는 부위가 겹치지 않는다.
+ * - 발현 외형은 그 신의 유물이 차지한 부위를 덮지 않는다.
+ * - 발현에 필요한 유물 수만큼 그 신의 유물이 있어야 한다. (아직 없는 유물은 히든이 아닌 신만 허용: 신화권이 다 들어오기 전)
+ */
+function checkLookHarmony(gods: Record<string, GodDef>, relics: Record<string, RelicDef>): void {
+  for (const god of Object.values(gods)) {
+    const own = Object.values(relics).filter((r) => r.god === god.id)
+    const used = new Map<LookSlot, string>()
+    for (const relic of own) {
+      const slot = LOOKS[relic.look]!.slot
+      if (slot === 'mark') throw new DataError(`relics.json.${relic.id}.look`, '유물 외형은 표식 칸일 수 없습니다')
+      const other = used.get(slot)
+      if (other) throw new DataError(`relics.json.${relic.id}.look`, `같은 신의 유물 "${other}"와 부위(${slot})가 겹칩니다`)
+      used.set(slot, relic.id)
+      if (god.looks[slot] !== undefined) {
+        throw new DataError(`gods.json.${god.id}.looks.${slot}`, `${god.id}의 유물 "${relic.id}"가 차지한 부위라 발현 외형을 둘 수 없습니다`)
+      }
+    }
+    if (god.hidden && own.length < god.manifestCount) {
+      throw new DataError(`gods.json.${god.id}.manifestCount`, `히든 클래스인데 유물이 ${own.length}개뿐입니다 (${god.manifestCount}개 필요)`)
+    }
+  }
+}
+
 /** 코드가 이름으로 직접 쓰는 적 (맵 배치, 승급 전설). 데이터에서 빠지면 안 된다. */
 export const REQUIRED_ENEMIES = ['grunt', 'king', 'utgardKing'] as const
 
@@ -700,6 +751,7 @@ export function parseGameData(
 ): GameData {
   const gods = parseGods(raw.gods)
   const relics = parseRelics(raw.relics, { gods: Object.keys(gods), ...(models ? { models } : {}) })
+  checkLookHarmony(gods, relics)
   const enemies = parseEnemies(raw.enemies)
   for (const enemy of Object.values(enemies)) {
     if (enemy.fixedDrop !== undefined && !relics[enemy.fixedDrop]) {

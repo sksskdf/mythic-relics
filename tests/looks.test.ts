@@ -15,11 +15,12 @@ function meshes(group: THREE.Object3D): THREE.Mesh[] {
 }
 
 describe('외형 목록', () => {
-  it('기운(aura) 칸을 빼면 모든 외형에 복셀 모델이 있다', () => {
-    for (const id of LOOK_IDS) {
-      if (lookDef(id).slot === 'aura') continue
-      expect(LOOK_MODELS[id], id).toBeTypeOf('function')
-    }
+  it('모든 외형에 복셀 모델이 있다', () => {
+    for (const id of LOOK_IDS) expect(LOOK_MODELS[id], id).toBeTypeOf('function')
+  })
+
+  it('표식은 기운 연출을 함께 가진다', () => {
+    for (const id of LOOK_IDS) if (lookDef(id).slot === 'mark') expect(lookDef(id).aura, id).toBeDefined()
   })
 
   it('처음 모습은 토르를 떠올리지 않는 모험가다 (뿔·날개 투구, 붉은 망토 없음)', () => {

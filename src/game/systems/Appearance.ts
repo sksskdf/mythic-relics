@@ -1,4 +1,4 @@
-import type { LookSlot } from '../../looks/catalog'
+import { lookDef, type LookSlot } from '../../looks/catalog'
 import { autoOutfit, type LookChoice, type Outfit } from '../../looks/outfit'
 import { godDef, relicDef } from '../../relics/data'
 import type { GameContext } from '../context'
@@ -19,7 +19,7 @@ export class AppearanceSystem {
     const manifested = powers.manifested
     return autoOutfit({
       relicLooks: powers.loadout.slots.filter((id) => id !== null).map((id) => relicDef(id).look),
-      manifestLooks: manifested ? godDef(manifested).looks : {},
+      manifestLooks: manifested ? { ...godDef(manifested).looks, mark: godDef(manifested).mark } : {},
     })
   }
 
@@ -49,11 +49,17 @@ export class AppearanceSystem {
     bus.emit('outfitChanged', {})
   }
 
-  /** 프레임마다: 기운(aura) 칸의 연출을 켜고 끈다. 쓰러져 있으면 끈다. */
+  /** 프레임마다: 표식에 딸린 기운 연출을 켜고 끈다. 쓰러져 있으면 끈다. 아수라의 팔은 천천히 숨 쉬듯 흔들린다. */
   update(): void {
     const { hero, combat, fx } = this.ctx
-    const aura = combat.alive ? hero.rig.outfit.aura : null
-    fx.sparks.enabled = aura === 'thorSparks'
-    fx.shadow.enabled = aura === 'lokiShadow'
+    const mark = hero.rig.outfit.mark
+    const aura = combat.alive && mark ? lookDef(mark).aura : undefined
+    fx.sparks.enabled = aura === 'sparks'
+    fx.shadow.enabled = aura === 'shadow'
+    fx.asura.enabled = aura === 'asura'
+    this.sway += 1 / 60
+    hero.rig.mark.rotation.z = aura === 'asura' ? Math.sin(this.sway * 1.7) * 0.06 : 0
   }
+
+  private sway = 0
 }

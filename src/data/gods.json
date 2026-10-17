@@ -30,10 +30,10 @@
     "looks": {
       "head": "thorHelm",
       "torso": "thorTunic",
-      "cape": "thorCape",
-      "aura": "thorSparks"
+      "cape": "thorCape"
     },
-    "legend": "우트가르드 원정"
+    "legend": "우트가르드 원정",
+    "mark": "thorStormHalo"
   },
   "loki": {
     "name": "로키",
@@ -53,8 +53,33 @@
     "looks": {
       "head": "lokiCrown",
       "torso": "lokiTunic",
-      "cape": "lokiCape",
-      "aura": "lokiShadow"
-    }
+      "cape": "lokiCape"
+    },
+    "mark": "lokiSerpents"
+  },
+  "asura": {
+    "name": "아수라",
+    "titles": [
+      "아수라",
+      "여섯 팔의 검귀",
+      "수라도의 왕",
+      "천 개의 칼날"
+    ],
+    "archetype": "war",
+    "color": "#e0414f",
+    "tree": {
+      "column": 2,
+      "row": 1
+    },
+    "passive": {
+      "damageScale": 1.1
+    },
+    "looks": {
+      "torso": "asuraBladeArmor",
+      "legs": "asuraBladeGreaves"
+    },
+    "mark": "asuraArms",
+    "hidden": true,
+    "manifestCount": 4
   }
 }

@@ -28,6 +28,8 @@ export class Effects {
   readonly sparks = new Sparks()
   /** 변신술사 발현 중 발밑의 그림자 */
   readonly shadow = new ShadowAura()
+  /** 아수라 발현 중 검붉은 스산한 기운 */
+  readonly asura = new ShadowAura(0x3a0408, 0xa3141c, 2.2)
   readonly snow = new Snowfall()
   /** 유물 스킬 연출을 붙이는 곳 */
   readonly skills = new THREE.Group()
@@ -44,7 +46,7 @@ export class Effects {
       effect.traverse((o) => o.layers.set(EFFECT_LAYER))
       scene.add(effect)
     }
-    scene.add(this.targetMarker.object, this.pathLine.object, this.skills, this.debris.object, this.lightning.object, this.shadow.object)
+    scene.add(this.targetMarker.object, this.pathLine.object, this.skills, this.debris.object, this.lightning.object, this.shadow.object, this.asura.object)
   }
 
   /** 지시 표시: 누른 곳, 공격 대상, 적을 무시한 이동의 경로 */
@@ -72,6 +74,7 @@ export class Effects {
     this.lightning.update(dt)
     this.sparks.update(dt, position)
     this.shadow.update(dt, position)
+    this.asura.update(dt, position)
     this.slashes.update(dt)
     this.debris.update(dt)
     this.snow.update(dt, position, elapsed)

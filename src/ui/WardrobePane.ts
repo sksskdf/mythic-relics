@@ -3,7 +3,7 @@ import type { LookChoice, Outfit, Wardrobe } from '../looks/outfit'
 import { HeroPreview } from './HeroPreview'
 
 /** 비워 둘 수 있는 칸 (기본 모험가도 아무것도 걸치지 않는 칸) */
-const OPTIONAL: ReadonlySet<LookSlot> = new Set(['face', 'waist', 'cape', 'aura'])
+const OPTIONAL: ReadonlySet<LookSlot> = new Set(['face', 'waist', 'cape'])
 
 /** 미리 보기 둘레의 칸 배치: 왼쪽은 위에서부터 머리·얼굴·몸·허리, 오른쪽은 팔·다리·무기·망토, 기운은 아래 */
 const LEFT: readonly LookSlot[] = ['head', 'face', 'torso', 'waist']
@@ -53,7 +53,7 @@ export class WardrobePane {
     }
     const stage = el('div', 'wardrobe__stage')
     stage.append(this.preview.canvas)
-    stage.append(this.slotBox('aura', dressed, container))
+    stage.append(this.slotBox('mark', dressed, container))
     doll.append(column(LEFT, 'left'), stage, column(RIGHT, 'right'))
     pane.append(doll)
 
