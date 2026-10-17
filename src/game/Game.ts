@@ -128,6 +128,8 @@ export class Game {
   private readonly tooltip: RelicTooltip
   /** 지금 떠 있는 카드가 땅의 유물 카드인가 */
   private groundTooltip = false
+  /** 가방까지 합쳐 발현할 수 있다고 이미 알린 신 */
+  private hintedGod: string | null = null
   /** 커서를 올린 HUD 유물 칸 (카드를 그 위에 띄운다) */
   private hoveredSlot: { slot: number; x: number; y: number } | null = null
   private readonly relics: RelicSystem
@@ -293,7 +295,17 @@ export class Game {
     // 새 외형은 메뉴 단추의 점으로만 알린다. (유물 이름 알림과 겹치지 않게)
     this.bus.on('looksUnlocked', () => this.menu.markNew())
     this.bus.on('outfitChanged', () => this.menu.refresh())
-    this.bus.on('loadoutChanged', () => this.menu.refresh())
+    this.bus.on('loadoutChanged', () => {
+      this.menu.refresh()
+      // 칸이 다른 신 유물로 차 있어 가방의 유물로 발현할 수 있으면 알린다 (E6-07)
+      const god = this.powers.loadout.manifestable()
+      if (god && god !== this.hintedGod) {
+        this.hintedGod = god
+        this.menu.markTab('relics')
+        this.hud.showToast(`${godDef(god).name}의 유물이 모였다`)
+      }
+      if (!god) this.hintedGod = null
+    })
     // HUD 유물 칸: 커서를 올리면 설명 카드, 누르면 유물 화면
     this.hud.onSlotClick = (slot) => this.menu.show('relics', slot)
     this.hud.onSlotHover = (slot, anchor) => {
@@ -639,11 +651,15 @@ export class Game {
       {
         life: this.combat.health.ratio,
         divine: this.combat.divine,
-        boss: this.legend.boss?.alive
-          ? this.legend.boss.health.ratio
-          : boss && this.encounter.bossEngaged
-            ? boss.health.ratio
-            : null,
+        // 내기 전설은 보스 막대 자리에 채운 처치 수를 보인다
+        boss:
+          this.legend.betProgress !== null
+            ? this.legend.betProgress
+            : this.legend.boss?.alive
+              ? this.legend.boss.health.ratio
+              : boss && this.encounter.bossEngaged
+                ? boss.health.ratio
+                : null,
         slots: this.powers.hudSlots(),
         ultimate: manifested !== null,
         xp: manifested ? this.progress.xpRatio(manifested) : null,
@@ -673,6 +689,16 @@ export class Game {
   devUnequip(id: RelicId): void {
     const slot = this.powers.loadout.slots.indexOf(id)
     if (slot >= 0) this.relics.unequip(slot, false)
+  }
+
+  /** 가방의 유물을 칸에 끼운다. (봇이 발현 조합으로 바꿔 낄 때) */
+  devWield(id: RelicId, slot: number): void {
+    this.relics.wield(id, slot)
+  }
+
+  /** 칸의 유물을 가방에 넣는다. (봇이 한 신만 쓸 때) */
+  devStow(slot: number): void {
+    this.relics.stow(slot)
   }
 
   /** 유물을 모두 뺀다. (땅에 내려놓지 않고 없앤다) */

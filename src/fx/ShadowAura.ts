@@ -3,7 +3,7 @@ import * as THREE from 'three'
 import { EFFECT_LAYER } from '../render/PixelRenderer'
 import { heightAt } from '../world/terrain'
 
-const WISPS = 8
+const WISPS = 14
 
 /**
  * 발현 기운 연출: 발밑에 그림자가 일렁이고, 그림자 조각이 피어올랐다 사라진다.
@@ -12,6 +12,8 @@ const WISPS = 8
 export class ShadowAura {
   readonly object = new THREE.Group()
   enabled = false
+  /** 발현 레벨: 오를수록 그림자가 넓고 짙어지고 조각이 많아진다 (E6) */
+  level = 1
   private readonly pool: THREE.Mesh
   private readonly poolMaterial: THREE.MeshBasicMaterial
   private readonly wisps: { mesh: THREE.Mesh; life: number; angle: number }[] = []
@@ -41,19 +43,25 @@ export class ShadowAura {
     this.time += dt
     const y = heightAt(center.x, center.z) + 0.04
     this.pool.position.set(center.x, y, center.z)
-    this.pool.scale.setScalar(1 + Math.sin(this.time * 3) * 0.08)
-    this.poolMaterial.opacity = 0.38 + Math.sin(this.time * 5) * 0.07
-    for (const wisp of this.wisps) {
+    const grow = 1 + (this.level - 1) * 0.22
+    this.pool.scale.setScalar(grow * (1 + Math.sin(this.time * 3) * 0.08))
+    this.poolMaterial.opacity = 0.34 + this.level * 0.05 + Math.sin(this.time * 5) * 0.07
+    const active = 4 + this.level * 2
+    this.wisps.forEach((wisp, i) => {
+      if (i >= active) {
+        wisp.mesh.visible = false
+        return
+      }
       wisp.life -= dt
       if (wisp.life <= 0) {
         wisp.life = 0.6 + Math.random() * 0.6
         wisp.angle = Math.random() * Math.PI * 2
       }
       const t = 1 - wisp.life / 1.2
-      const r = 0.45 + t * 0.2
+      const r = (0.45 + t * 0.2) * grow
       wisp.mesh.visible = true
-      wisp.mesh.position.set(center.x + Math.sin(wisp.angle) * r, y + t * this.rise, center.z + Math.cos(wisp.angle) * r)
+      wisp.mesh.position.set(center.x + Math.sin(wisp.angle) * r, y + t * this.rise * (0.8 + this.level * 0.2), center.z + Math.cos(wisp.angle) * r)
       wisp.mesh.scale.setScalar(Math.max(0.1, 1 - t))
-    }
+    })
   }
 }

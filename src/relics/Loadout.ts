@@ -51,6 +51,18 @@ export class Loadout {
     return resolveLoadout(this.slots)
   }
 
+  /**
+   * 아직 아무 신도 발현하지 않았는데, 칸과 가방을 합치면 발현할 수 있는 신 (E6-07).
+   * 칸이 다른 신 유물로 차서 세 번째 유물이 가방에 들어간 경우를 알려 주려고 쓴다. 이미 발현했으면 바꿀지는 플레이어의 몫이다.
+   */
+  manifestable(): God | null {
+    if (this.state.manifested) return null
+    const counts = new Map<God, number>()
+    for (const id of [...this.slots, ...this.bag]) if (id) counts.set(relicDef(id).god, (counts.get(relicDef(id).god) ?? 0) + 1)
+    for (const [god, count] of counts) if (count >= godDef(god).manifestCount) return god
+    return null
+  }
+
   has(id: RelicId): boolean {
     return this.slots.includes(id) || this.bag.includes(id)
   }

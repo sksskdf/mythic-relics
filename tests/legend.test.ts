@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
 import { Encounter } from '../src/game/Encounter'
-import { type LegendHost, UtgardLegend } from '../src/game/Legend'
+import { BET, type LegendHost, type LegendKind, UtgardLegend } from '../src/game/Legend'
 
 function setup(ready = true) {
   const encounter = new Encounter({ camps: [], boss: { x: 30, z: 30 } }, [], 38)
   const legend = new UtgardLegend({ x: 0, z: 0 }, 11)
   const events: string[] = []
-  const state = { alive: true, arena: null as unknown, ready }
+  const state = { alive: true, arena: null as unknown, ready, kind: 'utgard' as LegendKind }
   const host: LegendHost = {
-    ready: () => state.ready,
+    ready: () => (state.ready ? state.kind : null),
     heroAlive: () => state.alive,
     heroPosition: () => ({ x: 0, z: 0 }),
     setArena: (arena) => {
@@ -41,7 +41,7 @@ function setup(ready = true) {
       legend.update(1 / 60, encounter, host)
     }
   }
-  return { encounter, legend, events, state, host, clear }
+  return { encounter, legend, events, state, host, clear, world }
 }
 
 describe('승급 전설 「우트가르드 원정」', () => {
@@ -78,5 +78,35 @@ describe('승급 전설 「우트가르드 원정」', () => {
     expect(events).toEqual(['start', 'fail'])
     expect(encounter.giants.length).toBe(1)
     expect(state.arena).toBeNull()
+  })
+})
+
+describe('승급 전설 「대장장이들의 내기」 (E6-04)', () => {
+  it('졸개가 끊임없이 들어오고, 시간 안에 정한 수를 쓰러뜨리면 승급한다', () => {
+    const { encounter, legend, host, events, state, world } = setup()
+    state.kind = 'bet'
+    legend.update(1 / 60, encounter, host)
+    expect(legend.phase).toBe('bet')
+    for (let t = 0; t < 40 && events.length < 2; t += 1 / 30) {
+      for (const giant of encounter.alive) giant.takeHit(99999, 1, 0, 0)
+      encounter.update(1 / 30, world)
+      legend.update(1 / 30, encounter, host)
+    }
+    expect(legend.kills).toBeGreaterThanOrEqual(BET.kills)
+    expect(events).toEqual(['start', 'win'])
+    expect(legend.phase).toBe('idle')
+    expect(state.arena).toBeNull()
+  })
+
+  it('시간이 다 되면 실패하고 결계가 풀린다', () => {
+    const { encounter, legend, host, events, state, world } = setup()
+    state.kind = 'bet'
+    for (let t = 0; t < BET.seconds + 1 && !events.includes('fail'); t += 1 / 10) {
+      encounter.update(1 / 10, world)
+      legend.update(1 / 10, encounter, host)
+    }
+    expect(events).toEqual(['start', 'fail'])
+    // 남는 것은 맵의 거인 왕뿐이다
+    expect(encounter.alive.filter((g) => g.spec.boss !== 'giantKing').length).toBe(0)
   })
 })

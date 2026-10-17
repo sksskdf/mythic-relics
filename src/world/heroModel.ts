@@ -35,6 +35,8 @@ export interface HeroRig {
   setSilhouette(color: THREE.ColorRepresentation): void
   /** 처음에 고른 기본 모습(피부·머리카락·옷 색)을 바꾼다. 입은 외형을 모두 다시 칠한다. */
   setBody(body: BodyLook): void
+  /** 발현 레벨: 표식은 레벨마다 다른 모양이다 (E6) */
+  setMarkLevel(level: number): void
 }
 
 /** 칸마다 모델의 원점(관절 자리). 같은 칸의 모델은 같은 자리에 붙는다. */
@@ -63,13 +65,13 @@ function pivotFor(slot: LookSlot, grid: VoxelGrid): MeshOptions['pivot'] {
 
 /** 외형 지오메트리는 한 번 만들어 모든 주인공(분신 포함)이 함께 쓴다. */
 const geometries = new Map<string, THREE.BufferGeometry>()
-function lookGeometry(id: string, slot: LookSlot, body: BodyLook): THREE.BufferGeometry | null {
+function lookGeometry(id: string, slot: LookSlot, body: BodyLook, level: number): THREE.BufferGeometry | null {
   const build = LOOK_MODELS[id]
   if (!build) return null
-  const key = `${id}|${bodyKey(body)}`
+  const key = `${id}|${bodyKey(body)}|${slot === 'mark' ? level : 1}`
   let geometry = geometries.get(key)
   if (!geometry) {
-    const grid = build()
+    const grid = build(level)
     // 처음에 고른 피부·머리카락·옷 색으로 바꿔 칠한다.
     const palette = bodyPalette(body)
     if (palette.size > 0) grid.forEach((x, y, z, hex) => palette.has(hex) && grid.set(x, y, z, palette.get(hex)!))
@@ -93,6 +95,7 @@ function joint(x: number, y: number, z: number): THREE.Group {
  */
 export function buildHeroModel(outfit: Outfit = BASE_OUTFIT, initialBody: BodyLook = DEFAULT_BODY): HeroRig {
   let bodyLook = initialBody
+  let markLevel = 1
   const s = HERO_VOXEL
   const material = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonGradient() })
   const root = new THREE.Group()
@@ -142,7 +145,7 @@ export function buildHeroModel(outfit: Outfit = BASE_OUTFIT, initialBody: BodyLo
     for (const mesh of worn.get(slot) ?? []) mesh.removeFromParent()
     worn.delete(slot)
     current[slot] = id
-    const geometry = id ? lookGeometry(id, slot, bodyLook) : null
+    const geometry = id ? lookGeometry(id, slot, bodyLook, markLevel) : null
     if (!geometry) return
     const meshes = mounts[slot].map((mount) => {
       const mesh = new THREE.Mesh(geometry, material)
@@ -170,6 +173,11 @@ export function buildHeroModel(outfit: Outfit = BASE_OUTFIT, initialBody: BodyLo
     outfit: current,
     wear(next) {
       for (const slot of LOOK_SLOTS) if (next[slot] !== current[slot]) put(slot, next[slot])
+    },
+    setMarkLevel(level) {
+      if (level === markLevel) return
+      markLevel = level
+      put('mark', current.mark)
     },
     setBody(next) {
       bodyLook = next

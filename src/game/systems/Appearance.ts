@@ -71,9 +71,14 @@ export class AppearanceSystem {
     fx.shadow.enabled = aura === 'shadow'
     fx.asura.enabled = aura === 'asura'
     this.sway += 1 / 60
-    // 표식은 레벨이 오를수록 크고 화려해진다 (Lv1 1배 → Lv4 1.36배)
+    // 표식은 레벨마다 다른 모양으로 자라고(E6), 조금씩 커진다 (Lv1 1배 → Lv4 1.15배)
     const manifested = this.ctx.powers.manifested
-    hero.rig.mark.scale.setScalar(manifested ? 1 + (this.ctx.progress.level(manifested) - 1) * 0.12 : 1)
+    const level = manifested ? this.ctx.progress.level(manifested) : 1
+    hero.rig.setMarkLevel(level)
+    hero.rig.mark.scale.setScalar(1 + (level - 1) * 0.05)
+    fx.sparks.level = level
+    fx.shadow.level = level
+    fx.asura.level = level
     hero.rig.mark.rotation.z = aura === 'asura' ? Math.sin(this.sway * 1.7) * 0.06 : 0
   }
 

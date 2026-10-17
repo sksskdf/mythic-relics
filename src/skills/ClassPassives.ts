@@ -43,6 +43,8 @@ export function shadowRig(material: THREE.Material): HeroRig {
 export class ClassPassives {
   private stormTimer = 0
   private readonly clones: Clone[] = []
+  /** 발현 순간 사방으로 흩어지는 그림자들 */
+  private readonly scatter: { rig: HeroRig; dir: THREE.Vector3; t: number }[] = []
   private readonly material = new THREE.MeshBasicMaterial({ color: 0x3f9a4e, transparent: true, opacity: 0.72, depthWrite: false })
 
   constructor(private readonly fx: THREE.Object3D) {}
@@ -52,7 +54,30 @@ export class ClassPassives {
     return this.clones.length
   }
 
+  /** 발현·승급 순간 (변신술사): 그림자 분신 count개가 사방으로 흩어지며 사라진다 */
+  burst(ctx: SkillContext, count: number): void {
+    const hero = ctx.hero.object.position
+    for (let i = 0; i < count; i++) {
+      const a = (i / count) * Math.PI * 2
+      const rig = shadowRig(this.material)
+      rig.root.position.copy(hero)
+      rig.root.rotation.y = a
+      this.fx.add(rig.root)
+      this.scatter.push({ rig, dir: new THREE.Vector3(Math.sin(a), 0, Math.cos(a)), t: 0 })
+    }
+  }
+
   update(dt: number, ctx: SkillContext): void {
+    for (let i = this.scatter.length - 1; i >= 0; i--) {
+      const s = this.scatter[i]!
+      s.t += dt
+      s.rig.root.position.addScaledVector(s.dir, dt * 7 * Math.max(0, 1 - s.t))
+      s.rig.root.scale.setScalar(Math.max(0.05, 1 - s.t * 1.2))
+      if (s.t >= 0.8) {
+        s.rig.root.removeFromParent()
+        this.scatter.splice(i, 1)
+      }
+    }
     const passive = ctx.manifested ? godDef(ctx.manifested).passive : null
     const level = ctx.level
     // 폭풍
@@ -78,7 +103,7 @@ export class ClassPassives {
     while (this.clones.length < want) this.addClone(ctx)
     if (!shadow) return
     this.clones.forEach((clone, i) => {
-      clone.angle = Math.PI * 0.75 + (i - (this.clones.length - 1) / 2) * 0.9
+      clone.angle = Math.PI * 0.75 + (i - (this.clones.length - 1) / 2) * 1.15
       this.updateClone(clone, i, dt, ctx, shadow, level)
     })
   }
@@ -122,8 +147,8 @@ export class ClassPassives {
     }
     // 곁의 자리로 돌아온다: 주인공 뒤쪽 좌우에 선다
     const facing = hero.facing + clone.angle
-    const wantX = at.x + Math.sin(facing) * 1.3
-    const wantZ = at.z + Math.cos(facing) * 1.3
+    const wantX = at.x + Math.sin(facing) * 1.6
+    const wantZ = at.z + Math.cos(facing) * 1.6
     const dx = wantX - root.position.x
     const dz = wantZ - root.position.z
     const dist = Math.hypot(dx, dz)

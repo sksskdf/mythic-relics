@@ -1,6 +1,7 @@
 import { SOUND_CUES } from '../audio/sounds'
 import { ENEMIES, GRUNT } from '../enemies/Giant'
 import type { Game } from '../game/Game'
+import { BET } from '../game/Legend'
 import { LOOK_IDS, WARDROBE_SLOTS } from '../looks/catalog'
 import { godDef, GODS, RELIC_IDS, relicDef } from '../relics/data'
 import { saveStorage } from '../save/SaveData'
@@ -186,13 +187,16 @@ export class DevPanel {
     )
   }
 
+  /** 승급 전설을 바로 시작한다. 지금 발현한 신에게 전설이 있으면 그 전설, 없으면 토르로 발현해 우트가르드 원정 */
   private startLegend(): void {
     const g = this.game
-    if (g.powers.manifested !== 'thor') {
+    let god = g.powers.manifested
+    if (!god || !godDef(god).legend) {
       g.devUnequipAll()
       for (const id of ['mjolnir', 'megingjord', 'jarngreipr'] as const) g.devEquip(id)
+      god = 'thor'
     }
-    g.progress.addXp('thor', 1e9)
+    g.progress.addXp(god, 1e9)
     g.devTeleport(g.legend.center.x, g.legend.center.z)
   }
 
@@ -301,7 +305,7 @@ export class DevPanel {
     return [
       `${Math.floor(g.time / 60)}:${String(Math.floor(g.time % 60)).padStart(2, '0')} · (${p.x.toFixed(0)}, ${p.z.toFixed(0)}) · ${g.view.viewHeight.toFixed(0)}m`,
       `♥${Math.round(g.combat.health.hp)}/${g.combat.health.max} ✦${Math.round(g.combat.divine * 100)}% · ${cls}`,
-      `적 ${g.encounter.alive.length} · 땅 유물 ${g.pickups.list.length} · 전설 ${g.legend.phase}`,
+      `적 ${g.encounter.alive.length} · 땅 유물 ${g.pickups.list.length} · 전설 ${g.legend.phase}${g.legend.phase === 'bet' ? ` ${g.legend.kills}/${BET.kills} ${g.legend.betSeconds.toFixed(0)}초` : ''}`,
       `소리 ${g.audio.unlocked ? `${g.audio.voices}개` : '꺼짐(누르면 켜짐)'} · 곡 ${g.audio.theme ?? '없음'}`,
     ].join('\n')
   }

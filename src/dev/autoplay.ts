@@ -3,7 +3,7 @@ import type { Game } from '../game/Game'
 import { angleDiff, angleTo } from '../combat/arc'
 import { SOURCE_IDS } from '../data/schema'
 import type { StarId } from '../progress/Cycle'
-import { relicDef } from '../relics/data'
+import { type God, godDef, relicDef } from '../relics/data'
 import type { Point2 } from '../world/colliders'
 
 /** 판단 간격 (초). 사람의 반응 속도쯤으로 둔다. */
@@ -30,6 +30,8 @@ export class Autoplayer {
   cycle = false
   /** 윤회한 게임 시각 */
   readonly rebirths: number[] = []
+  /** 이 신의 유물만 낀다 (다른 신 유물은 주우면 가방에 넣는다). null이면 가리지 않는다 (scripts/playtest.mjs --god) */
+  god: God | null = null
 
   constructor(private readonly game: Game) {}
 
@@ -91,9 +93,21 @@ export class Autoplayer {
     }
     if (hp < 0.7 && near.length === 0 && !legend.active && !hero.isMoving) return
 
-    // 3. 떨어진 유물을 줍는다.
-    if (!legend.active && powers.hasFreeSlot) {
-      const pickup = nearest(pickups.list.filter((i) => !powers.loadout.has(i.id)), here)
+    // 3. 떨어진 유물을 줍는다. 한 신만 쓰는 봇은 다른 신 유물을 가방에 넣는다.
+    if (this.god) {
+      powers.loadout.slots.forEach((id, slot) => id && relicDef(id).god !== this.god && this.game.devStow(slot))
+    }
+    // 가방까지 합쳐 발현할 수 있으면 사람이 유물 화면에서 하듯 바꿔 낀다
+    const ready = powers.loadout.manifestable()
+    if (ready && (!this.god || ready === this.god)) {
+      for (const id of powers.loadout.bag.filter((b) => relicDef(b).god === ready)) {
+        const slot = powers.loadout.slots.findIndex((s) => s === null || relicDef(s).god !== ready)
+        if (slot >= 0) this.game.devWield(id, slot)
+      }
+    }
+    // 칸이 차 있어도 줍는다 (가방에 들어가고, 모이면 바꿔 낀다)
+    if (!legend.active) {
+      const pickup = nearest(pickups.list.filter((i) => !powers.loadout.has(i.id) && (!this.god || relicDef(i.id).god === this.god)), here)
       if (pickup && near.length < 3) {
         hero.moveTo(pickup)
         return
@@ -101,20 +115,23 @@ export class Autoplayer {
     }
 
     // 4. 승급 준비가 되면 성소로 간다.
-    if (!legend.active && powers.manifested === 'thor' && progress.readyToPromote('thor') && hp > 0.8) {
+    const manifested = powers.manifested
+    if (!legend.active && manifested && godDef(manifested).legend && progress.readyToPromote(manifested) && hp > 0.8) {
       hero.moveTo(legend.center)
       return
     }
 
-    // 5. 싸울 상대를 고른다. 거인 왕은 토르 유물이 둘 이상이고 생명력이 넉넉할 때만 건드린다.
-    const thorRelics = powers.loadout.slots.filter((id) => id && relicDef(id).god === 'thor').length
+    // 5. 싸울 상대를 고른다. 거인 왕은 유물이 둘 이상이고 생명력이 넉넉할 때만 건드린다.
+    const worn = powers.loadout.slots.filter((id) => id !== null).length
     const boss = encounter.boss
-    const bossOk = thorRelics >= 2 && hp > 0.6
-    const candidates = enemies.filter((g) => {
+    const bossOk = worn >= 2 && hp > 0.6
+    let candidates = enemies.filter((g) => {
       if (legend.active) return true
       if (g === boss) return bossOk
       return !boss || !boss.alive || bossOk || dist(g, boss) > 14
     })
+    // 거인 왕 둘레의 무리밖에 남지 않았으면 생명력이 넉넉할 때 그 졸개들과 싸운다 (빈 진지만 맴돌지 않게)
+    if (candidates.length === 0 && hp > 0.6) candidates = enemies.filter((g) => g !== boss)
     const target = nearest(candidates, here)
     if (!target) {
       const point = PATROL[this.patrol % PATROL.length]!

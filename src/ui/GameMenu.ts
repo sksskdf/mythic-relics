@@ -168,7 +168,7 @@ export class GameMenu {
     this.button.type = 'button'
     this.button.setAttribute('aria-label', '정보 화면')
     this.button.style.backgroundImage = `url(${smallSigilRing()})`
-    this.button.addEventListener('click', () => this.toggle())
+    this.button.addEventListener('click', () => (this.pendingTab && !this.open ? this.show(this.pendingTab) : this.toggle()))
 
     this.window = el('div', 'menu')
     this.window.hidden = true
@@ -247,10 +247,21 @@ export class GameMenu {
   /** 탭을 골라 연다. 유물 탭이면 칸을 함께 고를 수 있다. */
   show(tab: MenuTab, slot?: number): void {
     this.tab = tab
-    if (tab === 'looks') this.button.classList.remove('has-new')
+    if (tab === 'looks' || tab === this.pendingTab) this.button.classList.remove('has-new')
+    if (tab === this.pendingTab) this.pendingTab = null
     if (slot !== undefined) this.selectedSlot = slot
     if (!this.open) this.toggle(true)
     else this.render()
+  }
+
+  /** 단추를 누르면 바로 열 탭 (발현할 수 있는 조합이 가방에 있을 때 유물 탭) */
+  private pendingTab: MenuTab | null = null
+
+  /** 볼 것이 생긴 탭: 단추에 표시하고, 단추를 누르면 그 탭부터 연다 */
+  markTab(tab: MenuTab): void {
+    if (this.open && this.tab === tab) return
+    this.pendingTab = tab
+    this.button.classList.add('has-new')
   }
 
   /** 새 외형을 얻었다: 단추에 표시 */

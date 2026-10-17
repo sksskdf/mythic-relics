@@ -30,3 +30,16 @@ describe('유물 슬롯', () => {
     expect(loadout.slots).toEqual(['mjolnir', 'lokiMask', null, null])
   })
 })
+
+describe('가방까지 합친 발현 조합 (E6-07)', () => {
+  it('칸이 토르 둘·로키 둘로 차고 세 번째 로키 유물이 가방에 들어가면 로키로 발현할 수 있다고 알려 준다', () => {
+    const loadout = new Loadout()
+    for (const id of ['mjolnir', 'megingjord', 'lokiMask', 'laevateinn', 'mistletoe'] as const) loadout.equip(id)
+    expect(loadout.state.manifested).toBeNull()
+    expect(loadout.bag).toEqual(['mistletoe'])
+    expect(loadout.manifestable()).toBe('loki')
+    loadout.wield('mistletoe', 0)
+    expect(loadout.state.manifested).toBe('loki')
+    expect(loadout.manifestable()).toBeNull()
+  })
+})

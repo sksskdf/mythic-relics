@@ -5,6 +5,7 @@ import { levelGains, ULTIMATE_NAMES } from '../../progress/levelGains'
 import { classIcon } from '../../ui/classIcons'
 import type { GameContext } from '../context'
 import type { LoadoutChange } from '../RelicPowers'
+import { godMoment } from './godMoments'
 
 /** 클래스가 발현되는 순간 주변 적을 밀어내는 범위와 피해 */
 const MANIFEST_RADIUS = 4
@@ -139,10 +140,8 @@ export class RelicSystem {
     const god = godDef(after.manifested)
     hud.flash(god.color)
     fx.power.burst(hero.object.position, god.color, 4)
-    // 칼날 폭풍의 신(아수라왕)은 발현하는 순간 여섯 팔이 사방으로 칼을 휘두른다.
-    if (god.passive.bladeStorm) {
-      for (let i = 0; i < 6; i++) fx.slashes.spawn(hero.object.position, (i / 6) * Math.PI * 2, 2.6, 0.5, true, i % 2 ? 0xff4a5a : 0xb0101c)
-    }
+    // 신마다 다른 발현 순간: 번개 기둥, 흩어지는 그림자, 여섯 칼날
+    godMoment(this.ctx, god.id, 1)
     // 발현하면 무엇이 생기는지: 그 신의 힘과 지금 레벨까지 열린 것
     const lines: string[] = []
     for (let lv = 1; lv <= progress.level(god.id); lv++) {
@@ -150,9 +149,8 @@ export class RelicSystem {
     }
     lines.push(`궁극기 「${ULTIMATE_NAMES[god.ultimate]}」`)
     hud.showGains('발현', progress.title(god.id), god.color, classIcon(god.name), lines)
-    // 하늘에서 번개가 주인공에게 내리꽂히고, 주변 적을 밀어낸다.
+    // 주변 적을 밀어낸다.
     const p = hero.object.position
-    fx.lightning.fromSky(p.clone(), 0.32)
     fx.puffs.burst(p, 30, 4)
     view.shake(0.5)
     feel.stop(0.15)

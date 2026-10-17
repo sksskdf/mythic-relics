@@ -13,16 +13,18 @@ export interface DropTuning {
   boss: number
   /** 유물이 안 나올 때마다 오르는 확률 (불운 보정) */
   pity: number
+  /** 이미 가진 같은 신 유물 1개마다 더하는 가중치 (발현까지의 운 차이를 줄인다) */
+  sameGod: number
 }
 
-export const DEFAULT_DROPS: DropTuning = { base: 0.015, boss: 0.7, pity: 0.006 }
+export const DEFAULT_DROPS: DropTuning = { base: 0.015, boss: 0.7, pity: 0.01, sameGod: 2 }
 
 /**
  * 유물 드랍 규칙. (DESIGN.md 9.3)
  * - 보스 확정 유물: 아직 없으면 반드시 떨어뜨린다.
  * - 나머지는 무작위. 이미 가진 유물(땅에 떨어진 것 포함)은 나오지 않는다.
  * - 불운 보정: 유물이 안 나올수록 확률이 오르고, 나오면 처음으로 돌아간다.
- * - 이미 유물을 가진 신의 남은 유물이 더 잘 나온다. (그 신 유물 1개마다 가중치 +1) 발현까지의 운 차이를 줄인다.
+ * - 이미 유물을 가진 신의 남은 유물이 더 잘 나온다. (그 신 유물 1개마다 가중치 +sameGod) 발현까지의 운 차이를 줄인다.
  */
 export class DropTable {
   /** 마지막으로 유물이 나온 뒤 놓친 횟수 */
@@ -64,7 +66,7 @@ export class DropTable {
     this.misses = 0
     const owners = new Map<God, number>()
     for (const id of owned) owners.set(relicDef(id).god, (owners.get(relicDef(id).god) ?? 0) + 1)
-    const weights = candidates.map((id) => 1 + (owners.get(relicDef(id).god) ?? 0))
+    const weights = candidates.map((id) => 1 + (owners.get(relicDef(id).god) ?? 0) * this.tuning.sameGod)
     let pick = this.rng() * weights.reduce((a, b) => a + b, 0)
     for (let i = 0; i < candidates.length; i++) {
       pick -= weights[i]!

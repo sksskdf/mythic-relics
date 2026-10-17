@@ -1,11 +1,11 @@
-import * as THREE from 'three'
-
 import type { Giant } from '../../enemies/Giant'
 import { PER_PROMOTION } from '../../progress/ClassProgress'
 import { levelGains } from '../../progress/levelGains'
 import { classIcon } from '../../ui/classIcons'
 import { type God, godDef, type RelicId } from '../../relics/data'
+import { LEGEND_KINDS } from '../Legend'
 import type { GameContext } from '../context'
+import { godMoment } from './godMoments'
 
 /** 주인공의 기본 생명력 */
 export const BASE_HP = 100
@@ -17,6 +17,9 @@ const HEAL_PER_BOSS = 30
  * 성장: 처치 경험치, 생명력 회복, 유물 드랍, 승급 전설과 승급, 승급 횟수에서 나오는 기본 능력치.
  */
 export class ProgressionSystem {
+  /** 지금 승급 전설에 도전하는 신 */
+  private challenger: God | null = null
+
   constructor(private readonly ctx: GameContext) {
     ctx.bus.on('giantKilled', ({ giant }) => this.onGiantKilled(giant))
   }
@@ -25,7 +28,13 @@ export class ProgressionSystem {
   update(dt: number): void {
     const { legend, encounter, powers, progress, combat, hero, hud, view, bus } = this.ctx
     legend.update(dt, encounter, {
-      ready: () => powers.manifested === 'thor' && progress.readyToPromote('thor'),
+      ready: () => {
+        const god = powers.manifested
+        const name = god ? godDef(god).legend : undefined
+        if (!god || !name || !progress.readyToPromote(god)) return null
+        this.challenger = god
+        return LEGEND_KINDS[name] ?? 'utgard'
+      },
       heroAlive: () => combat.alive,
       heroPosition: () => hero.object.position,
       setArena: (arena) => {
@@ -33,10 +42,11 @@ export class ProgressionSystem {
       },
       onStart: () => {
         bus.emit('legendStarted', {})
-        hud.showBanner('우트가르드 원정', '#d8c2ff')
+        const def = godDef(this.challenger!)
+        hud.showBanner(def.legend!, def.color)
         view.shake(0.3)
       },
-      onWin: () => this.promote('thor'),
+      onWin: () => this.challenger && this.promote(this.challenger),
       onFail: () => bus.emit('legendFailed', {}),
     })
   }
@@ -79,11 +89,8 @@ export class ProgressionSystem {
       ...levelGains(god, level).filter((g) => g.kind !== 'hp' && g.kind !== 'damage').map((g) => g.text),
     ]
     hud.showGains(`승급 · Lv${level}`, progress.title(god), godDef(god).color, classIcon(godDef(god).name), lines)
-    for (let i = 0; i < 5; i++) {
-      const a = (i / 5) * Math.PI * 2
-      fx.lightning.fromSky(new THREE.Vector3(p.x + Math.sin(a) * 2, p.y, p.z + Math.cos(a) * 2), 0.18)
-    }
-    fx.lightning.fromSky(p.clone(), 0.34)
+    // 신마다 다른 승급 순간: 레벨이 오를수록 크고 많다
+    godMoment(this.ctx, god, level)
     fx.puffs.burst(p, 40, 5)
     // 승급: 그 신의 색으로 가장 큰 빛기둥과 번쩍임. 레벨이 오를수록 크다.
     fx.power.burst(p, godDef(god).color, 3 + progress.level(god))
