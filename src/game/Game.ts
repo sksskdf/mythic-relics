@@ -296,9 +296,9 @@ export class Game {
     }
     this.update(realDt, true)
     this.view.follow(this.hero.object.position, realDt)
-    this.numbers.update(realDt, this.container.clientHeight, this.pixel.size, this.view.camera)
+    this.numbers.update(realDt, this.container.clientHeight, this.pixel.size, this.view.camera, this.view.subpixel)
     this.updateHud(realDt)
-    this.pixel.render(this.scene, this.view.camera)
+    this.pixel.render(this.scene, this.view.camera, this.view.subpixel)
     this.input.endFrame()
     this.frame += 1
     this.persistence.update(realDt)
@@ -313,7 +313,7 @@ export class Game {
     this.stage.update(this.elapsed)
     this.view.follow(position, dt)
     this.stage.follow(position)
-    this.pixel.render(this.scene, this.view.camera)
+    this.pixel.render(this.scene, this.view.camera, this.view.subpixel)
     this.input.endFrame()
     this.frame += 1
   }

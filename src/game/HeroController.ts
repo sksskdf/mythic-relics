@@ -1,11 +1,14 @@
 import * as THREE from 'three'
 
+import { angleDiff } from '../combat/arc'
 import { type CircleCollider, clampToBounds, type Point2, pushOut } from '../world/colliders'
 import type { HeroRig } from '../world/heroModel'
 import type { NavGrid } from '../world/navGrid'
 import { heightAt } from '../world/terrain'
 
 export const HERO_RADIUS = 0.4
+/** 돌아서는 빠르기 (클수록 빨리 돈다) */
+const TURN_SPEED = 28
 
 export interface HeroTuning {
   /** 걷는 속도 (m/s) */
@@ -53,6 +56,8 @@ export class HeroController {
   private readonly knock = new THREE.Vector2()
   private repathTimer = 0
   private walkCycle = 0
+  /** 바라보려는 방향. 몸은 이쪽으로 짧게 돌아선다. (판정은 바로 이 방향을 쓴다) */
+  private targetFacing = 0
 
   constructor(
     readonly rig: HeroRig,
@@ -77,7 +82,7 @@ export class HeroController {
   }
 
   get facing(): number {
-    return this.object.rotation.y
+    return this.targetFacing
   }
 
   /** 다시 길을 찾을 때가 되었는가 (누르고 있을 때, 대상을 쫓을 때) */
@@ -110,7 +115,7 @@ export class HeroController {
 
   /** 지정한 각도를 바라본다. */
   face(angle: number): void {
-    this.object.rotation.y = angle
+    this.targetFacing = angle
   }
 
   /** 밀어낸다 (m/s). 시간이 지나면 줄어든다. */
@@ -139,7 +144,7 @@ export class HeroController {
       }
       const step = Math.min(dist, remaining)
       const [sx, sz] = this.steer(dx / dist, dz / dist)
-      this.object.rotation.y = facingAngle(sx, sz)
+      this.targetFacing = facingAngle(sx, sz)
       this.translate(sx * step, sz * step)
       remaining -= step
       if (step >= dist) this.path.shift()
@@ -188,6 +193,9 @@ export class HeroController {
    * 도끼를 든 오른팔은 덜 흔든다. 공격 중의 팔 동작은 전투 쪽에서 덮어쓴다.
    */
   private animate(dt: number): void {
+    // 방향이 바뀌면 순간적으로 꺾지 않고 짧게 돌아선다. (약 0.1초)
+    const turn = angleDiff(this.targetFacing, this.object.rotation.y)
+    this.object.rotation.y += turn * (1 - Math.exp(-TURN_SPEED * dt))
     const { body, head, leftArm, rightArm, leftLeg, rightLeg, cape } = this.rig
     body.rotation.y = 0
     if (this.path.length > 0) {

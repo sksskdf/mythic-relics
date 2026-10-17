@@ -9,6 +9,8 @@ export function snapToGrid(value: number, step: number): number {
 /**
  * 비스듬히 내려다보는 쿼터뷰 카메라.
  * 직교 투영을 쓰고, 화면 픽셀 단위로 위치를 맞춰서 움직일 때 픽셀이 지글거리지 않게 한다.
+ * 맞추느라 버린 1픽셀 미만의 나머지(subpixel)는 화면에 키워 그릴 때 그림 전체를 밀어 메워서,
+ * 카메라가 픽셀 단위로 툭툭 끊기지 않고 부드럽게 미끄러지게 한다.
  */
 export class QuarterViewCamera {
   readonly camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 200)
@@ -28,6 +30,8 @@ export class QuarterViewCamera {
   /** 흔들림 세기 (미터). 시간이 지나면 줄어든다. */
   private shakeAmount = 0
   private readonly shakeOffset = new THREE.Vector2()
+  /** 픽셀에 맞추며 버린 나머지 (저해상도 픽셀 단위, -0.5~0.5). 키워 그릴 때 이만큼 밀어 그린다. */
+  readonly subpixel = new THREE.Vector2()
 
   constructor(yawDegrees = 45, pitchDegrees = 35, distance = 40) {
     const yaw = THREE.MathUtils.degToRad(yawDegrees)
@@ -98,8 +102,11 @@ export class QuarterViewCamera {
     // 화면의 가로·세로 방향 성분을 픽셀 크기에 맞춰 반올림한다.
     const pixel = this.viewHeight / this.renderHeight
     // 흔들림도 픽셀 단위로 움직여야 화면이 뭉개지지 않는다.
-    const x = snapToGrid(this.focus.dot(this.right) + this.shakeOffset.x, pixel)
-    const y = snapToGrid(this.focus.dot(this.up) + this.shakeOffset.y, pixel)
+    const wantX = this.focus.dot(this.right) + this.shakeOffset.x
+    const wantY = this.focus.dot(this.up) + this.shakeOffset.y
+    const x = snapToGrid(wantX, pixel)
+    const y = snapToGrid(wantY, pixel)
+    this.subpixel.set((wantX - x) / pixel, (wantY - y) / pixel)
     // 화면 깊이 방향은 그림에 영향을 주지 않으므로 그대로 둔다.
     const z = this.focus.dot(this.forward)
     const snapped = this.right

@@ -38,7 +38,7 @@ export class PlayerInput {
   /** 커서 아래의 적. 거인 몸통(세로 기둥)과 광선이 가장 가까운 적을 고른다. */
   private enemyUnderCursor(): Giant | null {
     const { pointer } = this.input
-    const ray = screenRay(pointer.x, pointer.y, this.container.clientHeight, this.pixel.size, this.ctx.view.camera)
+    const ray = screenRay(pointer.x, pointer.y, this.container.clientHeight, this.pixel.size, this.ctx.view.camera, this.ctx.view.subpixel)
     const bottom = new THREE.Vector3()
     const top = new THREE.Vector3()
     let best: Giant | null = null
@@ -60,6 +60,6 @@ export class PlayerInput {
   /** 마우스 커서가 가리키는 땅 위치 */
   private cursorOnGround(): THREE.Vector3 | null {
     const { pointer } = this.input
-    return screenToGround(pointer.x, pointer.y, this.container.clientHeight, this.pixel.size, this.ctx.view.camera, this.cursor)
+    return screenToGround(pointer.x, pointer.y, this.container.clientHeight, this.pixel.size, this.ctx.view.camera, this.cursor, this.ctx.view.subpixel)
   }
 }

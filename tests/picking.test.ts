@@ -70,3 +70,27 @@ describe('확대·축소', () => {
     expect(clampViewHeight(20)).toBe(20)
   })
 })
+
+describe('1픽셀 미만 나머지(subpixel) 보정', () => {
+  it('밀어 그린 만큼 보정해도 화면 → 땅 → 화면이 제자리로 돌아온다', () => {
+    const view = new QuarterViewCamera()
+    const size = computeRenderSize(1280, 720, 285)
+    view.setRenderSize(size.width, size.height)
+    view.jumpTo(new THREE.Vector3(3.37, 0, -2.11))
+    view.camera.updateMatrixWorld()
+    const subpixel = { x: 0.31, y: -0.42 }
+    const ground = screenToGround(500, 300, 720, size, view.camera, new THREE.Vector3(), subpixel)!
+    const back = worldToScreen(ground, 720, size, view.camera, subpixel)
+    expect(back.x).toBeCloseTo(500, 3)
+    expect(back.y).toBeCloseTo(300, 3)
+  })
+
+  it('카메라가 남긴 나머지는 반 픽셀을 넘지 않는다', () => {
+    const view = new QuarterViewCamera()
+    view.setRenderSize(500, 285)
+    view.jumpTo(new THREE.Vector3(1.234, 0, 5.678))
+    expect(Math.abs(view.subpixel.x)).toBeLessThanOrEqual(0.5)
+    expect(Math.abs(view.subpixel.y)).toBeLessThanOrEqual(0.5)
+  })
+})
+

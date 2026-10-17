@@ -20,6 +20,10 @@
   background: #1c2531;
   color: #ffd27a;
 }
+/* display를 정하면 hidden 속성이 무시되므로 접었을 때는 따로 숨긴다. */
+.devpanel__body[hidden] {
+  display: none;
+}
 .devpanel__body {
   display: flex;
   flex-direction: column;

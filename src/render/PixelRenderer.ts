@@ -84,9 +84,11 @@ const upscaleFragment = /* glsl */ `
   uniform sampler2D tImage;
   uniform vec2 renderSize;
   uniform float scale;
+  uniform vec2 offset;
 
   void main() {
-    vec2 texel = gl_FragCoord.xy / scale;
+    // offset: 카메라가 픽셀에 맞추며 버린 나머지. 그만큼 밀어 그려 움직임을 부드럽게 한다.
+    vec2 texel = gl_FragCoord.xy / scale + offset;
     vec2 base = floor(texel - 0.5);
     vec2 f = texel - 0.5 - base;
     vec2 blend = clamp((f - 0.5) * scale + 0.5, 0.0, 1.0);
@@ -97,6 +99,8 @@ const upscaleFragment = /* glsl */ `
 
 /** 눈송이·먼지처럼 법선 버퍼에 그리지 않을 효과용 레이어 */
 export const EFFECT_LAYER = 1
+
+const ZERO = new THREE.Vector2()
 
 export class PixelRenderer {
   readonly renderer: THREE.WebGLRenderer
@@ -165,6 +169,7 @@ export class PixelRenderer {
         tImage: { value: this.imageTarget.texture },
         renderSize: { value: new THREE.Vector2(1, 1) },
         scale: { value: 1 },
+        offset: { value: new THREE.Vector2() },
       },
       depthTest: false,
       depthWrite: false,
@@ -193,8 +198,13 @@ export class PixelRenderer {
     return this.size
   }
 
-  render(scene: THREE.Scene, camera: THREE.Camera): void {
+  /**
+   * 장면을 그린다.
+   * @param subpixel 카메라가 픽셀에 맞추며 버린 나머지 (저해상도 픽셀 단위). 키워 그릴 때 그만큼 밀어 그린다.
+   */
+  render(scene: THREE.Scene, camera: THREE.Camera, subpixel?: THREE.Vector2): void {
     const { renderer } = this
+    ;(this.upscaleMaterial.uniforms.offset!.value as THREE.Vector2).copy(subpixel ?? ZERO)
 
     camera.layers.enable(EFFECT_LAYER)
     renderer.setRenderTarget(this.colorTarget)

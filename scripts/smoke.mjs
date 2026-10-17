@@ -160,6 +160,10 @@ try {
   await page.waitForSelector('.devpanel button', { timeout: 15000 })
   const devButton = (section, label) =>
     page.locator('.devpanel__section', { has: page.locator('h3', { hasText: section }) }).getByRole('button', { name: label, exact: true })
+  // 접기·펴기: 접으면 단추들이 보이지 않아야 한다.
+  await page.click('.devpanel__fold')
+  if (await page.locator('.devpanel__body').isVisible()) throw new Error('개발 패널: 접기가 동작하지 않습니다.')
+  await page.click('.devpanel__fold')
   await devButton('유물', '토르 3개').click()
   if ((await page.evaluate(() => window.__game.powers.manifested)) !== 'thor') throw new Error('개발 패널: 토르 3개 실패')
   const enemiesBefore = await page.evaluate(() => window.__game.encounter.alive.length)
@@ -173,7 +177,7 @@ try {
   await devButton('승급 전설', '바로 시작').click()
   await page.waitForFunction(() => window.__game.legend.phase === 'wave', null, { timeout: 15000 })
   await page.screenshot({ path: 'test-results/devpanel.png' }).catch(() => {})
-  console.log('개발 패널 확인: 유물 장착, 적 소환·제거, 충돌·길찾기 보기, 승급 전설 바로 시작')
+  console.log('개발 패널 확인: 접기·펴기, 유물 장착, 적 소환·제거, 충돌·길찾기 보기, 승급 전설 바로 시작')
 
   mkdirSync('test-results', { recursive: true })
   await page.screenshot({ path: 'test-results/smoke.png' })

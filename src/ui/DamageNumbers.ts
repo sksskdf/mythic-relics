@@ -1,6 +1,6 @@
 import type * as THREE from 'three'
 
-import { worldToScreen } from '../render/picking'
+import { type Subpixel, worldToScreen } from '../render/picking'
 import type { RenderSize } from '../render/resolution'
 
 export type DamageStyle = 'normal' | 'strong' | 'hurt' | 'thunder'
@@ -44,7 +44,7 @@ export class DamageNumbers {
     popup.el.style.display = ''
   }
 
-  update(dt: number, screenHeight: number, size: RenderSize, camera: THREE.Camera): void {
+  update(dt: number, screenHeight: number, size: RenderSize, camera: THREE.Camera, subpixel?: Subpixel): void {
     for (const popup of this.pool) {
       if (popup.life <= 0) continue
       popup.life -= dt
@@ -53,7 +53,7 @@ export class DamageNumbers {
         continue
       }
       const t = 1 - popup.life / LIFE
-      const screen = worldToScreen(popup.world, screenHeight, size, camera)
+      const screen = worldToScreen(popup.world, screenHeight, size, camera, subpixel)
       const rise = 18 + t * 40
       const pop = t < 0.15 ? 1.5 - t * 3.3 : 1
       popup.el.style.transform = `translate(${Math.round(screen.x + popup.drift * t)}px, ${Math.round(screen.y - rise)}px) translate(-50%, -50%) scale(${pop})`
