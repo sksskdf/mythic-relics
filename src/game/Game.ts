@@ -13,7 +13,7 @@ import { ClassProgress } from '../progress/ClassProgress'
 import type { SkillContext } from '../skills/Skill'
 import { DamageNumbers } from '../ui/DamageNumbers'
 import { Hud } from '../ui/Hud'
-import { GameMenu } from '../ui/GameMenu'
+import { GameMenu, type HeroStats } from '../ui/GameMenu'
 import type { RelicCardContext } from '../ui/relicCard'
 import { RelicTooltip } from '../ui/RelicTooltip'
 import { NavGrid } from '../world/navGrid'
@@ -222,6 +222,7 @@ export class Game {
       drop: (slot) => relics.unequip(slot, true),
       progress: this.progress,
       cardContext: (id, preview) => this.cardContext(id, preview),
+      stats: () => this.heroStats(),
       wardrobe: {
         wardrobe: this.wardrobe,
         get autoOutfit() {
@@ -237,6 +238,7 @@ export class Game {
       this.input.endFrame()
       if (!open) this.orders.release()
     }
+    this.hud.onPortraitClick = () => this.menu.show('status')
     this.tooltip = new RelicTooltip(container)
     // 새 외형은 메뉴 단추의 점으로만 알린다. (유물 이름 알림과 겹치지 않게)
     this.bus.on('looksUnlocked', () => this.menu.markNew())
@@ -360,6 +362,42 @@ export class Game {
   }
 
   /** 설명 카드에 넣을 지금 상태: 자리, 충전, 세트, 발현 강화 조건 */
+  /** 정보 화면 상태 탭에 넣을 지금의 능력치와 걸린 힘 */
+  heroStats(): HeroStats {
+    const mods = this.powers.modifiers
+    const { manifested, blessings } = this.powers.state
+    const powers: HeroStats['powers'] = []
+    if (manifested) {
+      const god = godDef(manifested)
+      const what: string[] = []
+      if (god.passive.damageScale !== 1) what.push(`피해 ×${god.passive.damageScale}`)
+      if (god.passive.basicLightning) what.push('기본 공격에 번개')
+      if (god.passive.chainLightning) what.push(`Lv${god.passive.chainLightning.minLevel}부터 번개가 옮겨 붙음`)
+      powers.push({ kind: 'god', name: god.name, color: god.color, label: this.progress.title(manifested), what: what.join(' · ') })
+    }
+    for (const g of blessings) {
+      const god = godDef(g)
+      powers.push({ kind: 'god', name: god.name, color: god.color, label: `${god.name}의 가호`, what: '유물의 힘만 쓴다' })
+    }
+    for (const id of this.powers.loadout.slots) {
+      if (!id) continue
+      const def = relicDef(id)
+      powers.push({ kind: 'relic', name: id, color: godDef(def.god).color, label: def.name, what: def.passive.description })
+    }
+    return {
+      hp: this.combat.health.hp,
+      maxHp: this.combat.health.max,
+      damage: this.damage.scale('basic'),
+      damageTaken: mods.damageTaken,
+      moveSpeed: mods.moveSpeed,
+      knockbackDealt: mods.knockbackDealt,
+      knockbackTaken: mods.knockbackTaken,
+      divine: this.combat.divine,
+      promotions: this.progress.promotions,
+      powers,
+    }
+  }
+
   cardContext(id: RelicId, preview?: RelicCardContext['preview']): RelicCardContext {
     const { loadout } = this.powers
     const slot = loadout.slots.indexOf(id)
@@ -483,6 +521,11 @@ export class Game {
         ultimate: manifested !== null,
         xp: manifested ? this.progress.xpRatio(manifested) : null,
         xpColor: manifested ? godDef(manifested).color : '',
+        portrait: manifested
+          ? { name: godDef(manifested).name, color: godDef(manifested).color, level: this.progress.level(manifested) }
+          : null,
+        blessings: this.powers.state.blessings.map((g) => ({ name: godDef(g).name, color: godDef(g).color })),
+        promote: manifested !== null && this.progress.readyToPromote(manifested),
       },
       realDt,
     )

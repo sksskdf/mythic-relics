@@ -61,7 +61,8 @@
     inset 0 0 0 1px var(--c-bevel),
     var(--shadow);
   width: min(760px, 100%);
-  max-height: min(640px, calc(100vh - 32px));
+  /* 탭을 바꾸거나 카드 내용이 바뀌어도 창이 들썩이지 않게 높이를 고정한다 */
+  height: min(560px, calc(100vh - 32px));
   display: flex;
   flex-direction: column;
   background: rgba(14, 18, 26, 0.96);
@@ -110,6 +111,8 @@
   cursor: pointer;
 }
 .menu__body {
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding: 12px 14px 16px;
 }
@@ -270,31 +273,13 @@
 }
 
 /* 클래스 */
-.ui-pips {
-  display: inline-flex;
-  gap: 3px;
+.menu-gems {
+  --gem: var(--god, var(--c-gilt));
   margin-left: var(--sp-4);
   vertical-align: middle;
 }
-.ui-pips i {
-  width: 6px;
-  height: 6px;
-  background: var(--c-bg-3);
-  border: 1px solid var(--c-line-2);
-}
-.ui-pips i.is-on {
-  background: var(--god, var(--c-gold));
-  border-color: var(--god, var(--c-gold));
-}
-.ui-meter {
-  height: 6px;
-  margin-top: var(--sp-3);
-  background: var(--c-bg-3);
-  border: 1px solid var(--c-line-2);
-}
-.ui-meter__fill {
-  height: 100%;
-  background: var(--god, var(--c-gold));
+.menu-classes__xp {
+  margin-top: var(--sp-4);
 }
 .menu-classes__now {
   --god: var(--c-ink-3);
@@ -357,7 +342,7 @@
   height: 24px;
   image-rendering: pixelated;
 }
-.menu-classes__sigil .ui-pips {
+.menu-classes__sigil .ui-gems {
   margin: 0;
 }
 
@@ -794,4 +779,96 @@
 }
 .relic-tooltip[hidden] {
   display: none;
+}
+
+/* 상태 */
+.menu-status {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: var(--sp-6);
+  align-items: start;
+}
+.menu-status__who {
+  --god: var(--c-moon);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-6) var(--sp-5);
+  text-align: center;
+  background: var(--c-stone-lo);
+  box-shadow: inset 2px 2px 0 var(--c-groove), inset -1px -1px 0 var(--c-stone-hi);
+}
+.menu-status__who .ui-gems {
+  --gem: var(--god);
+  margin: 0;
+}
+.menu-status__title {
+  font: var(--t-title);
+  color: var(--god);
+  text-shadow: 0 0 8px color-mix(in srgb, var(--god) 50%, transparent);
+}
+.menu-status__name {
+  margin-top: calc(var(--sp-4) * -1);
+  font: var(--t-small);
+  color: var(--c-ink-3);
+}
+.menu-status__xp {
+  align-self: stretch;
+}
+.menu-status__tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--sp-3);
+}
+.menu-status__stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-3) var(--sp-5);
+}
+.menu-status__stat,
+.menu-status__power {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  background: #121317;
+  box-shadow: inset 0 0 0 1px #1d1f25;
+}
+.menu-status__stat img {
+  width: 24px;
+  height: 24px;
+  image-rendering: pixelated;
+}
+.menu-status__stat span:not(.ui-tag) {
+  font: var(--t-body);
+  color: var(--c-ink-2);
+}
+.menu-status__stat b {
+  margin-left: auto;
+  font: var(--t-title);
+  font-weight: normal;
+  color: var(--c-ink-1);
+}
+.menu-status__powers {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  margin-top: var(--sp-5);
+}
+.menu-status__power {
+  padding-left: var(--sp-2);
+}
+.menu-status__power span {
+  font: var(--t-body);
+  color: var(--c-ink-2);
+  white-space: nowrap;
+}
+.menu-status__power em {
+  margin-left: auto;
+  font: var(--t-small);
+  font-style: normal;
+  color: var(--c-ink-3);
+  text-align: right;
 }

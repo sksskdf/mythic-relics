@@ -47,6 +47,24 @@ const GLYPHS: Record<string, readonly string[]> = {
   classes: ['.....aa.....', '.....aa.....', '....abba....', 'aaaaabbaaaaa', '.abbbbbbbba.', '..abbbbbba..', '...abbbba...', '..abba.abba.', '..aa.....aa.', '.a.........a', '............', '............'],
   // 외형 탭: 옷걸이
   looks: ['............', '.....aa.....', '....a..a....', '.......a....', '......a.....', '.....aa.....', '....abba....', '...abbbba...', '..abbbbbba..', '.abbbbbbbba.', '.aaaaaaaaaa.', '............'],
+  // 상태 탭: 사람
+  status: ['....aaaa....', '...abbbba...', '...abbbba...', '...abbbba...', '....abba....', '.....aa.....', '..aaaaaaaa..', '.abbbbbbbba.', 'abbbbbbbbbba', 'abbbbbbbbbba', 'abbbbbbbbbba', '............'],
+  // 생명
+  heart: ['............', '..aa....aa..', '.abba..abba.', 'abbbbaabbbba', 'abbbbbbbbbba', 'abbbbbbbbbba', '.abbbbbbbba.', '..abbbbbba..', '...abbbba...', '....abba....', '.....aa.....', '............'],
+  // 주는 피해
+  sword: ['..........aa', '.........aba', '........aba.', '.......aba..', '......aba...', '.....aba....', '.a..aba.....', '..aaba......', '...ba.......', '..a.a.......', '.a...a......', '............'],
+  // 받는 피해
+  shield: ['.aaaaaaaaaa.', 'abbbbbbbbbba', 'abbbbaabbbba', 'abbbbaabbbba', 'abaaaaaaaaba', 'abbbbaabbbba', 'abbbbaabbbba', '.abbbaabbba.', '.abbbbbbbba.', '..abbbbbba..', '...abbbba...', '....aaaa....'],
+  // 이동 속도
+  boot: ['............', '...aaaaa....', '...abbba....', '...abbba....', '...abbba....', '...abbba....', '...abbbaaa..', '..abbbbbbba.', '.abbbbbbbbba', '.aaaaaaaaaaa', '............', '............'],
+  // 밀쳐 내기
+  push: ['............', '.aa......aa.', '.aaa....aaa.', '..aaa..aaa..', '...a....a...', '.....bb.....', '.....bb.....', '...a....a...', '..aaa..aaa..', '.aaa....aaa.', '.aa......aa.', '............'],
+  // 버티기
+  stand: ['.....aa.....', '....a..a....', '.....aa.....', '.....aa.....', '..aaaaaaaa..', '.....aa.....', '.....aa.....', 'a....aa....a', 'aa...aa...aa', '.aa..aa..aa.', '..aaaaaaaa..', '............'],
+  // 신위
+  divine: ['.....a......', '.....a......', '....aba.....', '....aba.....', '..aabbbaa...', 'aabbbbbbbaa.', '..aabbbaa...', '....aba.....', '....aba.....', '.....a......', '.....a......', '............'],
+  // 승급
+  promote: ['............', '.....aa.....', '....abba....', '...abbbba...', '..abbaabba..', '.abba..abba.', '.aa..aa..aa.', '....abba....', '...abbbba...', '..abbaabba..', '.abba..abba.', '.aa......aa.'],
 }
 
 const cache = new Map<string, string>()

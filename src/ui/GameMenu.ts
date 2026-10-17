@@ -10,14 +10,35 @@ import { archetypeSigil, glyph, unknownSigil } from './sigils'
 import { type WardrobeHost, WardrobePane } from './WardrobePane'
 import './menu.css'
 
-export type MenuTab = 'relics' | 'classes' | 'looks'
+export type MenuTab = 'status' | 'relics' | 'classes' | 'looks'
 
 /** 탭은 그림으로만 보여 주고, 이름은 올렸을 때 힌트로 띄운다. */
-const TABS: readonly [MenuTab, 'relics' | 'classes' | 'looks', string][] = [
+const TABS: readonly [MenuTab, 'status' | 'relics' | 'classes' | 'looks', string][] = [
+  ['status', 'status', '상태'],
   ['relics', 'relics', '유물'],
   ['classes', 'classes', '클래스'],
   ['looks', 'looks', '외형'],
 ]
+
+/** 상태 탭에 넣을 지금의 능력치와 걸린 힘 */
+export interface HeroStats {
+  hp: number
+  maxHp: number
+  /** 주는 피해 배율 */
+  damage: number
+  /** 받는 피해 배율 */
+  damageTaken: number
+  moveSpeed: number
+  knockbackDealt: number
+  /** 받는 밀침 배율 (낮을수록 잘 버틴다) */
+  knockbackTaken: number
+  /** 신위 게이지 0~1 */
+  divine: number
+  /** 총 승급 횟수 */
+  promotions: number
+  /** 지금 걸린 힘: 발현, 가호, 낀 유물의 지속 효과 */
+  powers: { kind: 'god' | 'relic'; name: string; color: string; label: string; what: string }[]
+}
 
 /** 메뉴가 게임에서 읽고 부르는 것 */
 export interface MenuHost {
@@ -33,6 +54,19 @@ export interface MenuHost {
   readonly wardrobe: WardrobeHost
   /** 설명 카드에 넣을 지금 상태 */
   cardContext(id: RelicId, preview?: { before: LoadoutState; after: LoadoutState }): RelicCardContext
+  stats(): HeroStats
+}
+
+/** 능력치 그림의 밝은 색과 어두운 색 */
+const STAT_TINT: Partial<Record<Parameters<typeof glyph>[0], [string, string]>> = {
+  heart: ['#ff9a90', '#d9473f'],
+  sword: ['#e9eef5', '#8e98a3'],
+  shield: ['#c9d6ea', '#5b6a8a'],
+  boot: ['#e0b080', '#8a6040'],
+  push: ['#9fe3ff', '#3f8aa8'],
+  stand: ['#e9dcc0', '#8a8273'],
+  divine: ['#ffe27a', '#c9a24a'],
+  promote: ['#ffd27a', '#a8862e'],
 }
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, text?: string): HTMLElementTagNameMap[K] {
@@ -49,9 +83,9 @@ function img(src: string, className = ''): HTMLImageElement {
   return i
 }
 
-/** 레벨을 ●●○○ 같은 점으로 */
+/** 레벨을 보석 점으로 (parts.css의 .ui-gems) */
 function pips(level: number, max = MAX_LEVEL): HTMLElement {
-  const box = el('span', 'ui-pips')
+  const box = el('span', 'ui-gems ui-gems--small menu-gems')
   for (let i = 1; i <= max; i++) box.append(el('i', i <= level ? 'is-on' : ''))
   return box
 }
@@ -69,7 +103,7 @@ export class GameMenu {
   private readonly body: HTMLElement
   private readonly tabButtons = new Map<MenuTab, HTMLButtonElement>()
   private readonly wardrobe: WardrobePane
-  private tab: MenuTab = 'relics'
+  private tab: MenuTab = 'status'
   /** 유물 화면에서 고른 칸 */
   private selectedSlot = 0
   /** 유물 화면에서 커서를 올린 가방 유물 */
@@ -184,9 +218,95 @@ export class GameMenu {
     this.hint.hidden = true
     for (const [id, b] of this.tabButtons) b.classList.toggle('is-on', id === this.tab)
     this.body.replaceChildren()
-    if (this.tab === 'relics') this.renderRelics()
+    if (this.tab === 'status') this.renderStatus()
+    else if (this.tab === 'relics') this.renderRelics()
     else if (this.tab === 'classes') this.renderClasses()
     else this.wardrobe.render(this.body)
+  }
+
+  // ───────────────────────────── 상태 ─────────────────────────────
+
+  /** 지금의 나: 왼쪽에 초상·칭호·레벨 보석·승급 막대, 오른쪽에 능력치와 걸린 힘 */
+  private renderStatus(): void {
+    const { host } = this
+    const stats = host.stats()
+    const layout = el('div', 'menu-status')
+
+    const who = el('section', 'menu-status__who')
+    const current = host.loadout.manifested
+    const portrait = el('div', 'ui-portrait ui-portrait--large')
+    if (current) {
+      const god = godDef(current)
+      const level = host.progress.level(current)
+      who.style.setProperty('--god', god.color)
+      portrait.style.setProperty('--glow', god.color)
+      portrait.append(img(classIcon(god.name)))
+      who.append(portrait, el('div', 'menu-status__title', host.progress.title(current)), el('div', 'menu-status__name', god.name))
+      const gems = pips(level)
+      gems.classList.remove('ui-gems--small')
+      who.append(gems)
+      if (level < MAX_LEVEL) {
+        const bar = el('div', 'ui-bar ui-bar--thin menu-status__xp')
+        bar.style.setProperty('--fill', god.color)
+        bar.style.setProperty('--pct', host.progress.xpRatio(current).toFixed(3))
+        this.hintOn(bar, `다음 승급까지 ${Math.round(host.progress.xpRatio(current) * 100)}%`)
+        who.append(bar)
+      }
+    } else {
+      portrait.classList.add('is-empty')
+      portrait.append(img(unknownSigil()))
+      who.append(portrait, el('div', 'menu-status__title', '이름 없는 모험가'))
+      this.hintOn(portrait, '한 신의 유물이 모이면 그 신의 힘이 깨어난다.')
+    }
+    const tags = el('div', 'menu-status__tags')
+    if (current) tags.append(el('span', 'ui-tag ui-tag--solid', '발현'))
+    for (const g of host.loadout.blessings) {
+      const tag = el('span', 'ui-tag', `${godDef(g).name}의 가호`)
+      tag.style.setProperty('--tag', godDef(g).color)
+      tags.append(tag)
+    }
+    who.append(tags)
+    layout.append(who)
+
+    const right = el('div', 'menu-status__right')
+    const grid = el('div', 'menu-status__stats')
+    const pct = (v: number) => `${v > 1 ? '+' : '−'}${Math.round(Math.abs(v - 1) * 100)}%`
+    const row = (icon: Parameters<typeof glyph>[0], name: string, value: string, hint: string, delta?: { text: string; good: boolean }) => {
+      const r = el('div', 'menu-status__stat')
+      r.append(img(glyph(icon, ...STAT_TINT[icon]!)), el('span', '', name), el('b', '', value))
+      if (delta) {
+        const tag = el('span', 'ui-tag', delta.text)
+        tag.style.setProperty('--tag', delta.good ? 'var(--c-good)' : 'var(--c-bad)')
+        r.append(tag)
+      }
+      this.hintOn(r, hint)
+      grid.append(r)
+    }
+    const changed = (v: number, higherIsGood: boolean) => (Math.abs(v - 1) < 0.005 ? undefined : { text: pct(v), good: v > 1 === higherIsGood })
+    row('heart', '생명', `${Math.round(stats.hp)} / ${stats.maxHp}`, '승급할 때마다 최대 생명이 늘어난다.')
+    row('sword', '주는 피해', `×${stats.damage.toFixed(2)}`, '승급 횟수와 발현한 신의 힘', changed(stats.damage, true))
+    row('shield', '받는 피해', `×${stats.damageTaken.toFixed(2)}`, '낀 유물의 지속 효과', changed(stats.damageTaken, false))
+    row('boot', '이동 속도', `${Math.round(stats.moveSpeed * 100)}%`, '낀 유물의 지속 효과', changed(stats.moveSpeed, true))
+    row('push', '밀쳐 내기', `×${stats.knockbackDealt.toFixed(2)}`, '내 공격이 적을 미는 힘', changed(stats.knockbackDealt, true))
+    row('stand', '버티기', `×${stats.knockbackTaken.toFixed(2)}`, '내가 밀려나는 정도. 낮을수록 잘 버틴다.', changed(stats.knockbackTaken, false))
+    row('divine', '신위', `${Math.round(stats.divine * 100)}%`, '스킬로 맞히고 쓰러뜨릴수록 차오른다. 가득 차면 궁극기.')
+    row('promote', '승급', `${stats.promotions}회`, '승급할 때마다 모든 클래스의 기본 능력치가 오른다.')
+    right.append(grid)
+
+    if (stats.powers.length > 0) {
+      const list = el('div', 'menu-status__powers')
+      for (const p of stats.powers) {
+        const line = el('div', 'menu-status__power')
+        const chip = el('span', 'ui-chip')
+        chip.style.setProperty('--glow', p.color)
+        chip.append(img(p.kind === 'god' ? classIcon(p.name) : relicIcon(relicDef(p.name as RelicId))))
+        line.append(chip, el('span', '', p.label), el('em', '', p.what))
+        list.append(line)
+      }
+      right.append(list)
+    }
+    layout.append(right)
+    this.body.append(layout)
   }
 
   // ───────────────────────────── 유물 ─────────────────────────────
@@ -323,10 +443,9 @@ export class GameMenu {
       title.append(pips(level))
       info.append(title)
       if (level < MAX_LEVEL) {
-        const bar = el('div', 'ui-meter')
-        const fill = el('div', 'ui-meter__fill')
-        fill.style.width = `${Math.round(progress.xpRatio(current) * 100)}%`
-        bar.append(fill)
+        const bar = el('div', 'ui-bar ui-bar--thin menu-classes__xp')
+        bar.style.setProperty('--fill', god.color)
+        bar.style.setProperty('--pct', progress.xpRatio(current).toFixed(3))
         info.append(bar)
       }
       now.append(info)
