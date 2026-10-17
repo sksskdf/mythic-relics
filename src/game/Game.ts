@@ -43,7 +43,7 @@ import { RelicSystem } from './systems/Relics'
 export interface GameOptions {
   /** 처음부터 끼고 시작할 유물 (점검용) */
   startRelics?: readonly RelicId[]
-  /** 이어 하기: 이 저장 데이터로 시작한다. */
+  /** 저장 데이터가 있으면 거기서 이어서 시작한다. */
   load?: SaveData | null
   /** 진행 상황을 브라우저 저장소에 저장한다. (점검용 실행에서는 끈다) */
   autosave?: boolean

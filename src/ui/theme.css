@@ -47,6 +47,19 @@
   --c-bg-2: #141a24;
   --c-bg-3: #1d2430;
   --c-panel: rgba(13, 17, 24, 0.94);
+  /* 새긴 돌: 공통 화면의 틀. 위·왼쪽은 밝게 깎고 아래·오른쪽은 깊게 판다 */
+  --c-page: #0c0d10;
+  --c-stone: #2b2d33;
+  --c-stone-hi: #3e414a;
+  --c-stone-lo: #17181c;
+  --c-groove: #0d0e11;
+  --c-stone-glow: #23252c;
+  --c-stone-ink: #c9ced7;
+  --stone-raised: inset 2px 2px 0 #50545f, inset -2px -2px 0 var(--c-stone-lo), 0 0 0 2px var(--c-groove);
+  /* 공통 빛: 달빛과 뼈빛, 중요한 단추 하나에만 금 테두리 */
+  --c-moon: #d8dde6;
+  --c-bone: #bfb6a2;
+  --c-gilt: #c9a24a;
   /* 선 */
   --c-line-1: #222a36;
   --c-line-2: #3a4558;
