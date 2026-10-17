@@ -133,12 +133,12 @@ export class DevPanel {
     ])
 
     this.section(body, '외형', [
-      { label: '보관함', active: () => g.wardrobePanel.open, run: () => g.wardrobePanel.toggle() },
+      { label: '보관함', run: () => g.menu.show('looks') },
       {
         label: '모두 얻기',
         run: () => {
           g.wardrobe.unlock(LOOK_IDS)
-          g.wardrobePanel.refresh()
+          g.menu.refresh()
         },
       },
       {

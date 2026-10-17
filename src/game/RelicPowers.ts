@@ -56,6 +56,23 @@ export class RelicPowers {
     return { relic, change: this.refresh() }
   }
 
+  /** 칸의 유물을 가방에 넣는다. (유물 화면) */
+  stow(slot: number): LoadoutChange | null {
+    if (!this.loadout.stow(slot)) return null
+    this.effects[slot]?.dispose()
+    this.effects[slot] = null
+    return this.refresh()
+  }
+
+  /** 가방의 유물을 칸에 끼운다. 칸에 있던 유물은 가방으로 간다. (유물 화면) */
+  wield(id: RelicId, slot: number): LoadoutChange | null {
+    if (!this.loadout.bag.includes(id)) return null
+    this.effects[slot]?.dispose()
+    this.loadout.wield(id, slot)
+    this.effects[slot] = createEffect(relicDef(id), this.fx)
+    return this.refresh()
+  }
+
   /** 끼고 있는 유물들의 지속 효과 수치를 곱한 값 */
   get modifiers(): Modifiers {
     const out = { ...NO_MODIFIERS }

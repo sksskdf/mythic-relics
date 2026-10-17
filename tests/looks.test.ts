@@ -104,3 +104,13 @@ describe('주인공 모델', () => {
     expect(meshes(rig.weapon)).toHaveLength(1)
   })
 })
+
+describe('조사 붙이기', async () => {
+  const { josa } = await import('../src/ui/josa')
+  it('받침에 따라 으로/로, 을/를을 고른다', () => {
+    expect(josa('토르', '으로')).toBe('토르로')
+    expect(josa('천둥의 신', '으로')).toBe('천둥의 신으로')
+    expect(josa('우트가르드 원정', '을')).toBe('우트가르드 원정을')
+    expect(josa('천둥의 길', '으로')).toBe('천둥의 길로')
+  })
+})

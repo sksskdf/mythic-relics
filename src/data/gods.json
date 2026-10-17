@@ -32,7 +32,8 @@
       "torso": "thorTunic",
       "cape": "thorCape",
       "aura": "thorSparks"
-    }
+    },
+    "legend": "우트가르드 원정"
   },
   "loki": {
     "name": "로키",

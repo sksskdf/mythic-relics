@@ -21,7 +21,6 @@ export class RelicSystem {
     ctx.bus.on('heroRevived', () => {
       this.decoy = null
     })
-    ctx.hud.onSlotClick = (slot) => this.dropFromSlot(slot)
   }
 
   update(dt: number): void {
@@ -37,7 +36,7 @@ export class RelicSystem {
     this.lastWalk.set(position.x, position.z)
 
     if (combat.alive) {
-      const picked = pickups.update(dt, position.x, position.z, (id) => powers.hasFreeSlot && !powers.loadout.has(id))
+      const picked = pickups.update(dt, position.x, position.z, (id) => !powers.loadout.has(id))
       for (const id of picked) {
         this.ctx.hud.showToast(relicDef(id).name)
         bus.emit('relicPicked', { id })
@@ -83,9 +82,20 @@ export class RelicSystem {
     this.changed(result.change, drop)
   }
 
-  /** 유물 칸을 눌러 유물을 빼면 발밑에 내려놓는다. */
-  private dropFromSlot(slot: number): void {
-    this.unequip(slot, true)
+  /** 유물 화면: 칸의 유물을 가방에 넣는다. */
+  stow(slot: number): void {
+    const change = this.ctx.powers.stow(slot)
+    if (!change) return
+    this.ctx.bus.emit('progressChanged', {})
+    this.changed(change, true)
+  }
+
+  /** 유물 화면: 가방의 유물을 칸에 끼운다. */
+  wield(id: RelicId, slot: number): void {
+    const change = this.ctx.powers.wield(id, slot)
+    if (!change) return
+    this.ctx.bus.emit('progressChanged', {})
+    this.changed(change, true)
   }
 
   /** 발현이 새로 일어나거나 풀렸을 때의 연출 */

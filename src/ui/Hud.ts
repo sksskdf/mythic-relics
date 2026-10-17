@@ -30,12 +30,14 @@ export const SKILL_SLOTS = 4
 /**
  * HUD: 아래쪽에 생명력, 유물 스킬 칸 4개, 궁극기 칸, 신위 게이지, 경험치 바(발현했을 때), 위쪽에 보스 생명력.
  * 스킬과 궁극기는 자동으로 나가므로 키 표시가 없고, 글 대신 막대와 그림으로 보여 준다. (텍스트 최소화)
- * 유물 칸을 누르면 그 유물을 빼서 발밑에 내려놓는다.
+ * 유물 칸에 커서를 올리면 설명 카드가 뜨고, 누르면 유물 화면이 열린다. (E4)
  */
 export class Hud {
   readonly root: HTMLElement
   /** 유물 칸을 눌렀을 때 */
   onSlotClick: (slot: number) => void = () => {}
+  /** 유물 칸에 커서를 올렸을 때 (벗어나면 slot이 null) */
+  onSlotHover: (slot: number | null, anchor: DOMRect | null) => void = () => {}
 
   private readonly lifeFill: HTMLElement
   private readonly divineFill: HTMLElement
@@ -74,8 +76,11 @@ export class Hud {
       const root = this.el('button', 'hud__slot hud__slot--empty', slots)
       root.addEventListener('pointerdown', (e) => {
         e.stopPropagation()
+        this.onSlotHover(null, null)
         this.onSlotClick(i)
       })
+      root.addEventListener('pointerenter', () => this.onSlotHover(i, root.getBoundingClientRect()))
+      root.addEventListener('pointerleave', () => this.onSlotHover(null, null))
       const icon = this.el('div', 'hud__icon', root)
       const shade = this.el('div', 'hud__shade', root)
       this.slotEls.push({ root, icon, shade, src: null })

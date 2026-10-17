@@ -73,4 +73,30 @@ export class Loadout {
     this.slots[slot] = null
     return id
   }
+
+  /** 칸의 유물을 가방에 넣는다. (유물 화면) */
+  stow(slot: number): RelicId | null {
+    const id = this.unequip(slot)
+    if (id) this.bag.push(id)
+    return id
+  }
+
+  /** 가방의 유물을 칸에 끼운다. 칸에 다른 유물이 있으면 그것은 가방으로 간다. (유물 화면) */
+  wield(id: RelicId, slot: number): RelicId | null {
+    const index = this.bag.indexOf(id)
+    if (index < 0 || slot < 0 || slot >= SLOT_COUNT) return null
+    this.bag.splice(index, 1)
+    const previous = this.stow(slot)
+    this.slots[slot] = id
+    return previous
+  }
+
+  /** 바꿔 끼면 발현·가호가 어떻게 되는지 미리 본다. slot에 id를 끼운다고 친다. (id가 null이면 비운다고 친다) */
+  preview(slot: number, id: RelicId | null): LoadoutState {
+    const next = [...this.slots]
+    const already = next.indexOf(id)
+    if (id && already >= 0) next[already] = null
+    next[slot] = id
+    return resolveLoadout(next)
+  }
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { DATA } from '../src/data'
+import classes from '../src/data/classes.json'
 import enemies from '../src/data/enemies.json'
 import gods from '../src/data/gods.json'
 import relics from '../src/data/relics.json'
@@ -11,8 +12,8 @@ const MODELS = Object.keys(RELIC_MODELS)
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T
 
 /** 원래 데이터를 복사해 한 곳만 고친 뒤 검사한다. */
-function broken(edit: (d: { gods: any; relics: any; enemies: any }) => void): () => unknown {
-  const d = { gods: clone(gods), relics: clone(relics), enemies: clone(enemies) }
+function broken(edit: (d: { gods: any; relics: any; enemies: any; classes: any }) => void): () => unknown {
+  const d = { gods: clone(gods), relics: clone(relics), enemies: clone(enemies), classes: clone(classes) }
   edit(d)
   return () => parseGameData(d, MODELS)
 }
@@ -55,6 +56,9 @@ describe('게임 데이터', () => {
       ['서로 이어받는 적', (d) => (d.enemies.king.extends = 'utgardKing'), /서로를 이어받고/],
       ['없는 유물 확정 드랍', (d) => (d.enemies.king.fixedDrop = 'gungnir'), /fixedDrop: relics\.json에 없는 유물/],
       ['게임이 쓰는 적이 빠짐', (d) => delete d.enemies.grunt, /enemies\.json\.grunt: 게임이 직접 쓰는 적/],
+      ['유물 설명이 빠짐', (d) => (d.relics.megingjord.description = ''), /megingjord\.description: 비어 있지 않은 글자/],
+      ['스킬 설명이 빠짐', (d) => delete d.relics.mjolnir.trigger.description, /trigger\.description: 비어 있지 않은 글자/],
+      ['클래스 트리 칭호가 신 데이터와 다름', (d) => (d.classes.mythologies[0].classes[0].titles[1] = '천둥왕'), /titles: gods\.json의 칭호와 다릅니다/],
       ['범위를 벗어난 값', (d) => (d.enemies.grunt.attacks[0].area.halfAngleDeg = 400), /halfAngleDeg: 180 이하/],
     ]
     for (const [name, edit, message] of cases) {

@@ -4,7 +4,7 @@ import { Input } from '../input/Input'
 import { PixelRenderer } from '../render/PixelRenderer'
 import { QuarterViewCamera } from '../render/QuarterViewCamera'
 import { renderHeightFor, TARGET_RENDER_HEIGHT } from '../render/resolution'
-import { godDef, type RelicId } from '../relics/data'
+import { godDef, relicDef, type RelicId } from '../relics/data'
 import { Wardrobe } from '../looks/outfit'
 import { DropTable } from '../relics/DropTable'
 import { Pickups } from '../relics/Pickups'
@@ -13,7 +13,8 @@ import { ClassProgress } from '../progress/ClassProgress'
 import type { SkillContext } from '../skills/Skill'
 import { DamageNumbers } from '../ui/DamageNumbers'
 import { Hud } from '../ui/Hud'
-import { WardrobePanel } from '../ui/WardrobePanel'
+import { GameMenu } from '../ui/GameMenu'
+import { RelicTooltip } from '../ui/RelicTooltip'
 import { NavGrid } from '../world/navGrid'
 import { buildHeroModel } from '../world/heroModel'
 import { MAP_HALF_EXTENT } from '../world/testMap'
@@ -105,7 +106,11 @@ export class Game {
   /** 외형: 장착에 따른 모습, 외형 보관함 */
   readonly appearance: AppearanceSystem
   /** 외형 보관함 화면 */
-  readonly wardrobePanel: WardrobePanel
+  /** 정보 화면 (유물·클래스·외형). 열려 있는 동안 게임이 멈춘다 */
+  readonly menu: GameMenu
+  private readonly tooltip: RelicTooltip
+  /** 지금 떠 있는 카드가 땅의 유물 카드인가 */
+  private groundTooltip = false
   private readonly relics: RelicSystem
   private readonly growth: ProgressionSystem
   private readonly life: HeroLife
@@ -196,16 +201,49 @@ export class Game {
     this.relics = new RelicSystem(this.ctx)
     this.appearance = new AppearanceSystem(this.ctx)
     const appearance = this.appearance
-    this.wardrobePanel = new WardrobePanel(this.hud.root, {
-      wardrobe: this.wardrobe,
-      get autoOutfit() {
-        return appearance.auto
+    const relics = this.relics
+    const powers = this.powers
+    this.menu = new GameMenu(this.hud.root, {
+      get slots() {
+        return powers.loadout.slots
       },
-      choose: (slot, choice) => appearance.choose(slot, choice),
+      get bag() {
+        return powers.loadout.bag
+      },
+      get loadout() {
+        return powers.state
+      },
+      preview: (slot, id) => powers.loadout.preview(slot, id),
+      wield: (id, slot) => relics.wield(id, slot),
+      stow: (slot) => relics.stow(slot),
+      drop: (slot) => relics.unequip(slot, true),
+      progress: this.progress,
+      wardrobe: {
+        wardrobe: this.wardrobe,
+        get autoOutfit() {
+          return appearance.auto
+        },
+        choose: (slot, choice) => appearance.choose(slot, choice),
+      },
     })
-    // 새 외형은 옷걸이 단추의 점으로만 알린다. (유물 이름 알림과 겹치지 않게)
-    this.bus.on('looksUnlocked', () => this.wardrobePanel.markNew())
-    this.bus.on('outfitChanged', () => this.wardrobePanel.refresh())
+    this.menu.onToggle = (open) => {
+      this.tooltip.hide()
+      // 창을 여닫는 클릭이 이동 지시로 새지 않게 입력을 비운다.
+      this.input.endFrame()
+      if (!open) this.orders.release()
+    }
+    this.tooltip = new RelicTooltip(container)
+    // 새 외형은 메뉴 단추의 점으로만 알린다. (유물 이름 알림과 겹치지 않게)
+    this.bus.on('looksUnlocked', () => this.menu.markNew())
+    this.bus.on('outfitChanged', () => this.menu.refresh())
+    this.bus.on('loadoutChanged', () => this.menu.refresh())
+    // HUD 유물 칸: 커서를 올리면 설명 카드, 누르면 유물 화면
+    this.hud.onSlotClick = (slot) => this.menu.show('relics', slot)
+    this.hud.onSlotHover = (slot, anchor) => {
+      const id = slot === null ? null : this.powers.loadout.slots[slot]
+      if (!id || !anchor) return this.tooltip.hide()
+      this.tooltip.show(relicDef(id), anchor.left + anchor.width / 2, anchor.top, true)
+    }
     this.growth = new ProgressionSystem(this.ctx)
     this.life = new HeroLife(this.ctx)
     this.persistence = new Persistence(this.ctx, options.autosave ?? false)
@@ -294,14 +332,37 @@ export class Game {
       this.updateBackdrop(realDt)
       return
     }
-    this.update(realDt, true)
-    this.view.follow(this.hero.object.position, realDt)
+    // 정보 화면이 열려 있으면 게임은 멈추고 화면만 그린다. (E4-07)
+    if (!this.paused) {
+      this.update(realDt, true)
+      this.view.follow(this.hero.object.position, realDt)
+      this.updateGroundTooltip()
+    }
     this.numbers.update(realDt, this.container.clientHeight, this.pixel.size, this.view.camera, this.view.subpixel)
     this.updateHud(realDt)
     this.pixel.render(this.scene, this.view.camera, this.view.subpixel)
     this.input.endFrame()
     this.frame += 1
     this.persistence.update(realDt)
+  }
+
+  /** 정보 화면이 열려 있어 게임이 멈췄는가 */
+  get paused(): boolean {
+    return this.menu.open
+  }
+
+  /** 땅에 떨어진 유물에 커서를 올리면 설명 카드를 띄운다. (HUD 칸 카드가 떠 있으면 그대로 둔다) */
+  private updateGroundTooltip(): void {
+    const ground = this.playerInput.cursorOnGround()
+    const near = ground && this.pickups.list.find((p) => Math.hypot(p.x - ground.x, p.z - ground.z) < 1.1)
+    if (near) {
+      const { pointer } = this.input
+      this.tooltip.show(relicDef(near.id), pointer.x, pointer.y)
+      this.groundTooltip = true
+    } else if (this.groundTooltip) {
+      this.tooltip.hide()
+      this.groundTooltip = false
+    }
   }
 
   /** 시작 화면 뒤의 배경: 눈이 내리고 불꽃이 일렁이며, 주인공은 숨만 쉰다. */

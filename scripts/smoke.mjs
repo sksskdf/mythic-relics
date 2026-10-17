@@ -129,6 +129,27 @@ try {
   if ((await page.evaluate(() => window.__game.hero.rig.outfit.head)) !== 'thorHelm') throw new Error('외형: 발현했는데 모습이 그대로입니다.')
   // 발현 번개가 걷히고 나서 찍는다.
   await lookShot('4-manifest', 12)
+  // 정보 화면(E4): 책 단추로 열면 게임이 멈추고, 유물을 가방에 넣고 다시 끼면 HUD·외형·발현이 바로 바뀐다.
+  await page.click('.menu-button')
+  if (!(await page.evaluate(() => window.__game.paused))) throw new Error('정보 화면: 열었는데 게임이 멈추지 않습니다.')
+  const beltSlot = await page.evaluate(() => window.__game.powers.loadout.slots.indexOf('megingjord'))
+  await page.locator('.menu-relics__slot').nth(beltSlot).click()
+  await page.getByRole('button', { name: '가방에 넣기' }).click()
+  const stowed = await page.evaluate(() => {
+    const g = window.__game
+    return { manifested: g.powers.manifested, waist: g.hero.rig.outfit.waist, bag: [...g.powers.loadout.bag] }
+  })
+  if (stowed.manifested !== null || stowed.waist !== null || !stowed.bag.includes('megingjord')) throw new Error(`정보 화면: 가방에 넣기 실패 ${JSON.stringify(stowed)}`)
+  await page.locator('.menu-relics__item').first().hover()
+  if (!(await page.locator('.menu-relics__preview').textContent()).includes('발현합니다')) throw new Error('정보 화면: 끼우면 발현한다는 미리 보기가 없습니다.')
+  await page.locator('.menu-relics__item').first().click()
+  if ((await page.evaluate(() => window.__game.powers.manifested)) !== 'thor') throw new Error('정보 화면: 다시 끼웠는데 발현하지 않습니다.')
+  await page.click('.menu__tab:nth-child(2)')
+  if (!(await page.locator('.menu-classes__now').textContent()).includes('천둥의 신')) throw new Error('정보 화면: 클래스 탭에 지금 클래스가 없습니다.')
+  await page.keyboard.press('Escape')
+  if (await page.evaluate(() => window.__game.paused)) throw new Error('정보 화면: 닫았는데 게임이 멈춰 있습니다.')
+  console.log('정보 화면 확인: 열면 멈춤, 가방에 넣기·다시 끼기와 미리 보기, 클래스 탭, Esc로 닫기')
+
   // 보관함에서 무기를 짧은 검으로 고르면 묠니르를 껴도 검을 든다. (새로 고침 뒤에도 유지되는지 아래에서 확인)
   await page.evaluate(() => window.__game.appearance.choose('weapon', 'shortSword'))
   if ((await page.evaluate(() => window.__game.hero.rig.outfit.weapon)) !== 'shortSword') throw new Error('외형: 보관함 선택이 적용되지 않습니다.')
