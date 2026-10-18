@@ -80,7 +80,7 @@ describe('공격 모션: 판정 모양별로 맞는 적', () => {
   const side = dummy(2.2, 0, 'side')
   const far = dummy(0, 4.2, 'far')
   const all = [front, back, side, far]
-  const names = (list: CombatTarget[]) => list.map((t) => (t as { name: string }).name).sort()
+  const names = (list: CombatTarget[]) => list.map((t) => (t as unknown as { name: string }).name).sort()
 
   it('부채꼴: 앞만, 뒤와 먼 적은 아니다', () => {
     expect(names(swingTargets({ duration: 0.3, hitTime: 0.1, damage: 1, range: 2.4, halfAngle: 55 * DEG, knockback: 0, lunge: 0 }, 0, 0, 0, all))).toEqual(['front'])
