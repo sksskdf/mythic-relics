@@ -8,6 +8,10 @@ import { renderHeightFor, TARGET_RENDER_HEIGHT } from '../render/resolution'
 import { godDef, relicDef, type RelicId } from '../relics/data'
 import { Wardrobe } from '../looks/outfit'
 import { DropTable } from '../relics/DropTable'
+import { itemUnderPointer } from '../relics/hover'
+import { PICKUP_TOP } from '../relics/Pickups'
+import { worldToScreen } from '../render/picking'
+import { heightAt } from '../world/terrain'
 import { Pickups } from '../relics/Pickups'
 import type { SaveData } from '../save/SaveData'
 import { ClassProgress } from '../progress/ClassProgress'
@@ -552,10 +556,9 @@ export class Game {
       if (id) this.tooltip.show(relicDef(id), this.cardContext(id), this.hoveredSlot.x, this.hoveredSlot.y, true)
       return
     }
-    const ground = this.playerInput.cursorOnGround()
-    const near = ground && this.pickups.list.find((p) => Math.hypot(p.x - ground.x, p.z - ground.z) < 1.1)
+    const { pointer } = this.input
+    const near = this.pickupUnderPointer(pointer)
     if (near) {
-      const { pointer } = this.input
       const place = { kind: 'ground' } as const
       const free = this.powers.loadout.slots.indexOf(null)
       const preview = free >= 0 ? { before: this.powers.state, after: this.powers.loadout.preview(free, near.id) } : undefined
@@ -565,6 +568,28 @@ export class Game {
       this.tooltip.hide()
       this.groundTooltip = false
     }
+  }
+
+  /** 월드 좌표가 화면 어디에 보이는가 (CSS 픽셀, 자동 점검용) */
+  screenPoint(x: number, y: number, z: number): { x: number; y: number } {
+    return worldToScreen(new THREE.Vector3(x, y, z), this.container.clientHeight, this.pixel.size, this.view.camera, this.view.subpixel)
+  }
+
+  /** 커서 아래의 땅 유물: 화면에 보이는 유물 모양(발밑 ~ 떠 있는 모델 위)과 커서 사이의 화면 거리로 고른다 */
+  private pickupUnderPointer(pointer: { x: number; y: number }): { id: RelicId; x: number; z: number } | null {
+    const height = this.container.clientHeight
+    const size = this.pixel.size
+    const { camera, subpixel } = this.view
+    const items = this.pickups.list.map((p) => {
+      const y = heightAt(p.x, p.z)
+      return {
+        item: p,
+        base: worldToScreen(new THREE.Vector3(p.x, y, p.z), height, size, camera, subpixel),
+        top: worldToScreen(new THREE.Vector3(p.x, y + PICKUP_TOP, p.z), height, size, camera, subpixel),
+      }
+    })
+    // 저해상도 픽셀 12칸쯤, 화면에서 적어도 28px
+    return itemUnderPointer(items, pointer, Math.max(28, size.scale * 12))
   }
 
   /** 시작 화면 뒤의 배경: 눈이 내리고 불꽃이 일렁이며, 주인공은 숨만 쉰다. */

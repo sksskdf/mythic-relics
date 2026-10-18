@@ -114,6 +114,31 @@ try {
   if ((await page.evaluate(() => window.__game.hero.rig.outfit.head)) !== 'adventurerHood') throw new Error('외형: 기본 모습이 모험가가 아닙니다.')
   await lookShot('1-base')
 
+  // 땅 유물 설명 카드: 떠 있는 모델 위, 빛기둥 중간, 발밑 어디에 커서를 올려도 뜨고, 멀리 떨어지면 사라진다.
+  const spots = await page.evaluate(() => {
+    const g = window.__game
+    // 앞 단계의 공격 지시로 주인공이 유물 쪽으로 걸어가 줍지 않게 멈춰 세운다
+    g.orders.clear()
+    const p = g.hero.object.position
+    const x = p.x + 4
+    const z = p.z + 1
+    g.pickups.drop('lokiMask', x, z, false)
+    const y = g.hero.object.position.y
+    return { top: g.screenPoint(x, y + 1.5, z), mid: g.screenPoint(x, y + 0.6, z), base: g.screenPoint(x, y, z) }
+  })
+  for (const [name, at] of Object.entries(spots)) {
+    await page.mouse.move(at.x, at.y + 8)
+    await page.waitForFunction(() => window.__game.frame > 0 && !document.querySelector('.relic-tooltip')?.hidden, null, { timeout: 5000 }).catch(() => {
+      throw new Error(`땅 유물 설명: ${name}에 커서를 올렸는데 카드가 뜨지 않습니다.`)
+    })
+  }
+  // 아무 유물·HUD도 없는 화면 왼쪽 가장자리로 커서를 치운다
+  await page.mouse.move(4, 360)
+  await page.waitForFunction(() => document.querySelector('.relic-tooltip')?.hidden !== false, null, { timeout: 5000 })
+  if (await page.evaluate(() => window.__game.powers.loadout.has('lokiMask'))) throw new Error('땅 유물 설명: 커서만 올렸는데 유물을 주웠습니다.')
+  await page.evaluate(() => window.__game.pickups.remove('lokiMask'))
+  console.log('땅 유물 설명 확인: 모델 위·빛기둥·발밑에서 카드가 뜨고, 벗어나면 사라짐')
+
   // 유물 점검: 떨어진 유물 위에 서면 저절로 줍고, 토르 유물 3개가 모이면 발현된다.
   await page.evaluate(() => {
     const g = window.__game

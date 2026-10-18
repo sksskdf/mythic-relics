@@ -58,6 +58,8 @@ export class RelicTooltip {
 
   hide(): void {
     this.root.hidden = true
+    // 숨긴 카드에 지난 유물의 내용이 남지 않게 비운다
+    this.root.replaceChildren()
     this.root.classList.remove('is-shown')
     this.key = null
     this.target = null
