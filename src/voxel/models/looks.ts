@@ -1,5 +1,6 @@
 import { createRng } from '../../world/rng'
 import { VoxelGrid } from '../VoxelGrid'
+import { CLASS_LOOK_MODELS } from './classLooks'
 import { HERO_COLORS, heroCape, heroTorso } from './hero'
 
 /**
@@ -491,7 +492,6 @@ export function asuraBladeGreaves(): VoxelGrid {
   return g
 }
 
-/** 외형 id → 복셀 모델 */
 /** 외형 id → 모델. 표식은 발현 레벨(1~4)을 받는다 */
 export const LOOK_MODELS: Readonly<Record<string, (level?: number) => VoxelGrid>> = {
   adventurerHood,
@@ -520,4 +520,5 @@ export const LOOK_MODELS: Readonly<Record<string, (level?: number) => VoxelGrid>
   asuraBladeArmor,
   asuraBladeGreaves,
   asuraArms,
+  ...CLASS_LOOK_MODELS,
 }

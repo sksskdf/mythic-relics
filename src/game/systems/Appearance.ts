@@ -70,6 +70,12 @@ export class AppearanceSystem {
     fx.sparks.enabled = aura === 'sparks'
     fx.shadow.enabled = aura === 'shadow'
     fx.asura.enabled = aura === 'asura'
+    fx.tint.enabled = aura === 'tint'
+    const manifestedGod = this.ctx.powers.manifested
+    if (aura === 'tint' && manifestedGod && this.tinted !== manifestedGod) {
+      this.tinted = manifestedGod
+      fx.tint.setColor(parseInt(godDef(manifestedGod).color.slice(1), 16))
+    }
     this.sway += 1 / 60
     // 표식은 레벨마다 다른 모양으로 자라고(E6), 조금씩 커진다 (Lv1 1배 → Lv4 1.15배)
     const manifested = this.ctx.powers.manifested
@@ -79,8 +85,11 @@ export class AppearanceSystem {
     fx.sparks.level = level
     fx.shadow.level = level
     fx.asura.level = level
+    fx.tint.level = level
     hero.rig.mark.rotation.z = aura === 'asura' ? Math.sin(this.sway * 1.7) * 0.06 : 0
   }
 
   private sway = 0
+  /** 공용 기운을 마지막으로 물들인 신 */
+  private tinted: string | null = null
 }

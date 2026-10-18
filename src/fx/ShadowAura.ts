@@ -7,7 +7,7 @@ const WISPS = 14
 
 /**
  * 발현 기운 연출: 발밑에 그림자가 일렁이고, 그림자 조각이 피어올랐다 사라진다.
- * 변신술사는 짙은 초록, 아수라는 검붉은 빛으로 쓴다.
+ * 변신술사는 짙은 초록, 아수라는 검붉은 빛으로 쓴다. 다른 클래스는 신의 색으로 물든 공용 기운(tint)을 쓴다.
  */
 export class ShadowAura {
   readonly object = new THREE.Group()
@@ -16,6 +16,7 @@ export class ShadowAura {
   level = 1
   private readonly pool: THREE.Mesh
   private readonly poolMaterial: THREE.MeshBasicMaterial
+  private readonly wispMaterial: THREE.MeshBasicMaterial
   private readonly wisps: { mesh: THREE.Mesh; life: number; angle: number }[] = []
   private time = 0
 
@@ -27,6 +28,7 @@ export class ShadowAura {
     this.object.add(this.pool)
     const geometry = new THREE.BoxGeometry(0.12, 0.12, 0.12)
     const material = new THREE.MeshBasicMaterial({ color: wispColor, transparent: true, opacity: 0.8, depthWrite: false })
+    this.wispMaterial = material
     for (let i = 0; i < WISPS; i++) {
       const mesh = new THREE.Mesh(geometry, material)
       mesh.visible = false
@@ -35,6 +37,12 @@ export class ShadowAura {
     }
     this.object.traverse((o) => o.layers.set(EFFECT_LAYER))
     this.object.visible = false
+  }
+
+  /** 색을 바꾼다: 공용 기운(tint)은 발현한 신의 색으로 물든다. 바닥은 어둡게, 조각은 그 색 그대로 */
+  setColor(color: number): void {
+    this.wispMaterial.color.setHex(color)
+    this.poolMaterial.color.setHex(color).multiplyScalar(0.3)
   }
 
   update(dt: number, center: THREE.Vector3): void {

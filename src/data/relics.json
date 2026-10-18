@@ -345,7 +345,10 @@
   },
   "kusanagi": {
     "name": "쿠사나기노츠루기",
-    "god": "asura",
+    "god": "susanoo",
+    "also": [
+      "asura"
+    ],
     "look": "kusanagiBlade",
     "model": "kusanagi",
     "description": "오로치의 꼬리에서 나온 검. 들불을 베어 길을 열었다.",
@@ -392,6 +395,10 @@
       },
       "bonus": [
         {
+          "manifested": "susanoo",
+          "damageScale": 1.25
+        },
+        {
           "manifested": "asura",
           "damageScale": 1.25
         }
@@ -400,7 +407,10 @@
   },
   "totsuka": {
     "name": "토츠카노츠루기",
-    "god": "asura",
+    "god": "susanoo",
+    "also": [
+      "asura"
+    ],
     "look": "totsukaSash",
     "model": "totsuka",
     "description": "여덟 머리의 뱀을 토막 낸 열 뼘의 칼.",
@@ -447,6 +457,10 @@
         "knockback": 9
       },
       "bonus": [
+        {
+          "manifested": "susanoo",
+          "damageScale": 1.25
+        },
         {
           "manifested": "asura",
           "damageScale": 1.25
@@ -564,6 +578,2145 @@
         {
           "manifested": "asura",
           "damageScale": 1.25
+        }
+      ]
+    }
+  },
+  "gungnir": {
+    "name": "궁니르",
+    "god": "odin",
+    "look": "odinGungnir",
+    "description": "난쟁이가 벼린 오딘의 창. 던지면 반드시 맞고 손으로 돌아온다.",
+    "passive": {
+      "description": "내 공격이 1.2배 멀리 밀어낸다.",
+      "modifiers": {
+        "knockbackDealt": 1.2
+      }
+    },
+    "trigger": {
+      "name": "창 던지기",
+      "description": "3연타의 마지막 타에 창을 던져 오가는 길의 적을 친다.",
+      "charge": {
+        "by": "combo"
+      },
+      "release": {
+        "on": "basicHit"
+      },
+      "action": {
+        "kind": "hammerThrow",
+        "damage": 16,
+        "range": 10,
+        "outSpeed": 20,
+        "backSpeed": 24,
+        "hitRadius": 0.7,
+        "knockback": 3
+      },
+      "bonus": [
+        {
+          "manifested": "odin",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "odin",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "draupnir": {
+    "name": "드라우프니르",
+    "god": "odin",
+    "look": "odinDraupnir",
+    "description": "아홉 밤마다 같은 무게의 금팔찌 여덟을 떨어뜨리는 팔찌.",
+    "passive": {
+      "description": "받는 피해가 8% 줄어든다.",
+      "modifiers": {
+        "damageTaken": 0.92
+      }
+    },
+    "trigger": {
+      "name": "황금 울림",
+      "description": "5마리를 쓰러뜨리면 다음 공격이 땅을 울려 둘레의 적을 날린다.",
+      "charge": {
+        "by": "kill",
+        "count": 5
+      },
+      "release": {
+        "on": "basicHit"
+      },
+      "action": {
+        "kind": "quake",
+        "radius": 3.2,
+        "damage": 26,
+        "knockback": 9
+      },
+      "bonus": [
+        {
+          "manifested": "odin",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "odin",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "huginnFeather": {
+    "name": "까마귀 깃 띠",
+    "god": "odin",
+    "look": "odinFeatherSash",
+    "description": "세상을 날아다니며 소식을 물어 오는 두 까마귀의 깃.",
+    "passive": {
+      "description": "이동 속도가 8% 빨라진다.",
+      "modifiers": {
+        "moveSpeed": 1.08
+      }
+    },
+    "trigger": {
+      "name": "까마귀 미끼",
+      "description": "12m를 걸으면 까마귀 떼를 남긴다. 적이 그것을 쫓다 터진다.",
+      "charge": {
+        "by": "walk",
+        "meters": 12
+      },
+      "release": {
+        "on": "full",
+        "enemyWithin": 6
+      },
+      "action": {
+        "kind": "decoy",
+        "life": 4,
+        "blastRadius": 2.6,
+        "blastDamage": 20,
+        "knockback": 7
+      },
+      "bonus": [
+        {
+          "manifested": "odin",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "odin",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "gullinbursti": {
+    "name": "굴린부르스티의 갈기",
+    "god": "freyr",
+    "look": "freyrBristleBelt",
+    "description": "어둠 속에서도 빛나는 황금 멧돼지의 갈기.",
+    "passive": {
+      "description": "밀리는 거리가 30% 줄어든다.",
+      "modifiers": {
+        "knockbackTaken": 0.7
+      }
+    },
+    "trigger": {
+      "name": "멧돼지 돌진",
+      "description": "5마리를 쓰러뜨리면 다음 공격이 땅을 박차고 둘레의 적을 날린다.",
+      "charge": {
+        "by": "kill",
+        "count": 5
+      },
+      "release": {
+        "on": "basicHit"
+      },
+      "action": {
+        "kind": "quake",
+        "radius": 3.2,
+        "damage": 26,
+        "knockback": 9
+      },
+      "bonus": [
+        {
+          "manifested": "freyr",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "freyr",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "skidbladnir": {
+    "name": "스키드블라드니르",
+    "god": "freyr",
+    "look": "freyrShipBracers",
+    "description": "접으면 주머니에 들어가는 신들의 배.",
+    "passive": {
+      "description": "받는 피해가 10% 줄어든다.",
+      "modifiers": {
+        "damageTaken": 0.9
+      }
+    },
+    "trigger": {
+      "name": "돛 펼치기",
+      "description": "맞는 순간 피해를 절반으로 줄이고 돛을 펼쳐 되받아친다.",
+      "charge": {
+        "by": "time",
+        "seconds": 4
+      },
+      "release": {
+        "on": "heroHit",
+        "absorb": 0.5
+      },
+      "action": {
+        "kind": "ingotThrow",
+        "damage": 30,
+        "speed": 22,
+        "knockback": 6
+      },
+      "bonus": [
+        {
+          "manifested": "freyr",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "freyr",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "sumarbrandr": {
+    "name": "스스로 싸우는 검",
+    "god": "freyr",
+    "look": "freyrSword",
+    "description": "쥔 이가 지혜로우면 스스로 날아가 싸우는 검. 프레이는 사랑을 위해 이 검을 내주었다.",
+    "passive": {
+      "description": "이동 속도가 5% 빨라진다.",
+      "modifiers": {
+        "moveSpeed": 1.05
+      }
+    },
+    "trigger": {
+      "name": "검의 춤",
+      "description": "3연타의 마지막 타에 앞을 넓게 금빛으로 쓸어 낸다.",
+      "charge": {
+        "by": "combo"
+      },
+      "release": {
+        "on": "basicHit"
+      },
+      "action": {
+        "kind": "flameSweep",
+        "damage": 20,
+        "range": 4.2,
+        "halfAngle": 75,
+        "knockback": 5
+      },
+      "bonus": [
+        {
+          "manifested": "freyr",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "freyr",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "keraunos": {
+    "name": "케라우노스",
+    "god": "zeus",
+    "look": "zeusKeraunos",
+    "description": "외눈박이 거인들이 벼려 바친 제우스의 벼락.",
+    "passive": {
+      "description": "내 공격이 1.3배 멀리 밀어낸다.",
+      "modifiers": {
+        "knockbackDealt": 1.3
+      }
+    },
+    "trigger": {
+      "name": "벼락 던지기",
+      "description": "3마리를 쓰러뜨리면 가장 먼 적에게 벼락을 던져 길 위의 적을 모두 꿰뚫는다.",
+      "charge": {
+        "by": "kill",
+        "count": 3
+      },
+      "release": {
+        "on": "full",
+        "enemyWithin": 10
+      },
+      "action": {
+        "kind": "pierce",
+        "damage": 30,
+        "range": 12,
+        "speed": 26,
+        "hitRadius": 0.8,
+        "knockback": 4
+      },
+      "bonus": [
+        {
+          "manifested": "zeus",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "zeus",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "aegis": {
+    "name": "아이기스",
+    "god": "zeus",
+    "look": "zeusAegis",
+    "description": "메두사의 머리를 단 방패. 흔들면 폭풍이 인다.",
+    "passive": {
+      "description": "받는 피해가 12% 줄어든다.",
+      "modifiers": {
+        "damageTaken": 0.88
+      }
+    },
+    "trigger": {
+      "name": "방패 되치기",
+      "description": "맞는 순간 피해를 절반으로 줄이고 방패로 받아 되던진다.",
+      "charge": {
+        "by": "time",
+        "seconds": 4
+      },
+      "release": {
+        "on": "heroHit",
+        "absorb": 0.5
+      },
+      "action": {
+        "kind": "ingotThrow",
+        "damage": 30,
+        "speed": 22,
+        "knockback": 6
+      },
+      "bonus": [
+        {
+          "manifested": "zeus",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "zeus",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "eagleBelt": {
+    "name": "독수리 띠",
+    "god": "zeus",
+    "look": "zeusEagleBelt",
+    "description": "제우스의 벼락을 나르는 독수리를 새긴 띠.",
+    "passive": {
+      "description": "이동 속도가 6% 빨라진다.",
+      "modifiers": {
+        "moveSpeed": 1.06
+      }
+    },
+    "trigger": {
+      "name": "독수리 강하",
+      "description": "5마리를 쓰러뜨리면 다음 공격이 하늘에서 내리꽂는다.",
+      "charge": {
+        "by": "kill",
+        "count": 5
+      },
+      "release": {
+        "on": "basicHit"
+      },
+      "action": {
+        "kind": "quake",
+        "radius": 3.2,
+        "damage": 26,
+        "knockback": 9
+      },
+      "bonus": [
+        {
+          "manifested": "zeus",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "zeus",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "triaina": {
+    "name": "트라이아나",
+    "god": "poseidon",
+    "look": "poseidonTrident",
+    "description": "땅을 치면 샘이 솟고 바다가 일어서는 삼지창.",
+    "passive": {
+      "description": "내 공격이 1.3배 멀리 밀어낸다.",
+      "modifiers": {
+        "knockbackDealt": 1.3
+      }
+    },
+    "trigger": {
+      "name": "삼지창 내려찍기",
+      "description": "5마리를 쓰러뜨리면 다음 공격이 땅을 내리찍어 물기둥을 세운다.",
+      "charge": {
+        "by": "kill",
+        "count": 5
+      },
+      "release": {
+        "on": "basicHit"
+      },
+      "action": {
+        "kind": "quake",
+        "radius": 3.2,
+        "damage": 26,
+        "knockback": 9
+      },
+      "bonus": [
+        {
+          "manifested": "poseidon",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "poseidon",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "hippocampus": {
+    "name": "히포캄포스의 박차",
+    "god": "poseidon",
+    "look": "poseidonSpurs",
+    "description": "파도 위를 달리는 바다 말을 모는 박차.",
+    "passive": {
+      "description": "이동 속도가 10% 빨라진다.",
+      "modifiers": {
+        "moveSpeed": 1.1
+      }
+    },
+    "trigger": {
+      "name": "바다 말 돌진",
+      "description": "3마리를 쓰러뜨리면 가장 먼 적에게 물살을 쏘아 길 위의 적을 모두 꿰뚫는다.",
+      "charge": {
+        "by": "kill",
+        "count": 3
+      },
+      "release": {
+        "on": "full",
+        "enemyWithin": 10
+      },
+      "action": {
+        "kind": "pierce",
+        "damage": 30,
+        "range": 12,
+        "speed": 26,
+        "hitRadius": 0.8,
+        "knockback": 4
+      },
+      "bonus": [
+        {
+          "manifested": "poseidon",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "poseidon",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "coral": {
+    "name": "산호 팔찌",
+    "god": "poseidon",
+    "look": "poseidonCoral",
+    "description": "깊은 바다 궁전의 산호로 엮은 팔찌.",
+    "passive": {
+      "description": "받는 피해가 10% 줄어든다.",
+      "modifiers": {
+        "damageTaken": 0.9
+      }
+    },
+    "trigger": {
+      "name": "산호 되던지기",
+      "description": "맞는 순간 피해를 절반으로 줄이고 산호 조각을 되던진다.",
+      "charge": {
+        "by": "time",
+        "seconds": 4
+      },
+      "release": {
+        "on": "heroHit",
+        "absorb": 0.5
+      },
+      "action": {
+        "kind": "ingotThrow",
+        "damage": 30,
+        "speed": 22,
+        "knockback": 6
+      },
+      "bonus": [
+        {
+          "manifested": "poseidon",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "poseidon",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "helmOfDarkness": {
+    "name": "어둠의 투구",
+    "god": "hades",
+    "look": "hadesHelm",
+    "description": "쓰면 누구의 눈에도 보이지 않는 투구.",
+    "passive": {
+      "description": "이동 속도가 8% 빨라진다.",
+      "modifiers": {
+        "moveSpeed": 1.08
+      }
+    },
+    "trigger": {
+      "name": "보이지 않는 발걸음",
+      "description": "12m를 걸으면 그림자를 남기고 사라진다. 적이 그것을 쫓다 터진다.",
+      "charge": {
+        "by": "walk",
+        "meters": 12
+      },
+      "release": {
+        "on": "full",
+        "enemyWithin": 6
+      },
+      "action": {
+        "kind": "decoy",
+        "life": 4,
+        "blastRadius": 2.6,
+        "blastDamage": 20,
+        "knockback": 7
+      },
+      "bonus": [
+        {
+          "manifested": "hades",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "hades",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "cerberusChain": {
+    "name": "케르베로스의 사슬",
+    "god": "hades",
+    "look": "hadesChain",
+    "description": "머리 셋 달린 저승의 개를 묶어 둔 사슬.",
+    "passive": {
+      "description": "밀리는 거리가 30% 줄어든다.",
+      "modifiers": {
+        "knockbackTaken": 0.7
+      }
+    },
+    "trigger": {
+      "name": "세 머리의 울부짖음",
+      "description": "5마리를 쓰러뜨리면 다음 공격이 울부짖음으로 둘레의 적을 날린다.",
+      "charge": {
+        "by": "kill",
+        "count": 5
+      },
+      "release": {
+        "on": "basicHit"
+      },
+      "action": {
+        "kind": "quake",
+        "radius": 3.2,
+        "damage": 26,
+        "knockback": 9
+      },
+      "bonus": [
+        {
+          "manifested": "hades",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "hades",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "bident": {
+    "name": "두 갈래 창",
+    "god": "hades",
+    "look": "hadesBident",
+    "description": "저승의 왕이 쥔 두 갈래 창. 땅을 가르면 저승 문이 열린다.",
+    "passive": {
+      "description": "받는 피해가 6% 줄어든다.",
+      "modifiers": {
+        "damageTaken": 0.94
+      }
+    },
+    "trigger": {
+      "name": "저승불 휘두르기",
+      "description": "3연타의 마지막 타에 앞을 넓게 보랏빛 저승불로 쓸어 낸다.",
+      "charge": {
+        "by": "combo"
+      },
+      "release": {
+        "on": "basicHit"
+      },
+      "action": {
+        "kind": "flameSweep",
+        "damage": 20,
+        "range": 4.2,
+        "halfAngle": 75,
+        "knockback": 5
+      },
+      "bonus": [
+        {
+          "manifested": "hades",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "hades",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "silverBow": {
+    "name": "은빛 활",
+    "god": "artemis",
+    "look": "artemisBow",
+    "description": "난쟁이 대장장이가 달빛으로 지은 활.",
+    "passive": {
+      "description": "이동 속도가 6% 빨라진다.",
+      "modifiers": {
+        "moveSpeed": 1.06
+      }
+    },
+    "trigger": {
+      "name": "은빛 화살",
+      "description": "3마리를 쓰러뜨리면 가장 먼 적에게 화살을 쏘아 길 위의 적을 모두 꿰뚫는다.",
+      "charge": {
+        "by": "kill",
+        "count": 3
+      },
+      "release": {
+        "on": "full",
+        "enemyWithin": 10
+      },
+      "action": {
+        "kind": "pierce",
+        "damage": 30,
+        "range": 12,
+        "speed": 26,
+        "hitRadius": 0.8,
+        "knockback": 4
+      },
+      "bonus": [
+        {
+          "manifested": "artemis",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "artemis",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "cerynitian": {
+    "name": "금빛 뿔 사슴의 띠",
+    "god": "artemis",
+    "look": "artemisAntlerSash",
+    "description": "아르테미스의 수레를 끄는 금빛 뿔 사슴의 가죽 띠.",
+    "passive": {
+      "description": "밀리는 거리가 25% 줄어든다.",
+      "modifiers": {
+        "knockbackTaken": 0.75
+      }
+    },
+    "trigger": {
+      "name": "사슴의 도약",
+      "description": "10m를 걸은 뒤 적이 가까우면 뛰어올라 둘레를 짓밟는다.",
+      "charge": {
+        "by": "walk",
+        "meters": 10
+      },
+      "release": {
+        "on": "full",
+        "enemyWithin": 4
+      },
+      "action": {
+        "kind": "quake",
+        "radius": 3,
+        "damage": 24,
+        "knockback": 7
+      },
+      "bonus": [
+        {
+          "manifested": "artemis",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "artemis",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "houndLeash": {
+    "name": "사냥개 가죽끈",
+    "god": "artemis",
+    "look": "artemisLeash",
+    "description": "판에게서 얻은 사냥개 일곱을 묶던 끈.",
+    "passive": {
+      "description": "받는 피해가 7% 줄어든다.",
+      "modifiers": {
+        "damageTaken": 0.93
+      }
+    },
+    "trigger": {
+      "name": "사냥 몰이",
+      "description": "12m를 걸으면 사냥개를 풀어 둔다. 적이 그것을 쫓다 터진다.",
+      "charge": {
+        "by": "walk",
+        "meters": 12
+      },
+      "release": {
+        "on": "full",
+        "enemyWithin": 6
+      },
+      "action": {
+        "kind": "decoy",
+        "life": 4,
+        "blastRadius": 2.6,
+        "blastDamage": 20,
+        "knockback": 7
+      },
+      "bonus": [
+        {
+          "manifested": "artemis",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "artemis",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "ruyi": {
+    "name": "여의봉",
+    "god": "wukong",
+    "look": "wukongStaff",
+    "description": "바다를 누르던 쇠기둥. 바늘만큼 줄었다가 하늘까지 늘어난다.",
+    "passive": {
+      "description": "내 공격이 1.3배 멀리 밀어낸다.",
+      "modifiers": {
+        "knockbackDealt": 1.3
+      }
+    },
+    "trigger": {
+      "name": "여의봉 늘이기",
+      "description": "3마리를 쓰러뜨리면 가장 먼 적에게 봉을 늘여 길 위의 적을 모두 꿰뚫는다.",
+      "charge": {
+        "by": "kill",
+        "count": 3
+      },
+      "release": {
+        "on": "full",
+        "enemyWithin": 10
+      },
+      "action": {
+        "kind": "pierce",
+        "damage": 30,
+        "range": 12,
+        "speed": 26,
+        "hitRadius": 0.8,
+        "knockback": 4
+      },
+      "bonus": [
+        {
+          "manifested": "wukong",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "wukong",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "somersaultCloud": {
+    "name": "근두운",
+    "god": "wukong",
+    "look": "wukongCloud",
+    "description": "한 번 재주를 넘으면 십만 팔천 리를 나는 구름.",
+    "passive": {
+      "description": "이동 속도가 12% 빨라진다.",
+      "modifiers": {
+        "moveSpeed": 1.12
+      }
+    },
+    "trigger": {
+      "name": "구름 내려앉기",
+      "description": "10m를 걸은 뒤 적이 가까우면 구름째 내려앉아 둘레를 친다.",
+      "charge": {
+        "by": "walk",
+        "meters": 10
+      },
+      "release": {
+        "on": "full",
+        "enemyWithin": 4
+      },
+      "action": {
+        "kind": "quake",
+        "radius": 3,
+        "damage": 24,
+        "knockback": 7
+      },
+      "bonus": [
+        {
+          "manifested": "wukong",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "wukong",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "goldenBand": {
+    "name": "긴고아",
+    "god": "wukong",
+    "look": "wukongBand",
+    "description": "삼장이 주문을 외면 조여드는 금테.",
+    "passive": {
+      "description": "받는 피해가 10% 줄어든다.",
+      "modifiers": {
+        "damageTaken": 0.9
+      }
+    },
+    "trigger": {
+      "name": "금테 되받기",
+      "description": "맞는 순간 피해를 절반으로 줄이고 금빛으로 되받아친다.",
+      "charge": {
+        "by": "time",
+        "seconds": 4
+      },
+      "release": {
+        "on": "heroHit",
+        "absorb": 0.5
+      },
+      "action": {
+        "kind": "ingotThrow",
+        "damage": 30,
+        "speed": 22,
+        "knockback": 6
+      },
+      "bonus": [
+        {
+          "manifested": "wukong",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "wukong",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "elixir": {
+    "name": "불사약 호리병",
+    "god": "change",
+    "look": "changeGourd",
+    "description": "서왕모가 내린 불사약. 혼자 삼키면 달로 오른다.",
+    "passive": {
+      "description": "받는 피해가 10% 줄어든다.",
+      "modifiers": {
+        "damageTaken": 0.9
+      }
+    },
+    "trigger": {
+      "name": "달빛 되비추기",
+      "description": "맞는 순간 피해를 절반으로 줄이고 달빛을 되쏜다.",
+      "charge": {
+        "by": "time",
+        "seconds": 4
+      },
+      "release": {
+        "on": "heroHit",
+        "absorb": 0.5
+      },
+      "action": {
+        "kind": "ingotThrow",
+        "damage": 30,
+        "speed": 22,
+        "knockback": 6
+      },
+      "bonus": [
+        {
+          "manifested": "change",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "change",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "jadeRabbit": {
+    "name": "옥토끼 팔찌",
+    "god": "change",
+    "look": "changeRabbit",
+    "description": "달에서 불사약을 찧는 옥토끼의 팔찌.",
+    "passive": {
+      "description": "이동 속도가 8% 빨라진다.",
+      "modifiers": {
+        "moveSpeed": 1.08
+      }
+    },
+    "trigger": {
+      "name": "절구 찧기",
+      "description": "5마리를 쓰러뜨리면 다음 공격이 절구처럼 땅을 찧는다.",
+      "charge": {
+        "by": "kill",
+        "count": 5
+      },
+      "release": {
+        "on": "basicHit"
+      },
+      "action": {
+        "kind": "quake",
+        "radius": 3.2,
+        "damage": 26,
+        "knockback": 9
+      },
+      "bonus": [
+        {
+          "manifested": "change",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "change",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "osmanthus": {
+    "name": "월계수 가지",
+    "god": "change",
+    "look": "changeBranch",
+    "description": "달 궁전 앞, 베어도 다시 자라는 계수나무의 가지.",
+    "passive": {
+      "description": "밀리는 거리가 20% 줄어든다.",
+      "modifiers": {
+        "knockbackTaken": 0.8
+      }
+    },
+    "trigger": {
+      "name": "달빛 쓸기",
+      "description": "3연타의 마지막 타에 앞을 넓게 달빛으로 쓸어 낸다.",
+      "charge": {
+        "by": "combo"
+      },
+      "release": {
+        "on": "basicHit"
+      },
+      "action": {
+        "kind": "flameSweep",
+        "damage": 20,
+        "range": 4.2,
+        "halfAngle": 75,
+        "knockback": 5
+      },
+      "bonus": [
+        {
+          "manifested": "change",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "change",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "dragonPearl": {
+    "name": "여의주",
+    "god": "longwang",
+    "look": "longwangPearl",
+    "description": "뜻하는 대로 비와 구름을 부르는 용의 구슬.",
+    "passive": {
+      "description": "받는 피해가 10% 줄어든다.",
+      "modifiers": {
+        "damageTaken": 0.9
+      }
+    },
+    "trigger": {
+      "name": "여의주 울림",
+      "description": "5마리를 쓰러뜨리면 다음 공격이 물결을 일으켜 둘레의 적을 날린다.",
+      "charge": {
+        "by": "kill",
+        "count": 5
+      },
+      "release": {
+        "on": "basicHit"
+      },
+      "action": {
+        "kind": "quake",
+        "radius": 3.2,
+        "damage": 26,
+        "knockback": 9
+      },
+      "bonus": [
+        {
+          "manifested": "longwang",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "longwang",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "crystalKey": {
+    "name": "수정궁의 열쇠",
+    "god": "longwang",
+    "look": "longwangKey",
+    "description": "동해 바닥 수정궁의 보물 창고를 여는 열쇠.",
+    "passive": {
+      "description": "밀리는 거리가 30% 줄어든다.",
+      "modifiers": {
+        "knockbackTaken": 0.7
+      }
+    },
+    "trigger": {
+      "name": "물방패",
+      "description": "맞는 순간 피해를 절반으로 줄이고 물방패로 받아 되쏜다.",
+      "charge": {
+        "by": "time",
+        "seconds": 4
+      },
+      "release": {
+        "on": "heroHit",
+        "absorb": 0.5
+      },
+      "action": {
+        "kind": "ingotThrow",
+        "damage": 30,
+        "speed": 22,
+        "knockback": 6
+      },
+      "bonus": [
+        {
+          "manifested": "longwang",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "longwang",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "dragonScale": {
+    "name": "용린 갑옷",
+    "god": "longwang",
+    "look": "longwangGreaves",
+    "description": "천 년 묵은 용의 비늘로 엮은 갑옷.",
+    "passive": {
+      "description": "이동 속도가 6% 빨라진다.",
+      "modifiers": {
+        "moveSpeed": 1.06
+      }
+    },
+    "trigger": {
+      "name": "물살 쏘기",
+      "description": "3마리를 쓰러뜨리면 가장 먼 적에게 물살을 쏘아 길 위의 적을 모두 꿰뚫는다.",
+      "charge": {
+        "by": "kill",
+        "count": 3
+      },
+      "release": {
+        "on": "full",
+        "enemyWithin": 10
+      },
+      "action": {
+        "kind": "pierce",
+        "damage": 30,
+        "range": 12,
+        "speed": 26,
+        "hitRadius": 0.8,
+        "knockback": 4
+      },
+      "bonus": [
+        {
+          "manifested": "longwang",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "longwang",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "windFireWheels": {
+    "name": "풍화륜",
+    "god": "nezha",
+    "look": "nezhaWheels",
+    "description": "발밑에서 바람과 불을 뿜으며 도는 두 바퀴.",
+    "passive": {
+      "description": "이동 속도가 12% 빨라진다.",
+      "modifiers": {
+        "moveSpeed": 1.12
+      }
+    },
+    "trigger": {
+      "name": "불바퀴 내려앉기",
+      "description": "10m를 걸은 뒤 적이 가까우면 불바퀴로 둘레를 짓밟는다.",
+      "charge": {
+        "by": "walk",
+        "meters": 10
+      },
+      "release": {
+        "on": "full",
+        "enemyWithin": 4
+      },
+      "action": {
+        "kind": "quake",
+        "radius": 3,
+        "damage": 24,
+        "knockback": 7
+      },
+      "bonus": [
+        {
+          "manifested": "nezha",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "nezha",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "huntianLing": {
+    "name": "혼천릉",
+    "god": "nezha",
+    "look": "nezhaSash",
+    "description": "휘두르면 바다가 뒤집히는 붉은 비단 띠.",
+    "passive": {
+      "description": "내 공격이 1.2배 멀리 밀어낸다.",
+      "modifiers": {
+        "knockbackDealt": 1.2
+      }
+    },
+    "trigger": {
+      "name": "혼천릉 휘감기",
+      "description": "3연타의 마지막 타에 붉은 띠로 앞을 넓게 휘감는다.",
+      "charge": {
+        "by": "combo"
+      },
+      "release": {
+        "on": "basicHit"
+      },
+      "action": {
+        "kind": "flameSweep",
+        "damage": 20,
+        "range": 4.2,
+        "halfAngle": 75,
+        "knockback": 5
+      },
+      "bonus": [
+        {
+          "manifested": "nezha",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "nezha",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "qiankunQuan": {
+    "name": "건곤권",
+    "god": "nezha",
+    "look": "nezhaRing",
+    "description": "던지면 무엇이든 맞히고 돌아오는 금 고리.",
+    "passive": {
+      "description": "받는 피해가 6% 줄어든다.",
+      "modifiers": {
+        "damageTaken": 0.94
+      }
+    },
+    "trigger": {
+      "name": "건곤권 던지기",
+      "description": "3마리를 쓰러뜨리면 다음 공격에 금 고리를 던져 오가는 길의 적을 친다.",
+      "charge": {
+        "by": "kill",
+        "count": 3
+      },
+      "release": {
+        "on": "basicHit"
+      },
+      "action": {
+        "kind": "hammerThrow",
+        "damage": 18,
+        "range": 9,
+        "outSpeed": 20,
+        "backSpeed": 24,
+        "hitRadius": 0.8,
+        "knockback": 3
+      },
+      "bonus": [
+        {
+          "manifested": "nezha",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "nezha",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "yataMirror": {
+    "name": "야타노카가미",
+    "god": "amaterasu",
+    "look": "amaterasuMirror",
+    "description": "동굴에 숨은 해를 꾀어낸 거울. 삼종신기의 하나.",
+    "passive": {
+      "description": "받는 피해가 8% 줄어든다.",
+      "modifiers": {
+        "damageTaken": 0.92
+      }
+    },
+    "trigger": {
+      "name": "거울 빛",
+      "description": "3마리를 쓰러뜨리면 가장 먼 적에게 햇빛을 비추어 길 위의 적을 모두 꿰뚫는다.",
+      "charge": {
+        "by": "kill",
+        "count": 3
+      },
+      "release": {
+        "on": "full",
+        "enemyWithin": 10
+      },
+      "action": {
+        "kind": "pierce",
+        "damage": 30,
+        "range": 12,
+        "speed": 26,
+        "hitRadius": 0.8,
+        "knockback": 4
+      },
+      "bonus": [
+        {
+          "manifested": "amaterasu",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "amaterasu",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "sunSilk": {
+    "name": "태양의 비단",
+    "god": "amaterasu",
+    "look": "amaterasuSash",
+    "description": "해의 여신이 손수 짠 하늘 베틀의 비단.",
+    "passive": {
+      "description": "밀리는 거리가 25% 줄어든다.",
+      "modifiers": {
+        "knockbackTaken": 0.75
+      }
+    },
+    "trigger": {
+      "name": "비단 휘감기",
+      "description": "맞는 순간 피해를 절반으로 줄이고 빛으로 되받아친다.",
+      "charge": {
+        "by": "time",
+        "seconds": 4
+      },
+      "release": {
+        "on": "heroHit",
+        "absorb": 0.5
+      },
+      "action": {
+        "kind": "ingotThrow",
+        "damage": 30,
+        "speed": 22,
+        "knockback": 6
+      },
+      "bonus": [
+        {
+          "manifested": "amaterasu",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "amaterasu",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "uzumeBells": {
+    "name": "우즈메의 방울",
+    "god": "amaterasu",
+    "look": "amaterasuBells",
+    "description": "동굴 앞에서 신들을 웃긴 춤의 방울.",
+    "passive": {
+      "description": "이동 속도가 6% 빨라진다.",
+      "modifiers": {
+        "moveSpeed": 1.06
+      }
+    },
+    "trigger": {
+      "name": "방울 울림",
+      "description": "5마리를 쓰러뜨리면 다음 공격이 방울을 울려 둘레의 적을 날린다.",
+      "charge": {
+        "by": "kill",
+        "count": 5
+      },
+      "release": {
+        "on": "basicHit"
+      },
+      "action": {
+        "kind": "quake",
+        "radius": 3.2,
+        "damage": 26,
+        "knockback": 9
+      },
+      "bonus": [
+        {
+          "manifested": "amaterasu",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "amaterasu",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "magatama": {
+    "name": "야사카니노마가타마",
+    "god": "tsukuyomi",
+    "look": "tsukuyomiBeads",
+    "description": "굽은 구슬을 꿰어 만든 목걸이. 삼종신기의 하나.",
+    "passive": {
+      "description": "받는 피해가 10% 줄어든다.",
+      "modifiers": {
+        "damageTaken": 0.9
+      }
+    },
+    "trigger": {
+      "name": "곡옥 울림",
+      "description": "5마리를 쓰러뜨리면 다음 공격이 달빛을 터뜨려 둘레의 적을 날린다.",
+      "charge": {
+        "by": "kill",
+        "count": 5
+      },
+      "release": {
+        "on": "basicHit"
+      },
+      "action": {
+        "kind": "quake",
+        "radius": 3.2,
+        "damage": 26,
+        "knockback": 9
+      },
+      "bonus": [
+        {
+          "manifested": "tsukuyomi",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "tsukuyomi",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "moonMask": {
+    "name": "달빛 가면",
+    "god": "tsukuyomi",
+    "look": "tsukuyomiMask",
+    "description": "해와 갈라선 뒤 밤에만 쓰는 흰 가면.",
+    "passive": {
+      "description": "밀리는 거리가 25% 줄어든다.",
+      "modifiers": {
+        "knockbackTaken": 0.75
+      }
+    },
+    "trigger": {
+      "name": "달그림자",
+      "description": "맞는 순간 피해를 절반으로 줄이고 달그림자를 되던진다.",
+      "charge": {
+        "by": "time",
+        "seconds": 4
+      },
+      "release": {
+        "on": "heroHit",
+        "absorb": 0.5
+      },
+      "action": {
+        "kind": "ingotThrow",
+        "damage": 30,
+        "speed": 22,
+        "knockback": 6
+      },
+      "bonus": [
+        {
+          "manifested": "tsukuyomi",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "tsukuyomi",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "nightScepter": {
+    "name": "밤의 홀",
+    "god": "tsukuyomi",
+    "look": "tsukuyomiScepter",
+    "description": "밤 나라를 다스리는 달의 홀.",
+    "passive": {
+      "description": "이동 속도가 6% 빨라진다.",
+      "modifiers": {
+        "moveSpeed": 1.06
+      }
+    },
+    "trigger": {
+      "name": "밤 가르기",
+      "description": "3연타의 마지막 타에 앞을 넓게 푸른 달빛으로 쓸어 낸다.",
+      "charge": {
+        "by": "combo"
+      },
+      "release": {
+        "on": "basicHit"
+      },
+      "action": {
+        "kind": "flameSweep",
+        "damage": 20,
+        "range": 4.2,
+        "halfAngle": 75,
+        "knockback": 5
+      },
+      "bonus": [
+        {
+          "manifested": "tsukuyomi",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "tsukuyomi",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "raijinDrum": {
+    "name": "라이진의 북",
+    "god": "raijin",
+    "look": "raijinDrumBelt",
+    "description": "둥글게 이은 북. 두드리는 소리가 곧 천둥이다.",
+    "passive": {
+      "description": "내 공격이 1.3배 멀리 밀어낸다.",
+      "modifiers": {
+        "knockbackDealt": 1.3
+      }
+    },
+    "trigger": {
+      "name": "북 치기",
+      "description": "5마리를 쓰러뜨리면 다음 공격이 천둥을 울려 둘레의 적을 날린다.",
+      "charge": {
+        "by": "kill",
+        "count": 5
+      },
+      "release": {
+        "on": "basicHit"
+      },
+      "action": {
+        "kind": "quake",
+        "radius": 3.2,
+        "damage": 26,
+        "knockback": 9
+      },
+      "bonus": [
+        {
+          "manifested": "raijin",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "raijin",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "thunderHorn": {
+    "name": "번개 뿔 가면",
+    "god": "raijin",
+    "look": "raijinMask",
+    "description": "뇌신의 얼굴을 본뜬 뿔 달린 가면.",
+    "passive": {
+      "description": "이동 속도가 8% 빨라진다.",
+      "modifiers": {
+        "moveSpeed": 1.08
+      }
+    },
+    "trigger": {
+      "name": "번개 뿔",
+      "description": "3마리를 쓰러뜨리면 가장 먼 적에게 번개를 쏘아 길 위의 적을 모두 꿰뚫는다.",
+      "charge": {
+        "by": "kill",
+        "count": 3
+      },
+      "release": {
+        "on": "full",
+        "enemyWithin": 10
+      },
+      "action": {
+        "kind": "pierce",
+        "damage": 30,
+        "range": 12,
+        "speed": 26,
+        "hitRadius": 0.8,
+        "knockback": 4
+      },
+      "bonus": [
+        {
+          "manifested": "raijin",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "raijin",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "stormCloud": {
+    "name": "뇌운의 띠",
+    "god": "raijin",
+    "look": "raijinBracers",
+    "description": "번개 구름을 묶어 둔 띠.",
+    "passive": {
+      "description": "받는 피해가 8% 줄어든다.",
+      "modifiers": {
+        "damageTaken": 0.92
+      }
+    },
+    "trigger": {
+      "name": "구름 되치기",
+      "description": "맞는 순간 피해를 절반으로 줄이고 번개를 되던진다.",
+      "charge": {
+        "by": "time",
+        "seconds": 4
+      },
+      "release": {
+        "on": "heroHit",
+        "absorb": 0.5
+      },
+      "action": {
+        "kind": "ingotThrow",
+        "damage": 30,
+        "speed": 22,
+        "knockback": 6
+      },
+      "bonus": [
+        {
+          "manifested": "raijin",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "raijin",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "orochiScale": {
+    "name": "오로치의 비늘",
+    "god": "susanoo",
+    "look": "susanooScales",
+    "description": "여덟 머리 뱀을 베고 얻은 비늘.",
+    "passive": {
+      "description": "받는 피해가 10% 줄어든다.",
+      "modifiers": {
+        "damageTaken": 0.9
+      }
+    },
+    "trigger": {
+      "name": "비늘 되치기",
+      "description": "맞는 순간 피해를 절반으로 줄이고 비늘을 곤두세워 되던진다.",
+      "charge": {
+        "by": "time",
+        "seconds": 4
+      },
+      "release": {
+        "on": "heroHit",
+        "absorb": 0.5
+      },
+      "action": {
+        "kind": "ingotThrow",
+        "damage": 30,
+        "speed": 22,
+        "knockback": 6
+      },
+      "bonus": [
+        {
+          "manifested": "susanoo",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "susanoo",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "oryonggeo": {
+    "name": "오룡거의 고삐",
+    "god": "haemosu",
+    "look": "haemosuReins",
+    "description": "다섯 마리 용이 끄는 하늘 수레의 고삐.",
+    "passive": {
+      "description": "이동 속도가 10% 빨라진다.",
+      "modifiers": {
+        "moveSpeed": 1.1
+      }
+    },
+    "trigger": {
+      "name": "용 수레 돌진",
+      "description": "5마리를 쓰러뜨리면 다음 공격이 수레째 내리꽂아 둘레의 적을 날린다.",
+      "charge": {
+        "by": "kill",
+        "count": 5
+      },
+      "release": {
+        "on": "basicHit"
+      },
+      "action": {
+        "kind": "quake",
+        "radius": 3.2,
+        "damage": 26,
+        "knockback": 9
+      },
+      "bonus": [
+        {
+          "manifested": "haemosu",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "haemosu",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "owugwan": {
+    "name": "오우관",
+    "god": "haemosu",
+    "look": "haemosuCrown",
+    "description": "까마귀 깃을 꽂은 천왕의 관.",
+    "passive": {
+      "description": "받는 피해가 8% 줄어든다.",
+      "modifiers": {
+        "damageTaken": 0.92
+      }
+    },
+    "trigger": {
+      "name": "햇살 꿰뚫기",
+      "description": "3마리를 쓰러뜨리면 가장 먼 적에게 햇살을 쏘아 길 위의 적을 모두 꿰뚫는다.",
+      "charge": {
+        "by": "kill",
+        "count": 3
+      },
+      "release": {
+        "on": "full",
+        "enemyWithin": 10
+      },
+      "action": {
+        "kind": "pierce",
+        "damage": 30,
+        "range": 12,
+        "speed": 26,
+        "hitRadius": 0.8,
+        "knockback": 4
+      },
+      "bonus": [
+        {
+          "manifested": "haemosu",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "haemosu",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "yonggwanggeom": {
+    "name": "용광검",
+    "god": "haemosu",
+    "look": "haemosuSword",
+    "description": "용의 빛을 품은 천왕의 검.",
+    "passive": {
+      "description": "내 공격이 1.2배 멀리 밀어낸다.",
+      "modifiers": {
+        "knockbackDealt": 1.2
+      }
+    },
+    "trigger": {
+      "name": "용광 베기",
+      "description": "3연타의 마지막 타에 앞을 넓게 햇빛으로 쓸어 낸다.",
+      "charge": {
+        "by": "combo"
+      },
+      "release": {
+        "on": "basicHit"
+      },
+      "action": {
+        "kind": "flameSweep",
+        "damage": 20,
+        "range": 4.2,
+        "halfAngle": 75,
+        "knockback": 5
+      },
+      "bonus": [
+        {
+          "manifested": "haemosu",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "haemosu",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "lifeWater": {
+    "name": "생명수 호리병",
+    "god": "bari",
+    "look": "bariGourd",
+    "description": "저승 끝 샘에서 길어 온, 죽은 이를 살리는 물.",
+    "passive": {
+      "description": "받는 피해가 10% 줄어든다.",
+      "modifiers": {
+        "damageTaken": 0.9
+      }
+    },
+    "trigger": {
+      "name": "생명수 뿌리기",
+      "description": "맞는 순간 피해를 절반으로 줄이고 물을 뿌려 되받아친다.",
+      "charge": {
+        "by": "time",
+        "seconds": 4
+      },
+      "release": {
+        "on": "heroHit",
+        "absorb": 0.5
+      },
+      "action": {
+        "kind": "ingotThrow",
+        "damage": 30,
+        "speed": 22,
+        "knockback": 6
+      },
+      "bonus": [
+        {
+          "manifested": "bari",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "bari",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "ironShoes": {
+    "name": "무쇠 신",
+    "god": "bari",
+    "look": "bariIronShoes",
+    "description": "저승길을 걸어 닳도록 신은 무쇠 신.",
+    "passive": {
+      "description": "밀리는 거리가 30% 줄어든다.",
+      "modifiers": {
+        "knockbackTaken": 0.7
+      }
+    },
+    "trigger": {
+      "name": "저승길 발구름",
+      "description": "10m를 걸은 뒤 적이 가까우면 발을 굴러 둘레를 친다.",
+      "charge": {
+        "by": "walk",
+        "meters": 10
+      },
+      "release": {
+        "on": "full",
+        "enemyWithin": 4
+      },
+      "action": {
+        "kind": "quake",
+        "radius": 3,
+        "damage": 24,
+        "knockback": 7
+      },
+      "bonus": [
+        {
+          "manifested": "bari",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "bari",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "rebirthFlower": {
+    "name": "환생꽃",
+    "god": "bari",
+    "look": "bariFlower",
+    "description": "서천 꽃밭에서 꺾은, 뼈에 살을 붙이는 꽃.",
+    "passive": {
+      "description": "이동 속도가 6% 빨라진다.",
+      "modifiers": {
+        "moveSpeed": 1.06
+      }
+    },
+    "trigger": {
+      "name": "꽃바람",
+      "description": "3연타의 마지막 타에 앞을 넓게 꽃바람으로 쓸어 낸다.",
+      "charge": {
+        "by": "combo"
+      },
+      "release": {
+        "on": "basicHit"
+      },
+      "action": {
+        "kind": "flameSweep",
+        "damage": 20,
+        "range": 4.2,
+        "halfAngle": 75,
+        "knockback": 5
+      },
+      "bonus": [
+        {
+          "manifested": "bari",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "bari",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "dokkaebiClub": {
+    "name": "도깨비방망이",
+    "god": "dokkaebi",
+    "look": "dokkaebiClub",
+    "description": "두드리면 금 나와라 뚝딱, 은 나와라 뚝딱.",
+    "passive": {
+      "description": "내 공격이 1.3배 멀리 밀어낸다.",
+      "modifiers": {
+        "knockbackDealt": 1.3
+      }
+    },
+    "trigger": {
+      "name": "뚝딱",
+      "description": "5마리를 쓰러뜨리면 다음 공격이 땅을 두드려 둘레의 적을 날린다.",
+      "charge": {
+        "by": "kill",
+        "count": 5
+      },
+      "release": {
+        "on": "basicHit"
+      },
+      "action": {
+        "kind": "quake",
+        "radius": 3.2,
+        "damage": 26,
+        "knockback": 9
+      },
+      "bonus": [
+        {
+          "manifested": "dokkaebi",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "dokkaebi",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "gamtu": {
+    "name": "감투",
+    "god": "dokkaebi",
+    "look": "dokkaebiHat",
+    "description": "쓰면 보이지 않는 도깨비의 감투.",
+    "passive": {
+      "description": "이동 속도가 10% 빨라진다.",
+      "modifiers": {
+        "moveSpeed": 1.1
+      }
+    },
+    "trigger": {
+      "name": "감투 쓰기",
+      "description": "12m를 걸으면 감투를 벗어 남긴다. 적이 그것을 쫓다 터진다.",
+      "charge": {
+        "by": "walk",
+        "meters": 12
+      },
+      "release": {
+        "on": "full",
+        "enemyWithin": 6
+      },
+      "action": {
+        "kind": "decoy",
+        "life": 4,
+        "blastRadius": 2.6,
+        "blastDamage": 20,
+        "knockback": 7
+      },
+      "bonus": [
+        {
+          "manifested": "dokkaebi",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "dokkaebi",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "foxfire": {
+    "name": "도깨비불",
+    "god": "dokkaebi",
+    "look": "dokkaebiFlames",
+    "description": "밤 고개에 떠도는 푸른 불.",
+    "passive": {
+      "description": "받는 피해가 6% 줄어든다.",
+      "modifiers": {
+        "damageTaken": 0.94
+      }
+    },
+    "trigger": {
+      "name": "도깨비불 던지기",
+      "description": "3마리를 쓰러뜨리면 다음 공격에 푸른 불을 던져 오가는 길의 적을 친다.",
+      "charge": {
+        "by": "kill",
+        "count": 3
+      },
+      "release": {
+        "on": "basicHit"
+      },
+      "action": {
+        "kind": "hammerThrow",
+        "damage": 18,
+        "range": 9,
+        "outSpeed": 20,
+        "backSpeed": 24,
+        "hitRadius": 0.8,
+        "knockback": 3
+      },
+      "bonus": [
+        {
+          "manifested": "dokkaebi",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "dokkaebi",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "magoSkirt": {
+    "name": "마고의 치마",
+    "god": "mago",
+    "look": "magoSkirt",
+    "description": "흙을 날라 산을 쌓은 거인 할미의 치마.",
+    "passive": {
+      "description": "받는 피해가 12% 줄어든다.",
+      "modifiers": {
+        "damageTaken": 0.88
+      }
+    },
+    "trigger": {
+      "name": "치마폭 받아치기",
+      "description": "맞는 순간 피해를 절반으로 줄이고 돌을 받아 되던진다.",
+      "charge": {
+        "by": "time",
+        "seconds": 4
+      },
+      "release": {
+        "on": "heroHit",
+        "absorb": 0.5
+      },
+      "action": {
+        "kind": "ingotThrow",
+        "damage": 30,
+        "speed": 22,
+        "knockback": 6
+      },
+      "bonus": [
+        {
+          "manifested": "mago",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "mago",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "stoneMallet": {
+    "name": "산을 깎은 돌망치",
+    "god": "mago",
+    "look": "magoMallet",
+    "description": "산봉우리를 깎아 내던 거인의 돌망치.",
+    "passive": {
+      "description": "내 공격이 1.4배 멀리 밀어낸다.",
+      "modifiers": {
+        "knockbackDealt": 1.4
+      }
+    },
+    "trigger": {
+      "name": "땅 고르기",
+      "description": "5마리를 쓰러뜨리면 다음 공격이 땅을 내리쳐 둘레의 적을 날린다.",
+      "charge": {
+        "by": "kill",
+        "count": 5
+      },
+      "release": {
+        "on": "basicHit"
+      },
+      "action": {
+        "kind": "quake",
+        "radius": 3.2,
+        "damage": 26,
+        "knockback": 9
+      },
+      "bonus": [
+        {
+          "manifested": "mago",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "mago",
+          "minLevel": 3,
+          "damageScale": 1.5
+        }
+      ]
+    }
+  },
+  "mountainBasket": {
+    "name": "산을 나른 바구니",
+    "god": "mago",
+    "look": "magoBasket",
+    "description": "산을 담아 옮기던 바구니. 바닥이 터져 섬이 생겼다.",
+    "passive": {
+      "description": "밀리는 거리가 30% 줄어든다.",
+      "modifiers": {
+        "knockbackTaken": 0.7
+      }
+    },
+    "trigger": {
+      "name": "바위 굴리기",
+      "description": "3마리를 쓰러뜨리면 가장 먼 적에게 바위를 굴려 길 위의 적을 모두 꿰뚫는다.",
+      "charge": {
+        "by": "kill",
+        "count": 3
+      },
+      "release": {
+        "on": "full",
+        "enemyWithin": 10
+      },
+      "action": {
+        "kind": "pierce",
+        "damage": 30,
+        "range": 12,
+        "speed": 26,
+        "hitRadius": 0.8,
+        "knockback": 4
+      },
+      "bonus": [
+        {
+          "manifested": "mago",
+          "damageScale": 1.25
+        },
+        {
+          "manifested": "mago",
+          "minLevel": 3,
+          "damageScale": 1.5
         }
       ]
     }

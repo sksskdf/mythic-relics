@@ -161,5 +161,1168 @@
     "mark": "asuraArms",
     "hidden": true,
     "manifestCount": 4
+  },
+  "odin": {
+    "name": "오딘",
+    "titles": [
+      "룬의 현자",
+      "만물을 보는 눈",
+      "발할라의 주인",
+      "만물의 아버지"
+    ],
+    "source": "hunt",
+    "realm": "norse",
+    "color": "#9fb4d8",
+    "tree": {
+      "column": 2,
+      "row": 0
+    },
+    "attack": "spear",
+    "passive": {
+      "companions": {
+        "name": "후긴과 무닌",
+        "look": "raven",
+        "color": "#2a2f3a",
+        "counts": [
+          1,
+          2,
+          2,
+          2
+        ],
+        "interval": 1.2,
+        "damage": [
+          8,
+          8,
+          11,
+          14
+        ],
+        "range": 7,
+        "burstMinLevel": 3,
+        "burstRadius": 1.4,
+        "burstDamage": 8
+      }
+    },
+    "ultimate": {
+      "kind": "rain",
+      "name": "궁니르의 비",
+      "color": "#9fb4d8",
+      "reach": 7,
+      "damage": 24,
+      "count": 16,
+      "radius": 1.4,
+      "interval": 0.08,
+      "style": "spear"
+    },
+    "looks": {
+      "head": "odinHat",
+      "torso": "odinRobe",
+      "cape": "odinCape"
+    },
+    "legend": {
+      "name": "미미르의 샘",
+      "kind": "survive"
+    },
+    "mark": "odinRavens"
+  },
+  "freyr": {
+    "name": "프레이",
+    "titles": [
+      "풍요의 군주",
+      "황금 멧돼지의 기수",
+      "알프헤임의 왕",
+      "검을 내려놓은 신"
+    ],
+    "source": "stone",
+    "realm": "norse",
+    "color": "#e6c34e",
+    "tree": {
+      "column": 3,
+      "row": 0
+    },
+    "attack": "blade",
+    "passive": {
+      "damageScale": 1.05,
+      "companions": {
+        "name": "굴린부르스티",
+        "look": "boar",
+        "color": "#e6c34e",
+        "counts": [
+          1,
+          1,
+          1,
+          2
+        ],
+        "interval": 1.4,
+        "damage": [
+          12,
+          14,
+          16,
+          18
+        ],
+        "range": 6,
+        "burstMinLevel": 2,
+        "burstRadius": 1.8,
+        "burstDamage": 8
+      },
+      "bloom": {
+        "name": "풍요",
+        "color": "#e6c34e",
+        "interval": 6,
+        "heal": [
+          3,
+          4,
+          5,
+          6
+        ]
+      }
+    },
+    "ultimate": {
+      "kind": "wave",
+      "name": "알프헤임의 봄",
+      "color": "#e6c34e",
+      "reach": 6,
+      "damage": 30,
+      "count": 3,
+      "radius": 7,
+      "interval": 0.45,
+      "heal": 25
+    },
+    "looks": {
+      "head": "freyrCirclet",
+      "torso": "freyrTunic",
+      "cape": "freyrCape"
+    },
+    "legend": {
+      "name": "알프헤임의 수확",
+      "kind": "boss"
+    },
+    "mark": "freyrSun"
+  },
+  "zeus": {
+    "name": "제우스",
+    "titles": [
+      "벼락의 왕",
+      "올림포스의 군주",
+      "신과 인간의 아버지",
+      "티탄을 무너뜨린 자"
+    ],
+    "source": "flame",
+    "realm": "greek",
+    "color": "#fff0a0",
+    "tree": {
+      "column": 0,
+      "row": 0
+    },
+    "attack": "bolt",
+    "passive": {
+      "damageScale": 1.05,
+      "skyStrike": {
+        "name": "벼락",
+        "interval": [
+          2.2,
+          2,
+          1.8,
+          1.6
+        ],
+        "targets": [
+          2,
+          2,
+          3,
+          4
+        ],
+        "radius": 7,
+        "damage": [
+          11,
+          12,
+          14,
+          16
+        ],
+        "style": "lightning"
+      }
+    },
+    "ultimate": {
+      "kind": "skyBarrage",
+      "name": "티타노마키아의 벼락",
+      "color": "#fff0a0",
+      "reach": 7,
+      "damage": 42,
+      "count": 10,
+      "radius": 1.6,
+      "interval": 0.16,
+      "style": "lightning"
+    },
+    "looks": {
+      "head": "zeusLaurel",
+      "torso": "zeusRobe",
+      "cape": "zeusCape"
+    },
+    "legend": {
+      "name": "크로노스의 뱃속",
+      "kind": "boss"
+    },
+    "mark": "zeusWings"
+  },
+  "poseidon": {
+    "name": "포세이돈",
+    "titles": [
+      "파도의 주인",
+      "대지를 흔드는 자",
+      "심해의 왕",
+      "대양의 제왕"
+    ],
+    "source": "stone",
+    "realm": "greek",
+    "color": "#3fa8c8",
+    "tree": {
+      "column": 1,
+      "row": 0
+    },
+    "attack": "spear",
+    "passive": {
+      "damageScale": 1.1,
+      "pulse": {
+        "name": "땅 흔들기",
+        "color": "#3fa8c8",
+        "interval": [
+          2.4,
+          2.2,
+          2,
+          1.8
+        ],
+        "radius": [
+          3.2,
+          3.4,
+          3.8,
+          4.2
+        ],
+        "damage": [
+          12,
+          14,
+          16,
+          19
+        ],
+        "knockback": 4
+      }
+    },
+    "ultimate": {
+      "kind": "wave",
+      "name": "해일",
+      "color": "#3fa8c8",
+      "reach": 6,
+      "damage": 32,
+      "count": 3,
+      "radius": 7,
+      "interval": 0.45
+    },
+    "looks": {
+      "head": "poseidonCrown",
+      "torso": "poseidonArmor",
+      "cape": "poseidonCape"
+    },
+    "legend": {
+      "name": "아테네를 건 내기",
+      "kind": "tally"
+    },
+    "mark": "poseidonWaves"
+  },
+  "hades": {
+    "name": "하데스",
+    "titles": [
+      "망자의 왕",
+      "보이지 않는 자",
+      "부의 주인",
+      "저승의 절대자"
+    ],
+    "source": "hunt",
+    "realm": "greek",
+    "color": "#8a5fd0",
+    "tree": {
+      "column": 2,
+      "row": 0
+    },
+    "attack": "staff",
+    "passive": {
+      "curse": {
+        "name": "망자의 저주",
+        "color": "#8a5fd0",
+        "dps": [
+          4,
+          5,
+          6,
+          8
+        ],
+        "duration": 4,
+        "spreadMinLevel": 3
+      }
+    },
+    "ultimate": {
+      "kind": "legion",
+      "name": "망자의 행렬",
+      "color": "#8a5fd0",
+      "reach": 8,
+      "damage": 30,
+      "count": 8,
+      "radius": 2.4,
+      "interval": 0.06,
+      "style": "shade"
+    },
+    "looks": {
+      "head": "hadesCrown",
+      "torso": "hadesRobe",
+      "cape": "hadesCape"
+    },
+    "legend": {
+      "name": "키클롭스의 선물",
+      "kind": "survive"
+    },
+    "mark": "hadesFlames"
+  },
+  "artemis": {
+    "name": "아르테미스",
+    "titles": [
+      "달의 사냥꾼",
+      "야수의 여주인",
+      "은빛 화살",
+      "밤의 여왕"
+    ],
+    "source": "hunt",
+    "realm": "greek",
+    "color": "#c9d6f0",
+    "tree": {
+      "column": 3,
+      "row": 0
+    },
+    "attack": "bow",
+    "passive": {
+      "damageScale": 0.95,
+      "volley": {
+        "name": "은빛 화살",
+        "color": "#c9d6f0",
+        "count": [
+          1,
+          2,
+          2,
+          3
+        ],
+        "damage": [
+          6,
+          7,
+          8,
+          9
+        ],
+        "range": 8
+      },
+      "companions": {
+        "name": "사냥개",
+        "minLevel": 3,
+        "look": "hound",
+        "color": "#d8d0c0",
+        "counts": [
+          1,
+          1,
+          1,
+          2
+        ],
+        "interval": 1.2,
+        "damage": [
+          8,
+          8,
+          9,
+          11
+        ],
+        "range": 6
+      }
+    },
+    "ultimate": {
+      "kind": "rain",
+      "name": "달빛 화살비",
+      "color": "#c9d6f0",
+      "reach": 7,
+      "damage": 18,
+      "count": 20,
+      "radius": 1.4,
+      "interval": 0.08,
+      "style": "arrow"
+    },
+    "looks": {
+      "head": "artemisCirclet",
+      "torso": "artemisTunic",
+      "cape": "artemisCape"
+    },
+    "legend": {
+      "name": "칼리돈의 멧돼지",
+      "kind": "boss"
+    },
+    "mark": "artemisMoon"
+  },
+  "wukong": {
+    "name": "손오공",
+    "titles": [
+      "돌원숭이",
+      "미후왕",
+      "제천대성",
+      "투전승불"
+    ],
+    "source": "flame",
+    "realm": "china",
+    "color": "#e6a03a",
+    "tree": {
+      "column": 0,
+      "row": 0
+    },
+    "attack": "pole",
+    "passive": {
+      "damageScale": 1.05,
+      "companions": {
+        "name": "털 분신",
+        "look": "monkey",
+        "color": "#b07a3a",
+        "counts": [
+          1,
+          2,
+          2,
+          3
+        ],
+        "interval": 1,
+        "damage": [
+          8,
+          8,
+          10,
+          12
+        ],
+        "range": 6,
+        "burstMinLevel": 4,
+        "burstRadius": 1.6,
+        "burstDamage": 9
+      }
+    },
+    "ultimate": {
+      "kind": "legion",
+      "name": "칠십이 분신",
+      "color": "#e6a03a",
+      "reach": 8,
+      "damage": 26,
+      "count": 10,
+      "radius": 2.4,
+      "interval": 0.06,
+      "style": "monkey"
+    },
+    "looks": {
+      "torso": "wukongArmor",
+      "cape": "wukongCape",
+      "arms": "wukongBracers"
+    },
+    "legend": {
+      "name": "천궁을 어지럽히다",
+      "kind": "boss"
+    },
+    "mark": "wukongTail"
+  },
+  "change": {
+    "name": "항아",
+    "titles": [
+      "달의 선녀",
+      "옥토끼의 주인",
+      "광한궁의 여주인",
+      "불사의 월신"
+    ],
+    "source": "wind",
+    "realm": "china",
+    "color": "#f0e6ff",
+    "tree": {
+      "column": 1,
+      "row": 0
+    },
+    "attack": "fan",
+    "passive": {
+      "orbit": {
+        "name": "월광 구슬",
+        "shape": "orb",
+        "color": "#f0e6ff",
+        "count": [
+          2,
+          3,
+          3,
+          4
+        ],
+        "radius": 1.6,
+        "damage": [
+          7,
+          7,
+          9,
+          11
+        ],
+        "hitInterval": 0.5
+      }
+    },
+    "ultimate": {
+      "kind": "rain",
+      "name": "광한궁의 달빛",
+      "color": "#f0e6ff",
+      "reach": 7,
+      "damage": 22,
+      "count": 16,
+      "radius": 1.4,
+      "interval": 0.08,
+      "style": "star"
+    },
+    "looks": {
+      "head": "changeBun",
+      "torso": "changeDress",
+      "cape": "changeRibbons"
+    },
+    "legend": {
+      "name": "불사약을 삼킨 밤",
+      "kind": "survive"
+    },
+    "mark": "changeHalo"
+  },
+  "longwang": {
+    "name": "동해 용왕",
+    "titles": [
+      "수정궁의 왕",
+      "비를 부르는 용",
+      "사해의 맹주",
+      "용신"
+    ],
+    "source": "stone",
+    "realm": "china",
+    "color": "#3fc8b0",
+    "tree": {
+      "column": 2,
+      "row": 0
+    },
+    "attack": "staff",
+    "passive": {
+      "damageScale": 1.05,
+      "skyStrike": {
+        "name": "비 부르기",
+        "interval": [
+          2.6,
+          2.4,
+          2.2,
+          2
+        ],
+        "targets": [
+          3,
+          3,
+          4,
+          4
+        ],
+        "radius": 7,
+        "damage": [
+          8,
+          10,
+          11,
+          13
+        ],
+        "style": "water"
+      }
+    },
+    "ultimate": {
+      "kind": "wave",
+      "name": "사해의 해일",
+      "color": "#3fc8b0",
+      "reach": 6,
+      "damage": 26,
+      "count": 4,
+      "radius": 7,
+      "interval": 0.35
+    },
+    "looks": {
+      "head": "longwangHead",
+      "torso": "longwangRobe",
+      "cape": "longwangCape",
+      "weapon": "longwangStaff"
+    },
+    "legend": {
+      "name": "수정궁의 손님",
+      "kind": "tally"
+    },
+    "mark": "longwangWaves"
+  },
+  "nezha": {
+    "name": "나타",
+    "titles": [
+      "연꽃의 소년 장수",
+      "풍화륜의 전사",
+      "삼두육비",
+      "중단원수"
+    ],
+    "source": "flame",
+    "realm": "china",
+    "color": "#ff6a4a",
+    "tree": {
+      "column": 3,
+      "row": 0
+    },
+    "attack": "spear",
+    "passive": {
+      "damageScale": 1.05,
+      "trail": {
+        "name": "풍화륜 불길",
+        "color": "#ff6a3a",
+        "dps": [
+          6,
+          7,
+          9,
+          11
+        ],
+        "life": 2,
+        "width": 0.9
+      },
+      "orbit": {
+        "name": "건곤권",
+        "minLevel": 3,
+        "shape": "ring",
+        "color": "#e6bd4e",
+        "count": [
+          1,
+          1,
+          1,
+          2
+        ],
+        "radius": 1.8,
+        "damage": [
+          10,
+          10,
+          12,
+          14
+        ],
+        "hitInterval": 0.6
+      }
+    },
+    "ultimate": {
+      "kind": "bladeDance",
+      "name": "삼두육비",
+      "color": "#ff6a4a",
+      "reach": 5,
+      "damage": 12,
+      "count": 24,
+      "radius": 5,
+      "interval": 0.08
+    },
+    "looks": {
+      "head": "nezhaHead",
+      "torso": "nezhaTunic",
+      "cape": "nezhaRibbons",
+      "weapon": "nezhaSpear"
+    },
+    "legend": {
+      "name": "동해를 뒤집은 소년",
+      "kind": "boss"
+    },
+    "mark": "nezhaHalo"
+  },
+  "amaterasu": {
+    "name": "아마테라스",
+    "titles": [
+      "태양의 여신",
+      "동굴을 나온 빛",
+      "다카마가하라의 주인",
+      "천조대신"
+    ],
+    "source": "stone",
+    "realm": "japan",
+    "color": "#ffa040",
+    "tree": {
+      "column": 0,
+      "row": 0
+    },
+    "attack": "mirror",
+    "passive": {
+      "skyStrike": {
+        "name": "햇살",
+        "interval": [
+          2.8,
+          2.6,
+          2.4,
+          2.2
+        ],
+        "targets": [
+          2,
+          2,
+          3,
+          3
+        ],
+        "radius": 6,
+        "damage": [
+          12,
+          14,
+          16,
+          18
+        ],
+        "style": "sun"
+      },
+      "bloom": {
+        "name": "따스한 빛",
+        "color": "#ffa040",
+        "interval": 5,
+        "heal": [
+          3,
+          4,
+          5,
+          6
+        ]
+      }
+    },
+    "ultimate": {
+      "kind": "skyBarrage",
+      "name": "태양 강림",
+      "color": "#ffa040",
+      "reach": 7,
+      "damage": 40,
+      "count": 8,
+      "radius": 2,
+      "interval": 0.16,
+      "style": "sun"
+    },
+    "looks": {
+      "head": "amaterasuHead",
+      "torso": "amaterasuRobe",
+      "cape": "amaterasuCape"
+    },
+    "legend": {
+      "name": "아마노이와토",
+      "kind": "survive"
+    },
+    "mark": "amaterasuRays"
+  },
+  "tsukuyomi": {
+    "name": "츠쿠요미",
+    "titles": [
+      "달의 남신",
+      "밤 나라의 주인",
+      "해와 갈라선 달",
+      "영원한 밤의 신"
+    ],
+    "source": "stone",
+    "realm": "japan",
+    "color": "#6a7ae0",
+    "tree": {
+      "column": 1,
+      "row": 0
+    },
+    "attack": "twin",
+    "passive": {
+      "orbit": {
+        "name": "곡옥",
+        "shape": "bead",
+        "color": "#6a7ae0",
+        "count": [
+          3,
+          3,
+          4,
+          5
+        ],
+        "radius": 1.4,
+        "damage": [
+          5,
+          6,
+          7,
+          8
+        ],
+        "hitInterval": 0.5,
+        "speed": 3.2
+      }
+    },
+    "ultimate": {
+      "kind": "wave",
+      "name": "영원한 밤",
+      "color": "#6a7ae0",
+      "reach": 6,
+      "damage": 30,
+      "count": 3,
+      "radius": 7,
+      "interval": 0.45
+    },
+    "looks": {
+      "head": "tsukuyomiHead",
+      "torso": "tsukuyomiRobe",
+      "cape": "tsukuyomiCape"
+    },
+    "legend": {
+      "name": "우케모치의 연회",
+      "kind": "tally"
+    },
+    "mark": "tsukuyomiMoon"
+  },
+  "raijin": {
+    "name": "라이진",
+    "titles": [
+      "뇌신",
+      "천둥북의 고수",
+      "번개 구름의 주인",
+      "대뢰신"
+    ],
+    "source": "wind",
+    "realm": "japan",
+    "color": "#f0d040",
+    "tree": {
+      "column": 2,
+      "row": 0
+    },
+    "attack": "drum",
+    "passive": {
+      "pulse": {
+        "name": "천둥북",
+        "color": "#f0d040",
+        "interval": [
+          2,
+          1.8,
+          1.6,
+          1.4
+        ],
+        "radius": [
+          3,
+          3.2,
+          3.4,
+          3.8
+        ],
+        "damage": [
+          10,
+          11,
+          13,
+          15
+        ],
+        "knockback": 2
+      }
+    },
+    "ultimate": {
+      "kind": "skyBarrage",
+      "name": "대뢰",
+      "color": "#f0d040",
+      "reach": 7,
+      "damage": 36,
+      "count": 12,
+      "radius": 1.6,
+      "interval": 0.12,
+      "style": "lightning"
+    },
+    "looks": {
+      "head": "raijinHead",
+      "torso": "raijinFur",
+      "cape": "raijinCape",
+      "weapon": "raijinMallet"
+    },
+    "legend": {
+      "name": "구름 위의 북소리",
+      "kind": "tally"
+    },
+    "mark": "raijinDrums"
+  },
+  "susanoo": {
+    "name": "스사노오",
+    "titles": [
+      "폭풍의 남신",
+      "쫓겨난 신",
+      "오로치를 벤 자",
+      "네노쿠니의 주인"
+    ],
+    "source": "flame",
+    "realm": "japan",
+    "color": "#4a7ad0",
+    "tree": {
+      "column": 3,
+      "row": 0
+    },
+    "attack": "blade",
+    "passive": {
+      "damageScale": 1.1,
+      "bladeStorm": {
+        "damage": 7,
+        "radius": 4.5,
+        "base": 2,
+        "perLevel": 1,
+        "color": "#4a7ad0"
+      }
+    },
+    "ultimate": {
+      "kind": "wave",
+      "name": "폭풍신의 칼바람",
+      "color": "#4a7ad0",
+      "reach": 6,
+      "damage": 26,
+      "count": 4,
+      "radius": 7,
+      "interval": 0.3
+    },
+    "looks": {
+      "head": "susanooHead",
+      "torso": "susanooArmor",
+      "cape": "susanooCape"
+    },
+    "legend": {
+      "name": "여덟 갈래 뱀",
+      "kind": "boss"
+    },
+    "mark": "susanooBlades"
+  },
+  "haemosu": {
+    "name": "해모수",
+    "titles": [
+      "오룡거의 천왕",
+      "하늘의 아들",
+      "해의 군주",
+      "천제"
+    ],
+    "source": "wind",
+    "realm": "korea",
+    "color": "#ffcf40",
+    "tree": {
+      "column": 0,
+      "row": 0
+    },
+    "attack": "blade",
+    "passive": {
+      "volley": {
+        "name": "햇살 화살",
+        "color": "#ffcf40",
+        "count": [
+          1,
+          1,
+          2,
+          2
+        ],
+        "damage": [
+          7,
+          8,
+          9,
+          11
+        ],
+        "range": 7
+      },
+      "trail": {
+        "name": "해의 수레 자국",
+        "minLevel": 3,
+        "color": "#ff8a2a",
+        "dps": [
+          6,
+          6,
+          8,
+          10
+        ],
+        "life": 1.6,
+        "width": 0.8
+      }
+    },
+    "ultimate": {
+      "kind": "rain",
+      "name": "해의 수레",
+      "color": "#ffcf40",
+      "reach": 7,
+      "damage": 24,
+      "count": 16,
+      "radius": 1.4,
+      "interval": 0.08,
+      "style": "fire"
+    },
+    "looks": {
+      "torso": "haemosuRobe",
+      "cape": "haemosuCape",
+      "legs": "haemosuBoots"
+    },
+    "legend": {
+      "name": "하백과의 둔갑 겨루기",
+      "kind": "tally"
+    },
+    "mark": "haemosuCrow"
+  },
+  "bari": {
+    "name": "바리공주",
+    "titles": [
+      "버려진 공주",
+      "저승길의 나그네",
+      "생명수를 얻은 자",
+      "무조신"
+    ],
+    "source": "wind",
+    "realm": "korea",
+    "color": "#9fe0c0",
+    "tree": {
+      "column": 1,
+      "row": 0
+    },
+    "attack": "staff",
+    "passive": {
+      "damageScale": 0.95,
+      "companions": {
+        "name": "길잡이 혼령",
+        "look": "spirit",
+        "color": "#9fe0c0",
+        "counts": [
+          1,
+          1,
+          2,
+          2
+        ],
+        "interval": 1.2,
+        "damage": [
+          8,
+          9,
+          10,
+          12
+        ],
+        "range": 6
+      },
+      "guard": {
+        "name": "생명수",
+        "color": "#9fe0c0",
+        "threshold": 0.35,
+        "heal": [
+          20,
+          25,
+          30,
+          35
+        ],
+        "cooldown": 30
+      }
+    },
+    "ultimate": {
+      "kind": "wave",
+      "name": "되살림의 물결",
+      "color": "#9fe0c0",
+      "reach": 6,
+      "damage": 24,
+      "count": 3,
+      "radius": 7,
+      "interval": 0.45,
+      "heal": 40
+    },
+    "looks": {
+      "head": "bariHead",
+      "torso": "bariDress",
+      "cape": "bariCape"
+    },
+    "legend": {
+      "name": "서천 꽃밭 가는 길",
+      "kind": "survive"
+    },
+    "mark": "bariPetals"
+  },
+  "dokkaebi": {
+    "name": "도깨비",
+    "titles": [
+      "도깨비",
+      "방망이의 주인",
+      "감투 쓴 도깨비",
+      "도깨비 대왕"
+    ],
+    "source": "flame",
+    "realm": "korea",
+    "color": "#5fa8ff",
+    "tree": {
+      "column": 2,
+      "row": 0
+    },
+    "attack": "club",
+    "passive": {
+      "damageScale": 1.05,
+      "orbit": {
+        "name": "도깨비불",
+        "shape": "flame",
+        "color": "#5fa8ff",
+        "count": [
+          2,
+          2,
+          3,
+          3
+        ],
+        "radius": 1.7,
+        "damage": [
+          8,
+          9,
+          10,
+          12
+        ],
+        "hitInterval": 0.6,
+        "speed": 2.8
+      }
+    },
+    "ultimate": {
+      "kind": "rain",
+      "name": "도깨비 불놀이",
+      "color": "#5fa8ff",
+      "reach": 7,
+      "damage": 22,
+      "count": 18,
+      "radius": 1.4,
+      "interval": 0.08,
+      "style": "fire"
+    },
+    "looks": {
+      "torso": "dokkaebiTunic",
+      "cape": "dokkaebiCape",
+      "legs": "dokkaebiLegs"
+    },
+    "legend": {
+      "name": "달밤의 도깨비 씨름",
+      "kind": "tally"
+    },
+    "mark": "dokkaebiFire"
+  },
+  "mago": {
+    "name": "마고할미",
+    "titles": [
+      "땅을 빚은 거인",
+      "산을 나르는 할미",
+      "바다를 메운 자",
+      "창세의 어머니"
+    ],
+    "source": "stone",
+    "realm": "korea",
+    "color": "#c8a070",
+    "tree": {
+      "column": 3,
+      "row": 0
+    },
+    "attack": "hammer",
+    "passive": {
+      "damageScale": 1.1,
+      "skyStrike": {
+        "name": "떨어지는 바위",
+        "interval": [
+          3,
+          2.8,
+          2.6,
+          2.4
+        ],
+        "targets": [
+          2,
+          2,
+          2,
+          3
+        ],
+        "radius": 6,
+        "damage": [
+          14,
+          16,
+          18,
+          21
+        ],
+        "style": "stone"
+      }
+    },
+    "ultimate": {
+      "kind": "rain",
+      "name": "치마폭 산사태",
+      "color": "#c8a070",
+      "reach": 7,
+      "damage": 28,
+      "count": 12,
+      "radius": 1.8,
+      "interval": 0.12,
+      "style": "stone"
+    },
+    "looks": {
+      "head": "magoHead",
+      "torso": "magoDress",
+      "cape": "magoCape"
+    },
+    "legend": {
+      "name": "바다를 메운 치마",
+      "kind": "boss"
+    },
+    "mark": "magoStones"
   }
 }

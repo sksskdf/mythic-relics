@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
 import { ClassProgress, XP_TO_PROMOTE } from '../src/progress/ClassProgress'
-import { DropTable } from '../src/relics/DropTable'
-import type { RelicId } from '../src/relics/data'
+import { DATA } from '../src/data'
+import { DEFAULT_DROPS, DropTable } from '../src/relics/DropTable'
+import { godDef, type RelicId, relicDef } from '../src/relics/data'
+import { createRng } from '../src/world/rng'
 
 describe('클래스 성장', () => {
   it('경험치 바가 가득 차야 승급할 수 있고, 가득 찬 뒤에는 더 쌓이지 않는다', () => {
@@ -41,7 +43,8 @@ describe('유물 드랍', () => {
   })
 
   it('이미 가진 유물은 나오지 않는다', () => {
-    const drops = new DropTable(sequence(0, 0))
+    // 토르·로키 유물만 나오는 표로 줄여 본다
+    const drops = new DropTable(sequence(0, 0), DEFAULT_DROPS, ['megingjord', 'jarngreipr', 'lokiMask', 'laevateinn', 'mistletoe'])
     const owned = new Set<RelicId>(['mjolnir', 'megingjord', 'jarngreipr'])
     for (const id of ['lokiMask', 'laevateinn', 'mistletoe'] as const) {
       expect(drops.roll(owned)).toBe(id)
@@ -52,8 +55,61 @@ describe('유물 드랍', () => {
 
   it('이미 유물을 가진 신의 남은 유물이 더 잘 나온다', () => {
     // 후보: 메긴교르드(토르, 가중치 1 + 2), 로키 유물 셋(각 1). 합 6에서 0.3이면 앞쪽 1.8이라 메긴교르드
-    const drops = new DropTable(sequence(0, 0.3))
+    const drops = new DropTable(sequence(0, 0.3), DEFAULT_DROPS, ['megingjord', 'lokiMask', 'laevateinn', 'mistletoe'])
     expect(drops.roll(new Set<RelicId>(['jarngreipr']))).toBe('megingjord')
+  })
+
+  describe('신화권 드랍 (E6-18)', () => {
+    const realmOf = (id: RelicId) => godDef(relicDef(id).god).realm
+    /** 아무것도 갖지 않은 채 많이 굴려 신화권별로 센다 (가진 것 제외 규칙이 끼지 않게 매번 빈 손) */
+    function tally(realm: (typeof DATA.gods)[string]['realm'], rolls = 2000) {
+      const drops = new DropTable(createRng(7), { ...DEFAULT_DROPS, base: 1 })
+      drops.realm = realm
+      const out = new Map<string, number>()
+      for (let i = 0; i < rolls; i++) {
+        const id = drops.roll(new Set())
+        if (id) out.set(realmOf(id), (out.get(realmOf(id)) ?? 0) + 1)
+      }
+      return out
+    }
+
+    for (const realm of ['norse', 'greek', 'china', 'japan', 'korea'] as const) {
+      it(`${realm} 지역에서는 그 신화권 유물이 거의 다다 (다른 신화권은 드물게)`, () => {
+        const out = tally(realm)
+        const total = [...out.values()].reduce((a, b) => a + b, 0)
+        const local = out.get(realm) ?? 0
+        expect(local / total).toBeGreaterThan(0.75)
+        expect(local / total).toBeLessThan(1)
+      })
+    }
+
+    it('히든 클래스만의 유물(후츠노미타마·아메노오하바리)은 무작위로 나오지 않고, 스사노오와 함께 쓰는 칼은 나온다', () => {
+      const drops = new DropTable(createRng(3), { ...DEFAULT_DROPS, base: 1 })
+      drops.realm = 'japan'
+      const seen = new Set<RelicId>()
+      for (let i = 0; i < 3000; i++) {
+        const id = drops.roll(new Set())
+        if (id) seen.add(id)
+      }
+      expect(seen.has('futsu')).toBe(false)
+      expect(seen.has('ohabari')).toBe(false)
+      expect(seen.has('kusanagi')).toBe(true)
+      expect(seen.has('totsuka')).toBe(true)
+    })
+
+    it('1차 신화권의 모든 유물이 언젠가는 나온다 (보스 확정 유물 제외)', () => {
+      const seen = new Set<RelicId>()
+      for (const realm of ['norse', 'greek', 'china', 'japan', 'korea'] as const) {
+        const drops = new DropTable(createRng(11), { ...DEFAULT_DROPS, base: 1 })
+        drops.realm = realm
+        for (let i = 0; i < 2000; i++) {
+          const id = drops.roll(new Set())
+          if (id) seen.add(id)
+        }
+      }
+      const expected = Object.keys(DATA.relics).filter((id) => id !== 'mjolnir' && !godDef(relicDef(id as RelicId).god).hidden)
+      for (const id of expected) expect(seen.has(id as RelicId), id).toBe(true)
+    })
   })
 
   it('안 나올수록 확률이 오르고, 나오면 처음으로 돌아간다 (불운 보정)', () => {

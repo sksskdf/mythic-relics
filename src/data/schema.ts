@@ -665,7 +665,8 @@ export interface GameData {
  */
 function checkLookHarmony(gods: Record<string, GodDef>, relics: Record<string, RelicDef>): void {
   for (const god of Object.values(gods)) {
-    const own = Object.values(relics).filter((r) => r.god === god.id)
+    // 함께 쓰는 유물(also)도 그 신의 유물로 센다 (쿠사나기·토츠카는 스사노오와 아수라왕 둘 다)
+    const own = Object.values(relics).filter((r) => r.god === god.id || r.also.includes(god.id))
     const used = new Map<LookSlot, string>()
     for (const relic of own) {
       const slot = LOOKS[relic.look]!.slot

@@ -33,6 +33,8 @@ export interface Action {
   fire(ctx: SkillContext, cue: Cue, boost: Boost): void
   update(dt: number, ctx: SkillContext): void
   dispose(): void
+  /** 연출 색을 유물 주인 신의 색으로 바꾼다 (분신·불꽃처럼 색이 신을 드러내는 것만) */
+  tint?(hex: number): void
 }
 
 /** 지속 효과 중 매 프레임 도는 것 (오라) */
@@ -322,6 +324,10 @@ class Decoy implements Action {
   private life = 0
   private boost = NO_BOOST
 
+  tint(hex: number): void {
+    this.material.color.setHex(hex)
+  }
+
   constructor(
     private readonly p: Readonly<Record<string, number>>,
     fx: THREE.Object3D,
@@ -387,6 +393,10 @@ class FlameSweep implements Action {
   private readonly turn = new THREE.Group()
   private readonly material = new THREE.MeshBasicMaterial({ color: 0x5fd06a, transparent: true, depthWrite: false, side: THREE.DoubleSide })
   private life = 0
+
+  tint(hex: number): void {
+    this.material.color.setHex(hex)
+  }
 
   constructor(
     private readonly p: Readonly<Record<string, number>>,

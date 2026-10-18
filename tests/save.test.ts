@@ -36,7 +36,7 @@ describe('저장 데이터', () => {
         ...sample,
         slots: ['mjolnir', 'mjolnir', 'excalibur', null],
         ground: [{ id: 'mjolnir', x: 1, z: 1 }, { id: 'lokiMask', x: 1, z: 'x' }],
-        classes: { thor: { level: 9, xp: -5 }, zeus: { level: 2, xp: 0 } },
+        classes: { thor: { level: 9, xp: -5 }, nobody: { level: 2, xp: 0 } },
         divine: 3,
       }),
     )

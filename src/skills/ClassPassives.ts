@@ -311,7 +311,15 @@ export class ClassPassives {
       }
     }
     const curse = passive?.curse
-    if (curse && level >= curse.minLevel) for (const t of targets) if (t.alive) this.cursed.set(t, { left: curse.duration, tick: TICK })
+    if (curse && level >= curse.minLevel) {
+      // 이미 걸린 적은 시간만 늘린다 (다시 걸 때마다 틱을 처음부터 세면 계속 맞는 적에게는 피해가 안 들어간다)
+      for (const t of targets) {
+        if (!t.alive) continue
+        const state = this.cursed.get(t)
+        if (state) state.left = curse.duration
+        else this.cursed.set(t, { left: curse.duration, tick: TICK })
+      }
+    }
   }
 
   /** 적이 쓰러졌다: 저주가 옆 적에게 옮는다 (spreadMinLevel부터) */

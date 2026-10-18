@@ -34,6 +34,8 @@ export class Effects {
   readonly shadow = new ShadowAura()
   /** 아수라 발현 중 검붉은 스산한 기운 */
   readonly asura = new ShadowAura(0x3a0408, 0xa3141c, 2.2)
+  /** 공용 기운: 발현한 신의 색으로 물든다 (E6) */
+  readonly tint = new ShadowAura()
   readonly snow = new Snowfall()
   /** 유물을 끼고 발현할 때의 빛기둥과 발밑 빛 */
   readonly power = new PowerUp()
@@ -52,7 +54,7 @@ export class Effects {
       effect.traverse((o) => o.layers.set(EFFECT_LAYER))
       scene.add(effect)
     }
-    scene.add(this.targetMarker.object, this.pathLine.object, this.skills, this.debris.object, this.lightning.object, this.shadow.object, this.asura.object, this.power.object)
+    scene.add(this.targetMarker.object, this.pathLine.object, this.skills, this.debris.object, this.lightning.object, this.shadow.object, this.asura.object, this.tint.object, this.power.object)
   }
 
   /** 지시 표시: 누른 곳, 공격 대상, 적을 무시한 이동의 경로 */
@@ -81,6 +83,7 @@ export class Effects {
     this.sparks.update(dt, position)
     this.shadow.update(dt, position)
     this.asura.update(dt, position)
+    this.tint.update(dt, position)
     this.power.update(dt, position)
     this.slashes.update(dt)
     this.shots.update(dt)
