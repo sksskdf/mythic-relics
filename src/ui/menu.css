@@ -1321,3 +1321,22 @@
   display: flex;
   gap: var(--sp-2);
 }
+
+/* 설정 단추 (일시 정지 메뉴의 설정을 연다) */
+.menu__gear {
+  display: grid;
+  place-items: center;
+  padding: 0 var(--sp-4);
+  border: 0;
+  border-left: 2px solid var(--c-line-2);
+  background: none;
+  cursor: pointer;
+}
+.menu__gear img {
+  width: 24px;
+  height: 24px;
+  image-rendering: pixelated;
+}
+.menu__gear:hover img {
+  filter: brightness(1.3);
+}

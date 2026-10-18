@@ -79,6 +79,8 @@ export class Hud {
   private readonly toast: HTMLElement
   private readonly gains: HTMLElement
   private readonly flashEl: HTMLElement
+  /** 화면 번쩍임: 설정에서 끌 수 있다 */
+  flashEnabled = true
   private readonly xpBar: HTMLElement
   private readonly xpFill: HTMLElement
   private bossTrailRatio = 1
@@ -296,6 +298,7 @@ export class Hud {
 
   /** 화면 전체가 신의 색으로 한 번 번쩍인다. (발현) */
   flash(color: string): void {
+    if (!this.flashEnabled) return
     this.flashEl.style.setProperty('--flash', color)
     this.restartAnimation(this.flashEl)
   }

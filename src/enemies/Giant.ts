@@ -44,6 +44,8 @@ export interface GiantWorld {
   summon(x: number, z: number, count: number): void
   /** 공격 예고를 붙일 곳 */
   effects: THREE.Object3D
+  /** 공격 예고가 시작됐다 (소리) */
+  warn?(x: number, z: number): void
 }
 
 /** 예고 중인 공격 범위. ring의 radius는 안전한 안쪽 반지름 */
@@ -309,6 +311,7 @@ export class Giant {
     )
     world.effects.add(this.telegraph.object)
     this.placeTelegraph()
+    world.warn?.(this.x, this.z)
   }
 
   private updateWindup(world: GiantWorld): void {

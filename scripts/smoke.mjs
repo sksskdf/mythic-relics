@@ -173,6 +173,24 @@ try {
   console.log('순환 확인: 결정으로 불꽃 단련 Lv1')
   console.log('정보 화면 확인: 상태 탭 능력치 8줄, 열면 멈춤, 가방에 넣기·다시 끼기와 미리 보기, 클래스 탭, Esc로 닫기')
 
+  // 일시 정지(E5): 창이 없을 때 Esc를 누르면 멈추고, 멈춘 동안 게임 시간이 흐르지 않는다.
+  await page.keyboard.press('Escape')
+  if (!(await page.locator('.pause').isVisible())) throw new Error('일시 정지: Esc를 눌렀는데 메뉴가 뜨지 않습니다.')
+  const pausedAt = await page.evaluate(() => window.__game.time)
+  await page.waitForTimeout(600)
+  if ((await page.evaluate(() => window.__game.time)) !== pausedAt) throw new Error('일시 정지: 멈췄는데 게임 시간이 흐릅니다.')
+  // 설정: 화면 흔들림을 끄면 흔들림 배율이 0이 되고 저장된다.
+  await page.getByRole('button', { name: '설정' }).click()
+  await page.locator('[data-setting="화면 흔들림"]', { hasText: '끔' }).click()
+  const shake = await page.evaluate(() => ({ scale: window.__game.view.shakeScale, saved: JSON.parse(localStorage.getItem('mythic-relics/settings-v2')).shake }))
+  if (shake.scale !== 0 || shake.saved !== false) throw new Error(`설정: 화면 흔들림이 꺼지지 않았습니다 ${JSON.stringify(shake)}`)
+  await page.screenshot({ path: 'test-results/pause-settings.png' })
+  await page.locator('[data-setting="화면 흔들림"]', { hasText: '켬' }).click()
+  await page.getByRole('button', { name: '계속하기' }).click()
+  if (await page.evaluate(() => window.__game.paused)) throw new Error('일시 정지: 계속하기를 눌렀는데 멈춰 있습니다.')
+  if (!(await page.evaluate(() => window.__game.audio.unlocked))) console.log('  (이 브라우저에서는 오디오를 켤 수 없어 소리 확인을 건너뜀)')
+  console.log('일시 정지 확인: Esc로 멈춤, 멈춘 동안 시간 정지, 설정의 화면 흔들림 끄기와 저장, 계속하기')
+
   // 보관함에서 무기를 짧은 검으로 고르면 묠니르를 껴도 검을 든다. (새로 고침 뒤에도 유지되는지 아래에서 확인)
   await page.evaluate(() => window.__game.appearance.choose('weapon', 'shortSword'))
   if ((await page.evaluate(() => window.__game.hero.rig.outfit.weapon)) !== 'shortSword') throw new Error('외형: 보관함 선택이 적용되지 않습니다.')

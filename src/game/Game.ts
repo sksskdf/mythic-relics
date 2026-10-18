@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 
+import { AudioEngine } from '../audio/AudioEngine'
 import { Input } from '../input/Input'
 import { PixelRenderer } from '../render/PixelRenderer'
 import { QuarterViewCamera } from '../render/QuarterViewCamera'
@@ -14,6 +15,7 @@ import type { SkillContext } from '../skills/Skill'
 import { DamageNumbers } from '../ui/DamageNumbers'
 import { Hud } from '../ui/Hud'
 import { GameMenu, type HeroStats } from '../ui/GameMenu'
+import { PauseMenu } from '../ui/PauseMenu'
 import type { RelicCardContext } from '../ui/relicCard'
 import { RelicTooltip } from '../ui/RelicTooltip'
 import { NavGrid } from '../world/navGrid'
@@ -22,7 +24,7 @@ import type { BodyLook } from '../looks/body'
 import { Cycle } from '../progress/Cycle'
 import { TITLE_REQUEST } from '../save/SaveData'
 import { MAP_HALF_EXTENT } from '../world/testMap'
-import { clampViewHeight, settingsStorage } from '../save/settings'
+import { clampViewHeight, RENDER_SCALE, type Settings, settingsStorage } from '../save/settings'
 import { frameDelta } from './clock'
 import { Feel, type GameContext } from './context'
 import { Encounter, TEST_ENCOUNTER } from './Encounter'
@@ -42,6 +44,7 @@ import { HERO_SPAWN, HeroLife } from './systems/HeroLife'
 import { Persistence } from './systems/Persistence'
 import { PlayerInput } from './systems/PlayerInput'
 import { ProgressionSystem } from './systems/Progression'
+import { SoundSystem } from './systems/Sound'
 import { RelicSystem } from './systems/Relics'
 
 export interface GameOptions {
@@ -116,6 +119,12 @@ export class Game {
   /** 외형 보관함 화면 */
   /** 정보 화면 (유물·클래스·외형). 열려 있는 동안 게임이 멈춘다 */
   readonly menu: GameMenu
+  /** 일시 정지 메뉴와 설정 (E5) */
+  readonly pauseMenu: PauseMenu
+  /** 소리 (E5) */
+  readonly audio: AudioEngine
+  private readonly sound: SoundSystem
+  private settings: Settings
   private readonly tooltip: RelicTooltip
   /** 지금 떠 있는 카드가 땅의 유물 카드인가 */
   private groundTooltip = false
@@ -126,8 +135,10 @@ export class Game {
   private readonly life: HeroLife
   private readonly persistence: Persistence
   private readonly playerInput: PlayerInput
-  /** 가장 크게 확대했을 때(시야 12m)의 렌더 세로 픽셀 수. ?res= 로 바꿔 볼 수 있다 */
-  private readonly baseRenderHeight: number
+  /** 가장 크게 확대했을 때(시야 12m)의 렌더 세로 픽셀 수. ?res= 로 바꿔 볼 수 있고, 설정의 해상도를 곱한다 */
+  private baseRenderHeight: number
+  /** ?res= 로 정한 기준 (없으면 기본값) */
+  private readonly requestedRenderHeight: number
   private lastTime = performance.now()
   private elapsed = 0
 
@@ -135,12 +146,14 @@ export class Game {
     private readonly container: HTMLElement,
     options: GameOptions = {},
   ) {
-    this.pixel = new PixelRenderer(container, options.renderHeight ?? TARGET_RENDER_HEIGHT)
+    this.settings = settingsStorage.load()
+    // ?res= 로 픽셀 밀도를 바꿔 볼 수 있다. 기본은 프로토타입의 밀도에 설정의 해상도를 곱한다
+    this.requestedRenderHeight = options.renderHeight ?? TARGET_RENDER_HEIGHT
+    this.baseRenderHeight = options.renderHeight ?? Math.round(TARGET_RENDER_HEIGHT * RENDER_SCALE[this.settings.quality])
+    this.pixel = new PixelRenderer(container, this.baseRenderHeight)
     this.input = new Input(this.pixel.renderer.domElement)
     // 확대·축소: 주소의 ?view= 가 있으면 그 값, 없으면 저장한 설정
-    this.view.viewHeight = options.viewHeight ?? settingsStorage.load().viewHeight
-    // ?res= 로 픽셀 밀도를 바꿔 볼 수 있다. 기본은 프로토타입의 밀도
-    this.baseRenderHeight = options.renderHeight ?? TARGET_RENDER_HEIGHT
+    this.view.viewHeight = options.viewHeight ?? this.settings.viewHeight
     this.pixel.setTargetHeight(renderHeightFor(this.view.viewHeight, this.baseRenderHeight))
     this.pixel.renderer.domElement.addEventListener('wheel', (e) => this.onWheel(e), { passive: false })
     this.hud = new Hud(container)
@@ -182,6 +195,7 @@ export class Game {
       puffs: this.fx.puffs,
       hit: (target, damage, dirX, dirZ, knockback, style) => this.damage.deal(target, damage, dirX, dirZ, knockback, style),
       shake: (amount) => this.view.shake(amount),
+      sound: (cue, x, z) => this.bus.emit('sound', { cue, x, z }),
       setDecoy: (decoy) => {
         this.relics.decoy = decoy
       },
@@ -234,6 +248,10 @@ export class Game {
       cardContext: (id, preview) => this.cardContext(id, preview),
       stats: () => this.heroStats(),
       toTitle: () => this.toTitle(),
+      openSettings: () => {
+        this.menu.toggle(false)
+        this.pauseMenu.show(true)
+      },
       cycle: {
         state: this.cycle,
         train: (source, count) => cycleSystem.train(source, count),
@@ -253,13 +271,22 @@ export class Game {
         choose: (slot, choice) => appearance.choose(slot, choice),
       },
     })
-    this.menu.onToggle = (open) => {
+    const onToggle = (open: boolean) => {
       this.tooltip.hide()
       this.hoveredSlot = null
       // 창을 여닫는 클릭이 이동 지시로 새지 않게 입력을 비운다.
       this.input.endFrame()
       if (!open) this.orders.release()
+      this.audio.play(open ? 'uiOpen' : 'uiClose')
+      this.audio.setDucked(this.paused)
     }
+    this.menu.onToggle = onToggle
+    this.pauseMenu = new PauseMenu(this.hud.root, {
+      settings: () => this.settings,
+      change: (patch) => this.applySettings(settingsStorage.update(patch)),
+      toTitle: () => this.toTitle(),
+    })
+    this.pauseMenu.onToggle = onToggle
     this.hud.onPortraitClick = () => this.menu.show('status')
     this.tooltip = new RelicTooltip(container)
     // 새 외형은 메뉴 단추의 점으로만 알린다. (유물 이름 알림과 겹치지 않게)
@@ -280,6 +307,10 @@ export class Game {
     this.life = new HeroLife(this.ctx)
     this.persistence = new Persistence(this.ctx, options.autosave ?? false)
     this.playerInput = new PlayerInput(this.ctx, this.input, this.pixel, container)
+    this.audio = new AudioEngine(this.settings.volume)
+    this.sound = new SoundSystem(this.ctx, this.audio)
+    this.applySettings(this.settings)
+    this.listenWindow()
     this.recordPlay()
 
     if (options.title) {
@@ -393,11 +424,57 @@ export class Game {
     this.input.endFrame()
     this.frame += 1
     this.persistence.update(realDt)
+    this.audio.update()
   }
 
-  /** 정보 화면이 열려 있어 게임이 멈췄는가 */
+  /** 정보 화면이나 일시 정지 메뉴가 열려 있어 게임이 멈췄는가 */
   get paused(): boolean {
-    return this.menu.open
+    return this.menu.open || (this.pauseMenu?.open ?? false)
+  }
+
+  /**
+   * 창과 키보드: 첫 입력에 소리를 켜고, Esc로 창을 닫거나 일시 정지하고,
+   * 탭을 옮기거나 창이 가려지면 멈춘다. (E5-04·06)
+   */
+  private listenWindow(): void {
+    const unlock = () => this.audio.unlock()
+    addEventListener('pointerdown', unlock)
+    addEventListener('keydown', unlock)
+    addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape' || !this.playing) return
+      if (this.pauseMenu.open) this.pauseMenu.hide()
+      else if (this.menu.open) this.menu.toggle(false)
+      else this.pauseMenu.show()
+    })
+    // 단추를 누르면 짧게 딸깍
+    addEventListener('click', (e) => {
+      if ((e.target as Element | null)?.closest?.('button')) this.audio.play('ui')
+    })
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        this.autoPause()
+        this.audio.suspend()
+      } else this.audio.resume()
+    })
+    addEventListener('blur', () => this.autoPause())
+  }
+
+  /** 창 밖으로 나가면 멈춘다. 이미 창이 열려 있으면 그대로 둔다 */
+  private autoPause(): void {
+    if (this.playing && !this.paused) this.pauseMenu.show()
+  }
+
+  /** 설정을 적용한다: 음량, 흔들림, 번쩍임, 렌더 해상도 */
+  private applySettings(next: Settings): void {
+    const before = this.settings
+    this.settings = next
+    this.audio.setVolumes(next.volume)
+    this.view.shakeScale = next.shake ? 1 : 0
+    this.hud.flashEnabled = next.flash
+    if (next.quality !== before.quality && this.requestedRenderHeight === TARGET_RENDER_HEIGHT) {
+      this.baseRenderHeight = Math.round(TARGET_RENDER_HEIGHT * RENDER_SCALE[next.quality])
+      this.setViewHeight(this.view.viewHeight)
+    }
   }
 
   /** 설명 카드에 넣을 지금 상태: 자리, 충전, 세트, 발현 강화 조건 */
@@ -507,7 +584,10 @@ export class Game {
 
     // 전투: 자동 공격 → 유물 → 적 → 성장 → 생사
     this.combat.update(dt, this.encounter.alive, {
-      onSwing: (swing, strong) => this.fx.slashes.spawn(this.hero.object.position, this.hero.facing, swing.range, swing.halfAngle, strong),
+      onSwing: (swing, strong) => {
+        this.fx.slashes.spawn(this.hero.object.position, this.hero.facing, swing.range, swing.halfAngle, strong)
+        this.audio.play('swing', undefined, strong ? 1 : 0.7)
+      },
       onHits: (hits) => this.damage.onHeroHits(hits),
     })
     this.relics.update(dt)
@@ -517,6 +597,7 @@ export class Game {
     this.growth.update(dt)
     this.life.update(dt)
     this.appearance.update()
+    this.sound.update()
 
     const position = this.hero.object.position
     this.fx.update(dt, this.hero, this.elapsed)
@@ -536,7 +617,9 @@ export class Game {
       impact: (x, z, strength, ice) => {
         this.fx.impact(x, z, strength, ice)
         this.view.shake(strength)
+        this.audio.play('impact', { x, z }, Math.min(1, 0.4 + strength))
       },
+      warn: (x, z) => this.audio.play('telegraph', { x, z }),
     })
     for (const giant of shattered) {
       this.fx.shatter(giant)
@@ -624,7 +707,7 @@ export class Game {
     const next = clampViewHeight(this.view.viewHeight * (e.deltaY > 0 ? 1.1 : 1 / 1.1))
     if (next === this.view.viewHeight) return
     this.setViewHeight(next)
-    settingsStorage.save({ viewHeight: next })
+    this.settings = settingsStorage.update({ viewHeight: next })
   }
 
   /** 확대·축소. 그림자가 그려지는 범위도 보이는 범위에 맞춘다. */

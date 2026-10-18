@@ -94,6 +94,7 @@ describe('데이터에만 넣은 시험용 유물', () => {
       puffs: new Puffs(8),
       hit: (target, damage, dirX, dirZ, knockback) => void target.takeHit(damage, dirX, dirZ, knockback),
       shake: () => {},
+      sound: () => {},
       setDecoy: () => {},
     }
     const hit = { targets: [near], comboIndex: 0, comboLength: 3, finisher: false }

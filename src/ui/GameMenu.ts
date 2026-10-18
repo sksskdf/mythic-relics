@@ -96,6 +96,8 @@ export interface MenuHost {
   readonly cycle: CycleHost
   /** 저장하고 처음 화면(슬롯 고르기)으로 */
   toTitle(): void
+  /** 설정을 연다 (일시 정지 메뉴) */
+  openSettings(): void
 }
 
 /** 능력치 그림의 밝은 색과 어두운 색 */
@@ -202,11 +204,17 @@ export class GameMenu {
       }, 2500)
     })
     this.hintOn(home, '처음 화면\n지금까지를 저장하고 슬롯 고르기 화면으로 돌아간다')
+    const gear = el('button', 'menu__gear')
+    gear.type = 'button'
+    gear.setAttribute('aria-label', '설정')
+    gear.append(img(glyph('gear', '#b9c3cf', '#5d6876')))
+    gear.addEventListener('click', () => host.openSettings())
+    this.hintOn(gear, '설정\n음량, 화면 흔들림·번쩍임, 해상도')
     const close = el('button', 'menu__close', '×')
     close.type = 'button'
     close.setAttribute('aria-label', '닫기')
     close.addEventListener('click', () => this.toggle(false))
-    head.append(tabs, home, close)
+    head.append(tabs, home, gear, close)
     this.body = el('div', 'menu__body')
     frame.append(head, this.body, this.hint)
     this.window.append(frame)
@@ -215,9 +223,6 @@ export class GameMenu {
       if (e.target === this.window) this.toggle(false)
     })
     this.window.addEventListener('wheel', (e) => e.stopPropagation())
-    addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && this.open) this.toggle(false)
-    })
     this.body.addEventListener('scroll', () => (this.hint.hidden = true))
     this.wardrobe = new WardrobePane(host.wardrobe, (target, text) => this.hintOn(target, text))
     parent.append(this.button, this.window)

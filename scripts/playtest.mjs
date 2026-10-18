@@ -1,6 +1,7 @@
 // 자동 플레이 검증: 봇이 이동 명령만으로 처음부터 승급까지 플레이하고, 걸린 시간과 흐름을 기록한다.
 // 사용법: npm run build && node scripts/playtest.mjs [반복 횟수=3] [제한 시간(분)=45]
 // --gate 를 붙이면 승급하지 못했거나 오류가 난 판이 있을 때 실패로 끝난다. (CI)
+// --loops=N 을 붙이면 봇이 단련하고 윤회까지 하며, 윤회 N번이 될 때까지 회차마다 걸린 시간을 잰다. (순환 성장 곡선)
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { chromium } from 'playwright-core'
@@ -9,6 +10,7 @@ const args = process.argv.slice(2).filter((a) => !a.startsWith('--'))
 const GATE = process.argv.includes('--gate')
 const RUNS = Number(args[0] ?? 3)
 const LIMIT_MIN = Number(args[1] ?? 45)
+const LOOPS = Number(process.argv.find((a) => a.startsWith('--loops='))?.slice(8) ?? 0)
 /** 기록할 유물: 데이터 파일에 있는 유물 전부 */
 const RELIC_IDS = Object.keys(JSON.parse(readFileSync(new globalThis.URL('../src/data/relics.json', import.meta.url), 'utf8')))
 const PORT = 4183
@@ -48,15 +50,17 @@ try {
     page.on('pageerror', (e) => errors.push(e.message))
     await page.goto(URL)
     await page.waitForFunction(() => window.__autoplay && window.__game.frame > 2, null, { timeout: 30000 })
+    if (LOOPS > 0) await page.evaluate(() => (window.__autoplay.cycle = true))
     let done = false
     while (!done) {
       const state = await page.evaluate(() => {
         window.__autoplay.run(30)
         const g = window.__game
-        return { t: g.time, promoted: g.progress.level('thor') >= 2 }
+        return { t: g.time, promoted: g.progress.level('thor') >= 2, rebirths: window.__autoplay.rebirths.length }
       })
-      done = state.promoted || state.t > LIMIT_MIN * 60
+      done = (LOOPS > 0 ? state.rebirths >= LOOPS : state.promoted) || state.t > LIMIT_MIN * 60
     }
+    const rebirths = await page.evaluate(() => [...window.__autoplay.rebirths])
     const log = await page.evaluate(() => window.__game.log)
     const first = (type, detail) => log.find((e) => e.type === type && (detail === undefined || e.detail === detail))?.t
     const count = (type) => log.filter((e) => e.type === type).length
@@ -73,6 +77,7 @@ try {
       damageTaken: log.filter((e) => e.type === 'hurt').reduce((s, e) => s + Number(e.detail), 0),
       legendFails: count('legendFail'),
       end: log.at(-1)?.t,
+      rebirths,
       errors,
       log,
     }
@@ -81,6 +86,7 @@ try {
       `#${run} 승급 ${fmt(result.promote)} | 발현 ${fmt(result.manifest)} | 거인 왕 ${fmt(result.bossKill)} | ` +
         `유물 ${Object.entries(result.relics).map(([k, v]) => `${k} ${fmt(v)}`).join(', ')} | ` +
         `처치 ${result.kills}, 쓰러짐 ${result.deaths}, 피격 ${result.hurt}, 전설 실패 ${result.legendFails}` +
+        (LOOPS > 0 ? ` | 윤회 ${rebirths.map((t, i) => fmt(t - (rebirths[i - 1] ?? 0))).join(' → ')}` : '') +
         (errors.length ? ` | 오류 ${errors.length}` : ''),
     )
     await page.close()

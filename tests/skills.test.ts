@@ -42,6 +42,7 @@ function setup(enemies: CombatTarget[]) {
       target.takeHit(damage, dirX, dirZ, knockback)
     },
     shake: () => {},
+    sound: () => {},
     setDecoy: (d) => decoys.push(d),
   }
   return { hero, fx, ctx, decoys }
