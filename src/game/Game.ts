@@ -109,6 +109,8 @@ export class Game {
   playing = true
   /** 개발 패널: 게임 시간 배속 (0이면 멈춤) */
   timeScale = 1
+  /** 개발 패널의 지도 편집기 (E7-01). 켜 있으면 땅을 누르는 것이 이동 대신 편집이 된다 */
+  mapEditor: { active: boolean; update(cursor: { x: number; z: number } | null, pressed: boolean): void } | null = null
 
   private readonly ctx: GameContext
   private readonly stage: Stage
@@ -647,7 +649,12 @@ export class Game {
     this.time += dt
 
     // 이동: 클릭 → 지시 → 걷기 (적을 무시한 이동이면 졸개를 밀고 지나간다)
-    if (live) this.playerInput.update()
+    if (live) {
+      if (this.mapEditor?.active) {
+        const cursor = this.playerInput.cursorOnGround()
+        this.mapEditor.update(cursor ? { x: cursor.x, z: cursor.z } : null, this.input.wasPressed('move'))
+      } else this.playerInput.update()
+    }
     this.orders.update(this.encounter.alive)
     const heading = this.hero.heading
     if (this.orders.plowing && heading) plowThrough(this.hero.object.position, HERO_RADIUS, heading, this.encounter.alive)

@@ -159,3 +159,13 @@
   background: #1f6fa6;
   border-color: #7fd4ff;
 }
+.devpanel__label {
+  font: var(--t-small);
+  color: var(--c-ink-3);
+  padding-right: 4px;
+}
+.devpanel__hint {
+  margin: 0;
+  font: var(--t-small);
+  color: var(--c-ink-3);
+}
