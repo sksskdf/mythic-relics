@@ -288,7 +288,9 @@ export class DevPanel {
     const go = (place: string) => {
       const spots = g.encounter.spots
       if (place === 'start') g.devTeleport(g.region.spawn.x, g.region.spawn.z)
-      else if (place === 'boss') g.devTeleport(spots.boss.x - 7, spots.boss.z + 7)
+      else if (place === 'boss') {
+        if (spots.boss) g.devTeleport(spots.boss.x - 7, spots.boss.z + 7)
+      }
       else if (place === 'sanctuary') g.devTeleport(g.legend.center.x + 4, g.legend.center.z + 4)
       else {
         const camp = spots.camps[Number(place.slice(4))]

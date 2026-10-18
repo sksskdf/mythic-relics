@@ -11,12 +11,6 @@ const THINK = 0.25
 /** 예고 범위에서 이만큼 더 떨어져야 안전하다고 본다. */
 const MARGIN = 0.7
 /** 싸울 상대가 없을 때 돌아다니는 길 (사람이 적을 찾아 맵을 둘러보는 것처럼) */
-const PATROL: Point2[] = [
-  { x: 0, z: 0 },
-  { x: 6, z: -8 },
-  { x: -8, z: -6 },
-  { x: -4, z: 8 },
-]
 
 /**
  * 자동 플레이 검증용 봇.
@@ -67,6 +61,28 @@ export class Autoplayer {
     }
   }
 
+  /** 가야 할 필드 (E7): 승급할 때가 된 신의 땅, 한 신만 쓰면 그 신의 땅, 아니면 지금 필드(마을이면 미드가르드) */
+  private wantRegion(): string {
+    const { powers, progress, region, regions } = this.game
+    const fieldOf = (god: God) => Object.values(regions).find((r) => r.realm === godDef(god).realm)?.id
+    const manifested = powers.manifested
+    if (manifested && godDef(manifested).legend && progress.readyToPromote(manifested)) return fieldOf(manifested) ?? region.id
+    if (this.god) return fieldOf(this.god) ?? region.id
+    return region.kind === 'field' ? region.id : 'midgard'
+  }
+
+  /** 다른 지역으로 가야 하면 출구로 걷는다 (마을을 거쳐 간다). 걸었으면 true */
+  private travel(): boolean {
+    const { region, hero, legend } = this.game
+    if (legend.active) return false
+    const want = this.wantRegion()
+    if (want === region.id) return false
+    const exit = region.exits.find((e) => e.to === want) ?? region.exits.find((e) => this.game.regions[e.to]?.kind === 'hub')
+    if (!exit) return false
+    if (!hero.isMoving || dist(hero.object.position, exit) > 1) hero.moveTo(exit)
+    return true
+  }
+
   private think(): void {
     const { hero, combat, encounter, pickups, legend, progress, powers } = this.game
     if (!combat.alive) return
@@ -114,14 +130,17 @@ export class Autoplayer {
       }
     }
 
-    // 4. 승급 준비가 되면 성소로 간다.
+    // 4. 다른 땅으로 가야 하면 출구로 (마을에서 시작하면 필드로, 승급할 때가 되면 그 신의 땅으로)
+    if (this.travel()) return
+
+    // 5. 승급 준비가 되면 성소로 간다.
     const manifested = powers.manifested
-    if (!legend.active && manifested && godDef(manifested).legend && progress.readyToPromote(manifested) && hp > 0.8) {
+    if (!legend.active && legend.present && manifested && godDef(manifested).legend && progress.readyToPromote(manifested) && hp > 0.8) {
       hero.moveTo(legend.center)
       return
     }
 
-    // 5. 싸울 상대를 고른다. 거인 왕은 유물이 둘 이상이고 생명력이 넉넉할 때만 건드린다.
+    // 6. 싸울 상대를 고른다. 거인 왕은 유물이 둘 이상이고 생명력이 넉넉할 때만 건드린다.
     const worn = powers.loadout.slots.filter((id) => id !== null).length
     const boss = encounter.boss
     const bossOk = worn >= 2 && hp > 0.6
@@ -134,7 +153,15 @@ export class Autoplayer {
     if (candidates.length === 0 && hp > 0.6) candidates = enemies.filter((g) => g !== boss)
     const target = nearest(candidates, here)
     if (!target) {
-      const point = PATROL[this.patrol % PATROL.length]!
+      // 적이 없으면 무리 자리 근처를 돌며 다시 나타나기를 기다린다 (너무 붙으면 무리가 다시 나타나지 않는다)
+      const spawn = this.game.region.spawn
+      const patrol = encounter.spots.camps.map((c) => {
+        const len = dist(c, spawn) || 1
+        const k = Math.min(1, 11 / len)
+        return { x: c.x + (spawn.x - c.x) * k, z: c.z + (spawn.z - c.z) * k }
+      })
+      if (patrol.length === 0) return
+      const point = patrol[this.patrol % patrol.length]!
       if (dist(here, point) < 2) this.patrol += 1
       else if (!hero.isMoving) hero.moveTo(point)
       return

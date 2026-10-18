@@ -221,6 +221,28 @@ try {
   if ((await page.evaluate(() => window.__game.hero.rig.outfit.weapon)) !== 'shortSword') throw new Error('외형: 보관함 선택이 적용되지 않습니다.')
   console.log('유물·외형 확인: 메긴교르드 줍기, 토르 유물 3개로 발현, 부위별 외형과 보관함 (test-results/look-*.png)')
 
+  // 지역 (E7): 새로 시작하면 마을. 마을 사람 곁에 가면 말풍선, 출구를 밟으면 암전 뒤 그 땅으로 넘어간다.
+  if ((await page.evaluate(() => window.__game.region.id)) !== 'village') throw new Error('지역: 새로 시작했는데 마을이 아닙니다.')
+  if (await page.evaluate(() => window.__game.encounter.boss !== null)) throw new Error('지역: 마을에 보스가 있습니다.')
+  await page.evaluate(() => {
+    const g = window.__game
+    g.encounter.clearAll()
+    const elder = g.region.npcs[0]
+    g.devTeleport(elder.x + 1.5, elder.z + 1.5)
+  })
+  await page.waitForFunction(() => window.__game.villagers.talking.length > 0, null, { timeout: 15000 })
+  const bubble = await page.locator('.npc-bubble:not([hidden])').first().textContent()
+  if (!bubble) throw new Error('지역: 마을 사람 말풍선이 비었습니다.')
+  if (!(await page.locator('.minimap').isVisible())) throw new Error('지역: 작은 지도가 보이지 않습니다.')
+  await page.evaluate(() => window.__game.devTeleport(0, -16))
+  await page.waitForTimeout(300)
+  await page.evaluate(() => window.__game.devTeleport(0, -22))
+  await page.waitForFunction(() => window.__game.region.id === 'midgard', null, { timeout: 15000 })
+  const arrived = await page.evaluate(() => ({ ...window.__game.hero.object.position }))
+  if (Math.hypot(arrived.x, arrived.z - 32) > 2) throw new Error(`지역: 미드가르드의 마을 쪽 출구 앞에 서야 합니다 ${JSON.stringify(arrived)}`)
+  await page.waitForFunction(() => getComputedStyle(document.querySelector('.region-fade')).opacity === '0', null, { timeout: 15000 })
+  console.log(`지역 확인: 마을에서 시작, 말풍선 「${bubble}」, 작은 지도, 출구를 밟아 미드가르드로`)
+
   // 승급 전설 점검: 경험치 바를 채우고 성소에 서면 「우트가르드 원정」이 시작된다.
   await page.evaluate(() => {
     const g = window.__game
@@ -240,7 +262,8 @@ try {
   const restored = await page.evaluate(() => window.__game.powers.loadout.has('megingjord'))
   if (!restored) throw new Error('이어서 플레이 실패: 저장한 유물이 없습니다.')
   if ((await page.evaluate(() => window.__game.hero.rig.outfit.weapon)) !== 'shortSword') throw new Error('이어서 플레이 실패: 고른 외형이 없습니다.')
-  console.log('저장 확인: 새로 고침하면 단추 없이 바로 이어서, 유물과 고른 외형 유지')
+  if ((await page.evaluate(() => window.__game.region.id)) !== 'midgard') throw new Error('이어서 플레이 실패: 있던 지역(미드가르드)이 아닙니다.')
+  console.log('저장 확인: 새로 고침하면 단추 없이 바로 이어서, 유물과 고른 외형, 있던 지역 유지')
 
   // 처음 화면으로: 정보 화면의 단추를 두 번 누르면 저장하고 슬롯 고르기로 돌아가고, 그 슬롯을 누르면 이어 간다.
   await page.click('.menu-button')
@@ -253,7 +276,7 @@ try {
   console.log('처음 화면 확인: 정보 화면에서 처음 화면으로, 슬롯을 골라 그대로 이어 감')
 
   // 개발 패널: ?dev 로 열고 단추로 유물·적·전설을 바로 바꿔 본다.
-  await page.goto(`${URL}?dev`)
+  await page.goto(`${URL}?dev&region=midgard`)
   await page.waitForSelector('.devpanel button', { timeout: 15000 })
   const devTab = (name) => page.locator('.devpanel__tab', { hasText: name }).click()
   const devButton = (label) => page.locator('.devpanel__page:not([hidden])').getByRole('button', { name: label, exact: true })

@@ -37,9 +37,12 @@ function sequence(...values: number[]) {
 }
 
 describe('유물 드랍', () => {
-  it('거인 왕은 묠니르가 없으면 반드시 떨어뜨린다', () => {
+  it('거인 왕은 묠니르가 없으면 반드시 떨어뜨린다 (북유럽 땅에서만)', () => {
     const drops = new DropTable(sequence(0.99))
     expect(drops.roll(new Set(), 'giantKing')).toBe('mjolnir')
+    const greek = new DropTable(sequence(0.99))
+    greek.realm = 'greek'
+    expect(greek.roll(new Set(), 'giantKing')).not.toBe('mjolnir')
   })
 
   it('이미 가진 유물은 나오지 않는다', () => {

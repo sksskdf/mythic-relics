@@ -20,7 +20,8 @@ const BOSS_RESPAWN = 45
 
 export interface EncounterLayout {
   camps: { x: number; z: number; count: number }[]
-  boss: { x: number; z: number }
+  /** 보스 자리 (마을처럼 보스가 없는 지역은 null) */
+  boss: { x: number; z: number } | null
 }
 
 type WorldBase = Omit<GiantWorld, 'nav' | 'giants' | 'summon'>
@@ -34,7 +35,7 @@ export class Encounter {
   boss: Giant | null = null
 
   private camps: Camp[] = []
-  private bossHome: Point2 = { x: 0, z: 0 }
+  private bossHome: Point2 | null = null
   private bossRespawn = 0
   private readonly navs = new Map<GiantSpec, NavGrid>()
   private seed = 1
@@ -63,7 +64,7 @@ export class Encounter {
       giants: [],
       respawn: CAMP_RESPAWN,
     }))
-    this.bossHome = this.navs.get(KING)!.nearestFree(layout.boss) ?? layout.boss
+    this.bossHome = layout.boss ? (this.navs.get(KING)!.nearestFree(layout.boss) ?? layout.boss) : null
     this.bossRespawn = 0
     for (const camp of this.camps) this.fillCamp(camp)
     this.spawnBoss()
@@ -111,7 +112,7 @@ export class Encounter {
   }
 
   /** 무리와 보스가 처음 있던 곳 (개발 패널의 순간이동용) */
-  get spots(): { camps: Point2[]; boss: Point2 } {
+  get spots(): { camps: Point2[]; boss: Point2 | null } {
     return { camps: this.camps.map((c) => c.center), boss: this.bossHome }
   }
 
@@ -180,7 +181,7 @@ export class Encounter {
   }
 
   private spawnBoss(): void {
-    this.boss = this.addGiant(KING, this.bossHome)
+    this.boss = this.bossHome ? this.addGiant(KING, this.bossHome) : null
   }
 
   private cleanUp(dt: number, hero: { x: number; z: number }): void {
@@ -208,7 +209,7 @@ export class Encounter {
     }
     if (!this.boss) {
       this.bossRespawn -= dt
-      if (this.bossRespawn <= 0 && far(this.bossHome)) this.spawnBoss()
+      if (this.bossHome && this.bossRespawn <= 0 && far(this.bossHome)) this.spawnBoss()
     }
   }
 }

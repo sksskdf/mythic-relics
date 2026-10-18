@@ -169,8 +169,8 @@ export class RegionEditor {
       this.markers.add(mesh)
     }
     at(ring(0.8, MARK.spawn), d.spawn)
-    at(ring(d.sanctuary.radius, MARK.sanctuary), d.sanctuary)
-    at(pillar(MARK.boss, 3), d.boss)
+    if (d.sanctuary) at(ring(d.sanctuary.radius, MARK.sanctuary), d.sanctuary)
+    if (d.boss) at(pillar(MARK.boss, 3), d.boss)
     for (const c of d.camps) {
       at(ring(2.2, MARK.camp), c)
       for (let i = 0; i < c.count; i++) at(pillar(MARK.camp, 0.8), { x: c.x + Math.sin((i / c.count) * Math.PI * 2) * 2.2, z: c.z + Math.cos((i / c.count) * Math.PI * 2) * 2.2 })
@@ -178,7 +178,7 @@ export class RegionEditor {
     for (const e of d.exits) at(pillar(MARK.exit, 4), e)
     if (this.picked) {
       const s = 'single' in this.picked ? d[this.picked.single] : d[this.picked.list][this.picked.index]!
-      at(ring(1.2, MARK.picked), s)
+      if (s) at(ring(1.2, MARK.picked), s)
     }
   }
 }

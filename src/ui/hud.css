@@ -423,3 +423,46 @@ button.hud__slot--empty {
 .hud__essence[hidden] {
   display: none;
 }
+
+/* 지역을 넘어갈 때의 암전 (E7-02) */
+.region-fade {
+  position: absolute;
+  inset: 0;
+  background: var(--c-bg-1);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 40;
+}
+
+/* 마을 사람의 말풍선 (E7-04) */
+.npc-bubble {
+  position: absolute;
+  left: 0;
+  top: 0;
+  max-width: 220px;
+  padding: var(--sp-2) var(--sp-4);
+  background: var(--c-bg-2);
+  border: 1px solid var(--c-line-2);
+  color: var(--c-ink-1);
+  font: var(--t-body);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 20;
+}
+
+/* 작은 지도 (E7-08): 메뉴 단추 아래. 64픽셀로 그려 두 배로 키운다 */
+.minimap {
+  --unit: clamp(4px, 0.9vh, 10px);
+  position: fixed;
+  top: calc(var(--unit) * 10);
+  right: calc(var(--unit) * 2);
+  width: 128px;
+  height: 128px;
+  image-rendering: pixelated;
+  background: var(--c-bg-0);
+  box-shadow: 0 0 0 2px var(--c-groove);
+  pointer-events: none;
+}
+.devmode .minimap {
+  right: calc(300px + clamp(4px, 0.9vh, 10px) * 2 + 8px);
+}

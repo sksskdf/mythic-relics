@@ -75,6 +75,7 @@ async function boot(): Promise<Game> {
     title: showTitle,
     renderHeight: resParam > 0 ? resParam : undefined,
     viewHeight: viewParam > 0 ? viewParam : undefined,
+    region: params.get('region') ?? undefined,
   })
   game.start()
   ;(window as unknown as { __game: Game }).__game = game

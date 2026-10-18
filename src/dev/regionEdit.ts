@@ -6,7 +6,7 @@ import { PROP_KINDS, type PropKind, type RegionDef, type Spot } from '../data/re
  */
 
 /** 지역 데이터를 고칠 수 있는 모양 (검사 전 JSON) */
-export type RegionDraft = Omit<RegionDef, 'id'>
+export type RegionDraft = Omit<RegionDef, 'id' | 'sanctuary' | 'boss'> & { sanctuary?: RegionDef['sanctuary']; boss?: RegionDef['boss'] }
 
 /** 편집 도구: 소품 종류 하나씩, 그리고 무리·보스·성소·시작점·연못·출구, 지우기·옮기기 */
 export type EditTool = PropKind | 'camp' | 'boss' | 'sanctuary' | 'spawn' | 'pond' | 'exit' | 'erase' | 'move'
@@ -22,6 +22,22 @@ export const TOOL_NAMES: Readonly<Record<EditTool, string>> = {
   bush: '덤불',
   runestone: '룬스톤',
   brazier: '화로',
+  olive: '올리브 나무',
+  cypress: '사이프러스',
+  column: '대리석 기둥',
+  peach: '복숭아나무',
+  spire: '기암',
+  bamboo: '대숲',
+  cherry: '벚나무',
+  torii: '도리이',
+  lantern: '석등',
+  maple: '단풍나무',
+  cairn: '돌탑',
+  jangseung: '장승',
+  house: '집',
+  campfire: '모닥불',
+  well: '우물',
+  fence: '울타리',
   camp: '졸개 무리',
   boss: '보스 자리',
   sanctuary: '성소',
@@ -66,7 +82,7 @@ export function place(draft: RegionDraft, tool: EditTool, x: number, z: number, 
       draft[tool] = at
       return true
     case 'sanctuary':
-      draft.sanctuary = { ...at, radius: draft.sanctuary.radius }
+      draft.sanctuary = { ...at, radius: draft.sanctuary?.radius ?? 10 }
       return true
     case 'erase':
     case 'move':
@@ -77,8 +93,8 @@ export function place(draft: RegionDraft, tool: EditTool, x: number, z: number, 
   }
 }
 
-function spotOf(draft: RegionDraft, ref: ItemRef): Spot {
-  return 'single' in ref ? draft[ref.single] : draft[ref.list][ref.index]!
+function spotOf(draft: RegionDraft, ref: ItemRef): Spot | null {
+  return 'single' in ref ? (draft[ref.single] ?? null) : draft[ref.list][ref.index]!
 }
 
 /** (x, z)에서 within m 안의 가장 가까운 것. 소품보다 무리·보스 같은 표지를 먼저 고른다 */
@@ -87,6 +103,7 @@ export function nearestItem(draft: RegionDraft, x: number, z: number, within = 2
   let bestDist = within
   const consider = (ref: ItemRef, bias = 0) => {
     const s = spotOf(draft, ref)
+    if (!s) return
     const d = Math.hypot(s.x - x, s.z - z) - bias
     if (d < bestDist) {
       best = ref
@@ -110,6 +127,7 @@ export function eraseNear(draft: RegionDraft, x: number, z: number, within = 2):
 /** 가리킨 것을 (x, z)로 옮긴다 */
 export function moveItem(draft: RegionDraft, ref: ItemRef, x: number, z: number): void {
   const s = spotOf(draft, ref)
+  if (!s) return
   s.x = round(x)
   s.z = round(z)
 }

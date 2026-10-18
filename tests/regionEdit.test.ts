@@ -31,7 +31,7 @@ describe('지도 편집', () => {
 
   it('시작점·보스·성소는 하나뿐이라 누르면 그리로 옮긴다 (성소 반지름은 그대로)', () => {
     const d = draft()
-    const radius = d.sanctuary.radius
+    const radius = d.sanctuary!.radius
     place(d, 'boss', 10, -30, options)
     place(d, 'sanctuary', -10, 25, options)
     place(d, 'spawn', 2, 3, options)
@@ -72,9 +72,9 @@ describe('지도 편집', () => {
   it('편집한 지역도 지역 검사를 거친다: 시작점 옆에 소품을 놓으면 검사에서 걸린다', () => {
     const d = draft()
     place(d, 'pine', d.spawn.x + 1, d.spawn.z, options)
-    expect(() => parseRegions({ midgard: d })).toThrow(/시작점/)
+    expect(() => parseRegions({ ...RAW_REGIONS, midgard: d })).toThrow(/시작점/)
     const ok = draft()
     place(ok, 'pine', 20, 20, options)
-    expect(parseRegions({ midgard: ok }).midgard!.props).toHaveLength(ok.props.length)
+    expect(parseRegions({ ...RAW_REGIONS, midgard: ok }).midgard!.props).toHaveLength(ok.props.length)
   })
 })

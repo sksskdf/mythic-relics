@@ -3,6 +3,7 @@ import { PER_PROMOTION } from '../../progress/ClassProgress'
 import { levelGains } from '../../progress/levelGains'
 import { classIcon } from '../../ui/classIcons'
 import { type God, godDef, type RelicId } from '../../relics/data'
+import type { LegendKind } from '../../data/classKit'
 import type { GameContext } from '../context'
 import { godMoment } from './godMoments'
 
@@ -23,16 +24,32 @@ export class ProgressionSystem {
     ctx.bus.on('giantKilled', ({ giant }) => this.onGiantKilled(giant))
   }
 
+  /** 지금 이 지역 성소에서 열 수 있는 승급 전설 (없으면 null) */
+  readyKind(): LegendKind | null {
+    const { powers, progress } = this.ctx
+    const god = powers.manifested
+    const legend = god ? godDef(god).legend : undefined
+    if (!god || !legend || !progress.readyToPromote(god)) return null
+    // 지역 성소는 그 신화권 클래스의 전설만 연다 (E7-07)
+    const realm = this.ctx.map.region.realm
+    if (realm && godDef(god).realm !== realm) return null
+    return legend.kind
+  }
+
+  /** 성소가 열려 있다 (지도에 깜빡임) */
+  get sanctuaryOpen(): boolean {
+    return this.readyKind() !== null
+  }
+
   /** 승급 전설: 성소에 들어서면 시작하고, 이기면 승급한다. */
   update(dt: number): void {
-    const { legend, encounter, powers, progress, combat, hero, hud, view, bus } = this.ctx
+    const { legend, encounter, powers, combat, hero, hud, view, bus } = this.ctx
     legend.update(dt, encounter, {
       ready: () => {
         const god = powers.manifested
-        const legend = god ? godDef(god).legend : undefined
-        if (!god || !legend || !progress.readyToPromote(god)) return null
-        this.challenger = god
-        return legend.kind
+        const kind = this.readyKind()
+        if (god && kind) this.challenger = god
+        return kind
       },
       heroAlive: () => combat.alive,
       heroPosition: () => hero.object.position,

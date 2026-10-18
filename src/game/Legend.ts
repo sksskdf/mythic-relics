@@ -79,6 +79,8 @@ export class UtgardLegend {
   center: Point2 = { x: 0, z: 0 }
   /** 결계 반지름 */
   radius = 0
+  /** 이 지역에 성소가 있나 (마을에는 없다) */
+  present = true
 
   constructor(center: Point2, radius: number) {
     // 둥글게 선 룬스톤 여섯 개와 바닥의 룬 고리
@@ -106,9 +108,12 @@ export class UtgardLegend {
     this.moveTo(center, radius)
   }
 
-  /** 성소를 옮긴다 (지역을 바꾸거나 편집기로 옮길 때). 진행 중인 전설이 있으면 옮기지 않는다 */
-  moveTo(center: Point2, radius: number): void {
+  /** 성소를 옮긴다 (지역을 바꾸거나 편집기로 옮길 때). null이면 이 지역에는 성소가 없다. 진행 중인 전설이 있으면 옮기지 않는다 */
+  moveTo(center: Point2 | null, radius = 0): void {
     if (this.active) return
+    this.present = center !== null
+    this.object.visible = this.present
+    if (!center) return
     this.center = { x: center.x, z: center.z }
     this.radius = radius
     const y = heightAt(center.x, center.z)
@@ -140,7 +145,7 @@ export class UtgardLegend {
 
   update(dt: number, encounter: Encounter, host: LegendHost): void {
     this.time += dt
-    const kind = host.ready()
+    const kind = this.present ? host.ready() : null
     const ready = kind !== null
     // 들어갈 수 있을 때만 빛기둥이 서고 룬이 밝게 빛난다. (글 대신 빛으로 알려 준다)
     const pulse = 0.5 + Math.sin(this.time * 3) * 0.5
