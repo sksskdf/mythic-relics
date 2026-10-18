@@ -1,5 +1,7 @@
 import { DATA } from '../data'
+import type { Realm } from '../data/schema'
 import { type God, godDef, RELIC_IDS, relicDef, type RelicId } from './data'
+import { relicGods } from './model'
 
 /** 보스마다 반드시 떨어뜨리는 유물 (DESIGN.md 9.3). 적 데이터의 fixedDrop에서 모은다. */
 export const BOSS_RELICS: Readonly<Record<string, RelicId>> = Object.fromEntries(
@@ -15,9 +17,11 @@ export interface DropTuning {
   pity: number
   /** 이미 가진 같은 신 유물 1개마다 더하는 가중치 (발현까지의 운 차이를 줄인다) */
   sameGod: number
+  /** 지금 지역과 다른 신화권 유물의 가중치 배율 (다른 땅에서 흘러온 유물, E6-18) */
+  foreign: number
 }
 
-export const DEFAULT_DROPS: DropTuning = { base: 0.015, boss: 0.7, pity: 0.01, sameGod: 2 }
+export const DEFAULT_DROPS: DropTuning = { base: 0.015, boss: 0.7, pity: 0.01, sameGod: 2, foreign: 0.04 }
 
 /**
  * 유물 드랍 규칙. (DESIGN.md 9.3)
@@ -25,10 +29,13 @@ export const DEFAULT_DROPS: DropTuning = { base: 0.015, boss: 0.7, pity: 0.01, s
  * - 나머지는 무작위. 이미 가진 유물(땅에 떨어진 것 포함)은 나오지 않는다.
  * - 불운 보정: 유물이 안 나올수록 확률이 오르고, 나오면 처음으로 돌아간다.
  * - 이미 유물을 가진 신의 남은 유물이 더 잘 나온다. (그 신 유물 1개마다 가중치 +sameGod) 발현까지의 운 차이를 줄인다.
+ * - 지금 지역의 신화권 유물이 주로 나오고, 다른 신화권 유물은 드물게 섞인다. (가중치 × foreign, DESIGN.md 9.3)
  */
 export class DropTable {
   /** 마지막으로 유물이 나온 뒤 놓친 횟수 */
   misses = 0
+  /** 지금 있는 지역의 신화권 (E7에서 지역마다 바뀐다. 지금은 북유럽 설원뿐) */
+  realm: Realm = 'norse'
 
   constructor(
     private readonly rng: () => number = Math.random,
@@ -65,8 +72,12 @@ export class DropTable {
     }
     this.misses = 0
     const owners = new Map<God, number>()
-    for (const id of owned) owners.set(relicDef(id).god, (owners.get(relicDef(id).god) ?? 0) + 1)
-    const weights = candidates.map((id) => 1 + (owners.get(relicDef(id).god) ?? 0) * this.tuning.sameGod)
+    for (const id of owned) for (const god of relicGods(relicDef(id))) owners.set(god, (owners.get(god) ?? 0) + 1)
+    const weights = candidates.map((id) => {
+      const def = relicDef(id)
+      const local = godDef(def.god).realm === this.realm ? 1 : this.tuning.foreign
+      return local * (1 + (owners.get(def.god) ?? 0) * this.tuning.sameGod)
+    })
     let pick = this.rng() * weights.reduce((a, b) => a + b, 0)
     for (let i = 0; i < candidates.length; i++) {
       pick -= weights[i]!

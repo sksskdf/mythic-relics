@@ -1,14 +1,15 @@
 import type * as THREE from 'three'
 
-import { godDef, relicDef, type RelicId } from '../relics/data'
+import { type God, godDef, relicDef, type RelicId } from '../relics/data'
 import { Loadout, type LoadoutState } from '../relics/Loadout'
 import { createEffect } from '../skills'
 import { type BasicHit, type Modifiers, NO_MODIFIERS, type RelicEffect, type SkillContext } from '../skills/Skill'
 import type { CombatTarget } from './PlayerCombat'
 import { ClassPassives } from '../skills/ClassPassives'
-import { createUltimates, type Ultimate } from '../skills/Ultimate'
+import { createUltimate, type Ultimate } from '../skills/Ultimate'
 import type { HudSlot } from '../ui/Hud'
 import { pixelIcon } from '../ui/pixelIcon'
+import { relicIconRows } from '../relics/model'
 
 /** 장착이 바뀐 결과: 발현이 새로 일어났거나 풀렸는지 */
 export interface LoadoutChange {
@@ -24,9 +25,9 @@ export interface LoadoutChange {
 export class RelicPowers {
   readonly loadout = new Loadout()
   readonly effects: (RelicEffect | null)[]
-  /** 궁극기들: 발현한 신의 것만 새로 나가고, 이미 나간 것은 끝까지 돈다 */
-  private readonly ultimates = createUltimates()
-  /** 프레임마다 도는 발현 패시브 (폭풍, 그림자 분신) */
+  /** 궁극기들 (신마다 하나, 처음 발현할 때 만든다): 발현한 신의 것만 새로 나가고, 이미 나간 것은 끝까지 돈다 */
+  private readonly ultimates = new Map<God, Ultimate>()
+  /** 프레임마다 도는 발현 패시브 부품 (src/skills/ClassPassives.ts) */
   readonly classPassives: ClassPassives
   state: LoadoutState
   private readonly icons = new Map<RelicId, string>()
@@ -37,15 +38,21 @@ export class RelicPowers {
     this.classPassives = new ClassPassives(fx)
   }
 
-  /** 지금 발현한 신의 궁극기 (발현하지 않았으면 천둥) */
-  get ultimate(): Ultimate {
+  /** 지금 발현한 신의 궁극기 (발현하지 않았으면 null) */
+  get ultimate(): Ultimate | null {
     const god = this.manifested
-    return this.ultimates[god ? godDef(god).ultimate : 'thunderJudgement']
+    if (!god) return null
+    let u = this.ultimates.get(god)
+    if (!u) {
+      u = createUltimate(godDef(god).ultimate)
+      this.ultimates.set(god, u)
+    }
+    return u
   }
 
   /** 궁극기 중 하나라도 도는 중인가 */
   get ultimateActive(): boolean {
-    return Object.values(this.ultimates).some((u) => u.active)
+    return [...this.ultimates.values()].some((u) => u.active)
   }
 
   get manifested() {
@@ -100,7 +107,7 @@ export class RelicPowers {
 
   update(dt: number, ctx: SkillContext): void {
     for (const effect of this.effects) effect?.update(dt, ctx)
-    for (const u of Object.values(this.ultimates)) u.update(dt, ctx)
+    for (const u of this.ultimates.values()) u.update(dt, ctx)
     this.classPassives.update(dt, ctx)
   }
 
@@ -141,7 +148,8 @@ export class RelicPowers {
   private icon(id: RelicId): string {
     let icon = this.icons.get(id)
     if (!icon) {
-      icon = pixelIcon(relicDef(id).icon, relicDef(id).colors)
+      const { rows, colors } = relicIconRows(relicDef(id))
+      icon = pixelIcon(rows, colors)
       this.icons.set(id, icon)
     }
     return icon

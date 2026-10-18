@@ -96,6 +96,10 @@ describe('데이터에만 넣은 시험용 유물', () => {
       shake: () => {},
       sound: () => {},
       slashes: { spawn: () => {} } as never,
+      shots: { fire: () => {} } as never,
+      flash: () => {},
+      heal: () => {},
+      heroHp: () => 1,
       setDecoy: () => {},
     }
     const hit = { targets: [near], comboIndex: 0, comboLength: 3, finisher: false }

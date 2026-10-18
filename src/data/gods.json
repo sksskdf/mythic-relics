@@ -8,11 +8,13 @@
       "거인의 재앙"
     ],
     "source": "flame",
+    "realm": "norse",
     "color": "#7fd4ff",
     "tree": {
       "column": 0,
       "row": 0
     },
+    "attack": "hammer",
     "passive": {
       "damageScale": 1.15,
       "basicLightning": {
@@ -27,23 +29,37 @@
         "finisherDamage": 14,
         "topJumps": 4
       },
-      "storm": {
+      "skyStrike": {
+        "name": "폭풍",
         "minLevel": 3,
         "interval": 2.4,
         "targets": 2,
         "radius": 6,
-        "damage": 10
+        "damage": 10,
+        "style": "lightning"
       }
+    },
+    "ultimate": {
+      "kind": "skyBarrage",
+      "name": "묠니르의 심판",
+      "color": "#7fd4ff",
+      "reach": 7,
+      "damage": 45,
+      "count": 8,
+      "radius": 1.6,
+      "interval": 0.16,
+      "style": "lightning"
     },
     "looks": {
       "head": "thorHelm",
       "torso": "thorTunic",
       "cape": "thorCape"
     },
-    "legend": "우트가르드 원정",
-    "mark": "thorStormHalo",
-    "ultimate": "thunderJudgement",
-    "attack": "hammer"
+    "legend": {
+      "name": "우트가르드 원정",
+      "kind": "boss"
+    },
+    "mark": "thorStormHalo"
   },
   "loki": {
     "name": "로키",
@@ -54,14 +70,19 @@
       "라그나로크의 불씨"
     ],
     "source": "wind",
+    "realm": "norse",
     "color": "#8fe07a",
     "tree": {
       "column": 1,
       "row": 0
     },
+    "attack": "twin",
     "passive": {
       "damageScale": 0.95,
-      "shadowClones": {
+      "companions": {
+        "name": "그림자 분신",
+        "look": "shadow",
+        "color": "#3f9a4e",
         "counts": [
           1,
           1,
@@ -76,15 +97,27 @@
         "burstDamage": 7
       }
     },
+    "ultimate": {
+      "kind": "legion",
+      "name": "환영 군단",
+      "color": "#8fe07a",
+      "reach": 8,
+      "damage": 30,
+      "count": 6,
+      "radius": 2.4,
+      "interval": 0.06,
+      "style": "shadow"
+    },
     "looks": {
       "head": "lokiCrown",
       "torso": "lokiTunic",
       "cape": "lokiCape"
     },
-    "mark": "lokiSerpents",
-    "legend": "대장장이들의 내기",
-    "ultimate": "illusionLegion",
-    "attack": "twin"
+    "legend": {
+      "name": "대장장이들의 내기",
+      "kind": "tally"
+    },
+    "mark": "lokiSerpents"
   },
   "asura": {
     "name": "아수라왕",
@@ -95,11 +128,13 @@
       "제석천에 맞선 왕"
     ],
     "source": "flame",
+    "realm": "hidden",
     "color": "#e0414f",
     "tree": {
       "column": 2,
       "row": 1
     },
+    "attack": "blade",
     "passive": {
       "damageScale": 1.1,
       "bladeStorm": {
@@ -109,14 +144,22 @@
         "perLevel": 1
       }
     },
+    "ultimate": {
+      "kind": "bladeDance",
+      "name": "육비난무",
+      "color": "#e0414f",
+      "reach": 5,
+      "damage": 12,
+      "count": 20,
+      "radius": 5,
+      "interval": 0.08
+    },
     "looks": {
       "torso": "asuraBladeArmor",
       "legs": "asuraBladeGreaves"
     },
     "mark": "asuraArms",
     "hidden": true,
-    "manifestCount": 4,
-    "ultimate": "bladeDance",
-    "attack": "blade"
+    "manifestCount": 4
   }
 }

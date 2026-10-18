@@ -3,6 +3,7 @@ import { lookDef, SLOT_NAMES } from '../looks/catalog'
 import { type God, godDef, RELIC_IDS, relicDef, type RelicId } from '../relics/data'
 import type { LoadoutState } from '../relics/Loadout'
 import { josa } from './josa'
+import { relicIconRows } from '../relics/model'
 import { pixelIcon } from './pixelIcon'
 
 /** 카드가 놓인 자리와 지금 상태. 없으면 도감처럼 정보만 보여 준다. */
@@ -68,7 +69,8 @@ const icons = new Map<string, string>()
 export function relicIcon(def: RelicDef): string {
   let icon = icons.get(def.id)
   if (!icon) {
-    icon = pixelIcon(def.icon, def.colors)
+    const { rows, colors } = relicIconRows(def)
+    icon = pixelIcon(rows, colors)
     icons.set(def.id, icon)
   }
   return icon

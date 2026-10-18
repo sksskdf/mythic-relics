@@ -2,7 +2,8 @@ import * as THREE from 'three'
 
 import { EFFECT_LAYER } from '../render/PixelRenderer'
 import { voxelMesh } from '../voxel/mesher'
-import { RELIC_MODELS, RELIC_VOXEL } from '../voxel/models/relics'
+import { RELIC_VOXEL } from '../voxel/models/relics'
+import { relicGrid } from './model'
 import { heightAt } from '../world/terrain'
 import { godDef, relicDef, type RelicId } from './data'
 
@@ -39,7 +40,7 @@ export class Pickups {
   drop(id: RelicId, x: number, z: number, armed = true): void {
     const root = new THREE.Group()
     root.position.set(x, heightAt(x, z), z)
-    const grid = RELIC_MODELS[relicDef(id).model]!()
+    const grid = relicGrid(relicDef(id))
     const model = voxelMesh(grid, { voxelSize: RELIC_VOXEL * 1.2 })
     model.position.y = 0.9
     root.add(model)

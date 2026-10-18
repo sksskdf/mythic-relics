@@ -3,7 +3,6 @@ import { PER_PROMOTION } from '../../progress/ClassProgress'
 import { levelGains } from '../../progress/levelGains'
 import { classIcon } from '../../ui/classIcons'
 import { type God, godDef, type RelicId } from '../../relics/data'
-import { LEGEND_KINDS } from '../Legend'
 import type { GameContext } from '../context'
 import { godMoment } from './godMoments'
 
@@ -30,10 +29,10 @@ export class ProgressionSystem {
     legend.update(dt, encounter, {
       ready: () => {
         const god = powers.manifested
-        const name = god ? godDef(god).legend : undefined
-        if (!god || !name || !progress.readyToPromote(god)) return null
+        const legend = god ? godDef(god).legend : undefined
+        if (!god || !legend || !progress.readyToPromote(god)) return null
         this.challenger = god
-        return LEGEND_KINDS[name] ?? 'utgard'
+        return legend.kind
       },
       heroAlive: () => combat.alive,
       heroPosition: () => hero.object.position,
@@ -43,7 +42,7 @@ export class ProgressionSystem {
       onStart: () => {
         bus.emit('legendStarted', {})
         const def = godDef(this.challenger!)
-        hud.showBanner(def.legend!, def.color)
+        hud.showBanner(def.legend!.name, def.color)
         view.shake(0.3)
       },
       onWin: () => this.challenger && this.promote(this.challenger),

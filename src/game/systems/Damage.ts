@@ -64,6 +64,10 @@ export class DamageSystem {
     }
     if (hits.length === 0) return
     bus.emit('basicHits', { targets: hits.map((h) => h.target) })
+    powers.classPassives.onBasicHit(
+      hits.map((h) => h.target),
+      skills,
+    )
     powers.onBasicHit(
       {
         targets: hits.map((h) => h.target),
@@ -106,7 +110,9 @@ export class DamageSystem {
         const dx = enemy.x - p.x
         const dz = enemy.z - p.z
         const len = Math.hypot(dx, dz) || 1
-        fx.slashes.spawn(new THREE.Vector3(enemy.x, heightAt(enemy.x, enemy.z), enemy.z), Math.random() * Math.PI * 2, 1 + Math.random() * 0.4, 0.8, false, i % 2 ? 0xff4a5a : 0xb0101c)
+        // 칼 색: 데이터의 color (없으면 검붉은 두 색을 번갈아)
+        const tint = storm.color ? new THREE.Color(storm.color).getHex() : 0xff4a5a
+        fx.slashes.spawn(new THREE.Vector3(enemy.x, heightAt(enemy.x, enemy.z), enemy.z), Math.random() * Math.PI * 2, 1 + Math.random() * 0.4, 0.8, false, i % 2 ? tint : new THREE.Color(tint).multiplyScalar(0.6).getHex())
         bus.emit('sound', { cue: 'blade', x: enemy.x, z: enemy.z })
         this.deal(enemy, storm.damage, dx / len, dz / len, 1.5, 'normal')
       }

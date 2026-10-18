@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 
 import { godDef, relicDef, type RelicId } from '../../relics/data'
-import { levelGains, ULTIMATE_NAMES } from '../../progress/levelGains'
+import { levelGains } from '../../progress/levelGains'
 import { classIcon } from '../../ui/classIcons'
 import type { GameContext } from '../context'
 import type { LoadoutChange } from '../RelicPowers'
@@ -20,7 +20,10 @@ export class RelicSystem {
   private readonly lastWalk = new THREE.Vector2()
 
   constructor(private readonly ctx: GameContext) {
-    ctx.bus.on('targetKilled', ({ target }) => ctx.powers.onKill(target, ctx.skills))
+    ctx.bus.on('targetKilled', ({ target }) => {
+      ctx.powers.onKill(target, ctx.skills)
+      ctx.powers.classPassives.onKill(target, ctx.skills)
+    })
     ctx.bus.on('heroRevived', () => {
       this.decoy = null
     })
@@ -55,9 +58,10 @@ export class RelicSystem {
     // 궁극기: 발현 상태에서 신위 게이지가 가득 차고, 쓸 만한 때가 오면 저절로 나간다.
     const boss = encounter.boss
     const bossNear = !!boss && boss.alive && Math.hypot(boss.x - position.x, boss.z - position.z) < 10
-    if (combat.alive && powers.manifested && combat.divine >= 1 && !powers.ultimateActive && powers.ultimate.worthUsing(skills, bossNear)) {
+    const ultimate = powers.ultimate
+    if (combat.alive && ultimate && combat.divine >= 1 && !powers.ultimateActive && ultimate.worthUsing(skills, bossNear)) {
       combat.divine = 0
-      powers.ultimate.start(skills)
+      ultimate.start(skills)
       feel.stop(0.12)
     }
 
@@ -148,7 +152,7 @@ export class RelicSystem {
     for (let lv = 1; lv <= progress.level(god.id); lv++) {
       for (const g of levelGains(god.id, lv)) if (lv === 1 || g.kind === 'power') lines.push(g.text)
     }
-    lines.push(`궁극기 「${ULTIMATE_NAMES[god.ultimate]}」`)
+    lines.push(`궁극기 「${god.ultimate.name}」`)
     hud.showGains('발현', progress.title(god.id), god.color, classIcon(god.name), lines)
     // 주변 적을 밀어낸다.
     const p = hero.object.position

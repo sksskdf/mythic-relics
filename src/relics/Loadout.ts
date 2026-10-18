@@ -1,4 +1,5 @@
 import { type God, godDef, relicDef, type RelicId } from './data'
+import { relicGods } from './model'
 
 /** 유물 슬롯 수 */
 export const SLOT_COUNT = 4
@@ -12,22 +13,28 @@ export interface LoadoutState {
   blessings: God[]
 }
 
-/**
- * 장착한 유물로 발현과 가호를 정한다. (DESIGN.md 4.2)
- * - 같은 신의 유물이 3개 이상이고 가장 많으면 그 신이 발현된다.
- * - 나머지 신은 가호로 붙는다. 가장 많은 신이 둘 이상이면 발현 없이 모두 가호다.
- */
-export function resolveLoadout(relics: readonly (RelicId | null)[]): LoadoutState {
+/** 유물들을 신마다 센다. 두 신이 함께 쓰는 유물(쿠사나기 등)은 두 신 모두에게 센다 */
+export function countByGod(relics: readonly (RelicId | null)[]): Map<God, number> {
   const counts = new Map<God, number>()
   for (const id of relics) {
     if (!id) continue
-    const god = relicDef(id).god
-    counts.set(god, (counts.get(god) ?? 0) + 1)
+    for (const god of relicGods(relicDef(id))) counts.set(god, (counts.get(god) ?? 0) + 1)
   }
+  return counts
+}
+
+/**
+ * 장착한 유물로 발현과 가호를 정한다. (DESIGN.md 4.2)
+ * - 그 신의 발현 수(보통 3, 아수라왕 4)를 채운 신 가운데 가장 많은 신이 발현된다.
+ * - 나머지 신은 가호로 붙는다. 발현 수를 채운 신끼리 수가 같으면 발현 없이 모두 가호다.
+ */
+export function resolveLoadout(relics: readonly (RelicId | null)[]): LoadoutState {
+  const counts = countByGod(relics)
   let best: God | null = null
   let bestCount = 0
   let tie = false
   for (const [god, count] of counts) {
+    if (count < godDef(god).manifestCount) continue
     if (count > bestCount) {
       best = god
       bestCount = count
@@ -36,7 +43,7 @@ export function resolveLoadout(relics: readonly (RelicId | null)[]): LoadoutStat
       tie = true
     }
   }
-  const manifested = best && !tie && bestCount >= godDef(best).manifestCount ? best : null
+  const manifested = best && !tie ? best : null
   const blessings = [...counts.keys()].filter((god) => god !== manifested)
   return { manifested, blessings }
 }
@@ -57,9 +64,7 @@ export class Loadout {
    */
   manifestable(): God | null {
     if (this.state.manifested) return null
-    const counts = new Map<God, number>()
-    for (const id of [...this.slots, ...this.bag]) if (id) counts.set(relicDef(id).god, (counts.get(relicDef(id).god) ?? 0) + 1)
-    for (const [god, count] of counts) if (count >= godDef(god).manifestCount) return god
+    for (const [god, count] of countByGod([...this.slots, ...this.bag])) if (count >= godDef(god).manifestCount) return god
     return null
   }
 

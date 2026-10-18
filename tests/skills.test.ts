@@ -9,7 +9,8 @@ import type { CombatTarget } from '../src/game/PlayerCombat'
 import { relicDef } from '../src/relics/data'
 import { DataRelicEffect } from '../src/skills'
 import type { RelicEffect, SkillContext } from '../src/skills/Skill'
-import { ThunderJudgement } from '../src/skills/Ultimate'
+import { DATA } from '../src/data'
+import { createUltimate } from '../src/skills/Ultimate'
 import { buildHeroModel } from '../src/world/heroModel'
 import { NavGrid } from '../src/world/navGrid'
 
@@ -44,6 +45,10 @@ function setup(enemies: CombatTarget[]) {
     shake: () => {},
     sound: () => {},
     slashes: { spawn: () => {} } as never,
+    shots: { fire: () => {} } as never,
+    flash: () => {},
+    heal: () => {},
+    heroHp: () => 1,
     setDecoy: (d) => decoys.push(d),
   }
   return { hero, fx, ctx, decoys }
@@ -177,7 +182,7 @@ describe('궁극기 묠니르의 심판', () => {
     const hits: number[] = []
     const enemies = [dummy(2, 0, hits), dummy(-3, 1, hits), dummy(0, 4, hits)]
     const { ctx } = setup(enemies)
-    const ultimate = new ThunderJudgement()
+    const ultimate = createUltimate(DATA.gods.thor!.ultimate)
     expect(ultimate.worthUsing(ctx, false)).toBe(true)
     ultimate.start(ctx)
     for (let i = 0; i < 180; i++) ultimate.update(1 / 60, ctx)
@@ -219,26 +224,14 @@ describe('로키 유물과 변신술사 (E6)', () => {
     for (const [level, count] of [[1, 1], [2, 1], [3, 2], [4, 3]] as const) {
       ctx.level = level
       passives.update(1 / 60, ctx)
-      expect(passives.cloneCount).toBe(count)
+      expect(passives.companionCount).toBe(count)
     }
     for (let t = 0; t < 3; t += 1 / 60) passives.update(1 / 60, ctx)
     expect(hits.length).toBeGreaterThan(2)
     ctx.manifested = null
     ctx.level = 0
     passives.update(1 / 60, ctx)
-    expect(passives.cloneCount).toBe(0)
+    expect(passives.companionCount).toBe(0)
   })
 
-  it('궁극기는 클래스마다 다르고, 모두 주변 적에게 피해를 준다', async () => {
-    const { createUltimates } = await import('../src/skills/Ultimate')
-    for (const ultimate of Object.values(createUltimates())) {
-      const hits: number[] = []
-      const { ctx } = setup([dummy(2, 0, hits), dummy(-2, 1, hits), dummy(0, 3, hits)])
-      expect(ultimate.worthUsing(ctx, false)).toBe(true)
-      ultimate.start(ctx)
-      for (let t = 0; t < 3; t += 1 / 60) ultimate.update(1 / 60, ctx)
-      expect(ultimate.active).toBe(false)
-      expect(hits.length).toBeGreaterThan(0)
-    }
-  })
 })

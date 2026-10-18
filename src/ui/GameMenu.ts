@@ -734,7 +734,7 @@ export class GameMenu {
       const step2 = el('div', `menu-promo__step${ready ? ' is-now' : ''}`)
       step2.append(
         el('span', 'menu-promo__no', '2'),
-        el('span', '', def.legend ? `성소의 결계에 들어가 승급 전설 「${def.legend}」에서 이긴다` : '이 신의 승급 전설은 아직 이 세계에 없다'),
+        el('span', '', def.legend ? `성소의 결계에 들어가 승급 전설 「${def.legend.name}」에서 이긴다` : '이 신의 승급 전설은 아직 이 세계에 없다'),
       )
       steps.append(el('div', 'menu-promo__head', `다음 승급: Lv${level + 1} ${def.titles[level]}`), step1, step2)
       box.append(steps)
@@ -790,7 +790,7 @@ export class GameMenu {
           scroll,
           ready
             ? god.legend
-              ? `「${god.legend}」\n성소의 결계 안에서 증명하면 ${next}`
+              ? `「${god.legend.name}」\n성소의 결계 안에서 증명하면 ${next}`
               : `다음 시련은 아직 이 세계에 없다.\n${next}`
             : `싸워서 이름을 더 떨쳐야 한다.\n${Math.round(progress.xpRatio(current) * 100)}%`,
         )
