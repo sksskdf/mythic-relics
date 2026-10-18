@@ -14,8 +14,19 @@ export function smoothNoise(x: number, z: number): number {
   return v * 0.5 + 0.5
 }
 
-/** 얼어붙은 연못 자리. 이 주변은 땅을 평평하게 다진다. */
-export const POND = { x: 9, z: -6, radius: 4 }
+export interface Pond {
+  x: number
+  z: number
+  radius: number
+}
+
+/** 지금 지역의 얼어붙은 연못들. 이 주변은 땅을 평평하게 다진다. (지역을 바꿀 때 setPonds) */
+let ponds: readonly Pond[] = [{ x: 9, z: -6, radius: 4 }]
+
+/** 지역을 바꾼다: 땅 높이가 이 지역의 연못을 따른다. */
+export function setPonds(next: readonly Pond[]): void {
+  ponds = next
+}
 
 function rawHeight(x: number, z: number): number {
   return (smoothNoise(x, z) - 0.5) * 0.5
@@ -23,15 +34,18 @@ function rawHeight(x: number, z: number): number {
 
 /** 땅 높이. 걷는 데 지장이 없도록 아주 완만하게만 오르내린다. */
 export function heightAt(x: number, z: number): number {
-  const h = rawHeight(x, z)
-  const d = Math.hypot(x - POND.x, z - POND.z)
-  const flatten = 1 - Math.min(1, Math.max(0, (d - POND.radius) / 2.5))
-  return h + (pondLevel() - h) * flatten
+  let h = rawHeight(x, z)
+  for (const pond of ponds) {
+    const d = Math.hypot(x - pond.x, z - pond.z)
+    const flatten = 1 - Math.min(1, Math.max(0, (d - pond.radius) / 2.5))
+    if (flatten > 0) h += (pondLevel(pond) - h) * flatten
+  }
+  return h
 }
 
 /** 연못 수면 높이 */
-export function pondLevel(): number {
-  return rawHeight(POND.x, POND.z) - 0.05
+export function pondLevel(pond: Pond): number {
+  return rawHeight(pond.x, pond.z) - 0.05
 }
 
 const COLORS = {

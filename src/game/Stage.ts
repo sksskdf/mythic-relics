@@ -1,13 +1,14 @@
 import * as THREE from 'three'
 
-import { buildTestMap, type TestMap } from '../world/testMap'
+import type { RegionDef } from '../data/regions'
+import { RegionMap } from '../world/regionMap'
 
 /** 무대: 하늘색, 빛과 해(그림자), 맵. 해와 그림자 범위는 주인공을 따라다닌다. */
 export class Stage {
-  readonly map: TestMap
+  readonly map: RegionMap
   private readonly sun: THREE.DirectionalLight
 
-  constructor(scene: THREE.Scene) {
+  constructor(scene: THREE.Scene, region: RegionDef) {
     scene.background = new THREE.Color(0x9fb4c8)
     scene.add(new THREE.HemisphereLight(0xc4d8ff, 0x4a5566, 0.85))
 
@@ -20,7 +21,7 @@ export class Stage {
     this.sun.shadow.bias = -0.002
     scene.add(this.sun, this.sun.target)
 
-    this.map = buildTestMap()
+    this.map = new RegionMap(region)
     scene.add(this.map.group)
   }
 

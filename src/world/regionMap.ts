@@ -17,23 +17,13 @@ import {
 import type { VoxelGrid } from '../voxel/VoxelGrid'
 import { toonMaterial } from '../render/toon'
 import type { CircleCollider } from './colliders'
-import { generateLayout, type PropPlacement } from './layout'
+import type { PropPlacement, RegionDef } from '../data/regions'
 import { createRng } from './rng'
-import { buildGround, buildScatter, heightAt, POND, pondLevel } from './terrain'
-
-/** 플레이어가 움직일 수 있는 범위 (맵 한 변의 절반, 미터) */
-export const MAP_HALF_EXTENT = 38
-
-export interface TestMap {
-  group: THREE.Group
-  colliders: CircleCollider[]
-  /** 불꽃, 룬 빛처럼 움직이는 것들을 갱신한다. */
-  update(elapsed: number): void
-}
+import { buildGround, buildScatter, heightAt, type Pond, pondLevel, setPonds } from './terrain'
 
 type Animator = (elapsed: number) => void
 
-interface Built {
+export interface Built {
   object: THREE.Object3D
   animate?: Animator
 }
@@ -95,7 +85,7 @@ function makeBrazier(variant: number): Built {
   return { object: group, animate }
 }
 
-const BUILDERS: Record<PropPlacement['kind'], VariantFactory> = {
+export const BUILDERS: Record<PropPlacement['kind'], VariantFactory> = {
   pine: cachedVoxel(pineTree, 0.2),
   rock: cachedVoxel(rock, 0.15),
   mound: cachedVoxel(snowMound, 0.2),
@@ -153,13 +143,13 @@ function flatMesh(geometry: THREE.BufferGeometry, color: number, x = 0, y = 0, z
   return m
 }
 
-function buildPond(): THREE.Group {
+function buildPond(radius: number): THREE.Group {
   const pond = new THREE.Group()
-  const ice = flatMesh(new THREE.CircleGeometry(4, 20), ICE.ice)
+  const ice = flatMesh(new THREE.CircleGeometry(radius, 20), ICE.ice)
   ice.rotation.x = -Math.PI / 2
   ice.receiveShadow = true
   pond.add(ice)
-  const deep = flatMesh(new THREE.CircleGeometry(2.2, 16), ICE.deep, 0.6, 0.01, -0.3)
+  const deep = flatMesh(new THREE.CircleGeometry(radius * 0.55, 16), ICE.deep, radius * 0.15, 0.01, -radius * 0.08)
   deep.rotation.x = -Math.PI / 2
   pond.add(deep)
   // 얼음 위의 반짝임과 금
@@ -180,11 +170,11 @@ const BORDER_DEPTH = 30
  * 맵 가장자리 밖을 빽빽한 숲과 바위로 둘러친다. 길을 막는 벽 역할이자, 축소했을 때 맵 끝을 가리는 배경이다.
  * 밖으로는 나갈 수 없으므로 충돌체는 두지 않는다.
  */
-function buildBorder(seed: number): THREE.Group {
+function buildBorder(seed: number, halfExtent: number): THREE.Group {
   const group = new THREE.Group()
   const rng = createRng(seed * 31 + 5)
-  const inner = MAP_HALF_EXTENT + 1
-  const outer = MAP_HALF_EXTENT + BORDER_DEPTH - 2
+  const inner = halfExtent + 1
+  const outer = halfExtent + BORDER_DEPTH - 2
   const kinds: PropPlacement['kind'][] = ['pine', 'pine', 'pine', 'pine', 'rock', 'deadTree', 'mound']
   let placed = 0
   for (let tries = 0; placed < 420 && tries < 5000; tries++) {
@@ -206,38 +196,60 @@ function buildBorder(seed: number): THREE.Group {
   return group
 }
 
-/** 북유럽 설원 느낌의 테스트 맵을 만든다. */
-export function buildTestMap(seed = 7): TestMap {
-  const map = new THREE.Group()
-  const colliders: CircleCollider[] = []
-  const animators: Animator[] = []
+/** 소품 하나를 장면에 놓는다. (지도 편집기도 같은 것을 쓴다) */
+export function placeProp(placement: PropPlacement, variant: number): Built {
+  const built = BUILDERS[placement.kind](variant % VARIANTS)()
+  const prop = castAndReceive(built.object)
+  prop.position.set(placement.x, heightAt(placement.x, placement.z), placement.z)
+  prop.scale.multiplyScalar(placement.size)
+  prop.rotation.y = placement.rotation
+  return built
+}
 
-  // 땅은 움직일 수 있는 범위보다 넓게 깔아서, 멀리 축소해도 맵 끝이 허공으로 보이지 않게 한다.
-  map.add(buildGround(MAP_HALF_EXTENT + BORDER_DEPTH))
-  map.add(buildBorder(seed))
-  map.add(buildScatter(MAP_HALF_EXTENT))
+/**
+ * 지금 지역의 맵 (E7-01). 지역을 바꾸거나 편집기로 고치면 load로 다시 짓는다.
+ * 같은 객체(group·colliders 배열)를 그대로 두고 속만 바꾸므로, 이것을 쥔 쪽은 다시 받아 갈 필요가 없다.
+ */
+export class RegionMap {
+  readonly group = new THREE.Group()
+  readonly colliders: CircleCollider[] = []
+  region: RegionDef
+  private animators: Animator[] = []
 
-  const pond = buildPond()
-  pond.position.set(POND.x, pondLevel() + 0.03, POND.z)
-  map.add(pond)
-
-  generateLayout({ seed, halfExtent: 34, clearRadius: 5, count: 110 }).forEach((placement, index) => {
-    if (Math.hypot(placement.x - POND.x, placement.z - POND.z) < POND.radius + 1) return
-    const built = BUILDERS[placement.kind](index % VARIANTS)()
-    const prop = castAndReceive(built.object)
-    prop.position.set(placement.x, heightAt(placement.x, placement.z), placement.z)
-    prop.scale.multiplyScalar(placement.size)
-    prop.rotation.y = placement.rotation
-    map.add(prop)
-    colliders.push(...collidersFor(placement))
-    if (built.animate) animators.push(built.animate)
-  })
-
-  return {
-    group: map,
-    colliders,
-    update(elapsed) {
-      for (const animate of animators) animate(elapsed)
-    },
+  constructor(region: RegionDef) {
+    this.region = region
+    this.load(region)
   }
+
+  load(region: RegionDef): void {
+    this.region = region
+    // 땅 높이가 이 지역의 연못을 따르게 한 뒤 땅과 소품을 놓는다
+    setPonds(region.ponds)
+    for (const child of [...this.group.children]) this.group.remove(child)
+    this.colliders.length = 0
+    this.animators = []
+    const half = region.halfExtent
+    // 땅은 움직일 수 있는 범위보다 넓게 깔아서, 멀리 축소해도 맵 끝이 허공으로 보이지 않게 한다.
+    this.group.add(buildGround(half + BORDER_DEPTH))
+    this.group.add(buildBorder(region.seed, half))
+    this.group.add(buildScatter(half))
+    for (const pond of region.ponds) this.group.add(pondMesh(pond))
+    region.props.forEach((placement, index) => {
+      const built = placeProp(placement, index)
+      this.group.add(built.object)
+      this.colliders.push(...collidersFor(placement))
+      if (built.animate) this.animators.push(built.animate)
+    })
+  }
+
+  /** 불꽃, 룬 빛처럼 움직이는 것들을 갱신한다. */
+  update(elapsed: number): void {
+    for (const animate of this.animators) animate(elapsed)
+  }
+}
+
+function pondMesh(pond: Pond): THREE.Group {
+  const mesh = buildPond(pond.radius)
+  mesh.position.set(pond.x, pondLevel(pond) + 0.03, pond.z)
+  return mesh
 }

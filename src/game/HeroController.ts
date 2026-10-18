@@ -63,7 +63,8 @@ export class HeroController {
     readonly rig: HeroRig,
     private readonly nav: NavGrid,
     private readonly colliders: () => readonly CircleCollider[],
-    private readonly halfExtent: number,
+    /** 움직일 수 있는 범위 (지역마다 다르다) */
+    public halfExtent: number,
     readonly tuning: HeroTuning = DEFAULT_TUNING,
   ) {
     this.object = rig.root

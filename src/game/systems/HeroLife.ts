@@ -2,7 +2,6 @@ import type { GameContext } from '../context'
 
 /** 쓰러진 뒤 되살아나기까지 걸리는 시간 (초) */
 const RESPAWN_DELAY = 3
-export const HERO_SPAWN = { x: 0, z: 0 }
 
 /** 주인공의 생사: 맞았을 때 번쩍임, 쓰러짐과 되살아나기 */
 export class HeroLife {
@@ -40,7 +39,9 @@ export class HeroLife {
     body.position.y = t * 0.25
     if (this.deadTime >= RESPAWN_DELAY) {
       body.rotation.z = 0
-      hero.teleport(HERO_SPAWN.x, HERO_SPAWN.z)
+      // 지금 지역의 시작점에서 되살아난다
+      const spawn = this.ctx.map.region.spawn
+      hero.teleport(spawn.x, spawn.z)
       combat.revive()
       view.jumpTo(hero.object.position)
       bus.emit('heroRevived', {})
