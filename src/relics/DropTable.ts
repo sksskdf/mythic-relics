@@ -21,7 +21,7 @@ export interface DropTuning {
   foreign: number
 }
 
-export const DEFAULT_DROPS: DropTuning = { base: 0.015, boss: 0.7, pity: 0.01, sameGod: 2, foreign: 0.04 }
+export const DEFAULT_DROPS: DropTuning = { base: 0.015, boss: 0.7, pity: 0.012, sameGod: 4, foreign: 0.04 }
 
 /**
  * 유물 드랍 규칙. (DESIGN.md 9.3)

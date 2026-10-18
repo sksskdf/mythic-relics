@@ -54,7 +54,7 @@ describe('유물 드랍', () => {
   })
 
   it('이미 유물을 가진 신의 남은 유물이 더 잘 나온다', () => {
-    // 후보: 메긴교르드(토르, 가중치 1 + 2), 로키 유물 셋(각 1). 합 6에서 0.3이면 앞쪽 1.8이라 메긴교르드
+    // 후보: 메긴교르드(토르, 가중치 1 + 4), 로키 유물 셋(각 1). 합 8에서 0.3이면 앞쪽 2.4라 메긴교르드
     const drops = new DropTable(sequence(0, 0.3), DEFAULT_DROPS, ['megingjord', 'lokiMask', 'laevateinn', 'mistletoe'])
     expect(drops.roll(new Set<RelicId>(['jarngreipr']))).toBe('megingjord')
   })

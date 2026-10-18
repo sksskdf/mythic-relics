@@ -1,9 +1,11 @@
 import { SOUND_CUES } from '../audio/sounds'
+import { type Realm, REALMS } from '../data/classKit'
 import { ENEMIES, GRUNT } from '../enemies/Giant'
 import type { Game } from '../game/Game'
 import { BET } from '../game/Legend'
 import { LOOK_IDS, WARDROBE_SLOTS } from '../looks/catalog'
-import { godDef, GODS, RELIC_IDS, relicDef } from '../relics/data'
+import { type God, godDef, GODS, RELIC_IDS, relicDef } from '../relics/data'
+import { relicGods } from '../relics/model'
 import { saveStorage } from '../save/SaveData'
 import { relicIcon } from '../ui/relicCard'
 import { DebugOverlay } from './DebugOverlay'
@@ -129,13 +131,20 @@ export class DevPanel {
     page.append(grid)
 
     // 신의 유물 묶음을 한 번에 (발현 시험)
-    const sets = Object.values(GODS).map((god) => [god.id, `${god.name} 묶음`] as const)
+    const REALM_NAMES: Record<string, string> = { norse: '북유럽', greek: '그리스', china: '중국', japan: '일본', korea: '한국', hidden: '히든' }
+    const sets = Object.values(GODS).map((god) => [god.id, `${REALM_NAMES[god.realm]} · ${god.name}`] as const)
     page.append(
       row(
         select('묶음 끼기', sets, (god) => {
           g.devUnequipAll()
-          for (const id of RELIC_IDS.filter((r) => relicDef(r).god === god)) g.devEquip(id)
+          // 함께 쓰는 유물(쿠사나기·토츠카)도 그 신의 묶음에 든다
+          for (const id of RELIC_IDS.filter((r) => relicGods(relicDef(r)).includes(god as God)).slice(0, 4)) g.devEquip(id)
         }),
+        select(
+          '드랍 신화권',
+          REALMS.filter((r) => r !== 'hidden').map((r) => [r, REALM_NAMES[r]!] as const),
+          (realm) => (g.drops.realm = realm as Realm),
+        ),
         button('모두 빼기', () => g.devUnequipAll()),
         button('땅에 놓기', () => {
           const missing = RELIC_IDS.find((id) => !g.powers.loadout.has(id) && !g.pickups.list.some((p) => p.id === id))

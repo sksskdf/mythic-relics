@@ -78,7 +78,7 @@
     },
     "attack": "twin",
     "passive": {
-      "damageScale": 0.95,
+      "damageScale": 0.9,
       "companions": {
         "name": "그림자 분신",
         "look": "shadow",
@@ -315,7 +315,7 @@
     },
     "attack": "bolt",
     "passive": {
-      "damageScale": 1.05,
+      "damageScale": 1.1,
       "skyStrike": {
         "name": "벼락",
         "interval": [
@@ -1075,14 +1075,15 @@
     },
     "attack": "blade",
     "passive": {
+      "damageScale": 1.15,
       "volley": {
         "name": "햇살 화살",
         "color": "#ffcf40",
         "count": [
           1,
-          1,
           2,
-          2
+          2,
+          3
         ],
         "damage": [
           7,
@@ -1217,7 +1218,7 @@
     },
     "attack": "club",
     "passive": {
-      "damageScale": 1.05,
+      "damageScale": 0.95,
       "orbit": {
         "name": "도깨비불",
         "shape": "flame",
