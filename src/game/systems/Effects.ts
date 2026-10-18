@@ -7,6 +7,7 @@ import { PowerUp } from '../../fx/PowerUp'
 import { Puffs } from '../../fx/Puffs'
 import { ShadowAura } from '../../fx/ShadowAura'
 import { Slashes } from '../../fx/Slashes'
+import { Shots } from '../../fx/Shots'
 import { Snowfall } from '../../fx/Snowfall'
 import { Sparks } from '../../fx/Sparks'
 import { EFFECT_LAYER } from '../../render/PixelRenderer'
@@ -23,6 +24,8 @@ const SNOW_CHIPS = [0xf4f8fc, 0xdfe8f1]
 export class Effects {
   readonly puffs = new Puffs(96)
   readonly slashes = new Slashes()
+  /** 날아가는 화살·창·빛 (E6-10 원거리 공격) */
+  readonly shots = new Shots()
   readonly debris = new Debris()
   readonly lightning = new Lightning()
   /** 천둥의 신 발현 중 몸 주변의 푸른 전기 */
@@ -31,6 +34,8 @@ export class Effects {
   readonly shadow = new ShadowAura()
   /** 아수라 발현 중 검붉은 스산한 기운 */
   readonly asura = new ShadowAura(0x3a0408, 0xa3141c, 2.2)
+  /** 공용 기운: 발현한 신의 색으로 물든다 (E6) */
+  readonly tint = new ShadowAura()
   readonly snow = new Snowfall()
   /** 유물을 끼고 발현할 때의 빛기둥과 발밑 빛 */
   readonly power = new PowerUp()
@@ -45,11 +50,11 @@ export class Effects {
   private footstepTimer = 0
 
   addTo(scene: THREE.Scene): void {
-    for (const effect of [this.marker.object, this.snow.object, this.puffs.object, this.slashes.object, this.sparks.object]) {
+    for (const effect of [this.marker.object, this.snow.object, this.puffs.object, this.slashes.object, this.shots.object, this.sparks.object]) {
       effect.traverse((o) => o.layers.set(EFFECT_LAYER))
       scene.add(effect)
     }
-    scene.add(this.targetMarker.object, this.pathLine.object, this.skills, this.debris.object, this.lightning.object, this.shadow.object, this.asura.object, this.power.object)
+    scene.add(this.targetMarker.object, this.pathLine.object, this.skills, this.debris.object, this.lightning.object, this.shadow.object, this.asura.object, this.tint.object, this.power.object)
   }
 
   /** 지시 표시: 누른 곳, 공격 대상, 적을 무시한 이동의 경로 */
@@ -78,8 +83,10 @@ export class Effects {
     this.sparks.update(dt, position)
     this.shadow.update(dt, position)
     this.asura.update(dt, position)
+    this.tint.update(dt, position)
     this.power.update(dt, position)
     this.slashes.update(dt)
+    this.shots.update(dt)
     this.debris.update(dt)
     this.snow.update(dt, position, elapsed)
   }

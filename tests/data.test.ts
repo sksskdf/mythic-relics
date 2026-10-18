@@ -6,9 +6,10 @@ import enemies from '../src/data/enemies.json'
 import gods from '../src/data/gods.json'
 import relics from '../src/data/relics.json'
 import { DataError, parseGameData } from '../src/data/schema'
+import { LOOK_MODELS } from '../src/voxel/models/looks'
 import { RELIC_MODELS } from '../src/voxel/models/relics'
 
-const MODELS = Object.keys(RELIC_MODELS)
+const MODELS = [...Object.keys(RELIC_MODELS), ...Object.keys(LOOK_MODELS)]
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T
 
 /** 원래 데이터를 복사해 한 곳만 고친 뒤 검사한다. */
@@ -19,9 +20,31 @@ function broken(edit: (d: { gods: any; relics: any; enemies: any; classes: any }
 }
 
 describe('게임 데이터', () => {
+  it('1차 범위(북유럽·그리스·중국·일본·한국)의 클래스 20개가 모두 신 데이터와 이어져 있다 (E6)', () => {
+    const first = DATA.classes.mythologies.filter((m) => m.stage === '1차')
+    expect(first.map((m) => m.id)).toEqual(['norse', 'greek', 'china', 'japan', 'korea'])
+    for (const m of first) {
+      for (const c of m.classes) {
+        expect(c.god, `${m.name} ${c.name}`).toBeDefined()
+        expect(DATA.gods[c.god!]!.realm).toBe(m.id)
+      }
+    }
+    expect(first.flatMap((m) => m.classes)).toHaveLength(20)
+    // 2차·3차 신화권은 아직 클래스 데이터가 없다
+    for (const m of DATA.classes.mythologies.filter((x) => x.stage !== '1차')) for (const c of m.classes) expect(c.god).toBeUndefined()
+  })
+
+  it('쿠사나기·토츠카는 스사노오의 유물이면서 아수라왕의 네 칼에도 든다', () => {
+    for (const id of ['kusanagi', 'totsuka']) {
+      expect(DATA.relics[id]!.god).toBe('susanoo')
+      expect(DATA.relics[id]!.also).toEqual(['asura'])
+    }
+  })
+
   it('지금 데이터 파일은 검사를 통과한다', () => {
-    expect(Object.keys(DATA.relics)).toEqual(['mjolnir', 'megingjord', 'jarngreipr', 'lokiMask', 'kusanagi', 'totsuka', 'futsu', 'ohabari'])
-    expect(Object.keys(DATA.gods)).toEqual(['thor', 'loki', 'asura'])
+    expect(Object.keys(DATA.relics).slice(0, 10)).toEqual(['mjolnir', 'megingjord', 'jarngreipr', 'lokiMask', 'laevateinn', 'mistletoe', 'kusanagi', 'totsuka', 'futsu', 'ohabari'])
+    expect(Object.keys(DATA.relics)).toHaveLength(62)
+    expect(Object.keys(DATA.gods)).toHaveLength(21)
     expect(DATA.enemies.king!.poise).toBe(Infinity)
     expect(DATA.enemies.king!.fixedDrop).toBe('mjolnir')
   })
@@ -54,7 +77,7 @@ describe('게임 데이터', () => {
       ['칭호가 넷이 아님', (d) => d.gods.thor.titles.pop(), /thor\.titles: Lv1~Lv4/],
       ['색 형식', (d) => (d.gods.loki.color = 'green'), /loki\.color: #rrggbb/],
       ['서로 이어받는 적', (d) => (d.enemies.king.extends = 'utgardKing'), /서로를 이어받고/],
-      ['없는 유물 확정 드랍', (d) => (d.enemies.king.fixedDrop = 'gungnir'), /fixedDrop: relics\.json에 없는 유물/],
+      ['없는 유물 확정 드랍', (d) => (d.enemies.king.fixedDrop = 'excalibur'), /fixedDrop: relics\.json에 없는 유물/],
       ['게임이 쓰는 적이 빠짐', (d) => delete d.enemies.grunt, /enemies\.json\.grunt: 게임이 직접 쓰는 적/],
       ['유물 설명이 빠짐', (d) => (d.relics.megingjord.description = ''), /megingjord\.description: 비어 있지 않은 글자/],
       ['스킬 설명이 빠짐', (d) => delete d.relics.mjolnir.trigger.description, /trigger\.description: 비어 있지 않은 글자/],

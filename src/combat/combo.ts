@@ -11,8 +11,16 @@ export interface SwingSpec {
   halfAngle: number
   /** 맞은 적을 밀어내는 힘 (m/s) */
   knockback: number
-  /** 휘두르며 앞으로 내딛는 거리 (m) */
+  /** 휘두르며 앞으로 내딛는 거리 (m). 음수면 물러선다 (활) */
   lunge: number
+  /** 판정 모양 (E6-10). 없으면 부채꼴 (combat/styles.ts) */
+  shape?: 'arc' | 'ring' | 'line' | 'burst' | 'shot'
+  /** line은 띠의 반폭, burst는 터지는 원의 반지름 (m) */
+  width?: number
+  /** shot: 한 번에 날리는 수 (앞쪽 가까운 적부터) */
+  shots?: number
+  /** shot: 맞은 자리 둘레도 함께 맞는 반지름 (m) */
+  splash?: number
 }
 
 const DEG = Math.PI / 180
@@ -40,7 +48,7 @@ export class ComboState {
   private lastIndex = -1
 
   constructor(
-    readonly swings: readonly SwingSpec[] = BASIC_COMBO,
+    public swings: readonly SwingSpec[] = BASIC_COMBO,
     private readonly graceTime = 0.35,
   ) {}
 
@@ -56,6 +64,14 @@ export class ComboState {
   get progress(): number {
     const swing = this.current
     return swing ? Math.min(1, this.time / swing.duration) : 0
+  }
+
+  /** 다른 공격 모션으로 바꾼다 (발현이 바뀔 때). 휘두르던 것은 끊는다 */
+  setSwings(swings: readonly SwingSpec[]): void {
+    if (swings === this.swings) return
+    this.cancel()
+    this.swings = swings
+    this.lastIndex = -1
   }
 
   cancel(): void {

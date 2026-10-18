@@ -9,7 +9,8 @@ import type { CombatTarget } from '../src/game/PlayerCombat'
 import { relicDef } from '../src/relics/data'
 import { DataRelicEffect } from '../src/skills'
 import type { RelicEffect, SkillContext } from '../src/skills/Skill'
-import { ThunderJudgement } from '../src/skills/Ultimate'
+import { DATA } from '../src/data'
+import { createUltimate } from '../src/skills/Ultimate'
 import { buildHeroModel } from '../src/world/heroModel'
 import { NavGrid } from '../src/world/navGrid'
 
@@ -43,6 +44,11 @@ function setup(enemies: CombatTarget[]) {
     },
     shake: () => {},
     sound: () => {},
+    slashes: { spawn: () => {} } as never,
+    shots: { fire: () => {} } as never,
+    flash: () => {},
+    heal: () => {},
+    heroHp: () => 1,
     setDecoy: (d) => decoys.push(d),
   }
   return { hero, fx, ctx, decoys }
@@ -176,11 +182,56 @@ describe('궁극기 묠니르의 심판', () => {
     const hits: number[] = []
     const enemies = [dummy(2, 0, hits), dummy(-3, 1, hits), dummy(0, 4, hits)]
     const { ctx } = setup(enemies)
-    const ultimate = new ThunderJudgement()
+    const ultimate = createUltimate(DATA.gods.thor!.ultimate)
     expect(ultimate.worthUsing(ctx, false)).toBe(true)
     ultimate.start(ctx)
     for (let i = 0; i < 180; i++) ultimate.update(1 / 60, ctx)
     expect(ultimate.active).toBe(false)
     expect(hits.length).toBeGreaterThanOrEqual(8)
   })
+})
+
+describe('로키 유물과 변신술사 (E6)', () => {
+  it('레바테인: 3연타 마지막 타에 앞쪽 부채꼴의 적만 불꽃으로 벤다', () => {
+    const front: number[] = []
+    const back: number[] = []
+    const ahead = dummy(0, 3, front)
+    const behind = dummy(0, -3, back)
+    const { ctx, fx } = setup([ahead, behind])
+    const skill = effect('laevateinn', fx)
+    skill.onBasicHit({ targets: [ahead], comboIndex: 2, comboLength: 3, finisher: true }, ctx)
+    expect(front.length).toBe(1)
+    expect(back).toEqual([])
+  })
+
+  it('겨우살이 가지: 처치 3번이면 가장 먼 적 쪽으로 던져 길 위의 적을 모두 꿰뚫는다', () => {
+    const hits: number[] = []
+    const near = dummy(0, 3, hits)
+    const far = dummy(0, 8, hits)
+    const { ctx, fx } = setup([near, far])
+    const skill = effect('mistletoe', fx)
+    for (let i = 0; i < 3; i++) skill.onKill(near)
+    run(skill, ctx, 1)
+    expect(hits.length).toBe(2)
+  })
+
+  it('변신술사 발현: 레벨만큼 그림자 분신이 서고, 가까운 적에게 달려들어 벤다', async () => {
+    const { ClassPassives } = await import('../src/skills/ClassPassives')
+    const hits: number[] = []
+    const { ctx, fx } = setup([dummy(2, 2, hits)])
+    const passives = new ClassPassives(fx)
+    ctx.manifested = 'loki'
+    for (const [level, count] of [[1, 1], [2, 1], [3, 2], [4, 3]] as const) {
+      ctx.level = level
+      passives.update(1 / 60, ctx)
+      expect(passives.companionCount).toBe(count)
+    }
+    for (let t = 0; t < 3; t += 1 / 60) passives.update(1 / 60, ctx)
+    expect(hits.length).toBeGreaterThan(2)
+    ctx.manifested = null
+    ctx.level = 0
+    passives.update(1 / 60, ctx)
+    expect(passives.companionCount).toBe(0)
+  })
+
 })

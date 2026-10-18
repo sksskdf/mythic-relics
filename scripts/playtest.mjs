@@ -1,6 +1,7 @@
 // 자동 플레이 검증: 봇이 이동 명령만으로 처음부터 승급까지 플레이하고, 걸린 시간과 흐름을 기록한다.
 // 사용법: npm run build && node scripts/playtest.mjs [반복 횟수=3] [제한 시간(분)=45]
 // --gate 를 붙이면 승급하지 못했거나 오류가 난 판이 있을 때 실패로 끝난다. (CI)
+// --god=loki 를 붙이면 그 신 유물만 끼고 승급까지 간다.
 // --loops=N 을 붙이면 봇이 단련하고 윤회까지 하며, 윤회 N번이 될 때까지 회차마다 걸린 시간을 잰다. (순환 성장 곡선)
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -11,10 +12,14 @@ const GATE = process.argv.includes('--gate')
 const RUNS = Number(args[0] ?? 3)
 const LIMIT_MIN = Number(args[1] ?? 45)
 const LOOPS = Number(process.argv.find((a) => a.startsWith('--loops='))?.slice(8) ?? 0)
+/** --god=loki 처럼 붙이면 봇이 그 신 유물만 끼고 승급까지 간다 (E6-08) */
+const GOD = process.argv.find((a) => a.startsWith('--god='))?.slice(6) ?? null
+/** --relics=kusanagi,totsuka,... 처럼 붙이면 그 유물을 끼고(발현한 채) 시작해 제한 시간 동안 처치 속도를 잰다 (클래스 비교) */
+const RELICS = process.argv.find((a) => a.startsWith('--relics='))?.slice(9) ?? null
 /** 기록할 유물: 데이터 파일에 있는 유물 전부 */
 const RELIC_IDS = Object.keys(JSON.parse(readFileSync(new globalThis.URL('../src/data/relics.json', import.meta.url), 'utf8')))
 const PORT = 4183
-const URL = `http://localhost:${PORT}/?fresh&autoplay`
+const URL = RELICS ? `http://localhost:${PORT}/?relics=${RELICS}&autoplay` : `http://localhost:${PORT}/?fresh&autoplay`
 const BROWSER = process.env.CHROMIUM_PATH ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'
 
 const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'ignore', detached: true })
@@ -51,14 +56,15 @@ try {
     await page.goto(URL)
     await page.waitForFunction(() => window.__autoplay && window.__game.frame > 2, null, { timeout: 30000 })
     if (LOOPS > 0) await page.evaluate(() => (window.__autoplay.cycle = true))
+    if (GOD) await page.evaluate((god) => (window.__autoplay.god = god), GOD)
     let done = false
     while (!done) {
       const state = await page.evaluate(() => {
         window.__autoplay.run(30)
         const g = window.__game
-        return { t: g.time, promoted: g.progress.level('thor') >= 2, rebirths: window.__autoplay.rebirths.length }
+        return { t: g.time, promoted: g.progress.promotions >= 1, rebirths: window.__autoplay.rebirths.length }
       })
-      done = (LOOPS > 0 ? state.rebirths >= LOOPS : state.promoted) || state.t > LIMIT_MIN * 60
+      done = (RELICS ? false : LOOPS > 0 ? state.rebirths >= LOOPS : state.promoted) || state.t > LIMIT_MIN * 60
     }
     const rebirths = await page.evaluate(() => [...window.__autoplay.rebirths])
     const log = await page.evaluate(() => window.__game.log)
@@ -72,6 +78,13 @@ try {
       legendStart: first('legendStart'),
       promote: first('promote'),
       kills: count('kill'),
+      // 발현한 뒤(또는 처음부터 낀 뒤) 1분에 쓰러뜨린 수: 클래스끼리 비교한다
+      killRate: (() => {
+        const from = RELICS ? 0 : (first('manifest') ?? Infinity)
+        const to = log.at(-1)?.t ?? 0
+        const kills = log.filter((e) => e.type === 'kill' && e.t >= from).length
+        return to > from ? Math.round((kills / ((to - from) / 60)) * 10) / 10 : 0
+      })(),
       deaths: count('death'),
       hurt: count('hurt'),
       damageTaken: log.filter((e) => e.type === 'hurt').reduce((s, e) => s + Number(e.detail), 0),
@@ -85,7 +98,7 @@ try {
     console.log(
       `#${run} 승급 ${fmt(result.promote)} | 발현 ${fmt(result.manifest)} | 거인 왕 ${fmt(result.bossKill)} | ` +
         `유물 ${Object.entries(result.relics).map(([k, v]) => `${k} ${fmt(v)}`).join(', ')} | ` +
-        `처치 ${result.kills}, 쓰러짐 ${result.deaths}, 피격 ${result.hurt}, 전설 실패 ${result.legendFails}` +
+        `처치 ${result.kills}(발현 뒤 분당 ${result.killRate}), 쓰러짐 ${result.deaths}, 피격 ${result.hurt}, 전설 실패 ${result.legendFails}` +
         (LOOPS > 0 ? ` | 윤회 ${rebirths.map((t, i) => fmt(t - (rebirths[i - 1] ?? 0))).join(' → ')}` : '') +
         (errors.length ? ` | 오류 ${errors.length}` : ''),
     )

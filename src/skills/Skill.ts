@@ -3,6 +3,8 @@ import type * as THREE from 'three'
 import type { SoundCue } from '../audio/sounds'
 import type { Lightning } from '../fx/Lightning'
 import type { Puffs } from '../fx/Puffs'
+import type { Shots } from '../fx/Shots'
+import type { Slashes } from '../fx/Slashes'
 import type { CombatTarget } from '../game/PlayerCombat'
 import type { HeroController } from '../game/HeroController'
 import type { ModifierKey } from '../data/schema'
@@ -22,6 +24,15 @@ export interface SkillContext {
   fx: THREE.Object3D
   lightning: Lightning
   puffs: Puffs
+  slashes: Slashes
+  /** 날아가는 화살·빛 (연출만) */
+  shots: Shots
+  /** 그 자리에서 빛기둥이 솟는다 (strength 1~4) */
+  flash(at: THREE.Vector3, color: string | number, strength: number): void
+  /** 주인공 생명 회복 */
+  heal(amount: number): void
+  /** 주인공 생명 비율 0~1 */
+  heroHp(): number
   /** 주인공이 적에게 피해를 준다. 배율, 피해 숫자, 신위 게이지는 Game이 처리한다. */
   hit(target: CombatTarget, damage: number, dirX: number, dirZ: number, knockback: number, style: DamageStyle): void
   shake(amount: number): void

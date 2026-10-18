@@ -1,5 +1,6 @@
 import type * as THREE from 'three'
 
+import { DATA } from '../data'
 import type { RelicDef } from '../data/schema'
 import type { CombatTarget } from '../game/PlayerCombat'
 import { type Action, type Aura, type Boost, createAction, createAura, type Cue } from './actions'
@@ -26,6 +27,9 @@ export class DataRelicEffect implements RelicEffect {
     this.modifiers = def.passive.modifiers
     this.aura = def.passive.aura ? createAura(def.passive.aura) : null
     this.action = createAction(def.trigger.action, fx)
+    // 분신·불꽃은 유물 주인 신의 색으로 물든다 (로키는 초록, 하데스는 보라)
+    const owner = DATA.gods[def.god]
+    if (owner) this.action.tint?.(parseInt(owner.color.slice(1), 16))
     // 시간으로 차는 효과(맞을 때 터지는 방어 효과)는 끼자마자 쓸 수 있다.
     if (def.trigger.charge.by === 'time') this.progress = 1
   }

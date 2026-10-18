@@ -198,6 +198,8 @@ export class HeroController {
     this.object.rotation.y += turn * (1 - Math.exp(-TURN_SPEED * dt))
     const { body, head, leftArm, rightArm, leftLeg, rightLeg, cape } = this.rig
     body.rotation.y = 0
+    // 공격 모션이 옆으로 든 팔을 제자리로 (E6-10)
+    leftArm.rotation.z = rightArm.rotation.z = 0
     if (this.path.length > 0) {
       this.walkCycle += dt * 11
       const swing = Math.sin(this.walkCycle)

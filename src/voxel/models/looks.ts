@@ -1,5 +1,6 @@
 import { createRng } from '../../world/rng'
 import { VoxelGrid } from '../VoxelGrid'
+import { CLASS_LOOK_MODELS } from './classLooks'
 import { HERO_COLORS, heroCape, heroTorso } from './hero'
 
 /**
@@ -161,6 +162,32 @@ export function lokiMaskFace(): VoxelGrid {
   return g
 }
 
+/** 레바테인: 검은 칼날을 초록 불꽃이 감싼 칼 (2×7×13, kusanagiBlade와 같은 쥐는 자리) */
+export function laevateinnBlade(): VoxelGrid {
+  const g = new VoxelGrid(2, 7, 13)
+  g.box(0, 5, 0, 1, 5, 2, 0x1d2620)
+  g.box(0, 4, 3, 1, 6, 3, L.lokiGreen)
+  g.box(0, 5, 4, 1, 5, 12, 0x2a3a2c)
+  // 날을 따라 번갈아 일렁이는 초록 불꽃
+  for (let z = 4; z <= 12; z++) g.set(z % 2, z % 3 === 0 ? 6 : 4, z, z % 2 ? 0x8fe07a : 0x5fd06a)
+  g.box(0, 6, 12, 1, 6, 12, 0xd8ffb0)
+  return g
+}
+
+/** 겨우살이 가지: 허리끈에 꽂은 잔가지 (12×3×9, totsukaSash와 같은 크기) */
+export function mistletoeCharm(): VoxelGrid {
+  const g = new VoxelGrid(12, 3, 9)
+  g.box(0, 1, 0, 11, 1, 8, L.oliveDark)
+  // 왼쪽 앞에 꽂은 가지: 잎과 흰 열매
+  g.box(2, 0, 8, 2, 2, 8, 0x6b5434)
+  g.set(1, 2, 8, 0x6fbf4a)
+  g.set(3, 2, 8, 0x6fbf4a)
+  g.set(1, 0, 8, 0x6fbf4a)
+  g.set(2, 2, 7, 0xf2f4e8)
+  g.set(3, 0, 8, 0xf2f4e8)
+  return g
+}
+
 // ───────────────────────────── 발현: 천둥의 신 ─────────────────────────────
 
 /** 천둥의 날개 투구: 둥근 투구 양옆에 흰 날개, 붉은 수염 */
@@ -267,60 +294,112 @@ function line(g: VoxelGrid, x0: number, y0: number, x1: number, y1: number, z: n
   }
 }
 
-/** 토르의 표식 「벼락 고리」: 머리 뒤에 뜬 들쭉날쭉한 번개 고리 (15×15×1) */
-export function thorStormHalo(): VoxelGrid {
-  const g = new VoxelGrid(15, 17, 1)
-  const c = 7
-  for (let a = 0; a < 56; a++) {
-    const t = (a / 56) * Math.PI * 2
-    // 반지름을 들쭉날쭉하게 해 번개처럼 보이게 한다.
-    const r = 6 + (a % 4 === 0 ? 1 : a % 4 === 2 ? -1 : 0)
-    g.set(Math.round(c + Math.cos(t) * r), Math.round(c + Math.sin(t) * r), 0, a % 3 === 0 ? 0xffffff : 0x9fe3ff)
+/**
+ * 토르의 표식 「벼락 고리」: 머리 뒤에 뜬 들쭉날쭉한 번개 고리 (19×21×1). 레벨마다 자란다 (E6)
+ * Lv1 작은 고리 → Lv2 들쭉날쭉한 큰 고리와 튀는 번개 → Lv3 안쪽 고리 하나 더 → Lv4 사방으로 뻗는 번개 가시
+ */
+export function thorStormHalo(level = 1): VoxelGrid {
+  const g = new VoxelGrid(19, 21, 1)
+  const c = 9
+  const ring = (radius: number, jag: boolean, count: number, light: number, dark: number) => {
+    for (let a = 0; a < count; a++) {
+      const t = (a / count) * Math.PI * 2
+      // 반지름을 들쭉날쭉하게 해 번개처럼 보이게 한다.
+      const r = radius + (jag ? (a % 4 === 0 ? 1 : a % 4 === 2 ? -1 : 0) : 0)
+      g.set(Math.round(c + Math.cos(t) * r), Math.round(c + Math.sin(t) * r), 0, a % 3 === 0 ? light : dark)
+    }
   }
-  // 고리 위아래로 튀는 짧은 번개
-  line(g, 7, 16, 6, 14, 0, 0xffffff)
-  line(g, 1, 10, 0, 11, 0, 0x9fe3ff)
-  line(g, 13, 10, 14, 11, 0, 0x9fe3ff)
+  ring(level >= 2 ? 6 : 5, level >= 2, 56, 0xffffff, 0x9fe3ff)
+  if (level >= 2) {
+    // 고리 위아래로 튀는 짧은 번개
+    line(g, 9, 18, 8, 16, 0, 0xffffff)
+    line(g, 3, 12, 2, 13, 0, 0x9fe3ff)
+    line(g, 15, 12, 16, 13, 0, 0x9fe3ff)
+  }
+  if (level >= 3) ring(4, false, 32, 0xe9f6ff, 0x5fb8e8)
+  if (level >= 4) {
+    // 여덟 방향으로 뻗는 번개 가시: 꺾인 두 마디
+    for (let i = 0; i < 8; i++) {
+      const t = (i / 8) * Math.PI * 2 + Math.PI / 8
+      const x1 = Math.round(c + Math.cos(t) * 7)
+      const y1 = Math.round(c + Math.sin(t) * 7)
+      const x2 = Math.round(c + Math.cos(t + 0.25) * 8.5)
+      const y2 = Math.round(c + Math.sin(t + 0.25) * 8.5)
+      const x3 = Math.round(c + Math.cos(t - 0.1) * 9.5)
+      const y3 = Math.round(c + Math.sin(t - 0.1) * 9.5)
+      line(g, x1, y1, x2, y2, 0, 0xffffff)
+      line(g, x2, y2, x3, y3, 0, 0xfff3a0)
+    }
+  }
   return g
 }
 
-/** 로키의 표식 「어깨의 두 뱀」: 양 어깨에서 솟아 바깥으로 고개를 튼 초록 뱀 둘 (16×12×3) */
-export function lokiSerpents(): VoxelGrid {
-  const g = new VoxelGrid(16, 12, 3)
+/**
+ * 로키의 표식 「어깨의 두 뱀」: 양 어깨에서 솟아 바깥으로 고개를 튼 초록 뱀 (16×14×3). 레벨마다 자란다 (E6)
+ * Lv1 짧은 뱀 둘 → Lv2 다 자란 뱀 → Lv3 입에서 초록 불꽃 → Lv4 안쪽에 작은 뱀 둘이 더 (넷)
+ */
+export function lokiSerpents(level = 1): VoxelGrid {
+  const g = new VoxelGrid(16, 14, 3)
   const body = 0x3f8a3a
   const belly = 0xb9d36a
-  for (const side of [-1, 1] as const) {
-    const base = side < 0 ? 3 : 12
+  const fire = [0x8fe07a, 0xd8ffb0]
+  const serpent = (base: number, side: -1 | 1, length: number, flame: boolean) => {
     // S자로 솟는 몸통
     const path: [number, number][] = [[0, 0], [0, 1], [-1, 2], [-1, 3], [0, 4], [1, 5], [1, 6], [0, 7], [-1, 8], [-1, 9]]
-    for (const [dx, y] of path) {
+    for (const [dx, y] of path.slice(0, length)) {
       const x = base + dx * side * -1
       g.box(x, y, 1, x + 1, y, 1, body)
       g.set(x, y, 2, belly)
     }
     // 바깥을 보는 머리와 갈라진 혀
+    const top = length
     const hx = base + (side < 0 ? -2 : 2)
-    g.box(Math.min(hx, base), 10, 0, Math.max(hx, base) + 1, 11, 2, body)
-    g.set(hx + (side < 0 ? -1 : 2), 10, 1, 0xd23c3c)
-    g.set(base + (side < 0 ? -1 : 2), 11, 2, 0xe6bd4e)
+    g.box(Math.min(hx, base), top, 0, Math.max(hx, base) + 1, top + 1, 2, body)
+    g.set(hx + (side < 0 ? -1 : 2), top, 1, 0xd23c3c)
+    g.set(base + (side < 0 ? -1 : 2), top + 1, 2, 0xe6bd4e)
+    if (flame) {
+      const fx = hx + (side < 0 ? -1 : 2)
+      g.set(fx, top + 1, 1, fire[0]!)
+      g.set(fx + side, top + 2, 1, fire[1]!)
+      g.set(fx, top + 2, 1, fire[0]!)
+    }
+  }
+  const length = level >= 2 ? 10 : 6
+  serpent(3, -1, length, level >= 3)
+  serpent(12, 1, length, level >= 3)
+  if (level >= 4) {
+    serpent(6, -1, 5, true)
+    serpent(9, 1, 5, true)
   }
   return g
 }
 
-/** 아수라의 표식 「칼을 쥔 여섯 팔」: 등에서 부챗살처럼 뻗은 네 팔이 저마다 칼을 쥐었다 (28×18×3) */
-export function asuraArms(): VoxelGrid {
+/**
+ * 아수라의 표식 「칼을 쥔 여섯 팔」: 등에서 부챗살처럼 뻗은 팔이 저마다 칼을 쥐었다 (28×18×3). 레벨마다 팔이 는다 (E6)
+ * Lv1 팔 둘 → Lv2 넷 → Lv3 여섯 → Lv4 여섯 팔의 칼날이 붉게 타오른다
+ */
+export function asuraArms(level = 1): VoxelGrid {
   const g = new VoxelGrid(28, 18, 3)
   const skin = 0x7a2a2a
   const band = 0x1c1416
-  const steel = 0xc9d0d8
-  const edge = 0xff4a4a
-  const arms: [number, number, number, number][] = [
-    // 팔꿈치 끝 (x, y), 칼끝 (x, y)
-    [7, 9, 0, 17],
-    [6, 4, 0, 1],
-    [20, 9, 27, 17],
-    [21, 4, 27, 1],
+  const steel = level >= 4 ? 0xffd0b0 : 0xc9d0d8
+  const edge = level >= 4 ? 0xff8a3a : 0xff4a4a
+  // 팔꿈치 끝 (x, y), 칼끝 (x, y): 아래 둘, 위 둘, 가운데 둘 차례로 는다
+  const pairs: [number, number, number, number][][] = [
+    [
+      [7, 9, 0, 17],
+      [20, 9, 27, 17],
+    ],
+    [
+      [6, 4, 0, 1],
+      [21, 4, 27, 1],
+    ],
+    [
+      [5, 7, 0, 9],
+      [22, 7, 27, 9],
+    ],
   ]
+  const arms = pairs.slice(0, Math.min(3, level)).flat()
   const root: [number, number] = [14, 6]
   for (const [ex, ey, tx, ty] of arms) {
     line(g, root[0], root[1], ex, ey, 1, skin, 2)
@@ -328,6 +407,7 @@ export function asuraArms(): VoxelGrid {
     // 칼: 팔 끝에서 칼끝까지 강철, 한 칸 바깥은 붉은 날
     line(g, ex, ey, tx, ty, 1, steel)
     line(g, ex, ey, tx, ty, 2, edge)
+    if (level >= 4) g.set(tx, ty, 0, 0xffe08a)
   }
   g.box(12, 4, 0, 15, 8, 1, skin)
   return g
@@ -412,8 +492,8 @@ export function asuraBladeGreaves(): VoxelGrid {
   return g
 }
 
-/** 외형 id → 복셀 모델 */
-export const LOOK_MODELS: Readonly<Record<string, () => VoxelGrid>> = {
+/** 외형 id → 모델. 표식은 발현 레벨(1~4)을 받는다 */
+export const LOOK_MODELS: Readonly<Record<string, (level?: number) => VoxelGrid>> = {
   adventurerHood,
   adventurerTunic,
   adventurerSleeves,
@@ -423,6 +503,8 @@ export const LOOK_MODELS: Readonly<Record<string, () => VoxelGrid>> = {
   megingjordBelt,
   ironGauntlets,
   lokiMaskFace,
+  laevateinnBlade,
+  mistletoeCharm,
   thorHelm,
   thorTunic,
   thorCape,
@@ -438,4 +520,5 @@ export const LOOK_MODELS: Readonly<Record<string, () => VoxelGrid>> = {
   asuraBladeArmor,
   asuraBladeGreaves,
   asuraArms,
+  ...CLASS_LOOK_MODELS,
 }

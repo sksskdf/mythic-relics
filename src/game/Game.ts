@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 
 import { AudioEngine } from '../audio/AudioEngine'
+import type { SwingSpec } from '../combat/combo'
 import { Input } from '../input/Input'
 import { PixelRenderer } from '../render/PixelRenderer'
 import { QuarterViewCamera } from '../render/QuarterViewCamera'
@@ -8,9 +9,14 @@ import { renderHeightFor, TARGET_RENDER_HEIGHT } from '../render/resolution'
 import { godDef, relicDef, type RelicId } from '../relics/data'
 import { Wardrobe } from '../looks/outfit'
 import { DropTable } from '../relics/DropTable'
+import { itemUnderPointer } from '../relics/hover'
+import { PICKUP_TOP } from '../relics/Pickups'
+import { worldToScreen } from '../render/picking'
+import { heightAt } from '../world/terrain'
 import { Pickups } from '../relics/Pickups'
 import type { SaveData } from '../save/SaveData'
 import { ClassProgress } from '../progress/ClassProgress'
+import { levelGains } from '../progress/levelGains'
 import type { SkillContext } from '../skills/Skill'
 import { DamageNumbers } from '../ui/DamageNumbers'
 import { Hud } from '../ui/Hud'
@@ -33,7 +39,7 @@ import { UtgardLegend } from './Legend'
 import { HERO_RADIUS, HeroController } from './HeroController'
 import { HeroOrders } from './HeroOrders'
 import { plowThrough } from './plow'
-import { PlayerCombat } from './PlayerCombat'
+import { type CombatTarget, PlayerCombat } from './PlayerCombat'
 import { RelicPowers } from './RelicPowers'
 import { Stage } from './Stage'
 import { AppearanceSystem } from './systems/Appearance'
@@ -128,6 +134,8 @@ export class Game {
   private readonly tooltip: RelicTooltip
   /** 지금 떠 있는 카드가 땅의 유물 카드인가 */
   private groundTooltip = false
+  /** 가방까지 합쳐 발현할 수 있다고 이미 알린 신 */
+  private hintedGod: string | null = null
   /** 커서를 올린 HUD 유물 칸 (카드를 그 위에 띄운다) */
   private hoveredSlot: { slot: number; x: number; y: number } | null = null
   private readonly relics: RelicSystem
@@ -193,6 +201,11 @@ export class Game {
       fx: this.fx.skills,
       lightning: this.fx.lightning,
       puffs: this.fx.puffs,
+      slashes: this.fx.slashes,
+      shots: this.fx.shots,
+      flash: (at, color, strength) => this.fx.power.burst(at, color, strength),
+      heal: (amount) => this.combat.health.heal(amount),
+      heroHp: () => this.combat.health.ratio,
       hit: (target, damage, dirX, dirZ, knockback, style) => this.damage.deal(target, damage, dirX, dirZ, knockback, style),
       shake: (amount) => this.view.shake(amount),
       sound: (cue, x, z) => this.bus.emit('sound', { cue, x, z }),
@@ -292,7 +305,17 @@ export class Game {
     // 새 외형은 메뉴 단추의 점으로만 알린다. (유물 이름 알림과 겹치지 않게)
     this.bus.on('looksUnlocked', () => this.menu.markNew())
     this.bus.on('outfitChanged', () => this.menu.refresh())
-    this.bus.on('loadoutChanged', () => this.menu.refresh())
+    this.bus.on('loadoutChanged', () => {
+      this.menu.refresh()
+      // 칸이 다른 신 유물로 차 있어 가방의 유물로 발현할 수 있으면 알린다 (E6-07)
+      const god = this.powers.loadout.manifestable()
+      if (god && god !== this.hintedGod) {
+        this.hintedGod = god
+        this.menu.markTab('relics')
+        this.hud.showToast(`${godDef(god).name}의 유물이 모였다`)
+      }
+      if (!god) this.hintedGod = null
+    })
     // HUD 유물 칸: 커서를 올리면 설명 카드, 누르면 유물 화면
     this.hud.onSlotClick = (slot) => this.menu.show('relics', slot)
     this.hud.onSlotHover = (slot, anchor) => {
@@ -485,10 +508,13 @@ export class Game {
     const powers: HeroStats['powers'] = []
     if (manifested) {
       const god = godDef(manifested)
-      const what: string[] = []
-      if (god.passive.damageScale !== 1) what.push(`피해 ×${god.passive.damageScale}`)
-      if (god.passive.basicLightning) what.push('기본 공격에 번개')
-      if (god.passive.chainLightning) what.push(`Lv${god.passive.chainLightning.minLevel}부터 번개가 옮겨 붙음`)
+      // 지금 레벨까지 열린 힘 (승급 카드와 같은 문구에서 고른다)
+      const level = this.progress.level(manifested)
+      const what = levelGains(manifested, 1)
+        .filter((g) => g.kind !== 'hp' && g.kind !== 'mastery')
+        .map((g) => g.text)
+      for (let lv = 2; lv <= level; lv++) for (const g of levelGains(manifested, lv)) if (g.kind === 'power') what.push(g.text)
+      what.push(`궁극기 「${god.ultimate.name}」`)
       powers.push({ kind: 'god', name: god.name, color: god.color, label: this.progress.title(manifested), what: what.join(' · ') })
     }
     for (const g of blessings) {
@@ -536,10 +562,9 @@ export class Game {
       if (id) this.tooltip.show(relicDef(id), this.cardContext(id), this.hoveredSlot.x, this.hoveredSlot.y, true)
       return
     }
-    const ground = this.playerInput.cursorOnGround()
-    const near = ground && this.pickups.list.find((p) => Math.hypot(p.x - ground.x, p.z - ground.z) < 1.1)
+    const { pointer } = this.input
+    const near = this.pickupUnderPointer(pointer)
     if (near) {
-      const { pointer } = this.input
       const place = { kind: 'ground' } as const
       const free = this.powers.loadout.slots.indexOf(null)
       const preview = free >= 0 ? { before: this.powers.state, after: this.powers.loadout.preview(free, near.id) } : undefined
@@ -549,6 +574,28 @@ export class Game {
       this.tooltip.hide()
       this.groundTooltip = false
     }
+  }
+
+  /** 월드 좌표가 화면 어디에 보이는가 (CSS 픽셀, 자동 점검용) */
+  screenPoint(x: number, y: number, z: number): { x: number; y: number } {
+    return worldToScreen(new THREE.Vector3(x, y, z), this.container.clientHeight, this.pixel.size, this.view.camera, this.view.subpixel)
+  }
+
+  /** 커서 아래의 땅 유물: 화면에 보이는 유물 모양(발밑 ~ 떠 있는 모델 위)과 커서 사이의 화면 거리로 고른다 */
+  private pickupUnderPointer(pointer: { x: number; y: number }): { id: RelicId; x: number; z: number } | null {
+    const height = this.container.clientHeight
+    const size = this.pixel.size
+    const { camera, subpixel } = this.view
+    const items = this.pickups.list.map((p) => {
+      const y = heightAt(p.x, p.z)
+      return {
+        item: p,
+        base: worldToScreen(new THREE.Vector3(p.x, y, p.z), height, size, camera, subpixel),
+        top: worldToScreen(new THREE.Vector3(p.x, y + PICKUP_TOP, p.z), height, size, camera, subpixel),
+      }
+    })
+    // 저해상도 픽셀 12칸쯤, 화면에서 적어도 28px
+    return itemUnderPointer(items, pointer, Math.max(28, size.scale * 12))
   }
 
   /** 시작 화면 뒤의 배경: 눈이 내리고 불꽃이 일렁이며, 주인공은 숨만 쉰다. */
@@ -584,10 +631,8 @@ export class Game {
 
     // 전투: 자동 공격 → 유물 → 적 → 성장 → 생사
     this.combat.update(dt, this.encounter.alive, {
-      onSwing: (swing, strong) => {
-        this.fx.slashes.spawn(this.hero.object.position, this.hero.facing, swing.range, swing.halfAngle, strong)
-        this.audio.play('swing', undefined, strong ? 1 : 0.7)
-      },
+      onSwing: (swing, strong) => this.swingFx(swing, strong),
+      onShot: (target, strong) => this.shotFx(target, strong),
       onHits: (hits) => this.damage.onHeroHits(hits),
     })
     this.relics.update(dt)
@@ -603,6 +648,44 @@ export class Game {
     this.fx.update(dt, this.hero, this.elapsed)
     this.stage.update(this.elapsed)
     this.stage.follow(position)
+  }
+
+  /** 공격 모션의 궤적: 판정 모양대로 그리고, 발현했으면 그 신의 색 (E6-10) */
+  private swingFx(swing: SwingSpec, strong: boolean): void {
+    const p = this.hero.object.position
+    const facing = this.hero.facing
+    const god = this.powers.manifested
+    const tint = god && !strong ? new THREE.Color(godDef(god).color).lerp(new THREE.Color(0xffffff), 0.5).getHex() : undefined
+    switch (swing.shape ?? 'arc') {
+      case 'arc':
+        this.fx.slashes.spawn(p, facing, swing.range, swing.halfAngle, strong, tint)
+        break
+      case 'ring':
+        this.fx.slashes.spawn(p, facing, swing.range, Math.PI, strong, tint)
+        break
+      case 'line':
+        this.fx.slashes.spawn(p, facing, swing.range, Math.atan2(swing.width ?? 0.6, swing.range), strong, tint)
+        break
+      case 'burst': {
+        const at = new THREE.Vector3(p.x + Math.sin(facing) * swing.range * 0.75, p.y, p.z + Math.cos(facing) * swing.range * 0.75)
+        this.fx.slashes.spawn(at, facing, swing.width ?? 1.5, Math.PI, strong, tint)
+        this.fx.puffs.burst(at, 10, 2)
+        break
+      }
+      case 'shot':
+        break
+    }
+    this.audio.play('swing', undefined, strong ? 1 : 0.7)
+  }
+
+  /** 원거리 공격이 날아간다: 벼락은 번개 줄기, 그 밖에는 화살·빛 조각 */
+  private shotFx(target: CombatTarget, strong: boolean): void {
+    const p = this.hero.object.position
+    const from = new THREE.Vector3(p.x, p.y + 1.3, p.z)
+    const to = new THREE.Vector3(target.x, heightAt(target.x, target.z) + 0.9, target.z)
+    const god = this.powers.manifested
+    if (this.combat.style === 'bolt') this.fx.lightning.strike(from, to, strong ? 0.12 : 0.07, 0.12)
+    else this.fx.shots.fire(from, to, god ? new THREE.Color(godDef(god).color).getHex() : 0xf2f7ff)
   }
 
   private updateEnemies(dt: number): void {
@@ -635,11 +718,15 @@ export class Game {
       {
         life: this.combat.health.ratio,
         divine: this.combat.divine,
-        boss: this.legend.boss?.alive
-          ? this.legend.boss.health.ratio
-          : boss && this.encounter.bossEngaged
-            ? boss.health.ratio
-            : null,
+        // 내기 전설은 보스 막대 자리에 채운 처치 수를 보인다
+        boss:
+          this.legend.betProgress !== null
+            ? this.legend.betProgress
+            : this.legend.boss?.alive
+              ? this.legend.boss.health.ratio
+              : boss && this.encounter.bossEngaged
+                ? boss.health.ratio
+                : null,
         slots: this.powers.hudSlots(),
         ultimate: manifested !== null,
         xp: manifested ? this.progress.xpRatio(manifested) : null,
@@ -669,6 +756,16 @@ export class Game {
   devUnequip(id: RelicId): void {
     const slot = this.powers.loadout.slots.indexOf(id)
     if (slot >= 0) this.relics.unequip(slot, false)
+  }
+
+  /** 가방의 유물을 칸에 끼운다. (봇이 발현 조합으로 바꿔 낄 때) */
+  devWield(id: RelicId, slot: number): void {
+    this.relics.wield(id, slot)
+  }
+
+  /** 칸의 유물을 가방에 넣는다. (봇이 한 신만 쓸 때) */
+  devStow(slot: number): void {
+    this.relics.stow(slot)
   }
 
   /** 유물을 모두 뺀다. (땅에 내려놓지 않고 없앤다) */

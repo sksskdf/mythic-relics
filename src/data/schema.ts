@@ -6,83 +6,14 @@
  * 이 파일은 three.js 등 다른 모듈에 기대지 않는다. (빌드 설정에서도 불러 쓴다)
  */
 
+import { ATTACK_STYLES, type AttackStyle } from '../combat/styles'
 import { LOOK_SLOTS, LOOKS, type LookSlot } from '../looks/catalog'
+import { bool, color, DataError, list, num, type Obj, obj, oneOf, onlyKeys, optNum, str, table } from './check'
+import { type ClassPassive, type LegendDef, nonDecreasing, parseLegend, parsePassive, parseUltimate, type Realm, REALMS, type UltimateDef } from './classKit'
 
-export class DataError extends Error {
-  constructor(path: string, message: string) {
-    super(`${path}: ${message}`)
-    this.name = 'DataError'
-  }
-}
+export type { ClassPassive, LegendDef, Realm, UltimateDef } from './classKit'
 
-type Obj = Record<string, unknown>
-
-function isObj(value: unknown): value is Obj {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-function obj(value: unknown, path: string): Obj {
-  if (!isObj(value)) throw new DataError(path, '객체여야 합니다')
-  return value
-}
-
-/** 모르는 키가 있으면 실패한다. (오타로 값이 무시되는 일을 막는다) */
-function onlyKeys(o: Obj, path: string, allowed: readonly string[]): void {
-  for (const key of Object.keys(o)) {
-    if (!allowed.includes(key)) throw new DataError(`${path}.${key}`, `모르는 항목입니다 (쓸 수 있는 것: ${allowed.join(', ')})`)
-  }
-}
-
-function num(o: Obj, key: string, path: string, range: { min?: number; max?: number } = {}): number {
-  const value = o[key]
-  if (typeof value !== 'number' || !Number.isFinite(value)) throw new DataError(`${path}.${key}`, '숫자여야 합니다')
-  if (range.min !== undefined && value < range.min) throw new DataError(`${path}.${key}`, `${range.min} 이상이어야 합니다`)
-  if (range.max !== undefined && value > range.max) throw new DataError(`${path}.${key}`, `${range.max} 이하여야 합니다`)
-  return value
-}
-
-function optNum(o: Obj, key: string, path: string, range: { min?: number; max?: number } = {}): number | undefined {
-  return o[key] === undefined ? undefined : num(o, key, path, range)
-}
-
-function str(o: Obj, key: string, path: string): string {
-  const value = o[key]
-  if (typeof value !== 'string' || value.trim() === '') throw new DataError(`${path}.${key}`, '비어 있지 않은 글자여야 합니다')
-  return value
-}
-
-function oneOf<T extends string>(o: Obj, key: string, path: string, values: readonly T[]): T {
-  const value = str(o, key, path)
-  if (!(values as readonly string[]).includes(value)) throw new DataError(`${path}.${key}`, `${values.join(', ')} 중 하나여야 합니다 ("${value}")`)
-  return value as T
-}
-
-function color(o: Obj, key: string, path: string): string {
-  const value = str(o, key, path)
-  if (!/^#[0-9a-fA-F]{6}$/.test(value)) throw new DataError(`${path}.${key}`, `#rrggbb 꼴의 색이어야 합니다 ("${value}")`)
-  return value
-}
-
-function bool(o: Obj, key: string, path: string): boolean {
-  const value = o[key] ?? false
-  if (typeof value !== 'boolean') throw new DataError(`${path}.${key}`, 'true나 false여야 합니다')
-  return value
-}
-
-function list(o: Obj, key: string, path: string): unknown[] {
-  const value = o[key]
-  if (!Array.isArray(value)) throw new DataError(`${path}.${key}`, '목록이어야 합니다')
-  return value
-}
-
-/** 키가 곧 id인 표. id는 영문·숫자만 쓴다. */
-function table(raw: unknown, path: string): [string, Obj][] {
-  const o = obj(raw, path)
-  return Object.entries(o).map(([id, value]) => {
-    if (!/^[a-zA-Z][a-zA-Z0-9]*$/.test(id)) throw new DataError(`${path}.${id}`, 'id는 영문자로 시작하는 영문·숫자여야 합니다')
-    return [id, obj(value, `${path}.${id}`)]
-  })
-}
+export { DataError } from './check'
 
 // ───────────────────────────── 신·클래스 ─────────────────────────────
 
@@ -104,26 +35,23 @@ export interface GodDef {
   passive: ClassPassive
   /** 발현했을 때의 외형 (칸 → 외형 id) */
   looks: Readonly<Partial<Record<LookSlot, string>>>
-  /** 승급 전설 이름. 아직 없으면 비어 있다 */
-  legend?: string
+  /** 승급 전설 (이름과 종류). 아직 없으면 비어 있다 */
+  legend?: LegendDef
+  /** 신화권 (드랍과 지역) */
+  realm: Realm
   /** 발현 표식: 이 클래스의 정체성을 드러내는 고정 외형 (등에 붙고 기운 연출이 딸린다) */
   mark: string
   /** 히든 클래스의 신. 유물이 무작위로 떨어지지 않는다 */
   hidden: boolean
   /** 발현에 필요한 같은 신 유물 수 (보통 3, 아수라 4) */
   manifestCount: number
+  /** 궁극기 (E6: 클래스마다 다르다) */
+  ultimate: UltimateDef
+  /** 공격 모션 (E6-10, src/combat/styles.ts) */
+  attack: AttackStyle
 }
 
-export interface ClassPassive {
-  /** 이 클래스로 주는 모든 피해 배율 (천둥의 신: 거인 특효) */
-  damageScale: number
-  /** 기본 공격이 맞을 때 첫 적에게 함께 떨어지는 번개 */
-  basicLightning?: { damage: number; finisherDamage: number }
-  /** 번개가 가까운 적에게 옮겨 붙는다. minLevel부터 */
-  chainLightning?: { minLevel: number; jumps: number; range: number; damage: number; finisherDamage: number }
-  /** 칼날 폭풍 (아수라왕): 기본 공격이 맞을 때마다 등의 팔들이 주변 적에게 칼을 휘두른다. 칼 수 = base + perLevel × (레벨 − 1) */
-  bladeStorm?: { damage: number; radius: number; base: number; perLevel: number }
-}
+
 
 /** 외형 id가 있고, 그 외형이 그 칸의 것인지 검사한다. */
 function lookOf(id: unknown, slot: LookSlot | null, path: string): string {
@@ -145,40 +73,16 @@ export function parseGods(raw: unknown, path = 'gods.json'): Record<string, GodD
   const out: Record<string, GodDef> = {}
   for (const [id, o] of table(raw, path)) {
     const p = `${path}.${id}`
-    onlyKeys(o, p, ['name', 'titles', 'source', 'color', 'tree', 'passive', 'looks', 'legend', 'mark', 'hidden', 'manifestCount'])
+    onlyKeys(o, p, ['name', 'titles', 'source', 'color', 'tree', 'passive', 'looks', 'legend', 'mark', 'hidden', 'manifestCount', 'ultimate', 'attack', 'realm'])
     const titles = list(o, 'titles', p)
     if (titles.length !== 4 || titles.some((t) => typeof t !== 'string' || t.trim() === '')) {
       throw new DataError(`${p}.titles`, 'Lv1~Lv4 칭호 네 개여야 합니다')
     }
     const tree = obj(o.tree, `${p}.tree`)
     onlyKeys(tree, `${p}.tree`, ['column', 'row'])
-    const passiveRaw = obj(o.passive ?? {}, `${p}.passive`)
-    onlyKeys(passiveRaw, `${p}.passive`, ['damageScale', 'basicLightning', 'chainLightning', 'bladeStorm'])
-    const passive: ClassPassive = { damageScale: optNum(passiveRaw, 'damageScale', `${p}.passive`, { min: 0 }) ?? 1 }
-    if (passiveRaw.basicLightning !== undefined) {
-      const q = `${p}.passive.basicLightning`
-      const b = obj(passiveRaw.basicLightning, q)
-      onlyKeys(b, q, ['damage', 'finisherDamage'])
-      passive.basicLightning = { damage: num(b, 'damage', q, { min: 0 }), finisherDamage: num(b, 'finisherDamage', q, { min: 0 }) }
-    }
-    if (passiveRaw.bladeStorm !== undefined) {
-      const q = `${p}.passive.bladeStorm`
-      const b = obj(passiveRaw.bladeStorm, q)
-      onlyKeys(b, q, ['damage', 'radius', 'base', 'perLevel'])
-      passive.bladeStorm = { damage: num(b, 'damage', q, { min: 0 }), radius: num(b, 'radius', q, { min: 0 }), base: num(b, 'base', q, { min: 0 }), perLevel: num(b, 'perLevel', q, { min: 0 }) }
-    }
-    if (passiveRaw.chainLightning !== undefined) {
-      const q = `${p}.passive.chainLightning`
-      const c = obj(passiveRaw.chainLightning, q)
-      onlyKeys(c, q, ['minLevel', 'jumps', 'range', 'damage', 'finisherDamage'])
-      passive.chainLightning = {
-        minLevel: num(c, 'minLevel', q, { min: 1, max: 4 }),
-        jumps: num(c, 'jumps', q, { min: 1 }),
-        range: num(c, 'range', q, { min: 0 }),
-        damage: num(c, 'damage', q, { min: 0 }),
-        finisherDamage: num(c, 'finisherDamage', q, { min: 0 }),
-      }
-    }
+    const passive = parsePassive(o.passive, `${p}.passive`)
+    if (passive.companions) nonDecreasing(passive.companions.counts, `${p}.passive.companions.counts`)
+    if (passive.orbit) nonDecreasing(passive.orbit.count, `${p}.passive.orbit.count`)
     out[id] = {
       id,
       name: str(o, 'name', p),
@@ -189,10 +93,13 @@ export function parseGods(raw: unknown, path = 'gods.json'): Record<string, GodD
       tree: { column: num(tree, 'column', `${p}.tree`), row: num(tree, 'row', `${p}.tree`) },
       passive,
       looks: parseLooks(o.looks ?? {}, `${p}.looks`),
-      ...(o.legend === undefined ? {} : { legend: str(o, 'legend', p) }),
+      ...(o.legend === undefined ? {} : { legend: parseLegend(o.legend, `${p}.legend`)! }),
+      realm: oneOf(o, 'realm', p, REALMS),
       mark: lookOf(o.mark, 'mark', `${p}.mark`),
       hidden: bool(o, 'hidden', p),
       manifestCount: optNum(o, 'manifestCount', p, { min: 2, max: 4 }) ?? 3,
+      ultimate: parseUltimate(o.ultimate, `${p}.ultimate`),
+      attack: oneOf(o, 'attack', p, ATTACK_STYLES),
     }
     if (out[id]!.looks.mark !== undefined) throw new DataError(`${p}.looks.mark`, '표식은 looks가 아니라 mark에 적습니다')
   }
@@ -223,6 +130,10 @@ export const ACTION_PARAMS = {
   ingotThrow: ['damage', 'speed', 'knockback'],
   /** 제자리에 분신을 남겨 적의 시선을 끈다. 사라질 때 터진다 */
   decoy: ['life', 'blastRadius', 'blastDamage', 'knockback'],
+  /** 앞쪽 부채꼴을 불꽃으로 쓸어 낸다 (halfAngle은 도) */
+  flameSweep: ['damage', 'range', 'halfAngle', 'knockback'],
+  /** 가장 먼 적 쪽으로 던져 길 위의 적을 모두 꿰뚫는다 */
+  pierce: ['damage', 'range', 'speed', 'hitRadius', 'knockback'],
 } as const
 export type AuraKind = keyof typeof AURA_PARAMS
 export type ActionKind = keyof typeof ACTION_PARAMS
@@ -271,6 +182,8 @@ export interface RelicDef {
   id: string
   name: string
   god: string
+  /** 이 유물을 함께 쓰는 다른 신 (쿠사나기: 스사노오와 아수라왕). 발현 수를 셀 때 모두에게 센다 */
+  also: readonly string[]
   /** 끼면 몸에 보이는 외형 (src/looks/catalog.ts). 칸은 외형이 정한다 */
   look: string
   /** 복셀 모델 이름 (src/voxel/models/relics.ts) */
@@ -278,9 +191,9 @@ export interface RelicDef {
   /** 유물 설명 (E4 설명 카드) */
   description: string
   /** HUD 칸에 그릴 12×12 픽셀 그림. 글자 하나가 한 칸이고 '.'은 빈칸 */
-  icon: readonly string[]
+  icon?: readonly string[]
   /** 그림 글자별 색 */
-  colors: Readonly<Record<string, string>>
+  colors?: Readonly<Record<string, string>>
   /** 지속 효과: 끼고 있는 동안 늘 켜져 있다 */
   passive: { description: string; modifiers: Readonly<Partial<Record<ModifierKey, number>>>; aura?: AuraDef }
   /** 행동 연동 효과: 행동으로 충전이 쌓이고, 다 차면 터진다 */
@@ -336,7 +249,9 @@ function parseRelease(raw: unknown, path: string): ReleaseDef {
   }
 }
 
-function parseIcon(o: Obj, path: string): { icon: string[]; colors: Record<string, string> } {
+function parseIcon(o: Obj, path: string): { icon?: string[]; colors?: Record<string, string> } {
+  // 그림이 없으면 외형 모델을 옆에서 본 모습으로 그린다 (src/voxel/iconFromGrid.ts)
+  if (o.icon === undefined && o.colors === undefined) return {}
   const icon = list(o, 'icon', path)
   if (icon.length !== 12 || icon.some((row) => typeof row !== 'string' || row.length !== 12)) {
     throw new DataError(`${path}.icon`, '12글자짜리 줄 12개여야 합니다')
@@ -361,10 +276,15 @@ export interface RelicRefs {
 
 export function parseRelic(id: string, raw: unknown, refs: RelicRefs, path = `relics.json.${id}`): RelicDef {
   const o = obj(raw, path)
-  onlyKeys(o, path, ['name', 'god', 'look', 'model', 'description', 'icon', 'colors', 'passive', 'trigger'])
+  onlyKeys(o, path, ['name', 'god', 'also', 'look', 'model', 'description', 'icon', 'colors', 'passive', 'trigger'])
   const god = str(o, 'god', path)
   if (!refs.gods.includes(god)) throw new DataError(`${path}.god`, `gods.json에 없는 신입니다 ("${god}")`)
-  const model = str(o, 'model', path)
+  const also = (o.also === undefined ? [] : list(o, 'also', path)).map((g, i) => {
+    if (typeof g !== 'string' || !refs.gods.includes(g) || g === god) throw new DataError(`${path}.also[${i}]`, `gods.json에 있는 다른 신이어야 합니다 ("${String(g)}")`)
+    return g
+  })
+  // 땅에 떨어진 모습: 따로 없으면 외형 모델을 그대로 쓴다
+  const model = o.model === undefined ? str(o, 'look', path) : str(o, 'model', path)
   if (refs.models && !refs.models.includes(model)) {
     throw new DataError(`${path}.model`, `없는 모델입니다 ("${model}", 있는 것: ${refs.models.join(', ')})`)
   }
@@ -416,6 +336,7 @@ export function parseRelic(id: string, raw: unknown, refs: RelicRefs, path = `re
     id,
     name: str(o, 'name', path),
     god,
+    also,
     look: lookOf(o.look, null, `${path}.look`),
     model,
     description: str(o, 'description', path),
@@ -744,7 +665,8 @@ export interface GameData {
  */
 function checkLookHarmony(gods: Record<string, GodDef>, relics: Record<string, RelicDef>): void {
   for (const god of Object.values(gods)) {
-    const own = Object.values(relics).filter((r) => r.god === god.id)
+    // 함께 쓰는 유물(also)도 그 신의 유물로 센다 (쿠사나기·토츠카는 스사노오와 아수라왕 둘 다)
+    const own = Object.values(relics).filter((r) => r.god === god.id || r.also.includes(god.id))
     const used = new Map<LookSlot, string>()
     for (const relic of own) {
       const slot = LOOKS[relic.look]!.slot

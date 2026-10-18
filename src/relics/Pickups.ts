@@ -2,7 +2,8 @@ import * as THREE from 'three'
 
 import { EFFECT_LAYER } from '../render/PixelRenderer'
 import { voxelMesh } from '../voxel/mesher'
-import { RELIC_MODELS, RELIC_VOXEL } from '../voxel/models/relics'
+import { RELIC_VOXEL } from '../voxel/models/relics'
+import { relicGrid } from './model'
 import { heightAt } from '../world/terrain'
 import { godDef, relicDef, type RelicId } from './data'
 
@@ -24,6 +25,9 @@ interface Pickup {
 /**
  * 땅에 놓인 유물. 빛기둥으로 위치를 알리고, 주인공이 밟고 지나가면 저절로 줍는다. (조작 최소화)
  */
+/** 땅 유물이 화면에 보이는 높이 (떠 있는 모델의 위 끝, 미터). 설명 카드를 띄우는 범위에 쓴다 */
+export const PICKUP_TOP = 1.8
+
 export class Pickups {
   readonly object = new THREE.Group()
   private readonly items: Pickup[] = []
@@ -36,7 +40,7 @@ export class Pickups {
   drop(id: RelicId, x: number, z: number, armed = true): void {
     const root = new THREE.Group()
     root.position.set(x, heightAt(x, z), z)
-    const grid = RELIC_MODELS[relicDef(id).model]!()
+    const grid = relicGrid(relicDef(id))
     const model = voxelMesh(grid, { voxelSize: RELIC_VOXEL * 1.2 })
     model.position.y = 0.9
     root.add(model)
@@ -51,6 +55,14 @@ export class Pickups {
 
     this.object.add(root)
     this.items.push({ id, root, model, beam, x, z, armed, phase: Math.random() * 6 })
+  }
+
+  /** 땅의 유물을 줍지 않고 없앤다 (점검용) */
+  remove(id: RelicId): void {
+    const index = this.items.findIndex((item) => item.id === id)
+    if (index < 0) return
+    this.items[index]!.root.removeFromParent()
+    this.items.splice(index, 1)
   }
 
   /** 프레임마다 떠오르고 돌게 하고, 주인공이 닿은 유물을 주워 돌려준다. */

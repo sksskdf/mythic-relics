@@ -13,7 +13,7 @@
 
 | 문서 | 내용 |
 | --- | --- |
-| `ROADMAP.md` | 전체 로드맵. **0.2 "지금 할 일"과 4.2 마일스톤(E1~E10)이 현재 작업 기준** |
+| `ROADMAP.md` | 단계 2 로드맵 (E1~E10만, E10 뒤 다시 세움). **0.2 "지금 할 일"과 2장 마일스톤이 현재 작업 기준** |
 | `DESIGN.md` | 기획 전체 (핵심 원칙, 조작, 성장, 엔드게임 구조) |
 | `CLASSES.md` | 신화권 10개, 클래스 40개, 상위·히든 클래스, 칭호 |
 | `ENDGAME.md` | 전설 목록, 종말 보스, 권능, 공명, 변형 |
@@ -35,6 +35,7 @@
 - 이 환경에서 Electron 확인: `ELECTRON_ARGS="--use-angle=swiftshader --enable-unsafe-swiftshader" ELECTRON_SHOT=test-results/electron.png xvfb-run -a node scripts/dev-electron.mjs` (8초 뒤 창을 찍고 닫힘)
 - `npm run check`: 타입 검사 + 빌드(데이터 검사 포함) + 단위 테스트 + 스모크. **커밋 전에 반드시 통과시킨다.** 같은 검사와 봇 1판이 GitHub Actions(`.github/workflows/ci.yml`)에서도 돈다.
 - `npm run build && npm run playtest [횟수] [제한 분]`: 이동만 쓰는 봇이 처음부터 승급까지 플레이하고 시간·피격 등을 기록한다 (`test-results/playtest.json`). 수치를 바꾸면 돌려 본다. `--loops=N`을 붙이면 단련·윤회까지 하며 윤회 N번의 회차별 시간을 잰다.
+- `npm run build && node scripts/class-sheet.mjs [파일.png] [신 id,...]`: 모든 클래스를 자기 유물로 발현시킨 Lv1·Lv4 모습 모음. 클래스·외형을 바꾸면 찍어 본다.
 - `npm run build && node scripts/shot.mjs <파일.png> "<주소 뒤 값>" "<게임 안 코드>" [프레임]`: 원하는 상태의 스크린숏. 화면이 바뀌는 작업은 스크린숏을 직접 보고 확인한다.
 - 개발 모드: `pnpm dev --dev`(또는 `pnpm dev:tools`), 브라우저는 `?dev`. 오른쪽 개발 패널(`src/dev/DevPanel.ts`)에서 유물·클래스·이동·적·전설·시간을 바꾼다. 새 시스템을 만들면 패널에도 시험 단추를 더한다.
 - 점검용 주소: `?relics=all` / `?relics=mjolnir,megingjord` (유물 끼고 시작, 저장 안 함), `?fresh` (저장 지우고 시작), `?view=` (시야 높이), `?autoplay` (봇).
@@ -45,12 +46,12 @@
 
 | 폴더 | 내용 |
 | --- | --- |
-| `src/data/` | **게임 데이터**: `relics.json`(유물), `gods.json`(신·클래스), `enemies.json`(적), `classes.json`(클래스 트리, `CLASSES.md`와 같아야 함), `schema.ts`(형식과 검사). 숫자는 여기서 고친다 |
+| `src/data/` | **게임 데이터**: `relics.json`(유물), `gods.json`(신·클래스), `enemies.json`(적), `classes.json`(클래스 트리, `CLASSES.md`와 같아야 함), `schema.ts`(형식과 검사), `classKit.ts`(클래스 부품: 패시브·궁극기·전설 종류). 숫자는 여기서 고친다 |
 | `src/game/` | `Game.ts`(조립, 메인 루프), `events.ts`(이벤트 버스), `context.ts`(시스템 공용 상태), `Stage`(빛·맵), `HeroController`(이동), `HeroOrders`(클릭 → 지시), `PlayerCombat`(자동 공격), `Encounter`(적 무리·보스), `Legend`(승급 전설), `RelicPowers`(장착한 유물 효과) |
 | `src/game/systems/` | 규칙: `Damage`(피해), `Relics`(줍기·장착·발현), `Progression`(경험치·드랍·승급), `HeroLife`(쓰러짐·부활), `Persistence`(저장), `PlayerInput`(클릭), `Effects`(연출), `Sound`(소리), `CycleSystem`(원천 결정·단련·윤회·종말 보스). 시스템끼리는 버스로만 주고받는다 |
 | `src/enemies/` | 거인 AI(`Giant.ts`: 상태, 공격 예고, 패턴)와 모델 |
 | `src/skills/` | 유물 효과(`index.ts`: 데이터 → 효과), 행동·오라 종류(`actions.ts`), 궁극기 |
-| `src/looks/` | 외형: 칸과 외형 목록(`catalog.ts`), 장착 → 모습·보관함(`outfit.ts`). 모델은 `src/voxel/models/looks.ts`, 적용은 `systems/Appearance.ts` |
+| `src/looks/` | 외형: 칸과 외형 목록(`catalog.ts`, 1차 클래스는 `classLooks.ts`), 장착 → 모습·보관함(`outfit.ts`). 모델은 `src/voxel/models/looks.ts`(손으로 찍은 것)·`classLooks.ts`(생성기 `gen.ts`로 만든 것), 적용은 `systems/Appearance.ts` |
 | `src/relics/` | 유물·신 데이터, 장착(발현·가호 판정), 드랍 규칙, 땅의 유물 |
 | `src/progress/` | 클래스 레벨·경험치·원천 숙련, 단계별로 얻는 것(`levelGains`), 순환 성장(`Cycle`: 결정·단련·윤회·별자리·태초의 법) |
 | `src/save/` | 저장 형식과 검사 |
@@ -62,8 +63,9 @@
 
 ## 작업 방식
 
-- 마일스톤 작업은 `ROADMAP.md` 4.2의 표(ID, 목표, 자동 검증, 직접 플레이 체크리스트, 완료 기준)를 따른다. 끝나면 완료 기준을 확인하고 문서에 기록한다.
+- 마일스톤 작업은 `ROADMAP.md` 2장의 표(ID, 목표, 자동 검증, 직접 플레이 체크리스트, 완료 기준)를 따른다. 끝나면 완료 기준을 확인하고 문서에 기록한다.
 - **로드맵 체크는 Claude가 진행할 때마다 직접 한다:** 작업을 끝낼 때마다 `ROADMAP.md`의 해당 작업 줄에 ✅, 자동 검증을 통과하면 그 줄에 ✅, 사용자가 확인해 준 체크리스트는 `[x]`로 바꾸고, MCP `roadmap`으로 마일스톤 상태(할 일/진행 중/완료)를 맞춘다.
+- **사용자는 로드맵을 아티팩트로 본다** (https://claude.ai/artifact/VLnz4HHR5F7VMGG496TmqK). `ROADMAP.md`를 고칠 때마다 `node scripts/roadmap-page/build.mjs <스크래치 경로>/roadmap.html`로 페이지를 다시 만들어 같은 URL에 올린다.
 - 로드맵 패널(모드)은 `ROADMAP.md`를 직접 읽어 계획 탭에 보여 준다. 문서를 고치면 패널도 바뀐다. 할 일 목록 항목 이름을 `E1 ...`처럼 마일스톤 ID로 시작하게 두면 계획 탭의 마일스톤에 상태(○ ▶ ✓)가 붙는다. 상태는 MCP `roadmap` 도구로 바꾼다.
 - 코드 주석과 테스트 이름은 한국어. 주변 코드의 말투와 밀도를 따른다.
 - 수치는 `src/data/*.json`에서 바꾸고, 바꾸면 `BALANCE.md`와 봇 결과(`PLAYTEST.md`)를 함께 고친다.

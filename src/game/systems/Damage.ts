@@ -64,6 +64,10 @@ export class DamageSystem {
     }
     if (hits.length === 0) return
     bus.emit('basicHits', { targets: hits.map((h) => h.target) })
+    powers.classPassives.onBasicHit(
+      hits.map((h) => h.target),
+      skills,
+    )
     powers.onBasicHit(
       {
         targets: hits.map((h) => h.target),
@@ -88,8 +92,10 @@ export class DamageSystem {
       const bolt = passive.basicLightning
       this.deal(first, finisher ? bolt.finisherDamage : bolt.damage, dx / len, dz / len, 0, 'thunder')
       const chain = passive.chainLightning
-      if (chain && progress.level(manifested) >= chain.minLevel) {
-        this.chainLightning(first, finisher ? chain.finisherDamage : chain.damage, chain.jumps, chain.range)
+      const level = progress.level(manifested)
+      if (chain && level >= chain.minLevel) {
+        const jumps = level >= 4 && chain.topJumps ? chain.topJumps : chain.jumps
+        this.chainLightning(first, finisher ? chain.finisherDamage : chain.damage, jumps, chain.range)
       }
     }
     // 발현 패시브: 칼날 폭풍 (아수라왕). 등의 팔들이 가까운 적들에게 차례로 칼을 휘두른다.
@@ -104,7 +110,9 @@ export class DamageSystem {
         const dx = enemy.x - p.x
         const dz = enemy.z - p.z
         const len = Math.hypot(dx, dz) || 1
-        fx.slashes.spawn(new THREE.Vector3(enemy.x, heightAt(enemy.x, enemy.z), enemy.z), Math.random() * Math.PI * 2, 1 + Math.random() * 0.4, 0.8, false, i % 2 ? 0xff4a5a : 0xb0101c)
+        // 칼 색: 데이터의 color (없으면 검붉은 두 색을 번갈아)
+        const tint = storm.color ? new THREE.Color(storm.color).getHex() : 0xff4a5a
+        fx.slashes.spawn(new THREE.Vector3(enemy.x, heightAt(enemy.x, enemy.z), enemy.z), Math.random() * Math.PI * 2, 1 + Math.random() * 0.4, 0.8, false, i % 2 ? tint : new THREE.Color(tint).multiplyScalar(0.6).getHex())
         bus.emit('sound', { cue: 'blade', x: enemy.x, z: enemy.z })
         this.deal(enemy, storm.damage, dx / len, dz / len, 1.5, 'normal')
       }

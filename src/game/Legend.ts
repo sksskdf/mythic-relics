@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 
+import type { LegendKind } from '../data/classKit'
 import { type Giant, GRUNT, UTGARD_KING } from '../enemies/Giant'
 import { EFFECT_LAYER } from '../render/PixelRenderer'
 import { buildVoxelGeometry, voxelMaterial } from '../voxel/mesher'
@@ -8,12 +9,18 @@ import type { Point2 } from '../world/colliders'
 import { heightAt } from '../world/terrain'
 import type { Encounter } from './Encounter'
 
-export type LegendPhase = 'idle' | 'wave' | 'boss'
+export type { LegendKind }
+export type LegendPhase = 'idle' | 'wave' | 'boss' | 'bet' | 'survive'
+
+/** 내기(tally): 제한 시간, 채워야 할 처치 수, 결계 안에 늘 있는 졸개 수, 졸개가 들어오는 간격 */
+export const BET = { seconds: 50, kills: 24, crowd: 7, every: 0.9 }
+/** 버티기(survive): 버틸 시간, 결계 안에 늘 있는 졸개 수, 졸개가 들어오는 간격 */
+export const SURVIVE = { seconds: 45, crowd: 11, every: 0.6 }
 
 /** 승급 전설이 게임에 알리는 일 */
 export interface LegendHost {
-  /** 들어갈 수 있는가 (그 클래스로 발현했고, 경험치 바가 가득 찼다) */
-  ready(): boolean
+  /** 들어갈 수 있으면 그 전설의 종류, 아니면 null (그 클래스로 발현했고, 경험치 바가 가득 찼다) */
+  ready(): LegendKind | null
   heroAlive(): boolean
   heroPosition(): Point2
   /** 주인공이 움직일 수 있는 범위를 정한다. null이면 풀어 준다. */
@@ -29,9 +36,12 @@ const WAVES = [6, 8]
 const ENTER_RADIUS = 1.6
 
 /**
- * 승급 전설 「우트가르드 원정」 간이판. (DESIGN.md 5.2)
- * 성소에 발현한 채로 경험치 바를 채우고 들어서면 얼음 결계가 닫히고, 거인 무리 두 번 뒤에 우트가르드의 왕이 나온다.
- * 왕을 쓰러뜨리면 승급하고, 쓰러지면 결계가 풀리고 처음부터 다시 도전한다.
+ * 승급 전설 간이판. (DESIGN.md 5.2) 성소에 발현한 채로 경험치 바를 채우고 들어서면 얼음 결계가 닫힌다.
+ * - 「우트가르드 원정」(토르): 거인 무리 두 번 뒤에 우트가르드의 왕이 나온다. 왕을 쓰러뜨리면 승급
+ * - 「대장장이들의 내기」(로키)형 tally: 끝없이 몰려오는 졸개를 제한 시간 안에 정한 수만큼 쓰러뜨리면 승급 (E6-04)
+ * - survive: 점점 거세게 몰려오는 졸개 속에서 정한 시간을 버티면 승급 (E6-17)
+ * 어느 신이 어느 종류인지는 gods.json의 legend.kind가 정한다.
+ * 쓰러지거나 시간이 다 되면 결계가 풀리고 처음부터 다시 도전한다.
  */
 export class UtgardLegend {
   readonly object = new THREE.Group()
@@ -40,6 +50,10 @@ export class UtgardLegend {
 
   private wave = 0
   private readonly giants: Giant[] = []
+  /** 내기: 남은 시간, 쓰러뜨린 수, 다음 졸개까지 */
+  private betLeft = 0
+  kills = 0
+  private spawnTimer = 0
   private readonly glyphMaterial = new THREE.MeshBasicMaterial({
     color: 0x7fd4ff,
     transparent: true,
@@ -101,9 +115,22 @@ export class UtgardLegend {
     return this.phase !== 'idle'
   }
 
+  /** 내기·버티기 진행도 0~1 (HUD 막대). 둘 다 아니면 null */
+  get betProgress(): number | null {
+    if (this.phase === 'bet') return Math.min(1, this.kills / BET.kills)
+    if (this.phase === 'survive') return Math.min(1, 1 - this.betLeft / SURVIVE.seconds)
+    return null
+  }
+
+  /** 내기 남은 시간 (초) */
+  get betSeconds(): number {
+    return Math.max(0, this.betLeft)
+  }
+
   update(dt: number, encounter: Encounter, host: LegendHost): void {
     this.time += dt
-    const ready = host.ready()
+    const kind = host.ready()
+    const ready = kind !== null
     // 들어갈 수 있을 때만 빛기둥이 서고 룬이 밝게 빛난다. (글 대신 빛으로 알려 준다)
     const pulse = 0.5 + Math.sin(this.time * 3) * 0.5
     this.beamMaterial.opacity = this.phase === 'idle' && ready ? 0.18 + pulse * 0.12 : 0
@@ -112,8 +139,8 @@ export class UtgardLegend {
 
     if (this.phase === 'idle') {
       const p = host.heroPosition()
-      if (ready && host.heroAlive() && Math.hypot(p.x - this.center.x, p.z - this.center.z) < ENTER_RADIUS) {
-        this.start(encounter, host)
+      if (kind && host.heroAlive() && Math.hypot(p.x - this.center.x, p.z - this.center.z) < ENTER_RADIUS) {
+        this.start(kind, encounter, host)
       }
       return
     }
@@ -124,6 +151,12 @@ export class UtgardLegend {
     }
 
     const remaining = this.giants.filter((g) => !g.gone)
+    if (this.phase === 'bet' || this.phase === 'survive') {
+      this.kills += this.giants.length - remaining.length
+      this.giants.splice(0, this.giants.length, ...remaining)
+      this.updateBet(dt, encounter, host)
+      return
+    }
     this.giants.splice(0, this.giants.length, ...remaining)
     if (remaining.length > 0) return
 
@@ -137,13 +170,44 @@ export class UtgardLegend {
     }
   }
 
-  private start(encounter: Encounter, host: LegendHost): void {
-    this.phase = 'wave'
-    this.wave = 0
+  private start(kind: LegendKind, encounter: Encounter, host: LegendHost): void {
     this.barrier.visible = true
     host.setArena({ x: this.center.x, z: this.center.z, radius: this.radius - 0.6 })
     host.onStart()
+    if (kind === 'tally' || kind === 'survive') {
+      this.phase = kind === 'tally' ? 'bet' : 'survive'
+      this.betLeft = kind === 'tally' ? BET.seconds : SURVIVE.seconds
+      this.kills = 0
+      this.spawnTimer = 0
+      return
+    }
+    this.phase = 'wave'
+    this.wave = 0
     this.spawnWave(encounter)
+  }
+
+  /** 내기·버티기: 결계 둘레에서 졸개가 끊임없이 들어온다. 내기는 시간 안에 처치 수를 채우면, 버티기는 시간이 다 될 때까지 살아 있으면 이긴다 */
+  private updateBet(dt: number, encounter: Encounter, host: LegendHost): void {
+    this.betLeft -= dt
+    const survive = this.phase === 'survive'
+    const rule = survive ? SURVIVE : BET
+    if (survive ? this.betLeft <= 0 : this.kills >= BET.kills) {
+      for (const giant of this.giants) encounter.remove(giant)
+      this.giants.length = 0
+      this.finish(host)
+      host.onWin()
+      return
+    }
+    if (this.betLeft <= 0) {
+      this.fail(encounter, host)
+      return
+    }
+    this.spawnTimer -= dt
+    if (this.spawnTimer > 0 || this.giants.length >= rule.crowd) return
+    this.spawnTimer = rule.every
+    const a = Math.random() * Math.PI * 2
+    const r = this.radius * 0.8
+    this.giants.push(encounter.spawn(GRUNT, { x: this.center.x + Math.sin(a) * r, z: this.center.z + Math.cos(a) * r }, true))
   }
 
   private spawnWave(encounter: Encounter): void {

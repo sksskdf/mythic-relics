@@ -5,6 +5,7 @@ import { levelGains } from '../../progress/levelGains'
 import { classIcon } from '../../ui/classIcons'
 import type { GameContext } from '../context'
 import type { LoadoutChange } from '../RelicPowers'
+import { godMoment } from './godMoments'
 
 /** 클래스가 발현되는 순간 주변 적을 밀어내는 범위와 피해 */
 const MANIFEST_RADIUS = 4
@@ -19,7 +20,10 @@ export class RelicSystem {
   private readonly lastWalk = new THREE.Vector2()
 
   constructor(private readonly ctx: GameContext) {
-    ctx.bus.on('targetKilled', ({ target }) => ctx.powers.onKill(target, ctx.skills))
+    ctx.bus.on('targetKilled', ({ target }) => {
+      ctx.powers.onKill(target, ctx.skills)
+      ctx.powers.classPassives.onKill(target, ctx.skills)
+    })
     ctx.bus.on('heroRevived', () => {
       this.decoy = null
     })
@@ -54,9 +58,10 @@ export class RelicSystem {
     // 궁극기: 발현 상태에서 신위 게이지가 가득 차고, 쓸 만한 때가 오면 저절로 나간다.
     const boss = encounter.boss
     const bossNear = !!boss && boss.alive && Math.hypot(boss.x - position.x, boss.z - position.z) < 10
-    if (combat.alive && powers.manifested && combat.divine >= 1 && !powers.ultimate.active && powers.ultimate.worthUsing(skills, bossNear)) {
+    const ultimate = powers.ultimate
+    if (combat.alive && ultimate && combat.divine >= 1 && !powers.ultimateActive && ultimate.worthUsing(skills, bossNear)) {
       combat.divine = 0
-      powers.ultimate.start(skills)
+      ultimate.start(skills)
       feel.stop(0.12)
     }
 
@@ -65,6 +70,8 @@ export class RelicSystem {
     combat.knockbackScale = mods.knockbackDealt
     combat.knockbackTakenScale = mods.knockbackTaken
     combat.damageTakenScale = mods.damageTaken * this.ctx.cycle.damageTakenScale
+    combat.attackSpeed = powers.manifested ? godDef(powers.manifested).passive.attackSpeed : 1
+    combat.setStyle(powers.manifested ? godDef(powers.manifested).attack : 'blade')
     hero.speedScale = mods.moveSpeed * this.ctx.cycle.moveSpeedScale
   }
 
@@ -138,20 +145,17 @@ export class RelicSystem {
     const god = godDef(after.manifested)
     hud.flash(god.color)
     fx.power.burst(hero.object.position, god.color, 4)
-    // 칼날 폭풍의 신(아수라왕)은 발현하는 순간 여섯 팔이 사방으로 칼을 휘두른다.
-    if (god.passive.bladeStorm) {
-      for (let i = 0; i < 6; i++) fx.slashes.spawn(hero.object.position, (i / 6) * Math.PI * 2, 2.6, 0.5, true, i % 2 ? 0xff4a5a : 0xb0101c)
-    }
+    // 신마다 다른 발현 순간: 번개 기둥, 흩어지는 그림자, 여섯 칼날
+    godMoment(this.ctx, god.id, 1)
     // 발현하면 무엇이 생기는지: 그 신의 힘과 지금 레벨까지 열린 것
     const lines: string[] = []
     for (let lv = 1; lv <= progress.level(god.id); lv++) {
       for (const g of levelGains(god.id, lv)) if (lv === 1 || g.kind === 'power') lines.push(g.text)
     }
-    lines.push('궁극기 사용 가능')
+    lines.push(`궁극기 「${god.ultimate.name}」`)
     hud.showGains('발현', progress.title(god.id), god.color, classIcon(god.name), lines)
-    // 하늘에서 번개가 주인공에게 내리꽂히고, 주변 적을 밀어낸다.
+    // 주변 적을 밀어낸다.
     const p = hero.object.position
-    fx.lightning.fromSky(p.clone(), 0.32)
     fx.puffs.burst(p, 30, 4)
     view.shake(0.5)
     feel.stop(0.15)

@@ -4,7 +4,8 @@ import type { ActionDef, AuraDef } from '../data/schema'
 import type { CombatTarget } from '../game/PlayerCombat'
 import { EFFECT_LAYER } from '../render/PixelRenderer'
 import { voxelMesh } from '../voxel/mesher'
-import { emberIngot, mjolnir, RELIC_VOXEL } from '../voxel/models/relics'
+import { inArc } from '../combat/arc'
+import { emberIngot, mistletoe, mjolnir, RELIC_VOXEL } from '../voxel/models/relics'
 import { buildHeroModel } from '../world/heroModel'
 import { enemiesWithin, nearestEnemy, type SkillContext } from './Skill'
 
@@ -32,6 +33,8 @@ export interface Action {
   fire(ctx: SkillContext, cue: Cue, boost: Boost): void
   update(dt: number, ctx: SkillContext): void
   dispose(): void
+  /** 연출 색을 유물 주인 신의 색으로 바꾼다 (분신·불꽃처럼 색이 신을 드러내는 것만) */
+  tint?(hex: number): void
 }
 
 /** 지속 효과 중 매 프레임 도는 것 (오라) */
@@ -321,6 +324,10 @@ class Decoy implements Action {
   private life = 0
   private boost = NO_BOOST
 
+  tint(hex: number): void {
+    this.material.color.setHex(hex)
+  }
+
   constructor(
     private readonly p: Readonly<Record<string, number>>,
     fx: THREE.Object3D,
@@ -379,6 +386,135 @@ class Decoy implements Action {
   }
 }
 
+/** 불꽃 휘두르기 (레바테인): 바라보는 쪽 부채꼴을 초록 불꽃으로 쓸어 낸다. */
+class FlameSweep implements Action {
+  readonly busy = false
+  private readonly fan: THREE.Mesh
+  private readonly turn = new THREE.Group()
+  private readonly material = new THREE.MeshBasicMaterial({ color: 0x5fd06a, transparent: true, depthWrite: false, side: THREE.DoubleSide })
+  private life = 0
+
+  tint(hex: number): void {
+    this.material.color.setHex(hex)
+  }
+
+  constructor(
+    private readonly p: Readonly<Record<string, number>>,
+    fx: THREE.Object3D,
+  ) {
+    const half = (p.halfAngle! * Math.PI) / 180
+    // 부채꼴: 눕히면 xy 평면의 −y가 앞(+z)이 되므로 −90°를 가운데에 둔다. 묶음을 돌려 바라보는 쪽을 맞춘다
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.4, 1, 24, 1, -Math.PI / 2 - half, half * 2), this.material)
+    ring.rotation.x = -Math.PI / 2
+    ring.layers.set(EFFECT_LAYER)
+    ring.renderOrder = 12
+    this.fan = ring
+    this.turn.add(ring)
+    this.turn.visible = false
+    fx.add(this.turn)
+  }
+
+  fire(ctx: SkillContext, cue: Cue, boost: Boost): void {
+    const hero = ctx.hero.object.position
+    const facing = cue.target ? Math.atan2(cue.target.x - hero.x, cue.target.z - hero.z) : ctx.hero.facing
+    const half = (this.p.halfAngle! * Math.PI) / 180
+    for (const enemy of ctx.enemies) {
+      if (!enemy.alive || !inArc(hero.x, hero.z, facing, this.p.range!, half, enemy.x, enemy.z, enemy.radius)) continue
+      const [dx, dz] = away(hero.x, hero.z, enemy)
+      ctx.hit(enemy, this.p.damage! * boost.damageScale, dx, dz, this.p.knockback!, 'strong')
+      boostLightning(ctx, enemy, boost, dx, dz)
+      ctx.puffs.burst(new THREE.Vector3(enemy.x, hero.y + 0.6, enemy.z), 4, 1)
+    }
+    this.turn.position.set(hero.x, hero.y + 0.2, hero.z)
+    this.turn.rotation.y = facing
+    this.turn.visible = true
+    this.life = 0.35
+    ctx.shake(0.15)
+  }
+
+  update(dt: number): void {
+    if (this.life <= 0) return
+    this.life -= dt
+    const t = 1 - this.life / 0.35
+    this.fan.scale.setScalar(0.6 + t * this.p.range!)
+    this.material.opacity = Math.max(0, 1 - t) * 0.8
+    this.turn.visible = this.life > 0
+  }
+
+  dispose(): void {
+    this.turn.removeFromParent()
+    this.fan.geometry.dispose()
+    this.material.dispose()
+  }
+}
+
+/** 발드르의 화살 (겨우살이 가지): 가장 먼 적 쪽으로 가지를 던져 길 위의 적을 모두 꿰뚫는다. */
+class Pierce implements Action {
+  private readonly mesh: THREE.Mesh
+  private readonly dir = new THREE.Vector3()
+  private travelled = -1
+  private boost = NO_BOOST
+  private readonly struck = new Set<CombatTarget>()
+
+  constructor(
+    private readonly p: Readonly<Record<string, number>>,
+    fx: THREE.Object3D,
+  ) {
+    this.mesh = voxelMesh(mistletoe(), { voxelSize: RELIC_VOXEL * 1.2, pivot: [4.5, 6, 1.5] })
+    this.mesh.visible = false
+    fx.add(this.mesh)
+  }
+
+  get busy(): boolean {
+    return this.travelled >= 0
+  }
+
+  fire(ctx: SkillContext, _cue: Cue, boost: Boost): void {
+    const hero = ctx.hero.object.position
+    let target: CombatTarget | null = null
+    let best = -1
+    for (const enemy of enemiesWithin(ctx.enemies, hero.x, hero.z, this.p.range!)) {
+      const d = Math.hypot(enemy.x - hero.x, enemy.z - hero.z)
+      if (d > best) {
+        best = d
+        target = enemy
+      }
+    }
+    if (!target) return
+    this.boost = boost
+    this.dir.set(target.x - hero.x, 0, target.z - hero.z).normalize()
+    this.mesh.position.set(hero.x, hero.y + 1.1, hero.z)
+    this.mesh.rotation.set(Math.PI / 2, 0, -Math.atan2(this.dir.x, this.dir.z))
+    this.mesh.visible = true
+    this.travelled = 0
+    this.struck.clear()
+  }
+
+  update(dt: number, ctx: SkillContext): void {
+    if (this.travelled < 0) return
+    const step = this.p.speed! * dt
+    this.mesh.position.addScaledVector(this.dir, step)
+    this.travelled += step
+    const p = this.mesh.position
+    for (const enemy of ctx.enemies) {
+      if (!enemy.alive || this.struck.has(enemy)) continue
+      if (Math.hypot(enemy.x - p.x, enemy.z - p.z) > enemy.radius + this.p.hitRadius!) continue
+      this.struck.add(enemy)
+      ctx.hit(enemy, this.p.damage! * this.boost.damageScale, this.dir.x, this.dir.z, this.p.knockback!, 'strong')
+      boostLightning(ctx, enemy, this.boost, this.dir.x, this.dir.z)
+      ctx.puffs.burst(new THREE.Vector3(enemy.x, p.y, enemy.z), 6, 1.4)
+    }
+    if (this.travelled >= this.p.range! + 2) {
+      this.mesh.visible = false
+      this.travelled = -1
+    }
+  }
+
+  dispose(): void {
+    this.mesh.removeFromParent()
+  }
+}
+
 export function createAction(def: ActionDef, fx: THREE.Object3D): Action {
   switch (def.kind) {
     case 'hammerThrow':
@@ -389,5 +525,9 @@ export function createAction(def: ActionDef, fx: THREE.Object3D): Action {
       return new IngotThrow(def.params, fx)
     case 'decoy':
       return new Decoy(def.params, fx)
+    case 'flameSweep':
+      return new FlameSweep(def.params, fx)
+    case 'pierce':
+      return new Pierce(def.params, fx)
   }
 }

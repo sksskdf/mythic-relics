@@ -1,0 +1,182 @@
+<div class="wrap">
+  <header class="top">
+    <div class="eyebrow"><span class="pix">ROADMAP V2.0</span> · 단계 2 (E1~E10)</div>
+    <h1><span class="pix">MYTHIC RELICS</span> 로드맵</h1>
+    <p class="lede" id="lede"></p>
+  </header>
+
+  <section class="section" id="overview">
+    <div class="eyebrow">단계와 일정</div>
+    <div class="band" id="band"></div>
+    <p class="band-note">단계 3 이후는 E10이 끝나면 측정한 제작 단가로 다시 세웁니다.</p>
+  </section>
+
+  <section class="section" id="now">
+    <div class="eyebrow">지금 할 일</div>
+    <ol class="now" id="nowList"></ol>
+    <div id="progressTable"></div>
+  </section>
+
+  <div class="toolbar" role="search">
+    <input type="search" id="q" placeholder="작업 찾기 (예: 공격 모션, 지역, E6-12)" aria-label="작업 찾기">
+    <div class="chips" id="chips" aria-label="분야로 거르기"></div>
+    <nav class="nav" aria-label="바로 가기">
+      <a href="#stage2">E1~E10</a><a href="#sprints">스프린트</a><a href="#after">E10 이후</a><a href="#risks">정할 것·위험</a>
+    </nav>
+  </div>
+
+  <section class="section" id="stage2">
+    <div class="eyebrow">단계 2 · 게임다운 빌드로 키우기</div>
+    <h2>E1~E10: 한 겹씩 쌓는 순서</h2>
+    <ul class="lead-list muted" id="rules"></ul>
+    <div class="path" id="path"></div>
+  </section>
+
+  <section class="section" id="sprints">
+    <div class="eyebrow">2주 단위</div>
+    <h2>스프린트 (E6~E10)</h2>
+    <div id="sprintTable"></div>
+  </section>
+
+  <section class="section" id="after">
+    <div class="eyebrow">E10 이후</div>
+    <h2>로드맵 다시 세우기</h2>
+    <p class="muted">E10이 끝나면 이 로드맵을 새로 쓰고 스프린트를 다시 돕니다. 그때 쓸 재료입니다.</p>
+    <ul class="lead-list" id="afterList"></ul>
+  </section>
+
+  <section class="section" id="risks">
+    <div class="eyebrow">관리</div>
+    <h2>단계 2 안에서 정할 것과 위험</h2>
+    <div id="decisionTable"></div>
+    <div id="riskTable"></div>
+  </section>
+
+  <footer>체크리스트 표시는 문서(ROADMAP.md)에서 사용자가 확인한 것이 기본으로 켜지고, 이 브라우저에서 바꾼 표시는 여기에만 남습니다.</footer>
+</div>
+
+<script>
+/*DATA*/
+const $ = (s, el = document) => el.querySelector(s);
+const h = (tag, attrs = {}, html = '') => { const e = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); if (html) e.innerHTML = html; return e; };
+const strip = (s) => (s || '').replace(/<[^>]+>/g, '');
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+
+$('#lede').innerHTML = DATA.meta.slice(0, 2).join(' ');
+
+// 단계 띠
+DATA.phases.forEach((p) => {
+  const name = strip(p['단계']);
+  const cls = name === '1' ? 'done' : name === '2' ? 'now' : '';
+  const flex = name === '2' ? 6 : 2;
+  const seg = h('div', { class: `seg ${cls}`, style: `flex:${flex} 1 0` });
+  seg.innerHTML = `<span class="n">STAGE ${name}</span>${cls === 'now' ? '<span class="nowtag">지금 여기</span>' : ''}<span class="t">${p['이름']}</span><span class="w">${p['기간 (예상)']}</span>${strip(p['게이트']) !== '-' ? `<span class="gk">${p['게이트']}</span>` : ''}`;
+  seg.title = strip(p['끝날 때 있어야 할 것']);
+  $('#band').append(seg);
+});
+DATA.now.forEach((t) => $('#nowList').append(h('li', {}, `<span>${t}</span>`)));
+
+// 표 그리기 (작업 표는 거르기 대상)
+function table(rows, opts = {}) {
+  if (!rows || !rows.length) return h('div');
+  const cols = Object.keys(rows[0]).filter((c) => c !== 'done');
+  const box = h('div', { class: 'tablebox' });
+  const t = h('table');
+  t.append(h('thead', {}, `<tr>${cols.map((c) => `<th scope="col">${c}</th>`).join('')}</tr>`));
+  const tb = h('tbody');
+  rows.forEach((r) => {
+    const tr = h('tr');
+    if (r.done) tr.classList.add('done');
+    cols.forEach((c) => {
+      let v = r[c] ?? '';
+      let cls = '';
+      if (c === 'ID') { cls = 'id'; v = strip(v).replace(' ✅', ''); }
+      else if (c === '분야') { cls = 'trk'; v = strip(v).split('/').map((x) => `<span>${x}</span>`).join(' '); }
+      else if (c === '규모') cls = 'size';
+      else if (c === '상태') v = strip(v) === '✅' ? '<span class="status-done">완료</span>' : `<span class="status-now">${v}</span>`;
+      tr.append(h('td', cls ? { class: cls } : {}, v));
+    });
+    if (opts.task) { tr.dataset.task = '1'; tr.dataset.track = strip(r['분야'] || ''); tr.dataset.text = strip(Object.values(r).join(' ')).toLowerCase(); }
+    tb.append(tr);
+  });
+  t.append(tb); box.append(t);
+  return box;
+}
+$('#progressTable').append(table(DATA.progress));
+
+// 원칙
+DATA.rules.forEach((r) => $('#rules').append(h('li', r.sub ? { style: 'margin-left:16px' } : {}, r.text)));
+
+// E1~E10
+const openState = store.get('rm2-open') || {};
+DATA.milestones.forEach((m) => {
+  const key = `rm2-check-${m.id}`;
+  const saved = store.get(key);
+  const checks = m.manual.map((c, i) => (saved && typeof saved[i] === 'boolean' ? saved[i] : c.checked));
+  const ms = h('div', { class: `ms${m.done ? ' done' : ''}${m.now ? ' now' : ''}`, id: m.id.toLowerCase().replace('.', '-') });
+  ms.append(h('div', { class: 'node', 'aria-hidden': 'true' }, m.id));
+  const d = h('details');
+  d.open = openState[m.id] ?? !!m.now;
+  d.addEventListener('toggle', () => { openState[m.id] = d.open; store.set('rm2-open', openState); });
+  const doneTasks = m.tasks.filter((t) => t.done).length;
+  const prog = () => `작업 ${doneTasks} / ${m.tasks.length} · 직접 플레이 체크 ${checks.filter(Boolean).length} / ${m.manual.length}${m.done ? ' · 완료' : ''}`;
+  const sum = h('summary', {}, `<span class="name">${m.id} ${m.name}</span><span class="wk">${m.weeks}</span><span class="feel">${m.feel}</span><span class="prog">${prog()}</span>`);
+  d.append(sum);
+  const body = h('div', { class: 'body' });
+  const kv = h('dl', { class: 'kv' });
+  const add = (k, v) => { if (v) kv.append(h('dt', {}, k), h('dd', {}, v)); };
+  add('목표', m.goal); add('이 순서인 이유', m.reason); add('배경', m.background); add('덧붙임', m.why);
+  body.append(kv);
+  body.append(table(m.tasks, { task: true }));
+  const v = h('div', { class: 'verify' });
+  v.append(h('div', { class: 'box' }, `<h4>자동 검증</h4><ul>${m.auto.map((x) => `<li>${x.text}</li>`).join('')}</ul>`));
+  const cb = h('div', { class: 'box check' }, '<h4>직접 플레이 체크리스트</h4>');
+  const ul = h('ul');
+  m.manual.forEach((x, i) => {
+    const id = `${m.id.replace('.', '-')}-c${i}`;
+    const li = h('li', {}, `<label for="${id}"><input type="checkbox" id="${id}"${checks[i] ? ' checked' : ''}><span>${x.text}</span></label>`);
+    li.querySelector('input').addEventListener('change', (e) => { checks[i] = e.target.checked; store.set(key, checks); sum.querySelector('.prog').textContent = prog(); });
+    ul.append(li);
+  });
+  cb.append(ul); v.append(cb);
+  body.append(v);
+  if (m.log.length) body.append(h('div', { class: 'box log' }, `<h4>진행 기록</h4><ul>${m.log.map((x) => `<li>${x.text}</li>`).join('')}</ul>`));
+  if (m.criteria) body.append(h('div', { class: 'donebar' }, `<b>완료 기준</b>${m.criteria}`));
+  if (m.gate) body.append(h('div', { class: 'gate' }, `<span class="gt">${m.gate.title}</span><ul>${m.gate.items.map((x) => `<li>${x}</li>`).join('')}</ul>`));
+  d.append(body); ms.append(d);
+  $('#path').append(ms);
+});
+
+$('#sprintTable').append(table(DATA.sprints));
+DATA.after.forEach((t) => $('#afterList').append(h('li', {}, t)));
+$('#decisionTable').append(table(DATA.decisions));
+$('#riskTable').append(table(DATA.risks));
+
+// 거르기: 검색어와 분야
+const tracks = [...new Set(DATA.milestones.flatMap((m) => m.tasks.flatMap((t) => strip(t['분야'] || '').split('/'))))].filter(Boolean).sort();
+const active = new Set();
+tracks.forEach((code) => {
+  const c = h('button', { class: 'chip', type: 'button', 'aria-pressed': 'false' }, code);
+  c.addEventListener('click', () => { active.has(code) ? active.delete(code) : active.add(code); c.setAttribute('aria-pressed', active.has(code)); apply(); });
+  $('#chips').append(c);
+});
+$('#q').addEventListener('input', apply);
+function apply() {
+  const q = $('#q').value.trim().toLowerCase();
+  const filtering = q || active.size;
+  document.querySelectorAll('tr[data-task]').forEach((tr) => {
+    const okQ = !q || tr.dataset.text.includes(q);
+    const okT = !active.size || tr.dataset.track.split('/').some((t) => active.has(t));
+    tr.classList.toggle('hide', !(okQ && okT));
+  });
+  document.querySelectorAll('.ms details').forEach((d) => {
+    const rows = d.querySelectorAll('tr[data-task]');
+    const any = [...rows].some((r) => !r.classList.contains('hide'));
+    if (filtering) { d.dataset.wasOpen ??= d.open ? '1' : '0'; d.open = any; d.closest('.ms').style.opacity = any ? '' : '0.45'; }
+    else if (d.dataset.wasOpen !== undefined) { d.open = d.dataset.wasOpen === '1'; delete d.dataset.wasOpen; d.closest('.ms').style.opacity = ''; }
+  });
+}
+</script>

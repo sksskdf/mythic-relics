@@ -1,3 +1,5 @@
+import { CLASS_LOOKS } from './classLooks'
+
 /**
  * 외형 목록. (E3, DESIGN.md 10.4)
  * 주인공의 모습은 부위(칸)마다 외형 하나를 끼우는 방식으로 만든다.
@@ -28,7 +30,7 @@ export const SLOT_NAMES: Readonly<Record<LookSlot, string>> = {
 }
 
 /** 표식에 딸린 기운 연출 */
-export type MarkAura = 'sparks' | 'shadow' | 'asura'
+export type MarkAura = 'sparks' | 'shadow' | 'asura' | 'tint'
 
 export interface LookDef {
   id: string
@@ -54,8 +56,10 @@ const list: LookDef[] = [
   { id: 'thorTunic', slot: 'torso', name: '털 어깨 전투복' },
   { id: 'thorCape', slot: 'cape', name: '붉은 망토' },
   { id: 'thorStormHalo', slot: 'mark', name: '벼락 고리', aura: 'sparks' },
-  // 로키: 유물(얼굴) / 발현(머리·몸·등) / 표식
+  // 로키: 유물(얼굴·무기·허리) / 발현(머리·몸·등) / 표식
   { id: 'lokiMaskFace', slot: 'face', name: '변신의 가면' },
+  { id: 'laevateinnBlade', slot: 'weapon', name: '레바테인' },
+  { id: 'mistletoeCharm', slot: 'waist', name: '겨우살이 가지' },
   { id: 'lokiCrown', slot: 'head', name: '뿔 장식 관' },
   { id: 'lokiTunic', slot: 'torso', name: '초록 비단옷' },
   { id: 'lokiCape', slot: 'cape', name: '초록 망토' },
@@ -68,6 +72,8 @@ const list: LookDef[] = [
   { id: 'asuraBladeArmor', slot: 'torso', name: '칼날 갑주' },
   { id: 'asuraBladeGreaves', slot: 'legs', name: '칼날 정강이받이' },
   { id: 'asuraArms', slot: 'mark', name: '칼을 쥔 여섯 팔', aura: 'asura' },
+  // E6 1차 클래스 (src/looks/classLooks.ts)
+  ...CLASS_LOOKS,
 ]
 
 export const LOOKS: Readonly<Record<string, LookDef>> = Object.fromEntries(list.map((look) => [look.id, look]))
