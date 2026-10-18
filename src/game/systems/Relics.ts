@@ -67,6 +67,7 @@ export class RelicSystem {
     combat.knockbackTakenScale = mods.knockbackTaken
     combat.damageTakenScale = mods.damageTaken * this.ctx.cycle.damageTakenScale
     combat.attackSpeed = powers.manifested ? godDef(powers.manifested).passive.attackSpeed : 1
+    combat.setStyle(powers.manifested ? godDef(powers.manifested).attack : 'blade')
     hero.speedScale = mods.moveSpeed * this.ctx.cycle.moveSpeedScale
   }
 

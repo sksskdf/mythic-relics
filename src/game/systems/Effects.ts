@@ -7,6 +7,7 @@ import { PowerUp } from '../../fx/PowerUp'
 import { Puffs } from '../../fx/Puffs'
 import { ShadowAura } from '../../fx/ShadowAura'
 import { Slashes } from '../../fx/Slashes'
+import { Shots } from '../../fx/Shots'
 import { Snowfall } from '../../fx/Snowfall'
 import { Sparks } from '../../fx/Sparks'
 import { EFFECT_LAYER } from '../../render/PixelRenderer'
@@ -23,6 +24,8 @@ const SNOW_CHIPS = [0xf4f8fc, 0xdfe8f1]
 export class Effects {
   readonly puffs = new Puffs(96)
   readonly slashes = new Slashes()
+  /** 날아가는 화살·창·빛 (E6-10 원거리 공격) */
+  readonly shots = new Shots()
   readonly debris = new Debris()
   readonly lightning = new Lightning()
   /** 천둥의 신 발현 중 몸 주변의 푸른 전기 */
@@ -45,7 +48,7 @@ export class Effects {
   private footstepTimer = 0
 
   addTo(scene: THREE.Scene): void {
-    for (const effect of [this.marker.object, this.snow.object, this.puffs.object, this.slashes.object, this.sparks.object]) {
+    for (const effect of [this.marker.object, this.snow.object, this.puffs.object, this.slashes.object, this.shots.object, this.sparks.object]) {
       effect.traverse((o) => o.layers.set(EFFECT_LAYER))
       scene.add(effect)
     }
@@ -80,6 +83,7 @@ export class Effects {
     this.asura.update(dt, position)
     this.power.update(dt, position)
     this.slashes.update(dt)
+    this.shots.update(dt)
     this.debris.update(dt)
     this.snow.update(dt, position, elapsed)
   }

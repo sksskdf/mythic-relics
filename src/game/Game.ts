@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 
 import { AudioEngine } from '../audio/AudioEngine'
+import type { SwingSpec } from '../combat/combo'
 import { Input } from '../input/Input'
 import { PixelRenderer } from '../render/PixelRenderer'
 import { QuarterViewCamera } from '../render/QuarterViewCamera'
@@ -37,7 +38,7 @@ import { UtgardLegend } from './Legend'
 import { HERO_RADIUS, HeroController } from './HeroController'
 import { HeroOrders } from './HeroOrders'
 import { plowThrough } from './plow'
-import { PlayerCombat } from './PlayerCombat'
+import { type CombatTarget, PlayerCombat } from './PlayerCombat'
 import { RelicPowers } from './RelicPowers'
 import { Stage } from './Stage'
 import { AppearanceSystem } from './systems/Appearance'
@@ -625,10 +626,8 @@ export class Game {
 
     // 전투: 자동 공격 → 유물 → 적 → 성장 → 생사
     this.combat.update(dt, this.encounter.alive, {
-      onSwing: (swing, strong) => {
-        this.fx.slashes.spawn(this.hero.object.position, this.hero.facing, swing.range, swing.halfAngle, strong)
-        this.audio.play('swing', undefined, strong ? 1 : 0.7)
-      },
+      onSwing: (swing, strong) => this.swingFx(swing, strong),
+      onShot: (target, strong) => this.shotFx(target, strong),
       onHits: (hits) => this.damage.onHeroHits(hits),
     })
     this.relics.update(dt)
@@ -644,6 +643,44 @@ export class Game {
     this.fx.update(dt, this.hero, this.elapsed)
     this.stage.update(this.elapsed)
     this.stage.follow(position)
+  }
+
+  /** 공격 모션의 궤적: 판정 모양대로 그리고, 발현했으면 그 신의 색 (E6-10) */
+  private swingFx(swing: SwingSpec, strong: boolean): void {
+    const p = this.hero.object.position
+    const facing = this.hero.facing
+    const god = this.powers.manifested
+    const tint = god && !strong ? new THREE.Color(godDef(god).color).lerp(new THREE.Color(0xffffff), 0.5).getHex() : undefined
+    switch (swing.shape ?? 'arc') {
+      case 'arc':
+        this.fx.slashes.spawn(p, facing, swing.range, swing.halfAngle, strong, tint)
+        break
+      case 'ring':
+        this.fx.slashes.spawn(p, facing, swing.range, Math.PI, strong, tint)
+        break
+      case 'line':
+        this.fx.slashes.spawn(p, facing, swing.range, Math.atan2(swing.width ?? 0.6, swing.range), strong, tint)
+        break
+      case 'burst': {
+        const at = new THREE.Vector3(p.x + Math.sin(facing) * swing.range * 0.75, p.y, p.z + Math.cos(facing) * swing.range * 0.75)
+        this.fx.slashes.spawn(at, facing, swing.width ?? 1.5, Math.PI, strong, tint)
+        this.fx.puffs.burst(at, 10, 2)
+        break
+      }
+      case 'shot':
+        break
+    }
+    this.audio.play('swing', undefined, strong ? 1 : 0.7)
+  }
+
+  /** 원거리 공격이 날아간다: 벼락은 번개 줄기, 그 밖에는 화살·빛 조각 */
+  private shotFx(target: CombatTarget, strong: boolean): void {
+    const p = this.hero.object.position
+    const from = new THREE.Vector3(p.x, p.y + 1.3, p.z)
+    const to = new THREE.Vector3(target.x, heightAt(target.x, target.z) + 0.9, target.z)
+    const god = this.powers.manifested
+    if (this.combat.style === 'bolt') this.fx.lightning.strike(from, to, strong ? 0.12 : 0.07, 0.12)
+    else this.fx.shots.fire(from, to, god ? new THREE.Color(godDef(god).color).getHex() : 0xf2f7ff)
   }
 
   private updateEnemies(dt: number): void {

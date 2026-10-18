@@ -42,7 +42,8 @@
     },
     "legend": "우트가르드 원정",
     "mark": "thorStormHalo",
-    "ultimate": "thunderJudgement"
+    "ultimate": "thunderJudgement",
+    "attack": "hammer"
   },
   "loki": {
     "name": "로키",
@@ -60,7 +61,6 @@
     },
     "passive": {
       "damageScale": 0.95,
-      "attackSpeed": 1.25,
       "shadowClones": {
         "counts": [
           1,
@@ -83,7 +83,8 @@
     },
     "mark": "lokiSerpents",
     "legend": "대장장이들의 내기",
-    "ultimate": "illusionLegion"
+    "ultimate": "illusionLegion",
+    "attack": "twin"
   },
   "asura": {
     "name": "아수라왕",
@@ -115,6 +116,7 @@
     "mark": "asuraArms",
     "hidden": true,
     "manifestCount": 4,
-    "ultimate": "bladeDance"
+    "ultimate": "bladeDance",
+    "attack": "blade"
   }
 }

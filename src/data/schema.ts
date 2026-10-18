@@ -6,6 +6,7 @@
  * 이 파일은 three.js 등 다른 모듈에 기대지 않는다. (빌드 설정에서도 불러 쓴다)
  */
 
+import { ATTACK_STYLES, type AttackStyle } from '../combat/styles'
 import { LOOK_SLOTS, LOOKS, type LookSlot } from '../looks/catalog'
 
 export class DataError extends Error {
@@ -114,6 +115,8 @@ export interface GodDef {
   manifestCount: number
   /** 궁극기 (E6: 클래스마다 다르다) */
   ultimate: UltimateKind
+  /** 공격 모션 (E6-10, src/combat/styles.ts) */
+  attack: AttackStyle
 }
 
 /** 궁극기 종류 (src/skills/Ultimate.ts) */
@@ -160,7 +163,7 @@ export function parseGods(raw: unknown, path = 'gods.json'): Record<string, GodD
   const out: Record<string, GodDef> = {}
   for (const [id, o] of table(raw, path)) {
     const p = `${path}.${id}`
-    onlyKeys(o, p, ['name', 'titles', 'source', 'color', 'tree', 'passive', 'looks', 'legend', 'mark', 'hidden', 'manifestCount', 'ultimate'])
+    onlyKeys(o, p, ['name', 'titles', 'source', 'color', 'tree', 'passive', 'looks', 'legend', 'mark', 'hidden', 'manifestCount', 'ultimate', 'attack'])
     const titles = list(o, 'titles', p)
     if (titles.length !== 4 || titles.some((t) => typeof t !== 'string' || t.trim() === '')) {
       throw new DataError(`${p}.titles`, 'Lv1~Lv4 칭호 네 개여야 합니다')
@@ -242,6 +245,7 @@ export function parseGods(raw: unknown, path = 'gods.json'): Record<string, GodD
       hidden: bool(o, 'hidden', p),
       manifestCount: optNum(o, 'manifestCount', p, { min: 2, max: 4 }) ?? 3,
       ultimate: oneOf(o, 'ultimate', p, ULTIMATE_KINDS),
+      attack: oneOf(o, 'attack', p, ATTACK_STYLES),
     }
     if (out[id]!.looks.mark !== undefined) throw new DataError(`${p}.looks.mark`, '표식은 looks가 아니라 mark에 적습니다')
   }
