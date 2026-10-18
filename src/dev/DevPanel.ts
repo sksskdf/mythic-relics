@@ -114,32 +114,52 @@ export class DevPanel {
 
   private buildRelics(page: HTMLElement): void {
     const g = this.game
-    // 유물마다 그림 칸 하나. 누르면 끼고 빼기, 낀 것은 밝게.
-    const grid = el('div', 'devpanel__relics')
-    for (const id of RELIC_IDS) {
-      const def = relicDef(id)
-      const b = el('button', 'devpanel__relic')
-      b.type = 'button'
-      b.title = `${def.name} (${godDef(def.god).name})`
-      b.setAttribute('aria-label', def.name)
-      b.style.backgroundImage = `url(${relicIcon(def)})`
-      b.style.setProperty('--god', godDef(def.god).color)
-      b.addEventListener('click', () => (g.powers.loadout.slots.includes(id) ? g.devUnequip(id) : g.devEquip(id)))
-      this.refreshers.push(() => b.classList.toggle('is-on', g.powers.loadout.slots.includes(id)))
-      grid.append(b)
-    }
-    page.append(grid)
-
-    // 신의 유물 묶음을 한 번에 (발현 시험)
+    // 신화권 → 클래스 → 유물 그림 칸. 그림을 누르면 끼고 빼기(낀 것은 밝게), 클래스 이름을 누르면 그 묶음을 낀다.
+    // 함께 쓰는 유물(쿠사나기·토츠카)은 스사노오와 아수라왕 양쪽에 보인다.
     const REALM_NAMES: Record<string, string> = { norse: '북유럽', greek: '그리스', china: '중국', japan: '일본', korea: '한국', hidden: '히든' }
-    const sets = Object.values(GODS).map((god) => [god.id, `${REALM_NAMES[god.realm]} · ${god.name}`] as const)
+    const wearSet = (god: God) => {
+      g.devUnequipAll()
+      for (const id of RELIC_IDS.filter((r) => relicGods(relicDef(r)).includes(god)).slice(0, 4)) g.devEquip(id)
+    }
+    const list = el('div', 'devpanel__relicList')
+    for (const realm of REALMS) {
+      const gods = Object.values(GODS).filter((god) => god.realm === realm)
+      if (gods.length === 0) continue
+      const group = el('details', 'devpanel__realm')
+      ;(group as HTMLDetailsElement).open = realm === 'norse'
+      const summary = el('summary', 'devpanel__realmName')
+      summary.textContent = `${REALM_NAMES[realm]} (${gods.length})`
+      group.append(summary)
+      for (const god of gods) {
+        const line = el('div', 'devpanel__godRelics')
+        const name = el('button', 'devpanel__godName')
+        name.type = 'button'
+        name.textContent = god.name
+        name.title = `${god.name} 묶음 끼기`
+        name.style.setProperty('--god', god.color)
+        name.addEventListener('click', () => wearSet(god.id as God))
+        this.refreshers.push(() => name.classList.toggle('is-on', g.powers.manifested === god.id))
+        line.append(name)
+        for (const id of RELIC_IDS.filter((r) => relicGods(relicDef(r)).includes(god.id as God))) {
+          const def = relicDef(id)
+          const b = el('button', 'devpanel__relic')
+          b.type = 'button'
+          b.title = def.name
+          b.setAttribute('aria-label', def.name)
+          b.style.backgroundImage = `url(${relicIcon(def)})`
+          b.style.setProperty('--god', godDef(def.god).color)
+          b.addEventListener('click', () => (g.powers.loadout.slots.includes(id) ? g.devUnequip(id) : g.devEquip(id)))
+          this.refreshers.push(() => b.classList.toggle('is-on', g.powers.loadout.slots.includes(id)))
+          line.append(b)
+        }
+        group.append(line)
+      }
+      list.append(group)
+    }
+    page.append(list)
+
     page.append(
       row(
-        select('묶음 끼기', sets, (god) => {
-          g.devUnequipAll()
-          // 함께 쓰는 유물(쿠사나기·토츠카)도 그 신의 묶음에 든다
-          for (const id of RELIC_IDS.filter((r) => relicGods(relicDef(r)).includes(god as God)).slice(0, 4)) g.devEquip(id)
-        }),
         select(
           '드랍 신화권',
           REALMS.filter((r) => r !== 'hidden').map((r) => [r, REALM_NAMES[r]!] as const),
