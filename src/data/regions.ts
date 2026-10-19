@@ -74,10 +74,10 @@ export interface RegionDef {
   ponds: (Spot & { radius: number })[]
   /** 다져진 길: 점을 잇는 꺾은선과 폭 */
   paths: { points: Spot[]; width: number }[]
-  /** 졸개 무리 */
-  camps: (Spot & { count: number })[]
-  /** 지역 보스가 기다리는 곳 (마을은 없음) */
-  boss: Spot | null
+  /** 적 무리: 수와 무리를 이루는 적 (enemies.json의 id, 없으면 졸개) */
+  camps: (Spot & { count: number; members?: string[] })[]
+  /** 지역 보스가 기다리는 곳과 보스 (마을은 없음, enemy가 없으면 거인 왕) */
+  boss: (Spot & { enemy?: string }) | null
   /** 다른 지역으로 가는 길 끝 */
   exits: (Spot & { to: string })[]
   npcs: NpcDef[]
@@ -146,10 +146,18 @@ export function parseRegions(rawRegions: unknown, path = 'regions.json'): Record
         return { points, width: num(po, 'width', q, { min: 0.5, max: 8 }) }
       }),
       camps: spots(o, 'camps', p).map((r, i) => {
-        const s = spot(r, `${p}.camps[${i}]`, ['count'], half)
-        return { x: s.x, z: s.z, count: num(s, 'count', `${p}.camps[${i}]`, { min: 1, max: 12 }) }
+        const q = `${p}.camps[${i}]`
+        const s = spot(r, q, ['count', 'members'], half)
+        const members = s.members === undefined ? undefined : list(s, 'members', q).map((m, j) => {
+          if (typeof m !== 'string') throw new DataError(`${q}.members[${j}]`, '적 id여야 합니다')
+          return m
+        })
+        return { x: s.x, z: s.z, count: num(s, 'count', q, { min: 1, max: 12 }), ...(members ? { members } : {}) }
       }),
-      boss: o.boss === undefined ? null : spot(o.boss, `${p}.boss`, [], half),
+      boss: o.boss === undefined ? null : (() => {
+        const s = spot(o.boss, `${p}.boss`, ['enemy'], half)
+        return { x: s.x, z: s.z, ...(s.enemy === undefined ? {} : { enemy: str(s, 'enemy', `${p}.boss`) }) }
+      })(),
       exits: spots(o, 'exits', p).map((r, i) => {
         const s = spot(r, `${p}.exits[${i}]`, ['to'], half)
         return { x: s.x, z: s.z, to: str(s, 'to', `${p}.exits[${i}]`) }
@@ -209,7 +217,13 @@ export function parseRegions(rawRegions: unknown, path = 'regions.json'): Record
  */
 export function formatRegions(regions: Record<string, unknown>): string {
   const round = (_key: string, v: unknown) => (typeof v === 'number' ? Math.round(v * 100) / 100 : v)
-  const text = JSON.stringify(regions, round, 2).replace(/\{\n\s+("[^{}[\]]*?)\n\s*\}/g, (_m, inner: string) => `{ ${inner.split(/,\n\s*/).join(', ')} }`)
+  const text = JSON.stringify(regions, round, 2)
+    // 짧은 값 목록(무리 구성·몸 색 번호)은 한 줄로
+    .replace(/\[\n\s+([^{}[\]"]*?|"[^{}[\]]*?")\n\s*\]/g, (m, inner: string) => {
+      const line = `[${inner.split(/,\n\s*/).join(', ')}]`
+      return line.length <= 80 ? line : m
+    })
+    .replace(/\{\n\s+("(?:[^{}[\]]|\[[^\n{}[\]]*\])*?)\n\s*\}/g, (_m, inner: string) => `{ ${inner.split(/,\n\s*/).join(', ')} }`)
   return `${text}\n`
 }
 

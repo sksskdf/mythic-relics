@@ -1,6 +1,6 @@
 import type { Giant, GiantDanger } from '../enemies/Giant'
 import type { Game } from '../game/Game'
-import { angleDiff, angleTo } from '../combat/arc'
+import { angleDiff, angleTo, inLine } from '../combat/arc'
 import { SOURCE_IDS } from '../data/schema'
 import type { StarId } from '../progress/Cycle'
 import { type God, godDef, relicDef } from '../relics/data'
@@ -10,6 +10,8 @@ import type { Point2 } from '../world/colliders'
 const THINK = 0.25
 /** 예고 범위에서 이만큼 더 떨어져야 안전하다고 본다. */
 const MARGIN = 0.7
+/** 피하거나 물러날 때 출구에서 이만큼은 떨어진다 */
+const EXIT_CLEAR = 3.5
 /** 싸울 상대가 없을 때 돌아다니는 길 (사람이 적을 찾아 맵을 둘러보는 것처럼) */
 
 /**
@@ -26,6 +28,8 @@ export class Autoplayer {
   readonly rebirths: number[] = []
   /** 이 신의 유물만 낀다 (다른 신 유물은 주우면 가방에 넣는다). null이면 가리지 않는다 (scripts/playtest.mjs --god) */
   god: God | null = null
+  /** 다른 지역으로 가지 않고 이 자리에서만 싸운다 (scripts/enemy-trial.mjs) */
+  stay = false
 
   constructor(private readonly game: Game) {}
 
@@ -74,7 +78,7 @@ export class Autoplayer {
   /** 다른 지역으로 가야 하면 출구로 걷는다 (마을을 거쳐 간다). 걸었으면 true */
   private travel(): boolean {
     const { region, hero, legend } = this.game
-    if (legend.active) return false
+    if (legend.active || this.stay) return false
     const want = this.wantRegion()
     if (want === region.id) return false
     const exit = region.exits.find((e) => e.to === want) ?? region.exits.find((e) => this.game.regions[e.to]?.kind === 'hub')
@@ -91,7 +95,7 @@ export class Autoplayer {
     const enemies = encounter.alive
 
     // 1. 예고 범위 안에 있으면 빠져나간다.
-    const dangers = enemies.map((g) => g.danger).filter((d): d is GiantDanger => d !== null)
+    const dangers = enemies.flatMap((g) => g.dangers)
     if (dangers.some((d) => inDanger(here, d, MARGIN))) {
       const escape = this.findEscape(here, dangers)
       if (escape) hero.moveTo(escape)
@@ -194,6 +198,7 @@ export class Autoplayer {
         const point = { x: here.x + Math.sin(a) * r, z: here.z + Math.cos(a) * r }
         if (arena && dist(point, arena) > arena.radius - 0.5) continue
         if (dangers.some((d) => inDanger(point, d, MARGIN))) continue
+        if (this.nearExit(point)) continue
         // 쉬고 있는 거인 왕 쪽으로는 피하지 않는다 (깨우면 무리와 함께 몰려온다)
         const boss = this.game.encounter.boss
         const cost = r + (boss?.alive && boss.state === 'idle' && dist(boss, point) < 18 ? 10 : 0)
@@ -207,6 +212,11 @@ export class Autoplayer {
     return null
   }
 
+  /** 출구 가까이는 피하거나 물러날 곳으로 고르지 않는다 (밟으면 다른 땅으로 넘어간다) */
+  private nearExit(point: Point2): boolean {
+    return this.game.region.exits.some((e) => dist(e, point) < EXIT_CLEAR)
+  }
+
   /** 물러날 곳: 둘레 열두 방향 가운데 가까운 적에게서 가장 멀고, 거인 왕을 깨우지 않고, 맵 안인 곳 */
   private retreatPoint(here: Point2, near: Giant[]): Point2 {
     const { encounter, region } = this.game
@@ -218,6 +228,7 @@ export class Autoplayer {
       const a = (i / 12) * Math.PI * 2
       const point = { x: here.x + Math.sin(a) * 10, z: here.z + Math.cos(a) * 10 }
       if (Math.abs(point.x) > half || Math.abs(point.z) > half) continue
+      if (this.nearExit(point)) continue
       let score = Math.min(...near.map((g) => dist(g, point)))
       if (boss?.alive && !near.includes(boss) && dist(boss, point) < 18) score -= 20
       if (score > bestScore) {
@@ -260,5 +271,7 @@ function inDanger(p: Point2, d: GiantDanger, margin: number): boolean {
     }
     case 'ring':
       return r > d.radius - margin && r < 13
+    case 'line':
+      return inLine(d.x, d.z, d.facing, d.length, d.width + margin * 2, p.x, p.z, 0.4)
   }
 }

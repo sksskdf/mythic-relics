@@ -78,7 +78,7 @@ describe('게임 데이터', () => {
       ['색 형식', (d) => (d.gods.loki.color = 'green'), /loki\.color: #rrggbb/],
       ['서로 이어받는 적', (d) => (d.enemies.king.extends = 'utgardKing'), /서로를 이어받고/],
       ['없는 유물 확정 드랍', (d) => (d.enemies.king.fixedDrop = 'excalibur'), /fixedDrop: relics\.json에 없는 유물/],
-      ['게임이 쓰는 적이 빠짐', (d) => delete d.enemies.grunt, /enemies\.json\.grunt: 게임이 직접 쓰는 적/],
+      ['게임이 쓰는 적이 빠짐', (d) => delete d.enemies.utgardKing, /enemies\.json\.utgardKing: 게임이 직접 쓰는 적/],
       ['유물 설명이 빠짐', (d) => (d.relics.megingjord.description = ''), /megingjord\.description: 비어 있지 않은 글자/],
       ['스킬 설명이 빠짐', (d) => delete d.relics.mjolnir.trigger.description, /trigger\.description: 비어 있지 않은 글자/],
       ['클래스 트리 칭호가 신 데이터와 다름', (d) => (d.classes.mythologies[0].classes[0].titles[1] = '천둥왕'), /titles: gods\.json의 칭호와 다릅니다/],

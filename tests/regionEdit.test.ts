@@ -66,7 +66,7 @@ describe('지도 편집', () => {
     expect(ref).toEqual({ list: 'camps', index: 0 })
     expect(itemName(d, ref)).toBe('졸개 무리')
     moveItem(d, ref, 25.555, 26)
-    expect(d.camps[0]).toEqual({ x: 25.56, z: 26, count: camp.count })
+    expect(d.camps[0]).toMatchObject({ x: 25.56, z: 26, count: camp.count })
   })
 
   it('편집한 지역도 지역 검사를 거친다: 시작점 옆에 소품을 놓으면 검사에서 걸린다', () => {

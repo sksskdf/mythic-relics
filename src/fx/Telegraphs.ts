@@ -9,6 +9,8 @@ export type TelegraphShape =
   | { kind: 'sector'; radius: number; halfAngle: number }
   /** 퍼져 나가는 충격파. radius는 지금 반지름, width는 띠 두께 */
   | { kind: 'ring'; radius: number; width: number }
+  /** 앞으로 뻗은 띠 (돌진) */
+  | { kind: 'line'; length: number; width: number }
 
 const DANGER = 0xff5a3c
 const SEGMENTS = 40
@@ -127,6 +129,12 @@ export class Telegraph {
         // 가운데 방향이 +z(바라보는 쪽)가 되도록 놓는다. 눕히면 평면의 -π/2 방향이 +z가 된다.
         const length = shape.halfAngle * 2
         return new THREE.RingGeometry(0.001, shape.radius, SEGMENTS, RINGS, -Math.PI / 2 - shape.halfAngle, length)
+      }
+      case 'line': {
+        // 바라보는 쪽(+z)으로 뻗게: 눕히면 평면의 -y가 +z가 된다. 원점에서 앞으로 자라도록 한쪽 끝을 원점에 둔다
+        const g = new THREE.PlaneGeometry(shape.width, shape.length, 2, Math.max(2, Math.ceil(shape.length / 0.8)))
+        g.translate(0, -shape.length / 2, 0)
+        return g
       }
       case 'ring':
         return new THREE.RingGeometry(

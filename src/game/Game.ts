@@ -468,6 +468,9 @@ export class Game {
     this.bus.emit('regionEntered', { id: region.id })
   }
 
+  /** 점검용: 출구를 밟아도 넘어가지 않는다 (scripts/enemy-trial.mjs) */
+  exitsLocked = false
+
   /** 출구로 다른 지역에 간다: 잠깐 어두워졌다가 그 지역의 돌아오는 출구 앞에서 밝아진다 (E7-02) */
   travelTo(id: string): void {
     const to = this.regions[id]
@@ -493,7 +496,7 @@ export class Game {
       }
       return
     }
-    if (!this.combat.alive || this.legend.active) return
+    if (!this.combat.alive || this.legend.active || this.exitsLocked) return
     const p = this.hero.object.position
     let nearest = Infinity
     for (const exit of this.region.exits) {
@@ -815,7 +818,7 @@ export class Game {
     })
     for (const giant of shattered) {
       this.fx.shatter(giant)
-      this.view.shake(giant.spec.king ? 0.6 : 0.15)
+      this.view.shake(giant.spec.role === 'boss' ? 0.6 : 0.15)
       this.bus.emit('giantKilled', { giant })
     }
   }

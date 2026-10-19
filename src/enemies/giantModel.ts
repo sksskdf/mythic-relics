@@ -42,7 +42,16 @@ export interface GiantOptions {
   /** 거인 왕: 왕관, 얼음 수염, 망토, 얼음 몽둥이 */
   king?: boolean
   seed?: number
+  /** 머리 모양 (E8): 외눈(키클롭스), 뿔(오니), 소뿔(우마왕) */
+  head?: 'plain' | 'oneEye' | 'horns' | 'bull'
+  /** 손에 든 것 (E8): 몽둥이, 던질 바위, 빈손 */
+  gear?: 'club' | 'rock' | 'none'
+  /** 색 바꾸기 (서리 거인 색 → 다른 거인 색) */
+  recolor?: Readonly<Record<number, number>>
 }
+
+/** 서리 거인의 색 (다른 거인은 이것을 바꿔 칠한다) */
+export const FROST_COLORS = FROST
 
 function leg(): VoxelGrid {
   const g = new VoxelGrid(4, 9, 5)
@@ -83,8 +92,8 @@ function arm(): VoxelGrid {
   return g
 }
 
-function head(king: boolean): VoxelGrid {
-  const g = new VoxelGrid(10, 10, 9)
+function head(king: boolean, kind: GiantOptions['head'] = 'plain'): VoxelGrid {
+  const g = new VoxelGrid(10, 12, 9)
   g.box(2, 0, 1, 7, 5, 6, FROST.skin)
   g.box(2, 0, 1, 7, 5, 1, FROST.skinShade)
   // 튀어나온 이마와 빛나는 눈
@@ -110,6 +119,29 @@ function head(king: boolean): VoxelGrid {
     g.set(3, 7, 3, FROST.furDark)
     g.set(6, 7, 2, FROST.furDark)
   }
+  if (kind === 'oneEye') {
+    // 이마 가운데 큰 눈 하나
+    g.set(3, 3, 7, FROST.skinShade)
+    g.set(6, 3, 7, FROST.skinShade)
+    g.box(4, 3, 7, 5, 4, 7, FROST.eye)
+    g.box(4, 3, 8, 5, 3, 8, FROST.skinDark)
+  } else if (kind === 'horns') {
+    g.box(3, 7, 3, 3, 9, 3, FROST.bone)
+    g.box(6, 7, 3, 6, 9, 3, FROST.bone)
+  } else if (kind === 'bull') {
+    // 옆으로 뻗었다 위로 휜 소뿔
+    g.box(0, 6, 3, 2, 6, 4, FROST.bone)
+    g.box(7, 6, 3, 9, 6, 4, FROST.bone)
+    g.box(0, 7, 3, 0, 9, 4, FROST.bone)
+    g.box(9, 7, 3, 9, 9, 4, FROST.bone)
+  }
+  return g
+}
+
+/** 던질 바위 (오른손) */
+function boulder(): VoxelGrid {
+  const g = new VoxelGrid(7, 6, 7)
+  g.ellipsoid(3.5, 3, 3.5, 3.4, 2.8, 3.4, (x, y) => ((x + y) % 3 ? 0x7f8996 : 0x626b77))
   return g
 }
 
@@ -160,7 +192,11 @@ export function buildGiantRig(options: GiantOptions): GiantRig {
   const root = new THREE.Group()
   const body = new THREE.Group()
   root.add(body)
-  const mesh = (grid: VoxelGrid, pivot: [number, number, number]) => voxelMesh(grid, { voxelSize: s, pivot }, material)
+  const recolor = options.recolor ?? {}
+  const mesh = (grid: VoxelGrid, pivot: [number, number, number]) => {
+    for (let i = 1; i < grid.palette.length; i++) grid.palette[i] = recolor[grid.palette[i]!] ?? grid.palette[i]!
+    return voxelMesh(grid, { voxelSize: s, pivot }, material)
+  }
 
   const legGrid = leg()
   const hipY = 9 * s
@@ -176,13 +212,20 @@ export function buildGiantRig(options: GiantOptions): GiantRig {
   const shoulderY = hipY + 9.5 * s
   const leftArm = joint(-7.5 * s, shoulderY, 0, mesh(armGrid, [2, 10, 2]))
   const rightArm = joint(7.5 * s, shoulderY, 0, mesh(armGrid, [2, 10, 2]))
-  const clubMesh = mesh(club(king), [2.5, 2.5, 1.5])
-  clubMesh.position.set(0, -9 * s, 0.5 * s)
-  clubMesh.rotation.x = 0.7
-  rightArm.add(clubMesh)
+  const gear = options.gear ?? 'club'
+  if (gear === 'club') {
+    const clubMesh = mesh(club(king), [2.5, 2.5, 1.5])
+    clubMesh.position.set(0, -9 * s, 0.5 * s)
+    clubMesh.rotation.x = 0.7
+    rightArm.add(clubMesh)
+  } else if (gear === 'rock') {
+    const rockMesh = mesh(boulder(), [3.5, 3, 3.5])
+    rockMesh.position.set(0, -10 * s, 1.5 * s)
+    rightArm.add(rockMesh)
+  }
   body.add(leftArm, rightArm)
 
-  const headMesh = mesh(head(king), [5, 0, 4])
+  const headMesh = mesh(head(king, options.head), [5, 0, 4])
   headMesh.position.y = hipY + 10 * s
   body.add(headMesh)
 
@@ -192,8 +235,6 @@ export function buildGiantRig(options: GiantOptions): GiantRig {
     body.add(capeJoint)
   }
 
-  const palette = king
-    ? [FROST.skin, FROST.ice, FROST.gold, FROST.beard, FROST.cape]
-    : [FROST.skin, FROST.skinShade, FROST.fur, FROST.bone]
+  const palette = (king ? [FROST.skin, FROST.ice, FROST.gold, FROST.beard, FROST.cape] : [FROST.skin, FROST.skinShade, FROST.fur, FROST.bone]).map((c) => recolor[c] ?? c)
   return { root, body, leftArm, rightArm, leftLeg, rightLeg, material, palette }
 }

@@ -44,3 +44,14 @@ export function inRing(cx: number, cz: number, radius: number, width: number, ta
   const d = Math.hypot(targetX - cx, targetZ - cz)
   return Math.abs(d - radius) <= width / 2 + targetRadius
 }
+
+/** 앞으로 뻗은 띠(돌진) 안에 대상이 있는지: 원점에서 facing 쪽으로 length, 폭 width */
+export function inLine(originX: number, originZ: number, facing: number, length: number, width: number, targetX: number, targetZ: number, targetRadius: number): boolean {
+  const fx = Math.sin(facing)
+  const fz = Math.cos(facing)
+  const dx = targetX - originX
+  const dz = targetZ - originZ
+  const along = dx * fx + dz * fz
+  const side = Math.abs(dx * fz - dz * fx)
+  return along >= -targetRadius && along <= length + targetRadius && side <= width / 2 + targetRadius
+}

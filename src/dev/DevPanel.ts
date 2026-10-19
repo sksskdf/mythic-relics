@@ -1,7 +1,8 @@
 import { SOUND_CUES } from '../audio/sounds'
 import { type Realm, REALMS } from '../data/classKit'
 import { REGIONS } from '../data/regions'
-import { ENEMIES, GRUNT } from '../enemies/Giant'
+import type { EliteKind } from '../enemies/elite'
+import { ENEMIES, type GiantSpec, GRUNT } from '../enemies/Giant'
 import type { Game } from '../game/Game'
 import { BET } from '../game/Legend'
 import { LOOK_IDS, WARDROBE_SLOTS } from '../looks/catalog'
@@ -300,22 +301,46 @@ export class DevPanel {
     page.append(row(select('순간이동', places, go)))
 
     // 적 데이터(enemies.json)에 있는 적을 고르고 몇 마리 부를지 정한다. 여럿이면 주인공을 둘러싼다.
-    const enemies = Object.values(ENEMIES).map((spec) => [spec.id, spec.name] as const)
+    // 신화권 순서로 늘어놓고, 이름 앞에 신화권과 역할을 붙인다
+    const REALM_ORDER = ['norse', 'greek', 'china', 'japan', 'korea']
+    const REALM_SHORT: Record<string, string> = { norse: '북유럽', greek: '그리스', china: '중국', japan: '일본', korea: '한국' }
+    const ROLE_NAMES: Record<string, string> = { brute: '근접', charger: '돌진', ranged: '원거리', guard: '방패', summoner: '부르기', boss: '보스' }
+    const enemies = Object.values(ENEMIES)
+      .slice()
+      .sort((a, b) => REALM_ORDER.indexOf(a.realm ?? '') - REALM_ORDER.indexOf(b.realm ?? ''))
+      .map((spec) => [spec.id, `${REALM_SHORT[spec.realm ?? ''] ?? '-'} · ${spec.name} (${ROLE_NAMES[spec.role]})`] as const)
     let count = 1
+    let elite: EliteKind | null = null
+    const call = (spec: GiantSpec, at: { x: number; z: number }) => {
+      const giant = g.encounter.spawn(spec, at, true)
+      if (elite) giant.makeElite(elite)
+    }
     page.append(
       row(
         select('적 부르기', enemies, (id) => {
           const spec = ENEMIES[id] ?? GRUNT
-          if (count === 1) return void g.encounter.spawn(spec, this.ahead(spec.king ? 7 : 3), true)
+          if (count === 1) return void call(spec, this.ahead(spec.radius >= 1.2 ? 7 : 3))
           const p = g.hero.object.position
           for (let i = 0; i < count; i++) {
             const a = (i / count) * Math.PI * 2
-            g.encounter.spawn(spec, { x: p.x + Math.sin(a) * 3, z: p.z + Math.cos(a) * 3 }, true)
+            call(spec, { x: p.x + Math.sin(a) * 3, z: p.z + Math.cos(a) * 3 })
           }
         }),
         ...[1, 6].map((n) => {
           const b = button(`×${n}`, () => (count = n))
           this.refreshers.push(() => b.classList.toggle('is-on', count === n))
+          return b
+        }),
+      ),
+      row(
+        ...([
+          [null, '보통'],
+          ['tough', '정예: 단단함'],
+          ['fierce', '정예: 사나움'],
+          ['swift', '정예: 날램'],
+        ] as const).map(([kind, text]) => {
+          const b = button(text, () => (elite = kind))
+          this.refreshers.push(() => b.classList.toggle('is-on', elite === kind))
           return b
         }),
       ),

@@ -1,6 +1,8 @@
 {
   "grunt": {
     "name": "서리 거인",
+    "realm": "norse",
+    "role": "brute",
     "xp": 10,
     "voxelSize": 0.1,
     "radius": 0.75,
@@ -10,6 +12,15 @@
     "leashRange": 24,
     "returnRegen": 0.5,
     "poise": 20,
+    "body": {
+      "kind": "giant",
+      "main": "#8fb4cb",
+      "shade": "#6d92ab",
+      "dark": "#55768e",
+      "accent": "#7c6750",
+      "eye": "#c8f8ff",
+      "gear": "club"
+    },
     "attacks": [
       {
         "name": "smash",
@@ -27,9 +38,874 @@
       }
     ]
   },
+  "wolf": {
+    "name": "서리 늑대",
+    "realm": "norse",
+    "role": "charger",
+    "xp": 8,
+    "voxelSize": 0.09,
+    "radius": 0.55,
+    "hp": 45,
+    "speed": 5.2,
+    "aggroRange": 11,
+    "leashRange": 24,
+    "returnRegen": 0.5,
+    "poise": 20,
+    "body": {
+      "kind": "beast",
+      "main": "#c8d4dc",
+      "shade": "#9aa8b4",
+      "dark": "#5a6672",
+      "accent": "#e8eef2",
+      "eye": "#8ff0ff"
+    },
+    "attacks": [
+      {
+        "name": "bite",
+        "windup": 0.6,
+        "recover": 0.5,
+        "damage": 5,
+        "knockback": 4,
+        "area": {
+          "kind": "sector",
+          "range": 1.8,
+          "halfAngleDeg": 50
+        },
+        "reach": 1.6,
+        "cooldown": 1
+      },
+      {
+        "name": "charge",
+        "windup": 0.8,
+        "recover": 0.9,
+        "damage": 7,
+        "knockback": 8,
+        "area": {
+          "kind": "line",
+          "length": 7,
+          "width": 1.2
+        },
+        "reach": 7,
+        "cooldown": 4
+      }
+    ]
+  },
+  "stoneThrower": {
+    "name": "바위 던지는 거인",
+    "realm": "norse",
+    "role": "ranged",
+    "xp": 12,
+    "voxelSize": 0.09,
+    "radius": 0.7,
+    "hp": 60,
+    "speed": 2.8,
+    "aggroRange": 11,
+    "leashRange": 24,
+    "returnRegen": 0.5,
+    "poise": 20,
+    "keepAway": 7,
+    "body": {
+      "kind": "giant",
+      "main": "#9aa8b0",
+      "shade": "#7a8892",
+      "dark": "#5c6a74",
+      "accent": "#6a5a48",
+      "eye": "#ffd890",
+      "gear": "rock"
+    },
+    "attacks": [
+      {
+        "name": "throw",
+        "windup": 0.9,
+        "recover": 0.8,
+        "damage": 8,
+        "knockback": 6,
+        "area": {
+          "kind": "circle",
+          "radius": 1.6
+        },
+        "reach": 13,
+        "cooldown": 3.2,
+        "projectile": {
+          "speed": 12,
+          "look": "rock"
+        }
+      },
+      {
+        "name": "smash",
+        "windup": 0.7,
+        "recover": 0.6,
+        "damage": 5,
+        "knockback": 6,
+        "area": {
+          "kind": "sector",
+          "range": 2.6,
+          "halfAngleDeg": 45
+        },
+        "reach": 2.3,
+        "cooldown": 1.4
+      }
+    ]
+  },
+  "draugr": {
+    "name": "드라우그르",
+    "realm": "norse",
+    "role": "guard",
+    "xp": 14,
+    "voxelSize": 0.09,
+    "radius": 0.6,
+    "hp": 90,
+    "speed": 2.6,
+    "aggroRange": 11,
+    "leashRange": 24,
+    "returnRegen": 0.5,
+    "poise": 40,
+    "guard": {
+      "front": 0.25,
+      "arcDeg": 70
+    },
+    "body": {
+      "kind": "humanoid",
+      "main": "#6a7a6a",
+      "shade": "#56645a",
+      "dark": "#3a443e",
+      "accent": "#8a7a5a",
+      "eye": "#7affd0",
+      "gear": "shield",
+      "head": "skull"
+    },
+    "attacks": [
+      {
+        "name": "smash",
+        "windup": 0.7,
+        "recover": 0.7,
+        "damage": 7,
+        "knockback": 6,
+        "area": {
+          "kind": "sector",
+          "range": 2.2,
+          "halfAngleDeg": 50
+        },
+        "reach": 2,
+        "cooldown": 1.4
+      }
+    ]
+  },
+  "frostWitch": {
+    "name": "서리 무녀",
+    "realm": "norse",
+    "role": "summoner",
+    "xp": 16,
+    "voxelSize": 0.09,
+    "radius": 0.55,
+    "hp": 55,
+    "speed": 2.8,
+    "aggroRange": 12,
+    "leashRange": 24,
+    "returnRegen": 0.5,
+    "poise": 20,
+    "keepAway": 8,
+    "body": {
+      "kind": "humanoid",
+      "main": "#5a6a9a",
+      "shade": "#4a5880",
+      "dark": "#2e3858",
+      "accent": "#a8d8f0",
+      "eye": "#c8f8ff",
+      "gear": "staff",
+      "head": "hood"
+    },
+    "attacks": [
+      {
+        "name": "summon",
+        "windup": 1.2,
+        "recover": 1,
+        "damage": 0,
+        "knockback": 0,
+        "area": {
+          "kind": "summon",
+          "enemy": "wolf",
+          "count": 2
+        },
+        "reach": 14,
+        "cooldown": 9
+      },
+      {
+        "name": "cast",
+        "windup": 0.8,
+        "recover": 0.8,
+        "damage": 7,
+        "knockback": 5,
+        "area": {
+          "kind": "circle",
+          "radius": 1.5
+        },
+        "reach": 12,
+        "cooldown": 3,
+        "projectile": {
+          "speed": 10,
+          "look": "water"
+        }
+      }
+    ]
+  },
+  "harpy": {
+    "name": "하르피이아",
+    "realm": "greek",
+    "role": "ranged",
+    "xp": 10,
+    "voxelSize": 0.08,
+    "radius": 0.55,
+    "hp": 45,
+    "speed": 4,
+    "aggroRange": 11,
+    "leashRange": 24,
+    "returnRegen": 0.5,
+    "poise": 20,
+    "keepAway": 6,
+    "body": {
+      "kind": "flyer",
+      "main": "#8a6a5a",
+      "shade": "#6a5044",
+      "dark": "#4a362c",
+      "accent": "#e0c070",
+      "eye": "#ffe070",
+      "head": "beak"
+    },
+    "attacks": [
+      {
+        "name": "throw",
+        "windup": 0.7,
+        "recover": 0.7,
+        "damage": 6,
+        "knockback": 5,
+        "area": {
+          "kind": "circle",
+          "radius": 1.3
+        },
+        "reach": 12,
+        "cooldown": 2.6,
+        "projectile": {
+          "speed": 14,
+          "look": "wind"
+        }
+      },
+      {
+        "name": "bite",
+        "windup": 0.6,
+        "recover": 0.5,
+        "damage": 5,
+        "knockback": 4,
+        "area": {
+          "kind": "sector",
+          "range": 1.8,
+          "halfAngleDeg": 50
+        },
+        "reach": 1.6,
+        "cooldown": 1.2
+      }
+    ]
+  },
+  "cyclops": {
+    "name": "키클롭스",
+    "realm": "greek",
+    "role": "brute",
+    "xp": 16,
+    "voxelSize": 0.12,
+    "radius": 0.9,
+    "hp": 150,
+    "speed": 2.6,
+    "aggroRange": 11,
+    "leashRange": 24,
+    "returnRegen": 0.5,
+    "poise": 45,
+    "body": {
+      "kind": "giant",
+      "main": "#d8b08a",
+      "shade": "#b89070",
+      "dark": "#8a6a52",
+      "accent": "#6a4a3a",
+      "eye": "#fff0c0",
+      "gear": "club",
+      "head": "oneEye"
+    },
+    "attacks": [
+      {
+        "name": "smash",
+        "windup": 0.85,
+        "recover": 0.8,
+        "damage": 10,
+        "knockback": 8,
+        "area": {
+          "kind": "sector",
+          "range": 3.2,
+          "halfAngleDeg": 50
+        },
+        "reach": 2.9,
+        "cooldown": 1.8
+      },
+      {
+        "name": "slam",
+        "windup": 1,
+        "recover": 0.9,
+        "damage": 12,
+        "knockback": 8,
+        "area": {
+          "kind": "circle",
+          "radius": 2
+        },
+        "reach": 7,
+        "cooldown": 5
+      }
+    ]
+  },
+  "spartoi": {
+    "name": "스파르토이",
+    "realm": "greek",
+    "role": "guard",
+    "xp": 14,
+    "voxelSize": 0.09,
+    "radius": 0.6,
+    "hp": 100,
+    "speed": 3,
+    "aggroRange": 11,
+    "leashRange": 24,
+    "returnRegen": 0.5,
+    "poise": 35,
+    "guard": {
+      "front": 0.3,
+      "arcDeg": 65
+    },
+    "body": {
+      "kind": "humanoid",
+      "main": "#e4dcc6",
+      "shade": "#c8bea6",
+      "dark": "#8a7a5a",
+      "accent": "#c89a3a",
+      "eye": "#ff7a4a",
+      "gear": "shield",
+      "head": "skull"
+    },
+    "attacks": [
+      {
+        "name": "charge",
+        "windup": 0.8,
+        "recover": 0.8,
+        "damage": 7,
+        "knockback": 6,
+        "area": {
+          "kind": "line",
+          "length": 5,
+          "width": 1
+        },
+        "reach": 4.5,
+        "cooldown": 3.5
+      },
+      {
+        "name": "smash",
+        "windup": 0.65,
+        "recover": 0.6,
+        "damage": 6,
+        "knockback": 5,
+        "area": {
+          "kind": "sector",
+          "range": 2.2,
+          "halfAngleDeg": 45
+        },
+        "reach": 2,
+        "cooldown": 1.3
+      }
+    ]
+  },
+  "jiangshi": {
+    "name": "강시",
+    "realm": "china",
+    "role": "charger",
+    "xp": 9,
+    "voxelSize": 0.09,
+    "radius": 0.55,
+    "hp": 55,
+    "speed": 3.6,
+    "aggroRange": 11,
+    "leashRange": 24,
+    "returnRegen": 0.5,
+    "poise": 20,
+    "body": {
+      "kind": "humanoid",
+      "main": "#3a5a6a",
+      "shade": "#2e4854",
+      "dark": "#1e2e38",
+      "accent": "#e8d070",
+      "eye": "#c8ffd8",
+      "head": "hood"
+    },
+    "attacks": [
+      {
+        "name": "charge",
+        "windup": 0.75,
+        "recover": 0.8,
+        "damage": 7,
+        "knockback": 7,
+        "area": {
+          "kind": "line",
+          "length": 6,
+          "width": 1.1
+        },
+        "reach": 6,
+        "cooldown": 3.2
+      },
+      {
+        "name": "smash",
+        "windup": 0.6,
+        "recover": 0.5,
+        "damage": 5,
+        "knockback": 4,
+        "area": {
+          "kind": "sector",
+          "range": 1.9,
+          "halfAngleDeg": 45
+        },
+        "reach": 1.7,
+        "cooldown": 1
+      }
+    ]
+  },
+  "foxDemon": {
+    "name": "구미호",
+    "realm": "china",
+    "role": "ranged",
+    "xp": 12,
+    "voxelSize": 0.085,
+    "radius": 0.55,
+    "hp": 50,
+    "speed": 4.2,
+    "aggroRange": 11,
+    "leashRange": 24,
+    "returnRegen": 0.5,
+    "poise": 20,
+    "keepAway": 7,
+    "body": {
+      "kind": "beast",
+      "main": "#e8a050",
+      "shade": "#c8803a",
+      "dark": "#8a4a24",
+      "accent": "#fff0d8",
+      "eye": "#ff5a3a",
+      "head": "plain"
+    },
+    "attacks": [
+      {
+        "name": "cast",
+        "windup": 0.75,
+        "recover": 0.7,
+        "damage": 7,
+        "knockback": 5,
+        "area": {
+          "kind": "circle",
+          "radius": 1.5
+        },
+        "reach": 12,
+        "cooldown": 2.8,
+        "projectile": {
+          "speed": 11,
+          "look": "fire"
+        }
+      },
+      {
+        "name": "bite",
+        "windup": 0.6,
+        "recover": 0.5,
+        "damage": 5,
+        "knockback": 4,
+        "area": {
+          "kind": "sector",
+          "range": 1.8,
+          "halfAngleDeg": 50
+        },
+        "reach": 1.6,
+        "cooldown": 1.1
+      }
+    ]
+  },
+  "yaoDaoist": {
+    "name": "요괴 도사",
+    "realm": "china",
+    "role": "summoner",
+    "xp": 16,
+    "voxelSize": 0.09,
+    "radius": 0.55,
+    "hp": 65,
+    "speed": 2.8,
+    "aggroRange": 12,
+    "leashRange": 24,
+    "returnRegen": 0.5,
+    "poise": 20,
+    "keepAway": 8,
+    "body": {
+      "kind": "humanoid",
+      "main": "#7a3a4a",
+      "shade": "#5e2c38",
+      "dark": "#3a1c24",
+      "accent": "#e8c060",
+      "eye": "#ffe070",
+      "gear": "staff",
+      "head": "hood"
+    },
+    "attacks": [
+      {
+        "name": "summon",
+        "windup": 1.2,
+        "recover": 1,
+        "damage": 0,
+        "knockback": 0,
+        "area": {
+          "kind": "summon",
+          "enemy": "jiangshi",
+          "count": 2
+        },
+        "reach": 14,
+        "cooldown": 10
+      },
+      {
+        "name": "cast",
+        "windup": 0.8,
+        "recover": 0.8,
+        "damage": 7,
+        "knockback": 5,
+        "area": {
+          "kind": "circle",
+          "radius": 1.5
+        },
+        "reach": 12,
+        "cooldown": 3,
+        "projectile": {
+          "speed": 10,
+          "look": "fire"
+        }
+      }
+    ]
+  },
+  "oni": {
+    "name": "오니",
+    "realm": "japan",
+    "role": "brute",
+    "xp": 14,
+    "voxelSize": 0.11,
+    "radius": 0.85,
+    "hp": 130,
+    "speed": 3,
+    "aggroRange": 11,
+    "leashRange": 24,
+    "returnRegen": 0.5,
+    "poise": 40,
+    "body": {
+      "kind": "giant",
+      "main": "#c8504a",
+      "shade": "#a83e3a",
+      "dark": "#7a2a2a",
+      "accent": "#2a2a3a",
+      "eye": "#ffe070",
+      "gear": "club",
+      "head": "horns"
+    },
+    "attacks": [
+      {
+        "name": "smash",
+        "windup": 0.8,
+        "recover": 0.7,
+        "damage": 9,
+        "knockback": 8,
+        "area": {
+          "kind": "sector",
+          "range": 3,
+          "halfAngleDeg": 50
+        },
+        "reach": 2.7,
+        "cooldown": 1.6
+      }
+    ]
+  },
+  "tengu": {
+    "name": "텐구",
+    "realm": "japan",
+    "role": "charger",
+    "xp": 11,
+    "voxelSize": 0.08,
+    "radius": 0.55,
+    "hp": 50,
+    "speed": 4.6,
+    "aggroRange": 11,
+    "leashRange": 24,
+    "returnRegen": 0.5,
+    "poise": 20,
+    "body": {
+      "kind": "flyer",
+      "main": "#3a3a4a",
+      "shade": "#2a2a36",
+      "dark": "#1a1a24",
+      "accent": "#d84a3a",
+      "eye": "#ffd070",
+      "head": "beak"
+    },
+    "attacks": [
+      {
+        "name": "charge",
+        "windup": 0.75,
+        "recover": 0.8,
+        "damage": 7,
+        "knockback": 8,
+        "area": {
+          "kind": "line",
+          "length": 8,
+          "width": 1.2
+        },
+        "reach": 8,
+        "cooldown": 3.6
+      },
+      {
+        "name": "bite",
+        "windup": 0.6,
+        "recover": 0.5,
+        "damage": 5,
+        "knockback": 4,
+        "area": {
+          "kind": "sector",
+          "range": 1.8,
+          "halfAngleDeg": 50
+        },
+        "reach": 1.6,
+        "cooldown": 1.1
+      }
+    ]
+  },
+  "kappa": {
+    "name": "갓파",
+    "realm": "japan",
+    "role": "ranged",
+    "xp": 10,
+    "voxelSize": 0.085,
+    "radius": 0.55,
+    "hp": 55,
+    "speed": 3.2,
+    "aggroRange": 11,
+    "leashRange": 24,
+    "returnRegen": 0.5,
+    "poise": 20,
+    "keepAway": 6,
+    "body": {
+      "kind": "humanoid",
+      "main": "#6aa05a",
+      "shade": "#548848",
+      "dark": "#3a6030",
+      "accent": "#d8c890",
+      "eye": "#ffffff",
+      "head": "beak"
+    },
+    "attacks": [
+      {
+        "name": "throw",
+        "windup": 0.75,
+        "recover": 0.7,
+        "damage": 6,
+        "knockback": 5,
+        "area": {
+          "kind": "circle",
+          "radius": 1.4
+        },
+        "reach": 11,
+        "cooldown": 2.6,
+        "projectile": {
+          "speed": 11,
+          "look": "water"
+        }
+      },
+      {
+        "name": "bite",
+        "windup": 0.6,
+        "recover": 0.5,
+        "damage": 5,
+        "knockback": 4,
+        "area": {
+          "kind": "sector",
+          "range": 1.8,
+          "halfAngleDeg": 50
+        },
+        "reach": 1.6,
+        "cooldown": 1.1
+      }
+    ]
+  },
+  "dokkaebiFire": {
+    "name": "도깨비불",
+    "realm": "korea",
+    "role": "ranged",
+    "xp": 9,
+    "voxelSize": 0.08,
+    "radius": 0.5,
+    "hp": 40,
+    "speed": 3.8,
+    "aggroRange": 11,
+    "leashRange": 24,
+    "returnRegen": 0.5,
+    "poise": 20,
+    "keepAway": 6,
+    "body": {
+      "kind": "spirit",
+      "main": "#5ac8f0",
+      "shade": "#3a9ad0",
+      "dark": "#1a3a5a",
+      "accent": "#c8f8ff",
+      "eye": "#ffffff"
+    },
+    "attacks": [
+      {
+        "name": "cast",
+        "windup": 0.7,
+        "recover": 0.7,
+        "damage": 6,
+        "knockback": 4,
+        "area": {
+          "kind": "circle",
+          "radius": 1.3
+        },
+        "reach": 11,
+        "cooldown": 2.4,
+        "projectile": {
+          "speed": 11,
+          "look": "fire"
+        }
+      },
+      {
+        "name": "bite",
+        "windup": 0.6,
+        "recover": 0.5,
+        "damage": 4,
+        "knockback": 3,
+        "area": {
+          "kind": "sector",
+          "range": 1.6,
+          "halfAngleDeg": 60
+        },
+        "reach": 1.4,
+        "cooldown": 1
+      }
+    ]
+  },
+  "imugi": {
+    "name": "이무기",
+    "realm": "korea",
+    "role": "charger",
+    "xp": 14,
+    "voxelSize": 0.13,
+    "radius": 0.85,
+    "hp": 100,
+    "speed": 3.4,
+    "aggroRange": 11,
+    "leashRange": 24,
+    "returnRegen": 0.5,
+    "poise": 35,
+    "body": {
+      "kind": "serpent",
+      "main": "#4a6a5a",
+      "shade": "#3a5446",
+      "dark": "#24362c",
+      "accent": "#a8c870",
+      "eye": "#ffe070",
+      "head": "horns"
+    },
+    "attacks": [
+      {
+        "name": "charge",
+        "windup": 0.85,
+        "recover": 0.9,
+        "damage": 9,
+        "knockback": 9,
+        "area": {
+          "kind": "line",
+          "length": 8,
+          "width": 1.4
+        },
+        "reach": 8,
+        "cooldown": 4
+      },
+      {
+        "name": "bite",
+        "windup": 0.7,
+        "recover": 0.6,
+        "damage": 7,
+        "knockback": 5,
+        "area": {
+          "kind": "sector",
+          "range": 2.4,
+          "halfAngleDeg": 45
+        },
+        "reach": 2.2,
+        "cooldown": 1.3
+      }
+    ]
+  },
+  "gwisin": {
+    "name": "귀신",
+    "realm": "korea",
+    "role": "summoner",
+    "xp": 16,
+    "voxelSize": 0.09,
+    "radius": 0.55,
+    "hp": 60,
+    "speed": 3,
+    "aggroRange": 12,
+    "leashRange": 24,
+    "returnRegen": 0.5,
+    "poise": 20,
+    "keepAway": 8,
+    "body": {
+      "kind": "humanoid",
+      "main": "#e8e8ea",
+      "shade": "#c8c8d0",
+      "dark": "#2a2a32",
+      "accent": "#2a2a32",
+      "eye": "#ff4a4a",
+      "head": "hood"
+    },
+    "attacks": [
+      {
+        "name": "summon",
+        "windup": 1.2,
+        "recover": 1,
+        "damage": 0,
+        "knockback": 0,
+        "area": {
+          "kind": "summon",
+          "enemy": "dokkaebiFire",
+          "count": 2
+        },
+        "reach": 14,
+        "cooldown": 10
+      },
+      {
+        "name": "cast",
+        "windup": 0.8,
+        "recover": 0.8,
+        "damage": 7,
+        "knockback": 4,
+        "area": {
+          "kind": "circle",
+          "radius": 1.5
+        },
+        "reach": 12,
+        "cooldown": 3,
+        "projectile": {
+          "speed": 10,
+          "look": "wind"
+        }
+      }
+    ]
+  },
   "king": {
     "name": "거인 왕",
     "king": true,
+    "realm": "norse",
+    "role": "boss",
     "boss": "giantKing",
     "fixedDrop": "mjolnir",
     "xp": 120,
@@ -41,6 +917,16 @@
     "leashRange": 30,
     "returnRegen": 0.02,
     "superArmor": true,
+    "minion": "grunt",
+    "body": {
+      "kind": "giant",
+      "main": "#8fb4cb",
+      "shade": "#6d92ab",
+      "dark": "#55768e",
+      "accent": "#7c6750",
+      "eye": "#c8f8ff",
+      "gear": "club"
+    },
     "attacks": [
       {
         "name": "sweep",
@@ -55,6 +941,196 @@
         },
         "reach": 4.4,
         "cooldown": 2.4
+      },
+      {
+        "name": "slam",
+        "windup": 1.1,
+        "recover": 1,
+        "damage": 22,
+        "knockback": 8,
+        "area": {
+          "kind": "circle",
+          "radius": 2.4
+        },
+        "reach": 10,
+        "cooldown": 4.5
+      },
+      {
+        "name": "throw",
+        "windup": 1.1,
+        "recover": 1,
+        "damage": 14,
+        "knockback": 8,
+        "area": {
+          "kind": "circle",
+          "radius": 2.4
+        },
+        "reach": 14,
+        "cooldown": 9,
+        "projectile": {
+          "speed": 12,
+          "look": "rock"
+        }
+      },
+      {
+        "name": "roar",
+        "windup": 1,
+        "recover": 1.2,
+        "damage": 12,
+        "knockback": 10,
+        "area": {
+          "kind": "ring",
+          "speed": 9,
+          "startRadius": 3.6,
+          "maxRadius": 13,
+          "width": 1.2
+        },
+        "reach": 30,
+        "cooldown": 16
+      }
+    ]
+  },
+  "chimera": {
+    "name": "키마이라",
+    "realm": "greek",
+    "role": "boss",
+    "boss": "chimera",
+    "xp": 120,
+    "voxelSize": 0.2,
+    "radius": 1.5,
+    "hp": 800,
+    "speed": 3.2,
+    "aggroRange": 15,
+    "leashRange": 30,
+    "returnRegen": 0.02,
+    "superArmor": true,
+    "minion": "harpy",
+    "body": {
+      "kind": "beast",
+      "main": "#c89a4a",
+      "shade": "#a87a3a",
+      "dark": "#6a4a2a",
+      "accent": "#6a8a4a",
+      "eye": "#ff7a2a",
+      "head": "horns"
+    },
+    "attacks": [
+      {
+        "name": "bite",
+        "windup": 0.85,
+        "recover": 0.8,
+        "damage": 16,
+        "knockback": 10,
+        "area": {
+          "kind": "sector",
+          "range": 4.2,
+          "halfAngleDeg": 60
+        },
+        "reach": 3.8,
+        "cooldown": 2.2
+      },
+      {
+        "name": "charge",
+        "windup": 1,
+        "recover": 1.1,
+        "damage": 18,
+        "knockback": 12,
+        "area": {
+          "kind": "line",
+          "length": 12,
+          "width": 2.2
+        },
+        "reach": 12,
+        "cooldown": 5
+      },
+      {
+        "name": "cast",
+        "windup": 1,
+        "recover": 0.9,
+        "damage": 16,
+        "knockback": 8,
+        "area": {
+          "kind": "circle",
+          "radius": 2.4
+        },
+        "reach": 14,
+        "cooldown": 5.5,
+        "projectile": {
+          "speed": 10,
+          "look": "fire"
+        }
+      },
+      {
+        "name": "roar",
+        "windup": 1,
+        "recover": 1.2,
+        "damage": 12,
+        "knockback": 10,
+        "area": {
+          "kind": "ring",
+          "speed": 9,
+          "startRadius": 3.6,
+          "maxRadius": 13,
+          "width": 1.2
+        },
+        "reach": 30,
+        "cooldown": 16
+      }
+    ]
+  },
+  "bullDemonKing": {
+    "name": "우마왕",
+    "realm": "china",
+    "role": "boss",
+    "boss": "bullDemonKing",
+    "xp": 120,
+    "voxelSize": 0.18,
+    "radius": 1.5,
+    "hp": 850,
+    "speed": 2.6,
+    "aggroRange": 15,
+    "leashRange": 30,
+    "returnRegen": 0.02,
+    "superArmor": true,
+    "minion": "jiangshi",
+    "body": {
+      "kind": "giant",
+      "main": "#6a3a2a",
+      "shade": "#54301e",
+      "dark": "#3a2014",
+      "accent": "#d8a040",
+      "eye": "#ff5a2a",
+      "gear": "club",
+      "head": "bull"
+    },
+    "attacks": [
+      {
+        "name": "sweep",
+        "windup": 0.85,
+        "recover": 0.8,
+        "damage": 16,
+        "knockback": 12,
+        "area": {
+          "kind": "sector",
+          "range": 5,
+          "halfAngleDeg": 75
+        },
+        "reach": 4.4,
+        "cooldown": 2.4
+      },
+      {
+        "name": "charge",
+        "windup": 1,
+        "recover": 1.1,
+        "damage": 18,
+        "knockback": 12,
+        "area": {
+          "kind": "line",
+          "length": 11,
+          "width": 2.4
+        },
+        "reach": 11,
+        "cooldown": 5
       },
       {
         "name": "slam",
@@ -87,9 +1163,186 @@
       }
     ]
   },
+  "orochi": {
+    "name": "야마타노오로치",
+    "realm": "japan",
+    "role": "boss",
+    "boss": "orochi",
+    "xp": 120,
+    "voxelSize": 0.2,
+    "radius": 1.5,
+    "hp": 800,
+    "speed": 2.4,
+    "aggroRange": 15,
+    "leashRange": 30,
+    "returnRegen": 0.02,
+    "superArmor": true,
+    "minion": "kappa",
+    "body": {
+      "kind": "serpent",
+      "main": "#5a4a6a",
+      "shade": "#463a54",
+      "dark": "#2a2236",
+      "accent": "#c84a4a",
+      "eye": "#ffe070",
+      "head": "horns"
+    },
+    "attacks": [
+      {
+        "name": "bite",
+        "windup": 0.85,
+        "recover": 0.8,
+        "damage": 16,
+        "knockback": 10,
+        "area": {
+          "kind": "sector",
+          "range": 4.4,
+          "halfAngleDeg": 55
+        },
+        "reach": 4,
+        "cooldown": 2.2
+      },
+      {
+        "name": "cast",
+        "windup": 1,
+        "recover": 0.9,
+        "damage": 16,
+        "knockback": 8,
+        "area": {
+          "kind": "circle",
+          "radius": 2.4
+        },
+        "reach": 15,
+        "cooldown": 4.5,
+        "projectile": {
+          "speed": 10,
+          "look": "water"
+        }
+      },
+      {
+        "name": "sweep",
+        "windup": 1,
+        "recover": 1,
+        "damage": 18,
+        "knockback": 12,
+        "area": {
+          "kind": "sector",
+          "range": 5.5,
+          "halfAngleDeg": 100
+        },
+        "reach": 5,
+        "cooldown": 5
+      },
+      {
+        "name": "roar",
+        "windup": 1,
+        "recover": 1.2,
+        "damage": 12,
+        "knockback": 10,
+        "area": {
+          "kind": "ring",
+          "speed": 9,
+          "startRadius": 3.6,
+          "maxRadius": 13,
+          "width": 1.2
+        },
+        "reach": 30,
+        "cooldown": 16
+      }
+    ]
+  },
+  "bulgasari": {
+    "name": "불가사리",
+    "realm": "korea",
+    "role": "boss",
+    "boss": "bulgasari",
+    "xp": 120,
+    "voxelSize": 0.2,
+    "radius": 1.5,
+    "hp": 750,
+    "speed": 2.4,
+    "aggroRange": 15,
+    "leashRange": 30,
+    "returnRegen": 0.02,
+    "superArmor": true,
+    "guard": {
+      "front": 0.35,
+      "arcDeg": 70
+    },
+    "minion": "dokkaebiFire",
+    "body": {
+      "kind": "beast",
+      "main": "#5a5a62",
+      "shade": "#46464e",
+      "dark": "#2e2e34",
+      "accent": "#c87a3a",
+      "eye": "#ff9a3a",
+      "head": "horns"
+    },
+    "attacks": [
+      {
+        "name": "bite",
+        "windup": 0.85,
+        "recover": 0.8,
+        "damage": 16,
+        "knockback": 10,
+        "area": {
+          "kind": "sector",
+          "range": 4.2,
+          "halfAngleDeg": 60
+        },
+        "reach": 3.8,
+        "cooldown": 2.2
+      },
+      {
+        "name": "charge",
+        "windup": 1,
+        "recover": 1.1,
+        "damage": 18,
+        "knockback": 12,
+        "area": {
+          "kind": "line",
+          "length": 11,
+          "width": 2.4
+        },
+        "reach": 11,
+        "cooldown": 5
+      },
+      {
+        "name": "slam",
+        "windup": 1.1,
+        "recover": 1,
+        "damage": 22,
+        "knockback": 8,
+        "area": {
+          "kind": "circle",
+          "radius": 2.4
+        },
+        "reach": 9,
+        "cooldown": 4.5
+      },
+      {
+        "name": "roar",
+        "windup": 1,
+        "recover": 1.2,
+        "damage": 12,
+        "knockback": 10,
+        "area": {
+          "kind": "ring",
+          "speed": 9,
+          "startRadius": 3.6,
+          "maxRadius": 13,
+          "width": 1.2
+        },
+        "reach": 30,
+        "cooldown": 16
+      }
+    ]
+  },
   "utgardKing": {
     "extends": "king",
     "name": "우트가르드의 왕",
+    "realm": "norse",
     "boss": "utgardKing",
     "xp": 0,
     "tint": "#d8c2ff",
