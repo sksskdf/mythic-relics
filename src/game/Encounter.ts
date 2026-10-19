@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 
-import { Giant, GRUNT, type GiantSpec, type GiantWorld, KING } from '../enemies/Giant'
+import { ELITE_CHANCE, ELITE_KINDS } from '../enemies/elite'
+import { ENEMIES, Giant, GRUNT, type GiantSpec, type GiantWorld, KING } from '../enemies/Giant'
 import type { CircleCollider, Point2 } from '../world/colliders'
 import { NavGrid } from '../world/navGrid'
 
@@ -8,6 +9,8 @@ import { NavGrid } from '../world/navGrid'
 interface Camp {
   center: Point2
   count: number
+  /** 무리를 이루는 적 (돌아가며 채운다). 비면 졸개 */
+  members: readonly GiantSpec[]
   giants: Giant[]
   /** 전멸한 뒤 다시 나타나기까지 남은 시간 */
   respawn: number
@@ -17,11 +20,14 @@ interface Camp {
 const RESPAWN_CLEAR_DISTANCE = 10
 const CAMP_RESPAWN = 25
 const BOSS_RESPAWN = 45
+/** 부르기로 늘어나는 적의 상한: 살아 있는 적이 이만큼이면 더 부르지 않는다 */
+const SUMMON_CAP = 24
 
 export interface EncounterLayout {
-  camps: { x: number; z: number; count: number }[]
-  /** 보스 자리 (마을처럼 보스가 없는 지역은 null) */
-  boss: { x: number; z: number } | null
+  /** members: 무리를 이루는 적 id (E8, 없으면 졸개) */
+  camps: { x: number; z: number; count: number; members?: readonly string[] }[]
+  /** 보스 자리와 보스 (마을처럼 보스가 없는 지역은 null, enemy가 없으면 거인 왕) */
+  boss: { x: number; z: number; enemy?: string } | null
 }
 
 type WorldBase = Omit<GiantWorld, 'nav' | 'giants' | 'summon'>
@@ -39,7 +45,13 @@ export class Encounter {
   private bossRespawn = 0
   private readonly navs = new Map<GiantSpec, NavGrid>()
   private seed = 1
-  private readonly pendingSummons: Point2[] = []
+  private readonly pendingSummons: { point: Point2; spec: GiantSpec }[] = []
+  /** 이 지역의 보스 */
+  private bossSpec: GiantSpec = KING
+  /** 무리 하나에 정예가 섞일 확률 (점검할 때 0이나 1로 바꾼다) */
+  eliteChance = ELITE_CHANCE
+  /** 정예를 고를 때 쓰는 난수 (점검할 때 바꿔 끼운다) */
+  rng: () => number = Math.random
 
   constructor(layout: EncounterLayout, staticColliders: readonly CircleCollider[], halfExtent: number) {
     for (const spec of [GRUNT, KING]) {
@@ -61,10 +73,12 @@ export class Encounter {
     this.camps = layout.camps.map((c) => ({
       center: gruntNav.nearestFree(c) ?? c,
       count: c.count,
+      members: (c.members ?? []).map((id) => ENEMIES[id] ?? GRUNT),
       giants: [],
       respawn: CAMP_RESPAWN,
     }))
-    this.bossHome = layout.boss ? (this.navs.get(KING)!.nearestFree(layout.boss) ?? layout.boss) : null
+    this.bossSpec = (layout.boss?.enemy && ENEMIES[layout.boss.enemy]) || KING
+    this.bossHome = layout.boss ? (this.navFor(this.bossSpec).nearestFree(layout.boss) ?? layout.boss) : null
     this.bossRespawn = 0
     for (const camp of this.camps) this.fillCamp(camp)
     this.spawnBoss()
@@ -92,12 +106,12 @@ export class Encounter {
   update(dt: number, base: WorldBase): Giant[] {
     const shattered: Giant[] = []
     for (const giant of this.giants) {
-      const nav = this.navs.get(giant.spec) ?? this.navs.get(giant.spec.king ? KING : GRUNT)!
+      const nav = this.navFor(giant.spec)
       giant.update(dt, {
         ...base,
         nav,
         giants: this.giants,
-        summon: (x, z, count) => this.queueSummon(x, z, count),
+        summon: (x, z, count, enemy) => this.queueSummon(x, z, count, enemy),
       })
       if (giant.justShattered) shattered.push(giant)
     }
@@ -135,10 +149,16 @@ export class Encounter {
 
   /** 승급 전설 등에서 거인을 따로 세운다. alert면 바로 주인공을 쫓는다. */
   spawn(spec: GiantSpec, home: Point2, alert: boolean): Giant {
-    const nav = this.navs.get(spec) ?? this.navs.get(spec.king ? KING : GRUNT)!
+    const nav = this.navFor(spec)
     const giant = this.addGiant(spec, nav.nearestFree(home) ?? home)
     if (alert) giant.alert()
     return giant
+  }
+
+  /** 적 id로 세운다 (점검 스크립트용). 없는 id면 null */
+  spawnById(id: string, home: Point2, alert: boolean): Giant | null {
+    const spec = ENEMIES[id]
+    return spec ? this.spawn(spec, home, alert) : null
   }
 
   /** 거인을 바로 지운다. (승급 전설에 실패했을 때) */
@@ -149,18 +169,25 @@ export class Encounter {
     this.giants.splice(index, 1)
   }
 
-  private queueSummon(x: number, z: number, count: number): void {
+  /** 덩치에 맞는 길찾기 격자: 큰 적은 거인 왕 격자, 나머지는 졸개 격자 */
+  private navFor(spec: GiantSpec): NavGrid {
+    return this.navs.get(spec) ?? this.navs.get(spec.radius >= 1.2 ? KING : GRUNT)!
+  }
+
+  private queueSummon(x: number, z: number, count: number, enemy?: string): void {
+    const spec = (enemy && ENEMIES[enemy]) || GRUNT
+    const room = SUMMON_CAP - this.giants.filter((g) => g.alive).length - this.pendingSummons.length
+    count = Math.min(count, room)
     for (let i = 0; i < count; i++) {
       const angle = (i / count) * Math.PI * 2 + Math.random()
-      this.pendingSummons.push({ x: x + Math.sin(angle) * 5, z: z + Math.cos(angle) * 5 })
+      this.pendingSummons.push({ point: { x: x + Math.sin(angle) * 4, z: z + Math.cos(angle) * 4 }, spec })
     }
   }
 
   private flushSummons(): void {
-    const nav = this.navs.get(GRUNT)!
-    for (const point of this.pendingSummons.splice(0)) {
-      const spot = nav.nearestFree(point) ?? point
-      this.addGiant(GRUNT, spot).alert()
+    for (const { point, spec } of this.pendingSummons.splice(0)) {
+      const spot = this.navFor(spec).nearestFree(point) ?? point
+      this.addGiant(spec, spot).alert()
     }
   }
 
@@ -176,12 +203,19 @@ export class Encounter {
     for (let i = 0; i < camp.count; i++) {
       const angle = (i / camp.count) * Math.PI * 2
       const spot = nav.nearestFree({ x: camp.center.x + Math.sin(angle) * 2.2, z: camp.center.z + Math.cos(angle) * 2.2 })
-      camp.giants.push(this.addGiant(GRUNT, spot ?? camp.center))
+      const spec = camp.members.length > 0 ? camp.members[i % camp.members.length]! : GRUNT
+      camp.giants.push(this.addGiant(spec, spot ?? camp.center))
+    }
+    // 가끔 한 마리가 정예로 나온다 (부르는 적은 빼고: 정예 졸개가 끝없이 불어나지 않게)
+    if (this.rng() < this.eliteChance) {
+      const candidates = camp.giants.filter((g) => g.spec.role !== 'summoner')
+      const pick = candidates[Math.floor(this.rng() * candidates.length)]
+      pick?.makeElite(ELITE_KINDS[Math.floor(this.rng() * ELITE_KINDS.length)]!)
     }
   }
 
   private spawnBoss(): void {
-    this.boss = this.bossHome ? this.addGiant(KING, this.bossHome) : null
+    this.boss = this.bossHome ? this.addGiant(this.bossSpec, this.bossHome) : null
   }
 
   private cleanUp(dt: number, hero: { x: number; z: number }): void {

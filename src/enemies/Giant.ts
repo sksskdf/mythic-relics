@@ -1,13 +1,15 @@
 import * as THREE from 'three'
 
-import { angleDiff, angleTo, inArc, inCircle, inRing } from '../combat/arc'
+import { angleDiff, angleTo, inArc, inCircle, inLine, inRing } from '../combat/arc'
 import { Health } from '../combat/Health'
 import { DATA } from '../data'
 import { Telegraph } from '../fx/Telegraphs'
 import { type CircleCollider, clampToBounds, type Point2, pushOut } from '../world/colliders'
 import type { NavGrid } from '../world/navGrid'
 import { heightAt } from '../world/terrain'
-import { buildGiantRig, type GiantRig } from './giantModel'
+import { ELITES, type EliteKind } from './elite'
+import { buildEnemyRig, type EnemyRig } from './enemyModel'
+import { Projectile } from './Projectile'
 
 import type { AttackSpec, GiantSpec } from '../data/schema'
 
@@ -40,8 +42,8 @@ export interface GiantWorld {
   hitHero(damage: number, fromX: number, fromZ: number, knockback: number): void
   /** 공격이 땅을 때렸다. 흙먼지, 화면 흔들림 등 */
   impact(x: number, z: number, strength: number, ice: boolean): void
-  /** 거인 왕이 포효로 졸개를 부른다. */
-  summon(x: number, z: number, count: number): void
+  /** 포효·부르기로 다른 적을 부른다 (enemy가 없으면 졸개) */
+  summon(x: number, z: number, count: number, enemy?: string): void
   /** 공격 예고를 붙일 곳 */
   effects: THREE.Object3D
   /** 공격 예고가 시작됐다 (소리) */
@@ -52,6 +54,7 @@ export interface GiantWorld {
 export type GiantDanger =
   | { kind: 'sector'; x: number; z: number; facing: number; radius: number; halfAngle: number; progress: number }
   | { kind: 'circle' | 'ring'; x: number; z: number; radius: number; progress: number }
+  | { kind: 'line'; x: number; z: number; facing: number; length: number; width: number; progress: number }
 
 export type GiantState = 'idle' | 'chase' | 'return' | 'windup' | 'recover' | 'stagger' | 'dead'
 
@@ -64,12 +67,16 @@ interface Shockwave {
   attack: AttackSpec
 }
 
+/** 부르기: 둘레에 부른 적이 (한 번에 부르는 수 × 이것) 이상이면 더 부르지 않는다 */
+const SUMMON_CROWD = 1.5
 const DEATH_COLLAPSE = 0.55
 const REPATH = 0.45
+/** 돌진 빠르기 (m/s) */
+const DASH_SPEED = 16
 
 /** 서리 거인 한 마리. 졸개와 거인 왕이 같은 흐름(대기 → 추격 → 예고 → 공격 → 빈틈)을 쓴다. */
 export class Giant {
-  readonly rig: GiantRig
+  readonly rig: EnemyRig
   readonly health: Health
   readonly collider: CircleCollider
   state: GiantState = 'idle'
@@ -90,13 +97,32 @@ export class Giant {
   private walkCycle = Math.random() * 10
   private flash = 0
   private roared = false
+  /** 돌진 중: 남은 거리와 방향, 이미 쳤는지 */
+  private dash: { left: number; dirX: number; dirZ: number; hit: boolean; attack: AttackSpec } | null = null
+  /** 날아가는 것들 (던지기) */
+  private readonly projectiles: Projectile[] = []
+  /** 둘러싸기 (E8-06): 주인공의 어느 쪽으로 붙을지 (거인마다 다름) */
+  private readonly flank: number
+  /** 막아 낸 피해 (점검용) */
+  blocked = 0
+  /** 정예 배율 (E8-05): 피해 */
+  damageScale = 1
+  /** 정예 종류 (없으면 보통) */
+  elite: EliteKind | null = null
+  private size = 1
+  private speedScale = 1
+  private cooldownScale = 1
+  private aura: THREE.Mesh | null = null
+  /** 정예의 은은한 몸 빛 (맞았을 때 번쩍임이 끝나면 이 빛으로 돌아간다) */
+  private readonly glow = new THREE.Color(0, 0, 0)
 
   constructor(
     readonly spec: GiantSpec,
     readonly home: Point2,
     seed = 1,
   ) {
-    this.rig = buildGiantRig({ voxelSize: spec.voxelSize, king: spec.king, seed })
+    this.rig = buildEnemyRig(spec, seed)
+    this.flank = ((seed * 2.39996) % (Math.PI * 2)) - Math.PI
     if (spec.tint !== undefined) this.rig.material.color.setHex(spec.tint)
     this.health = new Health(spec.hp)
     this.collider = { x: home.x, z: home.z, radius: spec.radius }
@@ -123,7 +149,32 @@ export class Giant {
   }
 
   get radius(): number {
-    return this.spec.radius
+    return this.spec.radius * this.size
+  }
+
+  /** 정예로 만든다: 크고 단단하거나 사납거나 날래다. 발밑에 그 색 고리가 생긴다 */
+  makeElite(kind: EliteKind): void {
+    const def = ELITES[kind]
+    this.elite = kind
+    this.size = def.size
+    this.speedScale = def.speed
+    this.cooldownScale = def.cooldown
+    this.damageScale = def.damage
+    this.health.max = this.spec.hp * def.hp
+    this.health.hp = this.health.max
+    this.collider.radius = this.radius
+    this.rig.body.scale.setScalar(def.size)
+    this.glow.setHex(def.color).multiplyScalar(0.18)
+    this.rig.material.emissive.copy(this.glow)
+    const r = this.radius
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(r * 0.85, r * 1.15, 24),
+      new THREE.MeshBasicMaterial({ color: def.color, transparent: true, opacity: 0.55, depthWrite: false }),
+    )
+    ring.rotation.x = -Math.PI / 2
+    ring.position.y = 0.06
+    this.aura = ring
+    this.rig.root.add(ring)
   }
 
   /** 지금 공격을 준비 중이면 그 공격 */
@@ -147,7 +198,27 @@ export class Giant {
         return { kind: 'circle', x: this.target.x, z: this.target.y, radius: area.radius, progress }
       case 'ring':
         return { kind: 'ring', x: this.x, z: this.z, radius: area.startRadius - area.width / 2, progress }
+      case 'line':
+        return { kind: 'line', x: this.x, z: this.z, facing: this.rig.root.rotation.y, length: area.length, width: area.width, progress }
+      case 'summon':
+        return null
     }
+  }
+
+  /** 예고 중인 범위와 날아가는 것이 떨어질 자리를 모두 (봇이 피할 곳) */
+  get dangers(): GiantDanger[] {
+    const out: GiantDanger[] = []
+    const now = this.danger
+    if (now) out.push(now)
+    for (const shot of this.projectiles) {
+      if (shot.attack.area.kind === 'circle') out.push({ kind: 'circle', x: shot.to.x, z: shot.to.z, radius: shot.attack.area.radius, progress: 1 })
+    }
+    return out
+  }
+
+  /** 지금 날아가는 것 (점검용) */
+  get flying(): number {
+    return this.projectiles.length
   }
 
   /** 주인공을 바로 쫓게 한다. (포효로 불려 왔을 때) */
@@ -181,14 +252,27 @@ export class Giant {
    */
   takeHit(damage: number, dirX: number, dirZ: number, knockback: number): number {
     if (!this.alive) return 0
+    // 막기 (E8-02): 앞에서 맞으면 피해가 준다. 맞은 방향(dir)은 주인공 → 적이라, 주인공은 그 반대쪽에 있다
+    // 공격하는 동안(예고·빈틈)은 방패가 내려가 그대로 들어간다
+    let frontal = false
+    const guard = this.spec.guard
+    const guarding = this.state !== 'windup' && this.state !== 'recover'
+    if (guard && guarding && (dirX !== 0 || dirZ !== 0)) {
+      const from = Math.atan2(-dirX, -dirZ)
+      if (Math.abs(angleDiff(from, this.rig.root.rotation.y)) <= guard.arc) {
+        frontal = true
+        this.blocked += damage * (1 - guard.front)
+        damage *= guard.front
+      }
+    }
     const dealt = this.health.damage(damage)
-    this.flash = 1
+    this.flash = frontal ? 0.4 : 1
     if (this.health.dead) {
       this.die()
       return dealt
     }
     if (this.spec.poise !== Infinity) this.knock.set(this.knock.x + dirX * knockback, this.knock.y + dirZ * knockback)
-    if (damage >= this.spec.poise) {
+    if (damage >= this.spec.poise && !frontal) {
       this.clearTelegraph()
       this.setState('stagger')
     } else if (this.state === 'idle' || this.state === 'return') {
@@ -202,12 +286,15 @@ export class Giant {
     this.stateTime += dt
     for (const [attack, left] of this.cooldowns) this.cooldowns.set(attack, Math.max(0, left - dt))
     this.updateWaves(dt, world)
+    this.updateProjectiles(dt, world)
     this.updateFlash(dt)
 
     if (this.state === 'dead') {
       this.updateDeath()
       return
     }
+
+    if (this.dash) this.updateDash(dt, world)
 
     if (this.knock.lengthSq() > 1e-4) {
       this.translate(this.knock.x * dt, this.knock.y * dt, world)
@@ -232,9 +319,15 @@ export class Giant {
           this.setState('return')
           break
         }
-        const attack = this.chooseAttack(distToHero)
+        const attack = this.chooseAttack(distToHero, world)
         if (attack) this.beginAttack(attack, world)
-        else this.walkTo(hero, dt, world, this.spec.radius + hero.radius + 0.3)
+        else if (this.spec.keepAway && distToHero < this.spec.keepAway) this.backOff(hero, dt, world)
+        else {
+          const point = this.approachPoint(hero, distToHero)
+          const stopAt = this.spec.keepAway ?? (point === hero ? this.radius + hero.radius + 0.3 : 0.3)
+          this.walkTo(point, dt, world, stopAt)
+          if (point !== hero) this.face(hero.x, hero.z)
+        }
         break
       }
       case 'windup':
@@ -258,12 +351,15 @@ export class Giant {
     this.clearTelegraph()
     for (const wave of this.waves) wave.telegraph.dispose()
     this.waves.length = 0
+    for (const p of this.projectiles) p.dispose()
+    this.projectiles.length = 0
     this.rig.root.removeFromParent()
     // 거인마다 모양이 조금씩 달라 모델을 따로 만든다: 사라질 때 GPU에서도 내린다
     this.rig.root.traverse((o) => {
       if (o instanceof THREE.Mesh) o.geometry.dispose()
     })
     this.rig.material.dispose()
+    ;(this.aura?.material as THREE.Material | undefined)?.dispose()
   }
 
   /** 쫓을 대상: 가까운 환영 분신이 있으면 그쪽, 없으면 주인공 */
@@ -282,22 +378,29 @@ export class Giant {
     this.repathTimer = 0
   }
 
-  private chooseAttack(distToHero: number): AttackSpec | null {
+  private chooseAttack(distToHero: number, world: GiantWorld): AttackSpec | null {
     // 포효는 생명력이 절반 아래로 처음 떨어졌을 때 재사용 대기와 상관없이 바로 쓴다.
     const roar = this.spec.attacks.find((a) => a.name === 'roar')
     if (roar && !this.roared && this.health.ratio <= 0.5) return roar
     const ready = this.spec.attacks.filter((a) => {
       if ((this.cooldowns.get(a) ?? 0) > 0) return false
       if (a.name === 'roar') return this.health.ratio <= 0.5
+      // 부르기: 둘레에 부른 적이 이미 넉넉하면 부르지 않는다
+      if (a.area.kind === 'summon' && this.nearbyKin(a.area.enemy, world) >= a.area.count * SUMMON_CROWD) return false
       return distToHero <= a.reach
     })
     if (ready.length === 0) return null
     return ready[Math.floor(Math.random() * ready.length)]!
   }
 
+  /** 둘레(12m)에 살아 있는 그 적의 수 */
+  private nearbyKin(enemy: string, world: GiantWorld): number {
+    return world.giants.filter((g) => g.alive && g.spec.id === enemy && Math.hypot(g.x - this.x, g.z - this.z) < 12).length
+  }
+
   private beginAttack(attack: AttackSpec, world: GiantWorld): void {
     this.attack = attack
-    this.cooldowns.set(attack, attack.cooldown + attack.windup)
+    this.cooldowns.set(attack, attack.cooldown * this.cooldownScale + attack.windup)
     this.setState('windup')
     const aim = this.aim(world)
     this.target.set(aim.x, aim.z)
@@ -305,14 +408,18 @@ export class Giant {
     const area = attack.area
     if (area.kind === 'ring') {
       this.roared = true
-      world.summon(this.x, this.z, 3)
+      world.summon(this.x, this.z, 3, this.spec.minion)
     }
     this.telegraph = new Telegraph(
       area.kind === 'sector'
         ? { kind: 'sector', radius: area.range, halfAngle: area.halfAngle }
         : area.kind === 'circle'
           ? { kind: 'circle', radius: area.radius }
-          : { kind: 'ring', radius: area.startRadius, width: area.width },
+          : area.kind === 'line'
+            ? { kind: 'line', length: area.length, width: area.width }
+            : area.kind === 'summon'
+              ? { kind: 'ring', radius: 1.6, width: 0.3 }
+              : { kind: 'ring', radius: area.startRadius, width: area.width },
     )
     world.effects.add(this.telegraph.object)
     this.placeTelegraph()
@@ -340,6 +447,7 @@ export class Giant {
   private placeTelegraph(): void {
     if (!this.telegraph || !this.attack) return
     if (this.attack.area.kind === 'circle') this.telegraph.place(this.target.x, this.target.y)
+    else if (this.attack.area.kind === 'line' || this.attack.area.kind === 'sector') this.telegraph.place(this.x, this.z, this.rig.root.rotation.y)
     else this.telegraph.place(this.x, this.z, this.rig.root.rotation.y)
   }
 
@@ -351,17 +459,34 @@ export class Giant {
     switch (area.kind) {
       case 'sector': {
         if (hero.alive && inArc(this.x, this.z, facing, area.range, area.halfAngle, hero.x, hero.z, hero.radius)) {
-          world.hitHero(attack.damage, this.x, this.z, attack.knockback)
+          world.hitHero(attack.damage * this.damageScale, this.x, this.z, attack.knockback)
         }
         const reach = area.range * 0.7
-        world.impact(this.x + Math.sin(facing) * reach, this.z + Math.cos(facing) * reach, this.spec.king ? 0.35 : 0.12, ice)
+        world.impact(this.x + Math.sin(facing) * reach, this.z + Math.cos(facing) * reach, this.spec.role === 'boss' ? 0.35 : 0.12, ice)
         break
       }
       case 'circle':
+        // 던지기: 날아가서 떨어질 때 친다 (예고는 떨어질 때까지 남긴다)
+        if (attack.projectile) {
+          const shot = new Projectile(attack, { x: this.x, z: this.z, y: this.spec.voxelSize * 22 }, { x: this.target.x, z: this.target.y }, this.telegraph)
+          this.telegraph = null
+          world.effects.add(shot.object)
+          this.projectiles.push(shot)
+          break
+        }
         if (hero.alive && inCircle(this.target.x, this.target.y, area.radius, hero.x, hero.z, hero.radius)) {
-          world.hitHero(attack.damage, this.target.x, this.target.y, attack.knockback)
+          world.hitHero(attack.damage * this.damageScale, this.target.x, this.target.y, attack.knockback)
         }
         world.impact(this.target.x, this.target.y, 0.45, ice)
+        break
+      case 'line':
+        // 돌진: 예고한 줄을 따라 달려간다 (빈틈 동안 움직인다)
+        this.dash = { left: area.length, dirX: Math.sin(facing), dirZ: Math.cos(facing), hit: false, attack }
+        world.impact(this.x, this.z, 0.15, ice)
+        break
+      case 'summon':
+        world.summon(this.x, this.z, area.count, area.enemy)
+        world.impact(this.x, this.z, 0.2, ice)
         break
       case 'ring': {
         const telegraph = new Telegraph({ kind: 'ring', radius: area.startRadius, width: area.width })
@@ -390,9 +515,64 @@ export class Giant {
       const hero = world.hero
       if (!wave.hit && hero.alive && inRing(wave.x, wave.z, wave.radius, area.width, hero.x, hero.z, hero.radius)) {
         wave.hit = true
-        world.hitHero(wave.attack.damage, wave.x, wave.z, wave.attack.knockback)
+        world.hitHero(wave.attack.damage * this.damageScale, wave.x, wave.z, wave.attack.knockback)
       }
     }
+  }
+
+  /** 돌진: 줄을 따라 빠르게 달리며, 처음 닿은 주인공을 친다 */
+  private updateDash(dt: number, world: GiantWorld): void {
+    const dash = this.dash!
+    const step = Math.min(dash.left, DASH_SPEED * dt)
+    const before = { x: this.x, z: this.z }
+    this.translate(dash.dirX * step, dash.dirZ * step, world)
+    const moved = Math.hypot(this.x - before.x, this.z - before.z)
+    dash.left -= step
+    const hero = world.hero
+    const area = dash.attack.area
+    const width = area.kind === 'line' ? area.width : 1
+    if (!dash.hit && hero.alive && inLine(before.x, before.z, this.rig.root.rotation.y, Math.max(step, 0.01) + this.radius, width, hero.x, hero.z, hero.radius)) {
+      dash.hit = true
+      world.hitHero(dash.attack.damage * this.damageScale, this.x, this.z, dash.attack.knockback)
+    }
+    this.walkCycle += dt * 14
+    // 막혀서 못 가면 멈춘다
+    if (dash.left <= 0 || moved < step * 0.3) this.dash = null
+  }
+
+  /** 던진 것이 날아가 떨어지면 친다 */
+  private updateProjectiles(dt: number, world: GiantWorld): void {
+    for (let i = this.projectiles.length - 1; i >= 0; i--) {
+      const shot = this.projectiles[i]!
+      if (!shot.update(dt)) continue
+      const area = shot.attack.area
+      const hero = world.hero
+      if (area.kind === 'circle' && hero.alive && inCircle(shot.to.x, shot.to.z, area.radius, hero.x, hero.z, hero.radius)) {
+        world.hitHero(shot.attack.damage * this.damageScale, shot.to.x, shot.to.z, shot.attack.knockback)
+      }
+      world.impact(shot.to.x, shot.to.z, 0.3, shot.attack.projectile?.look === 'water')
+      shot.dispose()
+      this.projectiles.splice(i, 1)
+    }
+  }
+
+  /** 거리 유지: 주인공에게서 멀어지는 쪽으로 물러난다 */
+  private backOff(hero: { x: number; z: number }, dt: number, world: GiantWorld): void {
+    const dx = this.x - hero.x
+    const dz = this.z - hero.z
+    const len = Math.hypot(dx, dz) || 1
+    const away = { x: this.x + (dx / len) * 3, z: this.z + (dz / len) * 3 }
+    this.walkTo(away, dt, world)
+    this.face(hero.x, hero.z)
+  }
+
+  /** 둘러싸기: 가까워지면 주인공의 정면이 아니라 자기 몫의 옆쪽으로 붙는다 (보스·원거리는 곧장) */
+  private approachPoint(hero: { x: number; z: number; radius: number }, dist: number): Point2 {
+    if (this.spec.role === 'boss' || this.spec.keepAway || dist > 6) return hero
+    const toMe = Math.atan2(this.x - hero.x, this.z - hero.z)
+    const want = toMe + this.flank * 0.6
+    const r = this.radius + hero.radius + 0.3
+    return { x: hero.x + Math.sin(want) * r, z: hero.z + Math.cos(want) * r }
   }
 
   private clearTelegraph(): void {
@@ -421,7 +601,7 @@ export class Giant {
     if (this.flash <= 0) return
     this.flash = Math.max(0, this.flash - dt * 9)
     const f = this.flash > 0.5 ? 1 : this.flash * 1.4
-    this.rig.material.emissive.setRGB(f, f, f)
+    this.rig.material.emissive.setRGB(f, f, f).add(this.glow)
   }
 
   private face(x: number, z: number): void {
@@ -451,7 +631,7 @@ export class Giant {
     const dz = waypoint.z - this.z
     const len = Math.hypot(dx, dz)
     if (len > 1e-3) {
-      const step = Math.min(len, this.spec.speed * dt)
+      const step = Math.min(len, this.spec.speed * this.speedScale * dt)
       // 몸을 확 돌리지 않고 조금씩 돌린다.
       const want = Math.atan2(dx, dz)
       const turn = angleDiff(want, this.rig.root.rotation.y)
@@ -465,12 +645,12 @@ export class Giant {
   private translate(dx: number, dz: number, world: GiantWorld): void {
     const position = this.rig.root.position
     let next: Point2 = { x: position.x + dx, z: position.z + dz }
-    next = pushOut(next, this.spec.radius, world.staticColliders)
+    next = pushOut(next, this.radius, world.staticColliders)
     for (const other of world.giants) {
       if (other === this || !other.alive) continue
-      next = pushOut(next, this.spec.radius, [other.collider])
+      next = pushOut(next, this.radius, [other.collider])
     }
-    if (world.hero.alive) next = pushOut(next, this.spec.radius, [{ x: world.hero.x, z: world.hero.z, radius: world.hero.radius }])
+    if (world.hero.alive) next = pushOut(next, this.radius, [{ x: world.hero.x, z: world.hero.z, radius: world.hero.radius }])
     next = clampToBounds(next, world.halfExtent)
     position.set(next.x, heightAt(next.x, next.z), next.z)
   }
@@ -495,6 +675,29 @@ export class Giant {
       this.walkCycle += dt * 1.5
       leftArm.rotation.x = Math.sin(this.walkCycle) * 0.05
       rightArm.rotation.x = -0.2 + Math.sin(this.walkCycle) * 0.05
+    }
+
+    // 몸 종류마다 다른 움직임: 날개는 퍼덕이며 떠 있고, 혼령은 둥실거리고, 짐승·뱀은 몸을 숙인다
+    const kind = this.rig.kind
+    if (kind === 'flyer') {
+      const flap = Math.sin(this.walkCycle * 2.2) * 0.6
+      leftArm.rotation.x = 0
+      rightArm.rotation.x = 0
+      leftArm.rotation.z = flap
+      rightArm.rotation.z = -flap
+      body.position.y = Math.sin(this.walkCycle) * this.spec.voxelSize * 2
+      this.walkCycle += dt * 4
+    } else if (kind === 'spirit') {
+      body.position.y = Math.sin(this.walkCycle * 0.8) * this.spec.voxelSize * 3
+      const pulse = 1 + Math.sin(this.walkCycle * 3) * 0.05
+      body.scale.set(pulse * this.size, this.size / pulse, pulse * this.size)
+      this.walkCycle += dt * 2
+    } else if (kind === 'serpent') {
+      body.rotation.y = Math.sin(this.walkCycle * 0.7) * 0.12
+      body.rotation.x = 0
+      body.position.y = 0
+    } else if (kind === 'beast') {
+      body.rotation.x = 0
     }
 
     const attack = this.attack
@@ -543,9 +746,29 @@ export class Giant {
         }
         break
       case 'roar':
+      case 'summon':
+      case 'cast':
         body.rotation.x = (struck ? -0.35 * settle : -0.3 * ease) + tremble
         leftArm.rotation.z = -1.2 * (struck ? settle : ease)
         rightArm.rotation.z = 1.2 * (struck ? settle : ease)
+        break
+      case 'charge':
+        // 몸을 낮추고 앞으로 숙였다가 튀어 나간다
+        body.rotation.x = (struck ? 0.35 * settle : 0.45 * ease) + tremble
+        body.position.y = struck ? 0 : -this.spec.voxelSize * 2 * ease
+        leftArm.rotation.x = struck ? -0.8 * settle : 0.6 * ease
+        rightArm.rotation.x = struck ? -0.8 * settle : 0.6 * ease
+        break
+      case 'throw':
+        // 팔을 뒤로 크게 젖혔다가 앞으로 던진다
+        rightArm.rotation.x = struck ? -0.6 * settle : -2.9 * ease
+        body.rotation.x = (struck ? 0.25 * settle : -0.25 * ease) + tremble
+        body.rotation.y = struck ? 0 : 0.35 * ease
+        break
+      case 'bite':
+        // 머리(목)를 뒤로 당겼다가 문다
+        body.rotation.x = (struck ? 0.3 * settle : -0.3 * ease) + tremble
+        rightArm.rotation.x = struck ? 0.5 * settle : -0.6 * ease
         break
     }
   }

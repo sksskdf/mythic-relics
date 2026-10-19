@@ -101,7 +101,7 @@ export class Effects {
 
   /** 쓰러진 거인이 복셀 조각으로 부서진다. */
   shatter(giant: Giant): void {
-    const king = giant.spec.king
+    const king = giant.spec.role === 'boss'
     this.debris.burst(giant.object.position, king ? 90 : 30, giant.rig.palette, king ? 3 : 1.6, giant.spec.voxelSize * 2.2)
     this.puffs.burst(giant.object.position, king ? 30 : 12, king ? 4 : 2.2)
   }

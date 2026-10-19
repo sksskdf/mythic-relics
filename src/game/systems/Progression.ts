@@ -1,4 +1,5 @@
 import type { Giant } from '../../enemies/Giant'
+import { ELITE_REWARD } from '../../enemies/elite'
 import { PER_PROMOTION } from '../../progress/ClassProgress'
 import { levelGains } from '../../progress/levelGains'
 import { classIcon } from '../../ui/classIcons'
@@ -71,7 +72,7 @@ export class ProgressionSystem {
   private onGiantKilled(giant: Giant): void {
     const { powers, progress, combat, drops, pickups, bus } = this.ctx
     const manifested = powers.manifested
-    if (manifested) progress.addXp(manifested, giant.spec.xp)
+    if (manifested) progress.addXp(manifested, giant.spec.xp * (giant.elite ? ELITE_REWARD.xp : 1))
     // 적을 쓰러뜨리면 생명력을 조금 되찾는다. 몰려오는 무리를 쓸어 내며 버틸 수 있게 한다.
     if (combat.alive) combat.health.heal(giant.spec.boss ? HEAL_PER_BOSS : HEAL_PER_KILL)
     bus.emit('progressChanged', {})
@@ -80,8 +81,14 @@ export class ProgressionSystem {
       ...powers.loadout.bag,
       ...pickups.list.map((p) => p.id),
     ])
-    const relic = drops.roll(owned, giant.spec.boss)
-    if (relic) pickups.drop(relic, giant.x, giant.z)
+    // 정예는 유물을 한 번 더 굴린다
+    const rolls = giant.elite ? ELITE_REWARD.dropRolls : 1
+    for (let i = 0; i < rolls; i++) {
+      const relic = drops.roll(owned, giant.spec.boss)
+      if (!relic) continue
+      pickups.drop(relic, giant.x, giant.z)
+      break
+    }
   }
 
   /** 승급: 칭호가 바뀌고, 스킬이 강해지고, 원천 숙련과 기본 능력치가 오른다. */

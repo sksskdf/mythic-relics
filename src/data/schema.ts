@@ -364,8 +364,36 @@ export function parseRelics(raw: unknown, refs: RelicRefs, path = 'relics.json')
 
 const DEG = Math.PI / 180
 
-export type AttackName = 'smash' | 'sweep' | 'slam' | 'roar'
-const ATTACK_NAMES: readonly AttackName[] = ['smash', 'sweep', 'slam', 'roar']
+/** 공격 이름: 자세(애니메이션)를 정한다. 무엇을 하는지는 범위(area)와 던지기(projectile)가 정한다 */
+export const ATTACK_NAMES = ['smash', 'sweep', 'slam', 'roar', 'charge', 'throw', 'summon', 'bite', 'cast'] as const
+export type AttackName = (typeof ATTACK_NAMES)[number]
+
+/** 적 역할 (E8-01): 무리마다 대응이 달라지게 하는 기준. 역할마다 지켜야 할 규칙은 tests/enemies.test.ts */
+export const ENEMY_ROLES = ['brute', 'charger', 'ranged', 'guard', 'summoner', 'boss'] as const
+export type EnemyRole = (typeof ENEMY_ROLES)[number]
+
+/** 몸 종류 (E8-03): 모양만 보고 행동을 짐작하게 한다 (src/enemies/enemyModel.ts) */
+export const BODY_KINDS = ['giant', 'beast', 'humanoid', 'flyer', 'spirit', 'serpent'] as const
+export type BodyKind = (typeof BODY_KINDS)[number]
+/** 손에 든 것 */
+export const BODY_GEAR = ['club', 'rock', 'shield', 'staff', 'spear', 'none'] as const
+/** 머리 장식 */
+export const BODY_HEADS = ['plain', 'horns', 'crown', 'beak', 'skull', 'hood', 'oneEye', 'bull'] as const
+
+export interface BodySpec {
+  kind: BodyKind
+  /** 몸 색, 그늘, 어두운 색, 장식, 눈 */
+  main: number
+  shade: number
+  dark: number
+  accent: number
+  eye: number
+  gear: (typeof BODY_GEAR)[number]
+  head: (typeof BODY_HEADS)[number]
+}
+
+/** 던진 것이 날아가는 모양 */
+export const PROJECTILE_LOOKS = ['rock', 'fire', 'water', 'wind', 'bone'] as const
 
 /** 공격이 닿는 범위 */
 export type AttackArea =
@@ -378,6 +406,10 @@ export type AttackArea =
    * 회피 버튼이 없으므로 거인 품으로 파고들거나 멀리 벗어나서 피한다.
    */
   | { kind: 'ring'; speed: number; startRadius: number; maxRadius: number; width: number }
+  /** 앞으로 길게 돌진한다 (E8-02). 예고가 끝나면 그 줄을 따라 달려가며 닿는 것을 친다 */
+  | { kind: 'line'; length: number; width: number }
+  /** 둘레에 다른 적을 부른다 (E8-02) */
+  | { kind: 'summon'; enemy: string; count: number }
 
 export interface AttackSpec {
   name: AttackName
@@ -392,6 +424,8 @@ export interface AttackSpec {
   reach: number
   /** 다시 쓰기까지 걸리는 시간 (초) */
   cooldown: number
+  /** 던지기 (E8-02): 예고가 끝나면 날아가 떨어진 자리(circle)를 친다. 빠르기(m/s)와 모양 */
+  projectile?: { speed: number; look: (typeof PROJECTILE_LOOKS)[number] }
 }
 
 export interface GiantSpec {
@@ -421,6 +455,18 @@ export interface GiantSpec {
   /** 한 번에 이 이상 맞으면 휘청이며 하던 공격이 끊긴다. 보스는 끊기지 않는다(슈퍼아머, Infinity). */
   poise: number
   attacks: readonly AttackSpec[]
+  /** 역할 (E8-01) */
+  role: EnemyRole
+  /** 몸 모양과 색 (E8-03) */
+  body: BodySpec
+  /** 막기 (E8-02): 앞쪽 arc(라디안, 반각)에서 맞으면 피해 × front. 등이나 옆을 쳐야 한다 */
+  guard?: { front: number; arc: number }
+  /** 거리 유지 (E8-06): 주인공이 이보다 가까우면 물러나며 원거리 공격을 노린다 */
+  keepAway?: number
+  /** 이 적이 사는 신화권 (지역 무리에 쓴다). 없으면 어디에나 */
+  realm?: string
+  /** 포효(충격파)로 부르는 졸개 (없으면 grunt) */
+  minion?: string
 }
 
 const ENEMY_KEYS = [
@@ -441,11 +487,17 @@ const ENEMY_KEYS = [
   'poise',
   'superArmor',
   'attacks',
+  'role',
+  'body',
+  'guard',
+  'keepAway',
+  'realm',
+  'minion',
 ]
 
 function parseArea(raw: unknown, path: string): AttackArea {
   const o = obj(raw, path)
-  const kind = oneOf(o, 'kind', path, ['sector', 'circle', 'ring'] as const)
+  const kind = oneOf(o, 'kind', path, ['sector', 'circle', 'ring', 'line', 'summon'] as const)
   switch (kind) {
     case 'sector':
       onlyKeys(o, path, ['kind', 'range', 'halfAngleDeg'])
@@ -464,13 +516,43 @@ function parseArea(raw: unknown, path: string): AttackArea {
         width: num(o, 'width', path, { min: 0.1 }),
       }
     }
+    case 'line':
+      onlyKeys(o, path, ['kind', 'length', 'width'])
+      return { kind, length: num(o, 'length', path, { min: 1 }), width: num(o, 'width', path, { min: 0.2 }) }
+    case 'summon':
+      onlyKeys(o, path, ['kind', 'enemy', 'count'])
+      return { kind, enemy: str(o, 'enemy', path), count: num(o, 'count', path, { min: 1, max: 8 }) }
+  }
+}
+
+function parseBody(raw: unknown, path: string): BodySpec {
+  const o = obj(raw, path)
+  onlyKeys(o, path, ['kind', 'main', 'shade', 'dark', 'accent', 'eye', 'gear', 'head'])
+  const hex = (key: string) => parseInt(color(o, key, path).slice(1), 16)
+  return {
+    kind: oneOf(o, 'kind', path, BODY_KINDS),
+    main: hex('main'),
+    shade: hex('shade'),
+    dark: hex('dark'),
+    accent: hex('accent'),
+    eye: hex('eye'),
+    gear: o.gear === undefined ? 'none' : oneOf(o, 'gear', path, BODY_GEAR),
+    head: o.head === undefined ? 'plain' : oneOf(o, 'head', path, BODY_HEADS),
   }
 }
 
 function parseAttack(raw: unknown, path: string): AttackSpec {
   const o = obj(raw, path)
-  onlyKeys(o, path, ['name', 'windup', 'recover', 'damage', 'knockback', 'area', 'reach', 'cooldown'])
+  onlyKeys(o, path, ['name', 'windup', 'recover', 'damage', 'knockback', 'area', 'reach', 'cooldown', 'projectile'])
+  let projectile: AttackSpec['projectile']
+  if (o.projectile !== undefined) {
+    const q = `${path}.projectile`
+    const po = obj(o.projectile, q)
+    onlyKeys(po, q, ['speed', 'look'])
+    projectile = { speed: num(po, 'speed', q, { min: 2 }), look: oneOf(po, 'look', q, PROJECTILE_LOOKS) }
+  }
   return {
+    ...(projectile ? { projectile } : {}),
     name: oneOf(o, 'name', path, ATTACK_NAMES),
     windup: num(o, 'windup', path, { min: 0.1 }),
     recover: num(o, 'recover', path, { min: 0 }),
@@ -531,9 +613,28 @@ export function parseEnemies(raw: unknown, path = 'enemies.json'): Record<string
       returnRegen: num(o, 'returnRegen', p, { min: 0, max: 1 }),
       poise: superArmor ? Infinity : num(o, 'poise', p, { min: 0 }),
       attacks,
+      role: oneOf(o, 'role', p, ENEMY_ROLES),
+      body: parseBody(o.body, `${p}.body`),
+      ...(o.guard === undefined ? {} : { guard: parseGuard(o.guard, `${p}.guard`) }),
+      ...(o.keepAway === undefined ? {} : { keepAway: num(o, 'keepAway', p, { min: 1 }) }),
+      ...(o.realm === undefined ? {} : { realm: str(o, 'realm', p) }),
+      ...(o.minion === undefined ? {} : { minion: str(o, 'minion', p) }),
     }
   }
+  // 부르는 적은 있는 적이어야 한다
+  for (const enemy of Object.values(out)) {
+    if (enemy.minion !== undefined && !out[enemy.minion]) throw new DataError(`${path}.${enemy.id}.minion`, `없는 적입니다 ("${enemy.minion}")`)
+    enemy.attacks.forEach((a, i) => {
+      if (a.area.kind === 'summon' && !out[a.area.enemy]) throw new DataError(`${path}.${enemy.id}.attacks[${i}].area.enemy`, `없는 적입니다 ("${a.area.enemy}")`)
+    })
+  }
   return out
+}
+
+function parseGuard(raw: unknown, path: string): { front: number; arc: number } {
+  const o = obj(raw, path)
+  onlyKeys(o, path, ['front', 'arcDeg'])
+  return { front: num(o, 'front', path, { min: 0, max: 1 }), arc: num(o, 'arcDeg', path, { min: 10, max: 180 }) * DEG }
 }
 
 // ───────────────────────────── 클래스 트리 ─────────────────────────────

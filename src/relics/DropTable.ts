@@ -71,7 +71,7 @@ export class DropTable {
    * @param boss 보스 이름 (보스가 아니면 없음)
    */
   roll(owned: ReadonlySet<RelicId>, boss?: string): RelicId | null {
-    // 보스 확정 유물은 그 유물의 신화권 땅에서만 (지역 보스가 따로 생기기 전까지 거인 왕은 어느 땅에나 있다, E8)
+    // 보스 확정 유물은 그 유물의 신화권 땅에서만 (예전 저장이나 개발 패널로 다른 땅에 거인 왕을 부를 수 있다)
     const fixed = boss ? BOSS_RELICS[boss] : undefined
     if (fixed && !owned.has(fixed) && godDef(relicDef(fixed).god).realm === this.realm) {
       this.misses = 0

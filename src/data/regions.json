@@ -60,48 +60,9 @@
       { "x": -22, "z": -6, "to": "sinsi" }
     ],
     "npcs": [
-      {
-        "x": -2.6,
-        "z": 1.6,
-        "name": "촌장",
-        "lines": [
-          "신들이 사라진 뒤로 땅마다 유물만 남았지.",
-          "유물 셋을 모으면 그 신의 힘이 깃든다네."
-        ],
-        "body": [
-          2,
-          3,
-          3
-        ]
-      },
-      {
-        "x": 6.5,
-        "z": -9,
-        "name": "대장장이",
-        "lines": [
-          "길 끝 빛기둥의 색이 그 땅 신들의 색이야.",
-          "푸른 빛은 눈 덮인 미드가르드로 가는 길이지."
-        ],
-        "body": [
-          1,
-          1,
-          2
-        ]
-      },
-      {
-        "x": -6.5,
-        "z": 9.5,
-        "name": "아이",
-        "lines": [
-          "성소에 빛기둥이 서면 승급할 때래요!",
-          "모닥불 곁에 있으면 하나도 안 무서워요."
-        ],
-        "body": [
-          1,
-          2,
-          1
-        ]
-      }
+      { "x": -2.6, "z": 1.6, "name": "촌장", "lines": ["신들이 사라진 뒤로 땅마다 유물만 남았지.", "유물 셋을 모으면 그 신의 힘이 깃든다네."], "body": [2, 3, 3] },
+      { "x": 6.5, "z": -9, "name": "대장장이", "lines": ["길 끝 빛기둥의 색이 그 땅 신들의 색이야.", "푸른 빛은 눈 덮인 미드가르드로 가는 길이지."], "body": [1, 1, 2] },
+      { "x": -6.5, "z": 9.5, "name": "아이", "lines": ["성소에 빛기둥이 서면 승급할 때래요!", "모닥불 곁에 있으면 하나도 안 무서워요."], "body": [1, 2, 1] }
     ],
     "props": [
       { "kind": "campfire", "x": 0, "z": 0, "size": 1.3, "rotation": 0 },
@@ -212,9 +173,9 @@
       }
     ],
     "camps": [
-      { "x": 11, "z": 9, "count": 3 },
-      { "x": -13, "z": 5, "count": 4 },
-      { "x": -6, "z": -11, "count": 3 }
+      { "x": 11, "z": 9, "count": 3, "members": ["grunt", "wolf", "grunt"] },
+      { "x": -13, "z": 5, "count": 4, "members": ["grunt", "stoneThrower", "draugr", "wolf"] },
+      { "x": -6, "z": -11, "count": 3, "members": ["frostWitch", "grunt", "draugr"] }
     ],
     "boss": { "x": 4, "z": -27 },
     "exits": [
@@ -359,12 +320,12 @@
       }
     ],
     "camps": [
-      { "x": -12, "z": 18, "count": 3 },
-      { "x": 16, "z": 12, "count": 4 },
-      { "x": -6, "z": 0, "count": 3 },
-      { "x": 17, "z": -10, "count": 4 }
+      { "x": -12, "z": 18, "count": 3, "members": ["harpy", "spartoi", "harpy"] },
+      { "x": 16, "z": 12, "count": 4, "members": ["cyclops", "harpy", "spartoi", "harpy"] },
+      { "x": -6, "z": 0, "count": 3, "members": ["spartoi", "cyclops", "spartoi"] },
+      { "x": 17, "z": -10, "count": 4, "members": ["harpy", "cyclops", "harpy", "spartoi"] }
     ],
-    "boss": { "x": 0, "z": -30 },
+    "boss": { "x": 0, "z": -30, "enemy": "chimera" },
     "exits": [
       { "x": 0, "z": 37, "to": "village" }
     ],
@@ -549,12 +510,12 @@
       }
     ],
     "camps": [
-      { "x": -18, "z": 12, "count": 3 },
-      { "x": -6, "z": -12, "count": 4 },
-      { "x": 8, "z": 13, "count": 3 },
-      { "x": 16, "z": -12, "count": 4 }
+      { "x": -18, "z": 12, "count": 3, "members": ["jiangshi", "foxDemon", "jiangshi"] },
+      { "x": -6, "z": -12, "count": 4, "members": ["yaoDaoist", "jiangshi", "foxDemon", "jiangshi"] },
+      { "x": 8, "z": 13, "count": 3, "members": ["foxDemon", "jiangshi", "foxDemon"] },
+      { "x": 16, "z": -12, "count": 4, "members": ["jiangshi", "yaoDaoist", "foxDemon", "jiangshi"] }
     ],
-    "boss": { "x": 30, "z": 6 },
+    "boss": { "x": 30, "z": 6, "enemy": "bullDemonKing" },
     "exits": [
       { "x": -37, "z": 0, "to": "village" }
     ],
@@ -727,12 +688,12 @@
       }
     ],
     "camps": [
-      { "x": 12, "z": -20, "count": 3 },
-      { "x": -14, "z": -11, "count": 4 },
-      { "x": 12, "z": 4, "count": 3 },
-      { "x": -20, "z": 14, "count": 4 }
+      { "x": 12, "z": -20, "count": 3, "members": ["oni", "kappa", "tengu"] },
+      { "x": -14, "z": -11, "count": 4, "members": ["tengu", "oni", "kappa", "tengu"] },
+      { "x": 12, "z": 4, "count": 3, "members": ["kappa", "oni", "kappa"] },
+      { "x": -20, "z": 14, "count": 4, "members": ["oni", "tengu", "kappa", "oni"] }
     ],
-    "boss": { "x": 0, "z": 33 },
+    "boss": { "x": 0, "z": 33, "enemy": "orochi" },
     "exits": [
       { "x": 0, "z": -37, "to": "village" }
     ],
@@ -906,12 +867,12 @@
       }
     ],
     "camps": [
-      { "x": 18, "z": -14, "count": 3 },
-      { "x": 6, "z": 12, "count": 4 },
-      { "x": -10, "z": -10, "count": 3 },
-      { "x": -20, "z": 13, "count": 4 }
+      { "x": 18, "z": -14, "count": 3, "members": ["dokkaebiFire", "imugi", "dokkaebiFire"] },
+      { "x": 6, "z": 12, "count": 4, "members": ["gwisin", "dokkaebiFire", "imugi", "dokkaebiFire"] },
+      { "x": -10, "z": -10, "count": 3, "members": ["imugi", "dokkaebiFire", "dokkaebiFire"] },
+      { "x": -20, "z": 13, "count": 4, "members": ["dokkaebiFire", "gwisin", "imugi", "dokkaebiFire"] }
     ],
-    "boss": { "x": -30, "z": -4 },
+    "boss": { "x": -30, "z": -4, "enemy": "bulgasari" },
     "exits": [
       { "x": 37, "z": 0, "to": "village" }
     ],

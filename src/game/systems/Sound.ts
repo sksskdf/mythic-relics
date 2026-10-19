@@ -20,7 +20,7 @@ export class SoundSystem {
     const here = () => ({ x: hero.object.position.x, z: hero.object.position.z })
     bus.on('sound', ({ cue, x, z }) => audio.play(cue, x === undefined || z === undefined ? undefined : { x, z }))
     bus.on('targetKilled', ({ target }) => audio.play('kill', target))
-    bus.on('giantKilled', ({ giant }) => giant.spec.king && audio.play('shatter', giant))
+    bus.on('giantKilled', ({ giant }) => giant.spec.role === 'boss' && audio.play('shatter', giant))
     bus.on('relicPicked', () => audio.play('relic'))
     bus.on('loadoutChanged', ({ announce }) => announce && audio.play('equip'))
     bus.on('manifested', () => audio.play('manifest'))
