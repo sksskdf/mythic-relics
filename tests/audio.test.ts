@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { THEME_IDS, themeForRealm } from '../src/audio/music'
 import { distanceGain, HEARING, MAX_SAME, MAX_VOICES, VoiceLimiter } from '../src/audio/limits'
 import { SOUND_CUES, SOUNDS } from '../src/audio/sounds'
 import { DEFAULT_SETTINGS, parseSettings } from '../src/save/settings'
@@ -59,5 +60,13 @@ describe('설정', () => {
     expect(odd.volume).toEqual({ master: 1, music: 0, sfx: DEFAULT_SETTINGS.volume.sfx })
     expect(odd.shake).toBe(true)
     expect(odd.quality).toBe('normal')
+  })
+})
+
+describe('지역 곡 (E9-09)', () => {
+  it('신화권마다 곡이 있고, 신화권이 없으면 마을 곡', () => {
+    for (const realm of ['norse', 'greek', 'china', 'japan', 'korea']) expect(themeForRealm(realm)).toBe(realm)
+    expect(themeForRealm(null)).toBe('village')
+    expect(THEME_IDS).toContain('legend')
   })
 })

@@ -31,12 +31,14 @@ import { buildHeroModel } from '../world/heroModel'
 import type { BodyLook } from '../looks/body'
 import { Cycle } from '../progress/Cycle'
 import { TITLE_REQUEST } from '../save/SaveData'
-import { clampViewHeight, RENDER_SCALE, type Settings, settingsStorage } from '../save/settings'
+import { clampViewHeight, RENDER_SCALE, type RenderQuality, type Settings, settingsStorage } from '../save/settings'
 import { frameDelta } from './clock'
 import { Feel, type GameContext } from './context'
 import { Encounter } from './Encounter'
 import { Villagers } from './Villagers'
 import { Minimap } from '../ui/Minimap'
+import { realmSigil } from '../ui/sigils'
+import { realmInk } from '../art/palette'
 import { EventBus, type GameEvents } from './events'
 import { UtgardLegend } from './Legend'
 import { HERO_RADIUS, HeroController } from './HeroController'
@@ -71,6 +73,8 @@ export interface GameOptions {
   viewHeight?: number
   /** 이 지역에서 시작한다 (점검용 ?region=, 저장한 지역) */
   region?: string
+  /** 화질을 이것으로 (점검용 ?quality=, 설정에 저장하지 않는다) */
+  quality?: RenderQuality
 }
 
 /** 출구를 밟았다고 보는 거리 (m), 암전 시간 (초, 어두워지는 데 한 번·밝아지는 데 한 번) */
@@ -167,6 +171,8 @@ export class Game {
   /** ?res= 로 정한 기준 (없으면 기본값) */
   private readonly requestedRenderHeight: number
   private lastTime = performance.now()
+  /** 시작 화면 뒤에서 카메라가 바라보는 곳 */
+  private readonly backdropFocus = new THREE.Vector3()
   private elapsed = 0
 
   constructor(
@@ -174,6 +180,7 @@ export class Game {
     options: GameOptions = {},
   ) {
     this.settings = settingsStorage.load()
+    if (options.quality) this.settings = { ...this.settings, quality: options.quality }
     // ?res= 로 픽셀 밀도를 바꿔 볼 수 있다. 기본은 프로토타입의 밀도에 설정의 해상도를 곱한다
     this.requestedRenderHeight = options.renderHeight ?? TARGET_RENDER_HEIGHT
     this.baseRenderHeight = options.renderHeight ?? Math.round(TARGET_RENDER_HEIGHT * RENDER_SCALE[this.settings.quality])
@@ -372,6 +379,7 @@ export class Game {
     if (options.title) {
       this.playing = false
       this.hud.root.classList.add('is-hidden')
+      this.stage.setDusk(true)
     }
     if (options.load) {
       this.persistence.restore(options.load, {
@@ -464,7 +472,12 @@ export class Game {
     this.hero.teleport(at.x, at.z)
     this.view.jumpTo(this.hero.object.position)
     this.exitArmed = false
-    if (moved) this.hud.showToast(region.name)
+    if (moved) {
+      // 그 땅의 문장과 색 띠로 이름을 알린다 (E9-05)
+      const realm = region.realm ?? 'hub'
+      const ink = realmInk(realm)
+      this.hud.showTitleCard(region.name, `var(--c-realm-${realm})`, realmSigil(realm, ink.light, ink.dark))
+    }
     this.bus.emit('regionEntered', { id: region.id })
   }
 
@@ -528,6 +541,7 @@ export class Game {
   begin(): void {
     if (this.playing) return
     this.playing = true
+    this.stage.setDusk(false)
     this.hud.root.classList.remove('is-hidden')
     this.input.endFrame()
   }
@@ -598,6 +612,8 @@ export class Game {
     this.audio.setVolumes(next.volume)
     this.view.shakeScale = next.shake ? 1 : 0
     this.hud.flashEnabled = next.flash
+    // 낮음: 그림자를 끈다 (그림자 패스가 장면을 한 번 더 그린다)
+    this.stage.setShadows(next.quality !== 'low')
     if (next.quality !== before.quality && this.requestedRenderHeight === TARGET_RENDER_HEIGHT) {
       this.baseRenderHeight = Math.round(TARGET_RENDER_HEIGHT * RENDER_SCALE[next.quality])
       this.setViewHeight(this.view.viewHeight)
@@ -709,7 +725,10 @@ export class Game {
     const position = this.hero.object.position
     this.fx.snow.update(dt, position, this.elapsed)
     this.stage.update(this.elapsed)
-    this.view.follow(position, dt)
+    // 시작 화면 뒤 (E9-08): 카메라가 주인공 둘레를 천천히 흘러 마을이 살아 있게 보인다
+    const t = this.elapsed * 0.08
+    this.backdropFocus.set(position.x - 6 + Math.sin(t) * 2, position.y, position.z + 3 + Math.cos(t * 0.7) * 1.2)
+    this.view.follow(this.backdropFocus, dt)
     this.stage.follow(position)
     this.pixel.render(this.scene, this.view.camera, this.view.subpixel)
     this.input.endFrame()

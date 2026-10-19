@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 
+import { SKY_COLORS } from '../art/palette'
 import type { CompanionLook, RainStyle, SkyStyle, UltimateDef } from '../data/classKit'
 import type { CombatTarget } from '../game/PlayerCombat'
 import { EFFECT_LAYER } from '../render/PixelRenderer'
@@ -18,7 +19,6 @@ export interface Ultimate {
   update(dt: number, ctx: SkillContext): void
 }
 
-const SKY_COLORS: Record<SkyStyle, number> = { lightning: 0x9fe3ff, sun: 0xffd27a, moon: 0xd8e4ff, stone: 0xa89a80, water: 0x6fc3ff, fire: 0xff8a3a }
 
 function away(fromX: number, fromZ: number, to: CombatTarget): [number, number] {
   const dx = to.x - fromX

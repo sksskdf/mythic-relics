@@ -61,5 +61,7 @@ export default defineConfig({
   build: { chunkSizeWarningLimit: 1000 },
   test: {
     include: ['tests/**/*.test.ts'],
+    // 디자인 토큰 검사(tests/art.test.ts)가 theme.css를 글자 그대로 읽는다
+    css: { include: [/theme\.css/] },
   },
 })

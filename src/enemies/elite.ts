@@ -21,7 +21,7 @@ export interface EliteDef {
 
 export const ELITES: Readonly<Record<EliteKind, EliteDef>> = {
   tough: { color: 0x7ab8ff, size: 1.3, hp: 2.5, damage: 1.1, speed: 0.9, cooldown: 1 },
-  fierce: { color: 0xff5a3a, size: 1.2, hp: 2, damage: 1.5, speed: 1, cooldown: 0.9 },
+  fierce: { color: 0xff3a9a, size: 1.2, hp: 2, damage: 1.5, speed: 1, cooldown: 0.9 },
   swift: { color: 0xffd84a, size: 1.15, hp: 2, damage: 1.15, speed: 1.4, cooldown: 0.65 },
 }
 

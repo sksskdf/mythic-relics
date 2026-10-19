@@ -1,4 +1,4 @@
-/* 시작·로딩 화면. 새긴 돌의 어둠 위에 문장 고리와 돌에 판 제목만 둔다. (DESIGN.md 10.5) */
+/* 시작·로딩 화면. 가운데가 트인 어둠 너머로 모닥불 마을이 비치고, 그 위에 문장 고리와 돌에 판 제목을 둔다. (DESIGN.md 10.5, E9-08) */
 .title {
   --unit: clamp(4px, 0.9vh, 10px);
   position: fixed;
@@ -9,7 +9,12 @@
   justify-content: center;
   gap: calc(var(--unit) * 6);
   padding: 16px;
-  background: radial-gradient(ellipse at 50% 35%, var(--c-stone-glow), var(--c-page) 70%);
+  background: radial-gradient(
+    ellipse at 50% 55%,
+    color-mix(in srgb, var(--c-page) 50%, transparent),
+    color-mix(in srgb, var(--c-page) 80%, transparent) 55%,
+    var(--c-page) 95%
+  );
   font-family: var(--font-body);
   color: var(--c-ink-1);
   text-align: center;
@@ -25,6 +30,10 @@
   flex-direction: column;
   align-items: center;
   gap: calc(var(--unit) * 2);
+}
+/* 로딩 중에는 아직 마을이 없으니 어둠으로 덮는다 */
+.title.is-loading {
+  background: var(--c-page);
 }
 /* 로딩 중: 글 없이 문장 고리 하나만 가운데에서 숨 쉬듯 흐려졌다 진해진다 */
 .title.is-loading .title__ring {

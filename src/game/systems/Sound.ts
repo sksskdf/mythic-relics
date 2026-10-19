@@ -1,4 +1,5 @@
 import type { AudioEngine } from '../../audio/AudioEngine'
+import { themeForRealm } from '../../audio/music'
 import type { GameContext } from '../context'
 
 /** 발걸음 간격 (미터) */
@@ -6,7 +7,7 @@ const STEP_EVERY = 1.1
 
 /**
  * 소리 시스템 (E5-02): 버스의 사건을 듣고 소리를 낸다. 다른 시스템은 소리를 모른다.
- * 승급 전설이 시작되면 전설 곡으로, 끝나면 들판 곡으로 돌아간다.
+ * 지역마다 그 신화권의 곡이 흐르고(E9-09), 승급 전설이 시작되면 전설 곡으로, 끝나면 그 지역 곡으로 돌아간다.
  */
 export class SoundSystem {
   private walked = 0
@@ -24,16 +25,18 @@ export class SoundSystem {
     bus.on('relicPicked', () => audio.play('relic'))
     bus.on('loadoutChanged', ({ announce }) => announce && audio.play('equip'))
     bus.on('manifested', () => audio.play('manifest'))
+    const regionTheme = () => audio.setTheme(themeForRealm(ctx.map.region.realm))
     bus.on('promoted', () => {
       audio.play('promote')
-      audio.setTheme('field')
+      regionTheme()
     })
     bus.on('heroHurt', () => audio.play('hurt', here()))
     bus.on('heroDied', () => audio.play('death'))
     bus.on('heroRevived', () => audio.play('revive'))
     bus.on('legendStarted', () => audio.setTheme('legend'))
-    bus.on('legendFailed', () => audio.setTheme('field'))
-    audio.setTheme('field')
+    bus.on('legendFailed', regionTheme)
+    bus.on('regionEntered', regionTheme)
+    regionTheme()
   }
 
   /** 프레임마다: 듣는 자리를 주인공에 맞추고, 걸은 만큼 발소리 */

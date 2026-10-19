@@ -33,7 +33,7 @@ export class Effects {
   /** 변신술사 발현 중 발밑의 그림자 */
   readonly shadow = new ShadowAura()
   /** 아수라 발현 중 검붉은 스산한 기운 */
-  readonly asura = new ShadowAura(0x3a0408, 0xa3141c, 2.2)
+  readonly asura = new ShadowAura(0x24082e, 0x7a1c9a, 2.2)
   /** 공용 기운: 발현한 신의 색으로 물든다 (E6) */
   readonly tint = new ShadowAura()
   readonly snow = new Snowfall()

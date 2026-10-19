@@ -4,6 +4,8 @@ import type { RegionDef } from '../data/regions'
 import { RegionMap } from '../world/regionMap'
 import { THEMES } from '../world/themes'
 
+const DUSK_SKY = new THREE.Color(0x6a70a8)
+
 /** 무대: 하늘색, 빛과 해(그림자), 맵. 해와 그림자 범위는 주인공을 따라다닌다. */
 export class Stage {
   readonly map: RegionMap
@@ -30,9 +32,22 @@ export class Stage {
     this.applyLight()
   }
 
+  /** 그림자를 켜고 끈다 (화질 낮음에서 끈다) */
+  setShadows(on: boolean): void {
+    this.sun.castShadow = on
+  }
+
   /** 지역을 바꾼다: 맵을 다시 짓고 하늘빛을 그 테마로 */
   load(region: RegionDef): void {
     this.map.load(region)
+    this.applyLight()
+  }
+
+  /** 해 질 녘 (시작 화면 뒤, E9-08): 하늘과 반구광을 낮추고 해를 붉게 기울여 모닥불이 돋보이게 */
+  private dusk = false
+
+  setDusk(on: boolean): void {
+    this.dusk = on
     this.applyLight()
   }
 
@@ -44,6 +59,13 @@ export class Stage {
     this.hemi.intensity = light.hemi
     this.sun.color.setHex(light.sun)
     this.sun.intensity = light.sunIntensity
+    if (this.dusk) {
+      this.sky.multiplyScalar(0.45)
+      this.hemi.color.lerp(DUSK_SKY, 0.6)
+      this.hemi.intensity *= 0.55
+      this.sun.color.setHex(0xffa070)
+      this.sun.intensity *= 0.6
+    }
   }
 
   /** 그림자가 보이는 범위가 주인공을 따라다니게 한다. */

@@ -78,6 +78,22 @@
   --c-divine: #e3b341;
   --c-charge: #7fd4ff;
   --c-lore: #8d7c62;
+  /* 연출 언어 (src/art/palette.ts의 VFX와 같게): 위험은 적만 쓴다 */
+  --c-danger: #ff5a3c;
+  --c-heal: #8fe07a;
+  --c-guide: #ffd27a;
+  /* 신화권 색 (src/art/palette.ts의 REALM_COLORS와 같게) */
+  --c-realm-norse: #7fd4ff;
+  --c-realm-greek: #fff0a0;
+  --c-realm-china: #ffc83a;
+  --c-realm-japan: #ff9ac0;
+  --c-realm-korea: #9fe0c0;
+  --c-realm-hub: #ffd0b0;
+  /* 원천 색 (src/art/palette.ts의 SOURCE_COLORS 첫 색과 같게) */
+  --c-src-flame: #ffb84a;
+  --c-src-hunt: #ff7a7a;
+  --c-src-wind: #9fe3ff;
+  --c-src-stone: #c9c2b0;
   /* 신의 색 (gods.json과 같게) */
   --c-thor: #7fd4ff;
   --c-loki: #8fe07a;

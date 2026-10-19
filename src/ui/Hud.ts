@@ -76,6 +76,8 @@ export class Hud {
   private readonly bossBar: HTMLElement
   private readonly bossTrack: HTMLElement
   private readonly banner: HTMLElement
+  /** 지역·전설 제목 띠 (E9-05): 문장과 양옆 띠, 이름 */
+  private readonly card: HTMLElement
   private readonly toast: HTMLElement
   private readonly gains: HTMLElement
   private readonly flashEl: HTMLElement
@@ -123,6 +125,7 @@ export class Hud {
     this.tipOn(essence, '원천 결정\n불꽃은 때릴수록, 사냥은 쓰러뜨릴수록, 바람은 걸을수록, 바위는 맞을수록 모인다. 정보 화면 › 순환에서 단련에 쓴다.')
 
     this.banner = this.el('div', 'hud__banner', this.root)
+    this.card = this.el('div', 'hud__card', this.root)
     this.toast = this.el('div', 'hud__toast', this.root)
     this.flashEl = this.el('div', 'hud__flash', this.root)
     this.gains = this.el('div', 'hud__gains', this.root)
@@ -301,6 +304,23 @@ export class Hud {
     if (!this.flashEnabled) return
     this.flashEl.style.setProperty('--flash', color)
     this.restartAnimation(this.flashEl)
+  }
+
+  /**
+   * 지역에 들어설 때·승급 전설을 열 때: 신화권 문장을 가운데 두고 양옆으로 그 색 띠가 뻗고, 아래에 이름.
+   * color는 CSS 색 (토큰이면 var(--c-realm-…))
+   */
+  showTitleCard(name: string, color: string, emblem: string, sub = ''): void {
+    const card = this.card
+    card.replaceChildren()
+    card.style.setProperty('--glow', color)
+    const row = this.el('div', 'hud__card-row', card)
+    this.el('span', 'hud__card-band', row)
+    row.append(this.img(emblem))
+    this.el('span', 'hud__card-band is-right', row)
+    this.el('div', 'hud__card-name', card).textContent = name
+    if (sub) this.el('div', 'hud__card-sub', card).textContent = sub
+    this.restartAnimation(card)
   }
 
   /** 유물을 주웠을 때처럼 가벼운 알림을 작게 띄운다. */

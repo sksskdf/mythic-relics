@@ -20,6 +20,7 @@
 | `PROTOTYPE.md` | 프로토타입(M0~M6) 계획과 구현 기록 |
 | `PLAYTEST.md` | 자동 플레이 검증 결과, 사람이 해 본 의견과 조치 |
 | `BALANCE.md` | 전투·성장 사양서 (피해 공식, 유물·적 수치, 경험치 곡선, 드랍) |
+| `ART.md` | 아트 스타일 가이드 (화면·팔레트·복셀 규격·실루엣·연출 언어·성능 기준) |
 
 ## 핵심 원칙 (어기면 안 됨)
 
@@ -36,11 +37,13 @@
 - `npm run check`: 타입 검사 + 빌드(데이터 검사 포함) + 단위 테스트 + 스모크. **커밋 전에 반드시 통과시킨다.** 같은 검사와 봇 1판이 GitHub Actions(`.github/workflows/ci.yml`)에서도 돈다.
 - `npm run build && npm run playtest [횟수] [제한 분]`: 이동만 쓰는 봇이 처음부터 승급까지 플레이하고 시간·피격 등을 기록한다 (`test-results/playtest.json`). 수치를 바꾸면 돌려 본다. `--loops=N`을 붙이면 단련·윤회까지 하며 윤회 N번의 회차별 시간을 잰다.
 - `npm run build && node scripts/enemy-trial.mjs [유물 묶음 ...]`: 봇이 클래스 셋(기본: 토르·아르테미스·아마테라스)으로 적마다 따로 싸워 역할별 피격 수·처치 시간과 지역 보스 다섯을 잰다 (`test-results/enemy-trial.json`). 적 수치를 바꾸면 돌려 본다.
+- `npm run build && node scripts/bench.mjs [적 수=40] [화질=normal|low|high]`: 적에 둘러싸인 싸움의 게임 갱신 시간·그리기 호출·삼각형 수 (`test-results/bench.json`). 모델·맵·연출을 바꾸면 재 본다. 이 환경은 소프트웨어 렌더링이라 fps는 사용자에게 확인을 부탁한다 (개발 패널 오른쪽 위에 fps).
+- `npm run build && node scripts/enemy-sheet.mjs [파일.png] [적 id,...]`: 모든 적을 보통·정예로 세운 모습 모음. 적 모델을 바꾸면 찍어 본다.
 - `npm run build && node scripts/class-sheet.mjs [파일.png] [신 id,...]`: 모든 클래스를 자기 유물로 발현시킨 Lv1·Lv4 모습 모음. 클래스·외형을 바꾸면 찍어 본다.
 - `npm run build && node scripts/shot.mjs <파일.png> "<주소 뒤 값>" "<게임 안 코드>" [프레임]`: 원하는 상태의 스크린숏. 화면이 바뀌는 작업은 스크린숏을 직접 보고 확인한다.
 - 지도는 개발 패널 「지도」 탭에서 고친다: 편집을 켜고 땅을 누르면 고른 도구가 동작하고, 「저장」은 개발 서버(`pnpm dev`)가 `src/data/regions.json`에 쓴다 (`vite.config.ts`의 saveRegions).
 - 개발 모드: `pnpm dev --dev`(또는 `pnpm dev:tools`), 브라우저는 `?dev`. 오른쪽 개발 패널(`src/dev/DevPanel.ts`)에서 유물·클래스·이동·적·전설·시간을 바꾼다. 새 시스템을 만들면 패널에도 시험 단추를 더한다.
-- 점검용 주소: `?relics=all` / `?relics=mjolnir,megingjord` (유물 끼고 시작, 저장 안 함), `?fresh` (저장 지우고 시작), `?region=olympus` (그 지역에서 시작, 새로 시작하면 마을), `?view=` (시야 높이), `?autoplay` (봇).
+- 점검용 주소: `?relics=all` / `?relics=mjolnir,megingjord` (유물 끼고 시작, 저장 안 함), `?fresh` (저장 지우고 시작), `?region=olympus` (그 지역에서 시작, 새로 시작하면 마을), `?quality=low` (화질, 저장 안 함), `?view=` (시야 높이), `?autoplay` (봇).
 - 이 환경의 브라우저는 소프트웨어 렌더링이라 초당 몇 프레임밖에 안 나온다. 실제 속도의 느낌은 사용자에게 확인을 부탁한다.
 - 브라우저 실행 경로: `/opt/pw-browsers/chromium-1194/chrome-linux/chrome` (swiftshader 옵션은 스크립트에 있음).
 
@@ -60,7 +63,8 @@
 | `src/render/` | 픽셀 렌더러, 쿼터뷰 카메라, 화면 ↔ 월드 좌표, 실루엣 |
 | `src/world/` | 지역 맵(`regionMap.ts`: 지역 데이터 → 땅·길·소품·테두리 숲·출구 문, 다시 짓기), 지형 테마(`themes.ts`: 땅·물·빛·날림·소품 색 바꾸기), 땅 높이·연못(`terrain.ts`), 길찾기(`navGrid.ts`), 흩뿌리기(`layout.ts`). 그 땅의 소품 모델은 `src/voxel/models/landmarks.ts` |
 | `src/voxel/` | 복셀 격자, 메시 생성, 모델(`models/`) |
-| `src/audio/` | 소리(E5): 믹서·동시 재생 제한·거리 감쇠(`AudioEngine`, `limits`), 코드로 합성한 효과음(`sounds.ts`), 임시 곡(`music.ts`). 게임 사건 → 소리는 `systems/Sound.ts` |
+| `src/audio/` | 소리(E5): 믹서·동시 재생 제한·거리 감쇠(`AudioEngine`, `limits`), 코드로 합성한 효과음(`sounds.ts`), 신화권별 합성 곡(`music.ts`, 방향은 `ART.md` 8장). 게임 사건 → 소리는 `systems/Sound.ts` |
+| `src/art/` | 팔레트(`palette.ts`): 연출 언어 색(위험·회복·안내), 신화권·원천·하늘 공격 색, 위험색 규칙 `readsAsDanger` |
 | `src/fx/`, `src/ui/` | 연출, 디자인 시스템(`theme.css`, `fonts/`), HUD·시작 화면·피해 숫자, 작은 지도(`Minimap`), 정보 화면(`GameMenu`: 상태·순환·유물·클래스·외형 탭, `WardrobePane`·`HeroPreview`), 유물 설명 카드(`relicCard`, `RelicTooltip`), 일시 정지·설정(`PauseMenu`), 조사 붙이기(`josa`) |
 | `src/dev/` | 검증용 봇(`autoplay.ts`), 개발 패널(`DevPanel.ts`), 충돌·길찾기 보기(`DebugOverlay.ts`), 지도 편집기(`RegionEditor.ts`, 편집 동작은 `regionEdit.ts`) |
 

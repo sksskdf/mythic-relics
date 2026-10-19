@@ -248,6 +248,70 @@ button.hud__slot--empty {
   100% { opacity: 0; }
 }
 
+/* 지역·전설 제목 띠 (E9-05): 문장 + 양옆 띠 + 이름 */
+.hud__card {
+  position: absolute;
+  top: 20%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-3);
+  opacity: 0;
+  pointer-events: none;
+}
+.hud__card-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-5);
+}
+.hud__card-row img {
+  width: calc(var(--unit) * 9);
+  height: calc(var(--unit) * 9);
+  image-rendering: pixelated;
+  filter: drop-shadow(0 0 var(--sp-4) var(--glow));
+}
+.hud__card-band {
+  width: calc(var(--unit) * 22);
+  height: calc(var(--unit) * 2);
+  background: linear-gradient(to left, var(--glow), transparent);
+  box-shadow: 0 var(--unit) 0 var(--c-groove);
+}
+.hud__card-band.is-right {
+  background: linear-gradient(to right, var(--glow), transparent);
+}
+.hud__card-name {
+  font: max(30px, round(down, 5vh, 15px)) / 1.2 var(--font-display);
+  letter-spacing: 0.12em;
+  color: var(--glow);
+  text-shadow:
+    3px 0 var(--c-groove),
+    -3px 0 var(--c-groove),
+    0 3px var(--c-groove),
+    0 -3px var(--c-groove);
+}
+.hud__card-sub {
+  font: max(12px, round(down, 2.2vh, 12px)) / 1.4 var(--font-body);
+  color: var(--c-ink-2);
+  text-shadow: 2px 0 var(--c-groove), -2px 0 var(--c-groove), 0 2px var(--c-groove), 0 -2px var(--c-groove);
+}
+.hud__card.is-showing {
+  animation: hud-card 3s ease-out forwards;
+}
+.hud__card.is-showing .hud__card-band {
+  animation: hud-card-band 0.6s ease-out both;
+}
+@keyframes hud-card {
+  0% { opacity: 0; transform: translate(-50%, -6px); }
+  12% { opacity: 1; transform: translate(-50%, 0); }
+  78% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes hud-card-band {
+  0% { width: 0; }
+}
+
 /* 경험치: 화면 맨 아래 끝에서 끝까지 이어진 가는 줄 (발현했을 때만) */
 .hud__xp {
   position: absolute;

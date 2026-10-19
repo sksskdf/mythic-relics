@@ -58,7 +58,7 @@ function beast(b: BodySpec, p: Parts, rng: () => number): EnemyRig {
   torso.ellipsoid(4.5, 4.5, 7.5, 4.4, 3.8, 7.6, (x, y) => {
     if (y < 2.5) return b.shade
     if (y > 6.5 && Math.abs(x - 4.5) < 1.6) return b.dark
-    return rng() < 0.12 ? b.shade : b.main
+    return rng() < 0.05 ? b.shade : b.main
   })
   // 엉덩이 쪽을 깎아 내린다 (뒤가 낮다)
   torso.forEach((x, y, z) => {
@@ -252,7 +252,7 @@ function spirit(b: BodySpec, p: Parts, rng: () => number): EnemyRig {
 
 // ───────────────────────────── 뱀 ─────────────────────────────
 
-function serpent(b: BodySpec, p: Parts): EnemyRig {
+function serpent(b: BodySpec, p: Parts, heads = 1): EnemyRig {
   const { s, mesh, body } = p
   // 땅을 기는 몸: 뒤로 갈수록 가늘어지는 마디 다섯
   for (let i = 0; i < 5; i++) {
@@ -273,8 +273,20 @@ function serpent(b: BodySpec, p: Parts): EnemyRig {
   head.set(1, 4, 5, b.eye)
   head.set(6, 4, 5, b.eye)
   if (b.head === 'horns') head.box(1, 5, 1, 1, 5, 2, b.accent), head.box(6, 5, 1, 6, 5, 2, b.accent)
+  // 머리는 몸통보다 조금 작게 해서 뒤의 긴 몸이 보이게 한다
   const neck = joint(0, 4 * s, 2 * s, mesh(head, [4, 0, 2]))
   neck.children[0]!.position.y = 6 * s
+  neck.children[0]!.scale.setScalar(0.8)
+  // 보스 뱀(야마타노오로치)은 양옆으로 고개를 더 든다: 머리가 여럿인 큰 뱀
+  if (heads > 1) {
+    for (const side of [-1, 1]) {
+      const extra = mesh(head, [4, 0, 2])
+      extra.position.set(side * 7 * s, 7 * s, -2 * s)
+      extra.rotation.y = side * 0.6
+      extra.scale.setScalar(0.65)
+      body.add(extra)
+    }
+  }
   // 팔 관절 = 목 (공격 자세에서 머리가 들썩인다), 나머지는 비어 있다
   const rightArm = neck
   const leftArm = joint(0, 0, 0)
@@ -312,6 +324,6 @@ export function buildEnemyRig(spec: GiantSpec, seed = 1): EnemyRig {
     case 'spirit':
       return spirit(b, p, rng)
     case 'serpent':
-      return serpent(b, p)
+      return serpent(b, p, spec.role === 'boss' ? 3 : 1)
   }
 }

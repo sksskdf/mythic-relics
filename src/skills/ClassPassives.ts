@@ -1,7 +1,8 @@
 import * as THREE from 'three'
 
+import { SKY_COLORS } from '../art/palette'
 import { atLevel } from '../data/check'
-import type { ClassPassive, CompanionLook, OrbitShape, SkyStyle } from '../data/classKit'
+import type { ClassPassive, CompanionLook, OrbitShape } from '../data/classKit'
 import type { CombatTarget } from '../game/PlayerCombat'
 import { EFFECT_LAYER } from '../render/PixelRenderer'
 import { godDef } from '../relics/data'
@@ -28,7 +29,6 @@ const RETURN_SPEED = 9
 const TICK = 0.5
 
 /** 하늘에서 내리치는 것의 색 (번개는 번개 연출) */
-const SKY_COLORS: Record<SkyStyle, number> = { lightning: 0x9fe3ff, sun: 0xffd27a, moon: 0xd8e4ff, stone: 0xa89a80, water: 0x6fc3ff, fire: 0xff8a3a }
 
 /** 분신 모습: 반투명한 주인공 */
 export function shadowRig(material: THREE.Material): HeroRig {
