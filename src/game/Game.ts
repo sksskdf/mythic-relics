@@ -31,7 +31,7 @@ import { buildHeroModel } from '../world/heroModel'
 import type { BodyLook } from '../looks/body'
 import { Cycle } from '../progress/Cycle'
 import { TITLE_REQUEST } from '../save/SaveData'
-import { clampViewHeight, RENDER_SCALE, type Settings, settingsStorage } from '../save/settings'
+import { clampViewHeight, RENDER_SCALE, type RenderQuality, type Settings, settingsStorage } from '../save/settings'
 import { frameDelta } from './clock'
 import { Feel, type GameContext } from './context'
 import { Encounter } from './Encounter'
@@ -71,6 +71,8 @@ export interface GameOptions {
   viewHeight?: number
   /** 이 지역에서 시작한다 (점검용 ?region=, 저장한 지역) */
   region?: string
+  /** 화질을 이것으로 (점검용 ?quality=, 설정에 저장하지 않는다) */
+  quality?: RenderQuality
 }
 
 /** 출구를 밟았다고 보는 거리 (m), 암전 시간 (초, 어두워지는 데 한 번·밝아지는 데 한 번) */
@@ -174,6 +176,7 @@ export class Game {
     options: GameOptions = {},
   ) {
     this.settings = settingsStorage.load()
+    if (options.quality) this.settings = { ...this.settings, quality: options.quality }
     // ?res= 로 픽셀 밀도를 바꿔 볼 수 있다. 기본은 프로토타입의 밀도에 설정의 해상도를 곱한다
     this.requestedRenderHeight = options.renderHeight ?? TARGET_RENDER_HEIGHT
     this.baseRenderHeight = options.renderHeight ?? Math.round(TARGET_RENDER_HEIGHT * RENDER_SCALE[this.settings.quality])
@@ -598,6 +601,8 @@ export class Game {
     this.audio.setVolumes(next.volume)
     this.view.shakeScale = next.shake ? 1 : 0
     this.hud.flashEnabled = next.flash
+    // 낮음: 그림자를 끈다 (그림자 패스가 장면을 한 번 더 그린다)
+    this.stage.setShadows(next.quality !== 'low')
     if (next.quality !== before.quality && this.requestedRenderHeight === TARGET_RENDER_HEIGHT) {
       this.baseRenderHeight = Math.round(TARGET_RENDER_HEIGHT * RENDER_SCALE[next.quality])
       this.setViewHeight(this.view.viewHeight)

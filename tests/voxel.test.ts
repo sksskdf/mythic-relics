@@ -36,11 +36,42 @@ describe('복셀 메시 변환', () => {
   it('맞닿은 면은 그리지 않는다', () => {
     const g = new VoxelGrid(2, 1, 1)
     g.box(0, 0, 0, 1, 0, 0, 0xffffff)
-    expect(faceCount(g)).toBe(10)
+    // 맞닿은 면을 빼고, 같은 평면의 같은 색 면은 하나로 합친다: 1×2 상자는 면 6개
+    expect(faceCount(g)).toBe(6)
     const cube = new VoxelGrid(3, 3, 3)
     cube.box(0, 0, 0, 2, 2, 2, 0xffffff)
-    // 3×3×3 정육면체는 겉면 54개만 남는다.
-    expect(faceCount(cube)).toBe(54)
+    expect(faceCount(cube)).toBe(6)
+  })
+
+  it('색이 다르면 합치지 않는다', () => {
+    const g = new VoxelGrid(2, 1, 1)
+    g.set(0, 0, 0, 0xffffff)
+    g.set(1, 0, 0, 0xff0000)
+    // 위·아래·앞·뒤는 색마다 하나씩(8), 양 끝 2
+    expect(faceCount(g)).toBe(10)
+  })
+
+  it('합쳐도 겉넓이와 바깥을 보는 방향은 그대로다', () => {
+    const g = new VoxelGrid(4, 3, 5)
+    g.box(0, 0, 0, 3, 2, 4, 0x88aacc)
+    g.set(1, 2, 1, null)
+    g.set(2, 1, 4, 0x223344)
+    const geometry = buildVoxelGeometry(g, { voxelSize: 1, pivot: [0, 0, 0] })
+    const p = geometry.getAttribute('position')
+    const n = geometry.getAttribute('normal')
+    const index = geometry.index!
+    let area = 0
+    for (let t = 0; t < index.count; t += 3) {
+      const [a, b, c] = [index.getX(t), index.getX(t + 1), index.getX(t + 2)]
+      const ab = [p.getX(b) - p.getX(a), p.getY(b) - p.getY(a), p.getZ(b) - p.getZ(a)]
+      const ac = [p.getX(c) - p.getX(a), p.getY(c) - p.getY(a), p.getZ(c) - p.getZ(a)]
+      const cross = [ab[1]! * ac[2]! - ab[2]! * ac[1]!, ab[2]! * ac[0]! - ab[0]! * ac[2]!, ab[0]! * ac[1]! - ab[1]! * ac[0]!]
+      area += Math.hypot(...cross) / 2
+      // 삼각형 방향이 법선과 같은 쪽 (바깥에서 반시계)
+      expect(cross[0]! * n.getX(a) + cross[1]! * n.getY(a) + cross[2]! * n.getZ(a)).toBeGreaterThan(0)
+    }
+    // 4×3×5 상자 겉넓이 94, 위에서 한 칸을 파내면 옆면 4개가 늘어난다
+    expect(area).toBeCloseTo(94 + 4)
   })
 
   it('원점(pivot)을 기준으로 위치를 옮긴다', () => {

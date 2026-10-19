@@ -30,6 +30,11 @@ export class Stage {
     this.applyLight()
   }
 
+  /** 그림자를 켜고 끈다 (화질 낮음에서 끈다) */
+  setShadows(on: boolean): void {
+    this.sun.castShadow = on
+  }
+
   /** 지역을 바꾼다: 맵을 다시 짓고 하늘빛을 그 테마로 */
   load(region: RegionDef): void {
     this.map.load(region)

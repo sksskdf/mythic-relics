@@ -3,6 +3,7 @@ import './ui/parts.css'
 import { Game } from './game/Game'
 import { type God, godDef, isRelicId, RELIC_IDS } from './relics/data'
 import { SLOT_COUNT, saveStorage, TITLE_REQUEST } from './save/SaveData'
+import { RENDER_QUALITIES } from './save/settings'
 import { type SlotSummary, type TitleHandlers, TitleScreen } from './ui/TitleScreen'
 
 const container = document.getElementById('app')
@@ -76,6 +77,7 @@ async function boot(): Promise<Game> {
     renderHeight: resParam > 0 ? resParam : undefined,
     viewHeight: viewParam > 0 ? viewParam : undefined,
     region: params.get('region') ?? undefined,
+    quality: RENDER_QUALITIES.find((q) => q === params.get('quality')),
   })
   game.start()
   ;(window as unknown as { __game: Game }).__game = game

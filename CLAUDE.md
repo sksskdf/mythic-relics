@@ -36,11 +36,12 @@
 - `npm run check`: 타입 검사 + 빌드(데이터 검사 포함) + 단위 테스트 + 스모크. **커밋 전에 반드시 통과시킨다.** 같은 검사와 봇 1판이 GitHub Actions(`.github/workflows/ci.yml`)에서도 돈다.
 - `npm run build && npm run playtest [횟수] [제한 분]`: 이동만 쓰는 봇이 처음부터 승급까지 플레이하고 시간·피격 등을 기록한다 (`test-results/playtest.json`). 수치를 바꾸면 돌려 본다. `--loops=N`을 붙이면 단련·윤회까지 하며 윤회 N번의 회차별 시간을 잰다.
 - `npm run build && node scripts/enemy-trial.mjs [유물 묶음 ...]`: 봇이 클래스 셋(기본: 토르·아르테미스·아마테라스)으로 적마다 따로 싸워 역할별 피격 수·처치 시간과 지역 보스 다섯을 잰다 (`test-results/enemy-trial.json`). 적 수치를 바꾸면 돌려 본다.
+- `npm run build && node scripts/bench.mjs [적 수=40] [화질=normal|low|high]`: 적에 둘러싸인 싸움의 게임 갱신 시간·그리기 호출·삼각형 수 (`test-results/bench.json`). 모델·맵·연출을 바꾸면 재 본다. 이 환경은 소프트웨어 렌더링이라 fps는 사용자에게 확인을 부탁한다 (개발 패널 오른쪽 위에 fps).
 - `npm run build && node scripts/class-sheet.mjs [파일.png] [신 id,...]`: 모든 클래스를 자기 유물로 발현시킨 Lv1·Lv4 모습 모음. 클래스·외형을 바꾸면 찍어 본다.
 - `npm run build && node scripts/shot.mjs <파일.png> "<주소 뒤 값>" "<게임 안 코드>" [프레임]`: 원하는 상태의 스크린숏. 화면이 바뀌는 작업은 스크린숏을 직접 보고 확인한다.
 - 지도는 개발 패널 「지도」 탭에서 고친다: 편집을 켜고 땅을 누르면 고른 도구가 동작하고, 「저장」은 개발 서버(`pnpm dev`)가 `src/data/regions.json`에 쓴다 (`vite.config.ts`의 saveRegions).
 - 개발 모드: `pnpm dev --dev`(또는 `pnpm dev:tools`), 브라우저는 `?dev`. 오른쪽 개발 패널(`src/dev/DevPanel.ts`)에서 유물·클래스·이동·적·전설·시간을 바꾼다. 새 시스템을 만들면 패널에도 시험 단추를 더한다.
-- 점검용 주소: `?relics=all` / `?relics=mjolnir,megingjord` (유물 끼고 시작, 저장 안 함), `?fresh` (저장 지우고 시작), `?region=olympus` (그 지역에서 시작, 새로 시작하면 마을), `?view=` (시야 높이), `?autoplay` (봇).
+- 점검용 주소: `?relics=all` / `?relics=mjolnir,megingjord` (유물 끼고 시작, 저장 안 함), `?fresh` (저장 지우고 시작), `?region=olympus` (그 지역에서 시작, 새로 시작하면 마을), `?quality=low` (화질, 저장 안 함), `?view=` (시야 높이), `?autoplay` (봇).
 - 이 환경의 브라우저는 소프트웨어 렌더링이라 초당 몇 프레임밖에 안 나온다. 실제 속도의 느낌은 사용자에게 확인을 부탁한다.
 - 브라우저 실행 경로: `/opt/pw-browsers/chromium-1194/chrome-linux/chrome` (swiftshader 옵션은 스크립트에 있음).
 
