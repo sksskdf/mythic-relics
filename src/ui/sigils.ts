@@ -1,4 +1,7 @@
+import { SOURCE_COLORS } from '../art/palette'
 import { pixelIcon } from './pixelIcon'
+
+export { SOURCE_COLORS }
 
 /** 원천 넷의 문장 (12×12)과 색: 불꽃 불씨, 사냥 핏방울, 바람 소용돌이, 바위 돌 조각 */
 const SOURCE_SIGILS: Record<string, readonly string[]> = {
@@ -6,13 +9,6 @@ const SOURCE_SIGILS: Record<string, readonly string[]> = {
   hunt: ['.....a......', '.....a......', '....aba.....', '....aba.....', '...abbba....', '...abbba....', '..abbbbba...', '..abbcbbba..', '..abcccbba..', '..abbcbbba..', '...abbbba...', '....aaaa....'],
   wind: ['............', '..aaaaaa....', '.a......a...', '........a...', '..aaaa..a...', '.a....a.a...', '.a..a.a.a...', '.a...a..a...', '..aaa..a....', '......a.....', '.aaaaa......', '............'],
   stone: ['............', '....aaaa....', '...abbbba...', '..abbcbbba..', '.abbcbbbbba.', '.abbbbbcbba.', 'abbbbbbbbbba', 'abcbbbbbbbba', 'abbbbbcbbbba', '.abbbbbbbba.', '..aaaaaaaa..', '............'],
-}
-/** 원천의 색 (밝은 색, 어두운 색, 속 색) */
-export const SOURCE_COLORS: Record<string, readonly [string, string, string]> = {
-  flame: ['#ffb84a', '#d9542a', '#fff0a8'],
-  hunt: ['#ff7a7a', '#a3141c', '#ffd0d0'],
-  wind: ['#9fe3ff', '#3f8aa8', '#e9f6ff'],
-  stone: ['#c9c2b0', '#6a6658', '#efe8d6'],
 }
 
 /** 원천 문장 그림 주소. 모르는 원천은 어둡게 */

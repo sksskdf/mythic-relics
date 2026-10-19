@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 
+import { VFX } from '../art/palette'
 import { EFFECT_LAYER } from '../render/PixelRenderer'
 import { heightAt } from '../world/terrain'
 
@@ -12,7 +13,7 @@ export type TelegraphShape =
   /** 앞으로 뻗은 띠 (돌진) */
   | { kind: 'line'; length: number; width: number }
 
-const DANGER = 0xff5a3c
+const DANGER = VFX.danger
 const SEGMENTS = 40
 const RINGS = 6
 

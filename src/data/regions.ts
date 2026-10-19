@@ -2,6 +2,7 @@
  * 지역 데이터 (E7-01): 맵 하나 = 지역 하나. 지형 테마, 소품 배치, 시작점·성소·무리·보스·출구가 `regions.json`에 있다.
  * 개발 패널의 지도 편집기(src/dev/RegionEditor.ts)가 같은 파일을 고쳐 쓴다. 숫자만 바꿔도 되고 편집기로 찍어도 된다.
  */
+import { REALM_COLORS as PALETTE_REALMS } from '../art/palette'
 import { THEME_IDS, type ThemeId } from '../world/themes'
 import { DataError, list, num, type Obj, obj, oneOf, onlyKeys, optNum, str, table } from './check'
 import { REALMS, type Realm } from './classKit'
@@ -26,14 +27,8 @@ export type RegionKind = (typeof REGION_KINDS)[number]
 export type FieldRealm = Exclude<Realm, 'hidden'>
 
 /** 신화권 색: 출구의 빛기둥·지도. 마을은 모닥불 빛 */
-export const REALM_COLORS: Readonly<Record<FieldRealm | 'hub', number>> = {
-  norse: 0x7fd4ff,
-  greek: 0xfff0a0,
-  china: 0xffa040,
-  japan: 0xff9ac0,
-  korea: 0x9fe0c0,
-  hub: 0xffb060,
-}
+/** 신화권 색 (`src/art/palette.ts`) */
+export const REALM_COLORS: Readonly<Record<FieldRealm | 'hub', number>> = PALETTE_REALMS
 
 export interface Spot {
   x: number

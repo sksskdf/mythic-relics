@@ -129,7 +129,7 @@
     ],
     "source": "flame",
     "realm": "hidden",
-    "color": "#e0414f",
+    "color": "#c050e0",
     "tree": {
       "column": 2,
       "row": 1
@@ -147,7 +147,7 @@
     "ultimate": {
       "kind": "bladeDance",
       "name": "육비난무",
-      "color": "#e0414f",
+      "color": "#c050e0",
       "reach": 5,
       "damage": 12,
       "count": 20,
@@ -751,7 +751,7 @@
     ],
     "source": "flame",
     "realm": "china",
-    "color": "#ff6a4a",
+    "color": "#ff7ab8",
     "tree": {
       "column": 3,
       "row": 0
@@ -761,7 +761,7 @@
       "damageScale": 1.05,
       "trail": {
         "name": "풍화륜 불길",
-        "color": "#ff6a3a",
+        "color": "#ffb02a",
         "dps": [
           6,
           7,
@@ -795,7 +795,7 @@
     "ultimate": {
       "kind": "bladeDance",
       "name": "삼두육비",
-      "color": "#ff6a4a",
+      "color": "#ff7ab8",
       "reach": 5,
       "damage": 12,
       "count": 24,
@@ -824,7 +824,7 @@
     ],
     "source": "stone",
     "realm": "japan",
-    "color": "#ffa040",
+    "color": "#ffd27a",
     "tree": {
       "column": 0,
       "row": 0
@@ -856,7 +856,7 @@
       },
       "bloom": {
         "name": "따스한 빛",
-        "color": "#ffa040",
+        "color": "#ffd27a",
         "interval": 5,
         "heal": [
           3,
@@ -869,7 +869,7 @@
     "ultimate": {
       "kind": "skyBarrage",
       "name": "태양 강림",
-      "color": "#ffa040",
+      "color": "#ffd27a",
       "reach": 7,
       "damage": 40,
       "count": 8,
@@ -1096,7 +1096,7 @@
       "trail": {
         "name": "해의 수레 자국",
         "minLevel": 3,
-        "color": "#ff8a2a",
+        "color": "#ffc040",
         "dps": [
           6,
           6,
