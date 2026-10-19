@@ -171,6 +171,8 @@ export class Game {
   /** ?res= 로 정한 기준 (없으면 기본값) */
   private readonly requestedRenderHeight: number
   private lastTime = performance.now()
+  /** 시작 화면 뒤에서 카메라가 바라보는 곳 */
+  private readonly backdropFocus = new THREE.Vector3()
   private elapsed = 0
 
   constructor(
@@ -377,6 +379,7 @@ export class Game {
     if (options.title) {
       this.playing = false
       this.hud.root.classList.add('is-hidden')
+      this.stage.setDusk(true)
     }
     if (options.load) {
       this.persistence.restore(options.load, {
@@ -538,6 +541,7 @@ export class Game {
   begin(): void {
     if (this.playing) return
     this.playing = true
+    this.stage.setDusk(false)
     this.hud.root.classList.remove('is-hidden')
     this.input.endFrame()
   }
@@ -721,7 +725,10 @@ export class Game {
     const position = this.hero.object.position
     this.fx.snow.update(dt, position, this.elapsed)
     this.stage.update(this.elapsed)
-    this.view.follow(position, dt)
+    // 시작 화면 뒤 (E9-08): 카메라가 주인공 둘레를 천천히 흘러 마을이 살아 있게 보인다
+    const t = this.elapsed * 0.08
+    this.backdropFocus.set(position.x - 6 + Math.sin(t) * 2, position.y, position.z + 3 + Math.cos(t * 0.7) * 1.2)
+    this.view.follow(this.backdropFocus, dt)
     this.stage.follow(position)
     this.pixel.render(this.scene, this.view.camera, this.view.subpixel)
     this.input.endFrame()
