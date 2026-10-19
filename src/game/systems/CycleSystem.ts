@@ -8,7 +8,6 @@ import { DATA } from '../../data'
 import { SOURCE_COLORS } from '../../ui/sigils'
 import { heightAt } from '../../world/terrain'
 import type { GameContext } from '../context'
-import { HERO_SPAWN } from './HeroLife'
 import { BASE_HP } from './Progression'
 
 /** 결정 기본량: 때린 적 하나, 쓰러뜨린 적 하나(보스), 걸은 거리, 받은 피해 */
@@ -137,7 +136,8 @@ export class CycleSystem {
     const ash = cycle.rebirth(nextChallenge)
     if (ash <= 0) return false
     encounter.resetAll()
-    hero.teleport(HERO_SPAWN.x, HERO_SPAWN.z)
+    const spawn = this.ctx.map.region.spawn
+    hero.teleport(spawn.x, spawn.z)
     combat.health.reset()
     this.doomBoss = null
     const lines = [`윤회의 재 +${ash}`, `모든 결정 ×${scaleBefore.toFixed(1)} → ×${(scaleBefore + 0.1).toFixed(1)}`]

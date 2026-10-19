@@ -66,6 +66,11 @@ export class Pickups {
   }
 
   /** 프레임마다 떠오르고 돌게 하고, 주인공이 닿은 유물을 주워 돌려준다. */
+  /** 땅의 유물을 모두 치운다 (다른 지역으로 갈 때) */
+  clear(): void {
+    for (const item of [...this.items]) this.remove(item.id)
+  }
+
   update(dt: number, heroX: number, heroZ: number, canPick: (id: RelicId) => boolean): RelicId[] {
     const picked: RelicId[] = []
     for (let i = this.items.length - 1; i >= 0; i--) {

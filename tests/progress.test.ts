@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { ClassProgress, XP_TO_PROMOTE } from '../src/progress/ClassProgress'
 import { DATA } from '../src/data'
-import { DEFAULT_DROPS, DropTable } from '../src/relics/DropTable'
+import { DEFAULT_DROPS, DropTable, representatives } from '../src/relics/DropTable'
 import { godDef, type RelicId, relicDef } from '../src/relics/data'
 import { createRng } from '../src/world/rng'
 
@@ -37,9 +37,12 @@ function sequence(...values: number[]) {
 }
 
 describe('유물 드랍', () => {
-  it('거인 왕은 묠니르가 없으면 반드시 떨어뜨린다', () => {
+  it('거인 왕은 묠니르가 없으면 반드시 떨어뜨린다 (북유럽 땅에서만)', () => {
     const drops = new DropTable(sequence(0.99))
     expect(drops.roll(new Set(), 'giantKing')).toBe('mjolnir')
+    const greek = new DropTable(sequence(0.99))
+    greek.realm = 'greek'
+    expect(greek.roll(new Set(), 'giantKing')).not.toBe('mjolnir')
   })
 
   it('이미 가진 유물은 나오지 않는다', () => {
@@ -57,6 +60,22 @@ describe('유물 드랍', () => {
     // 후보: 메긴교르드(토르, 가중치 1 + 4), 로키 유물 셋(각 1). 합 8에서 0.3이면 앞쪽 2.4라 메긴교르드
     const drops = new DropTable(sequence(0, 0.3), DEFAULT_DROPS, ['megingjord', 'lokiMask', 'laevateinn', 'mistletoe'])
     expect(drops.roll(new Set<RelicId>(['jarngreipr']))).toBe('megingjord')
+  })
+
+  it('지역 보스는 그 땅 신들의 대표 유물 가운데 없는 것을 반드시 떨어뜨린다 (E7-06)', () => {
+    expect(representatives('greek')).toEqual(['keraunos', 'triaina', 'helmOfDarkness', 'silverBow'])
+    expect(representatives('norse')[0]).toBe('mjolnir')
+    for (const realm of ['norse', 'greek', 'china', 'japan', 'korea'] as const) expect(representatives(realm)).toHaveLength(4)
+    const drops = new DropTable(sequence(0.99))
+    drops.realm = 'greek'
+    const owned = new Set<RelicId>()
+    for (let i = 0; i < 4; i++) {
+      const id = drops.roll(owned, 'giantKing')!
+      expect(representatives('greek')).toContain(id)
+      owned.add(id)
+    }
+    // 대표 유물을 다 모으면 보스도 보통 드랍 (확률 0.7, 0.99는 실패)
+    expect(drops.roll(owned, 'giantKing')).toBeNull()
   })
 
   describe('신화권 드랍 (E6-18)', () => {

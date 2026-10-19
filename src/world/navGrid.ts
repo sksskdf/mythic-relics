@@ -5,19 +5,25 @@ import type { CircleCollider, Point2 } from './colliders'
  * A* 로 경로를 찾은 뒤 직선으로 갈 수 있는 구간은 하나로 합친다.
  */
 export class NavGrid {
-  readonly size: number
-  private readonly blocked: Uint8Array
+  size = 0
+  private blocked = new Uint8Array(0)
 
   constructor(
-    readonly halfExtent: number,
+    public halfExtent: number,
     readonly cellSize: number,
     colliders: readonly CircleCollider[],
-    agentRadius: number,
+    private readonly agentRadius: number,
   ) {
-    this.size = Math.ceil((halfExtent * 2) / cellSize)
+    this.rebuild(halfExtent, colliders)
+  }
+
+  /** 다른 지역(또는 편집한 지역)의 충돌체로 다시 짠다. 같은 격자 객체를 쓰는 쪽은 그대로 둔다. */
+  rebuild(halfExtent: number, colliders: readonly CircleCollider[]): void {
+    this.halfExtent = halfExtent
+    this.size = Math.ceil((halfExtent * 2) / this.cellSize)
     this.blocked = new Uint8Array(this.size * this.size)
     for (const c of colliders) {
-      const r = c.radius + agentRadius
+      const r = c.radius + this.agentRadius
       const min = this.toCell({ x: c.x - r, z: c.z - r })
       const max = this.toCell({ x: c.x + r, z: c.z + r })
       for (let cz = min.cz; cz <= max.cz; cz++) {

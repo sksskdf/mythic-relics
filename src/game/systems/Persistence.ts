@@ -30,6 +30,9 @@ export class Persistence {
     ctx.bus.on('progressChanged', () => {
       this.dirty = true
     })
+    ctx.bus.on('regionEntered', () => {
+      this.dirty = true
+    })
     if (!enabled) return
     const flush = () => this.saveNow()
     window.addEventListener('pagehide', flush)
@@ -52,6 +55,7 @@ export class Persistence {
       looks: { unlocked: [...wardrobe.unlocked], choices: Object.fromEntries(wardrobe.choices) },
       body: { ...wardrobe.body },
       cycle: this.ctx.cycle.toData(),
+      region: { id: this.ctx.map.region.id, x: this.ctx.hero.object.position.x, z: this.ctx.hero.object.position.z },
     }
   }
 
@@ -73,6 +77,8 @@ export class Persistence {
     for (const item of data.ground) pickups.drop(item.id, item.x, item.z)
     drops.misses = data.dropMisses
     combat.divine = data.divine
+    // 저장한 지역에서 시작했으면 그 자리로 (지역은 Game이 저장을 보고 골라 둔다)
+    if (data.region && data.region.id === this.ctx.map.region.id) this.ctx.hero.teleport(data.region.x, data.region.z)
   }
 
   /** 바뀐 것이 있으면 저장한다. */

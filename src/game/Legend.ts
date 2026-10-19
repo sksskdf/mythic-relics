@@ -74,26 +74,22 @@ export class UtgardLegend {
     side: THREE.DoubleSide,
   })
   private readonly barrier: THREE.Mesh
+  private readonly stones: THREE.Mesh[] = []
   private time = 0
+  center: Point2 = { x: 0, z: 0 }
+  /** 결계 반지름 */
+  radius = 0
+  /** 이 지역에 성소가 있나 (마을에는 없다) */
+  present = true
 
-  constructor(
-    readonly center: Point2,
-    /** 결계 반지름 */
-    readonly radius: number,
-  ) {
-    const y = heightAt(center.x, center.z)
-    this.object.position.set(center.x, y, center.z)
-
+  constructor(center: Point2, radius: number) {
     // 둥글게 선 룬스톤 여섯 개와 바닥의 룬 고리
     const stoneGeometry = buildVoxelGeometry(runestone(41), { voxelSize: 0.12 })
     for (let i = 0; i < 6; i++) {
-      const a = (i / 6) * Math.PI * 2
       const stone = new THREE.Mesh(stoneGeometry, voxelMaterial())
-      const sx = Math.sin(a) * 3.4
-      const sz = Math.cos(a) * 3.4
-      stone.position.set(sx, heightAt(center.x + sx, center.z + sz) - y, sz)
-      stone.rotation.y = a + Math.PI
+      stone.rotation.y = (i / 6) * Math.PI * 2 + Math.PI
       stone.castShadow = true
+      this.stones.push(stone)
       this.object.add(stone)
     }
     const glyph = new THREE.Mesh(new THREE.RingGeometry(1.2, 1.6, 6, 1), this.glyphMaterial)
@@ -101,7 +97,7 @@ export class UtgardLegend {
     glyph.position.y = 0.06
     const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 1.4, 9, 6, 1, true), this.beamMaterial)
     beam.position.y = 4.5
-    this.barrier = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, 3.2, 64, 1, true), this.barrierMaterial)
+    this.barrier = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 3.2, 64, 1, true), this.barrierMaterial)
     this.barrier.position.y = 1.4
     this.barrier.visible = false
     for (const mesh of [glyph, beam, this.barrier]) {
@@ -109,6 +105,26 @@ export class UtgardLegend {
       mesh.renderOrder = 12
       this.object.add(mesh)
     }
+    this.moveTo(center, radius)
+  }
+
+  /** 성소를 옮긴다 (지역을 바꾸거나 편집기로 옮길 때). null이면 이 지역에는 성소가 없다. 진행 중인 전설이 있으면 옮기지 않는다 */
+  moveTo(center: Point2 | null, radius = 0): void {
+    if (this.active) return
+    this.present = center !== null
+    this.object.visible = this.present
+    if (!center) return
+    this.center = { x: center.x, z: center.z }
+    this.radius = radius
+    const y = heightAt(center.x, center.z)
+    this.object.position.set(center.x, y, center.z)
+    this.stones.forEach((stone, i) => {
+      const a = (i / 6) * Math.PI * 2
+      const sx = Math.sin(a) * 3.4
+      const sz = Math.cos(a) * 3.4
+      stone.position.set(sx, heightAt(center.x + sx, center.z + sz) - y, sz)
+    })
+    this.barrier.scale.set(radius, 1, radius)
   }
 
   get active(): boolean {
@@ -129,7 +145,7 @@ export class UtgardLegend {
 
   update(dt: number, encounter: Encounter, host: LegendHost): void {
     this.time += dt
-    const kind = host.ready()
+    const kind = this.present ? host.ready() : null
     const ready = kind !== null
     // 들어갈 수 있을 때만 빛기둥이 서고 룬이 밝게 빛난다. (글 대신 빛으로 알려 준다)
     const pulse = 0.5 + Math.sin(this.time * 3) * 0.5

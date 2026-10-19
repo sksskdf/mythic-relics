@@ -6,6 +6,8 @@ import { Input } from '../input/Input'
 import { PixelRenderer } from '../render/PixelRenderer'
 import { QuarterViewCamera } from '../render/QuarterViewCamera'
 import { renderHeightFor, TARGET_RENDER_HEIGHT } from '../render/resolution'
+import { arrivalSpot, REGIONS, type RegionDef, START_REGION } from '../data/regions'
+import { THEMES } from '../world/themes'
 import { godDef, relicDef, type RelicId } from '../relics/data'
 import { Wardrobe } from '../looks/outfit'
 import { DropTable } from '../relics/DropTable'
@@ -29,11 +31,12 @@ import { buildHeroModel } from '../world/heroModel'
 import type { BodyLook } from '../looks/body'
 import { Cycle } from '../progress/Cycle'
 import { TITLE_REQUEST } from '../save/SaveData'
-import { MAP_HALF_EXTENT } from '../world/testMap'
 import { clampViewHeight, RENDER_SCALE, type Settings, settingsStorage } from '../save/settings'
 import { frameDelta } from './clock'
 import { Feel, type GameContext } from './context'
-import { Encounter, TEST_ENCOUNTER } from './Encounter'
+import { Encounter } from './Encounter'
+import { Villagers } from './Villagers'
+import { Minimap } from '../ui/Minimap'
 import { EventBus, type GameEvents } from './events'
 import { UtgardLegend } from './Legend'
 import { HERO_RADIUS, HeroController } from './HeroController'
@@ -46,7 +49,7 @@ import { AppearanceSystem } from './systems/Appearance'
 import { CycleSystem } from './systems/CycleSystem'
 import { DamageSystem } from './systems/Damage'
 import { Effects } from './systems/Effects'
-import { HERO_SPAWN, HeroLife } from './systems/HeroLife'
+import { HeroLife } from './systems/HeroLife'
 import { Persistence } from './systems/Persistence'
 import { PlayerInput } from './systems/PlayerInput'
 import { ProgressionSystem } from './systems/Progression'
@@ -66,10 +69,13 @@ export interface GameOptions {
   renderHeight?: number
   /** 화면 세로 방향에 보이는 범위 (미터) */
   viewHeight?: number
+  /** 이 지역에서 시작한다 (점검용 ?region=, 저장한 지역) */
+  region?: string
 }
 
-/** 승급 전설 「우트가르드 원정」의 성소 위치와 결계 반지름 */
-const SANCTUARY = { x: -24, z: -22, radius: 11 }
+/** 출구를 밟았다고 보는 거리 (m), 암전 시간 (초, 어두워지는 데 한 번·밝아지는 데 한 번) */
+const EXIT_RADIUS = 1.6
+const TRAVEL_FADE = 0.35
 
 /** 플레이 기록: 검증과 수치 조정에 쓴다. */
 export interface PlayEvent {
@@ -112,6 +118,19 @@ export class Game {
   playing = true
   /** 개발 패널: 게임 시간 배속 (0이면 멈춤) */
   timeScale = 1
+  /** 갈 수 있는 지역들 (지도 편집기가 고친 것이면 그것으로 바뀐다) */
+  regions: Readonly<Record<string, RegionDef>> = REGIONS
+  /** 출구를 밟으면 넘어가는가: 들어온 직후에는 출구에서 몇 걸음 떨어져야 다시 켜진다 */
+  private exitArmed = false
+  /** 지역을 넘어가는 중 (암전 → 다시 짓기 → 밝아짐) */
+  private travel: { to: RegionDef; at: { x: number; z: number }; t: number; switched: boolean } | null = null
+  private readonly fade: HTMLElement
+  /** 마을 사람 (E7-04) */
+  readonly villagers: Villagers
+  /** 작은 지도 (E7-08) */
+  readonly minimap: Minimap
+  /** 개발 패널의 지도 편집기 (E7-01). 켜 있으면 땅을 누르는 것이 이동 대신 편집이 된다 */
+  mapEditor: { active: boolean; update(cursor: { x: number; z: number } | null, pressed: boolean): void } | null = null
 
   private readonly ctx: GameContext
   private readonly stage: Stage
@@ -165,14 +184,27 @@ export class Game {
     this.pixel.setTargetHeight(renderHeightFor(this.view.viewHeight, this.baseRenderHeight))
     this.pixel.renderer.domElement.addEventListener('wheel', (e) => this.onWheel(e), { passive: false })
     this.hud = new Hud(container)
+    this.fade = document.createElement('div')
+    this.fade.className = 'region-fade'
+    container.append(this.fade)
+    this.villagers = new Villagers(container)
+    this.scene.add(this.villagers.object)
+    this.minimap = new Minimap(this.hud.root)
     this.numbers = new DamageNumbers(container)
 
-    this.stage = new Stage(this.scene)
+    // 지역 (E7): 저장한 지역이 없으면 첫 지역에서 시작한다
+    const region = REGIONS[options.region ?? options.load?.region?.id ?? START_REGION] ?? REGIONS[START_REGION]!
+    this.stage = new Stage(this.scene, region)
     const map = this.stage.map
-    const nav = new NavGrid(MAP_HALF_EXTENT, 0.5, map.colliders, HERO_RADIUS)
+    const nav = new NavGrid(region.halfExtent, 0.5, map.colliders, HERO_RADIUS)
     this.nav = nav
-    this.encounter = new Encounter(TEST_ENCOUNTER, map.colliders, MAP_HALF_EXTENT)
+    this.encounter = new Encounter(region, map.colliders, region.halfExtent)
+    if (region.realm) this.drops.realm = region.realm
     this.scene.add(this.encounter.object)
+    const particles = THEMES[region.theme].particles
+    this.fx.snow.setStyle(particles.kind, particles.color)
+    this.villagers.load(region.npcs)
+    this.minimap.setRegion(region)
 
     const rig = buildHeroModel()
     rig.setSilhouette(0x5b7fb8)
@@ -182,14 +214,15 @@ export class Game {
       nav,
       // 적을 무시하고 걸을 때는 보스만 길을 막고, 졸개는 밀고 지나간다.
       () => [...map.colliders, ...this.encounter.colliders(this.orders?.plowing ?? false)],
-      MAP_HALF_EXTENT,
+      region.halfExtent,
     )
-    this.hero.teleport(HERO_SPAWN.x, HERO_SPAWN.z)
+    this.hero.teleport(region.spawn.x, region.spawn.z)
     this.combat = new PlayerCombat(this.hero)
     this.orders = new HeroOrders(this.hero, this.combat)
     this.hero.obstacles = () => this.encounter.colliders(this.orders.plowing)
     this.powers = new RelicPowers(this.fx.skills)
-    this.legend = new UtgardLegend(nav.nearestFree(SANCTUARY) ?? SANCTUARY, SANCTUARY.radius)
+    this.legend = new UtgardLegend({ x: 0, z: 0 }, 11)
+    this.legend.moveTo(region.sanctuary && (nav.nearestFree(region.sanctuary) ?? region.sanctuary), region.sanctuary?.radius)
     this.scene.add(this.legend.object, this.pickups.object)
     this.fx.addTo(this.scene)
 
@@ -401,6 +434,74 @@ export class Game {
    */
   advance(seconds: number, step = 1 / 30): void {
     for (let t = 0; t < seconds; t += step) this.update(step, false)
+  }
+
+  /** 지금 지역 (E7) */
+  get region(): RegionDef {
+    return this.stage.map.region
+  }
+
+  /**
+   * 지역에 들어간다 (E7): 맵·길찾기·적·성소를 그 지역 것으로 다시 짓고 시작점(또는 at)에 선다.
+   * 지도 편집기가 고친 지역을 바로 보여 줄 때도 쓴다. 다른 지역으로 가면 땅에 떨어진 유물은 사라진다.
+   */
+  enterRegion(region: RegionDef, at: { x: number; z: number } = region.spawn): void {
+    if (this.legend.active) return
+    const moved = region.id !== this.region.id
+    if (moved) this.pickups.clear()
+    this.stage.load(region)
+    this.villagers.load(region.npcs)
+    this.minimap.setRegion(region)
+    const particles = THEMES[region.theme].particles
+    this.fx.snow.setStyle(particles.kind, particles.color)
+    const colliders = this.stage.map.colliders
+    this.nav.rebuild(region.halfExtent, colliders)
+    this.encounter.reset(region, colliders, region.halfExtent)
+    this.legend.moveTo(region.sanctuary && (this.nav.nearestFree(region.sanctuary) ?? region.sanctuary), region.sanctuary?.radius)
+    this.hero.halfExtent = region.halfExtent
+    if (region.realm) this.drops.realm = region.realm
+    this.orders.clear()
+    this.hero.teleport(at.x, at.z)
+    this.view.jumpTo(this.hero.object.position)
+    this.exitArmed = false
+    if (moved) this.hud.showToast(region.name)
+    this.bus.emit('regionEntered', { id: region.id })
+  }
+
+  /** 출구로 다른 지역에 간다: 잠깐 어두워졌다가 그 지역의 돌아오는 출구 앞에서 밝아진다 (E7-02) */
+  travelTo(id: string): void {
+    const to = this.regions[id]
+    if (!to || this.travel || this.legend.active) return
+    this.orders.clear()
+    this.travel = { to, at: arrivalSpot(to, this.region.id), t: 0, switched: false }
+  }
+
+  /** 출구 밟기와 넘어가는 동안의 암전 (실제 시간으로 흐른다) */
+  private updateTravel(realDt: number): void {
+    const travel = this.travel
+    if (travel) {
+      travel.t += realDt
+      if (!travel.switched && travel.t >= TRAVEL_FADE) {
+        travel.switched = true
+        this.enterRegion(travel.to, travel.at)
+      }
+      const t = travel.t / TRAVEL_FADE
+      this.fade.style.opacity = String(t < 1 ? t : Math.max(0, 2 - t))
+      if (travel.t >= TRAVEL_FADE * 2) {
+        this.travel = null
+        this.fade.style.opacity = '0'
+      }
+      return
+    }
+    if (!this.combat.alive || this.legend.active) return
+    const p = this.hero.object.position
+    let nearest = Infinity
+    for (const exit of this.region.exits) {
+      const d = Math.hypot(exit.x - p.x, exit.z - p.z)
+      nearest = Math.min(nearest, d)
+      if (this.exitArmed && d < EXIT_RADIUS) return this.travelTo(exit.to)
+    }
+    if (nearest > EXIT_RADIUS * 2) this.exitArmed = true
   }
 
   /** 움직이지 않는 충돌체 (나무, 바위 등) */
@@ -622,7 +723,13 @@ export class Game {
     this.time += dt
 
     // 이동: 클릭 → 지시 → 걷기 (적을 무시한 이동이면 졸개를 밀고 지나간다)
-    if (live) this.playerInput.update()
+    this.updateTravel(realDt)
+    if (live && !this.travel) {
+      if (this.mapEditor?.active) {
+        const cursor = this.playerInput.cursorOnGround()
+        this.mapEditor.update(cursor ? { x: cursor.x, z: cursor.z } : null, this.input.wasPressed('move'))
+      } else this.playerInput.update()
+    }
     this.orders.update(this.encounter.alive)
     const heading = this.hero.heading
     if (this.orders.plowing && heading) plowThrough(this.hero.object.position, HERO_RADIUS, heading, this.encounter.alive)
@@ -646,6 +753,8 @@ export class Game {
 
     const position = this.hero.object.position
     this.fx.update(dt, this.hero, this.elapsed)
+    this.villagers.update(dt, position, (x, y, z) => this.screenPoint(x, y, z))
+    this.minimap.update(dt, { hero: position, relics: this.pickups.list, sanctuaryReady: this.legend.present && this.growth.sanctuaryOpen })
     this.stage.update(this.elapsed)
     this.stage.follow(position)
   }
@@ -693,7 +802,7 @@ export class Game {
     const shattered = this.encounter.update(dt, {
       hero: { x: position.x, z: position.z, radius: HERO_RADIUS, alive: this.combat.alive },
       decoy: this.relics.decoy,
-      halfExtent: MAP_HALF_EXTENT,
+      halfExtent: this.region.halfExtent,
       staticColliders: this.stage.map.colliders,
       effects: this.fx.skills,
       hitHero: (damage, fromX, fromZ, knockback) => this.damage.hitHero(damage, fromX, fromZ, knockback),

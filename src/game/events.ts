@@ -29,6 +29,8 @@ export interface GameEvents {
   heroDied: Record<string, never>
   /** 주인공이 되살아났다. */
   heroRevived: Record<string, never>
+  /** 지역에 들어갔다 (E7) */
+  regionEntered: { id: string }
   /** 승급 전설이 시작됐다 / 실패했다. */
   legendStarted: Record<string, never>
   legendFailed: Record<string, never>

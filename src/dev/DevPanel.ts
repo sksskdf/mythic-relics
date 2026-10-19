@@ -1,5 +1,6 @@
 import { SOUND_CUES } from '../audio/sounds'
 import { type Realm, REALMS } from '../data/classKit'
+import { REGIONS } from '../data/regions'
 import { ENEMIES, GRUNT } from '../enemies/Giant'
 import type { Game } from '../game/Game'
 import { BET } from '../game/Legend'
@@ -9,20 +10,23 @@ import { relicGods } from '../relics/model'
 import { saveStorage } from '../save/SaveData'
 import { relicIcon } from '../ui/relicCard'
 import { DebugOverlay } from './DebugOverlay'
+import { RegionEditor } from './RegionEditor'
+import { EDIT_TOOLS, type EditTool, TOOL_NAMES } from './regionEdit'
 import './devPanel.css'
 
-type Tab = 'relics' | 'classes' | 'world' | 'view'
+type Tab = 'relics' | 'classes' | 'world' | 'map' | 'view'
 const TABS: readonly [Tab, string][] = [
   ['relics', '유물'],
   ['classes', '클래스'],
   ['world', '세계'],
+  ['map', '지도'],
   ['view', '보기'],
 ]
 const TAB_KEY = 'mythic-relics/dev-tab'
 
 /**
  * 개발 편의 패널. 주소에 ?dev 를 붙이거나 `pnpm dev --dev`로 실행하면 화면 오른쪽에 뜬다.
- * 탭 넷(유물·클래스·세계·보기)으로 나눠 한 번에 보이는 단추를 줄였다. 목록이 긴 것(순간이동, 적 소환)은 고르는 상자로 둔다.
+ * 탭 다섯(유물·클래스·세계·지도·보기)으로 나눠 한 번에 보이는 단추를 줄였다. 목록이 긴 것(순간이동, 적 소환)은 고르는 상자로 둔다.
  * 개발 모드는 저장을 읽지도 쓰지도 않는다.
  */
 export class DevPanel {
@@ -32,6 +36,8 @@ export class DevPanel {
   private readonly tabButtons = new Map<Tab, HTMLButtonElement>()
   private readonly refreshers: (() => void)[] = []
   private readonly overlay: DebugOverlay
+  /** 지도 편집기 (지도 탭) */
+  editor: RegionEditor | null = null
   private lastFrameCount = 0
   private lastTime = performance.now()
 
@@ -82,6 +88,7 @@ export class DevPanel {
     this.buildRelics(this.pages.get('relics')!)
     this.buildClasses(this.pages.get('classes')!)
     this.buildWorld(this.pages.get('world')!)
+    this.buildMap(this.pages.get('map')!)
     this.buildView(this.pages.get('view')!)
     let saved: Tab = 'relics'
     try {
@@ -114,32 +121,52 @@ export class DevPanel {
 
   private buildRelics(page: HTMLElement): void {
     const g = this.game
-    // 유물마다 그림 칸 하나. 누르면 끼고 빼기, 낀 것은 밝게.
-    const grid = el('div', 'devpanel__relics')
-    for (const id of RELIC_IDS) {
-      const def = relicDef(id)
-      const b = el('button', 'devpanel__relic')
-      b.type = 'button'
-      b.title = `${def.name} (${godDef(def.god).name})`
-      b.setAttribute('aria-label', def.name)
-      b.style.backgroundImage = `url(${relicIcon(def)})`
-      b.style.setProperty('--god', godDef(def.god).color)
-      b.addEventListener('click', () => (g.powers.loadout.slots.includes(id) ? g.devUnequip(id) : g.devEquip(id)))
-      this.refreshers.push(() => b.classList.toggle('is-on', g.powers.loadout.slots.includes(id)))
-      grid.append(b)
-    }
-    page.append(grid)
-
-    // 신의 유물 묶음을 한 번에 (발현 시험)
+    // 신화권 → 클래스 → 유물 그림 칸. 그림을 누르면 끼고 빼기(낀 것은 밝게), 클래스 이름을 누르면 그 묶음을 낀다.
+    // 함께 쓰는 유물(쿠사나기·토츠카)은 스사노오와 아수라왕 양쪽에 보인다.
     const REALM_NAMES: Record<string, string> = { norse: '북유럽', greek: '그리스', china: '중국', japan: '일본', korea: '한국', hidden: '히든' }
-    const sets = Object.values(GODS).map((god) => [god.id, `${REALM_NAMES[god.realm]} · ${god.name}`] as const)
+    const wearSet = (god: God) => {
+      g.devUnequipAll()
+      for (const id of RELIC_IDS.filter((r) => relicGods(relicDef(r)).includes(god)).slice(0, 4)) g.devEquip(id)
+    }
+    const list = el('div', 'devpanel__relicList')
+    for (const realm of REALMS) {
+      const gods = Object.values(GODS).filter((god) => god.realm === realm)
+      if (gods.length === 0) continue
+      const group = el('details', 'devpanel__realm')
+      ;(group as HTMLDetailsElement).open = realm === 'norse'
+      const summary = el('summary', 'devpanel__realmName')
+      summary.textContent = `${REALM_NAMES[realm]} (${gods.length})`
+      group.append(summary)
+      for (const god of gods) {
+        const line = el('div', 'devpanel__godRelics')
+        const name = el('button', 'devpanel__godName')
+        name.type = 'button'
+        name.textContent = god.name
+        name.title = `${god.name} 묶음 끼기`
+        name.style.setProperty('--god', god.color)
+        name.addEventListener('click', () => wearSet(god.id as God))
+        this.refreshers.push(() => name.classList.toggle('is-on', g.powers.manifested === god.id))
+        line.append(name)
+        for (const id of RELIC_IDS.filter((r) => relicGods(relicDef(r)).includes(god.id as God))) {
+          const def = relicDef(id)
+          const b = el('button', 'devpanel__relic')
+          b.type = 'button'
+          b.title = def.name
+          b.setAttribute('aria-label', def.name)
+          b.style.backgroundImage = `url(${relicIcon(def)})`
+          b.style.setProperty('--god', godDef(def.god).color)
+          b.addEventListener('click', () => (g.powers.loadout.slots.includes(id) ? g.devUnequip(id) : g.devEquip(id)))
+          this.refreshers.push(() => b.classList.toggle('is-on', g.powers.loadout.slots.includes(id)))
+          line.append(b)
+        }
+        group.append(line)
+      }
+      list.append(group)
+    }
+    page.append(list)
+
     page.append(
       row(
-        select('묶음 끼기', sets, (god) => {
-          g.devUnequipAll()
-          // 함께 쓰는 유물(쿠사나기·토츠카)도 그 신의 묶음에 든다
-          for (const id of RELIC_IDS.filter((r) => relicGods(relicDef(r)).includes(god as God)).slice(0, 4)) g.devEquip(id)
-        }),
         select(
           '드랍 신화권',
           REALMS.filter((r) => r !== 'hidden').map((r) => [r, REALM_NAMES[r]!] as const),
@@ -211,22 +238,63 @@ export class DevPanel {
 
   // ───────────── 세계 ─────────────
 
+  // ───────────── 지도 (E7-01) ─────────────
+
+  private buildMap(page: HTMLElement): void {
+    const g = this.game
+    const editor = new RegionEditor(g)
+    this.editor = editor
+    // 지역 이동 (E7-10): 저장하지 않은 편집도 들고 간다
+    page.append(row(choice('지역', editor.regionIds.map((id) => [id, REGIONS[id]?.name ?? id] as const), () => g.region.id, (id) => editor.go(id))))
+    page.append(
+      row(
+        toggle('편집', () => editor.active, (on) => editor.setActive(on), this.refreshers),
+        choice('도구', EDIT_TOOLS.map((t) => [t, TOOL_NAMES[t]] as const), () => editor.tool, (t) => (editor.tool = t as EditTool)),
+      ),
+    )
+    const counts = [1, 2, 3, 4, 5, 6, 8].map((n) => [String(n), `졸개 ${n}`] as const)
+    page.append(
+      row(
+        choice('무리 수', counts, () => String(editor.campCount), (n) => (editor.campCount = Number(n))),
+        choice('출구 →', [['', '(출구 대상)'] as const, ...editor.regionIds.map((id) => [id, REGIONS[id]?.name ?? id] as const)], () => editor.exitTo, (id) => (editor.exitTo = id)),
+      ),
+    )
+    page.append(
+      row(
+        button('되돌리기', () => editor.undoLast()),
+        button('저장', () => void editor.save()),
+        button('JSON 복사', () => {
+          void navigator.clipboard?.writeText(editor.text()).then(
+            () => (editor.message = '복사했습니다'),
+            () => (editor.message = '복사하지 못했습니다'),
+          )
+        }),
+      ),
+    )
+    const message = el('pre', 'devpanel__status')
+    this.refreshers.push(() => (message.textContent = `${editor.dirty ? '● 저장 안 함 · ' : ''}${editor.message || '편집을 켜고 땅을 누르세요'}`))
+    page.append(message, el('p', 'devpanel__hint', '표지: 흰 고리 시작점, 하늘색 고리 성소 결계, 빨간 기둥 보스, 주황 고리 무리, 초록 기둥 출구'))
+  }
+
   private buildWorld(page: HTMLElement): void {
     const g = this.game
-    const spots = g.encounter.spots
+    // 무리 수는 지역마다 다르지만 고르는 상자는 넉넉히 둔다 (없는 무리는 무시)
     const places: [string, string][] = [
       ['start', '시작 지점'],
-      ...spots.camps.map((_, i): [string, string] => [`camp${i}`, `무리 ${i + 1}`]),
+      ...[0, 1, 2, 3, 4, 5].map((i): [string, string] => [`camp${i}`, `무리 ${i + 1}`]),
       ['boss', '거인 왕'],
       ['sanctuary', '성소'],
     ]
     const go = (place: string) => {
-      if (place === 'start') g.devTeleport(0, 0)
-      else if (place === 'boss') g.devTeleport(spots.boss.x - 7, spots.boss.z + 7)
+      const spots = g.encounter.spots
+      if (place === 'start') g.devTeleport(g.region.spawn.x, g.region.spawn.z)
+      else if (place === 'boss') {
+        if (spots.boss) g.devTeleport(spots.boss.x - 7, spots.boss.z + 7)
+      }
       else if (place === 'sanctuary') g.devTeleport(g.legend.center.x + 4, g.legend.center.z + 4)
       else {
-        const camp = spots.camps[Number(place.slice(4))]!
-        g.devTeleport(camp.x - 5, camp.z - 5)
+        const camp = spots.camps[Number(place.slice(4))]
+        if (camp) g.devTeleport(camp.x - 5, camp.z - 5)
       }
     }
     page.append(row(select('순간이동', places, go)))
@@ -363,6 +431,23 @@ function toggle(label: string, get: () => boolean, set: (on: boolean) => void, r
 }
 
 /** 고르는 상자와 실행 단추 한 쌍. 목록이 길어도 단추가 늘지 않는다. */
+/** 고르면 바로 바뀌는 상자. get으로 지금 값을 맞춘다 */
+function choice(label: string, options: readonly (readonly [string, string])[], get: () => string, set: (value: string) => void): HTMLElement {
+  const box = el('label', 'devpanel__select')
+  box.append(el('span', 'devpanel__label', label))
+  const s = el('select', '')
+  s.setAttribute('aria-label', label)
+  for (const [value, text] of options) {
+    const o = el('option', '', text)
+    o.value = value
+    s.append(o)
+  }
+  s.value = get()
+  s.addEventListener('change', () => set(s.value))
+  box.append(s)
+  return box
+}
+
 function select(label: string, options: readonly (readonly [string, string])[], run: (value: string) => void): HTMLElement {
   const box = el('span', 'devpanel__select')
   const s = el('select', '')

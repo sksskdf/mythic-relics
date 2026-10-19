@@ -11,12 +11,6 @@ const THINK = 0.25
 /** 예고 범위에서 이만큼 더 떨어져야 안전하다고 본다. */
 const MARGIN = 0.7
 /** 싸울 상대가 없을 때 돌아다니는 길 (사람이 적을 찾아 맵을 둘러보는 것처럼) */
-const PATROL: Point2[] = [
-  { x: 0, z: 0 },
-  { x: 6, z: -8 },
-  { x: -8, z: -6 },
-  { x: -4, z: 8 },
-]
 
 /**
  * 자동 플레이 검증용 봇.
@@ -67,6 +61,28 @@ export class Autoplayer {
     }
   }
 
+  /** 가야 할 필드 (E7): 승급할 때가 된 신의 땅, 한 신만 쓰면 그 신의 땅, 아니면 지금 필드(마을이면 미드가르드) */
+  private wantRegion(): string {
+    const { powers, progress, region, regions } = this.game
+    const fieldOf = (god: God) => Object.values(regions).find((r) => r.realm === godDef(god).realm)?.id
+    const manifested = powers.manifested
+    if (manifested && godDef(manifested).legend && progress.readyToPromote(manifested)) return fieldOf(manifested) ?? region.id
+    if (this.god) return fieldOf(this.god) ?? region.id
+    return region.kind === 'field' ? region.id : 'midgard'
+  }
+
+  /** 다른 지역으로 가야 하면 출구로 걷는다 (마을을 거쳐 간다). 걸었으면 true */
+  private travel(): boolean {
+    const { region, hero, legend } = this.game
+    if (legend.active) return false
+    const want = this.wantRegion()
+    if (want === region.id) return false
+    const exit = region.exits.find((e) => e.to === want) ?? region.exits.find((e) => this.game.regions[e.to]?.kind === 'hub')
+    if (!exit) return false
+    if (!hero.isMoving || dist(hero.object.position, exit) > 1) hero.moveTo(exit)
+    return true
+  }
+
   private think(): void {
     const { hero, combat, encounter, pickups, legend, progress, powers } = this.game
     if (!combat.alive) return
@@ -114,27 +130,38 @@ export class Autoplayer {
       }
     }
 
-    // 4. 승급 준비가 되면 성소로 간다.
+    // 4. 다른 땅으로 가야 하면 출구로 (마을에서 시작하면 필드로, 승급할 때가 되면 그 신의 땅으로)
+    if (this.travel()) return
+
+    // 5. 승급 준비가 되면 성소로 간다.
     const manifested = powers.manifested
-    if (!legend.active && manifested && godDef(manifested).legend && progress.readyToPromote(manifested) && hp > 0.8) {
+    if (!legend.active && legend.present && manifested && godDef(manifested).legend && progress.readyToPromote(manifested) && hp > 0.8) {
       hero.moveTo(legend.center)
       return
     }
 
-    // 5. 싸울 상대를 고른다. 거인 왕은 유물이 둘 이상이고 생명력이 넉넉할 때만 건드린다.
+    // 6. 싸울 상대를 고른다. 거인 왕은 유물이 둘 이상이고 생명력이 넉넉할 때만 건드린다.
     const worn = powers.loadout.slots.filter((id) => id !== null).length
     const boss = encounter.boss
     const bossOk = worn >= 2 && hp > 0.6
     let candidates = enemies.filter((g) => {
       if (legend.active) return true
       if (g === boss) return bossOk
-      return !boss || !boss.alive || bossOk || dist(g, boss) > 14
+      return !boss || !boss.alive || bossOk || dist(g, boss) > 18
     })
     // 거인 왕 둘레의 무리밖에 남지 않았으면 생명력이 넉넉할 때 그 졸개들과 싸운다 (빈 진지만 맴돌지 않게)
     if (candidates.length === 0 && hp > 0.6) candidates = enemies.filter((g) => g !== boss)
     const target = nearest(candidates, here)
     if (!target) {
-      const point = PATROL[this.patrol % PATROL.length]!
+      // 적이 없으면 무리 자리 근처를 돌며 다시 나타나기를 기다린다 (너무 붙으면 무리가 다시 나타나지 않는다)
+      const spawn = this.game.region.spawn
+      const patrol = encounter.spots.camps.map((c) => {
+        const len = dist(c, spawn) || 1
+        const k = Math.min(1, 11 / len)
+        return { x: c.x + (spawn.x - c.x) * k, z: c.z + (spawn.z - c.z) * k }
+      })
+      if (patrol.length === 0) return
+      const point = patrol[this.patrol % patrol.length]!
       if (dist(here, point) < 2) this.patrol += 1
       else if (!hero.isMoving) hero.moveTo(point)
       return
@@ -167,7 +194,9 @@ export class Autoplayer {
         const point = { x: here.x + Math.sin(a) * r, z: here.z + Math.cos(a) * r }
         if (arena && dist(point, arena) > arena.radius - 0.5) continue
         if (dangers.some((d) => inDanger(point, d, MARGIN))) continue
-        const cost = r
+        // 쉬고 있는 거인 왕 쪽으로는 피하지 않는다 (깨우면 무리와 함께 몰려온다)
+        const boss = this.game.encounter.boss
+        const cost = r + (boss?.alive && boss.state === 'idle' && dist(boss, point) < 18 ? 10 : 0)
         if (cost < bestCost) {
           bestCost = cost
           best = point
@@ -178,14 +207,27 @@ export class Autoplayer {
     return null
   }
 
+  /** 물러날 곳: 둘레 열두 방향 가운데 가까운 적에게서 가장 멀고, 거인 왕을 깨우지 않고, 맵 안인 곳 */
   private retreatPoint(here: Point2, near: Giant[]): Point2 {
-    const cx = near.reduce((s, g) => s + g.x, 0) / near.length
-    const cz = near.reduce((s, g) => s + g.z, 0) / near.length
-    const dx = here.x - cx
-    const dz = here.z - cz
-    const len = Math.hypot(dx, dz) || 1
-    return { x: here.x + (dx / len) * 10, z: here.z + (dz / len) * 10 }
+    const { encounter, region } = this.game
+    const boss = encounter.boss
+    const half = region.halfExtent - 2
+    let best = here
+    let bestScore = -Infinity
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2
+      const point = { x: here.x + Math.sin(a) * 10, z: here.z + Math.cos(a) * 10 }
+      if (Math.abs(point.x) > half || Math.abs(point.z) > half) continue
+      let score = Math.min(...near.map((g) => dist(g, point)))
+      if (boss?.alive && !near.includes(boss) && dist(boss, point) < 18) score -= 20
+      if (score > bestScore) {
+        bestScore = score
+        best = point
+      }
+    }
+    return best
   }
+
 }
 
 function dist(a: Point2, b: Point2): number {

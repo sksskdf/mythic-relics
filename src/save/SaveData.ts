@@ -1,3 +1,4 @@
+import { REGIONS } from '../data/regions'
 import { type CycleData, parseCycle } from '../progress/Cycle'
 import { type BodyLook, parseBody } from '../looks/body'
 import { isLookId, lookDef, type LookSlot, STARTING_LOOKS, WARDROBE_SLOTS } from '../looks/catalog'
@@ -8,8 +9,9 @@ import { GODS, godDef, type God, isRelicId, relicDef, type RelicId } from '../re
  * 저장 형식 버전. 형식이 바뀌면 올리고, 옛 형식을 옮기는 코드를 둔다.
  * - v1: 유물, 클래스, 드랍 보정, 신위
  * - v2: 외형 보관함(얻은 외형, 칸마다 고른 것) 추가 (E3)
+ * - v3: 지금 있는 지역과 자리 (E7). 옛 저장은 마을에서 시작
  */
-export const SAVE_VERSION = 2
+export const SAVE_VERSION = 3
 
 export interface SaveData {
   version: typeof SAVE_VERSION
@@ -31,6 +33,8 @@ export interface SaveData {
   body: BodyLook
   /** 순환 성장 (E4.5). 옛 저장에는 없어서 처음 상태 */
   cycle: CycleData
+  /** 지금 있는 지역과 자리 (E7). 옛 저장이거나 모르는 지역이면 null (마을에서 시작) */
+  region: { id: string; x: number; z: number } | null
 }
 
 const isRelic = isRelicId
@@ -52,7 +56,7 @@ export function parseSave(text: string | null): SaveData | null {
   }
   if (typeof raw !== 'object' || raw === null) return null
   const data = raw as Record<string, unknown>
-  if (data.version !== SAVE_VERSION && data.version !== 1) return null
+  if (data.version !== SAVE_VERSION && data.version !== 1 && data.version !== 2) return null
 
   const seen = new Set<RelicId>()
   const unique = (id: unknown): id is RelicId => {
@@ -90,7 +94,17 @@ export function parseSave(text: string | null): SaveData | null {
     looks: data.version === 1 ? migrateLooks(slots, bag, classes) : parseLooks(data.looks),
     body: parseBody(data.body),
     cycle: parseCycle(data.cycle),
+    region: parseRegion(data.region),
   }
+}
+
+function parseRegion(raw: unknown): SaveData['region'] {
+  if (typeof raw !== 'object' || raw === null) return null
+  const r = raw as Record<string, unknown>
+  const region = typeof r.id === 'string' ? REGIONS[r.id] : undefined
+  if (!region) return null
+  const h = region.halfExtent
+  return { id: region.id, x: num(r.x, -h, h, region.spawn.x), z: num(r.z, -h, h, region.spawn.z) }
 }
 
 /** v1 → v2: 그때까지 가진 유물과 발현해 본 클래스의 외형을 얻은 것으로 친다. 고른 것은 모두 "자동" */

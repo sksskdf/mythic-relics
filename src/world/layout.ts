@@ -1,16 +1,7 @@
+import type { PropKind, PropPlacement } from '../data/regions'
 import { createRng } from './rng'
 
-export type PropKind = 'pine' | 'rock' | 'mound' | 'ruin' | 'deadTree' | 'bush' | 'runestone' | 'brazier'
-
-export interface PropPlacement {
-  kind: PropKind
-  x: number
-  z: number
-  /** 크기 배율 */
-  size: number
-  /** 회전 (라디안) */
-  rotation: number
-}
+export type { PropKind, PropPlacement }
 
 export interface LayoutOptions {
   seed: number
@@ -42,7 +33,7 @@ function pickKind(roll: number): PropKind {
   return 'pine'
 }
 
-/** 테스트 맵의 소품 배치를 만든다. 같은 시드면 항상 같은 배치가 나온다. */
+/** 소품을 무작위로 흩뿌린다 (지도 편집기의 「흩뿌리기」). 같은 시드면 항상 같은 배치가 나온다. */
 export function generateLayout(options: LayoutOptions): PropPlacement[] {
   const rng = createRng(options.seed)
   const props: PropPlacement[] = []

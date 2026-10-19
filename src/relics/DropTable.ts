@@ -25,12 +25,25 @@ export const DEFAULT_DROPS: DropTuning = { base: 0.015, boss: 0.7, pity: 0.012, 
 
 /**
  * 유물 드랍 규칙. (DESIGN.md 9.3)
- * - 보스 확정 유물: 아직 없으면 반드시 떨어뜨린다.
+ * - 보스 확정 유물: 아직 없으면 반드시 떨어뜨린다. 그다음은 그 땅 신들의 대표 유물 가운데 없는 것을 반드시 (E7-06).
  * - 나머지는 무작위. 이미 가진 유물(땅에 떨어진 것 포함)은 나오지 않는다.
  * - 불운 보정: 유물이 안 나올수록 확률이 오르고, 나오면 처음으로 돌아간다.
  * - 이미 유물을 가진 신의 남은 유물이 더 잘 나온다. (그 신 유물 1개마다 가중치 +sameGod) 발현까지의 운 차이를 줄인다.
  * - 지금 지역의 신화권 유물이 주로 나오고, 다른 신화권 유물은 드물게 섞인다. (가중치 × foreign, DESIGN.md 9.3)
  */
+/** 그 신화권 신들의 대표 유물: 신마다 relics.json에서 첫 유물 (히든 클래스 제외) */
+export function representatives(realm: Realm): RelicId[] {
+  const out: RelicId[] = []
+  const seen = new Set<string>()
+  for (const id of RELIC_IDS) {
+    const god = godDef(relicDef(id).god)
+    if (god.hidden || god.realm !== realm || seen.has(god.id)) continue
+    seen.add(god.id)
+    out.push(id)
+  }
+  return out
+}
+
 export class DropTable {
   /** 마지막으로 유물이 나온 뒤 놓친 횟수 */
   misses = 0
@@ -58,10 +71,19 @@ export class DropTable {
    * @param boss 보스 이름 (보스가 아니면 없음)
    */
   roll(owned: ReadonlySet<RelicId>, boss?: string): RelicId | null {
+    // 보스 확정 유물은 그 유물의 신화권 땅에서만 (지역 보스가 따로 생기기 전까지 거인 왕은 어느 땅에나 있다, E8)
     const fixed = boss ? BOSS_RELICS[boss] : undefined
-    if (fixed && !owned.has(fixed)) {
+    if (fixed && !owned.has(fixed) && godDef(relicDef(fixed).god).realm === this.realm) {
       this.misses = 0
       return fixed
+    }
+    // 지역 보스: 이 땅 신들의 대표 유물(신마다 첫 유물) 가운데 아직 없는 것을 반드시 떨어뜨린다 (E7-06)
+    if (boss) {
+      const reps = representatives(this.realm).filter((id) => !owned.has(id))
+      if (reps.length > 0) {
+        this.misses = 0
+        return this.pickWeighted(reps, owned)
+      }
     }
     const candidates = this.pool.filter((id) => !owned.has(id))
     if (candidates.length === 0) return null
@@ -71,6 +93,11 @@ export class DropTable {
       return null
     }
     this.misses = 0
+    return this.pickWeighted(candidates, owned)
+  }
+
+  /** 같은 신 유물을 가진 만큼, 지금 땅의 신화권일수록 잘 나오게 하나 고른다 */
+  private pickWeighted(candidates: readonly RelicId[], owned: ReadonlySet<RelicId>): RelicId {
     const owners = new Map<God, number>()
     for (const id of owned) for (const god of relicGods(relicDef(id))) owners.set(god, (owners.get(god) ?? 0) + 1)
     const weights = candidates.map((id) => {

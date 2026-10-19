@@ -17,11 +17,19 @@ const sample: SaveData = {
   },
   body: { skin: 2, hair: 1, cloth: 3 },
   cycle: parseCycle({ essence: { flame: 12.5 }, training: { wind: 2 }, rebirths: 1 }),
+  region: { id: 'olympus', x: 3.5, z: -12 },
 }
 
 describe('저장 데이터', () => {
   it('저장한 그대로 다시 읽힌다', () => {
     expect(parseSave(JSON.stringify(sample))).toEqual(sample)
+  })
+
+  it('v3: 지역과 자리. 옛 저장(v2)이나 모르는 지역이면 마을에서 시작(null), 자리는 지역 범위 안으로 (E7-09)', () => {
+    const { region: _, ...v2 } = { ...sample, version: 2 }
+    expect(parseSave(JSON.stringify(v2))?.region).toBeNull()
+    expect(parseSave(JSON.stringify({ ...sample, region: { id: 'atlantis', x: 0, z: 0 } }))?.region).toBeNull()
+    expect(parseSave(JSON.stringify({ ...sample, region: { id: 'village', x: 999, z: -999 } }))?.region).toEqual({ id: 'village', x: 24, z: -24 })
   })
 
   it('깨졌거나 버전이 다르면 새로 시작한다', () => {

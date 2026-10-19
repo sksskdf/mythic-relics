@@ -85,10 +85,31 @@
   align-items: center;
   gap: 4px;
 }
-.devpanel__relics {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, 40px);
+.devpanel__relicList {
+  display: flex;
+  flex-direction: column;
   gap: 4px;
+}
+.devpanel__realmName {
+  font: var(--t-small);
+  color: var(--c-gold-soft);
+  cursor: pointer;
+}
+.devpanel__godRelics {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-top: 4px;
+}
+.devpanel .devpanel__godName {
+  --god: var(--c-line-2);
+  width: 72px;
+  font: var(--t-small);
+  color: var(--god);
+  text-align: left;
+}
+.devpanel .devpanel__godName.is-on {
+  border-color: var(--god);
 }
 .devpanel .devpanel__relic {
   --god: var(--c-line-2);
@@ -137,4 +158,14 @@
 .devpanel button.is-on {
   background: #1f6fa6;
   border-color: #7fd4ff;
+}
+.devpanel__label {
+  font: var(--t-small);
+  color: var(--c-ink-3);
+  padding-right: 4px;
+}
+.devpanel__hint {
+  margin: 0;
+  font: var(--t-small);
+  color: var(--c-ink-3);
 }

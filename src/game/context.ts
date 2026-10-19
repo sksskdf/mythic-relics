@@ -9,7 +9,7 @@ import type { QuarterViewCamera } from '../render/QuarterViewCamera'
 import type { SkillContext } from '../skills/Skill'
 import type { DamageNumbers } from '../ui/DamageNumbers'
 import type { Hud } from '../ui/Hud'
-import type { TestMap } from '../world/testMap'
+import type { RegionMap } from '../world/regionMap'
 import type { Encounter } from './Encounter'
 import type { EventBus, GameEvents } from './events'
 import type { HeroController } from './HeroController'
@@ -42,7 +42,8 @@ export interface GameContext {
   readonly numbers: DamageNumbers
   readonly fx: Effects
   readonly feel: Feel
-  readonly map: TestMap
+  /** 지금 지역의 맵 (지역 데이터는 map.region) */
+  readonly map: RegionMap
   readonly hero: HeroController
   readonly combat: PlayerCombat
   readonly orders: HeroOrders

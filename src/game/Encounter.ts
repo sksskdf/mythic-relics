@@ -20,17 +20,8 @@ const BOSS_RESPAWN = 45
 
 export interface EncounterLayout {
   camps: { x: number; z: number; count: number }[]
-  boss: { x: number; z: number }
-}
-
-/** 테스트 맵의 적 배치: 시작 지점 둘레에 졸개 무리 셋, 북쪽 공터에 거인 왕 */
-export const TEST_ENCOUNTER: EncounterLayout = {
-  camps: [
-    { x: 11, z: 9, count: 3 },
-    { x: -13, z: 5, count: 4 },
-    { x: -4, z: -15, count: 3 },
-  ],
-  boss: { x: 4, z: -27 },
+  /** 보스 자리 (마을처럼 보스가 없는 지역은 null) */
+  boss: { x: number; z: number } | null
 }
 
 type WorldBase = Omit<GiantWorld, 'nav' | 'giants' | 'summon'>
@@ -43,21 +34,29 @@ export class Encounter {
   readonly object = new THREE.Group()
   boss: Giant | null = null
 
-  private readonly camps: Camp[]
-  private readonly bossHome: Point2
+  private camps: Camp[] = []
+  private bossHome: Point2 | null = null
   private bossRespawn = 0
   private readonly navs = new Map<GiantSpec, NavGrid>()
   private seed = 1
   private readonly pendingSummons: Point2[] = []
 
-  constructor(
-    layout: EncounterLayout,
-    staticColliders: readonly CircleCollider[],
-    halfExtent: number,
-  ) {
+  constructor(layout: EncounterLayout, staticColliders: readonly CircleCollider[], halfExtent: number) {
     for (const spec of [GRUNT, KING]) {
       this.navs.set(spec, new NavGrid(halfExtent, 0.5, staticColliders, spec.radius))
     }
+    this.place(layout)
+  }
+
+  /** 지역을 바꿨다(또는 편집했다): 거인을 모두 지우고 새 배치로 다시 세운다. */
+  reset(layout: EncounterLayout, staticColliders: readonly CircleCollider[], halfExtent: number): void {
+    for (const giant of [...this.giants]) this.remove(giant)
+    this.pendingSummons.length = 0
+    for (const nav of this.navs.values()) nav.rebuild(halfExtent, staticColliders)
+    this.place(layout)
+  }
+
+  private place(layout: EncounterLayout): void {
     const gruntNav = this.navs.get(GRUNT)!
     this.camps = layout.camps.map((c) => ({
       center: gruntNav.nearestFree(c) ?? c,
@@ -65,7 +64,8 @@ export class Encounter {
       giants: [],
       respawn: CAMP_RESPAWN,
     }))
-    this.bossHome = this.navs.get(KING)!.nearestFree(layout.boss) ?? layout.boss
+    this.bossHome = layout.boss ? (this.navs.get(KING)!.nearestFree(layout.boss) ?? layout.boss) : null
+    this.bossRespawn = 0
     for (const camp of this.camps) this.fillCamp(camp)
     this.spawnBoss()
   }
@@ -112,7 +112,7 @@ export class Encounter {
   }
 
   /** 무리와 보스가 처음 있던 곳 (개발 패널의 순간이동용) */
-  get spots(): { camps: Point2[]; boss: Point2 } {
+  get spots(): { camps: Point2[]; boss: Point2 | null } {
     return { camps: this.camps.map((c) => c.center), boss: this.bossHome }
   }
 
@@ -181,7 +181,7 @@ export class Encounter {
   }
 
   private spawnBoss(): void {
-    this.boss = this.addGiant(KING, this.bossHome)
+    this.boss = this.bossHome ? this.addGiant(KING, this.bossHome) : null
   }
 
   private cleanUp(dt: number, hero: { x: number; z: number }): void {
@@ -209,7 +209,7 @@ export class Encounter {
     }
     if (!this.boss) {
       this.bossRespawn -= dt
-      if (this.bossRespawn <= 0 && far(this.bossHome)) this.spawnBoss()
+      if (this.bossHome && this.bossRespawn <= 0 && far(this.bossHome)) this.spawnBoss()
     }
   }
 }

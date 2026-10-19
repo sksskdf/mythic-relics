@@ -4,6 +4,7 @@ import { toonMaterial } from '../render/toon'
 import { buildVoxelGeometry, voxelMaterial } from '../voxel/mesher'
 import { VoxelGrid } from '../voxel/VoxelGrid'
 import { createRng } from './rng'
+import type { ThemeDef } from './themes'
 
 /** 0~1 사이의 부드러운 값 노이즈 (사인파 합성). 같은 좌표면 항상 같은 값이 나온다. */
 export function smoothNoise(x: number, z: number): number {
@@ -14,8 +15,19 @@ export function smoothNoise(x: number, z: number): number {
   return v * 0.5 + 0.5
 }
 
-/** 얼어붙은 연못 자리. 이 주변은 땅을 평평하게 다진다. */
-export const POND = { x: 9, z: -6, radius: 4 }
+export interface Pond {
+  x: number
+  z: number
+  radius: number
+}
+
+/** 지금 지역의 얼어붙은 연못들. 이 주변은 땅을 평평하게 다진다. (지역을 바꿀 때 setPonds) */
+let ponds: readonly Pond[] = [{ x: 9, z: -6, radius: 4 }]
+
+/** 지역을 바꾼다: 땅 높이가 이 지역의 연못을 따른다. */
+export function setPonds(next: readonly Pond[]): void {
+  ponds = next
+}
 
 function rawHeight(x: number, z: number): number {
   return (smoothNoise(x, z) - 0.5) * 0.5
@@ -23,49 +35,86 @@ function rawHeight(x: number, z: number): number {
 
 /** 땅 높이. 걷는 데 지장이 없도록 아주 완만하게만 오르내린다. */
 export function heightAt(x: number, z: number): number {
-  const h = rawHeight(x, z)
-  const d = Math.hypot(x - POND.x, z - POND.z)
-  const flatten = 1 - Math.min(1, Math.max(0, (d - POND.radius) / 2.5))
-  return h + (pondLevel() - h) * flatten
+  let h = rawHeight(x, z)
+  for (const pond of ponds) {
+    const d = Math.hypot(x - pond.x, z - pond.z)
+    const flatten = 1 - Math.min(1, Math.max(0, (d - pond.radius) / 2.5))
+    if (flatten > 0) h += (pondLevel(pond) - h) * flatten
+  }
+  return h
 }
 
 /** 연못 수면 높이 */
-export function pondLevel(): number {
-  return rawHeight(POND.x, POND.z) - 0.05
+export function pondLevel(pond: Pond): number {
+  return rawHeight(pond.x, pond.z) - 0.05
 }
 
-const COLORS = {
-  snow: new THREE.Color(0xe6edf4),
-  snowShade: new THREE.Color(0xc9d5e1),
-  snowBlue: new THREE.Color(0xb7c8da),
-  trampled: new THREE.Color(0xb9b7b3),
-  earth: new THREE.Color(0x6f5f50),
-  stone: new THREE.Color(0x868d98),
+/** 다져진 길: 점을 잇는 꺾은선과 폭 */
+export interface GroundPath {
+  points: readonly { x: number; z: number }[]
+  width: number
+}
+
+/** 점에서 꺾은선까지의 거리 */
+function distanceToPath(x: number, z: number, path: GroundPath): number {
+  let best = Infinity
+  for (let i = 1; i < path.points.length; i++) {
+    const a = path.points[i - 1]!
+    const b = path.points[i]!
+    const dx = b.x - a.x
+    const dz = b.z - a.z
+    const len2 = dx * dx + dz * dz || 1
+    const t = Math.max(0, Math.min(1, ((x - a.x) * dx + (z - a.z) * dz) / len2))
+    best = Math.min(best, Math.hypot(x - (a.x + dx * t), z - (a.z + dz * t)))
+  }
+  return best
+}
+
+interface GroundColors {
+  base: THREE.Color
+  shade: THREE.Color
+  alt: THREE.Color
+  path: THREE.Color
+  earth: THREE.Color
+  stone: THREE.Color
 }
 
 /** 땅 색을 칠하는 칸의 크기 (미터). 저해상도 화면에서 1~2픽셀 정도로 보인다. */
 const GROUND_TEXEL = 0.5
 
 /** 지점의 땅 색을 정한다. 색을 섞지 않고 단계로 끊어서 픽셀 아트처럼 또렷하게 만든다. */
-function groundColorAt(x: number, z: number, jitter: number, out: THREE.Color): THREE.Color {
+function groundColorAt(x: number, z: number, jitter: number, colors: GroundColors, paths: readonly GroundPath[], out: THREE.Color): THREE.Color {
   const n = smoothNoise(x * 1.7 + 13, z * 1.7 - 7) + jitter
-  out.copy(COLORS.snow)
-  if (n < 0.28) out.copy(COLORS.snowBlue)
-  else if (n < 0.42) out.copy(COLORS.snowShade)
+  out.copy(colors.base)
+  if (n < 0.28) out.copy(colors.alt)
+  else if (n < 0.42) out.copy(colors.shade)
 
-  // 시작 지점에서 뻗어 나가는 다져진 길
-  const pathDist = Math.abs(z - Math.sin(x * 0.12) * 6)
-  if (pathDist < 1.1 + jitter * 3) out.copy(COLORS.trampled)
+  // 다져진 길 (지역 데이터의 paths)
+  for (const path of paths) {
+    if (distanceToPath(x, z, path) < path.width / 2 + jitter * 3) {
+      out.copy(colors.path)
+      break
+    }
+  }
 
-  // 드문드문 눈이 녹아 드러난 흙과 바위
+  // 드문드문 드러난 흙과 바위
   const bare = smoothNoise(x * 0.9 - 31, z * 0.9 + 17) + jitter
-  if (bare > 0.955) out.copy(COLORS.earth)
-  else if (bare > 0.93) out.copy(COLORS.stone)
+  if (bare > 0.955) out.copy(colors.earth)
+  else if (bare > 0.93) out.copy(colors.stone)
   return out
 }
 
-/** 기복이 있는 눈밭. 색은 0.5미터 칸 단위로 칠한 저해상도 텍스처로 입힌다. */
-export function buildGround(halfExtent: number, seed = 11): THREE.Mesh {
+/** 기복이 있는 땅. 색은 0.5미터 칸 단위로 칠한 저해상도 텍스처로 입힌다. 색과 길은 지역마다 다르다. */
+export function buildGround(halfExtent: number, theme: ThemeDef, paths: readonly GroundPath[], seed = 11): THREE.Mesh {
+  const g = theme.ground
+  const colors: GroundColors = {
+    base: new THREE.Color(g.base),
+    shade: new THREE.Color(g.shade),
+    alt: new THREE.Color(g.alt),
+    path: new THREE.Color(g.path),
+    earth: new THREE.Color(g.earth),
+    stone: new THREE.Color(g.stone),
+  }
   const size = halfExtent * 2 + 8
   // 격자 한 칸이 1m를 넘으면 땅 표면이 heightAt과 어긋나 바닥에 붙인 표시(예고·이동 표시)가 묻힌다.
   const segments = Math.ceil(size / 0.8)
@@ -86,7 +135,7 @@ export function buildGround(halfExtent: number, seed = 11): THREE.Mesh {
       // 평면의 v 좌표는 z와 반대 방향이다.
       const x = (col + 0.5) * GROUND_TEXEL - size / 2
       const z = size / 2 - (row + 0.5) * GROUND_TEXEL
-      groundColorAt(x, z, (rng() - 0.5) * 0.06, color)
+      groundColorAt(x, z, (rng() - 0.5) * 0.06, colors, paths, color)
       color.convertLinearToSRGB()
       const i = (row * texels + col) * 4
       data[i] = Math.round(color.r * 255)
@@ -108,17 +157,19 @@ export function buildGround(halfExtent: number, seed = 11): THREE.Mesh {
   return ground
 }
 
-/** 눈 사이로 삐져나온 마른 풀, 자갈 같은 잔디테일. 인스턴싱으로 한 번에 그린다. */
-export function buildScatter(halfExtent: number, seed = 23): THREE.Group {
+/** 땅 사이로 삐져나온 풀, 자갈 같은 잔디테일. 인스턴싱으로 한 번에 그린다. 색은 테마를 따른다. */
+export function buildScatter(halfExtent: number, theme: ThemeDef, seed = 23): THREE.Group {
+  const [t0, t1, t2] = theme.scatter.tuft
+  const [p0, p1] = theme.scatter.pebble
   const group = new THREE.Group()
   const rng = createRng(seed)
   const dummy = new THREE.Object3D()
 
   // 마른 풀 한 포기: 길이가 다른 잎 세 가닥 (칸 0.07m)
   const tuftGrid = new VoxelGrid(3, 6, 3)
-  tuftGrid.box(0, 0, 0, 0, 3, 0, 0x7a7448)
-  tuftGrid.box(1, 0, 1, 1, 5, 1, 0x8c8452)
-  tuftGrid.box(2, 0, 2, 2, 2, 2, 0x6a6440)
+  tuftGrid.box(0, 0, 0, 0, 3, 0, t0)
+  tuftGrid.box(1, 0, 1, 1, 5, 1, t1)
+  tuftGrid.box(2, 0, 2, 2, 2, 2, t2)
   const tufts = new THREE.InstancedMesh(buildVoxelGeometry(tuftGrid, { voxelSize: 0.07 }), voxelMaterial(), 300)
   let t = 0
   while (t < tufts.count) {
@@ -140,8 +191,8 @@ export function buildScatter(halfExtent: number, seed = 23): THREE.Group {
   group.add(tufts)
 
   const pebbleGrid = new VoxelGrid(2, 1, 2)
-  pebbleGrid.box(0, 0, 0, 1, 0, 1, 0x8a909a)
-  pebbleGrid.set(1, 0, 1, 0x6f7681)
+  pebbleGrid.box(0, 0, 0, 1, 0, 1, p0)
+  pebbleGrid.set(1, 0, 1, p1)
   const pebbles = new THREE.InstancedMesh(buildVoxelGeometry(pebbleGrid, { voxelSize: 0.1 }), voxelMaterial(), 260)
   for (let i = 0; i < pebbles.count; i++) {
     const x = (rng() * 2 - 1) * halfExtent

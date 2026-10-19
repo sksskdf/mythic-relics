@@ -221,6 +221,50 @@ try {
   if ((await page.evaluate(() => window.__game.hero.rig.outfit.weapon)) !== 'shortSword') throw new Error('외형: 보관함 선택이 적용되지 않습니다.')
   console.log('유물·외형 확인: 메긴교르드 줍기, 토르 유물 3개로 발현, 부위별 외형과 보관함 (test-results/look-*.png)')
 
+  // 지역 (E7): 새로 시작하면 마을. 마을 사람 곁에 가면 말풍선, 출구를 밟으면 암전 뒤 그 땅으로 넘어간다.
+  if ((await page.evaluate(() => window.__game.region.id)) !== 'village') throw new Error('지역: 새로 시작했는데 마을이 아닙니다.')
+  if (await page.evaluate(() => window.__game.encounter.boss !== null)) throw new Error('지역: 마을에 보스가 있습니다.')
+  await page.evaluate(() => {
+    const g = window.__game
+    g.encounter.clearAll()
+    const elder = g.region.npcs[0]
+    g.devTeleport(elder.x + 1.5, elder.z + 1.5)
+  })
+  await page.waitForFunction(() => window.__game.villagers.talking.length > 0, null, { timeout: 15000 })
+  const bubble = await page.locator('.npc-bubble:not([hidden])').first().textContent()
+  if (!bubble) throw new Error('지역: 마을 사람 말풍선이 비었습니다.')
+  if (!(await page.locator('.minimap').isVisible())) throw new Error('지역: 작은 지도가 보이지 않습니다.')
+  await page.evaluate(() => window.__game.devTeleport(0, -16))
+  await page.waitForTimeout(300)
+  await page.evaluate(() => window.__game.devTeleport(0, -22))
+  await page.waitForFunction(() => window.__game.region.id === 'midgard', null, { timeout: 15000 })
+  const arrived = await page.evaluate(() => ({ ...window.__game.hero.object.position }))
+  if (Math.hypot(arrived.x, arrived.z - 32) > 2) throw new Error(`지역: 미드가르드의 마을 쪽 출구 앞에 서야 합니다 ${JSON.stringify(arrived)}`)
+  await page.waitForFunction(() => getComputedStyle(document.querySelector('.region-fade')).opacity === '0', null, { timeout: 15000 })
+  // 지역을 여러 번 오가도 GPU 자원(형상·텍스처)이 늘지 않는다 (E7 자동 검증: 지역 전환 반복)
+  const memoryAfter = async (times) =>
+    page.evaluate(async (n) => {
+      const g = window.__game
+      const ids = Object.keys(g.regions)
+      let build = 0
+      for (let i = 0; i < n; i++) {
+        const t0 = performance.now()
+        g.enterRegion(g.regions[ids[i % ids.length]])
+        build += performance.now() - t0
+        await new Promise((r) => requestAnimationFrame(r))
+      }
+      g.enterRegion(g.regions.midgard)
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
+      const m = g.pixel.renderer.info.memory
+      return { geometries: m.geometries, textures: m.textures, ms: Math.round(build / n) }
+    }, times)
+  const memA = await memoryAfter(6)
+  const memB = await memoryAfter(24)
+  if (memB.geometries > memA.geometries + 8 || memB.textures > memA.textures + 2) throw new Error(`지역: 오갈수록 GPU 자원이 늘어납니다 ${JSON.stringify({ memA, memB })}`)
+  if (memB.ms > 3000) throw new Error(`지역: 지역을 짓는 데 3초가 넘게 걸립니다 (${memB.ms}ms)`)
+  console.log(`지역 전환 반복 확인: 6번 뒤 형상 ${memA.geometries}·텍스처 ${memA.textures}, 30번 뒤 ${memB.geometries}·${memB.textures}, 한 번 짓는 데 평균 ${memB.ms}ms (소프트웨어 렌더링)`)
+  console.log(`지역 확인: 마을에서 시작, 말풍선 「${bubble}」, 작은 지도, 출구를 밟아 미드가르드로`)
+
   // 승급 전설 점검: 경험치 바를 채우고 성소에 서면 「우트가르드 원정」이 시작된다.
   await page.evaluate(() => {
     const g = window.__game
@@ -240,7 +284,8 @@ try {
   const restored = await page.evaluate(() => window.__game.powers.loadout.has('megingjord'))
   if (!restored) throw new Error('이어서 플레이 실패: 저장한 유물이 없습니다.')
   if ((await page.evaluate(() => window.__game.hero.rig.outfit.weapon)) !== 'shortSword') throw new Error('이어서 플레이 실패: 고른 외형이 없습니다.')
-  console.log('저장 확인: 새로 고침하면 단추 없이 바로 이어서, 유물과 고른 외형 유지')
+  if ((await page.evaluate(() => window.__game.region.id)) !== 'midgard') throw new Error('이어서 플레이 실패: 있던 지역(미드가르드)이 아닙니다.')
+  console.log('저장 확인: 새로 고침하면 단추 없이 바로 이어서, 유물과 고른 외형, 있던 지역 유지')
 
   // 처음 화면으로: 정보 화면의 단추를 두 번 누르면 저장하고 슬롯 고르기로 돌아가고, 그 슬롯을 누르면 이어 간다.
   await page.click('.menu-button')
@@ -253,7 +298,7 @@ try {
   console.log('처음 화면 확인: 정보 화면에서 처음 화면으로, 슬롯을 골라 그대로 이어 감')
 
   // 개발 패널: ?dev 로 열고 단추로 유물·적·전설을 바로 바꿔 본다.
-  await page.goto(`${URL}?dev`)
+  await page.goto(`${URL}?dev&region=midgard`)
   await page.waitForSelector('.devpanel button', { timeout: 15000 })
   const devTab = (name) => page.locator('.devpanel__tab', { hasText: name }).click()
   const devButton = (label) => page.locator('.devpanel__page:not([hidden])').getByRole('button', { name: label, exact: true })
@@ -264,9 +309,14 @@ try {
   if (!folded || folded.width > 160 || folded.height > 40) throw new Error(`개발 패널: 접었는데 너무 큽니다 ${JSON.stringify(folded)}`)
   await page.click('.devpanel__fold')
   await devTab('유물')
-  await page.selectOption('.devpanel__page:not([hidden]) select', 'thor')
-  await devButton('묶음 끼기').click()
+  // 유물은 신화권 → 클래스로 묶여 있고, 클래스 이름을 누르면 그 묶음을 낀다 (닫힌 신화권은 열어서)
+  await devButton('토르').click()
   if ((await page.evaluate(() => window.__game.powers.manifested)) !== 'thor') throw new Error('개발 패널: 토르 묶음 실패')
+  await page.locator('.devpanel__realmName', { hasText: '히든' }).click()
+  await devButton('아수라왕').click()
+  if ((await page.evaluate(() => window.__game.powers.manifested)) !== 'asura') throw new Error('개발 패널: 아수라왕 묶음(함께 쓰는 칼 포함) 실패')
+  const realms = await page.locator('.devpanel__page:not([hidden]) .devpanel__realmName').allTextContents()
+  if (realms.length !== 6) throw new Error(`개발 패널: 신화권 묶음이 ${realms.length}개 (${realms.join(', ')})`)
   await devTab('세계')
   const enemiesBefore = await page.evaluate(() => window.__game.encounter.alive.length)
   await devButton('×6').click()
@@ -280,11 +330,24 @@ try {
   await devTab('세계')
   await devButton('적 모두 제거').click()
   if ((await page.evaluate(() => window.__game.encounter.alive.length)) !== 0) throw new Error('개발 패널: 모두 제거 실패')
+  // 지도 편집기 (E7-01): 편집을 켜고 땅을 누르면 이동 대신 고른 소품이 놓이고, 되돌리기로 돌아간다
+  await devTab('지도')
+  await devButton('편집').click()
+  await page.selectOption('.devpanel__page:not([hidden]) select[aria-label="도구"]', 'runestone')
+  const beforeEdit = await page.evaluate(() => ({ props: window.__game.region.props.length, x: window.__game.hero.object.position.x }))
+  await page.mouse.click(220, 300)
+  await page.waitForFunction((n) => window.__game.region.props.length === n + 1, beforeEdit.props, { timeout: 15000 })
+  if ((await page.evaluate(() => window.__game.region.props.at(-1).kind)) !== 'runestone') throw new Error('지도 편집기: 고른 소품이 아닙니다')
+  if (await page.evaluate(() => window.__game.hero.isMoving)) throw new Error('지도 편집기: 편집 중 클릭이 이동 지시로 샜습니다')
+  await devButton('되돌리기').click()
+  await page.waitForFunction((n) => window.__game.region.props.length === n, beforeEdit.props, { timeout: 15000 })
+  await devButton('편집').click()
+  console.log('지도 편집기 확인: 편집 켜고 소품 놓기(이동 지시 없음), 되돌리기')
   await devTab('클래스')
   await devButton('승급 전설 시작').click()
   await page.waitForFunction(() => window.__game.legend.phase === 'wave', null, { timeout: 15000 })
   await page.screenshot({ path: 'test-results/devpanel.png' }).catch(() => {})
-  console.log('개발 패널 확인: 접기·펴기, 유물 장착, 적 소환·제거, 충돌·길찾기 보기, 승급 전설 바로 시작')
+  console.log('개발 패널 확인: 접기·펴기, 신화권·클래스별 유물 묶음, 적 소환·제거, 충돌·길찾기 보기, 승급 전설 바로 시작')
 
   mkdirSync('test-results', { recursive: true })
   await page.screenshot({ path: 'test-results/smoke.png' })
