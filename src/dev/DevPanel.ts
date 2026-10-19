@@ -381,8 +381,13 @@ export class DevPanel {
       row(select('소리', SOUND_CUES.map((c) => [c, c] as const), (cue) => g.audio.play(cue as (typeof SOUND_CUES)[number]))),
       row(
         ...([
-          ['field', '들판 곡'],
-          ['legend', '전설 곡'],
+          ['village', '마을'],
+          ['norse', '북유럽'],
+          ['greek', '그리스'],
+          ['china', '중국'],
+          ['japan', '일본'],
+          ['korea', '한국'],
+          ['legend', '전설'],
           [null, '곡 끄기'],
         ] as const).map(([theme, label]) => {
           const b = button(label, () => g.audio.setTheme(theme))
