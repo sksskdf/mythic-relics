@@ -64,7 +64,7 @@ export const THEMES = {
   },
   /** 화과산: 짙은 풀과 기암, 복숭아꽃 */
   hwagwasan: {
-    ground: { base: 0x6fa04a, shade: 0x5c8a3e, alt: 0x82b056, path: 0xb8a070, earth: 0x7a5a3a, stone: 0x8a8a7a },
+    ground: { base: 0x76a056, shade: 0x628a48, alt: 0x86b062, path: 0xb8a070, earth: 0x7a5a3a, stone: 0x8a8a7a },
     water: { surface: 0x4ab0a0, deep: 0x2a8a80, frozen: false },
     scatter: { tuft: [0x4a7a2a, 0x5c9036, 0x3e6824], pebble: [0x8a8a7a, 0x6e6e60] },
     border: ['spire', 'spire', 'peach', 'pine', 'rock', 'bamboo'],

@@ -7,7 +7,10 @@ import { ELITES } from '../src/enemies/elite'
 import { buildEnemyRig } from '../src/enemies/enemyModel'
 import { ENEMIES } from '../src/enemies/Giant'
 import themeCss from '../src/ui/theme.css?raw'
+import { PROP_KINDS } from '../src/data/regions'
 import { buildHeroModel } from '../src/world/heroModel'
+import { placeProp } from '../src/world/regionMap'
+import { THEMES } from '../src/world/themes'
 
 const hex = (s: string) => parseInt(s.slice(1), 16)
 const css = (name: string) => themeCss.match(new RegExp(`--${name}:\\s*(#[0-9a-fA-F]{6})`))?.[1]?.toLowerCase()
@@ -72,6 +75,26 @@ function box(object: THREE.Object3D): THREE.Vector3 & { minY: number } {
   return Object.assign(size, { minY: b.min.y })
 }
 
+describe('지역 환경 팔레트 (E9-02)', () => {
+  it('땅은 캐릭터와 예고보다 옅다: 기본색 채도 0.5 아래, 밝기 0.6~0.97, 길은 땅과 밝기가 확실히 다르다', () => {
+    for (const [id, t] of Object.entries(THEMES)) {
+      const base = hsv(t.ground.base)
+      expect(base.s, id).toBeLessThan(0.5)
+      expect(base.v, id).toBeGreaterThanOrEqual(0.6)
+      expect(base.v, id).toBeLessThanOrEqual(0.97)
+      const path = hsv(t.ground.path)
+      expect(Math.abs(path.v - base.v) > 0.05 || Math.abs(path.s - base.s) > 0.1, id).toBe(true)
+    }
+  })
+
+  it('해 세기는 2.7~3.0 (지역끼리 밝기가 크게 다르지 않게)', () => {
+    for (const [id, t] of Object.entries(THEMES)) {
+      expect(t.light.sunIntensity, id).toBeGreaterThanOrEqual(2.7)
+      expect(t.light.sunIntensity, id).toBeLessThanOrEqual(3)
+    }
+  })
+})
+
 describe('복셀 규격과 실루엣 (E9-03)', () => {
   const hero = box(buildHeroModel().root)
 
@@ -131,6 +154,19 @@ describe('복셀 규격과 실루엣 (E9-03)', () => {
         case 'spirit':
           expect(b.y, e.id).toBeLessThan(hero.y)
           break
+      }
+    }
+  })
+
+  it('소품은 땅에 서 있고(바닥이 y=0 근처) 주인공 키의 0.1~8배', () => {
+    for (const kind of PROP_KINDS) {
+      for (const theme of Object.keys(THEMES) as (keyof typeof THEMES)[]) {
+        const built = placeProp({ kind, x: 0, z: 0, size: 1, rotation: 0 }, 0, theme)
+        built.object.position.set(0, 0, 0)
+        const b = box(built.object)
+        expect(Math.abs(b.minY), `${kind}·${theme}`).toBeLessThan(0.3)
+        expect(b.y / hero.y, `${kind}·${theme}`).toBeGreaterThan(0.1)
+        expect(b.y / hero.y, `${kind}·${theme}`).toBeLessThan(8)
       }
     }
   })

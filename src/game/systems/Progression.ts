@@ -3,6 +3,8 @@ import { ELITE_REWARD } from '../../enemies/elite'
 import { PER_PROMOTION } from '../../progress/ClassProgress'
 import { levelGains } from '../../progress/levelGains'
 import { classIcon } from '../../ui/classIcons'
+import { realmSigil } from '../../ui/sigils'
+import { realmInk } from '../../art/palette'
 import { type God, godDef, type RelicId } from '../../relics/data'
 import type { LegendKind } from '../../data/classKit'
 import type { GameContext } from '../context'
@@ -60,7 +62,8 @@ export class ProgressionSystem {
       onStart: () => {
         bus.emit('legendStarted', {})
         const def = godDef(this.challenger!)
-        hud.showBanner(def.legend!.name, def.color)
+        const ink = realmInk(def.realm)
+        hud.showTitleCard(def.legend!.name, def.color, realmSigil(def.realm, ink.light, ink.dark), '승급 전설')
         view.shake(0.3)
       },
       onWin: () => this.challenger && this.promote(this.challenger),

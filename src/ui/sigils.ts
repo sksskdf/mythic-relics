@@ -17,6 +17,27 @@ export function sourceSigil(id: string, known = true): string {
   return draw(`s:${id}:${known}`, SOURCE_SIGILS[id]!, a, b, c)
 }
 
+/** 신화권 문장 (12×12, E9-05): 지역에 들어설 때와 승급 전설을 열 때 띠 가운데에 둔다 */
+const REALM_SIGILS: Record<string, readonly string[]> = {
+  // 북유럽: 룬 ᛉ
+  norse: ['............', '.a...a...a..', '.a...a...a..', '..a..a..a...', '...a.a.a....', '....aaa.....', '.....a......', '.....a......', '.....a......', '.....a......', '....aaa.....', '............'],
+  // 그리스: 기둥
+  greek: ['............', '..aaaaaaaa..', '...abbbba...', '....a..a....', '....a..a....', '....a..a....', '....a..a....', '....a..a....', '....a..a....', '...abbbba...', '..aaaaaaaa..', '............'],
+  // 중국: 구름
+  china: ['............', '....aaaa....', '...a....a...', '..a..aa..a..', '..a.a..a.a..', '..a.a.aa.a..', '..a..a...a..', '...a....a...', '.aaaa..aaaa.', 'a....aa....a', '.aaaaaaaaaa.', '............'],
+  // 일본: 도리이
+  japan: ['............', 'aaaaaaaaaaaa', '.abbbbbbbba.', '..a......a..', '.aaaaaaaaaa.', '..a......a..', '..a......a..', '..a......a..', '..a......a..', '..a......a..', '.aa......aa.', '............'],
+  // 한국: 돌탑
+  korea: ['.....aa.....', '....abba....', '.....aa.....', '...aabbaa...', '....aaaa....', '..aabbbbaa..', '...aaaaaa...', '.aabbbbbbaa.', '..aaaaaaaa..', 'aabbbbbbbbaa', '.aaaaaaaaaa.', '............'],
+  // 마을: 모닥불
+  hub: ['.....a......', '....aa......', '....aba.....', '...abba..a..', '...abbba.a..', '..abbbbbaa..', '..abbcbbba..', '.abbcccbbba.', '..abcccbba..', '...abbba....', '.a.aaaa.a...', 'aaaaaaaaaaaa'],
+}
+
+/** 신화권 문장 그림 주소 (밝은 색, 어두운 색) */
+export function realmSigil(realm: string, light: string, dark: string): string {
+  return draw(`r:${realm}`, REALM_SIGILS[realm] ?? REALM_SIGILS.hub!, light, dark, '#fff0c8')
+}
+
 /** 잠긴 것·모르는 곳 */
 const UNKNOWN = ['............', '....aaaa....', '...a....a...', '........a...', '.......a....', '......a.....', '.....a......', '.....a......', '............', '.....a......', '............', '............']
 

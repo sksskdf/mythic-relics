@@ -46,6 +46,14 @@ export const SOURCE_COLORS: Readonly<Record<string, readonly [string, string, st
 /** 하늘에서 내리치는 공격(패시브·궁극기)의 빛 */
 export const SKY_COLORS = { lightning: 0x9fe3ff, sun: 0xffd27a, moon: 0xd8e4ff, stone: 0xa89a80, water: 0x6fc3ff, fire: 0xffb02a } as const
 
+/** 신화권 문장(픽셀 그림)에 칠할 밝은 색·어두운 색 */
+export function realmInk(realm: string): { light: string; dark: string } {
+  const c = REALM_COLORS[realm as keyof typeof REALM_COLORS] ?? REALM_COLORS.hub
+  const hex = (v: number) => `#${v.toString(16).padStart(6, '0')}`
+  const dark = (((c >> 16) & 255) * 0.45) << 16 | (((c >> 8) & 255) * 0.45) << 8 | ((c & 255) * 0.45)
+  return { light: hex(c), dark: hex(dark) }
+}
+
 /** 색상환 각도(0~360), 채도, 밝기 */
 export function hsv(color: number): { h: number; s: number; v: number } {
   const r = ((color >> 16) & 255) / 255

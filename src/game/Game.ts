@@ -37,6 +37,8 @@ import { Feel, type GameContext } from './context'
 import { Encounter } from './Encounter'
 import { Villagers } from './Villagers'
 import { Minimap } from '../ui/Minimap'
+import { realmSigil } from '../ui/sigils'
+import { realmInk } from '../art/palette'
 import { EventBus, type GameEvents } from './events'
 import { UtgardLegend } from './Legend'
 import { HERO_RADIUS, HeroController } from './HeroController'
@@ -467,7 +469,12 @@ export class Game {
     this.hero.teleport(at.x, at.z)
     this.view.jumpTo(this.hero.object.position)
     this.exitArmed = false
-    if (moved) this.hud.showToast(region.name)
+    if (moved) {
+      // 그 땅의 문장과 색 띠로 이름을 알린다 (E9-05)
+      const realm = region.realm ?? 'hub'
+      const ink = realmInk(realm)
+      this.hud.showTitleCard(region.name, `var(--c-realm-${realm})`, realmSigil(realm, ink.light, ink.dark))
+    }
     this.bus.emit('regionEntered', { id: region.id })
   }
 
