@@ -259,6 +259,11 @@ export class Giant {
     for (const wave of this.waves) wave.telegraph.dispose()
     this.waves.length = 0
     this.rig.root.removeFromParent()
+    // 거인마다 모양이 조금씩 달라 모델을 따로 만든다: 사라질 때 GPU에서도 내린다
+    this.rig.root.traverse((o) => {
+      if (o instanceof THREE.Mesh) o.geometry.dispose()
+    })
+    this.rig.material.dispose()
   }
 
   /** 쫓을 대상: 가까운 환영 분신이 있으면 그쪽, 없으면 주인공 */

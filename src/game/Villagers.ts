@@ -27,6 +27,8 @@ export class Villagers {
   readonly object = new THREE.Group()
   private villagers: Villager[] = []
   private time = 0
+  /** 한 번 만든 마을 사람 모델은 다시 쓴다 (지역을 오갈 때마다 새로 만들지 않게) */
+  private readonly rigs = new Map<string, HeroRig>()
 
   constructor(private readonly overlay: HTMLElement) {}
 
@@ -35,7 +37,9 @@ export class Villagers {
     for (const v of this.villagers) v.bubble.remove()
     for (const child of [...this.object.children]) this.object.remove(child)
     this.villagers = npcs.map((def, i) => {
-      const rig = buildHeroModel(undefined, { skin: def.body[0], hair: def.body[1], cloth: def.body[2] })
+      const key = `${def.name}|${def.body.join()}`
+      const rig = this.rigs.get(key) ?? buildHeroModel(undefined, { skin: def.body[0], hair: def.body[1], cloth: def.body[2] })
+      this.rigs.set(key, rig)
       rig.root.position.set(def.x, heightAt(def.x, def.z), def.z)
       rig.root.rotation.y = Math.atan2(-def.x, -def.z)
       this.object.add(rig.root)

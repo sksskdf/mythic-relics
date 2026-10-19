@@ -147,7 +147,7 @@ export class Autoplayer {
     let candidates = enemies.filter((g) => {
       if (legend.active) return true
       if (g === boss) return bossOk
-      return !boss || !boss.alive || bossOk || dist(g, boss) > 14
+      return !boss || !boss.alive || bossOk || dist(g, boss) > 18
     })
     // 거인 왕 둘레의 무리밖에 남지 않았으면 생명력이 넉넉할 때 그 졸개들과 싸운다 (빈 진지만 맴돌지 않게)
     if (candidates.length === 0 && hp > 0.6) candidates = enemies.filter((g) => g !== boss)
@@ -194,7 +194,9 @@ export class Autoplayer {
         const point = { x: here.x + Math.sin(a) * r, z: here.z + Math.cos(a) * r }
         if (arena && dist(point, arena) > arena.radius - 0.5) continue
         if (dangers.some((d) => inDanger(point, d, MARGIN))) continue
-        const cost = r
+        // 쉬고 있는 거인 왕 쪽으로는 피하지 않는다 (깨우면 무리와 함께 몰려온다)
+        const boss = this.game.encounter.boss
+        const cost = r + (boss?.alive && boss.state === 'idle' && dist(boss, point) < 18 ? 10 : 0)
         if (cost < bestCost) {
           bestCost = cost
           best = point
@@ -205,14 +207,27 @@ export class Autoplayer {
     return null
   }
 
+  /** 물러날 곳: 둘레 열두 방향 가운데 가까운 적에게서 가장 멀고, 거인 왕을 깨우지 않고, 맵 안인 곳 */
   private retreatPoint(here: Point2, near: Giant[]): Point2 {
-    const cx = near.reduce((s, g) => s + g.x, 0) / near.length
-    const cz = near.reduce((s, g) => s + g.z, 0) / near.length
-    const dx = here.x - cx
-    const dz = here.z - cz
-    const len = Math.hypot(dx, dz) || 1
-    return { x: here.x + (dx / len) * 10, z: here.z + (dz / len) * 10 }
+    const { encounter, region } = this.game
+    const boss = encounter.boss
+    const half = region.halfExtent - 2
+    let best = here
+    let bestScore = -Infinity
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2
+      const point = { x: here.x + Math.sin(a) * 10, z: here.z + Math.cos(a) * 10 }
+      if (Math.abs(point.x) > half || Math.abs(point.z) > half) continue
+      let score = Math.min(...near.map((g) => dist(g, point)))
+      if (boss?.alive && !near.includes(boss) && dist(boss, point) < 18) score -= 20
+      if (score > bestScore) {
+        bestScore = score
+        best = point
+      }
+    }
+    return best
   }
+
 }
 
 function dist(a: Point2, b: Point2): number {

@@ -38,7 +38,7 @@
     "hp": 700,
     "speed": 2.6,
     "aggroRange": 15,
-    "leashRange": 60,
+    "leashRange": 30,
     "returnRegen": 0.02,
     "superArmor": true,
     "attacks": [

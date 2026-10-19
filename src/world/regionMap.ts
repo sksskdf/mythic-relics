@@ -88,7 +88,7 @@ function glowing(body: VoxelGrid, glow: VoxelGrid, voxelSize: number, light: { c
     glowMaterial.color.setScalar(0.7 + pulse * 0.3)
     point.intensity = light.intensity * pulse
   }
-  return { object: group, animate }
+  return { object: own(group), animate }
 }
 
 function makeRunestone(variant: number): Built {
@@ -108,7 +108,7 @@ function makeRunestone(variant: number): Built {
     glowMaterial.color.setScalar(0.6 + pulse * 0.4)
     light.intensity = 1 + pulse
   }
-  return { object: group, animate }
+  return { object: own(group), animate }
 }
 
 function makeBrazier(variant: number, base: VoxelGrid = brazier(), flameY = 1.05): Built {
@@ -127,7 +127,7 @@ function makeBrazier(variant: number, base: VoxelGrid = brazier(), flameY = 1.05
     flameMesh.rotation.y = Math.round(t * 6) * (Math.PI / 2)
     light.intensity = 3.6 + flicker * 0.8
   }
-  return { object: group, animate }
+  return { object: own(group), animate }
 }
 
 export const BUILDERS: Record<PropKind, VariantFactory> = {
@@ -326,15 +326,22 @@ export class RegionMap {
     const theme = THEMES[region.theme]
     // 땅 높이가 이 지역의 연못을 따르게 한 뒤 땅과 소품을 놓는다
     setPonds(region.ponds)
+    // 이 지역만 쓰던 것(땅·흩뿌림·연못·문)은 GPU에서도 내린다. 소품 모델은 지역끼리 함께 써서 남긴다
+    this.group.traverse((o) => {
+      if (!(o instanceof THREE.Mesh) || !o.userData.ownGeometry) return
+      // 재질은 소품과 함께 쓰는 것이 있어 남기고, 땅 색 텍스처만 내린다
+      o.geometry.dispose()
+      for (const m of Array.isArray(o.material) ? o.material : [o.material]) (m as THREE.MeshBasicMaterial).map?.dispose()
+    })
     for (const child of [...this.group.children]) this.group.remove(child)
     this.colliders.length = 0
     this.animators = []
     const half = region.halfExtent
     // 땅은 움직일 수 있는 범위보다 넓게 깔아서, 멀리 축소해도 맵 끝이 허공으로 보이지 않게 한다.
-    this.group.add(buildGround(half + BORDER_DEPTH, theme, region.paths))
+    this.group.add(own(buildGround(half + BORDER_DEPTH, theme, region.paths)))
     this.group.add(buildBorder(region.seed, half, region.theme))
-    this.group.add(buildScatter(half, theme))
-    for (const pond of region.ponds) this.group.add(pondMesh(pond, theme))
+    this.group.add(own(buildScatter(half, theme)))
+    for (const pond of region.ponds) this.group.add(own(pondMesh(pond, theme)))
     region.props.forEach((placement, index) => {
       const built = placeProp(placement, index, region.theme)
       this.group.add(built.object)
@@ -346,6 +353,7 @@ export class RegionMap {
     // 출구: 길 끝의 문과 갈 곳의 빛기둥 (글 없이 색으로 어디로 가는지 알린다)
     for (const exit of region.exits) {
       const gate = buildGate(exitColor(exit.to))
+      own(gate.object)
       gate.object.position.set(exit.x, heightAt(exit.x, exit.z), exit.z)
       // 문은 지역 가운데를 바라본다
       gate.object.rotation.y = Math.atan2(-exit.x, -exit.z)
@@ -364,6 +372,14 @@ function pondMesh(pond: Pond, theme: ThemeDef): THREE.Group {
   const mesh = buildPond(pond.radius, theme.water)
   mesh.position.set(pond.x, pondLevel(pond) + 0.03, pond.z)
   return mesh
+}
+
+/** 이 지역만 쓰는 것으로 표시한다 (지역을 바꿀 때 GPU에서 내린다) */
+function own<T extends THREE.Object3D>(object: T): T {
+  object.traverse((o) => {
+    if (o instanceof THREE.Mesh) o.userData.ownGeometry = true
+  })
+  return object
 }
 
 /** 출구 문: 나무 기둥 둘과 가로대, 갈 곳의 색 빛기둥과 바닥 고리 */

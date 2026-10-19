@@ -241,6 +241,28 @@ try {
   const arrived = await page.evaluate(() => ({ ...window.__game.hero.object.position }))
   if (Math.hypot(arrived.x, arrived.z - 32) > 2) throw new Error(`지역: 미드가르드의 마을 쪽 출구 앞에 서야 합니다 ${JSON.stringify(arrived)}`)
   await page.waitForFunction(() => getComputedStyle(document.querySelector('.region-fade')).opacity === '0', null, { timeout: 15000 })
+  // 지역을 여러 번 오가도 GPU 자원(형상·텍스처)이 늘지 않는다 (E7 자동 검증: 지역 전환 반복)
+  const memoryAfter = async (times) =>
+    page.evaluate(async (n) => {
+      const g = window.__game
+      const ids = Object.keys(g.regions)
+      let build = 0
+      for (let i = 0; i < n; i++) {
+        const t0 = performance.now()
+        g.enterRegion(g.regions[ids[i % ids.length]])
+        build += performance.now() - t0
+        await new Promise((r) => requestAnimationFrame(r))
+      }
+      g.enterRegion(g.regions.midgard)
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
+      const m = g.pixel.renderer.info.memory
+      return { geometries: m.geometries, textures: m.textures, ms: Math.round(build / n) }
+    }, times)
+  const memA = await memoryAfter(6)
+  const memB = await memoryAfter(24)
+  if (memB.geometries > memA.geometries + 8 || memB.textures > memA.textures + 2) throw new Error(`지역: 오갈수록 GPU 자원이 늘어납니다 ${JSON.stringify({ memA, memB })}`)
+  if (memB.ms > 3000) throw new Error(`지역: 지역을 짓는 데 3초가 넘게 걸립니다 (${memB.ms}ms)`)
+  console.log(`지역 전환 반복 확인: 6번 뒤 형상 ${memA.geometries}·텍스처 ${memA.textures}, 30번 뒤 ${memB.geometries}·${memB.textures}, 한 번 짓는 데 평균 ${memB.ms}ms (소프트웨어 렌더링)`)
   console.log(`지역 확인: 마을에서 시작, 말풍선 「${bubble}」, 작은 지도, 출구를 밟아 미드가르드로`)
 
   // 승급 전설 점검: 경험치 바를 채우고 성소에 서면 「우트가르드 원정」이 시작된다.
