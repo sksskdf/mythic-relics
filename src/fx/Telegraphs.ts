@@ -19,6 +19,8 @@ const RINGS = 6
 
 /** 땅에서 띄우는 높이 (땅에 묻혀 깜빡이지 않을 만큼) */
 const LIFT = 0.08
+/** 테두리 두께 (m). 땅색이 진한 지역에서도 범위 끝이 또렷하게 보이게 (E9-07) */
+const EDGE = 0.14
 
 /**
  * 적 공격 예고. 바닥에 범위를 옅게 깔고, 안쪽이 차오르는 정도로 맞을 때까지 남은 시간을 보여 준다.
@@ -28,6 +30,16 @@ export class Telegraph {
   readonly object = new THREE.Group()
   private readonly base: THREE.Mesh
   private readonly fill: THREE.Mesh
+  /** 범위 끝을 두르는 진한 테두리 (충격파에는 없다) */
+  private readonly edge: THREE.Mesh
+  private readonly edgeMaterial = new THREE.MeshBasicMaterial({
+    color: DANGER,
+    transparent: true,
+    opacity: 0.9,
+    depthWrite: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -4,
+  })
   private readonly baseMaterial = new THREE.MeshBasicMaterial({
     color: DANGER,
     transparent: true,
@@ -47,20 +59,25 @@ export class Telegraph {
   /** 땅에 맞춰 휘기 전의 평평한 정점 위치 */
   private baseFlat: Float32Array
   private fillFlat: Float32Array
+  private edgeFlat: Float32Array
   private fillScale = 0
 
   constructor(private shape: TelegraphShape) {
     this.base = new THREE.Mesh(this.geometry(shape), this.baseMaterial)
     this.fill = new THREE.Mesh(this.geometry(shape), this.fillMaterial)
+    this.edge = new THREE.Mesh(edgeGeometry(shape), this.edgeMaterial)
+    this.edge.visible = shape.kind !== 'ring'
     this.baseFlat = flatPositions(this.base.geometry)
     this.fillFlat = flatPositions(this.fill.geometry)
-    for (const mesh of [this.base, this.fill]) {
+    this.edgeFlat = flatPositions(this.edge.geometry)
+    for (const mesh of [this.base, this.fill, this.edge]) {
       mesh.rotation.x = -Math.PI / 2
       mesh.renderOrder = 10
       mesh.layers.set(EFFECT_LAYER)
       this.object.add(mesh)
     }
     this.fill.renderOrder = 11
+    this.edge.renderOrder = 12
     this.setProgress(0)
   }
 
@@ -70,6 +87,7 @@ export class Telegraph {
     this.object.rotation.y = facing
     this.object.updateMatrixWorld()
     this.conform(this.base, this.baseFlat, 1)
+    if (this.edge.visible) this.conform(this.edge, this.edgeFlat, 1)
     if (this.fill.visible) this.conform(this.fill, this.fillFlat, this.fillScale)
   }
 
@@ -117,8 +135,10 @@ export class Telegraph {
     this.object.removeFromParent()
     this.base.geometry.dispose()
     this.fill.geometry.dispose()
+    this.edge.geometry.dispose()
     this.baseMaterial.dispose()
     this.fillMaterial.dispose()
+    this.edgeMaterial.dispose()
   }
 
   private geometry(shape: TelegraphShape): THREE.BufferGeometry {
@@ -146,6 +166,56 @@ export class Telegraph {
         )
     }
   }
+}
+
+/** 모양의 바깥선 (평면 좌표, 반시계 방향). geometry()와 같은 자리에 놓인다 */
+function outline(shape: TelegraphShape): [number, number][] {
+  const arc = (r: number, from: number, length: number, n: number) =>
+    Array.from({ length: n + 1 }, (_, i) => [r * Math.cos(from + (length * i) / n), r * Math.sin(from + (length * i) / n)] as [number, number])
+  switch (shape.kind) {
+    case 'circle':
+      return arc(shape.radius, 0, Math.PI * 2, SEGMENTS).slice(0, -1)
+    case 'sector':
+      return [[0, 0], ...arc(shape.radius, -Math.PI / 2 - shape.halfAngle, shape.halfAngle * 2, SEGMENTS)]
+    case 'line': {
+      const w = shape.width / 2
+      return [[-w, -shape.length], [w, -shape.length], [w, 0], [-w, 0]]
+    }
+    case 'ring':
+      return []
+  }
+}
+
+/** 바깥선을 따라 안쪽으로 EDGE만큼 두께를 준 띠. 길게 나눠 땅 굴곡을 따른다 */
+function edgeGeometry(shape: TelegraphShape): THREE.BufferGeometry {
+  const points = outline(shape)
+  const positions: number[] = []
+  const indices: number[] = []
+  for (let i = 0; i < points.length; i++) {
+    const [ax, ay] = points[i]!
+    const [bx, by] = points[(i + 1) % points.length]!
+    const len = Math.hypot(bx - ax, by - ay)
+    if (len < 1e-6) continue
+    // 반시계 방향이라 왼쪽이 안쪽
+    const nx = (-(by - ay) / len) * EDGE
+    const ny = ((bx - ax) / len) * EDGE
+    const steps = Math.max(1, Math.ceil(len / 0.8))
+    for (let k = 0; k < steps; k++) {
+      const t0 = k / steps
+      const t1 = (k + 1) / steps
+      const x0 = ax + (bx - ax) * t0
+      const y0 = ay + (by - ay) * t0
+      const x1 = ax + (bx - ax) * t1
+      const y1 = ay + (by - ay) * t1
+      const base = positions.length / 3
+      positions.push(x0, y0, 0, x1, y1, 0, x1 + nx, y1 + ny, 0, x0 + nx, y0 + ny, 0)
+      indices.push(base, base + 1, base + 2, base, base + 2, base + 3)
+    }
+  }
+  const g = new THREE.BufferGeometry()
+  g.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
+  g.setIndex(indices)
+  return g
 }
 
 function flatPositions(geometry: THREE.BufferGeometry): Float32Array {

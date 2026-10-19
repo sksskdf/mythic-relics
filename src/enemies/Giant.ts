@@ -164,7 +164,7 @@ export class Giant {
     this.health.hp = this.health.max
     this.collider.radius = this.radius
     this.rig.body.scale.setScalar(def.size)
-    this.glow.setHex(def.color).multiplyScalar(0.18)
+    this.glow.setHex(def.color).multiplyScalar(0.07)
     this.rig.material.emissive.copy(this.glow)
     const r = this.radius
     const ring = new THREE.Mesh(

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import { hsv, readsAsDanger, REALM_COLORS, SKY_COLORS, SOURCE_COLORS, VFX } from '../src/art/palette'
 import gods from '../src/data/gods.json'
+import { ELITES } from '../src/enemies/elite'
 import { buildEnemyRig } from '../src/enemies/enemyModel'
 import { ENEMIES } from '../src/enemies/Giant'
 import themeCss from '../src/ui/theme.css?raw'
@@ -36,8 +37,9 @@ describe('연출 색 규칙 (E9-04)', () => {
     for (const { where, color } of colors) expect(readsAsDanger(hex(color)), `${where} ${color}`).toBe(false)
   })
 
-  it('하늘 공격·회복·안내·신화권 빛도 예고처럼 보이지 않는다', () => {
-    for (const [k, c] of Object.entries({ ...SKY_COLORS, heal: VFX.heal, guide: VFX.guide, ...REALM_COLORS })) {
+  it('하늘 공격·회복·안내·신화권 빛, 정예의 발밑 고리도 예고처럼 보이지 않는다', () => {
+    const elites = Object.fromEntries(Object.entries(ELITES).map(([k, e]) => [`elite.${k}`, e.color]))
+    for (const [k, c] of Object.entries({ ...SKY_COLORS, heal: VFX.heal, guide: VFX.guide, ...REALM_COLORS, ...elites })) {
       expect(readsAsDanger(c), k).toBe(false)
     }
   })
