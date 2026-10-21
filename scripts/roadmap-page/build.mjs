@@ -1,4 +1,4 @@
-// 로드맵 페이지(아티팩트) 만들기: ROADMAP.md를 읽어 E1~E10 중심의 한 장짜리 HTML로 만든다.
+// 로드맵 페이지(아티팩트) 만들기: ROADMAP.md를 읽어 마일스톤 → 이슈 → 작업 단위를 한 장짜리 HTML로 만든다.
 // 사용법: node scripts/roadmap-page/build.mjs <저장할 경로.html>
 // 로드맵을 고칠 때마다 다시 만들어 아티팩트에 올린다. (사용자는 아티팩트로 로드맵을 본다)
 import { readFileSync, writeFileSync } from 'node:fs'
@@ -116,6 +116,8 @@ for (const s of all) {
     background: field(s.body, '배경'),
     why: field(s.body, '이유'),
     tasks: cells(tables(s.body)[0] ?? []).map((t) => ({ ...t, done: (t.ID ?? '').includes('✅') })),
+    // 이슈 아래 최소 작업 단위: "- **작업 단위**" 아래 "  - [ ] E11-01-1 …"
+    units: bulletsUnder(s.body, '작업 단위'),
     auto: bulletsUnder(s.body, '자동 검증'),
     manual: bulletsUnder(s.body, '직접 플레이 체크리스트'),
     log: bulletsUnder(s.body, '진행 상황'),
