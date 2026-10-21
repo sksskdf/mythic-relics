@@ -1,6 +1,6 @@
 <div class="wrap">
   <header class="top">
-    <div class="eyebrow"><span class="pix">ROADMAP V2.0</span> · 단계 2 (E1~E10)</div>
+    <div class="eyebrow"><span class="pix">ROADMAP V3.0</span> · 1차 E1~E9 · 2차 E11~E18</div>
     <h1><span class="pix">MYTHIC RELICS</span> 로드맵</h1>
     <p class="lede" id="lede"></p>
   </header>
@@ -8,7 +8,7 @@
   <section class="section" id="overview">
     <div class="eyebrow">단계와 일정</div>
     <div class="band" id="band"></div>
-    <p class="band-note">단계 3 이후는 E10이 끝나면 측정한 제작 단가로 다시 세웁니다.</p>
+    <p class="band-note">2차 스프린트(E11~E18)가 끝나면 보류한 외부 검증(E10)과 함께 다시 세웁니다.</p>
   </section>
 
   <section class="section" id="now">
@@ -21,27 +21,27 @@
     <input type="search" id="q" placeholder="작업 찾기 (예: 공격 모션, 지역, E6-12)" aria-label="작업 찾기">
     <div class="chips" id="chips" aria-label="분야로 거르기"></div>
     <nav class="nav" aria-label="바로 가기">
-      <a href="#stage2">E1~E10</a><a href="#sprints">스프린트</a><a href="#after">E10 이후</a><a href="#risks">정할 것·위험</a>
+      <a href="#stage2">마일스톤</a><a href="#sprints">스프린트</a><a href="#after">2차 이후</a><a href="#risks">정할 것·위험</a>
     </nav>
   </div>
 
   <section class="section" id="stage2">
     <div class="eyebrow">단계 2 · 게임다운 빌드로 키우기</div>
-    <h2>E1~E10: 한 겹씩 쌓는 순서</h2>
+    <h2>마일스톤: 한 겹씩 쌓는 순서 (1차 E1~E9 · 2차 E11~E18)</h2>
     <ul class="lead-list muted" id="rules"></ul>
     <div class="path" id="path"></div>
   </section>
 
   <section class="section" id="sprints">
     <div class="eyebrow">2주 단위</div>
-    <h2>스프린트 (E6~E10)</h2>
+    <h2>스프린트 (2주 단위)</h2>
     <div id="sprintTable"></div>
   </section>
 
   <section class="section" id="after">
-    <div class="eyebrow">E10 이후</div>
+    <div class="eyebrow">2차 스프린트 이후</div>
     <h2>로드맵 다시 세우기</h2>
-    <p class="muted">E10이 끝나면 이 로드맵을 새로 쓰고 스프린트를 다시 돕니다. 그때 쓸 재료입니다.</p>
+    <p class="muted">2차 스프린트가 끝나면 이 로드맵을 다시 씁니다. 그때 쓸 재료입니다.</p>
     <ul class="lead-list" id="afterList"></ul>
   </section>
 
@@ -110,7 +110,7 @@ $('#progressTable').append(table(DATA.progress));
 // 원칙
 DATA.rules.forEach((r) => $('#rules').append(h('li', r.sub ? { style: 'margin-left:16px' } : {}, r.text)));
 
-// E1~E10
+// 마일스톤
 const openState = store.get('rm2-open') || {};
 DATA.milestones.forEach((m) => {
   const key = `rm2-check-${m.id}`;
@@ -122,7 +122,8 @@ DATA.milestones.forEach((m) => {
   d.open = openState[m.id] ?? !!m.now;
   d.addEventListener('toggle', () => { openState[m.id] = d.open; store.set('rm2-open', openState); });
   const doneTasks = m.tasks.filter((t) => t.done).length;
-  const prog = () => `작업 ${doneTasks} / ${m.tasks.length} · 직접 플레이 체크 ${checks.filter(Boolean).length} / ${m.manual.length}${m.done ? ' · 완료' : ''}`;
+  const doneUnits = m.units.filter((u) => u.checked).length;
+  const prog = () => `작업 ${doneTasks} / ${m.tasks.length}${m.units.length ? ` · 작업 단위 ${doneUnits} / ${m.units.length}` : ''} · 직접 플레이 체크 ${checks.filter(Boolean).length} / ${m.manual.length}${m.done ? ' · 완료' : ''}`;
   const sum = h('summary', {}, `<span class="name">${m.id} ${m.name}</span><span class="wk">${m.weeks}</span><span class="feel">${m.feel}</span><span class="prog">${prog()}</span>`);
   d.append(sum);
   const body = h('div', { class: 'body' });
@@ -131,6 +132,20 @@ DATA.milestones.forEach((m) => {
   add('목표', m.goal); add('이 순서인 이유', m.reason); add('배경', m.background); add('덧붙임', m.why);
   body.append(kv);
   body.append(table(m.tasks, { task: true }));
+  // 작업 단위: 이슈(E11-01)마다 묶어 보여 준다
+  if (m.units.length) {
+    const ub = h('div', { class: 'box units' }, `<h4>작업 단위 ${doneUnits} / ${m.units.length}</h4>`);
+    m.tasks.forEach((t) => {
+      const id = strip(t.ID || '').replace(' ✅', '').trim();
+      const mine = m.units.filter((u) => strip(u.text).startsWith(`${id}-`));
+      if (!mine.length) return;
+      const g = h('details', { class: 'unit-group' });
+      g.append(h('summary', {}, `<b>${id}</b> ${strip(t['작업'] || '')} <span class="prog">${mine.filter((u) => u.checked).length} / ${mine.length}</span>`));
+      g.append(h('ul', {}, mine.map((u) => `<li class="${u.checked ? 'done' : ''}">${u.checked ? '✓' : '○'} ${u.text}</li>`).join('')));
+      ub.append(g);
+    });
+    body.append(ub);
+  }
   const v = h('div', { class: 'verify' });
   v.append(h('div', { class: 'box' }, `<h4>자동 검증</h4><ul>${m.auto.map((x) => `<li>${x.text}</li>`).join('')}</ul>`));
   const cb = h('div', { class: 'box check' }, '<h4>직접 플레이 체크리스트</h4>');
