@@ -73,6 +73,7 @@
 
 - 마일스톤 작업은 `ROADMAP.md` 2장의 표(ID, 목표, 자동 검증, 직접 플레이 체크리스트, 완료 기준)를 따른다. 끝나면 완료 기준을 확인하고 문서에 기록한다.
 - **로드맵 체크는 Claude가 진행할 때마다 직접 한다:** 작업 단위를 끝낼 때마다 `- [ ]`를 `- [x]`로, 이슈를 끝내면 `ROADMAP.md`의 해당 줄 ID에 ✅, 자동 검증을 통과하면 그 줄에 ✅, 사용자가 확인해 준 체크리스트는 `[x]`로 바꾸고, MCP `roadmap`으로 마일스톤 상태(할 일/진행 중/완료)를 맞춘다.
+- **로드맵은 GitHub 이슈와 함께 간다:** 마일스톤 = 부모 이슈(라벨 `마일스톤`), 이슈(`E11-01`) = 하위 이슈, 작업 단위 = 하위 이슈 본문의 체크 상자. ID → 이슈 번호는 `scripts/roadmap-issues/issues.json`. 작업 단위를 끝내면 `ROADMAP.md`와 그 이슈 본문을 함께 체크하고(GitHub MCP `issue_write` update), 이슈를 끝내면 ✅와 함께 그 GitHub 이슈를 닫는다(`state: closed`, `state_reason: completed`). 마일스톤 이슈는 자동 검증·체크리스트를 본문에서 체크하고, 완료 기준을 넘으면 닫는다. 로드맵에 이슈를 새로 더하면 `node scripts/roadmap-issues/plan.mjs <스크래치 경로>/plan.json`으로 아직 없는 것만 뽑아 만들고(라벨이 새로 생기도록 부모 없이 만든 뒤 `sub_issue_write`로 붙인다) `issues.json`에 번호를 적는다.
 - **사용자는 로드맵을 아티팩트로 본다** (https://claude.ai/artifact/VLnz4HHR5F7VMGG496TmqK). `ROADMAP.md`를 고칠 때마다 `node scripts/roadmap-page/build.mjs <스크래치 경로>/roadmap.html`로 페이지를 다시 만들어 같은 URL에 올린다.
 - 로드맵 패널(모드)은 `ROADMAP.md`를 직접 읽어 계획 탭에 보여 준다. 문서를 고치면 패널도 바뀐다. 할 일 목록 항목 이름을 `E1 ...`처럼 마일스톤 ID로 시작하게 두면 계획 탭의 마일스톤에 상태(○ ▶ ✓)가 붙는다. 상태는 MCP `roadmap` 도구로 바꾼다.
 - 코드 주석과 테스트 이름은 한국어. 주변 코드의 말투와 밀도를 따른다.
