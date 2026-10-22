@@ -9,6 +9,11 @@
 - 최종 답과 문서는 어색한 번역 투 없이 자연스러운 한국어로 다듬는다.
 - 큰 방향은 사용자가 정한다. 사용자가 "추천대로"라고 하면 추천안으로 진행하고 무엇을 골랐는지 알린다.
 
+## 이어받기
+
+- **세션을 시작하면 `docs/knowledge/handoff.md`부터 읽는다.** 지금 상태·다음 할 일·사용자에게 받아야 할 것이 있다. 지식 저장소 목록은 `docs/knowledge/README.md`.
+- 일을 한 덩어리 끝낼 때마다 `handoff.md`를 고치고, 사용자와 새로 정한 것은 `decisions.md`, 막혔다 풀린 것은 `troubleshooting.md`·`environment.md`에 더한다.
+
 ## 문서 (작업 전에 관련 문서를 먼저 읽는다)
 
 | 문서 | 내용 |
@@ -22,6 +27,7 @@
 | `PLAYTEST.md` | 자동 플레이 검증 결과, 사람이 해 본 의견과 조치 |
 | `BALANCE.md` | 전투·성장 사양서 (피해 공식, 유물·적 수치, 경험치 곡선, 드랍) |
 | `ART.md` | 아트 스타일 가이드 (화면·팔레트·복셀 규격·실루엣·연출 언어·성능 기준) |
+| `docs/knowledge/` | 지식 저장소: 인수인계(`handoff`), 작업 흐름, 결정 기록, 환경 제약, 구조 요약, 기준 수치, 문제 해결, 지난 마일스톤, 용어 |
 
 ## 핵심 원칙 (어기면 안 됨)
 
@@ -67,6 +73,7 @@
 | `src/audio/` | 소리(E5): 믹서·동시 재생 제한·거리 감쇠(`AudioEngine`, `limits`), 코드로 합성한 효과음(`sounds.ts`), 신화권별 합성 곡(`music.ts`, 방향은 `ART.md` 8장). 게임 사건 → 소리는 `systems/Sound.ts` |
 | `src/art/` | 팔레트(`palette.ts`): 연출 언어 색(위험·회복·안내), 신화권·원천·하늘 공격 색, 위험색 규칙 `readsAsDanger` |
 | `src/fx/`, `src/ui/` | 연출, 디자인 시스템(`theme.css`, `fonts/`), HUD·시작 화면·피해 숫자, 작은 지도(`Minimap`), 정보 화면(`GameMenu`: 상태·순환·유물·클래스·외형 탭, `WardrobePane`·`HeroPreview`), 유물 설명 카드(`relicCard`, `RelicTooltip`), 일시 정지·설정(`PauseMenu`), 조사 붙이기(`josa`) |
+| `tools/claude-mods/roadmap/` | 로드맵 패널 모드의 원본 (컨테이너가 바뀌면 다시 올림, 그 폴더 README) |
 | `src/dev/` | 검증용 봇(`autoplay.ts`), 개발 패널(`DevPanel.ts`), 충돌·길찾기 보기(`DebugOverlay.ts`), 지도 편집기(`RegionEditor.ts`, 편집 동작은 `regionEdit.ts`) |
 
 ## 작업 방식

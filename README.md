@@ -9,6 +9,7 @@
 - `ROADMAP.md`: 전체 로드맵 (단계, 마일스톤, 작업, 일정, 위험)
 - `PROTOTYPE.md`: 프로토타입 계획과 구현 기록 (완료)
 - `PLAYTEST.md`: 프로토타입 플레이 검증 결과
+- `docs/knowledge/`: 이어받기용 지식 저장소 (지금 상태, 결정 기록, 작업 흐름, 환경 제약)
 
 ## 개발
 - 기술: Three.js + TypeScript + Vite
