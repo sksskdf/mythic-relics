@@ -1,0 +1,6 @@
+{
+  "name": "roadmap",
+  "version": "0.1.0",
+  "description": "프로젝트 로드맵을 패널에 띄우고 /roadmap 명령과 Claude 도구로 관리합니다",
+  "types": "./types/index.d.ts"
+}
