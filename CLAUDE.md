@@ -61,7 +61,7 @@
 | 폴더 | 내용 |
 | --- | --- |
 | `src/data/` | **게임 데이터**: `relics.json`(유물), `gods.json`(신·클래스), `enemies.json`(적), `classes.json`(클래스 트리, `CLASSES.md`와 같아야 함), `schema.ts`(형식과 검사), `classKit.ts`(클래스 부품: 패시브·궁극기·전설 종류), `regions.json`·`regions.ts`(지역: 시작점·성소·무리·보스·출구·소품, 검사와 저장 모양). 숫자는 여기서 고친다 |
-| `src/game/` | `Game.ts`(조립, 메인 루프, 지역 들어가기 `enterRegion`·출구 이동 `travelTo`), `Villagers`(마을 사람과 말풍선), `events.ts`(이벤트 버스), `context.ts`(시스템 공용 상태), `Stage`(빛·맵), `HeroController`(이동), `HeroOrders`(클릭 → 지시), `PlayerCombat`(자동 공격), `Encounter`(적 무리·보스), `Legend`(승급 전설), `RelicPowers`(장착한 유물 효과) |
+| `src/game/` | `Game.ts`(조립과 메인 루프), `World`(지역 들어가기 `enter`·출구 이동 `travelTo`·암전, Game에도 같은 이름의 위임이 있음), `TitleBackdrop`(시작 화면 뒤 장면), `Villagers`(마을 사람과 말풍선), `events.ts`(이벤트 버스), `context.ts`(시스템 공용 상태), `Stage`(빛·맵), `HeroController`(이동), `HeroOrders`(클릭 → 지시), `PlayerCombat`(자동 공격), `Encounter`(적 무리·보스), `Legend`(승급 전설), `RelicPowers`(장착한 유물 효과) |
 | `src/game/systems/` | 규칙: `Damage`(피해), `Relics`(줍기·장착·발현), `Progression`(경험치·드랍·승급), `HeroLife`(쓰러짐·부활), `Persistence`(저장), `PlayerInput`(클릭), `Effects`(연출), `Sound`(소리), `CycleSystem`(원천 결정·단련·윤회·종말 보스). 시스템끼리는 버스로만 주고받는다 |
 | `src/enemies/` | 적 AI(`Giant.ts`: 상태, 공격 예고, 돌진·던지기·막기·부르기·거리 유지·둘러싸기), 날아가는 것(`Projectile.ts`), 정예(`elite.ts`), 모델 생성기(`enemyModel.ts`: 몸 종류 여섯, 거인은 `giantModel.ts`) |
 | `src/skills/` | 유물 효과(`index.ts`: 데이터 → 효과), 행동·오라 종류(`actions.ts`), 궁극기 |
@@ -79,7 +79,7 @@
 | `src/art/` | 팔레트(`palette.ts`): 연출 언어 색(위험·회복·안내), 신화권·원천·하늘 공격 색, 위험색 규칙 `readsAsDanger` |
 | `src/fx/`, `src/ui/` | 연출, 디자인 시스템(`theme.css`, `fonts/`), HUD·시작 화면·피해 숫자, 작은 지도(`Minimap`), 정보 화면(`GameMenu`: 상태·순환·유물·신화·외형 탭, `WardrobePane`·`HeroPreview`), 유물 설명 카드(`relicCard`, `RelicTooltip`), 일시 정지·설정(`PauseMenu`), 조사 붙이기(`josa`) |
 | `tools/claude-mods/roadmap/` | 로드맵 패널 모드의 원본 (컨테이너가 바뀌면 다시 올림, 그 폴더 README) |
-| `src/dev/` | 검증용 봇(`autoplay.ts`), 개발 패널(`DevPanel.ts`), 충돌·길찾기 보기(`DebugOverlay.ts`), 지도 편집기(`RegionEditor.ts`, 편집 동작은 `regionEdit.ts`) |
+| `src/dev/` | 검증용 봇(`autoplay.ts`), 개발 패널(`DevPanel.ts`), 개발 지름길(`DevTools.ts`: `game.dev.equip('mjolnir')`·`dev.teleport`·`dev.promote` 등, 점검 스크립트도 이것을 쓴다), 충돌·길찾기 보기(`DebugOverlay.ts`), 지도 편집기(`RegionEditor.ts`, 편집 동작은 `regionEdit.ts`) |
 
 ## 작업 방식
 
