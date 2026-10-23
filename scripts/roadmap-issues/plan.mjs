@@ -1,5 +1,5 @@
 // 로드맵 → GitHub 이슈 계획: ROADMAP.md를 읽어 마일스톤 이슈(부모)와 작업 이슈(자식)의 제목·본문·라벨을 만든다.
-// 사용법: node scripts/roadmap-issues/plan.mjs [저장할 경로.json]
+// 사용법: node scripts/roadmap-issues/plan.mjs [저장할 경로.json] [--all]
 // 만든 이슈 번호는 scripts/roadmap-issues/issues.json에 둔다 (ID → 번호). 이미 번호가 있는 ID는 계획에서 뺀다.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 
@@ -8,6 +8,8 @@ const md = readFileSync(new URL('../../ROADMAP.md', here), 'utf8')
 const mapPath = new URL('issues.json', here)
 const known = existsSync(mapPath) ? JSON.parse(readFileSync(mapPath, 'utf8')) : {}
 const out = process.argv[2]
+/** --all: 이미 만든 것도 계획에 넣는다 (본문을 다시 만들 때) */
+const everything = process.argv.includes('--all')
 
 /** 마일스톤 구역: `#### E11 이름 (기간)`부터 다음 `####`/`##`까지 */
 const milestones = []
@@ -61,7 +63,8 @@ for (const ms of milestones) {
       '---\n`ROADMAP.md`에서 만든 이슈. 하위 이슈를 모두 닫고 완료 기준을 넘으면 닫는다.',
     ].filter(Boolean).join('\n\n'),
   })
-  for (const [id, area, work, output, size] of rows) {
+  for (const [cell, area, work, output, size] of rows) {
+    const id = cell.replace('✅', '').trim()
     const mine = units.filter((u) => u.slice(6).startsWith(`${id}-`))
     plan.push({
       id,
@@ -80,6 +83,6 @@ for (const ms of milestones) {
   }
 }
 
-const todo = plan.filter((p) => !known[p.id])
+const todo = everything ? plan : plan.filter((p) => !known[p.id])
 if (out) writeFileSync(out, JSON.stringify(todo, null, 2))
 console.log(`마일스톤 ${plan.filter((p) => p.kind === 'milestone').length}, 이슈 ${plan.filter((p) => p.kind === 'issue').length}, 새로 만들 것 ${todo.length}`)
