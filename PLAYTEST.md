@@ -64,7 +64,7 @@
 | 무엇 | 위치 | 지금 값 |
 | --- | --- | --- |
 | 승급 경험치 | `src/progress/ClassProgress.ts` XP_TO_PROMOTE | 1000 / 2000 / 3500 |
-| 드랍 확률 | `src/relics/DropTable.ts` DEFAULT_DROPS | 기본 1.5%, 놓칠 때마다 +0.6%, 보스 70% |
+| 드랍 확률 | `src/gear/DropTable.ts` DEFAULT_DROPS | 기본 1.5%, 놓칠 때마다 +0.6%, 보스 70% |
 | 졸개·거인 왕·우트가르드의 왕 | `src/enemies/Giant.ts` GRUNT / KING / UTGARD_KING | 생명력 80 / 700 / 2500 |
 | 졸개 공격 예고 시간 | 같은 파일 GRUNT.attacks | 0.75초 |
 | 승급 전설 무리 수 | `src/game/Legend.ts` WAVES | 6, 8 |

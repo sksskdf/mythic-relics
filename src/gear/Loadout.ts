@@ -1,5 +1,5 @@
-import { type God, godDef, relicDef, type RelicId } from './data'
-import { relicGods } from './model'
+import { type God, godDef, relicDef, type RelicId } from '../relics/data'
+import { relicGods } from '../relics/model'
 
 /** 유물 슬롯 수 */
 export const SLOT_COUNT = 4

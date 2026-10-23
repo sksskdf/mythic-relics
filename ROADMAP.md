@@ -79,7 +79,7 @@
   - [x] E11-04-1 빌드 상태 형식 정의: 열린 신화·고른 신화·장비·원천 수치 → 능력치·효과 목록
   - [x] E11-04-2 지금 `RelicPowers`·`Damage`가 빌드 상태에서 값을 읽게
   - [x] E11-04-3 빌드 상태 단위 테스트 (지금 값과 같음)
-  - [ ] E11-05-1 `gear/` 만들고 `Loadout`·`Pickups`·`DropTable` 옮김
+  - [x] E11-05-1 `gear/` 만들고 `Loadout`·`Pickups`·`DropTable` 옮김
   - [ ] E11-05-2 `myth/` 만들고 발현 판정·클래스 레벨을 옮김
   - [ ] E11-05-3 `manifested`·`loadout`을 직접 보던 21곳을 빌드 상태 경유로
   - [ ] E11-06-1 `npm run check`, 봇 3판, 적 시험 1회가 E9와 같은 범위

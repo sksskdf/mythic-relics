@@ -1,7 +1,7 @@
 import type * as THREE from 'three'
 
 import { type God, godDef, relicDef, type RelicId } from '../relics/data'
-import { Loadout, type LoadoutState } from '../relics/Loadout'
+import { Loadout, type LoadoutState } from '../gear/Loadout'
 import { createEffect } from '../skills'
 import type { BasicHit, RelicEffect, SkillContext } from '../skills/Skill'
 import type { CombatTarget } from './PlayerCombat'

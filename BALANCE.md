@@ -16,7 +16,7 @@
 | 기본 공격 3연타 | `src/combat/combo.ts` |
 | 주인공 생명력·회복·신위 게이지 | `src/game/PlayerCombat.ts`, `src/game/systems/Damage.ts`, `src/game/systems/Progression.ts` |
 | 경험치 곡선, 승급 보상, 원천 숙련 | `src/progress/ClassProgress.ts` |
-| 드랍 확률 | `src/relics/DropTable.ts` |
+| 드랍 확률 | `src/gear/DropTable.ts` |
 | 궁극기 | `src/skills/Ultimate.ts` |
 
 데이터 파일은 빌드할 때 검사합니다. 틀린 값이 있으면 `relics.json.mjolnir.trigger.action.damage: 숫자여야 합니다`처럼 위치와 이유를 알려 주며 빌드가 멈춥니다.
