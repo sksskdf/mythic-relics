@@ -56,6 +56,7 @@ export class Persistence {
       body: { ...wardrobe.body },
       cycle: this.ctx.cycle.toData(),
       region: { id: this.ctx.map.region.id, x: this.ctx.hero.object.position.x, z: this.ctx.hero.object.position.z },
+      scenes: [...this.ctx.scenesSeen],
     }
   }
 
@@ -77,6 +78,7 @@ export class Persistence {
     for (const item of data.ground) pickups.drop(item.id, item.x, item.z)
     drops.misses = data.dropMisses
     combat.divine = data.divine
+    for (const id of data.scenes) this.ctx.scenesSeen.add(id)
     // 저장한 지역에서 시작했으면 그 자리로 (지역은 Game이 저장을 보고 골라 둔다)
     if (data.region && data.region.id === this.ctx.map.region.id) this.ctx.hero.teleport(data.region.x, data.region.z)
   }

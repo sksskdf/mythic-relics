@@ -19,6 +19,8 @@ export interface HudState {
   divine: number
   /** 보스 생명력 비율 0~1. 보스와 싸우지 않을 때는 null */
   boss: number | null
+  /** 보스 막대 위에 보이는 이름 (E12-09). 이름 없는 막대(내기 전설의 처치 수)는 null */
+  bossName?: string | null
   slots: readonly HudSlot[]
   /** 클래스가 발현되어 궁극기를 쓸 수 있는가 */
   ultimate: boolean
@@ -75,6 +77,7 @@ export class Hud {
   private readonly slotEls: { root: HTMLElement; icon: HTMLElement; src: string | null }[] = []
   private readonly bossBar: HTMLElement
   private readonly bossTrack: HTMLElement
+  private readonly bossName: HTMLElement
   private readonly banner: HTMLElement
   /** 지역·전설 제목 띠 (E9-05): 문장과 양옆 띠, 이름 */
   private readonly card: HTMLElement
@@ -94,6 +97,10 @@ export class Hud {
 
     this.bossBar = this.el('div', 'hud__boss', this.root)
     this.bossTrack = this.bar('ui-bar ui-bar--capped hud__boss-track', this.bossBar)
+    // 막대 아래에 등급과 이름 (E12-09)
+    const bossHead = this.el('div', 'hud__boss-head', this.bossBar)
+    this.el('span', 'hud__boss-grade', bossHead).textContent = '보스'
+    this.bossName = this.el('span', 'hud__boss-name', bossHead)
 
     // 지금의 나
     const status = this.el('div', 'hud__status', this.root)
@@ -230,6 +237,9 @@ export class Hud {
       // 깎인 부분이 잠깐 남았다가 따라 줄어들어, 얼마나 깎였는지 보이게 한다.
       this.bossTrailRatio = Math.max(state.boss, this.bossTrailRatio - dt * 0.5)
       this.bossTrack.style.setProperty('--pct', state.boss.toFixed(3))
+      const name = state.bossName ?? ''
+      if (this.bossName.textContent !== name) this.bossName.textContent = name
+      this.bossBar.classList.toggle('has-name', name !== '')
       this.bossTrack.style.setProperty('--trail', this.bossTrailRatio.toFixed(3))
     } else {
       this.bossTrailRatio = 1

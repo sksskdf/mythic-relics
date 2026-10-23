@@ -96,6 +96,8 @@ async function boot(): Promise<Game> {
           game.setBody(body)
           game.saveNow()
           game.begin()
+          // 새로 시작하면 모닥불 곁에서 깨어나 촌장과 짧게 대화한다 (E12-10)
+          game.scenes.play('opening')
         },
         onDelete: (slot) => {
           saveStorage.clear(slot)

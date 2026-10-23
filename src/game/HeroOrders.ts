@@ -4,22 +4,22 @@ import type { CombatTarget, PlayerCombat } from './PlayerCombat'
 
 /** 플레이어가 내린 지시 */
 export type Order =
-  /** 땅을 눌러 이동. forced면 가는 길에 적을 만나도 무시한다. */
-  | { kind: 'move'; forced: boolean }
-  /** 적을 눌러 공격. 그 적에게 다가가 쓰러질 때까지 친다. (움직이다 적을 만나 싸우게 된 경우도 같다) */
+  /** 땅을 눌러 이동. 가는 길에 적을 만나도 싸우지 않고 끝까지 간다. */
+  | { kind: 'move' }
+  /** 적을 눌러 공격. 그 적에게 다가가 쓰러질 때까지 친다. */
   | { kind: 'attack'; target: CombatTarget; clicked: boolean }
 
 /**
- * 클릭을 지시로 바꾸는 규칙. 조작은 클릭 하나뿐이고, 무엇을 눌렀는지와 지금 상황으로 뜻을 정한다.
- * - 적을 누르면: 그 적에게 가서 공격한다.
- * - 땅을 한 번 누르면: 그곳으로 걷는다. 가는 길에 적이 사거리 안에 들어오면 멈춰서 싸운다.
- * - 땅을 두 번 누르면: 적을 무시하고 끝까지 걷는다. 졸개는 밀고 지나간다. (빠져나가기, 공격 피하기)
- * - 아무 지시가 없으면: 멈춰 선 채 사거리 안의 가장 가까운 적을 자동으로 친다.
+ * 클릭을 지시로 바꾸는 규칙 (E12-08). 조작은 클릭 하나뿐이다.
+ * - 적을 누르면: 그 적에게 가서 쓰러질 때까지 자동으로 친다.
+ * - 땅을 누르면: 싸우던 중이어도 그곳까지 끝까지 걷는다. 졸개는 밀고 지나간다. (빠져나가기, 공격 피하기)
+ * - 아무 지시가 없으면(도착해 멈추면): 멈춰 선 채 사거리 안의 가장 가까운 적을 자동으로 친다.
+ * (1차 스프린트에는 땅 한 번 = 가다가 적을 만나면 싸움, 두 번 = 적 무시였다. 한 번으로 빠져나가지 못해 불편하다는 의견으로 바꿈)
  */
 export class HeroOrders {
   order: Order | null = null
-  /** 이번 프레임에 새로 찍은 이동 목표 (클릭 표시용). forced면 적을 무시하는 이동 */
-  lastMoveTarget: (Point2 & { forced: boolean }) | null = null
+  /** 이번 프레임에 새로 찍은 이동 목표 (클릭 표시용) */
+  lastMoveTarget: Point2 | null = null
   /** 지금 걸어가고 있는 목적지 (이동 지시일 때) */
   destination: Point2 | null = null
   /** 버튼을 누른 채로 커서를 따라가는 중인가 */
@@ -30,9 +30,9 @@ export class HeroOrders {
     private readonly combat: PlayerCombat,
   ) {}
 
-  /** 적을 무시하고 걷는 중인가 (이때는 졸개를 밀고 지나간다) */
+  /** 땅을 눌러 걷는 중인가 (이때는 졸개를 밀고 지나간다) */
   get plowing(): boolean {
-    return this.order?.kind === 'move' && this.order.forced && this.hero.isMoving
+    return this.order?.kind === 'move' && this.hero.isMoving
   }
 
   /** 지금 공격하라고 지정된 적 (표시용) */
@@ -40,10 +40,8 @@ export class HeroOrders {
     return this.order?.kind === 'attack' ? this.order.target : null
   }
 
-  /**
-   * 마우스를 눌렀다. enemy는 커서 아래의 적, double은 같은 자리를 빠르게 두 번 눌렀는지
-   */
-  press(ground: Point2 | null, enemy: CombatTarget | null, double = false): void {
+  /** 마우스를 눌렀다. enemy는 커서 아래의 적 */
+  press(ground: Point2 | null, enemy: CombatTarget | null): void {
     if (this.hero.locked) return
     if (enemy?.alive) {
       this.attack(enemy, true)
@@ -51,12 +49,11 @@ export class HeroOrders {
       return
     }
     if (!ground) return
-    const forced = double
-    this.order = { kind: 'move', forced }
+    this.order = { kind: 'move' }
     this.combat.focus = null
     this.hero.moveTo(ground)
     this.destination = { ...ground }
-    this.lastMoveTarget = { ...ground, forced }
+    this.lastMoveTarget = { ...ground }
     this.following = true
   }
 
@@ -80,22 +77,14 @@ export class HeroOrders {
     this.combat.focus = null
   }
 
-  update(enemies: readonly CombatTarget[]): void {
+  update(_enemies: readonly CombatTarget[]): void {
     const order = this.order
     if (!order) return
     if (order.kind === 'attack') {
       this.updateAttack(order.target)
       return
     }
-    // 그냥 걷는 중에 적이 사거리 안에 들어오면 멈춰서 싸운다.
-    if (!order.forced) {
-      const enemy = this.enemyInReach(enemies)
-      if (enemy) {
-        this.attack(enemy, false)
-        this.following = false
-        return
-      }
-    }
+    // 걷는 동안은 싸우지 않는다. 도착해 멈추면 지시가 끝나고 PlayerCombat이 둘레의 적을 친다.
     if (!this.hero.isMoving) this.order = null
   }
 
@@ -118,20 +107,5 @@ export class HeroOrders {
     } else if (this.hero.canRepath || !this.hero.isMoving) {
       this.hero.moveTo({ x: target.x, z: target.z })
     }
-  }
-
-  private enemyInReach(enemies: readonly CombatTarget[]): CombatTarget | null {
-    const p = this.hero.object.position
-    let best: CombatTarget | null = null
-    let bestDist = Infinity
-    for (const enemy of enemies) {
-      if (!enemy.alive) continue
-      const dist = Math.hypot(enemy.x - p.x, enemy.z - p.z)
-      if (dist <= this.combat.reachTo(enemy) && dist < bestDist) {
-        best = enemy
-        bestDist = dist
-      }
-    }
-    return best
   }
 }

@@ -9,7 +9,7 @@ const TALK_RADIUS = 3.5
 /** 한 줄을 보여 주는 시간 (초) */
 const LINE_SECONDS = 3.2
 
-interface Villager {
+export interface Villager {
   def: NpcDef
   rig: HeroRig
   bubble: HTMLElement
@@ -30,7 +30,23 @@ export class Villagers {
   /** 한 번 만든 마을 사람 모델은 다시 쓴다 (지역을 오갈 때마다 새로 만들지 않게) */
   private readonly rigs = new Map<string, HeroRig>()
 
+  /** 대화 장면 중에는 말풍선을 띄우지 않는다 (E12-10) */
+  quiet = false
+
   constructor(private readonly overlay: HTMLElement) {}
+
+  /** 이름으로 지금 지역의 마을 사람을 찾는다 (대화 장면) */
+  find(name: string): Villager | null {
+    return this.villagers.find((v) => v.def.name === name) ?? null
+  }
+
+  /** 마을 사람이 그쪽을 바라본다 */
+  lookAt(v: Villager, at: { x: number; z: number }, dt: number): void {
+    const target = Math.atan2(at.x - v.def.x, at.z - v.def.z)
+    let diff = target - v.rig.root.rotation.y
+    diff = Math.atan2(Math.sin(diff), Math.cos(diff))
+    v.rig.root.rotation.y += diff * Math.min(1, dt * 6)
+  }
 
   /** 지역에 들어갔다: 그 지역 사람으로 바꾼다 */
   load(npcs: readonly NpcDef[]): void {
@@ -63,7 +79,7 @@ export class Villagers {
       // 숨 쉬듯 조금 들썩인다
       rig.body.position.y = Math.sin(this.time * 2 + v.phase) * 0.015
       const near = Math.hypot(hero.x - def.x, hero.z - def.z) < TALK_RADIUS
-      if (!near) {
+      if (!near || this.quiet) {
         v.bubble.hidden = true
         v.timer = 0
         continue

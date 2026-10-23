@@ -36,6 +36,9 @@ import { Feel, type GameContext } from './context'
 import { Encounter } from './Encounter'
 import { Villagers } from './Villagers'
 import { Minimap } from '../ui/Minimap'
+import { Nameplates, type PlateTarget } from '../ui/Nameplates'
+import { gradeOf } from '../enemies/grade'
+import { Giant } from '../enemies/Giant'
 import { EventBus, type GameEvents } from './events'
 import { UtgardLegend } from './Legend'
 import { HERO_RADIUS, HeroController } from './HeroController'
@@ -56,6 +59,8 @@ import { SoundSystem } from './systems/Sound'
 import { RelicSystem } from './systems/Relics'
 import { World } from './World'
 import { TitleBackdrop } from './TitleBackdrop'
+import { DialogScene } from './DialogScene'
+import { DialogBox } from '../ui/DialogBox'
 import { DevTools } from '../dev/DevTools'
 import { Build } from '../build/Build'
 
@@ -129,6 +134,11 @@ export class Game {
   readonly villagers: Villagers
   /** 작은 지도 (E7-08) */
   readonly minimap: Minimap
+  /** 몬스터 이름표 (E12-09) */
+  readonly nameplates: Nameplates
+  /** 대화 장면 (E12-10) */
+  readonly scenes: DialogScene
+  readonly dialog: DialogBox
   /** 개발 패널의 지도 편집기 (E7-01). 켜 있으면 땅을 누르는 것이 이동 대신 편집이 된다 */
   mapEditor: { active: boolean; update(cursor: { x: number; z: number } | null, pressed: boolean): void } | null = null
 
@@ -191,6 +201,7 @@ export class Game {
     this.scene.add(this.villagers.object)
     this.minimap = new Minimap(this.hud.root)
     this.numbers = new DamageNumbers(container)
+    this.nameplates = new Nameplates(container)
 
     // 지역 (E7): 저장한 지역이 없으면 첫 지역에서 시작한다
     const region = REGIONS[options.region ?? options.load?.region?.id ?? START_REGION] ?? REGIONS[START_REGION]!
@@ -242,6 +253,22 @@ export class Game {
     )
     this.world.dress(region)
     this.backdrop = new TitleBackdrop({ hero: this.hero, fx: this.fx, stage: this.stage, view: this.view, hud: this.hud })
+    this.dialog = new DialogBox(container)
+    const scenesSeen = new Set<string>()
+    this.scenes = new DialogScene({
+      hero: this.hero,
+      villagers: this.villagers,
+      box: this.dialog,
+      setHudHidden: (hidden) => {
+        this.hud.root.classList.toggle('is-hidden', hidden)
+        this.villagers.quiet = hidden
+      },
+      viewHeight: () => this.view.viewHeight,
+      setViewHeight: (viewHeight) => this.applyViewHeight(viewHeight),
+      clearOrders: () => this.orders.clear(),
+      onSeen: () => this.bus.emit('progressChanged', {}),
+      seen: scenesSeen,
+    })
 
     const skills: SkillContext = {
       hero: this.hero,
@@ -283,6 +310,7 @@ export class Game {
       drops: this.drops,
       wardrobe: this.wardrobe,
       cycle: this.cycle,
+      scenesSeen,
       build: new Build({ powers: this.powers, progress: this.progress, cycle: this.cycle }),
       skills,
     }
@@ -532,9 +560,12 @@ export class Game {
     }
     // 정보 화면이 열려 있으면 게임은 멈추고 화면만 그린다. (E4-07)
     if (!this.paused) {
-      this.update(realDt, true)
-      this.view.follow(this.hero.object.position, realDt)
-      this.updateGroundTooltip()
+      // 대화 중에는 이동 입력을 받지 않고, 카메라는 주인공과 말하는 사람 사이를 본다 (E12-10)
+      const talking = this.scenes.active
+      this.update(realDt, !talking)
+      this.scenes.update(realDt)
+      this.view.follow(talking ? this.scenes.focus : this.hero.object.position, realDt)
+      if (!talking) this.updateGroundTooltip()
     }
     this.numbers.update(realDt, this.container.clientHeight, this.pixel.size, this.view.camera, this.view.subpixel)
     this.updateHud(realDt)
@@ -812,7 +843,25 @@ export class Game {
     }
   }
 
+  /** 이름표: 커서를 올린 몬스터와 지금 공격 중인 몬스터 (E12-09) */
+  private updateNameplates(): void {
+    const plates: PlateTarget[] = []
+    // 보스 막대가 떠 있는 보스는 막대에 이름이 있으니 머리 위에는 띄우지 않는다
+    const barBoss = this.legend.boss?.alive ? this.legend.boss : this.encounter.bossEngaged ? this.encounter.boss : null
+    const add = (target: unknown) => {
+      if (!(target instanceof Giant) || !target.alive || target === barBoss) return
+      const top = heightAt(target.x, target.z) + Math.max(1.6, target.radius * 3.6) + 0.6
+      plates.push({ key: target, name: target.spec.name, grade: gradeOf(target), life: target.health.ratio, screen: this.screenPoint(target.x, top, target.z) })
+    }
+    if (this.playing) {
+      add(this.playerInput.hovered)
+      add(this.orders.attackTarget ?? this.combat.target)
+    }
+    this.nameplates.update(plates)
+  }
+
   private updateHud(realDt: number): void {
+    this.updateNameplates()
     const boss = this.encounter.boss
     const manifested = this.ctx.build.chosen
     this.hud.update(
@@ -827,6 +876,14 @@ export class Game {
               ? this.legend.boss.health.ratio
               : boss && this.encounter.bossEngaged
                 ? boss.health.ratio
+                : null,
+        bossName:
+          this.legend.betProgress !== null
+            ? null
+            : this.legend.boss?.alive
+              ? this.legend.boss.spec.name
+              : boss && this.encounter.bossEngaged
+                ? boss.spec.name
                 : null,
         slots: this.powers.hudSlots(),
         ultimate: manifested !== null,
@@ -857,7 +914,11 @@ export class Game {
 
   /** 확대·축소. 그림자가 그려지는 범위도 보이는 범위에 맞춘다. */
   setViewHeight(viewHeight: number): void {
-    const next = clampViewHeight(viewHeight)
+    this.applyViewHeight(clampViewHeight(viewHeight))
+  }
+
+  /** 보이는 범위를 그대로 바꾼다 (대화 장면의 줌은 평소 범위보다 가깝다) */
+  private applyViewHeight(next: number): void {
     // 가장 크게 확대했을 때의 픽셀 크기를 기준으로, 넓게 볼 때는 뭉개지지 않을 만큼만 해상도를 올린다.
     this.pixel.setTargetHeight(renderHeightFor(next, this.baseRenderHeight))
     this.view.viewHeight = next

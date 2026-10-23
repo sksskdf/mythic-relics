@@ -37,7 +37,7 @@ function under(lines, name) {
 const field = (lines, name) => lines.find((l) => l.startsWith(`- **${name}:**`))?.replace(`- **${name}:**`, '').trim() ?? ''
 /** 순서와 이유 표의 한 줄 */
 const order = Object.fromEntries(
-  md.split('\n').filter((l) => /^\| E\d+ \|/.test(l)).map((l) => l.split('|').slice(1, -1).map((c) => c.trim())).map((c) => [c[0], c]),
+  md.split('\n').filter((l) => /^\| E\d+ \|/.test(l)).map((l) => l.split('|').slice(1, -1).map((c) => c.trim())).map((c) => [c[0].replace('✅', '').trim(), c]),
 )
 
 const plan = []

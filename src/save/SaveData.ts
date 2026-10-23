@@ -35,6 +35,8 @@ export interface SaveData {
   cycle: CycleData
   /** 지금 있는 지역과 자리 (E7). 옛 저장이거나 모르는 지역이면 null (마을에서 시작) */
   region: { id: string; x: number; z: number } | null
+  /** 본 대화 장면 (E12-10). 옛 저장에는 없어서 빈 목록 */
+  scenes: string[]
 }
 
 const isRelic = isRelicId
@@ -95,6 +97,7 @@ export function parseSave(text: string | null): SaveData | null {
     body: parseBody(data.body),
     cycle: parseCycle(data.cycle),
     region: parseRegion(data.region),
+    scenes: Array.isArray(data.scenes) ? [...new Set(data.scenes.filter((s): s is string => typeof s === 'string' && s.length < 40))] : [],
   }
 }
 
