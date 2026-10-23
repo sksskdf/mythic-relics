@@ -66,13 +66,13 @@ export class RelicSystem {
     }
 
     // 유물 지속 효과
-    const mods = powers.modifiers
-    combat.knockbackScale = mods.knockbackDealt
-    combat.knockbackTakenScale = mods.knockbackTaken
-    combat.damageTakenScale = mods.damageTaken * this.ctx.cycle.damageTakenScale
-    combat.attackSpeed = powers.manifested ? godDef(powers.manifested).passive.attackSpeed : 1
-    combat.setStyle(powers.manifested ? godDef(powers.manifested).attack : 'blade')
-    hero.speedScale = mods.moveSpeed * this.ctx.cycle.moveSpeedScale
+    const build = this.ctx.build.state
+    combat.knockbackScale = build.modifiers.knockbackDealt
+    combat.knockbackTakenScale = build.modifiers.knockbackTaken
+    combat.damageTakenScale = build.damageTaken
+    combat.attackSpeed = build.attackSpeed
+    combat.setStyle(build.attack)
+    hero.speedScale = build.moveSpeed
   }
 
   /** 유물을 끼운다. announce가 false면 발현 연출 없이 (불러오기·점검용) */

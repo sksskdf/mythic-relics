@@ -1,3 +1,4 @@
+import type { Build } from '../build/Build'
 import type { Cycle } from '../progress/Cycle'
 import type * as THREE from 'three'
 
@@ -57,6 +58,8 @@ export interface GameContext {
   readonly cycle: Cycle
   /** 외형 보관함 (얻은 외형, 칸마다 고른 것) */
   readonly wardrobe: Wardrobe
+  /** 빌드 상태: 열린 신화·고른 신화·장비·원천 → 능력치 (E11-04) */
+  readonly build: Build
   /** 유물 스킬이 세계와 주고받는 것 (프레임마다 적 목록 등을 채운다) */
   readonly skills: SkillContext
 }

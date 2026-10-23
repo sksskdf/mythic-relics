@@ -57,6 +57,7 @@ import { RelicSystem } from './systems/Relics'
 import { World } from './World'
 import { TitleBackdrop } from './TitleBackdrop'
 import { DevTools } from '../dev/DevTools'
+import { Build } from '../build/Build'
 
 export interface GameOptions {
   /** 처음부터 끼고 시작할 유물 (점검용) */
@@ -282,6 +283,7 @@ export class Game {
       drops: this.drops,
       wardrobe: this.wardrobe,
       cycle: this.cycle,
+      build: new Build({ powers: this.powers, progress: this.progress, cycle: this.cycle }),
       skills,
     }
     this.damage = new DamageSystem(this.ctx)
@@ -598,7 +600,8 @@ export class Game {
   /** 설명 카드에 넣을 지금 상태: 자리, 충전, 세트, 발현 강화 조건 */
   /** 정보 화면 상태 탭에 넣을 지금의 능력치와 걸린 힘 */
   heroStats(): HeroStats {
-    const mods = this.powers.modifiers
+    const build = this.ctx.build.state
+    const mods = build.modifiers
     const { manifested, blessings } = this.powers.state
     const powers: HeroStats['powers'] = []
     if (manifested) {
@@ -624,7 +627,7 @@ export class Game {
     return {
       hp: this.combat.health.hp,
       maxHp: this.combat.health.max,
-      damage: this.damage.scale('basic'),
+      damage: build.damageScale,
       damageTaken: mods.damageTaken,
       moveSpeed: mods.moveSpeed,
       knockbackDealt: mods.knockbackDealt,

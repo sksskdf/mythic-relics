@@ -6,6 +6,7 @@ import { Puffs } from '../src/fx/Puffs'
 import { HeroController } from '../src/game/HeroController'
 import type { CombatTarget } from '../src/game/PlayerCombat'
 import { RelicPowers } from '../src/game/RelicPowers'
+import { gearModifiers } from '../src/build/BuildState'
 import { RELIC_IDS } from '../src/relics/data'
 import { DropTable } from '../src/relics/DropTable'
 import { Pickups } from '../src/relics/Pickups'
@@ -79,7 +80,7 @@ describe('데이터에만 넣은 시험용 유물', () => {
     powers.equip('mjolnir')
     const change = powers.equip('megingjord')
     expect(change?.after.manifested).toBe('thor')
-    expect(powers.modifiers.damageTaken).toBeCloseTo(0.8)
+    expect(gearModifiers(powers.loadout.slots).damageTaken).toBeCloseTo(0.8)
 
     const hits: number[] = []
     const near = dummy(1.5, 0, hits)
