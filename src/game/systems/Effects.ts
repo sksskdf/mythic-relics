@@ -60,7 +60,7 @@ export class Effects {
   /** 지시 표시: 누른 곳, 공격 대상, 적을 무시한 이동의 경로 */
   updateMarkers(dt: number, hero: HeroController, orders: HeroOrders, enemies: readonly CombatTarget[]): void {
     const moveTarget = orders.lastMoveTarget
-    if (moveTarget) this.marker.show(moveTarget.x, moveTarget.z, moveTarget.forced)
+    if (moveTarget) this.marker.show(moveTarget.x, moveTarget.z)
     orders.lastMoveTarget = null
     this.marker.update(dt)
     const target = orders.attackTarget

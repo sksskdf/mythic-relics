@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest'
 
 import { Giant, GRUNT, type GiantWorld, KING } from '../src/enemies/Giant'
 import { plowThrough } from '../src/game/plow'
-import { DoubleTapDetector } from '../src/input/doubleTap'
 
 import { HeroController } from '../src/game/HeroController'
 import { HeroOrders } from '../src/game/HeroOrders'
@@ -44,13 +43,23 @@ function setup(enemies: CombatTarget[]) {
 }
 
 describe('클릭 지시', () => {
-  it('땅을 눌러 걷다가 적이 사거리에 들어오면 멈춰서 친다', () => {
-    const { target, hits } = dummy(0, 6)
+  it('땅을 눌러 걸으면 적이 사거리에 들어와도 싸우지 않고 끝까지 간다', () => {
+    const { target, hits } = dummy(2.2, 6)
     const { hero, orders, step } = setup([target])
     orders.press({ x: 0, z: 12 }, null)
+    step(1.5)
+    expect(orders.attackTarget).toBeNull()
+    expect(hits).toEqual([])
     step(3)
-    expect(orders.attackTarget).toBe(target)
-    expect(hero.object.position.z).toBeLessThan(6)
+    expect(hero.object.position.z).toBeGreaterThan(11)
+  })
+
+  it('도착해 멈추면 사거리 안의 적을 자동으로 친다', () => {
+    const { target, hits } = dummy(0, 7.5)
+    const { orders, step } = setup([target])
+    orders.press({ x: 0, z: 6 }, null)
+    step(4)
+    expect(orders.order).toBeNull()
     expect(hits.length).toBeGreaterThan(0)
   })
 
@@ -72,27 +81,25 @@ describe('클릭 지시', () => {
     expect(near.hits).toEqual([])
   })
 
-  it('싸우는 중에 땅을 한 번 누르면 다시 싸우고, 두 번 누르면 적을 무시하고 끝까지 걷는다', () => {
-    const { target } = dummy(0, 6)
-    const { hero, orders, step } = setup([target])
-    orders.press({ x: 0, z: 12 }, null)
+  it('적을 치는 중에 땅을 한 번 누르면 공격을 멈추고 그곳까지 빠져나간다', () => {
+    const { target } = dummy(0, 3)
+    const { hero, orders, combat, step } = setup([target])
+    orders.press(null, target)
     step(2)
     expect(orders.attackTarget).toBe(target)
-    orders.press({ x: 0, z: 12 }, null)
-    step(0.5)
-    expect(orders.attackTarget).toBe(target)
-    orders.press({ x: 0, z: 12 }, null, true)
-    expect(orders.order).toEqual({ kind: 'move', forced: true })
-    step(5)
-    expect(hero.object.position.z).toBeGreaterThan(11)
+    orders.press({ x: 0, z: -8 }, null)
+    expect(orders.order).toEqual({ kind: 'move' })
+    expect(combat.focus).toBeNull()
+    step(4)
+    expect(hero.object.position.z).toBeLessThan(-7.5)
   })
 
   it('길을 막은 적에게 부딪혀 제자리걸음하지 않고 옆으로 비켜 간다', () => {
     const { target } = dummy(0, 4)
     const { hero, orders, combat, step } = setup([target])
-    // 적 너머를 두 번 눌러 적을 무시하고 이동
+    // 적 너머를 눌러 이동
     combat.target = target
-    orders.press({ x: 0, z: 9 }, null, true)
+    orders.press({ x: 0, z: 9 }, null)
     step(4)
     expect(hero.object.position.z).toBeGreaterThan(8.5)
   })
@@ -136,11 +143,11 @@ describe('무리 밀고 지나가기', () => {
     return { giants, hero, combat, orders, step }
   }
 
-  it('졸개 6마리에 둘러싸여도 8m 밖을 두 번 누르면 3초 안에 도착한다', () => {
+  it('졸개 6마리에 둘러싸여도 8m 밖을 한 번 누르면 3초 안에 도착한다', () => {
     const { giants, hero, combat, orders, step } = surrounded()
     combat.target = giants[0]!
-    orders.press({ x: 8, z: 0 }, null, true)
-    expect(orders.order).toEqual({ kind: 'move', forced: true })
+    orders.press({ x: 8, z: 0 }, null)
+    expect(orders.order).toEqual({ kind: 'move' })
     step(3)
     expect(Math.hypot(hero.object.position.x - 8, hero.object.position.z)).toBeLessThan(0.6)
   })
@@ -151,21 +158,5 @@ describe('무리 밀고 지나가기', () => {
     const grunt = new Giant(GRUNT, { x: 0, z: 0 })
     expect(grunt.shove(1, 0, 9)).toBe(true)
     expect(grunt.state).toBe('stagger')
-  })
-})
-
-describe('두 번 누름', () => {
-  it('같은 자리를 0.35초 안에 다시 누르면 두 번 누름, 세 번째는 다시 첫 누름', () => {
-    const tap = new DoubleTapDetector()
-    expect(tap.press(0, 100, 100)).toBe(false)
-    expect(tap.press(0.2, 110, 104)).toBe(true)
-    expect(tap.press(0.3, 110, 104)).toBe(false)
-  })
-
-  it('너무 늦거나 멀리 누르면 두 번 누름이 아니다', () => {
-    const tap = new DoubleTapDetector()
-    tap.press(0, 100, 100)
-    expect(tap.press(0.5, 100, 100)).toBe(false)
-    expect(tap.press(0.6, 200, 100)).toBe(false)
   })
 })

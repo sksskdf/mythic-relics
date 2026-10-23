@@ -1,7 +1,6 @@
 import * as THREE from 'three'
 
 import type { Giant } from '../../enemies/Giant'
-import { DoubleTapDetector } from '../../input/doubleTap'
 import type { Input } from '../../input/Input'
 import { screenRay, screenToGround } from '../../render/picking'
 import type { PixelRenderer } from '../../render/PixelRenderer'
@@ -10,10 +9,9 @@ import type { GameContext } from '../context'
 
 /**
  * 클릭을 지시로 바꾼다. (DESIGN.md 8.2)
- * 땅 한 번 = 이동(가다가 적을 만나면 싸움), 땅 두 번 = 적을 무시하고 이동, 적 = 공격 대상 지정
+ * 땅 = 그곳까지 이동(싸우던 중이어도), 적 = 그 적을 쫓아가 자동 공격. 멈춰 서면 둘레 적을 자동 공격 (E12-08)
  */
 export class PlayerInput {
-  private readonly doubleTap = new DoubleTapDetector()
   private readonly cursor = new THREE.Vector3()
 
   constructor(
@@ -28,9 +26,7 @@ export class PlayerInput {
     const cursor = this.cursorOnGround()
     const ground = cursor ? { x: cursor.x, z: cursor.z } : null
     if (this.input.wasPressed('move')) {
-      const { pointer } = this.input
-      const double = this.doubleTap.press(performance.now() / 1000, pointer.x, pointer.y)
-      orders.press(ground, this.enemyUnderCursor(), double)
+      orders.press(ground, this.enemyUnderCursor())
     } else if (this.input.isDown('move')) orders.hold(ground)
     else orders.release()
   }
