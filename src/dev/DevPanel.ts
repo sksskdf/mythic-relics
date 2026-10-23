@@ -18,7 +18,7 @@ import './devPanel.css'
 type Tab = 'relics' | 'classes' | 'world' | 'map' | 'view'
 const TABS: readonly [Tab, string][] = [
   ['relics', '유물'],
-  ['classes', '클래스'],
+  ['classes', '신화'],
   ['world', '세계'],
   ['map', '지도'],
   ['view', '보기'],
@@ -27,7 +27,7 @@ const TAB_KEY = 'mythic-relics/dev-tab'
 
 /**
  * 개발 편의 패널. 주소에 ?dev 를 붙이거나 `pnpm dev --dev`로 실행하면 화면 오른쪽에 뜬다.
- * 탭 다섯(유물·클래스·세계·지도·보기)으로 나눠 한 번에 보이는 단추를 줄였다. 목록이 긴 것(순간이동, 적 소환)은 고르는 상자로 둔다.
+ * 탭 다섯(유물·신화·세계·지도·보기)으로 나눠 한 번에 보이는 단추를 줄였다. 목록이 긴 것(순간이동, 적 소환)은 고르는 상자로 둔다.
  * 개발 모드는 저장을 읽지도 쓰지도 않는다.
  */
 export class DevPanel {
@@ -194,7 +194,7 @@ export class DevPanel {
           const god = g.powers.manifested
           if (god) g.progress.addXp(god, 1e9)
         }),
-        button('승급', () => g.devPromote()),
+        button('단계 올리기', () => g.devPromote()),
         button('레벨 초기화', () => g.devResetClasses()),
       ),
       row(
@@ -207,7 +207,7 @@ export class DevPanel {
           for (const slot of WARDROBE_SLOTS) g.appearance.choose(slot, 'auto')
         }),
       ),
-      row(button('승급 전설 시작', () => this.startLegend())),
+      row(button('전설 시작', () => this.startLegend())),
       // 순환 성장 (E4.5)
       row(
         button('결정 +1000', () => {
@@ -408,7 +408,7 @@ export class DevPanel {
     const g = this.game
     const p = g.hero.object.position
     const god = g.powers.manifested
-    const cls = god ? `${godDef(god).titles[g.progress.level(god) - 1]} Lv${g.progress.level(god)} ${Math.round(g.progress.xpRatio(god) * 100)}%` : '발현 없음'
+    const cls = god ? `${godDef(god).titles[g.progress.level(god) - 1]} ${g.progress.level(god)}단계 ${Math.round(g.progress.xpRatio(god) * 100)}%` : '신화 개방 없음'
     return [
       `${Math.floor(g.time / 60)}:${String(Math.floor(g.time % 60)).padStart(2, '0')} · (${p.x.toFixed(0)}, ${p.z.toFixed(0)}) · ${g.view.viewHeight.toFixed(0)}m`,
       `♥${Math.round(g.combat.health.hp)}/${g.combat.health.max} ✦${Math.round(g.combat.divine * 100)}% · ${cls}`,

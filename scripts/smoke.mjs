@@ -196,7 +196,7 @@ try {
   if ((await page.evaluate(() => window.__game.cycle.training.flame)) !== 1) throw new Error('순환 탭: 불꽃 단련이 오르지 않았습니다.')
   await page.keyboard.press('Escape')
   console.log('순환 확인: 결정으로 불꽃 단련 Lv1')
-  console.log('정보 화면 확인: 상태 탭 능력치 8줄, 열면 멈춤, 가방에 넣기·다시 끼기와 미리 보기, 클래스 탭, Esc로 닫기')
+  console.log('정보 화면 확인: 상태 탭 능력치 8줄, 열면 멈춤, 가방에 넣기·다시 끼기와 미리 보기, 신화 탭, Esc로 닫기')
 
   // 일시 정지(E5): 창이 없을 때 Esc를 누르면 멈추고, 멈춘 동안 게임 시간이 흐르지 않는다.
   await page.keyboard.press('Escape')
@@ -272,7 +272,7 @@ try {
     g.hero.teleport(g.legend.center.x, g.legend.center.z)
   })
   await page.waitForFunction(() => window.__game.legend.phase === 'wave', null, { timeout: 15000 })
-  console.log('승급 전설 확인: 성소에서 시작')
+  console.log('전설 확인: 성소에서 시작')
 
   // 저장 점검: 새로 고침해도 주운 유물을 그대로 끼고 이어 한다.
   await page.evaluate(() => window.__game.saveNow())
@@ -343,11 +343,11 @@ try {
   await page.waitForFunction((n) => window.__game.region.props.length === n, beforeEdit.props, { timeout: 15000 })
   await devButton('편집').click()
   console.log('지도 편집기 확인: 편집 켜고 소품 놓기(이동 지시 없음), 되돌리기')
-  await devTab('클래스')
-  await devButton('승급 전설 시작').click()
+  await devTab('신화')
+  await devButton('전설 시작').click()
   await page.waitForFunction(() => window.__game.legend.phase === 'wave', null, { timeout: 15000 })
   await page.screenshot({ path: 'test-results/devpanel.png' }).catch(() => {})
-  console.log('개발 패널 확인: 접기·펴기, 신화권·클래스별 유물 묶음, 적 소환·제거, 충돌·길찾기 보기, 승급 전설 바로 시작')
+  console.log('개발 패널 확인: 접기·펴기, 신화권·신화별 유물 묶음, 적 소환·제거, 충돌·길찾기 보기, 전설 바로 시작')
 
   mkdirSync('test-results', { recursive: true })
   await page.screenshot({ path: 'test-results/smoke.png' })

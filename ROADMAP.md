@@ -71,7 +71,7 @@
   - [x] E11-01-4 DESIGN.md 9장(세계) → 지역 3곳·위협 단계·균열·성좌판
   - [x] E11-01-5 BALANCE.md·CLASSES.md·ENDGAME.md 용어와 없어지는 것(윤회·결정·단련) 표시
   - [x] E11-02-1 화면 글(정보 화면·HUD·카드)의 이름 바꾸기와 조사 확인
-  - [ ] E11-02-2 데이터 설명 글(`gods.json` 등)과 개발 패널 글
+  - [x] E11-02-2 데이터 설명 글(`gods.json` 등)과 개발 패널 글
   - [ ] E11-02-3 CLAUDE.md 코드 지도·용어
   - [ ] E11-03-1 지역 이동(`enterRegion`·`travelTo`·암전)을 `World` 쪽으로
   - [ ] E11-03-2 `dev*` 함수들을 `DevTools`로

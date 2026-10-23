@@ -575,7 +575,7 @@ export class GameMenu {
     row('push', '밀쳐 내기', `×${stats.knockbackDealt.toFixed(2)}`, '내 공격이 적을 미는 힘', changed(stats.knockbackDealt, true))
     row('stand', '버티기', `×${stats.knockbackTaken.toFixed(2)}`, '내가 밀려나는 정도. 낮을수록 잘 버틴다.', changed(stats.knockbackTaken, false))
     row('divine', '궁극기 충전', `${Math.round(stats.divine * 100)}%`, '궁극기 충전\n스킬로 맞히고 적을 쓰러뜨릴수록 차오른다. 가득 차면 지금 신화의 궁극기가 저절로 나간다.')
-    row('promote', '개방 단계', `+${stats.promotions}`, '개방 단계\n어느 신화든 단계가 오를 때마다 생명 +15, 모든 피해 +5%. 모든 신화에 함께 적용된다.')
+    row('promote', '올린 단계', `${stats.promotions}`, '올린 단계\n어느 신화든 개방 단계를 하나 올릴 때마다 생명 +15, 모든 피해 +5%. 모든 신화에 함께 적용된다.')
     right.append(grid)
 
     if (stats.powers.length > 0) {
@@ -820,7 +820,7 @@ export class GameMenu {
       words.append(el('b', '', x.name), el('small', '', x.gain))
       cell.append(words)
       if (value > 0) cell.append(pips(Math.min(value, 4), 4))
-      this.hintOn(cell, `${x.name}\n${x.gain} 차오르는 힘. 같은 원천의 신화가 단계를 올릴 때마다 숙련이 오르고, 그 원천의 신화를 열고 있으면 피해가 늘어난다.${value > 0 ? `\n숙련 ${value}` : ''}`)
+      this.hintOn(cell, `${x.name}\n${x.gain} 차오르는 힘. 같은 원천의 신화가 단계를 올릴 때마다 숙련이 오르고, 지금 신화가 그 원천이면 피해가 늘어난다.${value > 0 ? `\n숙련 ${value}` : ''}`)
       sigils.append(cell)
     }
     wrap.append(sigils)
