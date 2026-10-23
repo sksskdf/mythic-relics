@@ -65,6 +65,7 @@ describe('연출 색 규칙 (E9-04)', () => {
     expect(css('c-guide')).toBe(`#${VFX.guide.toString(16)}`)
     for (const [k, c] of Object.entries(REALM_COLORS)) expect(css(`c-realm-${k}`), k).toBe(`#${c.toString(16).padStart(6, '0')}`)
     for (const [k, c] of Object.entries(SOURCE_COLORS)) expect(css(`c-src-${k}`), k).toBe(c[0])
+    for (const [k, e] of Object.entries(ELITES)) expect(css(`c-elite-${k}`), k).toBe(`#${e.color.toString(16).padStart(6, '0')}`)
   })
 })
 

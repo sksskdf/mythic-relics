@@ -94,6 +94,11 @@
   --c-src-hunt: #ff7a7a;
   --c-src-wind: #9fe3ff;
   --c-src-stone: #c9c2b0;
+
+  /* 정예 몬스터 (src/enemies/elite.ts의 색과 같아야 한다, tests/art.test.ts) */
+  --c-elite-tough: #7ab8ff;
+  --c-elite-fierce: #ff3a9a;
+  --c-elite-swift: #ffd84a;
   /* 신의 색 (gods.json과 같게) */
   --c-thor: #7fd4ff;
   --c-loki: #8fe07a;

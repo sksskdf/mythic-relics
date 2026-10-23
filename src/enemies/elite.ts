@@ -8,6 +8,8 @@ export const ELITE_KINDS = ['tough', 'fierce', 'swift'] as const
 export type EliteKind = (typeof ELITE_KINDS)[number]
 
 export interface EliteDef {
+  /** 이름표에 보이는 종류 이름 (정예·사나움) */
+  name: string
   /** 발밑 고리와 몸 빛 */
   color: number
   /** 몸 크기 배율 */
@@ -20,9 +22,9 @@ export interface EliteDef {
 }
 
 export const ELITES: Readonly<Record<EliteKind, EliteDef>> = {
-  tough: { color: 0x7ab8ff, size: 1.3, hp: 2.5, damage: 1.1, speed: 0.9, cooldown: 1 },
-  fierce: { color: 0xff3a9a, size: 1.2, hp: 2, damage: 1.5, speed: 1, cooldown: 0.9 },
-  swift: { color: 0xffd84a, size: 1.15, hp: 2, damage: 1.15, speed: 1.4, cooldown: 0.65 },
+  tough: { name: '단단함', color: 0x7ab8ff, size: 1.3, hp: 2.5, damage: 1.1, speed: 0.9, cooldown: 1 },
+  fierce: { name: '사나움', color: 0xff3a9a, size: 1.2, hp: 2, damage: 1.5, speed: 1, cooldown: 0.9 },
+  swift: { name: '날램', color: 0xffd84a, size: 1.15, hp: 2, damage: 1.15, speed: 1.4, cooldown: 0.65 },
 }
 
 /** 정예 보상: 경험치 배율, 유물 굴리기 횟수 */
