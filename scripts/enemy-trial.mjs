@@ -55,7 +55,7 @@ try {
         const g = window.__game
         const bot = window.__autoplay
         g.encounter.clearAll()
-        if (!g.combat.alive) g.devRevive()
+        if (!g.combat.alive) g.dev.revive()
         g.combat.health.reset()
         g.hero.teleport(6, 4)
         const from = g.log.length

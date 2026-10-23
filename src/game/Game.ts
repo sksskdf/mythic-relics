@@ -55,6 +55,7 @@ import { ProgressionSystem } from './systems/Progression'
 import { SoundSystem } from './systems/Sound'
 import { RelicSystem } from './systems/Relics'
 import { World } from './World'
+import { DevTools } from '../dev/DevTools'
 
 export interface GameOptions {
   /** 처음부터 끼고 시작할 유물 (점검용) */
@@ -120,6 +121,8 @@ export class Game {
   timeScale = 1
   /** 지역과 지역 사이: 들어가기, 출구로 넘어가기 */
   readonly world: World
+  /** 개발 패널·봇·점검 스크립트의 지름길 */
+  readonly dev: DevTools
   /** 마을 사람 (E7-04) */
   readonly villagers: Villagers
   /** 작은 지도 (E7-08) */
@@ -374,6 +377,17 @@ export class Game {
     this.life = new HeroLife(this.ctx)
     this.persistence = new Persistence(this.ctx, options.autosave ?? false)
     this.playerInput = new PlayerInput(this.ctx, this.input, this.pixel, container)
+    this.dev = new DevTools({
+      bus: this.bus,
+      relics: this.relics,
+      powers: this.powers,
+      progress: this.progress,
+      growth: this.growth,
+      life: this.life,
+      hero: this.hero,
+      orders: this.orders,
+      view: this.view,
+    })
     this.audio = new AudioEngine(this.settings.volume)
     this.sound = new SoundSystem(this.ctx, this.audio)
     this.applySettings(this.settings)
@@ -833,59 +847,6 @@ export class Game {
       },
       realDt,
     )
-  }
-
-  // ── 개발 패널용 ──────────────────────────────────────────
-
-  /** 유물을 끼운다. 발현 연출도 그대로 나온다. */
-  devEquip(id: RelicId): void {
-    if (this.powers.loadout.has(id) || !this.powers.hasFreeSlot) return
-    this.relics.equip(id, true)
-    this.bus.emit('progressChanged', {})
-  }
-
-  /** 유물 하나를 뺀다. (땅에 내려놓지 않고 없앤다) */
-  devUnequip(id: RelicId): void {
-    const slot = this.powers.loadout.slots.indexOf(id)
-    if (slot >= 0) this.relics.unequip(slot, false)
-  }
-
-  /** 가방의 유물을 칸에 끼운다. (봇이 발현 조합으로 바꿔 낄 때) */
-  devWield(id: RelicId, slot: number): void {
-    this.relics.wield(id, slot)
-  }
-
-  /** 칸의 유물을 가방에 넣는다. (봇이 한 신만 쓸 때) */
-  devStow(slot: number): void {
-    this.relics.stow(slot)
-  }
-
-  /** 유물을 모두 뺀다. (땅에 내려놓지 않고 없앤다) */
-  devUnequipAll(): void {
-    this.powers.loadout.slots.forEach((id, slot) => id && this.relics.unequip(slot, false))
-  }
-
-  /** 발현한 클래스의 경험치를 채우고 바로 승급한다. */
-  devPromote(): void {
-    const god = this.powers.manifested
-    if (!god) return
-    this.progress.addXp(god, 1e9)
-    this.growth.promote(god)
-  }
-
-  /** 클래스 성장(레벨·경험치)을 처음으로 되돌린다. */
-  devResetClasses(): void {
-    this.growth.reset()
-  }
-
-  devTeleport(x: number, z: number): void {
-    this.orders.clear()
-    this.hero.teleport(x, z)
-    this.view.jumpTo(this.hero.object.position)
-  }
-
-  devRevive(): void {
-    this.life.revive()
   }
 
   // ── 화면 ──────────────────────────────────────────

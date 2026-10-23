@@ -108,7 +108,7 @@ try {
     const g = window.__game
     g.encounter.clearAll()
     // 나무에 가리지 않는 트인 곳에서 찍는다.
-    g.devTeleport(2, -3)
+    g.dev.teleport(2, -3)
     g.hero.face(0.6)
   })
   if ((await page.evaluate(() => window.__game.hero.rig.outfit.head)) !== 'adventurerHood') throw new Error('외형: 기본 모습이 모험가가 아닙니다.')
@@ -148,11 +148,11 @@ try {
   await page.waitForFunction(() => window.__game.powers.loadout.has('megingjord'), null, { timeout: 15000 })
   if ((await page.evaluate(() => window.__game.hero.rig.outfit.waist)) !== 'megingjordBelt') throw new Error('외형: 줍자마자 허리띠가 보이지 않습니다.')
   await lookShot('2-one-relic')
-  await page.evaluate(() => window.__game.devEquip('jarngreipr'))
+  await page.evaluate(() => window.__game.dev.equip('jarngreipr'))
   await lookShot('3-two-relics')
   const manifested = await page.evaluate(() => {
     const g = window.__game
-    g.devEquip('mjolnir')
+    g.dev.equip('mjolnir')
     return g.powers.manifested
   })
   if (manifested !== 'thor') throw new Error(`발현 실패: ${manifested}`)
@@ -228,15 +228,15 @@ try {
     const g = window.__game
     g.encounter.clearAll()
     const elder = g.region.npcs[0]
-    g.devTeleport(elder.x + 1.5, elder.z + 1.5)
+    g.dev.teleport(elder.x + 1.5, elder.z + 1.5)
   })
   await page.waitForFunction(() => window.__game.villagers.talking.length > 0, null, { timeout: 15000 })
   const bubble = await page.locator('.npc-bubble:not([hidden])').first().textContent()
   if (!bubble) throw new Error('지역: 마을 사람 말풍선이 비었습니다.')
   if (!(await page.locator('.minimap').isVisible())) throw new Error('지역: 작은 지도가 보이지 않습니다.')
-  await page.evaluate(() => window.__game.devTeleport(0, -16))
+  await page.evaluate(() => window.__game.dev.teleport(0, -16))
   await page.waitForTimeout(300)
-  await page.evaluate(() => window.__game.devTeleport(0, -22))
+  await page.evaluate(() => window.__game.dev.teleport(0, -22))
   await page.waitForFunction(() => window.__game.region.id === 'midgard', null, { timeout: 15000 })
   const arrived = await page.evaluate(() => ({ ...window.__game.hero.object.position }))
   if (Math.hypot(arrived.x, arrived.z - 32) > 2) throw new Error(`지역: 미드가르드의 마을 쪽 출구 앞에 서야 합니다 ${JSON.stringify(arrived)}`)

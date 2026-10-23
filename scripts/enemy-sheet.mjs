@@ -57,7 +57,7 @@ try {
           const g = window.__game
           // 정보 화면을 열어 게임을 멈춘 채로 세운다 (적이 다가오거나 주인공이 치지 않게, 그림만 그린다)
           if (!g.menu.open) {
-            g.devTeleport(30, 30)
+            g.dev.teleport(30, 30)
             g.hero.object.visible = false
             g.menu.toggle(true)
           }

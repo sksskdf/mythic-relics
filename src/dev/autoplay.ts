@@ -115,14 +115,14 @@ export class Autoplayer {
 
     // 3. 떨어진 유물을 줍는다. 한 신만 쓰는 봇은 다른 신 유물을 가방에 넣는다.
     if (this.god) {
-      powers.loadout.slots.forEach((id, slot) => id && relicDef(id).god !== this.god && this.game.devStow(slot))
+      powers.loadout.slots.forEach((id, slot) => id && relicDef(id).god !== this.god && this.game.dev.stow(slot))
     }
     // 가방까지 합쳐 발현할 수 있으면 사람이 유물 화면에서 하듯 바꿔 낀다
     const ready = powers.loadout.manifestable()
     if (ready && (!this.god || ready === this.god)) {
       for (const id of powers.loadout.bag.filter((b) => relicDef(b).god === ready)) {
         const slot = powers.loadout.slots.findIndex((s) => s === null || relicDef(s).god !== ready)
-        if (slot >= 0) this.game.devWield(id, slot)
+        if (slot >= 0) this.game.dev.wield(id, slot)
       }
     }
     // 칸이 차 있어도 줍는다 (가방에 들어가고, 모이면 바꿔 낀다)
