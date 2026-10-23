@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { Loadout, resolveLoadout } from '../src/relics/Loadout'
+import { Loadout } from '../src/gear/Loadout'
+import { resolveLoadout } from '../src/myth/manifest'
 
 describe('발현과 가호', () => {
   it('유물이 없으면 아무것도 없다', () => {

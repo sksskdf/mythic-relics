@@ -3,9 +3,9 @@ import * as THREE from 'three'
 import { EFFECT_LAYER } from '../render/PixelRenderer'
 import { voxelMesh } from '../voxel/mesher'
 import { RELIC_VOXEL } from '../voxel/models/relics'
-import { relicGrid } from './model'
+import { relicGrid } from '../relics/model'
 import { heightAt } from '../world/terrain'
-import { godDef, relicDef, type RelicId } from './data'
+import { godDef, relicDef, type RelicId } from '../relics/data'
 
 /** 주울 수 있는 거리 (m) */
 const PICK_RADIUS = 1.1

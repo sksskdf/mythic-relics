@@ -74,7 +74,7 @@ describe('게임 데이터', () => {
       ['없는 모델', (d) => (d.relics.mjolnir.model = 'axe'), /없는 모델/],
       ['없는 외형', (d) => (d.relics.mjolnir.look = 'axe'), /mjolnir\.look: 없는 외형/],
       ['발현 외형이 다른 칸의 것', (d) => (d.gods.thor.looks.head = 'thorCape'), /thor\.looks\.head: head 칸의 외형이 아닙니다/],
-      ['칭호가 넷이 아님', (d) => d.gods.thor.titles.pop(), /thor\.titles: Lv1~Lv4/],
+      ['칭호가 넷이 아님', (d) => d.gods.thor.titles.pop(), /thor\.titles: 1~4단계 칭호/],
       ['색 형식', (d) => (d.gods.loki.color = 'green'), /loki\.color: #rrggbb/],
       ['서로 이어받는 적', (d) => (d.enemies.king.extends = 'utgardKing'), /서로를 이어받고/],
       ['없는 유물 확정 드랍', (d) => (d.enemies.king.fixedDrop = 'excalibur'), /fixedDrop: relics\.json에 없는 유물/],
@@ -85,7 +85,7 @@ describe('게임 데이터', () => {
       ['같은 신의 유물이 같은 부위', (d) => (d.relics.megingjord.look = 'ironGauntlets'), /jarngreipr\.look: 같은 신의 유물 "megingjord"와 부위\(arms\)가 겹칩니다/],
       ['발현 외형이 유물 부위를 덮음', (d) => (d.gods.thor.looks.weapon = 'shortSword'), /thor\.looks\.weapon: .*유물 "mjolnir"가 차지한 부위/],
       ['표식이 없는 신', (d) => delete d.gods.loki.mark, /loki\.mark: 없는 외형/],
-      ['유물이 모자란 히든 클래스', (d) => delete d.relics.ohabari, /asura\.manifestCount: 히든 클래스인데 유물이 3개뿐/],
+      ['유물이 모자란 히든 신화', (d) => delete d.relics.ohabari, /asura\.manifestCount: 히든 신화인데 유물이 3개뿐/],
       ['힌트가 빠진 클래스', (d) => delete d.classes.hidden[0].hint, /hidden\[0\]\.hint: 비어 있지 않은 글자/],
       ['범위를 벗어난 값', (d) => (d.enemies.grunt.attacks[0].area.halfAngleDeg = 400), /halfAngleDeg: 180 이하/],
     ]

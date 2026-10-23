@@ -1,6 +1,8 @@
 # 프로젝트 안내 (Claude용)
 
-신화 유물을 모아 장착하면 그 신의 힘이 클래스로 발현되는 쿼터뷰 핵앤슬래시 액션 RPG. 지금은 프로토타입을 끝내고 단계 2(게임다운 빌드로 키우기)에 들어가는 시점이다.
+신화 몬스터를 사냥해 장비와 유물을 모으고, 신화를 개방해 그 신의 힘을 쌓아 가는 쿼터뷰 핵앤슬래시 액션 RPG. 1차 스프린트(E1~E9)를 끝내고 2차 스프린트(E11~E18: 신화 개방·장비·위협 단계·균열)를 진행 중이다.
+
+**용어 (2차 스프린트):** 클래스 → 신화, 발현 → 신화 개방, 클래스 레벨 → 개방 단계, 승급 전설 → 전설, 유물 칸 → 장비 칸. 화면 글·문서는 새 이름을 쓰고, 코드 이름(`class`, `manifested`, `Loadout`, `promote`)은 E11-05·E12~E13에서 `myth/`·`gear/`로 옮기며 바꾼다. 자세한 것은 `docs/knowledge/glossary.md`.
 
 ## 대화 규칙
 
@@ -19,10 +21,10 @@
 | 문서 | 내용 |
 | --- | --- |
 | `ROADMAP.md` | 로드맵: 지금 할 일만 (2차 스프린트 E11~E18, 끝난 기록은 git). 마일스톤 → 이슈(`E11-01`) → 작업 단위(`E11-01-1`). **0.2 "지금 할 일"과 2장 마일스톤이 현재 작업 기준** |
-| `REDESIGN.md` | 2차 스프린트 기획 개편안 (신화 개방·장비·유물 제작·원천 각성·위협 단계·시련·균열·성좌판·세계·대화 장면, Revolution Idle 검토). E11에서 `DESIGN.md`로 옮긴다 |
-| `DESIGN.md` | 기획 전체 (핵심 원칙, 조작, 성장, 엔드게임 구조) |
-| `CLASSES.md` | 신화권 10개, 클래스 40개, 상위·히든 클래스, 칭호 |
-| `ENDGAME.md` | 전설 목록, 종말 보스, 권능, 공명, 변형 |
+| `REDESIGN.md` | 2차 스프린트 기획 개편안의 논의 기록 (선택지·사용자 의견·Revolution Idle 조사). 내용은 E11에서 `DESIGN.md`로 옮겼다 |
+| `DESIGN.md` | 기획 전체 v2.0 (핵심 원칙, 조작, 신화 개방·장비·유물 제작, 원천 각성, 위협 단계·시련·균열·성좌판, 대화 장면). 장마다 "지금 게임" 칸은 1차 스프린트 구현 |
+| `CLASSES.md` | 신화권 10개, 신화(옛 클래스) 40개, 상위·히든 신화, 칭호 |
+| `ENDGAME.md` | 전설 목록, 종말 보스, 권능 (연대기·두루마리는 2차 스프린트에서 없앰) |
 | `PROTOTYPE.md` | 프로토타입(M0~M6) 계획과 구현 기록 |
 | `PLAYTEST.md` | 자동 플레이 검증 결과, 사람이 해 본 의견과 조치 |
 | `BALANCE.md` | 전투·성장 사양서 (피해 공식, 유물·적 수치, 경험치 곡선, 드랍) |
@@ -49,7 +51,7 @@
 - `npm run build && node scripts/class-sheet.mjs [파일.png] [신 id,...]`: 모든 클래스를 자기 유물로 발현시킨 Lv1·Lv4 모습 모음. 클래스·외형을 바꾸면 찍어 본다.
 - `npm run build && node scripts/shot.mjs <파일.png> "<주소 뒤 값>" "<게임 안 코드>" [프레임]`: 원하는 상태의 스크린숏. 화면이 바뀌는 작업은 스크린숏을 직접 보고 확인한다.
 - 지도는 개발 패널 「지도」 탭에서 고친다: 편집을 켜고 땅을 누르면 고른 도구가 동작하고, 「저장」은 개발 서버(`pnpm dev`)가 `src/data/regions.json`에 쓴다 (`vite.config.ts`의 saveRegions).
-- 개발 모드: `pnpm dev --dev`(또는 `pnpm dev:tools`), 브라우저는 `?dev`. 오른쪽 개발 패널(`src/dev/DevPanel.ts`)에서 유물·클래스·이동·적·전설·시간을 바꾼다. 새 시스템을 만들면 패널에도 시험 단추를 더한다.
+- 개발 모드: `pnpm dev --dev`(또는 `pnpm dev:tools`), 브라우저는 `?dev`. 오른쪽 개발 패널(`src/dev/DevPanel.ts`)에서 유물·신화·이동·적·전설·시간을 바꾼다. 새 시스템을 만들면 패널에도 시험 단추를 더한다.
 - 점검용 주소: `?relics=all` / `?relics=mjolnir,megingjord` (유물 끼고 시작, 저장 안 함), `?fresh` (저장 지우고 시작), `?region=olympus` (그 지역에서 시작, 새로 시작하면 마을), `?quality=low` (화질, 저장 안 함), `?view=` (시야 높이), `?autoplay` (봇).
 - 이 환경의 브라우저는 소프트웨어 렌더링이라 초당 몇 프레임밖에 안 나온다. 실제 속도의 느낌은 사용자에게 확인을 부탁한다.
 - 브라우저 실행 경로: `/opt/pw-browsers/chromium-1194/chrome-linux/chrome` (swiftshader 옵션은 스크립트에 있음).
@@ -59,22 +61,25 @@
 | 폴더 | 내용 |
 | --- | --- |
 | `src/data/` | **게임 데이터**: `relics.json`(유물), `gods.json`(신·클래스), `enemies.json`(적), `classes.json`(클래스 트리, `CLASSES.md`와 같아야 함), `schema.ts`(형식과 검사), `classKit.ts`(클래스 부품: 패시브·궁극기·전설 종류), `regions.json`·`regions.ts`(지역: 시작점·성소·무리·보스·출구·소품, 검사와 저장 모양). 숫자는 여기서 고친다 |
-| `src/game/` | `Game.ts`(조립, 메인 루프, 지역 들어가기 `enterRegion`·출구 이동 `travelTo`), `Villagers`(마을 사람과 말풍선), `events.ts`(이벤트 버스), `context.ts`(시스템 공용 상태), `Stage`(빛·맵), `HeroController`(이동), `HeroOrders`(클릭 → 지시), `PlayerCombat`(자동 공격), `Encounter`(적 무리·보스), `Legend`(승급 전설), `RelicPowers`(장착한 유물 효과) |
+| `src/game/` | `Game.ts`(조립과 메인 루프), `World`(지역 들어가기 `enter`·출구 이동 `travelTo`·암전, Game에도 같은 이름의 위임이 있음), `TitleBackdrop`(시작 화면 뒤 장면), `Villagers`(마을 사람과 말풍선), `events.ts`(이벤트 버스), `context.ts`(시스템 공용 상태), `Stage`(빛·맵), `HeroController`(이동), `HeroOrders`(클릭 → 지시), `PlayerCombat`(자동 공격), `Encounter`(적 무리·보스), `Legend`(승급 전설), `RelicPowers`(장착한 유물 효과) |
 | `src/game/systems/` | 규칙: `Damage`(피해), `Relics`(줍기·장착·발현), `Progression`(경험치·드랍·승급), `HeroLife`(쓰러짐·부활), `Persistence`(저장), `PlayerInput`(클릭), `Effects`(연출), `Sound`(소리), `CycleSystem`(원천 결정·단련·윤회·종말 보스). 시스템끼리는 버스로만 주고받는다 |
 | `src/enemies/` | 적 AI(`Giant.ts`: 상태, 공격 예고, 돌진·던지기·막기·부르기·거리 유지·둘러싸기), 날아가는 것(`Projectile.ts`), 정예(`elite.ts`), 모델 생성기(`enemyModel.ts`: 몸 종류 여섯, 거인은 `giantModel.ts`) |
 | `src/skills/` | 유물 효과(`index.ts`: 데이터 → 효과), 행동·오라 종류(`actions.ts`), 궁극기 |
 | `src/looks/` | 외형: 칸과 외형 목록(`catalog.ts`, 1차 클래스는 `classLooks.ts`), 장착 → 모습·보관함(`outfit.ts`). 모델은 `src/voxel/models/looks.ts`(손으로 찍은 것)·`classLooks.ts`(생성기 `gen.ts`로 만든 것), 적용은 `systems/Appearance.ts` |
-| `src/relics/` | 유물·신 데이터, 장착(발현·가호 판정), 드랍 규칙, 땅의 유물 |
-| `src/progress/` | 클래스 레벨·경험치·원천 숙련, 단계별로 얻는 것(`levelGains`), 순환 성장(`Cycle`: 결정·단련·윤회·별자리·태초의 법) |
+| `src/relics/` | 유물·신 데이터(`data.ts`), 유물 모델·아이콘, 커서 아래 유물 고르기 |
+| `src/gear/` | 장비(E11-05): 칸과 가방(`Loadout`), 땅에 떨어진 것(`Pickups`), 드랍 규칙(`DropTable`). E13에서 일반 장비·유물 제작이 여기 들어온다 |
+| `src/myth/` | 신화(E11-05): 신화 판정(`manifest.ts`, 지금은 유물 수로 발현·가호), 개방 단계·경험치·원천 숙련(`ClassProgress`), 단계별로 얻는 것(`levelGains`). E12에서 영구 개방·상시·추가 효과가 여기 들어온다 |
+| `src/build/` | 빌드 상태(E11-04): 열린 신화·고른 신화·장비·원천 → 피해 배율·지속 효과·공격 리듬(`BuildState.ts`의 `computeBuild`, 게임 안에서는 `ctx.build`) |
+| `src/progress/` | 순환 성장(`Cycle`: 결정·단련·윤회·별자리·태초의 법, E14에서 걷어냄) |
 | `src/save/` | 저장 형식과 검사 |
 | `src/render/` | 픽셀 렌더러, 쿼터뷰 카메라, 화면 ↔ 월드 좌표, 실루엣 |
 | `src/world/` | 지역 맵(`regionMap.ts`: 지역 데이터 → 땅·길·소품·테두리 숲·출구 문, 다시 짓기), 지형 테마(`themes.ts`: 땅·물·빛·날림·소품 색 바꾸기), 땅 높이·연못(`terrain.ts`), 길찾기(`navGrid.ts`), 흩뿌리기(`layout.ts`). 그 땅의 소품 모델은 `src/voxel/models/landmarks.ts` |
 | `src/voxel/` | 복셀 격자, 메시 생성, 모델(`models/`) |
 | `src/audio/` | 소리(E5): 믹서·동시 재생 제한·거리 감쇠(`AudioEngine`, `limits`), 코드로 합성한 효과음(`sounds.ts`), 신화권별 합성 곡(`music.ts`, 방향은 `ART.md` 8장). 게임 사건 → 소리는 `systems/Sound.ts` |
 | `src/art/` | 팔레트(`palette.ts`): 연출 언어 색(위험·회복·안내), 신화권·원천·하늘 공격 색, 위험색 규칙 `readsAsDanger` |
-| `src/fx/`, `src/ui/` | 연출, 디자인 시스템(`theme.css`, `fonts/`), HUD·시작 화면·피해 숫자, 작은 지도(`Minimap`), 정보 화면(`GameMenu`: 상태·순환·유물·클래스·외형 탭, `WardrobePane`·`HeroPreview`), 유물 설명 카드(`relicCard`, `RelicTooltip`), 일시 정지·설정(`PauseMenu`), 조사 붙이기(`josa`) |
+| `src/fx/`, `src/ui/` | 연출, 디자인 시스템(`theme.css`, `fonts/`), HUD·시작 화면·피해 숫자, 작은 지도(`Minimap`), 정보 화면(`GameMenu`: 상태·순환·유물·신화·외형 탭, `WardrobePane`·`HeroPreview`), 유물 설명 카드(`relicCard`, `RelicTooltip`), 일시 정지·설정(`PauseMenu`), 조사 붙이기(`josa`) |
 | `tools/claude-mods/roadmap/` | 로드맵 패널 모드의 원본 (컨테이너가 바뀌면 다시 올림, 그 폴더 README) |
-| `src/dev/` | 검증용 봇(`autoplay.ts`), 개발 패널(`DevPanel.ts`), 충돌·길찾기 보기(`DebugOverlay.ts`), 지도 편집기(`RegionEditor.ts`, 편집 동작은 `regionEdit.ts`) |
+| `src/dev/` | 검증용 봇(`autoplay.ts`), 개발 패널(`DevPanel.ts`), 개발 지름길(`DevTools.ts`: `game.dev.equip('mjolnir')`·`dev.teleport`·`dev.promote` 등, 점검 스크립트도 이것을 쓴다), 충돌·길찾기 보기(`DebugOverlay.ts`), 지도 편집기(`RegionEditor.ts`, 편집 동작은 `regionEdit.ts`) |
 
 ## 작업 방식
 

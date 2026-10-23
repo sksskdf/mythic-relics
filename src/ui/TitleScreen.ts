@@ -79,7 +79,7 @@ export class TitleScreen {
         portrait.append(img)
         const words = this.el('span', 'title-slot__words', card)
         this.el('span', 'title-slot__title', words).textContent = info.title
-        this.el('span', 'title-slot__meta', words).textContent = `${info.className} Lv${info.level} · 유물 ${info.relics}개`
+        this.el('span', 'title-slot__meta', words).textContent = `${info.className} ${info.level}단계 · 유물 ${info.relics}개`
         card.addEventListener('click', () => handlers.onContinue(i))
         // 지우기: 한 번 더 눌러야 지워진다
         const del = this.el('span', 'title-slot__delete', card)

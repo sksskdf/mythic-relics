@@ -75,7 +75,7 @@ export function levelGains(god: God, level: number): LevelGain[] {
     out.push({ kind: 'hp', text: `최대 생명 +${PER_PROMOTION.maxHp}` })
     out.push({ kind: 'damage', text: `모든 피해 +${Math.round(PER_PROMOTION.damage * 100)}%` })
     const source = DATA.classes.sources.find((x) => x.id === def.source)
-    if (source) out.push({ kind: 'mastery', text: `${source.name} 숙련 +1 (${source.name} 신으로 발현 중 피해 +${Math.round(MASTERY_DAMAGE * 100)}%)` })
+    if (source) out.push({ kind: 'mastery', text: `${source.name} 숙련 +1 (${source.name} 원천 신화일 때 피해 +${Math.round(MASTERY_DAMAGE * 100)}%)` })
   }
   if (level > 1 && passive.bladeStorm?.perLevel) {
     const b = passive.bladeStorm

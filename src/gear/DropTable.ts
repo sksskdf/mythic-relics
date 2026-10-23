@@ -1,7 +1,7 @@
 import { DATA } from '../data'
 import type { Realm } from '../data/schema'
-import { type God, godDef, RELIC_IDS, relicDef, type RelicId } from './data'
-import { relicGods } from './model'
+import { type God, godDef, RELIC_IDS, relicDef, type RelicId } from '../relics/data'
+import { relicGods } from '../relics/model'
 
 /** 보스마다 반드시 떨어뜨리는 유물 (DESIGN.md 9.3). 적 데이터의 fixedDrop에서 모은다. */
 export const BOSS_RELICS: Readonly<Record<string, RelicId>> = Object.fromEntries(

@@ -1,7 +1,7 @@
 import type { Giant } from '../../enemies/Giant'
 import { ELITE_REWARD } from '../../enemies/elite'
-import { PER_PROMOTION } from '../../progress/ClassProgress'
-import { levelGains } from '../../progress/levelGains'
+import { PER_PROMOTION } from '../../myth/ClassProgress'
+import { levelGains } from '../../myth/levelGains'
 import { classIcon } from '../../ui/classIcons'
 import { realmSigil } from '../../ui/sigils'
 import { realmInk } from '../../art/palette'
@@ -29,8 +29,8 @@ export class ProgressionSystem {
 
   /** 지금 이 지역 성소에서 열 수 있는 승급 전설 (없으면 null) */
   readyKind(): LegendKind | null {
-    const { powers, progress } = this.ctx
-    const god = powers.manifested
+    const { build, progress } = this.ctx
+    const god = build.chosen
     const legend = god ? godDef(god).legend : undefined
     if (!god || !legend || !progress.readyToPromote(god)) return null
     // 지역 성소는 그 신화권 클래스의 전설만 연다 (E7-07)
@@ -46,10 +46,10 @@ export class ProgressionSystem {
 
   /** 승급 전설: 성소에 들어서면 시작하고, 이기면 승급한다. */
   update(dt: number): void {
-    const { legend, encounter, powers, combat, hero, hud, view, bus } = this.ctx
+    const { legend, encounter, build, combat, hero, hud, view, bus } = this.ctx
     legend.update(dt, encounter, {
       ready: () => {
-        const god = powers.manifested
+        const god = build.chosen
         const kind = this.readyKind()
         if (god && kind) this.challenger = god
         return kind
@@ -63,7 +63,7 @@ export class ProgressionSystem {
         bus.emit('legendStarted', {})
         const def = godDef(this.challenger!)
         const ink = realmInk(def.realm)
-        hud.showTitleCard(def.legend!.name, def.color, realmSigil(def.realm, ink.light, ink.dark), '승급 전설')
+        hud.showTitleCard(def.legend!.name, def.color, realmSigil(def.realm, ink.light, ink.dark), '전설')
         view.shake(0.3)
       },
       onWin: () => this.challenger && this.promote(this.challenger),
@@ -73,8 +73,8 @@ export class ProgressionSystem {
 
   /** 경험치와 유물 드랍. 경험치는 발현한 클래스에만 쌓인다. (DESIGN.md 5.2) */
   private onGiantKilled(giant: Giant): void {
-    const { powers, progress, combat, drops, pickups, bus } = this.ctx
-    const manifested = powers.manifested
+    const { build, powers, progress, combat, drops, pickups, bus } = this.ctx
+    const manifested = build.chosen
     if (manifested) progress.addXp(manifested, giant.spec.xp * (giant.elite ? ELITE_REWARD.xp : 1))
     // 적을 쓰러뜨리면 생명력을 조금 되찾는다. 몰려오는 무리를 쓸어 내며 버틸 수 있게 한다.
     if (combat.alive) combat.health.heal(giant.spec.boss ? HEAL_PER_BOSS : HEAL_PER_KILL)
@@ -114,7 +114,7 @@ export class ProgressionSystem {
       `모든 피해 ×${dmgBefore.toFixed(2)} → ×${dmgAfter.toFixed(2)}`,
       ...levelGains(god, level).filter((g) => g.kind !== 'hp' && g.kind !== 'damage').map((g) => g.text),
     ]
-    hud.showGains(`승급 · Lv${level}`, progress.title(god), godDef(god).color, classIcon(godDef(god).name), lines)
+    hud.showGains(`개방 단계 · ${level}단계`, progress.title(god), godDef(god).color, classIcon(godDef(god).name), lines)
     // 신마다 다른 승급 순간: 레벨이 오를수록 크고 많다
     godMoment(this.ctx, god, level)
     fx.puffs.burst(p, 40, 5)

@@ -1,8 +1,7 @@
 import type { ChargeDef, RelicDef } from '../data/schema'
 import { lookDef, SLOT_NAMES } from '../looks/catalog'
 import { type God, godDef, RELIC_IDS, relicDef, type RelicId } from '../relics/data'
-import type { LoadoutState } from '../relics/Loadout'
-import { josa } from './josa'
+import type { LoadoutState } from '../myth/manifest'
 import { relicIconRows } from '../relics/model'
 import { pixelIcon } from './pixelIcon'
 
@@ -98,7 +97,7 @@ function withNumbers(parent: HTMLElement, text: string): HTMLElement {
 }
 
 function stateLine(state: LoadoutState): string {
-  return state.manifested ? `${josa(godDef(state.manifested).title, '으로')} 발현` : '발현 없음'
+  return state.manifested ? `${godDef(state.manifested).name}의 신화 개방` : '신화 개방 없음'
 }
 
 /**
@@ -162,7 +161,7 @@ export function relicCard(def: RelicDef, ctx?: RelicCardContext): HTMLElement {
   for (const bonus of def.trigger.bonus) {
     const active = ctx !== undefined && ctx.manifested === bonus.manifested && ctx.level >= bonus.minLevel
     const who = godDef(bonus.manifested)
-    const when = bonus.minLevel > 1 ? `${who.titles[bonus.minLevel - 1]}(Lv${bonus.minLevel}) 이상` : `${who.title} 발현 중`
+    const when = bonus.minLevel > 1 ? `${who.titles[bonus.minLevel - 1]}(${bonus.minLevel}단계) 이상` : `${who.name}의 신화 개방 중`
     const what: string[] = []
     if (bonus.damageScale !== 1) what.push(`피해 ×${bonus.damageScale}`)
     if (bonus.lightning !== undefined) what.push(bonus.lightning > 0 ? `번개 +${bonus.lightning}` : '번개 연출')
@@ -181,8 +180,8 @@ export function relicCard(def: RelicDef, ctx?: RelicCardContext): HTMLElement {
         'div',
         'rc__label',
         wearing >= need
-          ? `${god.name}의 유물 ${wearing}/${need} · ${god.title} 발현 중`
-          : `${god.name}의 유물 ${wearing}/${need} · ${need}개를 끼면 ${josa(god.title, '으로')} 발현`,
+          ? `${god.name}의 유물 ${wearing}/${need} · ${god.name}의 신화 개방 중`
+          : `${god.name}의 유물 ${wearing}/${need} · ${need}개를 끼면 ${god.name}의 신화가 열린다`,
       ),
     )
     const list = el('ul', 'rc__set-list')
@@ -200,7 +199,7 @@ export function relicCard(def: RelicDef, ctx?: RelicCardContext): HTMLElement {
     const box = el('div', 'rc__preview')
     const changed = before.manifested !== after.manifested
     box.append(el('span', 'rc__label', ctx.place?.kind === 'slot' ? '빼면' : '끼우면'))
-    box.append(el('span', changed ? (after.manifested ? 'rc__good' : 'rc__warn') : '', changed ? stateLine(after) : '발현은 그대로'))
+    box.append(el('span', changed ? (after.manifested ? 'rc__good' : 'rc__warn') : '', changed ? stateLine(after) : '신화는 그대로'))
     if (changed && before.manifested && !after.manifested) box.append(el('span', 'rc__warn', ` (${godDef(before.manifested).title} 풀림)`))
     card.append(box)
   }

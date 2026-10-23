@@ -14,15 +14,17 @@
 - **개발 도구도 같이:** 새 시스템을 만들면 개발 패널(`src/dev/DevPanel.ts`)에 시험 단추를 더하고, 봇(`src/dev/autoplay.ts`)이 그 시스템을 쓰게 한다.
 - **저장은 옮기기 테스트로:** 지금 v3 (`src/save/SaveData.ts`, v1·v2도 읽음). 형식을 바꾸면 옛 판을 옮기는 함수와 테스트를 함께 만든다.
 
-## E11에서 바꿀 곳 (`REDESIGN.md` 8장)
+## E11에서 바꾼 곳 (끝)
 
-| 곳 | 지금 | 바꾼 뒤 |
-| --- | --- | --- |
-| `src/game/Game.ts` | 957줄. 조립·루프·지역 이동(`enterRegion`·`travelTo`)·개발용 `dev*` 함수·시작 화면 키 아트가 한곳에 | 조립만 남김. 지역 이동 → `World` 쪽, `dev*` → `DevTools`, 키 아트 장면은 따로 |
-| 유물 ↔ 클래스 | 유물 칸(`Loadout`)이 발현 판정까지 함. `manifested`·`loadout`을 직접 보는 파일 22개 | `gear/`(장비·유물·제작)와 `myth/`(개방·상시·추가 효과)로 나누고, 힘은 **빌드 상태** 하나에서 계산 (열린 신화 + 고른 신화 + 장비 + 원천 수치 → 능력치·효과 목록) |
-| `RelicPowers`·`Damage` | 장착 유물을 직접 읽음 | 빌드 상태에서 값을 읽음. 같은 장착이면 지금과 같은 능력치가 나오는지 테스트 |
+| 곳 | 바꾼 뒤 |
+| --- | --- |
+| `src/game/Game.ts` | 957줄 → 870줄 안팎. 지역 이동은 `World`, 개발 지름길은 `src/dev/DevTools.ts`(`game.dev.*`), 시작 화면 뒤 장면은 `TitleBackdrop`. Game에는 `enterRegion`·`travelTo`·`regions`·`exitsLocked` 위임만 남김 |
+| 빌드 상태 | `src/build/BuildState.ts`의 `computeBuild(inputs)`: 열린 신화·고른 신화·장비·원천·순환 배율 → 피해 배율·지속 효과·받는 피해·이동 속도·공격 리듬. 게임 안에서는 `ctx.build`(`Build`, 부를 때마다 계산, `chosen`·`level`은 가볍게). `tests/build.test.ts`가 1차 공식과 같은 값인지 지킨다 |
+| `src/gear/` | `Loadout`(칸 4·가방), `Pickups`, `DropTable`. E13에서 일반 장비·제작이 들어올 자리 |
+| `src/myth/` | `manifest.ts`(발현·가호 판정, 지금은 유물 수), `ClassProgress`(개방 단계·경험치·원천 숙련), `levelGains`. E12에서 영구 개방·상시·추가 효과가 들어올 자리 |
+| 읽는 길 | 게임 시스템은 지금 신화·단계를 `ctx.build.chosen`·`ctx.build.level`로 읽는다. 장비 칸 자체를 다루는 곳(장착·저장·유물 화면)은 `powers.loadout`을 본다 |
 
-E11은 **기능을 그대로 둔다.** 겉으로 달라지는 것은 이름(클래스 → 신화 등)뿐이고, 테스트·스모크·봇이 E9와 같은 범위여야 한다 (기준은 [`baselines.md`](baselines.md)).
+E12~E14에서 새 규칙을 넣을 때는 `BuildInputs`에 재료를 더하고 `computeBuild`에서 계산을 늘린다. 시스템이 장비·신화를 직접 읽어 따로 계산하지 않는다.
 
 ## E14에서 걷어낼 것
 

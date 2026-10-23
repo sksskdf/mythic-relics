@@ -1,16 +1,15 @@
 import { DATA } from '../data'
-import { MAX_LEVEL } from '../progress/ClassProgress'
-import type { ClassProgress } from '../progress/ClassProgress'
+import { MAX_LEVEL } from '../myth/ClassProgress'
+import type { ClassProgress } from '../myth/ClassProgress'
 import { type Cycle, LAWS, type LawId, REBIRTH_NEED, RING_NEXT, RING_PREV, STARS, type StarId, TRAINING_TEXT, UNLOCKS } from '../progress/Cycle'
-import { allLevelGains } from '../progress/levelGains'
+import { allLevelGains } from '../myth/levelGains'
 import type { SourceId } from '../data/schema'
 import { shortNumber } from './format'
 import { type God, godDef, relicDef, type RelicId } from '../relics/data'
-import type { LoadoutState } from '../relics/Loadout'
+import type { LoadoutState } from '../myth/manifest'
 import { relicCard, type RelicCardContext, relicIcon } from './relicCard'
 import { classIcon } from './classIcons'
 import { smallSigilRing } from './emblem'
-import { josa } from './josa'
 import { glyph, SOURCE_COLORS, sourceSigil, unknownSigil } from './sigils'
 import { type WardrobeHost, WardrobePane } from './WardrobePane'
 import './menu.css'
@@ -22,7 +21,7 @@ const TABS: readonly [MenuTab, MenuTab, string][] = [
   ['status', 'status', '상태'],
   ['cycle', 'cycle', '순환'],
   ['relics', 'relics', '유물'],
-  ['classes', 'classes', '클래스'],
+  ['classes', 'classes', '신화'],
   ['looks', 'looks', '외형'],
 ]
 
@@ -51,15 +50,15 @@ const TAB_HINTS: Record<MenuTab, string> = {
   status: '상태\n지금 내 능력치와 걸려 있는 힘',
   cycle: '순환\n원천 결정으로 단련하고, 윤회해 더 빨리 강해진다',
   relics: '유물\n낀 유물과 가방. 눌러서 바꿔 끼고, 바꾸면 어떻게 되는지 미리 본다',
-  classes: '클래스\n지금 클래스의 레벨과 다음 승급 방법, 만난 신들',
+  classes: '신화\n지금 신화의 개방 단계와 다음 단계로 가는 법, 만난 신들',
   looks: '외형\n부위마다 보이는 모습을 고른다',
 }
 
 /** 순환 탭의 ? 설명 */
 const CYCLE_HELP = {
-  cycle: '순환\n싸울수록 원천 결정이 모이고, 결정으로 단련하고, 승급과 윤회를 거칠수록 같은 길을 더 빨리 강해지며 지나간다. 단계마다 새 장치가 열린다.',
-  train: '단련 (2고리)\n원천 결정을 써서 그 원천의 능력치를 올린다. 오를수록 비싸지고, 승급할 때마다 싸진다. 한 원천을 단련하면 고리의 다음 원천(바람→불꽃→사냥→바위→바람) 결정이 4%씩 더 들어온다.',
-  rebirth: '윤회 (4고리)\n세계를 처음으로 되돌린다. 단련과 결정은 사라지고 유물·클래스 레벨은 남는다. 재와 영구 배율 +10%를 얻고, 윤회할수록 새 장치가 열린다.',
+  cycle: '순환\n싸울수록 원천 결정이 모이고, 결정으로 단련하고, 신화 개방 단계와 윤회를 거칠수록 같은 길을 더 빨리 강해지며 지나간다. 단계마다 새 장치가 열린다.',
+  train: '단련 (2고리)\n원천 결정을 써서 그 원천의 능력치를 올린다. 오를수록 비싸지고, 개방 단계가 오를 때마다 싸진다. 한 원천을 단련하면 고리의 다음 원천(바람→불꽃→사냥→바위→바람) 결정이 4%씩 더 들어온다.',
+  rebirth: '윤회 (4고리)\n세계를 처음으로 되돌린다. 단련과 결정은 사라지고 유물·개방 단계는 남는다. 재와 영구 배율 +10%를 얻고, 윤회할수록 새 장치가 열린다.',
   stars: '별자리\n윤회의 재로 별을 밝혀 영구히 강해진다. 윤회해도 사라지지 않는다.',
   auto: '자동 단련\n살 수 있는 단련 중 가장 싼 것을 1.2초마다 저절로 올린다.',
   resonance: '원천 공명\n두 원천의 단련이 모두 Lv5 이상이면 그 원천들의 결정이 10% 더 들어온다.',
@@ -391,7 +390,7 @@ export class GameMenu {
     if (!c.opened.has('rebirth')) {
       rebirth.classList.add('is-locked')
       const lock = el('div', 'menu-cycle__lock')
-      lock.append(img(glyph('lock', '#5d6876', '#2a3240')), el('span', '', '처음으로 승급하면 열린다'))
+      lock.append(img(glyph('lock', '#5d6876', '#2a3240')), el('span', '', '신화가 처음으로 2단계가 되면 열린다'))
       rebirth.append(lock)
       wrap.append(rebirth)
       this.body.append(wrap)
@@ -535,7 +534,7 @@ export class GameMenu {
         const bar = el('div', 'ui-bar ui-bar--thin menu-status__xp')
         bar.style.setProperty('--fill', god.color)
         bar.style.setProperty('--pct', host.progress.xpRatio(current).toFixed(3))
-        this.hintOn(bar, `다음 승급까지 ${Math.round(host.progress.xpRatio(current) * 100)}%`)
+        this.hintOn(bar, `다음 단계까지 ${Math.round(host.progress.xpRatio(current) * 100)}%`)
         who.append(bar)
       }
     } else {
@@ -545,7 +544,7 @@ export class GameMenu {
       this.hintOn(portrait, '한 신의 유물이 모이면 그 신의 힘이 깨어난다.')
     }
     const tags = el('div', 'menu-status__tags')
-    if (current) tags.append(el('span', 'ui-tag ui-tag--solid', '발현'))
+    if (current) tags.append(el('span', 'ui-tag ui-tag--solid', '신화 개방'))
     for (const g of host.loadout.blessings) {
       const tag = el('span', 'ui-tag', `${godDef(g).name}의 가호`)
       tag.style.setProperty('--tag', godDef(g).color)
@@ -569,14 +568,14 @@ export class GameMenu {
       grid.append(r)
     }
     const changed = (v: number, higherIsGood: boolean) => (Math.abs(v - 1) < 0.005 ? undefined : { text: pct(v), good: v > 1 === higherIsGood })
-    row('heart', '생명', `${Math.round(stats.hp)} / ${stats.maxHp}`, '생명\n승급할 때마다 최대 생명 +15. 승급하면 가득 찬다.')
-    row('sword', '주는 피해', `×${stats.damage.toFixed(2)}`, '주는 피해\n승급할 때마다 +5%, 발현한 신의 힘이 곱해진다.', changed(stats.damage, true))
+    row('heart', '생명', `${Math.round(stats.hp)} / ${stats.maxHp}`, '생명\n개방 단계가 오를 때마다 최대 생명 +15. 오르면 가득 찬다.')
+    row('sword', '주는 피해', `×${stats.damage.toFixed(2)}`, '주는 피해\n개방 단계가 오를 때마다 +5%, 지금 신화의 힘이 곱해진다.', changed(stats.damage, true))
     row('shield', '받는 피해', `×${stats.damageTaken.toFixed(2)}`, '낀 유물의 지속 효과', changed(stats.damageTaken, false))
     row('boot', '이동 속도', `${Math.round(stats.moveSpeed * 100)}%`, '낀 유물의 지속 효과', changed(stats.moveSpeed, true))
     row('push', '밀쳐 내기', `×${stats.knockbackDealt.toFixed(2)}`, '내 공격이 적을 미는 힘', changed(stats.knockbackDealt, true))
     row('stand', '버티기', `×${stats.knockbackTaken.toFixed(2)}`, '내가 밀려나는 정도. 낮을수록 잘 버틴다.', changed(stats.knockbackTaken, false))
-    row('divine', '궁극기 충전', `${Math.round(stats.divine * 100)}%`, '궁극기 충전\n스킬로 맞히고 적을 쓰러뜨릴수록 차오른다. 가득 차면 발현한 신의 궁극기가 저절로 나간다.')
-    row('promote', '승급', `${stats.promotions}회`, '승급\n어느 클래스든 승급할 때마다 생명 +15, 모든 피해 +5%. 모든 클래스에 함께 적용된다.')
+    row('divine', '궁극기 충전', `${Math.round(stats.divine * 100)}%`, '궁극기 충전\n스킬로 맞히고 적을 쓰러뜨릴수록 차오른다. 가득 차면 지금 신화의 궁극기가 저절로 나간다.')
+    row('promote', '올린 단계', `${stats.promotions}`, '올린 단계\n어느 신화든 개방 단계를 하나 올릴 때마다 생명 +15, 모든 피해 +5%. 모든 신화에 함께 적용된다.')
     right.append(grid)
 
     if (stats.powers.length > 0) {
@@ -611,7 +610,7 @@ export class GameMenu {
       const badge = el('span', 'menu-relics__manifest', god.title)
       badge.style.setProperty('--god', god.color)
       badge.prepend(img(classIcon(god.name)))
-      this.hintOn(badge, `${god.name} 발현`)
+      this.hintOn(badge, `${god.name}의 신화 개방`)
       state.append(badge)
     }
     for (const g of blessings) {
@@ -726,7 +725,7 @@ export class GameMenu {
       const ratio = progress.xpRatio(god)
       const ready = progress.readyToPromote(god)
       const step1 = el('div', `menu-promo__step${ready ? ' is-done' : ' is-now'}`)
-      step1.append(el('span', 'menu-promo__no', '1'), el('span', '', `${josa(def.name, '으로')} 발현한 채 싸워 경험치를 채운다`))
+      step1.append(el('span', 'menu-promo__no', '1'), el('span', '', `${def.name}의 신화를 연 채 싸워 경험치를 채운다`))
       const bar = el('div', 'ui-bar ui-bar--thin')
       bar.style.setProperty('--fill', def.color)
       bar.style.setProperty('--pct', ratio.toFixed(3))
@@ -734,9 +733,9 @@ export class GameMenu {
       const step2 = el('div', `menu-promo__step${ready ? ' is-now' : ''}`)
       step2.append(
         el('span', 'menu-promo__no', '2'),
-        el('span', '', def.legend ? `성소의 결계에 들어가 승급 전설 「${def.legend.name}」에서 이긴다` : '이 신의 승급 전설은 아직 이 세계에 없다'),
+        el('span', '', def.legend ? `성소의 결계에 들어가 전설 「${def.legend.name}」에서 이긴다` : '이 신의 전설은 아직 이 세계에 없다'),
       )
-      steps.append(el('div', 'menu-promo__head', `다음 승급: Lv${level + 1} ${def.titles[level]}`), step1, step2)
+      steps.append(el('div', 'menu-promo__head', `다음 단계: ${level + 1}단계 ${def.titles[level]}`), step1, step2)
       box.append(steps)
     }
 
@@ -745,10 +744,10 @@ export class GameMenu {
       const lv = i + 1
       const row = el('div', `menu-promo__level${lv <= level ? ' is-have' : ''}${lv === level + 1 ? ' is-next' : ''}`)
       const head = el('div', 'menu-promo__lv')
-      head.append(el('span', 'ui-tag' + (lv <= level ? ' ui-tag--solid' : ' ui-tag--plain'), `Lv${lv}`), el('span', '', def.titles[i]!))
+      head.append(el('span', 'ui-tag' + (lv <= level ? ' ui-tag--solid' : ' ui-tag--plain'), `${lv}단계`), el('span', '', def.titles[i]!))
       const list = el('ul', '')
       for (const g of gains) list.append(el('li', `is-${g.kind}`, g.text))
-      if (gains.length === 0) list.append(el('li', '', '발현'))
+      if (gains.length === 0) list.append(el('li', '', '신화 개방'))
       row.append(head, list)
       ladder.append(row)
     })
@@ -821,7 +820,7 @@ export class GameMenu {
       words.append(el('b', '', x.name), el('small', '', x.gain))
       cell.append(words)
       if (value > 0) cell.append(pips(Math.min(value, 4), 4))
-      this.hintOn(cell, `${x.name}\n${x.gain} 차오르는 힘. 같은 원천의 신이 승급할 때마다 숙련이 오르고, 그 원천의 신으로 발현하면 피해가 늘어난다.${value > 0 ? `\n숙련 ${value}` : ''}`)
+      this.hintOn(cell, `${x.name}\n${x.gain} 차오르는 힘. 같은 원천의 신화가 단계를 올릴 때마다 숙련이 오르고, 지금 신화가 그 원천이면 피해가 늘어난다.${value > 0 ? `\n숙련 ${value}` : ''}`)
       sigils.append(cell)
     }
     wrap.append(sigils)

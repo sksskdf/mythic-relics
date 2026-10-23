@@ -166,6 +166,7 @@ export class UtgardLegend {
       return
     }
 
+    this.keepInside()
     const remaining = this.giants.filter((g) => !g.gone)
     if (this.phase === 'bet' || this.phase === 'survive') {
       this.kills += this.giants.length - remaining.length
@@ -183,6 +184,26 @@ export class UtgardLegend {
     } else {
       this.finish(host)
       host.onWin()
+    }
+  }
+
+  /**
+   * 결계는 적도 막는다: 밀쳐 내기나 쫓기로 결계 밖에 나간 적을 안으로 되돌린다.
+   * 주인공은 결계 밖으로 나갈 수 없어서, 밖에 남은 적이 있으면 전설이 끝나지 않았다 (E11-06 봇에서 발견).
+   */
+  private keepInside(): void {
+    const limit = this.radius - 0.6
+    for (const giant of this.giants) {
+      if (!giant.alive) continue
+      const position = giant.rig.root.position
+      const dx = position.x - this.center.x
+      const dz = position.z - this.center.z
+      const dist = Math.hypot(dx, dz)
+      const max = Math.max(0, limit - giant.radius)
+      if (dist <= max) continue
+      const x = this.center.x + (dx / dist) * max
+      const z = this.center.z + (dz / dist) * max
+      position.set(x, heightAt(x, z), z)
     }
   }
 

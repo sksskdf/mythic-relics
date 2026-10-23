@@ -76,7 +76,7 @@ export function parseGods(raw: unknown, path = 'gods.json'): Record<string, GodD
     onlyKeys(o, p, ['name', 'titles', 'source', 'color', 'tree', 'passive', 'looks', 'legend', 'mark', 'hidden', 'manifestCount', 'ultimate', 'attack', 'realm'])
     const titles = list(o, 'titles', p)
     if (titles.length !== 4 || titles.some((t) => typeof t !== 'string' || t.trim() === '')) {
-      throw new DataError(`${p}.titles`, 'Lv1~Lv4 칭호 네 개여야 합니다')
+      throw new DataError(`${p}.titles`, '1~4단계 칭호 네 개여야 합니다')
     }
     const tree = obj(o.tree, `${p}.tree`)
     onlyKeys(tree, `${p}.tree`, ['column', 'row'])
@@ -673,7 +673,7 @@ function treeClass(raw: unknown, path: string, extra: readonly string[] = []): T
   onlyKeys(o, path, ['name', 'titles', 'hint', ...extra])
   const titles = list(o, 'titles', path)
   if (titles.length !== 4 || titles.some((t) => typeof t !== 'string' || t.trim() === '')) {
-    throw new DataError(`${path}.titles`, 'Lv1~Lv4 칭호 네 개여야 합니다')
+    throw new DataError(`${path}.titles`, '1~4단계 칭호 네 개여야 합니다')
   }
   return { name: str(o, 'name', path), titles: titles as [string, string, string, string], hint: str(o, 'hint', path) }
 }
@@ -739,11 +739,11 @@ export function parseClassTree(raw: unknown, gods: Record<string, GodDef>, path 
     if (ho.god === undefined) return { ...base, source }
     const god = str(ho, 'god', p)
     link(god, base, source, p)
-    if (!gods[god]!.hidden) throw new DataError(`${p}.god`, '히든 클래스에는 hidden 신만 이을 수 있습니다')
+    if (!gods[god]!.hidden) throw new DataError(`${p}.god`, '히든 신화에는 hidden 신만 이을 수 있습니다')
     return { ...base, source, god }
   })
   for (const god of Object.keys(gods)) {
-    if (!linked.has(god)) throw new DataError(path, `gods.json의 "${god}"이(가) 클래스 트리에 없습니다`)
+    if (!linked.has(god)) throw new DataError(path, `gods.json의 "${god}"이(가) 신화 트리에 없습니다`)
   }
   return { sources, pairs, mythologies, hidden }
 }
@@ -776,11 +776,11 @@ function checkLookHarmony(gods: Record<string, GodDef>, relics: Record<string, R
       if (other) throw new DataError(`relics.json.${relic.id}.look`, `같은 신의 유물 "${other}"와 부위(${slot})가 겹칩니다`)
       used.set(slot, relic.id)
       if (god.looks[slot] !== undefined) {
-        throw new DataError(`gods.json.${god.id}.looks.${slot}`, `${god.id}의 유물 "${relic.id}"가 차지한 부위라 발현 외형을 둘 수 없습니다`)
+        throw new DataError(`gods.json.${god.id}.looks.${slot}`, `${god.id}의 유물 "${relic.id}"가 차지한 부위라 신화 외형을 둘 수 없습니다`)
       }
     }
     if (god.hidden && own.length < god.manifestCount) {
-      throw new DataError(`gods.json.${god.id}.manifestCount`, `히든 클래스인데 유물이 ${own.length}개뿐입니다 (${god.manifestCount}개 필요)`)
+      throw new DataError(`gods.json.${god.id}.manifestCount`, `히든 신화인데 유물이 ${own.length}개뿐입니다 (${god.manifestCount}개 필요)`)
     }
   }
 }

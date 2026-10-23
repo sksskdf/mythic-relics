@@ -24,7 +24,7 @@
 2. 화면이 바뀌면 `scripts/shot.mjs`로 찍어 직접 본다
 3. `set -o pipefail && npm run check` 통과
 4. `ROADMAP.md`에서 `- [ ]` → `- [x]`
-5. 그 GitHub 하위 이슈 본문의 같은 줄도 체크 (`issue_write` update, 본문 전체를 다시 보냄)
+5. 그 GitHub 하위 이슈 본문의 같은 줄도 체크: `node scripts/roadmap-issues/tick.mjs <스크래치>/tick.json E11-01-1`이 4번(ROADMAP 체크)까지 하고 이슈 번호와 새 본문을 파일에 쓴다 → `issue_write` update로 그 본문을 보냄
 6. 커밋 (한국어, 끝에 세션이 알려 주는 Co-Authored-By·Claude-Session 줄) → 푸시
 7. 아티팩트 다시 올리기 (`ROADMAP.md`를 고쳤으므로)
 8. `docs/knowledge/handoff.md`의 "다음 할 일" 갱신
@@ -32,7 +32,7 @@
 ## 이슈 하나(`E11-01`)를 끝낼 때
 
 1. 작업 단위가 모두 `[x]`
-2. `ROADMAP.md` 표의 ID에 ✅ (`| E11-01 ✅ |`)
+2. `ROADMAP.md` 표의 ID에 ✅ (`| E11-01 ✅ |`), `tick.mjs <파일> E11-01`로 본문만 다시 만든다
 3. GitHub 하위 이슈 닫기: `state: closed`, `state_reason: completed`
 
 ## 마일스톤을 끝낼 때

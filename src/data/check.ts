@@ -88,7 +88,7 @@ export function leveled(o: Obj, key: string, path: string, range: { min?: number
     const n = num(o, key, path, range)
     return [n, n, n, n]
   }
-  if (!Array.isArray(value) || value.length !== 4) throw new DataError(`${path}.${key}`, '숫자 하나나 [Lv1, Lv2, Lv3, Lv4] 네 개여야 합니다')
+  if (!Array.isArray(value) || value.length !== 4) throw new DataError(`${path}.${key}`, '숫자 하나나 [1단계, 2단계, 3단계, 4단계] 네 개여야 합니다')
   return value.map((_, i) => num(value as unknown as Obj, String(i), `${path}.${key}`, range)) as unknown as Leveled
 }
 

@@ -1,6 +1,5 @@
 import * as THREE from 'three'
 
-import { MASTERY_DAMAGE, PER_PROMOTION } from '../../progress/ClassProgress'
 import { godDef } from '../../relics/data'
 import type { DamageStyle } from '../../ui/DamageNumbers'
 import { heightAt } from '../../world/terrain'
@@ -22,25 +21,15 @@ export class DamageSystem {
 
   /** 기본 공격과 스킬에 공통으로 곱하는 피해 배율 */
   scale(_style: DamageStyle | 'basic'): number {
-    const { progress, powers } = this.ctx
-    let scale = 1 + progress.promotions * PER_PROMOTION.damage
-    const manifested = powers.manifested
-    // 발현 패시브 (천둥의 신: 거인 특효)
-    if (manifested) {
-      scale *= godDef(manifested).passive.damageScale
-      // 원천 숙련: 발현한 신과 같은 원천의 승급 횟수만큼
-      scale *= 1 + progress.mastery(godDef(manifested).source) * MASTERY_DAMAGE
-    }
-    // 불꽃 단련
-    scale *= this.ctx.cycle.damageScale
-    return scale
+    return this.ctx.build.state.damageScale
   }
 
   /** 스킬로 적에게 피해를 준다. 배율, 피해 숫자, 신위 게이지를 함께 처리한다. */
   deal(target: CombatTarget, damage: number, dirX: number, dirZ: number, knockback: number, style: DamageStyle): void {
     if (!target.alive) return
-    const { combat, numbers, powers, bus } = this.ctx
-    const dealt = target.takeHit(damage * this.scale(style), dirX, dirZ, knockback * powers.modifiers.knockbackDealt)
+    const { combat, numbers, build, bus } = this.ctx
+    const state = build.state
+    const dealt = target.takeHit(damage * state.damageScale, dirX, dirZ, knockback * state.modifiers.knockbackDealt)
     if (dealt > 0 && !target.alive) bus.emit('targetKilled', { target })
     if (dealt <= 0) return
     if (style === 'thunder') bus.emit('sound', { cue: 'thunder', x: target.x, z: target.z })
@@ -79,7 +68,7 @@ export class DamageSystem {
     )
     // 발현 패시브: 처음 맞은 적에게 번개가 함께 떨어지고(천둥의 신), 레벨이 차면 옮겨 붙는다(천둥군주).
     const first = hits[0]!.target
-    const manifested = powers.manifested
+    const manifested = this.ctx.build.chosen
     const passive = manifested ? godDef(manifested).passive : null
     if (manifested && passive?.basicLightning && first.alive) {
       const finisher = hits[0]!.strong

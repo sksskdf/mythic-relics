@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 
 import { godDef, relicDef, type RelicId } from '../../relics/data'
-import { levelGains } from '../../progress/levelGains'
+import { levelGains } from '../../myth/levelGains'
 import { classIcon } from '../../ui/classIcons'
 import type { GameContext } from '../context'
 import type { LoadoutChange } from '../RelicPowers'
@@ -30,11 +30,11 @@ export class RelicSystem {
   }
 
   update(dt: number): void {
-    const { hero, combat, powers, pickups, progress, encounter, skills, feel, bus } = this.ctx
+    const { hero, combat, powers, pickups, encounter, skills, feel, bus } = this.ctx
     const position = hero.object.position
     skills.enemies = encounter.alive
-    skills.manifested = powers.manifested
-    skills.level = skills.manifested ? progress.level(skills.manifested) : 0
+    skills.manifested = this.ctx.build.chosen
+    skills.level = this.ctx.build.level
     this.updateGlow()
 
     // 걸은 거리 (이동 연동 효과). 순간이동처럼 한 번에 크게 옮긴 것은 빼고, 밀려난 것은 걸음으로 치지 않는다.
@@ -66,13 +66,13 @@ export class RelicSystem {
     }
 
     // 유물 지속 효과
-    const mods = powers.modifiers
-    combat.knockbackScale = mods.knockbackDealt
-    combat.knockbackTakenScale = mods.knockbackTaken
-    combat.damageTakenScale = mods.damageTaken * this.ctx.cycle.damageTakenScale
-    combat.attackSpeed = powers.manifested ? godDef(powers.manifested).passive.attackSpeed : 1
-    combat.setStyle(powers.manifested ? godDef(powers.manifested).attack : 'blade')
-    hero.speedScale = mods.moveSpeed * this.ctx.cycle.moveSpeedScale
+    const build = this.ctx.build.state
+    combat.knockbackScale = build.modifiers.knockbackDealt
+    combat.knockbackTakenScale = build.modifiers.knockbackTaken
+    combat.damageTakenScale = build.damageTaken
+    combat.attackSpeed = build.attackSpeed
+    combat.setStyle(build.attack)
+    hero.speedScale = build.moveSpeed
   }
 
   /** 유물을 끼운다. announce가 false면 발현 연출 없이 (불러오기·점검용) */
@@ -85,7 +85,7 @@ export class RelicSystem {
     const { powers, progress, fx } = this.ctx
     const counts = new Map<string, number>()
     for (const id of powers.loadout.slots) if (id) counts.set(relicDef(id).god, (counts.get(relicDef(id).god) ?? 0) + 1)
-    const manifested = powers.manifested
+    const manifested = this.ctx.build.chosen
     if (manifested) {
       fx.power.setGlow(godDef(manifested).color, 2 + progress.level(manifested))
       fx.power.setAscension(godDef(manifested).color, progress.level(manifested))
@@ -153,7 +153,7 @@ export class RelicSystem {
       for (const g of levelGains(god.id, lv)) if (lv === 1 || g.kind === 'power') lines.push(g.text)
     }
     lines.push(`궁극기 「${god.ultimate.name}」`)
-    hud.showGains('발현', progress.title(god.id), god.color, classIcon(god.name), lines)
+    hud.showGains('신화 개방', progress.title(god.id), god.color, classIcon(god.name), lines)
     // 주변 적을 밀어낸다.
     const p = hero.object.position
     fx.puffs.burst(p, 30, 4)

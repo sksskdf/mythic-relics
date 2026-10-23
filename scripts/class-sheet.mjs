@@ -52,13 +52,13 @@ try {
       await page.evaluate(
         ({ god, level }) => {
           const g = window.__game
-          g.devResetClasses()
-          g.devUnequipAll()
-          for (const id of god.relics.slice(0, 4)) g.devEquip(id)
-          for (let l = 1; l < level; l++) g.devPromote()
+          g.dev.resetMyths()
+          g.dev.unequipAll()
+          for (const id of god.relics.slice(0, 4)) g.dev.equip(id)
+          for (let l = 1; l < level; l++) g.dev.promote()
           // 적이 없는 빈터에서 오른쪽 아래를 보게 한다
           g.encounter.clearAll()
-          g.devTeleport(30, 30)
+          g.dev.teleport(30, 30)
           g.hero.face(Math.PI * 0.25)
         },
         { god, level },

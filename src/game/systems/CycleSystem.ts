@@ -2,7 +2,7 @@ import * as THREE from 'three'
 
 import { SOURCE_IDS, type SourceId } from '../../data/schema'
 import type { Giant } from '../../enemies/Giant'
-import { PER_PROMOTION } from '../../progress/ClassProgress'
+import { PER_PROMOTION } from '../../myth/ClassProgress'
 import { type LawId, LAWS, STARS, type StarId, UNLOCKS } from '../../progress/Cycle'
 import { DATA } from '../../data'
 import { SOURCE_COLORS } from '../../ui/sigils'

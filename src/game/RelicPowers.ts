@@ -1,9 +1,10 @@
 import type * as THREE from 'three'
 
 import { type God, godDef, relicDef, type RelicId } from '../relics/data'
-import { Loadout, type LoadoutState } from '../relics/Loadout'
+import { Loadout } from '../gear/Loadout'
+import type { LoadoutState } from '../myth/manifest'
 import { createEffect } from '../skills'
-import { type BasicHit, type Modifiers, NO_MODIFIERS, type RelicEffect, type SkillContext } from '../skills/Skill'
+import type { BasicHit, RelicEffect, SkillContext } from '../skills/Skill'
 import type { CombatTarget } from './PlayerCombat'
 import { ClassPassives } from '../skills/ClassPassives'
 import { createUltimate, type Ultimate } from '../skills/Ultimate'
@@ -94,15 +95,6 @@ export class RelicPowers {
     this.loadout.wield(id, slot)
     this.effects[slot] = createEffect(relicDef(id), this.fx)
     return this.refresh()
-  }
-
-  /** 끼고 있는 유물들의 지속 효과 수치를 곱한 값 */
-  get modifiers(): Modifiers {
-    const out = { ...NO_MODIFIERS }
-    for (const effect of this.effects) {
-      for (const [key, value] of Object.entries(effect?.modifiers ?? {}) as [keyof Modifiers, number][]) out[key] *= value
-    }
-    return out
   }
 
   update(dt: number, ctx: SkillContext): void {

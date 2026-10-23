@@ -18,7 +18,7 @@ import './devPanel.css'
 type Tab = 'relics' | 'classes' | 'world' | 'map' | 'view'
 const TABS: readonly [Tab, string][] = [
   ['relics', '유물'],
-  ['classes', '클래스'],
+  ['classes', '신화'],
   ['world', '세계'],
   ['map', '지도'],
   ['view', '보기'],
@@ -27,7 +27,7 @@ const TAB_KEY = 'mythic-relics/dev-tab'
 
 /**
  * 개발 편의 패널. 주소에 ?dev 를 붙이거나 `pnpm dev --dev`로 실행하면 화면 오른쪽에 뜬다.
- * 탭 다섯(유물·클래스·세계·지도·보기)으로 나눠 한 번에 보이는 단추를 줄였다. 목록이 긴 것(순간이동, 적 소환)은 고르는 상자로 둔다.
+ * 탭 다섯(유물·신화·세계·지도·보기)으로 나눠 한 번에 보이는 단추를 줄였다. 목록이 긴 것(순간이동, 적 소환)은 고르는 상자로 둔다.
  * 개발 모드는 저장을 읽지도 쓰지도 않는다.
  */
 export class DevPanel {
@@ -126,8 +126,8 @@ export class DevPanel {
     // 함께 쓰는 유물(쿠사나기·토츠카)은 스사노오와 아수라왕 양쪽에 보인다.
     const REALM_NAMES: Record<string, string> = { norse: '북유럽', greek: '그리스', china: '중국', japan: '일본', korea: '한국', hidden: '히든' }
     const wearSet = (god: God) => {
-      g.devUnequipAll()
-      for (const id of RELIC_IDS.filter((r) => relicGods(relicDef(r)).includes(god)).slice(0, 4)) g.devEquip(id)
+      g.dev.unequipAll()
+      for (const id of RELIC_IDS.filter((r) => relicGods(relicDef(r)).includes(god)).slice(0, 4)) g.dev.equip(id)
     }
     const list = el('div', 'devpanel__relicList')
     for (const realm of REALMS) {
@@ -156,7 +156,7 @@ export class DevPanel {
           b.setAttribute('aria-label', def.name)
           b.style.backgroundImage = `url(${relicIcon(def)})`
           b.style.setProperty('--god', godDef(def.god).color)
-          b.addEventListener('click', () => (g.powers.loadout.slots.includes(id) ? g.devUnequip(id) : g.devEquip(id)))
+          b.addEventListener('click', () => (g.powers.loadout.slots.includes(id) ? g.dev.unequip(id) : g.dev.equip(id)))
           this.refreshers.push(() => b.classList.toggle('is-on', g.powers.loadout.slots.includes(id)))
           line.append(b)
         }
@@ -173,7 +173,7 @@ export class DevPanel {
           REALMS.filter((r) => r !== 'hidden').map((r) => [r, REALM_NAMES[r]!] as const),
           (realm) => (g.drops.realm = realm as Realm),
         ),
-        button('모두 빼기', () => g.devUnequipAll()),
+        button('모두 빼기', () => g.dev.unequipAll()),
         button('땅에 놓기', () => {
           const missing = RELIC_IDS.find((id) => !g.powers.loadout.has(id) && !g.pickups.list.some((p) => p.id === id))
           if (!missing) return
@@ -194,8 +194,8 @@ export class DevPanel {
           const god = g.powers.manifested
           if (god) g.progress.addXp(god, 1e9)
         }),
-        button('승급', () => g.devPromote()),
-        button('레벨 초기화', () => g.devResetClasses()),
+        button('단계 올리기', () => g.dev.promote()),
+        button('레벨 초기화', () => g.dev.resetMyths()),
       ),
       row(
         button('궁극기 충전', () => (g.combat.divine = 1)),
@@ -207,7 +207,7 @@ export class DevPanel {
           for (const slot of WARDROBE_SLOTS) g.appearance.choose(slot, 'auto')
         }),
       ),
-      row(button('승급 전설 시작', () => this.startLegend())),
+      row(button('전설 시작', () => this.startLegend())),
       // 순환 성장 (E4.5)
       row(
         button('결정 +1000', () => {
@@ -229,12 +229,12 @@ export class DevPanel {
     const g = this.game
     let god = g.powers.manifested
     if (!god || !godDef(god).legend) {
-      g.devUnequipAll()
-      for (const id of ['mjolnir', 'megingjord', 'jarngreipr'] as const) g.devEquip(id)
+      g.dev.unequipAll()
+      for (const id of ['mjolnir', 'megingjord', 'jarngreipr'] as const) g.dev.equip(id)
       god = 'thor'
     }
     g.progress.addXp(god, 1e9)
-    g.devTeleport(g.legend.center.x, g.legend.center.z)
+    g.dev.teleport(g.legend.center.x, g.legend.center.z)
   }
 
   // ───────────── 세계 ─────────────
@@ -288,14 +288,14 @@ export class DevPanel {
     ]
     const go = (place: string) => {
       const spots = g.encounter.spots
-      if (place === 'start') g.devTeleport(g.region.spawn.x, g.region.spawn.z)
+      if (place === 'start') g.dev.teleport(g.region.spawn.x, g.region.spawn.z)
       else if (place === 'boss') {
-        if (spots.boss) g.devTeleport(spots.boss.x - 7, spots.boss.z + 7)
+        if (spots.boss) g.dev.teleport(spots.boss.x - 7, spots.boss.z + 7)
       }
-      else if (place === 'sanctuary') g.devTeleport(g.legend.center.x + 4, g.legend.center.z + 4)
+      else if (place === 'sanctuary') g.dev.teleport(g.legend.center.x + 4, g.legend.center.z + 4)
       else {
         const camp = spots.camps[Number(place.slice(4))]
-        if (camp) g.devTeleport(camp.x - 5, camp.z - 5)
+        if (camp) g.dev.teleport(camp.x - 5, camp.z - 5)
       }
     }
     page.append(row(select('순간이동', places, go)))
@@ -371,7 +371,7 @@ export class DevPanel {
       ),
       row(
         button('회복', () => g.combat.health.reset()),
-        button('되살리기', () => g.devRevive()),
+        button('되살리기', () => g.dev.revive()),
         button('저장 지우기', () => {
           saveStorage.clear()
           location.replace(`${location.pathname}?fresh`)
@@ -408,7 +408,7 @@ export class DevPanel {
     const g = this.game
     const p = g.hero.object.position
     const god = g.powers.manifested
-    const cls = god ? `${godDef(god).titles[g.progress.level(god) - 1]} Lv${g.progress.level(god)} ${Math.round(g.progress.xpRatio(god) * 100)}%` : '발현 없음'
+    const cls = god ? `${godDef(god).titles[g.progress.level(god) - 1]} ${g.progress.level(god)}단계 ${Math.round(g.progress.xpRatio(god) * 100)}%` : '신화 개방 없음'
     return [
       `${Math.floor(g.time / 60)}:${String(Math.floor(g.time % 60)).padStart(2, '0')} · (${p.x.toFixed(0)}, ${p.z.toFixed(0)}) · ${g.view.viewHeight.toFixed(0)}m`,
       `♥${Math.round(g.combat.health.hp)}/${g.combat.health.max} ✦${Math.round(g.combat.divine * 100)}% · ${cls}`,

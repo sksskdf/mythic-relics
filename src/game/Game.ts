@@ -6,19 +6,18 @@ import { Input } from '../input/Input'
 import { PixelRenderer } from '../render/PixelRenderer'
 import { QuarterViewCamera } from '../render/QuarterViewCamera'
 import { renderHeightFor, TARGET_RENDER_HEIGHT } from '../render/resolution'
-import { arrivalSpot, REGIONS, type RegionDef, START_REGION } from '../data/regions'
-import { THEMES } from '../world/themes'
+import { REGIONS, type RegionDef, START_REGION } from '../data/regions'
 import { godDef, relicDef, type RelicId } from '../relics/data'
 import { Wardrobe } from '../looks/outfit'
-import { DropTable } from '../relics/DropTable'
+import { DropTable } from '../gear/DropTable'
 import { itemUnderPointer } from '../relics/hover'
-import { PICKUP_TOP } from '../relics/Pickups'
+import { PICKUP_TOP } from '../gear/Pickups'
 import { worldToScreen } from '../render/picking'
 import { heightAt } from '../world/terrain'
-import { Pickups } from '../relics/Pickups'
+import { Pickups } from '../gear/Pickups'
 import type { SaveData } from '../save/SaveData'
-import { ClassProgress } from '../progress/ClassProgress'
-import { levelGains } from '../progress/levelGains'
+import { ClassProgress } from '../myth/ClassProgress'
+import { levelGains } from '../myth/levelGains'
 import type { SkillContext } from '../skills/Skill'
 import { DamageNumbers } from '../ui/DamageNumbers'
 import { Hud } from '../ui/Hud'
@@ -37,8 +36,6 @@ import { Feel, type GameContext } from './context'
 import { Encounter } from './Encounter'
 import { Villagers } from './Villagers'
 import { Minimap } from '../ui/Minimap'
-import { realmSigil } from '../ui/sigils'
-import { realmInk } from '../art/palette'
 import { EventBus, type GameEvents } from './events'
 import { UtgardLegend } from './Legend'
 import { HERO_RADIUS, HeroController } from './HeroController'
@@ -57,6 +54,10 @@ import { PlayerInput } from './systems/PlayerInput'
 import { ProgressionSystem } from './systems/Progression'
 import { SoundSystem } from './systems/Sound'
 import { RelicSystem } from './systems/Relics'
+import { World } from './World'
+import { TitleBackdrop } from './TitleBackdrop'
+import { DevTools } from '../dev/DevTools'
+import { Build } from '../build/Build'
 
 export interface GameOptions {
   /** 처음부터 끼고 시작할 유물 (점검용) */
@@ -78,8 +79,6 @@ export interface GameOptions {
 }
 
 /** 출구를 밟았다고 보는 거리 (m), 암전 시간 (초, 어두워지는 데 한 번·밝아지는 데 한 번) */
-const EXIT_RADIUS = 1.6
-const TRAVEL_FADE = 0.35
 
 /** 플레이 기록: 검증과 수치 조정에 쓴다. */
 export interface PlayEvent {
@@ -122,13 +121,10 @@ export class Game {
   playing = true
   /** 개발 패널: 게임 시간 배속 (0이면 멈춤) */
   timeScale = 1
-  /** 갈 수 있는 지역들 (지도 편집기가 고친 것이면 그것으로 바뀐다) */
-  regions: Readonly<Record<string, RegionDef>> = REGIONS
-  /** 출구를 밟으면 넘어가는가: 들어온 직후에는 출구에서 몇 걸음 떨어져야 다시 켜진다 */
-  private exitArmed = false
-  /** 지역을 넘어가는 중 (암전 → 다시 짓기 → 밝아짐) */
-  private travel: { to: RegionDef; at: { x: number; z: number }; t: number; switched: boolean } | null = null
-  private readonly fade: HTMLElement
+  /** 지역과 지역 사이: 들어가기, 출구로 넘어가기 */
+  readonly world: World
+  /** 개발 패널·봇·점검 스크립트의 지름길 */
+  readonly dev: DevTools
   /** 마을 사람 (E7-04) */
   readonly villagers: Villagers
   /** 작은 지도 (E7-08) */
@@ -171,8 +167,8 @@ export class Game {
   /** ?res= 로 정한 기준 (없으면 기본값) */
   private readonly requestedRenderHeight: number
   private lastTime = performance.now()
-  /** 시작 화면 뒤에서 카메라가 바라보는 곳 */
-  private readonly backdropFocus = new THREE.Vector3()
+  /** 시작 화면 뒤의 장면 */
+  private readonly backdrop: TitleBackdrop
   private elapsed = 0
 
   constructor(
@@ -191,9 +187,6 @@ export class Game {
     this.pixel.setTargetHeight(renderHeightFor(this.view.viewHeight, this.baseRenderHeight))
     this.pixel.renderer.domElement.addEventListener('wheel', (e) => this.onWheel(e), { passive: false })
     this.hud = new Hud(container)
-    this.fade = document.createElement('div')
-    this.fade.className = 'region-fade'
-    container.append(this.fade)
     this.villagers = new Villagers(container)
     this.scene.add(this.villagers.object)
     this.minimap = new Minimap(this.hud.root)
@@ -206,12 +199,7 @@ export class Game {
     const nav = new NavGrid(region.halfExtent, 0.5, map.colliders, HERO_RADIUS)
     this.nav = nav
     this.encounter = new Encounter(region, map.colliders, region.halfExtent)
-    if (region.realm) this.drops.realm = region.realm
     this.scene.add(this.encounter.object)
-    const particles = THEMES[region.theme].particles
-    this.fx.snow.setStyle(particles.kind, particles.color)
-    this.villagers.load(region.npcs)
-    this.minimap.setRegion(region)
 
     const rig = buildHeroModel()
     rig.setSilhouette(0x5b7fb8)
@@ -232,6 +220,28 @@ export class Game {
     this.legend.moveTo(region.sanctuary && (nav.nearestFree(region.sanctuary) ?? region.sanctuary), region.sanctuary?.radius)
     this.scene.add(this.legend.object, this.pickups.object)
     this.fx.addTo(this.scene)
+    this.world = new World(
+      {
+        bus: this.bus,
+        stage: this.stage,
+        nav,
+        encounter: this.encounter,
+        legend: this.legend,
+        villagers: this.villagers,
+        minimap: this.minimap,
+        fx: this.fx,
+        hero: this.hero,
+        orders: this.orders,
+        combat: this.combat,
+        view: this.view,
+        hud: this.hud,
+        pickups: this.pickups,
+        drops: this.drops,
+      },
+      container,
+    )
+    this.world.dress(region)
+    this.backdrop = new TitleBackdrop({ hero: this.hero, fx: this.fx, stage: this.stage, view: this.view, hud: this.hud })
 
     const skills: SkillContext = {
       hero: this.hero,
@@ -273,6 +283,7 @@ export class Game {
       drops: this.drops,
       wardrobe: this.wardrobe,
       cycle: this.cycle,
+      build: new Build({ powers: this.powers, progress: this.progress, cycle: this.cycle }),
       skills,
     }
     this.damage = new DamageSystem(this.ctx)
@@ -370,6 +381,17 @@ export class Game {
     this.life = new HeroLife(this.ctx)
     this.persistence = new Persistence(this.ctx, options.autosave ?? false)
     this.playerInput = new PlayerInput(this.ctx, this.input, this.pixel, container)
+    this.dev = new DevTools({
+      bus: this.bus,
+      relics: this.relics,
+      powers: this.powers,
+      progress: this.progress,
+      growth: this.growth,
+      life: this.life,
+      hero: this.hero,
+      orders: this.orders,
+      view: this.view,
+    })
     this.audio = new AudioEngine(this.settings.volume)
     this.sound = new SoundSystem(this.ctx, this.audio)
     this.applySettings(this.settings)
@@ -378,8 +400,7 @@ export class Game {
 
     if (options.title) {
       this.playing = false
-      this.hud.root.classList.add('is-hidden')
-      this.stage.setDusk(true)
+      this.backdrop.show(true)
     }
     if (options.load) {
       this.persistence.restore(options.load, {
@@ -446,78 +467,35 @@ export class Game {
 
   /** 지금 지역 (E7) */
   get region(): RegionDef {
-    return this.stage.map.region
+    return this.world.region
   }
 
-  /**
-   * 지역에 들어간다 (E7): 맵·길찾기·적·성소를 그 지역 것으로 다시 짓고 시작점(또는 at)에 선다.
-   * 지도 편집기가 고친 지역을 바로 보여 줄 때도 쓴다. 다른 지역으로 가면 땅에 떨어진 유물은 사라진다.
-   */
-  enterRegion(region: RegionDef, at: { x: number; z: number } = region.spawn): void {
-    if (this.legend.active) return
-    const moved = region.id !== this.region.id
-    if (moved) this.pickups.clear()
-    this.stage.load(region)
-    this.villagers.load(region.npcs)
-    this.minimap.setRegion(region)
-    const particles = THEMES[region.theme].particles
-    this.fx.snow.setStyle(particles.kind, particles.color)
-    const colliders = this.stage.map.colliders
-    this.nav.rebuild(region.halfExtent, colliders)
-    this.encounter.reset(region, colliders, region.halfExtent)
-    this.legend.moveTo(region.sanctuary && (this.nav.nearestFree(region.sanctuary) ?? region.sanctuary), region.sanctuary?.radius)
-    this.hero.halfExtent = region.halfExtent
-    if (region.realm) this.drops.realm = region.realm
-    this.orders.clear()
-    this.hero.teleport(at.x, at.z)
-    this.view.jumpTo(this.hero.object.position)
-    this.exitArmed = false
-    if (moved) {
-      // 그 땅의 문장과 색 띠로 이름을 알린다 (E9-05)
-      const realm = region.realm ?? 'hub'
-      const ink = realmInk(realm)
-      this.hud.showTitleCard(region.name, `var(--c-realm-${realm})`, realmSigil(realm, ink.light, ink.dark))
-    }
-    this.bus.emit('regionEntered', { id: region.id })
+  /** 갈 수 있는 지역들 (지도 편집기가 고친 것이면 그것으로 바뀐다) */
+  get regions(): Readonly<Record<string, RegionDef>> {
+    return this.world.regions
+  }
+
+  set regions(regions: Readonly<Record<string, RegionDef>>) {
+    this.world.regions = regions
+  }
+
+  /** 지역에 들어간다 (`World.enter`) */
+  enterRegion(region: RegionDef, at?: { x: number; z: number }): void {
+    this.world.enter(region, at)
   }
 
   /** 점검용: 출구를 밟아도 넘어가지 않는다 (scripts/enemy-trial.mjs) */
-  exitsLocked = false
-
-  /** 출구로 다른 지역에 간다: 잠깐 어두워졌다가 그 지역의 돌아오는 출구 앞에서 밝아진다 (E7-02) */
-  travelTo(id: string): void {
-    const to = this.regions[id]
-    if (!to || this.travel || this.legend.active) return
-    this.orders.clear()
-    this.travel = { to, at: arrivalSpot(to, this.region.id), t: 0, switched: false }
+  get exitsLocked(): boolean {
+    return this.world.exitsLocked
   }
 
-  /** 출구 밟기와 넘어가는 동안의 암전 (실제 시간으로 흐른다) */
-  private updateTravel(realDt: number): void {
-    const travel = this.travel
-    if (travel) {
-      travel.t += realDt
-      if (!travel.switched && travel.t >= TRAVEL_FADE) {
-        travel.switched = true
-        this.enterRegion(travel.to, travel.at)
-      }
-      const t = travel.t / TRAVEL_FADE
-      this.fade.style.opacity = String(t < 1 ? t : Math.max(0, 2 - t))
-      if (travel.t >= TRAVEL_FADE * 2) {
-        this.travel = null
-        this.fade.style.opacity = '0'
-      }
-      return
-    }
-    if (!this.combat.alive || this.legend.active || this.exitsLocked) return
-    const p = this.hero.object.position
-    let nearest = Infinity
-    for (const exit of this.region.exits) {
-      const d = Math.hypot(exit.x - p.x, exit.z - p.z)
-      nearest = Math.min(nearest, d)
-      if (this.exitArmed && d < EXIT_RADIUS) return this.travelTo(exit.to)
-    }
-    if (nearest > EXIT_RADIUS * 2) this.exitArmed = true
+  set exitsLocked(locked: boolean) {
+    this.world.exitsLocked = locked
+  }
+
+  /** 출구로 다른 지역에 간다 (`World.travelTo`) */
+  travelTo(id: string): void {
+    this.world.travelTo(id)
   }
 
   /** 움직이지 않는 충돌체 (나무, 바위 등) */
@@ -541,8 +519,7 @@ export class Game {
   begin(): void {
     if (this.playing) return
     this.playing = true
-    this.stage.setDusk(false)
-    this.hud.root.classList.remove('is-hidden')
+    this.backdrop.show(false)
     this.input.endFrame()
   }
 
@@ -623,7 +600,8 @@ export class Game {
   /** 설명 카드에 넣을 지금 상태: 자리, 충전, 세트, 발현 강화 조건 */
   /** 정보 화면 상태 탭에 넣을 지금의 능력치와 걸린 힘 */
   heroStats(): HeroStats {
-    const mods = this.powers.modifiers
+    const build = this.ctx.build.state
+    const mods = build.modifiers
     const { manifested, blessings } = this.powers.state
     const powers: HeroStats['powers'] = []
     if (manifested) {
@@ -649,7 +627,7 @@ export class Game {
     return {
       hp: this.combat.health.hp,
       maxHp: this.combat.health.max,
-      damage: this.damage.scale('basic'),
+      damage: build.damageScale,
       damageTaken: mods.damageTaken,
       moveSpeed: mods.moveSpeed,
       knockbackDealt: mods.knockbackDealt,
@@ -663,7 +641,7 @@ export class Game {
   cardContext(id: RelicId, preview?: RelicCardContext['preview']): RelicCardContext {
     const { loadout } = this.powers
     const slot = loadout.slots.indexOf(id)
-    const manifested = this.powers.manifested
+    const manifested = this.ctx.build.chosen
     return {
       place: slot >= 0 ? { kind: 'slot', slot } : loadout.bag.includes(id) ? { kind: 'bag' } : { kind: 'ground' },
       ...(slot >= 0 ? { charge: this.powers.effects[slot]?.charge ?? 0 } : {}),
@@ -718,18 +696,10 @@ export class Game {
     return itemUnderPointer(items, pointer, Math.max(28, size.scale * 12))
   }
 
-  /** 시작 화면 뒤의 배경: 눈이 내리고 불꽃이 일렁이며, 주인공은 숨만 쉰다. */
+  /** 시작 화면 뒤의 배경만 움직이고 그린다. */
   private updateBackdrop(dt: number): void {
     this.elapsed += dt
-    this.hero.update(dt)
-    const position = this.hero.object.position
-    this.fx.snow.update(dt, position, this.elapsed)
-    this.stage.update(this.elapsed)
-    // 시작 화면 뒤 (E9-08): 카메라가 주인공 둘레를 천천히 흘러 마을이 살아 있게 보인다
-    const t = this.elapsed * 0.08
-    this.backdropFocus.set(position.x - 6 + Math.sin(t) * 2, position.y, position.z + 3 + Math.cos(t * 0.7) * 1.2)
-    this.view.follow(this.backdropFocus, dt)
-    this.stage.follow(position)
+    this.backdrop.update(dt, this.elapsed)
     this.pixel.render(this.scene, this.view.camera, this.view.subpixel)
     this.input.endFrame()
     this.frame += 1
@@ -745,8 +715,8 @@ export class Game {
     this.time += dt
 
     // 이동: 클릭 → 지시 → 걷기 (적을 무시한 이동이면 졸개를 밀고 지나간다)
-    this.updateTravel(realDt)
-    if (live && !this.travel) {
+    this.world.update(realDt)
+    if (live && !this.world.traveling) {
       if (this.mapEditor?.active) {
         const cursor = this.playerInput.cursorOnGround()
         this.mapEditor.update(cursor ? { x: cursor.x, z: cursor.z } : null, this.input.wasPressed('move'))
@@ -785,7 +755,7 @@ export class Game {
   private swingFx(swing: SwingSpec, strong: boolean): void {
     const p = this.hero.object.position
     const facing = this.hero.facing
-    const god = this.powers.manifested
+    const god = this.ctx.build.chosen
     const tint = god && !strong ? new THREE.Color(godDef(god).color).lerp(new THREE.Color(0xffffff), 0.5).getHex() : undefined
     switch (swing.shape ?? 'arc') {
       case 'arc':
@@ -814,7 +784,7 @@ export class Game {
     const p = this.hero.object.position
     const from = new THREE.Vector3(p.x, p.y + 1.3, p.z)
     const to = new THREE.Vector3(target.x, heightAt(target.x, target.z) + 0.9, target.z)
-    const god = this.powers.manifested
+    const god = this.ctx.build.chosen
     if (this.combat.style === 'bolt') this.fx.lightning.strike(from, to, strong ? 0.12 : 0.07, 0.12)
     else this.fx.shots.fire(from, to, god ? new THREE.Color(godDef(god).color).getHex() : 0xf2f7ff)
   }
@@ -844,7 +814,7 @@ export class Game {
 
   private updateHud(realDt: number): void {
     const boss = this.encounter.boss
-    const manifested = this.powers.manifested
+    const manifested = this.ctx.build.chosen
     this.hud.update(
       {
         life: this.combat.health.ratio,
@@ -872,59 +842,6 @@ export class Game {
       },
       realDt,
     )
-  }
-
-  // ── 개발 패널용 ──────────────────────────────────────────
-
-  /** 유물을 끼운다. 발현 연출도 그대로 나온다. */
-  devEquip(id: RelicId): void {
-    if (this.powers.loadout.has(id) || !this.powers.hasFreeSlot) return
-    this.relics.equip(id, true)
-    this.bus.emit('progressChanged', {})
-  }
-
-  /** 유물 하나를 뺀다. (땅에 내려놓지 않고 없앤다) */
-  devUnequip(id: RelicId): void {
-    const slot = this.powers.loadout.slots.indexOf(id)
-    if (slot >= 0) this.relics.unequip(slot, false)
-  }
-
-  /** 가방의 유물을 칸에 끼운다. (봇이 발현 조합으로 바꿔 낄 때) */
-  devWield(id: RelicId, slot: number): void {
-    this.relics.wield(id, slot)
-  }
-
-  /** 칸의 유물을 가방에 넣는다. (봇이 한 신만 쓸 때) */
-  devStow(slot: number): void {
-    this.relics.stow(slot)
-  }
-
-  /** 유물을 모두 뺀다. (땅에 내려놓지 않고 없앤다) */
-  devUnequipAll(): void {
-    this.powers.loadout.slots.forEach((id, slot) => id && this.relics.unequip(slot, false))
-  }
-
-  /** 발현한 클래스의 경험치를 채우고 바로 승급한다. */
-  devPromote(): void {
-    const god = this.powers.manifested
-    if (!god) return
-    this.progress.addXp(god, 1e9)
-    this.growth.promote(god)
-  }
-
-  /** 클래스 성장(레벨·경험치)을 처음으로 되돌린다. */
-  devResetClasses(): void {
-    this.growth.reset()
-  }
-
-  devTeleport(x: number, z: number): void {
-    this.orders.clear()
-    this.hero.teleport(x, z)
-    this.view.jumpTo(this.hero.object.position)
-  }
-
-  devRevive(): void {
-    this.life.revive()
   }
 
   // ── 화면 ──────────────────────────────────────────

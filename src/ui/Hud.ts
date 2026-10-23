@@ -152,7 +152,7 @@ export class Hud {
       this.slotEls.push({ root, icon, src: null })
     }
     this.ultimate = this.el('div', 'hud__ult', slots)
-    this.tipOn(this.ultimate, '궁극기\n싸울수록 둘레의 금빛 고리가 차오르고, 가득 차면 발현한 신의 궁극기가 저절로 나간다.')
+    this.tipOn(this.ultimate, '궁극기\n싸울수록 둘레의 금빛 고리가 차오르고, 가득 차면 지금 신화의 궁극기가 저절로 나간다.')
     this.el('div', 'hud__ult-ring', this.ultimate)
     this.ultimateIcon = this.el('div', 'hud__icon', this.el('div', 'hud__ult-core', this.ultimate))
     this.ultimateIcon.style.backgroundImage = `url(${pixelIcon(BOLT_ICON.rows, BOLT_ICON.colors)})`
@@ -239,7 +239,7 @@ export class Hud {
   /** 왼쪽 위 지금의 나: 바뀌었을 때만 다시 그린다. */
   private updateStatus(state: HudState): void {
     const { portrait, blessings, promote } = state
-    this.statusTip = portrait ? `${portrait.title}\n${portrait.name} Lv${portrait.level}${promote ? ' · 승급 준비됨' : ''}` : ''
+    this.statusTip = portrait ? `${portrait.title}\n${portrait.name} ${portrait.level}단계${promote ? ' · 다음 단계 준비됨' : ''}` : ''
     const key = `${portrait?.name}|${portrait?.level}|${blessings.map((b) => b.name).join()}|${promote}`
     if (key === this.statusKey) return
     this.statusKey = key
