@@ -45,6 +45,16 @@ function setup(ready = true) {
 }
 
 describe('승급 전설 「우트가르드 원정」', () => {
+  it('결계 밖으로 밀려난 적은 안으로 되돌아와, 전설이 끝나지 않고 멈추지 않는다', () => {
+    const { encounter, legend, host } = setup()
+    legend.update(1 / 60, encounter, host)
+    // 지역 보스(30, 30)가 아니라 결계 안에 나온 무리 하나
+    const giant = encounter.alive.find((g) => Math.hypot(g.x, g.z) < 11)!
+    giant.rig.root.position.set(25, 0, 0)
+    legend.update(1 / 60, encounter, host)
+    expect(Math.hypot(giant.x, giant.z)).toBeLessThanOrEqual(11 - 0.6)
+  })
+
   it('준비가 안 됐으면 성소에 서도 시작하지 않는다', () => {
     const { encounter, legend, host } = setup(false)
     legend.update(1 / 60, encounter, host)
