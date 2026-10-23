@@ -29,8 +29,8 @@ export class ProgressionSystem {
 
   /** 지금 이 지역 성소에서 열 수 있는 승급 전설 (없으면 null) */
   readyKind(): LegendKind | null {
-    const { powers, progress } = this.ctx
-    const god = powers.manifested
+    const { build, progress } = this.ctx
+    const god = build.chosen
     const legend = god ? godDef(god).legend : undefined
     if (!god || !legend || !progress.readyToPromote(god)) return null
     // 지역 성소는 그 신화권 클래스의 전설만 연다 (E7-07)
@@ -46,10 +46,10 @@ export class ProgressionSystem {
 
   /** 승급 전설: 성소에 들어서면 시작하고, 이기면 승급한다. */
   update(dt: number): void {
-    const { legend, encounter, powers, combat, hero, hud, view, bus } = this.ctx
+    const { legend, encounter, build, combat, hero, hud, view, bus } = this.ctx
     legend.update(dt, encounter, {
       ready: () => {
-        const god = powers.manifested
+        const god = build.chosen
         const kind = this.readyKind()
         if (god && kind) this.challenger = god
         return kind
@@ -73,8 +73,8 @@ export class ProgressionSystem {
 
   /** 경험치와 유물 드랍. 경험치는 발현한 클래스에만 쌓인다. (DESIGN.md 5.2) */
   private onGiantKilled(giant: Giant): void {
-    const { powers, progress, combat, drops, pickups, bus } = this.ctx
-    const manifested = powers.manifested
+    const { build, powers, progress, combat, drops, pickups, bus } = this.ctx
+    const manifested = build.chosen
     if (manifested) progress.addXp(manifested, giant.spec.xp * (giant.elite ? ELITE_REWARD.xp : 1))
     // 적을 쓰러뜨리면 생명력을 조금 되찾는다. 몰려오는 무리를 쓸어 내며 버틸 수 있게 한다.
     if (combat.alive) combat.health.heal(giant.spec.boss ? HEAL_PER_BOSS : HEAL_PER_KILL)

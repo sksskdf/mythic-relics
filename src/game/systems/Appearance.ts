@@ -17,8 +17,8 @@ export class AppearanceSystem {
 
   /** 장착 상태가 정하는 모습 (보관함 선택을 적용하기 전) */
   get auto(): Outfit {
-    const { powers } = this.ctx
-    const manifested = powers.manifested
+    const { powers, build } = this.ctx
+    const manifested = build.chosen
     return autoOutfit({
       relicLooks: powers.loadout.slots.filter((id) => id !== null).map((id) => relicDef(id).look),
       manifestLooks: manifested ? { ...godDef(manifested).looks, mark: godDef(manifested).mark } : {},
@@ -71,14 +71,14 @@ export class AppearanceSystem {
     fx.shadow.enabled = aura === 'shadow'
     fx.asura.enabled = aura === 'asura'
     fx.tint.enabled = aura === 'tint'
-    const manifestedGod = this.ctx.powers.manifested
+    const manifestedGod = this.ctx.build.chosen
     if (aura === 'tint' && manifestedGod && this.tinted !== manifestedGod) {
       this.tinted = manifestedGod
       fx.tint.setColor(parseInt(godDef(manifestedGod).color.slice(1), 16))
     }
     this.sway += 1 / 60
     // 표식은 레벨마다 다른 모양으로 자라고(E6), 조금씩 커진다 (Lv1 1배 → Lv4 1.15배)
-    const manifested = this.ctx.powers.manifested
+    const manifested = this.ctx.build.chosen
     const level = manifested ? this.ctx.progress.level(manifested) : 1
     hero.rig.setMarkLevel(level)
     hero.rig.mark.scale.setScalar(1 + (level - 1) * 0.05)

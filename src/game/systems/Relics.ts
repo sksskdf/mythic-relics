@@ -30,11 +30,11 @@ export class RelicSystem {
   }
 
   update(dt: number): void {
-    const { hero, combat, powers, pickups, progress, encounter, skills, feel, bus } = this.ctx
+    const { hero, combat, powers, pickups, encounter, skills, feel, bus } = this.ctx
     const position = hero.object.position
     skills.enemies = encounter.alive
-    skills.manifested = powers.manifested
-    skills.level = skills.manifested ? progress.level(skills.manifested) : 0
+    skills.manifested = this.ctx.build.chosen
+    skills.level = this.ctx.build.level
     this.updateGlow()
 
     // 걸은 거리 (이동 연동 효과). 순간이동처럼 한 번에 크게 옮긴 것은 빼고, 밀려난 것은 걸음으로 치지 않는다.
@@ -85,7 +85,7 @@ export class RelicSystem {
     const { powers, progress, fx } = this.ctx
     const counts = new Map<string, number>()
     for (const id of powers.loadout.slots) if (id) counts.set(relicDef(id).god, (counts.get(relicDef(id).god) ?? 0) + 1)
-    const manifested = powers.manifested
+    const manifested = this.ctx.build.chosen
     if (manifested) {
       fx.power.setGlow(godDef(manifested).color, 2 + progress.level(manifested))
       fx.power.setAscension(godDef(manifested).color, progress.level(manifested))

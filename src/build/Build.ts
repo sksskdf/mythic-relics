@@ -25,6 +25,17 @@ export class Build {
     }
   }
 
+  /** 지금 고른 신화 (state.chosen과 같다. 자주 읽는 곳을 위해 전체 계산 없이) */
+  get chosen(): string | null {
+    return this.from.powers.manifested
+  }
+
+  /** 고른 신화의 개방 단계 (없으면 0) */
+  get level(): number {
+    const god = this.chosen
+    return god ? this.from.progress.level(god) : 0
+  }
+
   /** 지금의 빌드 상태 (부를 때마다 새로 계산한다) */
   get state(): BuildState {
     return computeBuild(this.inputs())

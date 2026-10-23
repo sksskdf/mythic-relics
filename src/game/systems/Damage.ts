@@ -68,7 +68,7 @@ export class DamageSystem {
     )
     // 발현 패시브: 처음 맞은 적에게 번개가 함께 떨어지고(천둥의 신), 레벨이 차면 옮겨 붙는다(천둥군주).
     const first = hits[0]!.target
-    const manifested = powers.manifested
+    const manifested = this.ctx.build.chosen
     const passive = manifested ? godDef(manifested).passive : null
     if (manifested && passive?.basicLightning && first.alive) {
       const finisher = hits[0]!.strong

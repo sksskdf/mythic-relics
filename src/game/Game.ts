@@ -641,7 +641,7 @@ export class Game {
   cardContext(id: RelicId, preview?: RelicCardContext['preview']): RelicCardContext {
     const { loadout } = this.powers
     const slot = loadout.slots.indexOf(id)
-    const manifested = this.powers.manifested
+    const manifested = this.ctx.build.chosen
     return {
       place: slot >= 0 ? { kind: 'slot', slot } : loadout.bag.includes(id) ? { kind: 'bag' } : { kind: 'ground' },
       ...(slot >= 0 ? { charge: this.powers.effects[slot]?.charge ?? 0 } : {}),
@@ -755,7 +755,7 @@ export class Game {
   private swingFx(swing: SwingSpec, strong: boolean): void {
     const p = this.hero.object.position
     const facing = this.hero.facing
-    const god = this.powers.manifested
+    const god = this.ctx.build.chosen
     const tint = god && !strong ? new THREE.Color(godDef(god).color).lerp(new THREE.Color(0xffffff), 0.5).getHex() : undefined
     switch (swing.shape ?? 'arc') {
       case 'arc':
@@ -784,7 +784,7 @@ export class Game {
     const p = this.hero.object.position
     const from = new THREE.Vector3(p.x, p.y + 1.3, p.z)
     const to = new THREE.Vector3(target.x, heightAt(target.x, target.z) + 0.9, target.z)
-    const god = this.powers.manifested
+    const god = this.ctx.build.chosen
     if (this.combat.style === 'bolt') this.fx.lightning.strike(from, to, strong ? 0.12 : 0.07, 0.12)
     else this.fx.shots.fire(from, to, god ? new THREE.Color(godDef(god).color).getHex() : 0xf2f7ff)
   }
@@ -814,7 +814,7 @@ export class Game {
 
   private updateHud(realDt: number): void {
     const boss = this.encounter.boss
-    const manifested = this.powers.manifested
+    const manifested = this.ctx.build.chosen
     this.hud.update(
       {
         life: this.combat.health.ratio,
