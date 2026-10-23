@@ -1,6 +1,6 @@
 import type { QuarterViewCamera } from '../render/QuarterViewCamera'
 import type { RelicId } from '../relics/data'
-import type { ClassProgress } from '../progress/ClassProgress'
+import type { ClassProgress } from '../myth/ClassProgress'
 import type { EventBus, GameEvents } from '../game/events'
 import type { HeroController } from '../game/HeroController'
 import type { HeroOrders } from '../game/HeroOrders'

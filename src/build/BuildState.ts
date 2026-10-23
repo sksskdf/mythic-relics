@@ -1,5 +1,5 @@
 import type { AttackStyle } from '../combat/styles'
-import { MASTERY_DAMAGE, PER_PROMOTION } from '../progress/ClassProgress'
+import { MASTERY_DAMAGE, PER_PROMOTION } from '../myth/ClassProgress'
 import { type God, godDef, relicDef, type RelicId, type Source } from '../relics/data'
 import { type Modifiers, NO_MODIFIERS } from '../skills/Skill'
 

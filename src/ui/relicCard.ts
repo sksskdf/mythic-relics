@@ -1,7 +1,7 @@
 import type { ChargeDef, RelicDef } from '../data/schema'
 import { lookDef, SLOT_NAMES } from '../looks/catalog'
 import { type God, godDef, RELIC_IDS, relicDef, type RelicId } from '../relics/data'
-import type { LoadoutState } from '../gear/Loadout'
+import type { LoadoutState } from '../myth/manifest'
 import { relicIconRows } from '../relics/model'
 import { pixelIcon } from './pixelIcon'
 

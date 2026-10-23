@@ -68,7 +68,9 @@
 | `src/looks/` | 외형: 칸과 외형 목록(`catalog.ts`, 1차 클래스는 `classLooks.ts`), 장착 → 모습·보관함(`outfit.ts`). 모델은 `src/voxel/models/looks.ts`(손으로 찍은 것)·`classLooks.ts`(생성기 `gen.ts`로 만든 것), 적용은 `systems/Appearance.ts` |
 | `src/relics/` | 유물·신 데이터(`data.ts`), 유물 모델·아이콘, 커서 아래 유물 고르기 |
 | `src/gear/` | 장비(E11-05): 칸과 가방(`Loadout`), 땅에 떨어진 것(`Pickups`), 드랍 규칙(`DropTable`). E13에서 일반 장비·유물 제작이 여기 들어온다 |
-| `src/progress/` | 클래스 레벨·경험치·원천 숙련, 단계별로 얻는 것(`levelGains`), 순환 성장(`Cycle`: 결정·단련·윤회·별자리·태초의 법) |
+| `src/myth/` | 신화(E11-05): 신화 판정(`manifest.ts`, 지금은 유물 수로 발현·가호), 개방 단계·경험치·원천 숙련(`ClassProgress`), 단계별로 얻는 것(`levelGains`). E12에서 영구 개방·상시·추가 효과가 여기 들어온다 |
+| `src/build/` | 빌드 상태(E11-04): 열린 신화·고른 신화·장비·원천 → 피해 배율·지속 효과·공격 리듬(`BuildState.ts`의 `computeBuild`, 게임 안에서는 `ctx.build`) |
+| `src/progress/` | 순환 성장(`Cycle`: 결정·단련·윤회·별자리·태초의 법, E14에서 걷어냄) |
 | `src/save/` | 저장 형식과 검사 |
 | `src/render/` | 픽셀 렌더러, 쿼터뷰 카메라, 화면 ↔ 월드 좌표, 실루엣 |
 | `src/world/` | 지역 맵(`regionMap.ts`: 지역 데이터 → 땅·길·소품·테두리 숲·출구 문, 다시 짓기), 지형 테마(`themes.ts`: 땅·물·빛·날림·소품 색 바꾸기), 땅 높이·연못(`terrain.ts`), 길찾기(`navGrid.ts`), 흩뿌리기(`layout.ts`). 그 땅의 소품 모델은 `src/voxel/models/landmarks.ts` |

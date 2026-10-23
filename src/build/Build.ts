@@ -1,5 +1,5 @@
 import type { RelicPowers } from '../game/RelicPowers'
-import type { ClassProgress } from '../progress/ClassProgress'
+import type { ClassProgress } from '../myth/ClassProgress'
 import type { Cycle } from '../progress/Cycle'
 import { type BuildInputs, type BuildState, computeBuild } from './BuildState'
 

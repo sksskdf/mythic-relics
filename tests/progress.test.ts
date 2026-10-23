@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { ClassProgress, XP_TO_PROMOTE } from '../src/progress/ClassProgress'
+import { ClassProgress, XP_TO_PROMOTE } from '../src/myth/ClassProgress'
 import { DATA } from '../src/data'
 import { DEFAULT_DROPS, DropTable, representatives } from '../src/gear/DropTable'
 import { godDef, type RelicId, relicDef } from '../src/relics/data'

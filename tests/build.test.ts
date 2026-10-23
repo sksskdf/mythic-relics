@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { Build } from '../src/build/Build'
 import { computeBuild, gearModifiers } from '../src/build/BuildState'
 import { RelicPowers } from '../src/game/RelicPowers'
-import { ClassProgress, MASTERY_DAMAGE, PER_PROMOTION } from '../src/progress/ClassProgress'
+import { ClassProgress, MASTERY_DAMAGE, PER_PROMOTION } from '../src/myth/ClassProgress'
 import { Cycle } from '../src/progress/Cycle'
 import { GODS, godDef, RELIC_IDS, relicDef } from '../src/relics/data'
 

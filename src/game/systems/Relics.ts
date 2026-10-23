@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 
 import { godDef, relicDef, type RelicId } from '../../relics/data'
-import { levelGains } from '../../progress/levelGains'
+import { levelGains } from '../../myth/levelGains'
 import { classIcon } from '../../ui/classIcons'
 import type { GameContext } from '../context'
 import type { LoadoutChange } from '../RelicPowers'
