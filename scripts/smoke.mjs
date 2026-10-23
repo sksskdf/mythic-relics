@@ -95,7 +95,11 @@ try {
   })
   await page.mouse.click(screen.x, screen.y)
   await page.waitForFunction(() => window.__game.orders.attackTarget === window.__clickTarget, null, { timeout: 10000 })
-  console.log('클릭 확인: 몬스터를 누르면 공격 지시')
+  // 이름표 (E12-09): 공격 중인 몬스터 머리 위에 등급과 이름
+  await page.waitForFunction(() => window.__game.nameplates.visible.some((t) => t.includes('서리 거인')), null, { timeout: 10000 }).catch(() => {
+    throw new Error('이름표: 공격 중인 몬스터 머리 위에 이름표가 뜨지 않습니다.')
+  })
+  console.log('클릭 확인: 몬스터를 누르면 공격 지시, 머리 위 이름표', await page.evaluate(() => window.__game.nameplates.visible.join(', ')))
 
   // 외형 점검(E3): 기본 / 유물 1개 / 유물 2개 / 발현, 네 장면을 찍어 남긴다. (주인공 둘레만)
   const lookShot = async (name, frames = 2) => {

@@ -13,6 +13,8 @@ import type { GameContext } from '../context'
  */
 export class PlayerInput {
   private readonly cursor = new THREE.Vector3()
+  /** 커서 아래의 몬스터 (이름표용, 프레임마다 갱신) */
+  hovered: Giant | null = null
 
   constructor(
     private readonly ctx: GameContext,
@@ -25,8 +27,9 @@ export class PlayerInput {
     const { orders } = this.ctx
     const cursor = this.cursorOnGround()
     const ground = cursor ? { x: cursor.x, z: cursor.z } : null
+    this.hovered = this.enemyUnderCursor()
     if (this.input.wasPressed('move')) {
-      orders.press(ground, this.enemyUnderCursor())
+      orders.press(ground, this.hovered)
     } else if (this.input.isDown('move')) orders.hold(ground)
     else orders.release()
   }

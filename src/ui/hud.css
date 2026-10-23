@@ -167,6 +167,29 @@ button.hud__slot--empty {
 .hud__boss.is-visible {
   visibility: visible;
 }
+.hud__boss-head {
+  display: none;
+  justify-content: center;
+  align-items: baseline;
+  gap: var(--sp-2);
+  width: max-content;
+  margin: var(--sp-2) auto 0;
+  padding: 0 var(--sp-4);
+  background: var(--c-panel);
+  border: 1px solid var(--c-line-2);
+  white-space: nowrap;
+}
+.hud__boss.has-name .hud__boss-head {
+  display: flex;
+}
+.hud__boss-grade {
+  color: var(--c-gold);
+  font: var(--t-small);
+}
+.hud__boss-name {
+  color: var(--c-gold-soft);
+  font: var(--t-title);
+}
 .hud__boss-track {
   --fill: #8a4cf0;
   --h: 12px;
@@ -529,4 +552,42 @@ button.hud__slot--empty {
 }
 .devmode .minimap {
   right: calc(300px + clamp(4px, 0.9vh, 10px) * 2 + 8px);
+}
+
+/* 몬스터 이름표 (E12-09): 커서를 올리거나 공격 중인 몬스터 머리 위 */
+.nameplate {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: var(--sp-1) var(--sp-4) var(--sp-2);
+  background: var(--c-panel);
+  border: 1px solid var(--c-line-2);
+  pointer-events: none;
+  z-index: 15;
+}
+.nameplate__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  white-space: nowrap;
+}
+.nameplate__grade {
+  --tone: var(--c-ink-3);
+  color: var(--tone);
+  font: var(--t-small);
+}
+.nameplate__name {
+  color: var(--c-ink-1);
+  font: var(--t-body);
+}
+.nameplate[data-grade='boss'] .nameplate__name {
+  color: var(--c-gold-soft);
+}
+.nameplate__life {
+  --fill: var(--c-life);
+  width: 64px;
 }

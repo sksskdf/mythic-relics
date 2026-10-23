@@ -36,6 +36,9 @@ import { Feel, type GameContext } from './context'
 import { Encounter } from './Encounter'
 import { Villagers } from './Villagers'
 import { Minimap } from '../ui/Minimap'
+import { Nameplates, type PlateTarget } from '../ui/Nameplates'
+import { gradeOf } from '../enemies/grade'
+import { Giant } from '../enemies/Giant'
 import { EventBus, type GameEvents } from './events'
 import { UtgardLegend } from './Legend'
 import { HERO_RADIUS, HeroController } from './HeroController'
@@ -129,6 +132,8 @@ export class Game {
   readonly villagers: Villagers
   /** 작은 지도 (E7-08) */
   readonly minimap: Minimap
+  /** 몬스터 이름표 (E12-09) */
+  readonly nameplates: Nameplates
   /** 개발 패널의 지도 편집기 (E7-01). 켜 있으면 땅을 누르는 것이 이동 대신 편집이 된다 */
   mapEditor: { active: boolean; update(cursor: { x: number; z: number } | null, pressed: boolean): void } | null = null
 
@@ -191,6 +196,7 @@ export class Game {
     this.scene.add(this.villagers.object)
     this.minimap = new Minimap(this.hud.root)
     this.numbers = new DamageNumbers(container)
+    this.nameplates = new Nameplates(container)
 
     // 지역 (E7): 저장한 지역이 없으면 첫 지역에서 시작한다
     const region = REGIONS[options.region ?? options.load?.region?.id ?? START_REGION] ?? REGIONS[START_REGION]!
@@ -812,7 +818,25 @@ export class Game {
     }
   }
 
+  /** 이름표: 커서를 올린 몬스터와 지금 공격 중인 몬스터 (E12-09) */
+  private updateNameplates(): void {
+    const plates: PlateTarget[] = []
+    // 보스 막대가 떠 있는 보스는 막대에 이름이 있으니 머리 위에는 띄우지 않는다
+    const barBoss = this.legend.boss?.alive ? this.legend.boss : this.encounter.bossEngaged ? this.encounter.boss : null
+    const add = (target: unknown) => {
+      if (!(target instanceof Giant) || !target.alive || target === barBoss) return
+      const top = heightAt(target.x, target.z) + Math.max(1.6, target.radius * 3.6) + 0.6
+      plates.push({ key: target, name: target.spec.name, grade: gradeOf(target), life: target.health.ratio, screen: this.screenPoint(target.x, top, target.z) })
+    }
+    if (this.playing) {
+      add(this.playerInput.hovered)
+      add(this.orders.attackTarget ?? this.combat.target)
+    }
+    this.nameplates.update(plates)
+  }
+
   private updateHud(realDt: number): void {
+    this.updateNameplates()
     const boss = this.encounter.boss
     const manifested = this.ctx.build.chosen
     this.hud.update(
@@ -827,6 +851,14 @@ export class Game {
               ? this.legend.boss.health.ratio
               : boss && this.encounter.bossEngaged
                 ? boss.health.ratio
+                : null,
+        bossName:
+          this.legend.betProgress !== null
+            ? null
+            : this.legend.boss?.alive
+              ? this.legend.boss.spec.name
+              : boss && this.encounter.bossEngaged
+                ? boss.spec.name
                 : null,
         slots: this.powers.hudSlots(),
         ultimate: manifested !== null,
