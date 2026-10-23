@@ -55,6 +55,7 @@ import { ProgressionSystem } from './systems/Progression'
 import { SoundSystem } from './systems/Sound'
 import { RelicSystem } from './systems/Relics'
 import { World } from './World'
+import { TitleBackdrop } from './TitleBackdrop'
 import { DevTools } from '../dev/DevTools'
 
 export interface GameOptions {
@@ -165,8 +166,8 @@ export class Game {
   /** ?res= 로 정한 기준 (없으면 기본값) */
   private readonly requestedRenderHeight: number
   private lastTime = performance.now()
-  /** 시작 화면 뒤에서 카메라가 바라보는 곳 */
-  private readonly backdropFocus = new THREE.Vector3()
+  /** 시작 화면 뒤의 장면 */
+  private readonly backdrop: TitleBackdrop
   private elapsed = 0
 
   constructor(
@@ -239,6 +240,7 @@ export class Game {
       container,
     )
     this.world.dress(region)
+    this.backdrop = new TitleBackdrop({ hero: this.hero, fx: this.fx, stage: this.stage, view: this.view, hud: this.hud })
 
     const skills: SkillContext = {
       hero: this.hero,
@@ -396,8 +398,7 @@ export class Game {
 
     if (options.title) {
       this.playing = false
-      this.hud.root.classList.add('is-hidden')
-      this.stage.setDusk(true)
+      this.backdrop.show(true)
     }
     if (options.load) {
       this.persistence.restore(options.load, {
@@ -516,8 +517,7 @@ export class Game {
   begin(): void {
     if (this.playing) return
     this.playing = true
-    this.stage.setDusk(false)
-    this.hud.root.classList.remove('is-hidden')
+    this.backdrop.show(false)
     this.input.endFrame()
   }
 
@@ -693,18 +693,10 @@ export class Game {
     return itemUnderPointer(items, pointer, Math.max(28, size.scale * 12))
   }
 
-  /** 시작 화면 뒤의 배경: 눈이 내리고 불꽃이 일렁이며, 주인공은 숨만 쉰다. */
+  /** 시작 화면 뒤의 배경만 움직이고 그린다. */
   private updateBackdrop(dt: number): void {
     this.elapsed += dt
-    this.hero.update(dt)
-    const position = this.hero.object.position
-    this.fx.snow.update(dt, position, this.elapsed)
-    this.stage.update(this.elapsed)
-    // 시작 화면 뒤 (E9-08): 카메라가 주인공 둘레를 천천히 흘러 마을이 살아 있게 보인다
-    const t = this.elapsed * 0.08
-    this.backdropFocus.set(position.x - 6 + Math.sin(t) * 2, position.y, position.z + 3 + Math.cos(t * 0.7) * 1.2)
-    this.view.follow(this.backdropFocus, dt)
-    this.stage.follow(position)
+    this.backdrop.update(dt, this.elapsed)
     this.pixel.render(this.scene, this.view.camera, this.view.subpixel)
     this.input.endFrame()
     this.frame += 1
