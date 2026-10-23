@@ -178,7 +178,7 @@ try {
   })
   if (stowed.manifested !== null || stowed.waist !== null || !stowed.bag.includes('megingjord')) throw new Error(`정보 화면: 가방에 넣기 실패 ${JSON.stringify(stowed)}`)
   await page.locator('.menu-relics__item').first().hover()
-  if (!(await page.locator('.rc__preview').textContent()).includes('발현')) throw new Error('정보 화면: 끼우면 발현한다는 미리 보기가 없습니다.')
+  if (!(await page.locator('.rc__preview').textContent()).includes('신화')) throw new Error('정보 화면: 끼우면 신화가 열린다는 미리 보기가 없습니다.')
   await page.locator('.menu-relics__item').first().click()
   if ((await page.evaluate(() => window.__game.powers.manifested)) !== 'thor') throw new Error('정보 화면: 다시 끼웠는데 발현하지 않습니다.')
   await page.click('.menu__tab:nth-child(4)')

@@ -63,7 +63,7 @@ export class ProgressionSystem {
         bus.emit('legendStarted', {})
         const def = godDef(this.challenger!)
         const ink = realmInk(def.realm)
-        hud.showTitleCard(def.legend!.name, def.color, realmSigil(def.realm, ink.light, ink.dark), '승급 전설')
+        hud.showTitleCard(def.legend!.name, def.color, realmSigil(def.realm, ink.light, ink.dark), '전설')
         view.shake(0.3)
       },
       onWin: () => this.challenger && this.promote(this.challenger),
@@ -114,7 +114,7 @@ export class ProgressionSystem {
       `모든 피해 ×${dmgBefore.toFixed(2)} → ×${dmgAfter.toFixed(2)}`,
       ...levelGains(god, level).filter((g) => g.kind !== 'hp' && g.kind !== 'damage').map((g) => g.text),
     ]
-    hud.showGains(`승급 · Lv${level}`, progress.title(god), godDef(god).color, classIcon(godDef(god).name), lines)
+    hud.showGains(`개방 단계 · ${level}단계`, progress.title(god), godDef(god).color, classIcon(godDef(god).name), lines)
     // 신마다 다른 승급 순간: 레벨이 오를수록 크고 많다
     godMoment(this.ctx, god, level)
     fx.puffs.burst(p, 40, 5)

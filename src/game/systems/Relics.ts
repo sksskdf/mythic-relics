@@ -153,7 +153,7 @@ export class RelicSystem {
       for (const g of levelGains(god.id, lv)) if (lv === 1 || g.kind === 'power') lines.push(g.text)
     }
     lines.push(`궁극기 「${god.ultimate.name}」`)
-    hud.showGains('발현', progress.title(god.id), god.color, classIcon(god.name), lines)
+    hud.showGains('신화 개방', progress.title(god.id), god.color, classIcon(god.name), lines)
     // 주변 적을 밀어낸다.
     const p = hero.object.position
     fx.puffs.burst(p, 30, 4)

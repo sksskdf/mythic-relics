@@ -95,7 +95,7 @@ export class WardrobePane {
       if (OPTIONAL.has(this.selected)) add(null, null, 'none', '비우기')
     }
     options.append(
-      el('div', 'wardrobe__options-label', this.selected === 'mark' ? '표식은 발현한 신이 정한다' : `${SLOT_NAMES[this.selected]}: 커서를 올리면 입혀 보고, 누르면 고른다`),
+      el('div', 'wardrobe__options-label', this.selected === 'mark' ? '표식은 지금 신화가 정한다' : `${SLOT_NAMES[this.selected]}: 커서를 올리면 입혀 보고, 누르면 고른다`),
       chips,
     )
     pane.append(options)
@@ -117,7 +117,7 @@ export class WardrobePane {
       lock.src = glyph('lock', '#8d98a6', '#222a36')
       lock.alt = ''
       box.append(lock)
-      this.hintOn(box, id ? '발현한 신의 표식' : '신의 힘이 깨어나면 새겨진다')
+      this.hintOn(box, id ? '지금 신화의 표식' : '신화가 열리면 새겨진다')
     }
     box.addEventListener('click', () => {
       this.selected = slot
