@@ -59,6 +59,8 @@ import { SoundSystem } from './systems/Sound'
 import { RelicSystem } from './systems/Relics'
 import { World } from './World'
 import { TitleBackdrop } from './TitleBackdrop'
+import { DialogScene } from './DialogScene'
+import { DialogBox } from '../ui/DialogBox'
 import { DevTools } from '../dev/DevTools'
 import { Build } from '../build/Build'
 
@@ -134,6 +136,9 @@ export class Game {
   readonly minimap: Minimap
   /** 몬스터 이름표 (E12-09) */
   readonly nameplates: Nameplates
+  /** 대화 장면 (E12-10) */
+  readonly scenes: DialogScene
+  readonly dialog: DialogBox
   /** 개발 패널의 지도 편집기 (E7-01). 켜 있으면 땅을 누르는 것이 이동 대신 편집이 된다 */
   mapEditor: { active: boolean; update(cursor: { x: number; z: number } | null, pressed: boolean): void } | null = null
 
@@ -248,6 +253,22 @@ export class Game {
     )
     this.world.dress(region)
     this.backdrop = new TitleBackdrop({ hero: this.hero, fx: this.fx, stage: this.stage, view: this.view, hud: this.hud })
+    this.dialog = new DialogBox(container)
+    const scenesSeen = new Set<string>()
+    this.scenes = new DialogScene({
+      hero: this.hero,
+      villagers: this.villagers,
+      box: this.dialog,
+      setHudHidden: (hidden) => {
+        this.hud.root.classList.toggle('is-hidden', hidden)
+        this.villagers.quiet = hidden
+      },
+      viewHeight: () => this.view.viewHeight,
+      setViewHeight: (viewHeight) => this.applyViewHeight(viewHeight),
+      clearOrders: () => this.orders.clear(),
+      onSeen: () => this.bus.emit('progressChanged', {}),
+      seen: scenesSeen,
+    })
 
     const skills: SkillContext = {
       hero: this.hero,
@@ -289,6 +310,7 @@ export class Game {
       drops: this.drops,
       wardrobe: this.wardrobe,
       cycle: this.cycle,
+      scenesSeen,
       build: new Build({ powers: this.powers, progress: this.progress, cycle: this.cycle }),
       skills,
     }
@@ -538,9 +560,12 @@ export class Game {
     }
     // 정보 화면이 열려 있으면 게임은 멈추고 화면만 그린다. (E4-07)
     if (!this.paused) {
-      this.update(realDt, true)
-      this.view.follow(this.hero.object.position, realDt)
-      this.updateGroundTooltip()
+      // 대화 중에는 이동 입력을 받지 않고, 카메라는 주인공과 말하는 사람 사이를 본다 (E12-10)
+      const talking = this.scenes.active
+      this.update(realDt, !talking)
+      this.scenes.update(realDt)
+      this.view.follow(talking ? this.scenes.focus : this.hero.object.position, realDt)
+      if (!talking) this.updateGroundTooltip()
     }
     this.numbers.update(realDt, this.container.clientHeight, this.pixel.size, this.view.camera, this.view.subpixel)
     this.updateHud(realDt)
@@ -889,7 +914,11 @@ export class Game {
 
   /** 확대·축소. 그림자가 그려지는 범위도 보이는 범위에 맞춘다. */
   setViewHeight(viewHeight: number): void {
-    const next = clampViewHeight(viewHeight)
+    this.applyViewHeight(clampViewHeight(viewHeight))
+  }
+
+  /** 보이는 범위를 그대로 바꾼다 (대화 장면의 줌은 평소 범위보다 가깝다) */
+  private applyViewHeight(next: number): void {
     // 가장 크게 확대했을 때의 픽셀 크기를 기준으로, 넓게 볼 때는 뭉개지지 않을 만큼만 해상도를 올린다.
     this.pixel.setTargetHeight(renderHeightFor(next, this.baseRenderHeight))
     this.view.viewHeight = next

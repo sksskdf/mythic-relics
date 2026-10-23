@@ -591,3 +591,63 @@ button.hud__slot--empty {
   --fill: var(--c-life);
   width: 64px;
 }
+
+/* 대화 장면 (E12-10): 화면 전체를 덮어 클릭을 받고, 아래에 대화 상자 */
+.dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  cursor: pointer;
+  user-select: none;
+}
+.dialog__box {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--sp-6) * 2 + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  width: min(90vw, 560px);
+  min-height: 84px;
+  padding: var(--sp-4) var(--sp-6) var(--sp-6);
+  background: var(--c-panel);
+  border: 2px solid var(--c-line-2);
+  box-shadow: inset 0 1px 0 var(--c-bevel), 0 6px 24px rgba(0, 0, 0, 0.6);
+}
+.dialog__name {
+  color: var(--c-gold-soft);
+  font: var(--t-title);
+  margin-bottom: var(--sp-2);
+}
+.dialog__text {
+  color: var(--c-ink-1);
+  font: var(--t-body);
+  font-size: 24px;
+  line-height: 1.5;
+  min-height: 1.5em;
+}
+.dialog__next {
+  position: absolute;
+  right: var(--sp-6);
+  bottom: var(--sp-3);
+  color: var(--c-gold);
+  font: var(--t-small);
+  animation: dialog-next 0.8s ease-in-out infinite alternate;
+}
+@keyframes dialog-next {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(3px);
+  }
+}
+.dialog__skip {
+  position: absolute;
+  top: calc(var(--sp-6) + env(safe-area-inset-top, 0px));
+  right: calc(var(--sp-6) + env(safe-area-inset-right, 0px));
+  padding: var(--sp-1) var(--sp-4);
+  background: var(--c-panel);
+  border: 1px solid var(--c-line-2);
+  color: var(--c-ink-2);
+  font: var(--t-small);
+  cursor: pointer;
+}

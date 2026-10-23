@@ -60,6 +60,8 @@ export interface GameContext {
   readonly wardrobe: Wardrobe
   /** 빌드 상태: 열린 신화·고른 신화·장비·원천 → 능력치 (E11-04) */
   readonly build: Build
+  /** 본 대화 장면 (E12-10, 저장) */
+  readonly scenesSeen: Set<string>
   /** 유물 스킬이 세계와 주고받는 것 (프레임마다 적 목록 등을 채운다) */
   readonly skills: SkillContext
 }

@@ -372,6 +372,12 @@ export class DevPanel {
       row(
         button('회복', () => g.combat.health.reset()),
         button('되살리기', () => g.dev.revive()),
+        // 대화 장면 (E12-10): 첫 장면을 마을에서 다시 튼다
+        button('첫 장면', () => {
+          const village = g.regions.village
+          if (village && g.region.id !== village.id) g.enterRegion(village)
+          g.scenes.play('opening')
+        }),
         button('저장 지우기', () => {
           saveStorage.clear()
           location.replace(`${location.pathname}?fresh`)

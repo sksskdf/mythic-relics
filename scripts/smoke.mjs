@@ -49,6 +49,23 @@ try {
   if (skin !== 2) throw new Error(`캐릭터 만들기: 고른 피부가 ${skin}입니다.`)
   console.log('시작 화면 확인: 빈 슬롯 → 캐릭터 만들기(피부 고름) → [시작]으로 플레이 시작')
 
+  // 첫 장면 (E12-10): 새로 시작하면 촌장과 대화. HUD가 숨고, 한 번 누르면 글이 완성되고 한 번 더 누르면 다음 줄
+  await page.waitForFunction(() => window.__game.scenes.current === 'opening' && !document.querySelector('.dialog')?.hidden, null, { timeout: 5000 }).catch(() => {
+    throw new Error('첫 장면: 새로 시작했는데 대화 장면이 열리지 않습니다.')
+  })
+  if (!(await page.evaluate(() => window.__game.hud.root.classList.contains('is-hidden')))) throw new Error('첫 장면: 대화 중에 HUD가 보입니다.')
+  if ((await page.locator('.dialog__name').textContent()) !== '촌장') throw new Error('첫 장면: 말하는 사람이 촌장이 아닙니다.')
+  await page.mouse.click(640, 300)
+  const firstLine = await page.evaluate(() => window.__game.dialog.visibleText)
+  if (firstLine !== '깨어났구먼. 모닥불 곁에 쓰러져 있었다네.') throw new Error(`첫 장면: 한 번 눌렀는데 글이 완성되지 않습니다 ("${firstLine}")`)
+  for (let i = 0; i < 20 && (await page.evaluate(() => !document.querySelector('.dialog').hidden)); i++) await page.mouse.click(640, 300)
+  await page.waitForFunction(() => !window.__game.scenes.active, null, { timeout: 10000 }).catch(() => {
+    throw new Error('첫 장면: 끝까지 넘겼는데 대화가 끝나지 않습니다.')
+  })
+  if (await page.evaluate(() => window.__game.hud.root.classList.contains('is-hidden'))) throw new Error('첫 장면: 대화가 끝났는데 HUD가 돌아오지 않습니다.')
+  if (!(await page.evaluate(() => window.__game.snapshot().scenes.includes('opening')))) throw new Error('첫 장면: 본 장면이 저장되지 않습니다.')
+  console.log('첫 장면 확인: 대화 중 HUD 숨김, 한 번 누르면 완성·다시 누르면 넘김, 끝나면 HUD와 저장')
+
   // 조작 점검: 우클릭한 곳으로 걸어가는지 확인한다.
   const heroPos = () => page.evaluate(() => {
     const p = window.__game.hero.object.position

@@ -18,6 +18,7 @@ const sample: SaveData = {
   body: { skin: 2, hair: 1, cloth: 3 },
   cycle: parseCycle({ essence: { flame: 12.5 }, training: { wind: 2 }, rebirths: 1 }),
   region: { id: 'olympus', x: 3.5, z: -12 },
+  scenes: ['opening'],
 }
 
 describe('저장 데이터', () => {
@@ -30,6 +31,12 @@ describe('저장 데이터', () => {
     expect(parseSave(JSON.stringify(v2))?.region).toBeNull()
     expect(parseSave(JSON.stringify({ ...sample, region: { id: 'atlantis', x: 0, z: 0 } }))?.region).toBeNull()
     expect(parseSave(JSON.stringify({ ...sample, region: { id: 'village', x: 999, z: -999 } }))?.region).toEqual({ id: 'village', x: 24, z: -24 })
+  })
+
+  it('본 대화 장면: 옛 저장에는 없어서 빈 목록, 글자가 아니거나 겹치면 버린다 (E12-10)', () => {
+    const { scenes: _, ...old } = sample
+    expect(parseSave(JSON.stringify(old))?.scenes).toEqual([])
+    expect(parseSave(JSON.stringify({ ...sample, scenes: ['opening', 3, 'opening'] }))?.scenes).toEqual(['opening'])
   })
 
   it('깨졌거나 버전이 다르면 새로 시작한다', () => {
