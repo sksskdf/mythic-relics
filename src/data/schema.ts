@@ -52,6 +52,8 @@ export interface GodDef {
   ultimate: UltimateDef
   /** 공격 모션 (E6-10, src/combat/styles.ts) */
   attack: AttackStyle
+  /** 이 신화의 유물 (E13-03: 신화마다 하나, 대장간에서 4단계까지 올린다) */
+  relic: string
 }
 
 
@@ -76,7 +78,7 @@ export function parseGods(raw: unknown, path = 'gods.json'): Record<string, GodD
   const out: Record<string, GodDef> = {}
   for (const [id, o] of table(raw, path)) {
     const p = `${path}.${id}`
-    onlyKeys(o, p, ['name', 'titles', 'source', 'color', 'tree', 'passive', 'always', 'looks', 'legend', 'mark', 'hidden', 'manifestCount', 'ultimate', 'attack', 'realm'])
+    onlyKeys(o, p, ['name', 'titles', 'source', 'color', 'tree', 'passive', 'always', 'looks', 'legend', 'mark', 'hidden', 'manifestCount', 'ultimate', 'attack', 'realm', 'relic'])
     const titles = list(o, 'titles', p)
     if (titles.length !== 4 || titles.some((t) => typeof t !== 'string' || t.trim() === '')) {
       throw new DataError(`${p}.titles`, '1~4단계 칭호 네 개여야 합니다')
@@ -104,6 +106,7 @@ export function parseGods(raw: unknown, path = 'gods.json'): Record<string, GodD
       manifestCount: optNum(o, 'manifestCount', p, { min: 2, max: 4 }) ?? 3,
       ultimate: parseUltimate(o.ultimate, `${p}.ultimate`),
       attack: oneOf(o, 'attack', p, ATTACK_STYLES),
+      relic: str(o, 'relic', p),
     }
     if (out[id]!.looks.mark !== undefined) throw new DataError(`${p}.looks.mark`, '표식은 looks가 아니라 mark에 적습니다')
   }
@@ -198,6 +201,8 @@ export interface RelicDef {
   icon?: readonly string[]
   /** 그림 글자별 색 */
   colors?: Readonly<Record<string, string>>
+  /** 2~4단계 이름 (E13-03, 신화의 유물만. 없으면 「깨어난 ○○」처럼 지어 준다) */
+  stages?: readonly [string, string, string]
   /** 지속 효과: 끼고 있는 동안 늘 켜져 있다 */
   passive: { description: string; modifiers: Readonly<Partial<Record<ModifierKey, number>>>; aura?: AuraDef }
   /** 행동 연동 효과: 행동으로 충전이 쌓이고, 다 차면 터진다 */
@@ -278,9 +283,15 @@ export interface RelicRefs {
   models?: readonly string[]
 }
 
+function stageNames(o: Obj, path: string): [string, string, string] {
+  const v = list(o, 'stages', path)
+  if (v.length !== 3 || v.some((n) => typeof n !== 'string' || n.trim() === '')) throw new DataError(`${path}.stages`, '2·3·4단계 이름 셋이어야 합니다')
+  return v as [string, string, string]
+}
+
 export function parseRelic(id: string, raw: unknown, refs: RelicRefs, path = `relics.json.${id}`): RelicDef {
   const o = obj(raw, path)
-  onlyKeys(o, path, ['name', 'god', 'also', 'look', 'model', 'description', 'icon', 'colors', 'passive', 'trigger'])
+  onlyKeys(o, path, ['name', 'god', 'also', 'look', 'model', 'description', 'icon', 'colors', 'stages', 'passive', 'trigger'])
   const god = str(o, 'god', path)
   if (!refs.gods.includes(god)) throw new DataError(`${path}.god`, `gods.json에 없는 신입니다 ("${god}")`)
   const also = (o.also === undefined ? [] : list(o, 'also', path)).map((g, i) => {
@@ -345,6 +356,7 @@ export function parseRelic(id: string, raw: unknown, refs: RelicRefs, path = `re
     model,
     description: str(o, 'description', path),
     ...parseIcon(o, path),
+    ...(o.stages === undefined ? {} : { stages: stageNames(o, path) }),
     passive: { description: str(passiveRaw, 'description', pp), modifiers, ...(aura ? { aura } : {}) },
     trigger: {
       name: str(t, 'name', tp),
@@ -811,6 +823,19 @@ export function parseGameData(
   }
   for (const id of REQUIRED_ENEMIES) {
     if (!enemies[id]) throw new DataError(`enemies.json.${id}`, '게임이 직접 쓰는 적이라 빠지면 안 됩니다')
+  }
+  // 신화의 유물 (E13-03): 그 신의 유물이어야 하고, 두 신화가 같은 유물을 쓰지 않는다
+  const taken = new Map<string, string>()
+  for (const god of Object.values(gods)) {
+    const relic = relics[god.relic]
+    const p = `gods.json.${god.id}.relic`
+    if (!relic) throw new DataError(p, `relics.json에 없는 유물입니다 ("${god.relic}")`)
+    if (relic.god !== god.id && !relic.also.includes(god.id)) throw new DataError(p, `${god.id}의 유물이 아닙니다 ("${god.relic}")`)
+    if (taken.has(god.relic)) throw new DataError(p, `${taken.get(god.relic)}의 유물과 겹칩니다`)
+    taken.set(god.relic, god.id)
+  }
+  for (const relic of Object.values(relics)) {
+    if (relic.stages && !taken.has(relic.id)) throw new DataError(`relics.json.${relic.id}.stages`, '단계 이름은 신화의 유물에만 씁니다')
   }
   const classes = parseClassTree(raw.classes, gods)
   return { gods, relics, enemies, classes }
