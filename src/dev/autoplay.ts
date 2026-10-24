@@ -5,7 +5,8 @@ import { SOURCE_IDS } from '../data/schema'
 import type { StarId } from '../progress/Cycle'
 import { forgeReady } from '../gear/forge'
 import { gearScore } from '../gear/roll'
-import { type God, godDef, relicDef } from '../relics/data'
+import { mythRelic } from '../gear/mythRelic'
+import { type God, godDef, isRelicId, relicDef } from '../relics/data'
 import type { Point2 } from '../world/colliders'
 
 /** 판단 간격 (초). 사람의 반응 속도쯤으로 둔다. */
@@ -158,6 +159,13 @@ export class Autoplayer {
     }
     // 정한 신이 있으면 그 신화가 열리는 대로 고른다 (사람은 마을·성소에서 고른다)
     if (this.god && powers.manifested !== this.god && this.game.progress.isOpen(this.god)) this.game.dev.choose(this.god)
+    // 고른 신화의 유물이 가방에 있으면 그 부위 칸에 낀다 (대장간에서 만든 유물이 가방으로 들어간 때)
+    const own = powers.manifested ? mythRelic(powers.manifested) : null
+    if (own && powers.loadout.bag.includes(own)) {
+      const slots = powers.loadout.slots.map((_, i) => i).filter((i) => powers.loadout.fits(own, i))
+      const target = slots.find((i) => powers.loadout.slots[i] === null) ?? slots.find((i) => !isRelicId(powers.loadout.slots[i] ?? ''))
+      if (target !== undefined) this.game.dev.wield(own, target)
+    }
     // 가방의 일반 장비가 더 좋으면 바꿔 낀다 (빈 칸이면 그냥 낀다, 유물은 빼지 않는다) (E13-08)
     for (const id of [...powers.loadout.bag]) {
       const item = powers.loadout.gear.get(id)
