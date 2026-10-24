@@ -752,7 +752,7 @@ export class Game {
         const cursor = this.playerInput.cursorOnGround()
         this.mapEditor.update(cursor ? { x: cursor.x, z: cursor.z } : null, this.input.wasPressed('move'))
       } else this.playerInput.update()
-    }
+    } else this.playerInput.hovered = null
     this.orders.update(this.encounter.alive)
     const heading = this.hero.heading
     if (this.orders.plowing && heading) plowThrough(this.hero.object.position, HERO_RADIUS, heading, this.encounter.alive)
