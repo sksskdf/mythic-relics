@@ -30,6 +30,8 @@ export interface EncounterLayout {
   boss: { x: number; z: number; enemy?: string } | null
   /** 정예 확률에 더하는 값 (깊은 땅, E15) */
   elite?: number
+  /** 무리와 보스가 다시 나타나는가 (균열 층은 한 번뿐, E17) */
+  respawn?: boolean
 }
 
 type WorldBase = Omit<GiantWorld, 'nav' | 'giants' | 'summon'>
@@ -52,6 +54,8 @@ export class Encounter {
   private bossSpec: GiantSpec = KING
   /** 무리 하나에 정예가 섞일 확률 (점검할 때 0이나 1로 바꾼다) */
   eliteChance = ELITE_CHANCE
+  /** 무리·보스가 다시 나타나는가 */
+  private respawns = true
   /** 지금 지역이 더하는 정예 확률 (깊은 땅) */
   private regionElite = 0
   /** 위협 단계 배율 (E14-03): 새로 세우는 적에 건다 */
@@ -76,6 +80,7 @@ export class Encounter {
 
   private place(layout: EncounterLayout): void {
     this.regionElite = layout.elite ?? 0
+    this.respawns = layout.respawn ?? true
     const gruntNav = this.navs.get(GRUNT)!
     this.camps = layout.camps.map((c) => ({
       center: gruntNav.nearestFree(c) ?? c,
@@ -105,6 +110,11 @@ export class Encounter {
   }
 
   /** 보스가 싸움에 끼어들었는지 (HUD 표시용) */
+  /** 무리와 보스가 모두 쓰러졌다 (균열 층을 깼다, E17) */
+  get cleared(): boolean {
+    return this.camps.every((c) => c.giants.every((g) => !g.alive)) && !this.boss?.alive && this.giants.every((g) => !g.alive)
+  }
+
   get bossEngaged(): boolean {
     const boss = this.boss
     return !!boss && boss.alive && boss.state !== 'idle' && boss.state !== 'return'
@@ -242,7 +252,7 @@ export class Encounter {
         continue
       }
       camp.respawn -= dt
-      if (camp.respawn <= 0 && far(camp.center)) this.fillCamp(camp)
+      if (this.respawns && camp.respawn <= 0 && far(camp.center)) this.fillCamp(camp)
     }
 
     if (this.boss?.gone) {
@@ -251,7 +261,7 @@ export class Encounter {
     }
     if (!this.boss) {
       this.bossRespawn -= dt
-      if (this.bossHome && this.bossRespawn <= 0 && far(this.bossHome)) this.spawnBoss()
+      if (this.respawns && this.bossHome && this.bossRespawn <= 0 && far(this.bossHome)) this.spawnBoss()
     }
   }
 }

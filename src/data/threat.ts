@@ -7,6 +7,12 @@ import type { Grade } from './gearData'
  * 다음 단계는 지금 열린 가장 높은 단계에서 지역 보스(신화 보스)를 이기면 열린다. 고르기는 마을 촌장.
  */
 export const THREAT_MAX = 10
+/** 한계를 깬 뒤의 끝 (E17-01): 사실상 없음 */
+export const THREAT_LIMITLESS = 99
+/** 한계를 깨는 신화권: 이 다섯의 보스를 모두 10단계에서 이기면 */
+export const LIMIT_REALMS = ['norse', 'greek', 'china', 'japan', 'korea'] as const
+/** 신화권 이름 (화면 글) */
+export const REALM_NAMES: Readonly<Record<string, string>> = { norse: '북유럽', greek: '그리스', china: '중국', japan: '일본', korea: '한국' }
 
 export const THREAT = {
   /** 단계가 하나 오를 때마다 적 생명력 ×1.2, 피해 ×1.1 */
@@ -24,7 +30,7 @@ export const THREAT = {
 
 /** 그 단계의 적 배율 */
 export function threatScale(level: number): { hp: number; damage: number } {
-  const n = Math.max(0, Math.min(THREAT_MAX, level) - 1)
+  const n = Math.max(0, Math.min(THREAT_LIMITLESS, level) - 1)
   return { hp: THREAT.hp ** n, damage: THREAT.damage ** n }
 }
 

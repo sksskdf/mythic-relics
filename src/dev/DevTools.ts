@@ -3,7 +3,7 @@ import type { GearPart, Grade } from '../data/gearData'
 import type { Pickups } from '../gear/Pickups'
 import { baseCandidates, nextRecipe } from '../gear/forge'
 import { rollGear } from '../gear/roll'
-import type { RelicId } from '../relics/data'
+import { GODS, type RelicId } from '../relics/data'
 import { type ClassProgress, MASTERY_TO_OPEN } from '../myth/ClassProgress'
 import type { EventBus, GameEvents } from '../game/events'
 import type { HeroController } from '../game/HeroController'
@@ -50,6 +50,21 @@ export class DevTools {
     const item = rollGear(Math.random, { ...(part ? { part } : {}), ...(grade ? { grade } : {}) })
     this.parts.pickups.drop(item.uid, x ?? p.x + 1.5, z ?? p.z, true, item)
     return item.uid
+  }
+
+  /** 한계를 깬 무렵의 빌드 (균열 시험, E17-07): 영웅 장비 여섯을 끼고, 고른 신화를 최고 단계로, 같은 신화권 신화를 모두 연다 */
+  endgame(): void {
+    const { powers, progress, bus } = this.parts
+    for (const part of ['head', 'body', 'hands', 'feet', 'trinket', 'trinket'] as const) {
+      const item = rollGear(Math.random, { part, grade: 'hero' })
+      powers.loadout.addGear(item)
+      powers.loadout.equip(item.uid)
+    }
+    const god = powers.manifested ?? 'thor'
+    const realm = GODS[god]?.realm
+    for (const g of Object.values(GODS)) if (g.realm === realm && !g.hidden) progress.open(g.id)
+    for (let i = 0; i < 4; i++) this.promote()
+    bus.emit('progressChanged', {})
   }
 
   /** 그 신화(없으면 고른 신화)의 다음 제작 재료를 채우고, 바탕이 없으면 그 부위 장비를 가방에 넣는다 (대장간 시험) */

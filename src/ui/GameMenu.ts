@@ -21,7 +21,7 @@ import { glyph, SOURCE_COLORS, sourceSigil, unknownSigil } from './sigils'
 import { type WardrobeHost, WardrobePane } from './WardrobePane'
 import './menu.css'
 
-export type MenuTab = 'status' | 'sources' | 'relics' | 'classes' | 'trials' | 'map' | 'looks'
+export type MenuTab = 'status' | 'sources' | 'relics' | 'classes' | 'trials' | 'rift' | 'map' | 'looks'
 
 /** 탭은 그림으로만 보여 주고, 이름은 올렸을 때 힌트로 띄운다. */
 const TABS: readonly [MenuTab, Parameters<typeof glyph>[0], string][] = [
@@ -30,6 +30,7 @@ const TABS: readonly [MenuTab, Parameters<typeof glyph>[0], string][] = [
   ['relics', 'relics', '장비'],
   ['classes', 'classes', '신화'],
   ['trials', 'scroll', '시련'],
+  ['rift', 'star', '균열'],
   ['map', 'map', '지도'],
   ['looks', 'looks', '외형'],
 ]
@@ -60,6 +61,7 @@ const TAB_HINTS: Record<MenuTab, string> = {
   sources: '원천\n장비의 원천이 쌓여 각성한 힘, 세계의 위협 단계, 손이 덜 가는 편의',
   relics: '유물\n낀 유물과 가방. 눌러서 바꿔 끼고, 바꾸면 어떻게 되는지 미리 본다',
   trials: '시련\n제약을 건 전설. 깨면 그 제약과 이어진 힘이 영구히 붙는다',
+  rift: '균열\n한계를 깨면 열리는 끝없는 층과, 별을 밝히는 성좌판',
   map: '지도\n마을에서 신화권마다 뻗은 땅 열다섯. 찾은 성소는 빛나고, 워프가 열리면 눌러서 간다',
   classes: '신화\n지금 신화의 개방 단계와 다음 단계로 가는 법, 만난 신들',
   looks: '외형\n부위마다 보이는 모습을 고른다',
@@ -90,6 +92,25 @@ export interface TrialsHost {
   start(id: string, level: number): boolean
 }
 
+/** 균열 탭이 게임에서 읽고 부르는 것 (E17) */
+export interface RiftMenuHost {
+  /** 한계를 깼나 (균열이 열렸다) */
+  open(): boolean
+  /** 한계를 깨는 길: 신화권마다 이긴 가장 높은 위협 단계 */
+  progress(): { name: string; cleared: number }[]
+  canEnter(): boolean
+  enter(): boolean
+  /** 진행 중인 균열: 층과 고른 축복 이름 */
+  run(): { depth: number; blessings: string[] } | null
+  best(): number
+  stars(): number
+  /** 균열 보상 배율 (시련 기록) */
+  scale(): number
+  /** 성좌판: 별마다 신화 이름·색·자리·이웃, 밝혔나, 지금 밝힐 수 있나 */
+  chart(): { god: string; name: string; color: string; x: number; y: number; neighbors: string[]; lit: boolean; can: boolean }[]
+  light(god: string): boolean
+}
+
 /** 지도 탭이 게임에서 읽고 부르는 것 (E15-04) */
 export interface WorldMapHost {
   /** 지역마다: 이름, 신화권 색, 자리(입구·깊은 땅·보스), 지도 위 자리, 이웃, 지금 여기인가, 성소를 찾았나, 그 신화권 보스를 이긴 가장 높은 위협 단계 */
@@ -103,7 +124,7 @@ export interface WorldMapHost {
 export interface SourcesHost {
   /** 원천마다: 장비 합, 숙련, 합계, 각성 단계 */
   rows(): { id: SourceId; gear: number; mastery: number; total: number; level: number }[]
-  readonly threat: { level: number; unlocked: number; reached: number; battle: number; pour: number; resonance: number }
+  readonly threat: { level: number; unlocked: number; reached: number; battle: number; pour: number; resonance: number; max: number }
   /** 단계를 고를 수 있는 곳인가 (마을) */
   here(): boolean
   choose(level: number): boolean
@@ -162,6 +183,7 @@ export interface MenuHost {
   readonly sources: SourcesHost
   readonly world: WorldMapHost
   readonly trials: TrialsHost
+  readonly rift: RiftMenuHost
   /** 저장하고 처음 화면(슬롯 고르기)으로 */
   toTitle(): void
   /** 설정을 연다 (일시 정지 메뉴) */
@@ -372,6 +394,7 @@ export class GameMenu {
     else if (this.tab === 'classes') this.renderClasses()
     else if (this.tab === 'map') this.renderMap()
     else if (this.tab === 'trials') this.renderTrials()
+    else if (this.tab === 'rift') this.renderRift()
     else this.wardrobe.render(this.body)
   }
 
@@ -428,6 +451,77 @@ export class GameMenu {
     }
     ms.append(el('div', 'menu-src__text', `기록이 빠를수록 균열 보상이 커진다 (지금 ×${trials.riftScale().toFixed(2)})`))
     wrap.append(ms)
+    this.body.append(wrap)
+  }
+
+  // ───────────────────────────── 균열 ─────────────────────────────
+
+  /**
+   * 균열 탭 (E17): 한계를 깨는 길, 균열 들어가기와 지금 층·축복, 깊이 기록, 성좌판.
+   * 성좌판의 별은 이웃한 별이 밝혀졌을 때만(첫 별은 열린 신화 아무것이나) 눌러 밝힌다.
+   */
+  private renderRift(): void {
+    const { rift } = this.host
+    const wrap = el('div', 'menu-src')
+    const head = el('section', 'menu-src__panel')
+    if (!rift.open()) {
+      head.append(el('div', 'menu-src__title', '균열 · 닫힘'))
+      head.append(el('div', 'menu-src__text', '다섯 신화권의 보스를 모두 위협 10단계에서 이기면 한계를 깨고 균열이 열린다'))
+      const row = el('div', 'menu-src__levels')
+      for (const p of rift.progress()) row.append(el('span', `ui-pill${p.cleared >= 10 ? ' is-done' : ''}`, `${p.name} ${p.cleared}/10`))
+      head.append(row)
+    } else {
+      const run = rift.run()
+      head.append(el('div', 'menu-src__title', run ? `균열 ${run.depth}층` : `균열 · 가장 깊이 ${rift.best()}층`))
+      if (run) head.append(el('div', 'menu-src__text', run.blessings.length ? `축복: ${run.blessings.join(', ')}` : '층의 적을 모두 쓰러뜨리면 축복을 고르고 다음 층 문이 열린다'))
+      else {
+        const go = el('button', 'menu-src__level is-next', '균열에 들어가기')
+        go.type = 'button'
+        go.disabled = !rift.canEnter()
+        go.addEventListener('click', () => rift.enter() && this.toggle(false))
+        head.append(go, el('div', 'menu-src__text', rift.canEnter() ? '들어갈 때마다 1층부터. 나오거나 쓰러지면 축복은 사라지고 기록·재료·별만 남는다' : '마을에서 들어갈 수 있다'))
+      }
+      head.append(el('div', 'menu-src__text', `보상 배율 ×${rift.scale().toFixed(2)} (시련 기록) · 처음 닿은 5층마다 별 하나, 종말 보스는 별 둘`))
+    }
+    wrap.append(head)
+
+    // 성좌판
+    const chart = rift.chart()
+    const board = el('section', 'menu-src__panel')
+    board.append(el('div', 'menu-src__title', `성좌판 · 별 ${rift.stars()}`))
+    const NS = 'http://www.w3.org/2000/svg'
+    const svg = document.createElementNS(NS, 'svg')
+    svg.setAttribute('class', 'menu-stars')
+    svg.setAttribute('viewBox', '-1.25 -1.25 2.5 2.5')
+    const at = new Map(chart.map((c) => [c.god, c]))
+    for (const c of chart) {
+      for (const n of c.neighbors) {
+        const m = at.get(n)
+        if (!m || m.god < c.god) continue
+        const line = document.createElementNS(NS, 'line')
+        line.setAttribute('x1', String(c.x))
+        line.setAttribute('y1', String(c.y))
+        line.setAttribute('x2', String(m.x))
+        line.setAttribute('y2', String(m.y))
+        line.setAttribute('class', `menu-stars__link${c.lit && m.lit ? ' is-lit' : ''}`)
+        svg.append(line)
+      }
+    }
+    for (const c of chart) {
+      const dot = document.createElementNS(NS, 'circle')
+      dot.setAttribute('cx', String(c.x))
+      dot.setAttribute('cy', String(c.y))
+      dot.setAttribute('r', '0.08')
+      dot.setAttribute('class', `menu-stars__star${c.lit ? ' is-lit' : ''}${c.can ? ' can-light' : ''}`)
+      dot.style.setProperty('--realm', c.color)
+      dot.addEventListener('click', () => c.can && rift.light(c.god) && this.render())
+      const tip = document.createElementNS(NS, 'title')
+      tip.textContent = `${c.name} · ${c.lit ? '밝혔다: 상시 효과 한 단계 위' : c.can ? '눌러서 밝힌다 (별 하나)' : '이웃한 별을 먼저 밝혀야 한다'}`
+      dot.append(tip)
+      svg.append(dot)
+    }
+    board.append(svg, el('div', 'menu-src__text', '밝힌 별: 그 신화의 상시 효과가 한 단계 위로 돈다 (5단계까지). 이웃한 별만 밝힐 수 있다'))
+    wrap.append(board)
     this.body.append(wrap)
   }
 
@@ -550,7 +644,7 @@ export class GameMenu {
     const threat = el('section', 'menu-src__panel')
     threat.append(titled(`위협 단계 · ${t.level}단계`, SOURCE_HELP.threat))
     const levels = el('div', 'menu-src__levels')
-    for (let n = 1; n <= THREAT_MAX; n++) {
+    for (let n = 1; n <= Math.max(THREAT_MAX, t.unlocked); n++) {
       const b = el('button', `menu-src__level${n === t.level ? ' is-on' : ''}`, String(n))
       b.type = 'button'
       b.disabled = !here || n > t.reached
@@ -578,7 +672,7 @@ export class GameMenu {
       branch.append(cards)
       threat.append(branch)
     } else {
-      threat.append(el('div', 'menu-src__text', t.unlocked >= THREAT_MAX ? '가장 높은 단계까지 열었다' : `${t.unlocked}단계에서 지역 보스를 이기면 ${t.unlocked + 1}단계가 열린다`))
+      threat.append(el('div', 'menu-src__text', t.unlocked >= t.max ? '가장 높은 단계까지 열었다' : `${t.unlocked}단계에서 지역 보스를 이기면 ${t.unlocked + 1}단계가 열린다`))
     }
     wrap.append(threat)
 

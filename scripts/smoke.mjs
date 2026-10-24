@@ -424,6 +424,46 @@ try {
   if (trial.id !== 'glass' || !trial.legend) throw new Error(`시련: 유리 몸 1단계가 열리지 않습니다 ${JSON.stringify(trial)}`)
   console.log(`시련 확인: 성소에서 시련 탭으로 유리 몸 1단계를 열고 전설이 시작됨 (최대 생명 ${trial.maxHp})`)
 
+  // 균열 (E17): 한계를 깨면 마을의 균열 탭에서 들어가고, 층을 깨면 축복을 골라 다음 층 문으로 내려가며, 나가는 문으로 나오면 끝
+  await page.evaluate(() => {
+    const g = window.__game
+    if (g.legend.active) g.legend.abort(g.encounter, g.growth.legendHost())
+    for (const realm of ['norse', 'greek', 'china', 'japan', 'korea']) g.threat.cleared[realm] = 10
+    Object.assign(g.threat, { unlocked: 10, reached: 10 })
+    // 새로 고친 뒤라 대화 장면이 다시 켜져 있다 (한계를 깸 장면이 메뉴를 가리지 않게)
+    g.storyScenes = false
+    g.threatSystem.breakLimit()
+    g.enterRegion(g.regions.village)
+    if (!g.combat.alive) g.dev.revive()
+  })
+  if ((await page.evaluate(() => window.__game.threat.unlocked)) !== 11) throw new Error('균열: 한계를 깼는데 위협 11단계가 열리지 않습니다.')
+  if (!(await page.locator('.menu').isVisible())) await page.click('.menu-button')
+  await page.locator('.menu__tab', { hasText: '균열' }).click()
+  await page.getByRole('button', { name: '균열에 들어가기' }).click()
+  const floor1 = await page.evaluate(() => ({ region: window.__game.region.id, depth: window.__game.riftSystem.run?.depth }))
+  if (floor1.region !== 'rift' || floor1.depth !== 1) throw new Error(`균열: 1층에 들어가지 않습니다 ${JSON.stringify(floor1)}`)
+  await page.evaluate(() => {
+    window.__game.encounter.clearAll()
+    window.__game.riftSystem.update(0.1)
+  })
+  await page.waitForSelector('.blessing button', { timeout: 5000 })
+  await page.locator('.blessing button').first().click()
+  const floor2 = await page.evaluate(() => {
+    const g = window.__game
+    const p = g.riftSystem.run.floor.portal
+    g.hero.teleport(p.x, p.z)
+    g.riftSystem.update(0.1)
+    return { depth: g.riftSystem.run?.depth, blessings: g.riftSystem.run?.blessings.length, region: g.region.id }
+  })
+  if (floor2.depth !== 2 || floor2.blessings !== 1) throw new Error(`균열: 축복을 고르고 문에 닿았는데 2층이 아닙니다 ${JSON.stringify(floor2)}`)
+  const left = await page.evaluate(() => {
+    const g = window.__game
+    g.enterRegion(g.regions.village)
+    return { run: g.riftSystem.run, best: g.rift.best, region: g.region.id }
+  })
+  if (left.run || left.best < 1 || left.region !== 'village') throw new Error(`균열: 나왔는데 끝나지 않았습니다 ${JSON.stringify(left)}`)
+  console.log('균열 확인: 한계를 깨고 마을에서 들어가, 1층을 깨 축복을 고르고 2층으로, 나오면 끝')
+
   // 개발 패널: ?dev 로 열고 단추로 유물·적·전설을 바로 바꿔 본다.
   await page.goto(`${URL}?dev&region=midgard`)
   await page.waitForSelector('.devpanel button', { timeout: 15000 })

@@ -1,6 +1,6 @@
 import { zeroSources } from '../data/awakening'
 import { SOURCE_IDS, type SourceId } from '../data/schema'
-import { THREAT_MAX } from '../data/threat'
+import { LIMIT_REALMS, THREAT_LIMITLESS, THREAT_MAX } from '../data/threat'
 
 /** 전투 경험: 잡을 때마다 (정예·보스는 더) */
 export const BATTLE = { kill: 1, elite: 4, boss: 25 } as const
@@ -15,6 +15,8 @@ export interface ThreatData {
   cleared: Record<string, number>
   mastery: Record<SourceId, number>
   battle: number
+  /** 한계를 깼다 (E17-01): 위협 단계의 끝이 사라지고 균열이 열린다 */
+  limitBroken: boolean
 }
 
 /**
@@ -31,6 +33,17 @@ export class ThreatProgress {
   cleared: Record<string, number> = {}
   readonly mastery: Record<SourceId, number> = zeroSources()
   battle = 0
+  limitBroken = false
+
+  /** 위협 단계의 끝 (한계를 깨면 사실상 없음) */
+  get max(): number {
+    return this.limitBroken ? THREAT_LIMITLESS : THREAT_MAX
+  }
+
+  /** 다섯 신화권 보스를 모두 10단계에서 이겼나 (한계를 깰 수 있다) */
+  get canBreak(): boolean {
+    return LIMIT_REALMS.every((r) => (this.cleared[r] ?? 0) >= THREAT_MAX)
+  }
 
   get resonance(): number {
     return Math.min(...SOURCE_IDS.map((s) => this.mastery[s]))
@@ -48,7 +61,7 @@ export class ThreatProgress {
   /** 지역 보스를 이겼다. 열린 가장 높은 단계에서 이겼으면 다음 단계가 열린다. 새로 열렸으면 true */
   bossDefeated(realm: string | undefined): boolean {
     if (realm) this.cleared[realm] = Math.max(this.cleared[realm] ?? 0, this.level)
-    if (this.level < this.unlocked || this.unlocked >= THREAT_MAX) return false
+    if (this.level < this.unlocked || this.unlocked >= this.max) return false
     this.unlocked++
     return true
   }
@@ -72,7 +85,7 @@ export class ThreatProgress {
   }
 
   toData(): ThreatData {
-    return { level: this.level, unlocked: this.unlocked, reached: this.reached, cleared: { ...this.cleared }, mastery: { ...this.mastery }, battle: this.battle }
+    return { level: this.level, unlocked: this.unlocked, reached: this.reached, cleared: { ...this.cleared }, mastery: { ...this.mastery }, battle: this.battle, limitBroken: this.limitBroken }
   }
 
   load(data: ThreatData): void {
@@ -82,6 +95,7 @@ export class ThreatProgress {
     this.cleared = { ...data.cleared }
     for (const s of SOURCE_IDS) this.mastery[s] = data.mastery[s]
     this.battle = data.battle
+    this.limitBroken = data.limitBroken
   }
 }
 
@@ -89,15 +103,16 @@ export class ThreatProgress {
 export function parseThreat(raw: unknown): ThreatData {
   const o = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
   const int = (v: unknown, min: number, max: number, fallback: number) => (typeof v === 'number' && Number.isFinite(v) ? Math.round(Math.min(max, Math.max(min, v))) : fallback)
-  const unlocked = int(o.unlocked, 1, THREAT_MAX, 1)
+  const limitBroken = o.limitBroken === true
+  const unlocked = int(o.unlocked, 1, limitBroken ? THREAT_LIMITLESS : THREAT_MAX, 1)
   const reached = int(o.reached, 1, unlocked, 1)
   const level = int(o.level, 1, reached, 1)
   const cleared: Record<string, number> = {}
   if (typeof o.cleared === 'object' && o.cleared !== null) {
-    for (const [realm, n] of Object.entries(o.cleared as Record<string, unknown>)) if (realm.length < 20) cleared[realm] = int(n, 0, THREAT_MAX, 0)
+    for (const [realm, n] of Object.entries(o.cleared as Record<string, unknown>)) if (realm.length < 20) cleared[realm] = int(n, 0, THREAT_LIMITLESS, 0)
   }
   const m = (typeof o.mastery === 'object' && o.mastery !== null ? o.mastery : {}) as Record<string, unknown>
   const mastery = zeroSources()
   for (const s of SOURCE_IDS) mastery[s] = int(m[s], 0, 99, 0)
-  return { level, unlocked, reached, cleared, mastery, battle: int(o.battle, 0, 1e6, 0) }
+  return { level, unlocked, reached, cleared, mastery, battle: int(o.battle, 0, 1e6, 0), limitBroken }
 }

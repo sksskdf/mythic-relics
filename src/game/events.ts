@@ -24,6 +24,11 @@ export interface GameEvents {
   gearSalvaged: { item: GearItem }
   /** 시련이 끝났다 (E16): 이겼나, 걸린 시간 */
   trialEnded: { id: string; level: number; win: boolean; seconds: number }
+  /** 한계를 깼다 (E17-01) */
+  limitBroken: Record<string, never>
+  /** 균열 층에 들어갔다 / 균열에서 나왔다 (E17) */
+  riftFloor: { depth: number }
+  riftEnded: { depth: number; reason: 'left' | 'fell' }
   /** 위협 단계가 바뀌었다 (E14-03) */
   threatChanged: { level: number }
   /** 일반 장비를 주웠다 (E13-02) */

@@ -34,6 +34,10 @@ export interface BuildInputs {
   promotions: number
   /** 시련 보상 (E16): 수치 종류마다 더한다 */
   bonus?: Partial<Record<StatKind, number>>
+  /** 균열의 축복이 올린 각성 단계 (E17, 원천마다) */
+  awakenBonus?: Partial<Record<SourceId, number>>
+  /** 성좌판에서 밝힌 별 (E17): 그 신화의 상시 효과가 한 단계 위 */
+  starred?: ReadonlySet<God>
   /** 시련 중 제약 (E16): 고른 신화 없이·최대 생명·이동 속도 등. 장비 칸 제한은 재료를 모을 때 거른다 */
   rules?: TrialRules
 }
@@ -125,7 +129,7 @@ export function computeBuild(inputs: BuildInputs): BuildState {
   const stats = Object.fromEntries(STAT_KINDS.map((k) => [k, 0])) as Record<StatKind, number>
   const echoes: Echo[] = []
   for (const [id, level] of inputs.open) {
-    const stage = alwaysStage(level, worn.has(id))
+    const stage = Math.min(TOP_STAGE, alwaysStage(level, worn.has(id)) + (level > 0 && inputs.starred?.has(id) ? 1 : 0))
     if (stage <= 0) continue
     const always = godDef(id).always
     stats[always.stat.kind] += statAt(always.stat, stage)
@@ -145,7 +149,7 @@ export function computeBuild(inputs: BuildInputs): BuildState {
   }
   for (const s of SOURCE_IDS) sources[s] += inputs.sourceMastery?.(s) ?? 0
   for (const [kind, value] of Object.entries(inputs.bonus ?? {}) as [StatKind, number][]) stats[kind] += value
-  const awakening = Object.fromEntries(SOURCE_IDS.map((s) => [s, awakeningLevel(sources[s])])) as Record<SourceId, number>
+  const awakening = Object.fromEntries(SOURCE_IDS.map((s) => [s, Math.min(3, awakeningLevel(sources[s]) + (inputs.awakenBonus?.[s] ?? 0))])) as Record<SourceId, number>
   const resonance = Math.min(...SOURCE_IDS.map((s) => inputs.sourceMastery?.(s) ?? 0))
   let damageScale = (1 + inputs.promotions * PER_PROMOTION.damage) * (1 + stats.damage)
   if (god) {

@@ -232,6 +232,16 @@ export class DevPanel {
           Object.assign(g.threat, { unlocked: Math.max(3, g.threat.unlocked), reached: Math.max(3, g.threat.reached) })
           g.menu.refresh()
         }),
+        button('한계를 깸', () => {
+          for (const realm of ['norse', 'greek', 'china', 'japan', 'korea']) g.threat.cleared[realm] = 10
+          Object.assign(g.threat, { unlocked: 10, reached: 10, level: 10 })
+          g.threatSystem.breakLimit()
+          g.menu.refresh()
+        }),
+        button('별 +5', () => {
+          g.rift.stars += 5
+          g.menu.refresh()
+        }),
         button('편의 모두', () => {
           for (const id of ['autoPickup', 'autoSalvage', 'autoMaterials', 'quickChoose', 'warp'] as const) g.conveniences.open.add(id)
           g.menu.refresh()

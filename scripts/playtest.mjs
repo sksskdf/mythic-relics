@@ -18,6 +18,8 @@ const SOURCE = process.argv.find((a) => a.startsWith('--source='))?.slice(9) ?? 
 const STACK = process.argv.find((a) => a.startsWith('--stack='))?.slice(8) ?? null
 /** --trials 를 붙이면 위협 3단계·토르 2단계(묠니르)로 시작해 시련 1단계 여덟을 차례로 깬다 (E16-05). --relics=mjolnir --region=midgard 와 함께 쓴다 */
 const TRIALS = process.argv.includes('--trials')
+/** --rift 를 붙이면 신화권 다섯을 10단계까지 깬 셈(한계를 깸)으로 마을에서 시작해 균열을 10층까지 내려간다 (E17-07). --relics=mjolnir 와 함께 쓴다 */
+const RIFT = process.argv.includes('--rift')
 /** --god=loki 처럼 붙이면 봇이 그 신 유물만 끼고 승급까지 간다 (E6-08) */
 const GOD = process.argv.find((a) => a.startsWith('--god='))?.slice(6) ?? null
 /** --relics=kusanagi,totsuka,... 처럼 붙이면 그 유물을 끼고(발현한 채) 시작해 제한 시간 동안 처치 속도를 잰다 (클래스 비교) */
@@ -73,6 +75,21 @@ try {
         g.dev.promote()
         Object.assign(window.__autoplay, { trials: true })
       })
+    if (RIFT)
+      await page.evaluate(() => {
+        const g = window.__game
+        for (const realm of ['norse', 'greek', 'china', 'japan', 'korea']) g.threat.cleared[realm] = 10
+        Object.assign(g.threat, { unlocked: 10, reached: 10, level: 10 })
+        g.threatSystem.breakLimit()
+        g.threat.level = 10
+        g.threatSystem.apply()
+        g.dev.endgame()
+        // 한계를 깬 무렵이면 시련 여덟을 2단계쯤 깼고 원천 숙련도 넷 모두 2쯤이다
+        for (const id of ['noMyth', 'fewSlots', 'noHeal', 'crowd', 'timed', 'glass', 'slow', 'noUltimate']) g.trials.win(id, 2, 90)
+        for (const s of ['flame', 'hunt', 'wind', 'stone']) g.threat.mastery[s] = 2
+        g.bus.emit('progressChanged', {})
+        window.__autoplay.rift = true
+      })
     if (STACK)
       await page.evaluate((source) => {
         const g = window.__game
@@ -90,9 +107,9 @@ try {
       const state = await page.evaluate(() => {
         window.__autoplay.run(30)
         const g = window.__game
-        return { t: g.time, promoted: g.progress.promotions >= 1, reached: g.threat.reached, trialsLeft: window.__autoplay.trialsLeft() }
+        return { t: g.time, promoted: g.progress.promotions >= 1, reached: g.threat.reached, trialsLeft: window.__autoplay.trialsLeft(), depth: window.__game.rift.best }
       })
-      done = (TRIALS ? !state.trialsLeft : RELICS ? false : THREAT > 0 ? state.reached >= THREAT : state.promoted) || state.t > LIMIT_MIN * 60
+      done = (RIFT ? state.depth >= 10 : TRIALS ? !state.trialsLeft : RELICS ? false : THREAT > 0 ? state.reached >= THREAT : state.promoted) || state.t > LIMIT_MIN * 60
     }
     const climbs = await page.evaluate(() => [...window.__autoplay.climbs])
     // 끝났을 때 봇이 어디서 무엇을 하고 있었나 (멈춤을 찾을 때)
@@ -133,6 +150,9 @@ try {
       climbs,
       // 시련 (E16-05): 시련:난이도:결과:초
       trials: log.filter((e) => e.type === 'trial').map((e) => e.detail),
+      // 균열 (E17-07): 층마다 들어간 때, 끝난 까닭
+      rift: log.filter((e) => e.type === 'rift').map((e) => `${e.detail}@${Math.round(e.t)}`),
+      riftFloors: await page.evaluate(() => [...window.__autoplay.riftFloors]),
       // 지역 이동 (E15-07): 처음 들어간 때, 보스의 땅에 처음 닿은 때
       regions: log.filter((e, i) => e.type === 'region' && log.findIndex((x) => x.type === 'region' && x.detail === e.detail) === i).map((e) => ({ id: e.detail, t: e.t })),
       bossLand: log.find((e) => e.type === 'region' && ['utgard', 'lycia', 'huoyanshan', 'hiikawa', 'songdo'].includes(e.detail))?.t,
@@ -152,6 +172,7 @@ try {
       `#${run} 2단계 ${fmt(result.promote)} | 첫 신화 ${fmt(result.manifest)} | 신화 둘 ${fmt(result.opened[1]?.t)} (연 신화 ${result.opened.length}: ${result.opened.map((o) => o.god).join(', ')}) | 거인 왕 ${fmt(result.bossKill)} | 장비 ${result.gear}, 첫 제작 ${fmt(result.forged[0]?.t)}${result.forged[0] ? ` (${result.forged[0].what})` : ''} | ` +
         `유물 ${Object.entries(result.relics).map(([k, v]) => `${k} ${fmt(v)}`).join(', ')} | ` +
         `처치 ${result.kills}(첫 신화 뒤 분당 ${result.killRate}), 쓰러짐 ${result.deaths}, 피격 ${result.hurt}, 전설 실패 ${result.legendFails}` +
+        (RIFT ? ` | 균열 ${result.riftFloors.map((f) => `${f.depth}층 ${fmt(f.t)}`).join(', ')} | ${result.rift.filter((x) => !x.startsWith('floor')).join(', ')}` : '') +
         (TRIALS ? ` | 시련 ${result.trials.join(', ')}` : '') +
         (THREAT > 0 ? ` | 보스의 땅 ${fmt(result.bossLand)} | 위협 ${result.threat.map((x) => `${x.level}단계 ${fmt(x.time)}·쓰러짐 ${x.deaths}·피격 ${x.hurt}`).join(' → ')} | 원천 ${result.sources.map((x) => `${x.id} ${x.total}(${x.level})`).join(' ')}` : '') +
         (errors.length ? ` | 오류 ${errors.length}` : ''),
