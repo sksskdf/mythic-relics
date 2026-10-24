@@ -32,6 +32,8 @@ export class Autoplayer {
   god: God | null = null
   /** 다른 지역으로 가지 않고 이 자리에서만 싸운다 (scripts/enemy-trial.mjs) */
   stay = false
+  /** 마지막 생각이 끝난 단계 (멈춤을 찾을 때) */
+  step = 0
 
   constructor(private readonly game: Game) {}
 
@@ -118,7 +120,7 @@ export class Autoplayer {
 
   private think(): void {
     const { hero, combat, encounter, pickups, legend, progress, powers } = this.game
-    if (!combat.alive) return
+    if (!combat.alive) return void (this.step = 1)
     const p = hero.object.position
     const here = { x: p.x, z: p.z }
     const enemies = encounter.alive
@@ -128,19 +130,21 @@ export class Autoplayer {
     if (dangers.some((d) => inDanger(here, d, MARGIN))) {
       const escape = this.findEscape(here, dangers)
       if (escape) hero.moveTo(escape)
+      this.step = 2
       return
     }
     // 피했으면 예고가 끝날 때까지 다시 들어가지 않는다.
-    if (dangers.length > 0 && hero.isMoving) return
+    if (dangers.length > 0 && hero.isMoving) return void (this.step = 3)
 
     // 2. 생명력이 낮으면 물러나 회복한다. (전설 결계 안에서는 물러날 곳이 없다)
     const hp = combat.health.ratio
     const near = enemies.filter((g) => dist(g, here) < 9)
     if (hp < 0.35 && near.length > 0 && !legend.active) {
       hero.moveTo(this.retreatPoint(here, near))
+      this.step = 4
       return
     }
-    if (hp < 0.7 && near.length === 0 && !legend.active && !hero.isMoving) return
+    if (hp < 0.7 && near.length === 0 && !legend.active && !hero.isMoving) return void (this.step = 5)
 
     // 3. 떨어진 유물을 줍는다. 한 신만 쓰는 봇은 다른 신 유물을 가방에 넣는다.
     if (this.god) {
@@ -169,17 +173,19 @@ export class Autoplayer {
       const pickup = nearest(pickups.list.filter((i) => !powers.loadout.has(i.id) && (i.gear !== undefined || !this.god || relicDef(i.id).god === this.god)), here)
       if (pickup && near.length < 3) {
         hero.moveTo(pickup)
+        this.step = 6
         return
       }
     }
 
     // 4. 다른 땅으로 가야 하면 출구로 (마을에서 시작하면 필드로, 승급할 때가 되면 그 신의 땅으로)
-    if (this.travel()) return
+    if (this.travel()) return void (this.step = 7)
 
     // 5. 승급 준비가 되면 성소로 간다.
     const manifested = powers.manifested
     if (!legend.active && legend.present && manifested && godDef(manifested).legend && progress.readyToPromote(manifested) && hp > 0.8) {
       hero.moveTo(legend.center)
+      this.step = 8
       return
     }
 
@@ -203,12 +209,14 @@ export class Autoplayer {
         const k = Math.min(1, 11 / len)
         return { x: c.x + (spawn.x - c.x) * k, z: c.z + (spawn.z - c.z) * k }
       })
-      if (patrol.length === 0) return
+      if (patrol.length === 0) return void (this.step = 9)
       const point = patrol[this.patrol % patrol.length]!
       if (dist(here, point) < 2) this.patrol += 1
       else if (!hero.isMoving) hero.moveTo(point)
+      this.step = 10
       return
     }
+    this.step = 99
     this.engage(here, target)
   }
 
