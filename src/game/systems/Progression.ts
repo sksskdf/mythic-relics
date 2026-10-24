@@ -1,5 +1,6 @@
 import type { Giant } from '../../enemies/Giant'
 import { ELITE_REWARD } from '../../enemies/elite'
+import { GEAR, rollGear } from '../../gear/roll'
 import { masteryShares, PER_PROMOTION } from '../../myth/ClassProgress'
 import { levelGains } from '../../myth/levelGains'
 import { classIcon } from '../../ui/classIcons'
@@ -78,8 +79,8 @@ export class ProgressionSystem {
     // 적을 쓰러뜨리면 생명력을 조금 되찾는다. 몰려오는 무리를 쓸어 내며 버틸 수 있게 한다.
     if (combat.alive) combat.heal((giant.spec.boss ? HEAL_PER_BOSS : HEAL_PER_KILL) + this.ctx.build.state.stats.healOnKill)
     const owned = new Set<RelicId>([
-      ...powers.loadout.slots.filter((id): id is RelicId => id !== null),
-      ...powers.loadout.bag,
+      ...powers.loadout.ownedRelics,
+      ...powers.loadout.materials.keys(),
       ...pickups.list.map((p) => p.id),
     ])
     // 정예는 유물을 한 번 더 굴린다. 상시 효과(도깨비)는 그 확률만큼 한 번 더
@@ -89,6 +90,13 @@ export class ProgressionSystem {
       if (!relic) continue
       pickups.drop(relic, giant.x, giant.z)
       break
+    }
+    // 일반 장비 (E13-02): 졸개 6%, 정예 25%, 지역 보스는 반드시 (희귀 이상)
+    const boss = giant.spec.boss !== undefined
+    const chance = boss ? GEAR.drop.boss : giant.elite ? GEAR.drop.elite : GEAR.drop.grunt
+    if (Math.random() < chance) {
+      const item = rollGear(Math.random, boss ? { minGrade: GEAR.drop.bossMinGrade } : {})
+      pickups.drop(item.uid, giant.x + 0.7, giant.z + 0.4, true, item)
     }
   }
 

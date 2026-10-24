@@ -1,4 +1,8 @@
 import { DATA } from '../data'
+import { GRADE_COLORS } from '../art/palette'
+import { SLOT_PARTS } from '../data/gearData'
+import { GEAR, type GearItem, gearName } from '../gear/roll'
+import { gearCard } from './gearCard'
 import { MAX_LEVEL } from '../myth/ClassProgress'
 import { alwaysLines } from '../myth/alwaysText'
 import type { ClassProgress } from '../myth/ClassProgress'
@@ -6,7 +10,7 @@ import { type Cycle, LAWS, type LawId, REBIRTH_NEED, RING_NEXT, RING_PREV, STARS
 import { allLevelGains, levelGains } from '../myth/levelGains'
 import type { SourceId } from '../data/schema'
 import { shortNumber } from './format'
-import { type God, godDef, relicDef, type RelicId } from '../relics/data'
+import { type God, godDef, isRelicId, relicDef, type RelicId } from '../relics/data'
 import type { LoadoutState } from '../myth/manifest'
 import { relicCard, type RelicCardContext, relicIcon } from './relicCard'
 import { classIcon } from './classIcons'
@@ -83,8 +87,14 @@ export interface CycleHost {
 const REALM_NAME: Readonly<Record<string, string>> = { norse: '북유럽', greek: '그리스', china: '중국', japan: '일본', korea: '한국' }
 /** 메뉴가 게임에서 읽고 부르는 것 */
 export interface MenuHost {
-  readonly slots: readonly (RelicId | null)[]
-  readonly bag: readonly RelicId[]
+  readonly slots: readonly (string | null)[]
+  readonly bag: readonly string[]
+  /** 일반 장비 내용 (id가 장비면) */
+  gearOf(id: string): GearItem | undefined
+  /** 장비·유물이 들어가는 칸들 */
+  slotsFor(id: string): number[]
+  /** 재료와 개수 */
+  readonly materials: ReadonlyMap<string, number>
   readonly loadout: LoadoutState
   /** slot에 id를 끼우면(null이면 비우면) 어떻게 되는지 */
   preview(slot: number, id: RelicId | null): LoadoutState
@@ -637,17 +647,15 @@ export class GameMenu {
     }
     left.append(state)
 
-    // 장착 칸 4개
+    // 장비 칸 7개 (E13): 무기·머리·몸·손·발·장신구 둘. 유물도 자기 부위 칸을 차지한다
     const slots = el('div', 'menu-relics__slots')
     host.slots.forEach((id, i) => {
       const b = el('button', `menu-relics__slot${i === this.selectedSlot ? ' is-selected' : ''}`)
       b.type = 'button'
-      b.dataset.n = String(i + 1)
-      if (id) {
-        b.style.backgroundImage = `url(${relicIcon(relicDef(id))})`
-        b.style.setProperty('--god', godDef(relicDef(id).god).color)
-      }
-      b.setAttribute('aria-label', id ? relicDef(id).name : `빈 칸 ${i + 1}`)
+      const part = GEAR.parts[SLOT_PARTS[i]!].name
+      b.dataset.n = part
+      this.paintItem(b, id)
+      b.setAttribute('aria-label', id ? this.itemName(id) : `빈 ${part} 칸`)
       b.addEventListener('click', () => {
         this.selectedSlot = i
         this.hovered = null
@@ -674,26 +682,37 @@ export class GameMenu {
     action('drop', '발밑에 내려놓기', () => host.drop(this.selectedSlot))
     left.append(actions)
 
-    // 가방
+    // 가방: 누르면 그 부위 칸에 낀다 (고른 칸이 맞는 부위면 그 칸, 아니면 비어 있는 칸부터)
     const bag = el('div', 'menu-relics__bag')
     bag.style.backgroundImage = `url(${glyph('bag', '#222a36', '#141a24')})`
     for (const id of host.bag) {
       const b = el('button', 'menu-relics__item')
       b.type = 'button'
-      b.style.backgroundImage = `url(${relicIcon(relicDef(id))})`
-      b.style.setProperty('--god', godDef(relicDef(id).god).color)
-      b.setAttribute('aria-label', relicDef(id).name)
+      this.paintItem(b, id)
+      b.setAttribute('aria-label', this.itemName(id))
       b.addEventListener('pointerenter', () => {
         this.hovered = id
         this.renderDetail(detail)
       })
       b.addEventListener('click', () => {
         this.hovered = null
-        host.wield(id, this.selectedSlot)
+        const fits = host.slotsFor(id)
+        const slot = fits.includes(this.selectedSlot) ? this.selectedSlot : (fits.find((i) => host.slots[i] === null) ?? fits[0])
+        if (slot === undefined) return
+        this.selectedSlot = slot
+        host.wield(id, slot)
       })
       bag.append(b)
     }
     left.append(bag)
+
+    // 재료 (E13-03: 재료가 된 유물, E13-04 재료)
+    if (host.materials.size > 0) {
+      const mats = el('div', 'menu-relics__materials')
+      mats.append(el('b', '', '재료'))
+      for (const [id, n] of host.materials) mats.append(el('span', '', `${isRelicId(id) ? relicDef(id).name : id} ×${n}`))
+      left.append(mats)
+    }
 
     layout.append(left, detail)
     this.body.append(layout)
@@ -709,8 +728,34 @@ export class GameMenu {
       detail.append(img(unknownSigil('#2a3240'), 'menu-relics__empty'))
       return
     }
+    const gear = host.gearOf(id)
+    if (gear) {
+      // 같은 부위에 지금 낀 일반 장비와 비교한다
+      const wornId = host.slotsFor(id).map((i) => host.slots[i]).find((x) => x && x !== id && host.gearOf(x))
+      detail.append(gearCard(gear, wornId ? host.gearOf(wornId) : null))
+      return
+    }
     const preview = this.hovered ? { before: host.loadout, after: host.preview(this.selectedSlot, this.hovered) } : undefined
     detail.append(relicCard(relicDef(id), host.cardContext(id, preview)))
+  }
+
+  /** 칸·가방 단추에 그림: 유물은 유물 그림과 신의 색, 일반 장비는 등급 색 */
+  private paintItem(b: HTMLElement, id: string | null): void {
+    if (!id) return
+    const gear = this.host.gearOf(id)
+    if (gear) {
+      b.classList.add('is-gear')
+      b.style.setProperty('--god', GRADE_COLORS[gear.grade])
+      b.dataset.grade = gear.grade
+      return
+    }
+    b.style.backgroundImage = `url(${relicIcon(relicDef(id))})`
+    b.style.setProperty('--god', godDef(relicDef(id).god).color)
+  }
+
+  private itemName(id: string): string {
+    const gear = this.host.gearOf(id)
+    return gear ? gearName(gear) : relicDef(id).name
   }
 
   // ───────────────────────────── 클래스 ─────────────────────────────

@@ -5,13 +5,18 @@ import { voxelMesh } from '../voxel/mesher'
 import { RELIC_VOXEL } from '../voxel/models/relics'
 import { relicGrid } from '../relics/model'
 import { heightAt } from '../world/terrain'
-import { godDef, relicDef, type RelicId } from '../relics/data'
+import { GRADE_COLORS } from '../art/palette'
+import { godDef, isRelicId, relicDef } from '../relics/data'
+import type { GearItem } from './roll'
 
 /** 주울 수 있는 거리 (m) */
 const PICK_RADIUS = 1.1
 
 interface Pickup {
-  id: RelicId
+  /** 유물 id 또는 일반 장비 id */
+  id: string
+  /** 일반 장비면 그 내용 */
+  gear?: GearItem
   root: THREE.Group
   model: THREE.Object3D
   beam: THREE.MeshBasicMaterial
@@ -32,20 +37,29 @@ export class Pickups {
   readonly object = new THREE.Group()
   private readonly items: Pickup[] = []
 
-  get list(): readonly { id: RelicId; x: number; z: number }[] {
+  get list(): readonly { id: string; x: number; z: number; gear?: GearItem }[] {
     return this.items
   }
 
-  /** 유물을 놓는다. armed가 false면 주인공이 한 번 떨어졌다 와야 주울 수 있다. */
-  drop(id: RelicId, x: number, z: number, armed = true): void {
+  /** 땅의 일반 장비 */
+  gearOf(id: string): GearItem | undefined {
+    return this.items.find((i) => i.id === id)?.gear
+  }
+
+  /** 유물(또는 일반 장비)을 놓는다. armed가 false면 주인공이 한 번 떨어졌다 와야 주울 수 있다. 빛기둥은 유물이면 신의 색, 장비면 등급 색 */
+  drop(id: string, x: number, z: number, armed = true, gear?: GearItem): void {
     const root = new THREE.Group()
     root.position.set(x, heightAt(x, z), z)
-    const grid = relicGrid(relicDef(id))
-    const model = voxelMesh(grid, { voxelSize: RELIC_VOXEL * 1.2 })
+    let model: THREE.Object3D
+    if (gear || !isRelicId(id)) {
+      // 일반 장비: 등급 색 상자 (부위별 모델은 E13-02-5)
+      const tint = new THREE.Color(gear ? GRADE_COLORS[gear.grade] : '#ffffff')
+      model = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.34, 0.34), new THREE.MeshLambertMaterial({ color: tint }))
+    } else model = voxelMesh(relicGrid(relicDef(id)), { voxelSize: RELIC_VOXEL * 1.2 })
     model.position.y = 0.9
     root.add(model)
 
-    const color = new THREE.Color(godDef(relicDef(id).god).color)
+    const color = new THREE.Color(gear ? GRADE_COLORS[gear.grade] : isRelicId(id) ? godDef(relicDef(id).god).color : '#ffffff')
     const beam = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.35, depthWrite: false })
     const column = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.42, 6, 8, 1, true), beam)
     column.position.y = 3
@@ -54,11 +68,11 @@ export class Pickups {
     root.add(column)
 
     this.object.add(root)
-    this.items.push({ id, root, model, beam, x, z, armed, phase: Math.random() * 6 })
+    this.items.push({ id, ...(gear ? { gear } : {}), root, model, beam, x, z, armed, phase: Math.random() * 6 })
   }
 
   /** 땅의 유물을 줍지 않고 없앤다 (점검용) */
-  remove(id: RelicId): void {
+  remove(id: string): void {
     const index = this.items.findIndex((item) => item.id === id)
     if (index < 0) return
     this.items[index]!.root.removeFromParent()
@@ -71,8 +85,8 @@ export class Pickups {
     for (const item of [...this.items]) this.remove(item.id)
   }
 
-  update(dt: number, heroX: number, heroZ: number, canPick: (id: RelicId) => boolean): RelicId[] {
-    const picked: RelicId[] = []
+  update(dt: number, heroX: number, heroZ: number, canPick: (id: string) => boolean): { id: string; gear?: GearItem }[] {
+    const picked: { id: string; gear?: GearItem }[] = []
     for (let i = this.items.length - 1; i >= 0; i--) {
       const item = this.items[i]!
       item.phase += dt
@@ -85,7 +99,7 @@ export class Pickups {
         continue
       }
       if (dist <= PICK_RADIUS && canPick(item.id)) {
-        picked.push(item.id)
+        picked.push({ id: item.id, ...(item.gear ? { gear: item.gear } : {}) })
         item.root.removeFromParent()
         this.items.splice(i, 1)
       }

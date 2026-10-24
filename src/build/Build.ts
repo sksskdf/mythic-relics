@@ -18,7 +18,9 @@ export class Build {
     return {
       open,
       chosen: powers.manifested ? [powers.manifested] : [],
-      gear: powers.loadout.slots,
+      gear: powers.loadout.relics,
+      gearItems: powers.loadout.wornGear,
+      stage: (id) => powers.loadout.stage(id),
       mastery: (source) => progress.mastery(source),
       promotions: progress.promotions,
       cycle: { damage: cycle.damageScale, damageTaken: cycle.damageTakenScale, moveSpeed: cycle.moveSpeedScale, bonusHp: cycle.bonusHp },

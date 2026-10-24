@@ -1,6 +1,7 @@
 import type * as THREE from 'three'
 
-import { type God, godDef, relicDef, type RelicId } from '../relics/data'
+import { type God, godDef, isRelicId, relicDef, type RelicId } from '../relics/data'
+import { STAGE_DAMAGE } from '../gear/mythRelic'
 import { Loadout } from '../gear/Loadout'
 import type { LoadoutState } from '../myth/manifest'
 import { createEffect } from '../skills'
@@ -9,7 +10,7 @@ import type { CombatTarget } from './PlayerCombat'
 import { ClassPassives } from '../skills/ClassPassives'
 import { MythEchoes } from '../skills/MythEchoes'
 import { createUltimate, type Ultimate } from '../skills/Ultimate'
-import type { HudSlot } from '../ui/Hud'
+import { type HudSlot, SKILL_SLOTS } from '../ui/Hud'
 import { pixelIcon } from '../ui/pixelIcon'
 import { relicIconRows } from '../relics/model'
 
@@ -76,11 +77,28 @@ export class RelicPowers {
     return this.loadout.slots.includes(null)
   }
 
-  equip(id: RelicId): LoadoutChange | null {
+  /** 장비·유물을 그 부위의 빈 칸에 끼운다 (없으면 가방). 칸에 들어갔으면 바뀐 것을 돌려준다 */
+  equip(id: string): LoadoutChange | null {
     const slot = this.loadout.equip(id)
     if (slot < 0 || this.effects[slot]) return null
-    this.effects[slot] = createEffect(relicDef(id), this.fx)
+    this.effects[slot] = this.effectFor(id)
     return this.refresh()
+  }
+
+  /** 칸의 것에 맞는 유물 효과 (일반 장비는 효과가 없다) */
+  private effectFor(id: string): RelicEffect | null {
+    if (!isRelicId(id)) return null
+    const effect = createEffect(relicDef(id), this.fx)
+    effect.stageScale = STAGE_DAMAGE[this.loadout.stage(id) - 1] ?? 1
+    return effect
+  }
+
+  /** 유물 단계가 바뀌었다 (대장간): 낀 유물 효과의 피해 배율을 다시 맞춘다 */
+  refreshStages(): void {
+    this.loadout.slots.forEach((id, slot) => {
+      const effect = this.effects[slot]
+      if (effect && id && isRelicId(id)) effect.stageScale = STAGE_DAMAGE[this.loadout.stage(id) - 1] ?? 1
+    })
   }
 
   unequip(slot: number): { relic: RelicId; change: LoadoutChange } | null {
@@ -100,11 +118,11 @@ export class RelicPowers {
   }
 
   /** 가방의 유물을 칸에 끼운다. 칸에 있던 유물은 가방으로 간다. (유물 화면) */
-  wield(id: RelicId, slot: number): LoadoutChange | null {
-    if (!this.loadout.bag.includes(id)) return null
+  wield(id: string, slot: number): LoadoutChange | null {
+    if (!this.loadout.bag.includes(id) || !this.loadout.fits(id, slot)) return null
     this.effects[slot]?.dispose()
     this.loadout.wield(id, slot)
-    this.effects[slot] = createEffect(relicDef(id), this.fx)
+    this.effects[slot] = this.effectFor(id)
     return this.refresh()
   }
 
@@ -139,15 +157,18 @@ export class RelicPowers {
     return result
   }
 
+  /** HUD 칸 넷: 낀 유물만 칸 순서대로 (충전이 보이는 것은 유물뿐이다). slot은 장비 칸 번호 */
   hudSlots(): HudSlot[] {
-    return this.loadout.slots.map((id, i) => {
+    const out: HudSlot[] = []
+    this.loadout.slots.forEach((id, i) => {
+      if (!id || !isRelicId(id) || out.length >= SKILL_SLOTS) return
       const effect = this.effects[i]
-      return {
-        icon: id ? this.icon(id) : null,
-        charge: effect ? Math.max(0, Math.min(1, effect.charge)) : 0,
-      }
+      out.push({ icon: this.icon(id), charge: effect ? Math.max(0, Math.min(1, effect.charge)) : 0, slot: i })
     })
+    while (out.length < SKILL_SLOTS) out.push({ icon: null, charge: 0, slot: null })
+    return out
   }
+
 
   private icon(id: RelicId): string {
     let icon = this.icons.get(id)

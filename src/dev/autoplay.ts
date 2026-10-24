@@ -117,13 +117,13 @@ export class Autoplayer {
 
     // 3. 떨어진 유물을 줍는다. 한 신만 쓰는 봇은 다른 신 유물을 가방에 넣는다.
     if (this.god) {
-      powers.loadout.slots.forEach((id, slot) => id && relicDef(id).god !== this.god && this.game.dev.stow(slot))
+      powers.loadout.relics.forEach((id, slot) => id && relicDef(id).god !== this.god && this.game.dev.stow(slot))
     }
     // 정한 신이 있으면 그 신화가 열리는 대로 고른다 (사람은 마을·성소에서 고른다)
     if (this.god && powers.manifested !== this.god && this.game.progress.isOpen(this.god)) this.game.dev.choose(this.god)
     // 칸이 차 있어도 줍는다 (가방에 들어가고, 모이면 바꿔 낀다)
     if (!legend.active) {
-      const pickup = nearest(pickups.list.filter((i) => !powers.loadout.has(i.id) && (!this.god || relicDef(i.id).god === this.god)), here)
+      const pickup = nearest(pickups.list.filter((i) => !powers.loadout.has(i.id) && (i.gear !== undefined || !this.god || relicDef(i.id).god === this.god)), here)
       if (pickup && near.length < 3) {
         hero.moveTo(pickup)
         return

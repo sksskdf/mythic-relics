@@ -63,6 +63,7 @@ import { DialogScene } from './DialogScene'
 import { DialogBox } from '../ui/DialogBox'
 import { DevTools } from '../dev/DevTools'
 import { Build } from '../build/Build'
+import { gearCard } from '../ui/gearCard'
 import { alwaysStage } from '../build/BuildState'
 
 export interface GameOptions {
@@ -333,6 +334,11 @@ export class Game {
       get bag() {
         return powers.loadout.bag
       },
+      gearOf: (id) => powers.loadout.gear.get(id),
+      slotsFor: (id) => powers.loadout.slots.map((_, i) => i).filter((i) => powers.loadout.fits(id, i)),
+      get materials() {
+        return powers.loadout.materials
+      },
       get loadout() {
         return powers.state
       },
@@ -344,7 +350,7 @@ export class Game {
       myths: {
         canChoose: () => this.canChooseMyth,
         choose: (god) => this.chooseMyth(god),
-        stage: (god) => alwaysStage(this.progress.level(god), powers.loadout.slots.some((id) => id !== null && relicDef(id).god === god)),
+        stage: (god) => alwaysStage(this.progress.level(god), powers.loadout.relics.some((id) => id !== null && relicDef(id).god === god)),
       },
       cardContext: (id, preview) => this.cardContext(id, preview),
       stats: () => this.heroStats(),
@@ -395,8 +401,11 @@ export class Game {
     this.bus.on('outfitChanged', () => this.menu.refresh())
     this.bus.on('loadoutChanged', () => this.menu.refresh())
     // HUD 유물 칸: 커서를 올리면 설명 카드, 누르면 유물 화면
-    this.hud.onSlotClick = (slot) => this.menu.show('relics', slot)
-    this.hud.onSlotHover = (slot, anchor) => {
+    // HUD 칸 i → 그 유물이 있는 장비 칸
+    const equipSlot = (i: number | null) => (i === null ? null : (this.powers.hudSlots()[i]?.slot ?? null))
+    this.hud.onSlotClick = (i) => this.menu.show('relics', equipSlot(i) ?? 0)
+    this.hud.onSlotHover = (i, anchor) => {
+      const slot = equipSlot(i)
       const id = slot === null ? null : this.powers.loadout.slots[slot]
       if (!id || !anchor) {
         this.hoveredSlot = null
@@ -418,6 +427,7 @@ export class Game {
       hero: this.hero,
       orders: this.orders,
       view: this.view,
+      pickups: this.pickups,
       region: () => this.ctx.map.region.realm ?? undefined,
     })
     this.audio = new AudioEngine(this.settings.volume)
@@ -652,7 +662,7 @@ export class Game {
       const god = godDef(g)
       powers.push({ kind: 'god', name: god.name, color: god.color, label: `${god.name}의 가호`, what: '유물의 힘만 쓴다' })
     }
-    for (const id of this.powers.loadout.slots) {
+    for (const id of this.powers.loadout.relics) {
       if (!id) continue
       const def = relicDef(id)
       powers.push({ kind: 'relic', name: id, color: godDef(def.god).color, label: def.name, what: def.passive.description })
@@ -678,8 +688,8 @@ export class Game {
     return {
       place: slot >= 0 ? { kind: 'slot', slot } : loadout.bag.includes(id) ? { kind: 'bag' } : { kind: 'ground' },
       ...(slot >= 0 ? { charge: this.powers.effects[slot]?.charge ?? 0 } : {}),
-      equipped: loadout.slots,
-      owned: new Set([...loadout.slots.filter((x): x is RelicId => x !== null), ...loadout.bag]),
+      equipped: loadout.relics,
+      owned: new Set(loadout.ownedRelics),
       manifested,
       level: manifested ? this.progress.level(manifested) : 0,
       ...(preview ? { preview } : {}),
@@ -695,7 +705,15 @@ export class Game {
     }
     const { pointer } = this.input
     const near = this.pickupUnderPointer(pointer)
-    if (near) {
+    const nearGear = near ? this.pickups.gearOf(near.id) : undefined
+    if (near && nearGear) {
+      // 땅의 일반 장비: 같은 부위에 지금 낀 장비와 비교한 카드
+      const { loadout } = this.powers
+      const wornId = loadout.slots.find((id, i) => id && loadout.fits(nearGear.uid, i) && loadout.gear.has(id))
+      const worn = wornId ? loadout.gear.get(wornId) : null
+      this.tooltip.showCard(near.id, `${near.id}|${wornId ?? ''}`, () => gearCard(nearGear, worn), pointer.x, pointer.y)
+      this.groundTooltip = true
+    } else if (near) {
       const place = { kind: 'ground' } as const
       const free = this.powers.loadout.slots.indexOf(null)
       const preview = free >= 0 ? { before: this.powers.state, after: this.powers.loadout.preview(free, near.id) } : undefined
@@ -729,7 +747,7 @@ export class Game {
   }
 
   /** 커서 아래의 땅 유물: 화면에 보이는 유물 모양(발밑 ~ 떠 있는 모델 위)과 커서 사이의 화면 거리로 고른다 */
-  private pickupUnderPointer(pointer: { x: number; y: number }): { id: RelicId; x: number; z: number } | null {
+  private pickupUnderPointer(pointer: { x: number; y: number }): { id: string; x: number; z: number } | null {
     const height = this.container.clientHeight
     const size = this.pixel.size
     const { camera, subpixel } = this.view

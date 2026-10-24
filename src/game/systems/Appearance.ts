@@ -20,7 +20,7 @@ export class AppearanceSystem {
     const { powers, build } = this.ctx
     const manifested = build.chosen
     return autoOutfit({
-      relicLooks: powers.loadout.slots.filter((id) => id !== null).map((id) => relicDef(id).look),
+      relicLooks: powers.loadout.relics.filter((id) => id !== null).map((id) => relicDef(id).look),
       manifestLooks: manifested ? { ...godDef(manifested).looks, mark: godDef(manifested).mark } : {},
     })
   }

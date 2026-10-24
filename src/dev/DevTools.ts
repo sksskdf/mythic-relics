@@ -1,4 +1,7 @@
 import type { QuarterViewCamera } from '../render/QuarterViewCamera'
+import type { GearPart, Grade } from '../data/gearData'
+import type { Pickups } from '../gear/Pickups'
+import { rollGear } from '../gear/roll'
 import type { RelicId } from '../relics/data'
 import { type ClassProgress, MASTERY_TO_OPEN } from '../myth/ClassProgress'
 import type { EventBus, GameEvents } from '../game/events'
@@ -20,6 +23,7 @@ export interface DevParts {
   hero: HeroController
   orders: HeroOrders
   view: QuarterViewCamera
+  pickups: Pickups
   /** 지금 지역의 신화권 (마을은 없음) */
   region: () => string | undefined
 }
@@ -37,6 +41,14 @@ export class DevTools {
     if (powers.loadout.has(id) || !powers.hasFreeSlot) return
     relics.equip(id, true)
     bus.emit('progressChanged', {})
+  }
+
+  /** 일반 장비 하나를 그 자리에 떨어뜨린다 (부위·등급을 정할 수 있다). 장비 id를 돌려준다 */
+  dropGear(part?: GearPart, grade?: Grade, x?: number, z?: number): string {
+    const p = this.parts.hero.object.position
+    const item = rollGear(Math.random, { ...(part ? { part } : {}), ...(grade ? { grade } : {}) })
+    this.parts.pickups.drop(item.uid, x ?? p.x + 1.5, z ?? p.z, true, item)
+    return item.uid
   }
 
   /** 신화를 고른다 (마을·성소가 아니어도). 닫힌 신화면 먼저 연다 */

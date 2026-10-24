@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { ClassProgress, MASTERY_TO_OPEN, masteryShares, SHARE_TO_OTHERS, XP_TO_PROMOTE } from '../src/myth/ClassProgress'
 import { DATA } from '../src/data'
 import { DEFAULT_DROPS, DropTable, representatives } from '../src/gear/DropTable'
+import { MATERIAL_RELICS, MYTH_RELICS } from '../src/gear/mythRelic'
 import { godDef, type RelicId, relicDef } from '../src/relics/data'
 import { createRng } from '../src/world/rng'
 
@@ -63,6 +64,8 @@ describe('신화 성장 (E12-02)', () => {
     const away = masteryShares(20, 'greek', 'thor', gods)
     expect(away.get('thor')).toBe(20)
     expect(away.get('zeus')).toBe(20 * SHARE_TO_OTHERS)
+    // 고른 신화가 없으면 그 신화권 신들이 전부 받는다 (첫 신화가 빨리 열린다, E13)
+    expect(masteryShares(20, 'norse', null, gods).get('odin')).toBe(20)
     // 히든 신화는 몬스터로 쌓이지 않는다 (고르면 받는다)
     expect(masteryShares(20, 'norse', null, gods).has('asura')).toBe(false)
     expect(masteryShares(20, undefined, null, gods).size).toBe(0)
@@ -151,11 +154,12 @@ describe('유물 드랍', () => {
       }
       expect(seen.has('futsu')).toBe(false)
       expect(seen.has('ohabari')).toBe(false)
-      expect(seen.has('kusanagi')).toBe(true)
+      // 쿠사나기는 스사노오 신화의 유물이라 무작위로 나오지 않고(지역 보스·대장간, E13-03), 토츠카는 재료로 나온다
+      expect(seen.has('kusanagi')).toBe(false)
       expect(seen.has('totsuka')).toBe(true)
     })
 
-    it('1차 신화권의 모든 유물이 언젠가는 나온다 (보스 확정 유물 제외)', () => {
+    it('재료가 된 1차 신화권 유물은 모두 언젠가는 무작위로 나온다 (E13-03)', () => {
       const seen = new Set<RelicId>()
       for (const realm of ['norse', 'greek', 'china', 'japan', 'korea'] as const) {
         const drops = new DropTable(createRng(11), { ...DEFAULT_DROPS, base: 1 })
@@ -165,7 +169,8 @@ describe('유물 드랍', () => {
           if (id) seen.add(id)
         }
       }
-      const expected = Object.keys(DATA.relics).filter((id) => id !== 'mjolnir' && !godDef(relicDef(id as RelicId).god).hidden)
+      const expected = MATERIAL_RELICS.filter((id) => !godDef(relicDef(id).god).hidden)
+      for (const id of MYTH_RELICS) expect(seen.has(id), `${id}은 신화의 유물이라 무작위로 나오지 않는다`).toBe(false)
       for (const id of expected) expect(seen.has(id as RelicId), id).toBe(true)
     })
   })

@@ -1438,3 +1438,34 @@
 .menu__gear:hover img {
   filter: brightness(1.3);
 }
+
+/* 장비 칸·가방의 일반 장비 (E13): 등급 색 바탕에 부위 글자 */
+.menu-relics__slot.is-gear,
+.menu-relics__item.is-gear {
+  background: color-mix(in srgb, var(--god) 35%, var(--c-bg-1));
+  box-shadow: inset 0 0 0 2px var(--god);
+}
+.menu-relics__materials {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-4);
+  font: var(--t-small);
+  color: var(--c-ink-2);
+}
+.menu-relics__materials b {
+  color: var(--c-ink-1);
+}
+.gc__swatch {
+  background: color-mix(in srgb, var(--god) 45%, var(--c-bg-1));
+  box-shadow: inset 0 0 0 2px var(--god);
+}
+.gc__stats {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  margin: 0;
+  padding-left: var(--sp-5);
+}
+.gc__source {
+  color: var(--c-ink-3);
+}

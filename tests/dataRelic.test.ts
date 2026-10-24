@@ -70,7 +70,7 @@ describe('데이터에만 넣은 시험용 유물', () => {
   it('땅에 떨어지고 주울 수 있다', () => {
     const pickups = new Pickups()
     pickups.drop('testRelic', 0, 0)
-    expect(pickups.update(0.1, 0, 0, () => true)).toEqual(['testRelic'])
+    expect(pickups.update(0.1, 0, 0, () => true)).toEqual([{ id: 'testRelic' }])
   })
 
   it('장착하면 그 신의 유물로 세고(가호), 지속 효과와 행동 연동 효과가 붙는다', () => {
@@ -80,7 +80,10 @@ describe('데이터에만 넣은 시험용 유물', () => {
     powers.equip('mjolnir')
     const change = powers.equip('megingjord')
     expect(change?.after.blessings).toEqual(['thor'])
-    expect(gearModifiers(powers.loadout.slots).damageTaken).toBeCloseTo(0.8)
+    expect(gearModifiers(powers.loadout.relics).damageTaken).toBeCloseTo(0.8)
+    // 유물은 외형 칸으로 정한 부위 칸에 들어간다 (시험용 뿔잔은 얼굴 → 머리)
+    const slot = powers.loadout.slots.indexOf('testRelic')
+    expect(slot).toBe(1)
 
     const hits: number[] = []
     const near = dummy(1.5, 0, hits)
@@ -107,17 +110,18 @@ describe('데이터에만 넣은 시험용 유물', () => {
     const hit = { targets: [near], comboIndex: 0, comboLength: 3, finisher: false }
     powers.onKill(near, ctx)
     powers.onKill(near, ctx)
-    expect(powers.effects[0]!.charge).toBe(1)
+    expect(powers.effects[slot]!.charge).toBe(1)
     powers.onBasicHit(hit, ctx)
-    // 메긴교르드는 처치 5번이 필요해 아직 터지지 않고, 시험용 유물만 50 피해로 터진다.
+    // 메긴교르드는 처치 5번이 필요해 아직 터지지 않고, 시험용 유물만 50 피해로 터진다. (묠니르는 3연타 마지막 타에)
     expect(hits).toEqual([50])
-    expect(powers.effects[0]!.charge).toBe(0)
+    expect(powers.effects[slot]!.charge).toBe(0)
   })
 
-  it('저장했다가 다시 읽어도 남는다', () => {
-    const save = (slots: (string | null)[], ground: { id: string; x: number; z: number }[]) =>
-      parseSave(JSON.stringify({ version: SAVE_VERSION, slots, bag: [], ground, classes: {}, dropMisses: 0, divine: 0 }))
-    expect(save(['testRelic', null, null, null], [])?.slots[0]).toBe('testRelic')
-    expect(save([null, null, null, null], [{ id: 'testRelic', x: 1, z: 2 }])?.ground).toEqual([{ id: 'testRelic', x: 1, z: 2 }])
+  it('저장했다가 다시 읽어도 남는다 (신화의 유물이 아니라 재료로, E13-03)', () => {
+    const save = (data: Record<string, unknown>) => parseSave(JSON.stringify({ version: SAVE_VERSION, slots: [], bag: [], ground: [], classes: {}, dropMisses: 0, divine: 0, ...data }))
+    expect(save({ materials: { testRelic: 2 } })?.materials.testRelic).toBe(2)
+    expect(save({ ground: [{ id: 'testRelic', x: 1, z: 2 }] })?.ground).toEqual([{ id: 'testRelic', x: 1, z: 2 }])
+    // 옛 저장(v4)의 칸에 있던 것은 재료로 옮긴다
+    expect(parseSave(JSON.stringify({ version: 4, slots: ['testRelic', null, null, null], bag: [], ground: [], classes: {}, dropMisses: 0, divine: 0 }))?.materials.testRelic).toBe(1)
   })
 })

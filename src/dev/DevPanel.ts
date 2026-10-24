@@ -199,6 +199,8 @@ export class DevPanel {
         button('단계 올리기', () => g.dev.promote()),
         button('레벨 초기화', () => g.dev.resetMyths()),
         button('이 신화권 숙련', () => g.dev.gainMastery()),
+        button('장비 떨구기', () => g.dev.dropGear()),
+        button('영웅 장비', () => g.dev.dropGear(undefined, 'hero')),
       ),
       row(
         button('궁극기 충전', () => (g.combat.divine = 1)),

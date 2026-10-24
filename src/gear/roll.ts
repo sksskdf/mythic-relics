@@ -69,3 +69,25 @@ export function rollGear(rng: () => number, options: { part?: GearPart; grade?: 
 export function gearName(item: GearItem, data: GearData = GEAR): string {
   return `${data.grades[item.grade].name} ${item.base}`
 }
+
+/** 저장에서 읽은 장비가 맞는 모양인지 보고 바로잡는다. 틀리면 null (E13-06) */
+export function parseGearItem(raw: unknown, data: GearData = GEAR): GearItem | null {
+  if (typeof raw !== 'object' || raw === null) return null
+  const o = raw as Record<string, unknown>
+  if (!isGearUid(o.uid as string) || typeof o.uid !== 'string' || o.uid.length > 20) return null
+  if (!GEAR_PARTS.includes(o.part as GearPart) || !GRADES.includes(o.grade as Grade) || typeof o.base !== 'string') return null
+  const part = o.part as GearPart
+  const grade = o.grade as Grade
+  const stats = (Array.isArray(o.stats) ? o.stats : [])
+    .filter((s): s is { kind: StatKind; value: number } => {
+      const x = s as Record<string, unknown>
+      return typeof s === 'object' && s !== null && data.parts[part].stats.includes(x.kind as StatKind) && typeof x.value === 'number' && Number.isFinite(x.value)
+    })
+    .slice(0, data.grades[grade].stats)
+  const src = o.source as Record<string, unknown> | undefined
+  if (!src || !SOURCE_IDS.includes(src.id as SourceId) || typeof src.value !== 'number') return null
+  const item: GearItem = { uid: o.uid, part, base: o.base.slice(0, 20), grade, stats: stats.map((s) => ({ kind: s.kind, value: s.value })), source: { id: src.id as SourceId, value: Math.max(0, Math.min(5, Math.round(src.value))) } }
+  if (grade === 'hero' && typeof o.unique === 'string' && data.uniques[o.unique]) item.unique = o.unique
+  return item
+}
+

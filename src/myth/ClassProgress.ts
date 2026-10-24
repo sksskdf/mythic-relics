@@ -141,12 +141,14 @@ export class ClassProgress {
 /**
  * 몬스터 하나를 잡았을 때 신화 숙련이 누구에게 얼마나 가는가 (E12-02-1).
  * - 그 몬스터 신화권의 신들이 모두 받는다: 고른 신화는 전부, 나머지는 SHARE_TO_OTHERS 몫씩.
+ * - 아직 고른 신화가 없으면(시작할 때) 그 신화권 신들이 전부 받는다: 첫 신화가 빨리 열린다 (E13).
  * - 고른 신화가 다른 신화권(또는 히든)이어도 고른 신화는 전부 받는다. 신화권이 없는 몬스터는 고른 신화만.
  * - 히든 신화는 몬스터로 쌓이지 않는다 (유물로 연다).
  */
 export function masteryShares(amount: number, realm: string | undefined, chosen: God | null, gods: readonly { id: God; realm: string; hidden: boolean }[]): Map<God, number> {
   const out = new Map<God, number>()
-  if (realm) for (const g of gods) if (!g.hidden && g.realm === realm && g.id !== chosen) out.set(g.id, amount * SHARE_TO_OTHERS)
+  const share = chosen ? SHARE_TO_OTHERS : 1
+  if (realm) for (const g of gods) if (!g.hidden && g.realm === realm && g.id !== chosen) out.set(g.id, amount * share)
   if (chosen) out.set(chosen, amount)
   return out
 }
