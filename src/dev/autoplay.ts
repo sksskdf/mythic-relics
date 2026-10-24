@@ -72,6 +72,8 @@ export class Autoplayer {
   /** 벼리기에 실패한 신화 (재료가 늘면 다시 해 본다) */
   private readonly forgeBlocked = new Set<God>()
   private forgeMaterials = 0
+  /** 출구 위에서 안쪽으로 물러나는 중 */
+  private backing = false
 
   /** 봇이 벼릴 신화: 고른 신화, 그다음 열린 신화 (실패한 것은 재료가 늘 때까지 빼고) */
   private forgeGods(): God[] {
@@ -109,9 +111,13 @@ export class Autoplayer {
     if (!exit) return false
     const at = dist(hero.object.position, exit)
     // 방금 그 출구로 들어와 그 위에 서 있으면, 출구는 한 번 벗어나야 다시 밟히므로 안쪽으로 한 걸음 물러난다
+    // 물러나는 동안에는 출구로 다시 걷지 않는다 (출구가 다시 밟히는 거리까지 벗어날 때까지)
+    if (this.backing && at < 3.6 && hero.isMoving) return true
+    this.backing = false
     if (at < 2 && !hero.isMoving) {
       const len = Math.hypot(exit.x, exit.z) || 1
-      hero.moveTo({ x: exit.x - (exit.x / len) * 4, z: exit.z - (exit.z / len) * 4 })
+      hero.moveTo({ x: exit.x - (exit.x / len) * 5, z: exit.z - (exit.z / len) * 5 })
+      this.backing = true
       return true
     }
     if (!hero.isMoving || at > 1) hero.moveTo(exit)
