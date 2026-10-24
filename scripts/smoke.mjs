@@ -66,6 +66,34 @@ try {
   if (!(await page.evaluate(() => window.__game.snapshot().scenes.includes('opening')))) throw new Error('첫 장면: 본 장면이 저장되지 않습니다.')
   console.log('첫 장면 확인: 대화 중 HUD 숨김, 한 번 누르면 완성·다시 누르면 넘김, 끝나면 HUD와 저장')
 
+  // 대화 네 곳 (E15-06): 처음 보는 일(신화 개방)은 한 번만, 마을 사람은 걸어가면 말을 건다. 대화 중에는 세계가 멈춘다
+  const closeDialog = async () => {
+    for (let i = 0; i < 30 && (await page.evaluate(() => !document.querySelector('.dialog').hidden)); i++) await page.mouse.click(640, 300)
+    await page.waitForFunction(() => !window.__game.scenes.active, null, { timeout: 10000 })
+  }
+  if (!(await page.evaluate(() => window.__game.story('mythThor')))) throw new Error('대화: 토르 신화 개방 장면이 열리지 않습니다.')
+  if ((await page.locator('.dialog__name').textContent()) !== '토르') throw new Error('대화: 신화 개방 장면에서 토르가 말하지 않습니다.')
+  const frozen = await page.evaluate(async () => {
+    const t = window.__game.time
+    await new Promise((r) => setTimeout(r, 300))
+    return window.__game.time === t
+  })
+  if (!frozen) throw new Error('대화: 대화 중에 게임 시간이 흐릅니다.')
+  await closeDialog()
+  if (await page.evaluate(() => window.__game.story('mythThor'))) throw new Error('대화: 본 신화 개방 장면이 다시 열립니다.')
+  await page.evaluate(() => {
+    const g = window.__game
+    g.hero.teleport(5.2, -7.6)
+    g.playerInput.onTalk('대장장이')
+  })
+  await page.waitForFunction(() => window.__game.scenes.current === 'talkSmith', null, { timeout: 5000 }).catch(() => {
+    throw new Error('대화: 대장장이 곁에서 말을 걸었는데 장면이 열리지 않습니다.')
+  })
+  await closeDialog()
+  console.log('대화 확인: 신화 개방 장면(한 번만, 세계 멈춤), 마을 사람에게 말 걸기')
+  // 이 뒤의 점검(대장간 제작 등)이 처음 보는 일 장면에 막히지 않게 끈다
+  await page.evaluate(() => (window.__game.storyScenes = false))
+
   // 조작 점검: 우클릭한 곳으로 걸어가는지 확인한다.
   const heroPos = () => page.evaluate(() => {
     const p = window.__game.hero.object.position
@@ -307,12 +335,31 @@ try {
       const m = g.pixel.renderer.info.memory
       return { geometries: m.geometries, textures: m.textures, ms: Math.round(build / n) }
     }, times)
-  const memA = await memoryAfter(6)
-  const memB = await memoryAfter(24)
+  // 땅 얼굴(테마)마다 다시 칠한 소품 모델을 한 번씩 만들어 두므로, 모든 지역을 한 바퀴 돈 뒤부터 잰다 (E15: 지역 16곳)
+  const regionCount = await page.evaluate(() => Object.keys(window.__game.regions).length)
+  const memA = await memoryAfter(regionCount)
+  const memB = await memoryAfter(regionCount * 2)
   if (memB.geometries > memA.geometries + 8 || memB.textures > memA.textures + 2) throw new Error(`지역: 오갈수록 GPU 자원이 늘어납니다 ${JSON.stringify({ memA, memB })}`)
   if (memB.ms > 3000) throw new Error(`지역: 지역을 짓는 데 3초가 넘게 걸립니다 (${memB.ms}ms)`)
-  console.log(`지역 전환 반복 확인: 6번 뒤 형상 ${memA.geometries}·텍스처 ${memA.textures}, 30번 뒤 ${memB.geometries}·${memB.textures}, 한 번 짓는 데 평균 ${memB.ms}ms (소프트웨어 렌더링)`)
+  console.log(`지역 전환 반복 확인: ${regionCount}곳을 한 바퀴 돈 뒤 형상 ${memA.geometries}·텍스처 ${memA.textures}, 두 바퀴 더 돈 뒤 ${memB.geometries}·${memB.textures}, 한 번 짓는 데 평균 ${memB.ms}ms (소프트웨어 렌더링)`)
   console.log(`지역 확인: 마을에서 시작, 말풍선 「${bubble}」, 작은 지도, 출구를 밟아 미드가르드로`)
+
+  // 세계 지도와 성소 워프 (E15-04): 지도 탭에 열여섯 곳, 찾은 성소를 누르면 그 땅으로
+  await page.evaluate(() => {
+    const g = window.__game
+    g.conveniences.open.add('warp')
+    g.conveniences.visited.add('jotunheim')
+  })
+  await page.click('.minimap')
+  const mapLabels = await page.locator('.menu-map__label').count()
+  if (mapLabels !== 16) throw new Error(`지도: 지역이 ${mapLabels}곳입니다.`)
+  await page.locator('.menu-map__label', { hasText: '요툰헤임 빙하' }).click()
+  await page.waitForFunction(() => window.__game.region.id === 'jotunheim', null, { timeout: 15000 }).catch(() => {
+    throw new Error('지도: 찾은 성소를 눌렀는데 워프하지 않습니다.')
+  })
+  console.log('지도 확인: 작은 지도를 누르면 세계 지도(16곳), 찾은 성소를 눌러 요툰헤임 빙하로 워프')
+  await page.waitForFunction(() => getComputedStyle(document.querySelector('.region-fade')).opacity === '0', null, { timeout: 15000 })
+  await page.evaluate(() => window.__game.enterRegion(window.__game.regions.midgard))
 
   // 승급 전설 점검: 경험치 바를 채우고 성소에 서면 「우트가르드 원정」이 시작된다.
   await page.evaluate(() => {

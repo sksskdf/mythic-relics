@@ -559,7 +559,9 @@ button.hud__slot--empty {
   image-rendering: pixelated;
   background: var(--c-bg-0);
   box-shadow: 0 0 0 2px var(--c-groove);
+  pointer-events: auto;
   cursor: pointer;
+  z-index: 40;
 }
 /* 누르면 세계 지도 (E15-04) */
 .minimap:hover {

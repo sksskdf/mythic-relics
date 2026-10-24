@@ -112,6 +112,8 @@ async function boot(): Promise<Game> {
 
 // 준비가 끝나면 개발 패널과 봇을 붙인다. (자동 점검은 window.__game 으로 게임 상태를 읽는다)
 void boot().then((game) => {
+  // 처음 보는 일의 대화 장면은 봇·점검(?relics)·?noscenes에서 끈다 (E15-06)
+  if (testRun || params.has('autoplay') || params.has('noscenes')) game.storyScenes = false
   if (devMode) {
     document.body.classList.add('devmode')
     void import('./dev/DevPanel').then(({ DevPanel }) => new DevPanel(game, container))

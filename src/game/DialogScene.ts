@@ -27,6 +27,8 @@ export interface SceneHost {
   onSeen(id: string): void
   /** 본 장면 기록 (저장과 함께 쓴다) */
   seen: Set<string>
+  /** 마을 사람이 아닌 말하는 사람(보스 등)이 서 있는 곳. 모르면 null (주인공을 본다) */
+  speakerAt?(who: string): { x: number; z: number } | null
 }
 
 /**
@@ -97,7 +99,13 @@ export class DialogScene {
       hero.face(Math.atan2(speaker.def.x - p.x, speaker.def.z - p.z))
       this.nod = Math.max(0, this.nod - dt)
       speaker.rig.head.rotation.x = Math.sin((1 - this.nod / 0.5) * Math.PI) * 0.35 * (this.nod > 0 ? 1 : 0)
-    } else this.focus.copy(p)
+    } else {
+      const at = this.host.speakerAt?.(this.scene.lines[Math.min(this.line, this.scene.lines.length - 1)]!.who)
+      if (at) {
+        this.focus.set((p.x + at.x) / 2, p.y, (p.z + at.z) / 2)
+        hero.face(Math.atan2(at.x - p.x, at.z - p.z))
+      } else this.focus.copy(p)
+    }
     if (this.closing && this.zoom <= 0) this.end()
   }
 
