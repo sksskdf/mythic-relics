@@ -55,6 +55,7 @@ try {
           g.dev.resetMyths()
           g.dev.unequipAll()
           for (const id of god.relics.slice(0, 4)) g.dev.equip(id)
+          g.dev.choose(god.id)
           for (let l = 1; l < level; l++) g.dev.promote()
           // 적이 없는 빈터에서 오른쪽 아래를 보게 한다
           g.encounter.clearAll()

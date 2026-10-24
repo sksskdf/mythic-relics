@@ -24,6 +24,7 @@ export class ProgressionSystem {
 
   constructor(private readonly ctx: GameContext) {
     ctx.bus.on('giantKilled', ({ giant }) => this.onGiantKilled(giant))
+    ctx.bus.on('mythOpened', ({ god }) => this.announceOpened(god))
   }
 
   /** 지금 이 지역 성소에서 열 수 있는 승급 전설 (없으면 null) */
@@ -97,16 +98,17 @@ export class ProgressionSystem {
     // 상시 효과: 신화 숙련 얻는 양 (오딘)
     amount *= 1 + build.state.stats.masteryGain
     for (const [god, share] of masteryShares(amount, realm, build.chosen, Object.values(GODS))) {
-      if (progress.addXp(god, share) === 'opened') this.announceOpened(god)
+      if (progress.addXp(god, share) === 'opened') bus.emit('mythOpened', { god })
     }
     bus.emit('progressChanged', {})
   }
 
-  /** 숙련이 문턱을 넘어 신화가 처음 열렸다: 칭호 카드와 그 신의 순간 (고르지 않아도 상시 효과가 붙는다) */
+  /** 신화가 처음 열렸다 (숙련 문턱 또는 유물): 칭호 카드와 빛기둥 (고르지 않아도 상시 효과가 붙는다) */
   private announceOpened(god: God): void {
-    const { hud, fx, hero, bus } = this.ctx
+    const { hud, fx, hero, progress } = this.ctx
+    // 처음 연 신화를 바로 골랐으면 고른 신화 카드가 대신 알린다
+    if (progress.chosen.includes(god)) return
     const def = godDef(god)
-    bus.emit('mythOpened', { god })
     const echo = def.always.echo
     hud.showGains('신화 개방', def.titles[0], def.color, classIcon(def.name), [`${def.name}의 힘이 깨어났다`, `상시 효과: ${partName(def, echo.part)} 메아리`])
     fx.power.burst(hero.object.position, def.color, 3)
@@ -152,6 +154,8 @@ export class ProgressionSystem {
   /** 클래스 성장(레벨·경험치)을 처음으로 되돌린다. */
   reset(): void {
     this.ctx.progress.records.clear()
+    this.ctx.progress.chosen = []
+    this.ctx.powers.choose(null)
     this.applyStats()
     this.ctx.combat.health.reset()
     this.ctx.bus.emit('progressChanged', {})

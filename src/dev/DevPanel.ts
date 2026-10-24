@@ -122,12 +122,14 @@ export class DevPanel {
 
   private buildRelics(page: HTMLElement): void {
     const g = this.game
-    // 신화권 → 클래스 → 유물 그림 칸. 그림을 누르면 끼고 빼기(낀 것은 밝게), 클래스 이름을 누르면 그 묶음을 낀다.
+    // 신화권 → 신화 → 유물 그림 칸. 그림을 누르면 끼고 빼기(낀 것은 밝게), 신화 이름을 누르면 그 묶음을 끼고 그 신화를 고른다.
     // 함께 쓰는 유물(쿠사나기·토츠카)은 스사노오와 아수라왕 양쪽에 보인다.
     const REALM_NAMES: Record<string, string> = { norse: '북유럽', greek: '그리스', china: '중국', japan: '일본', korea: '한국', hidden: '히든' }
     const wearSet = (god: God) => {
       g.dev.unequipAll()
       for (const id of RELIC_IDS.filter((r) => relicGods(relicDef(r)).includes(god)).slice(0, 4)) g.dev.equip(id)
+      // 묶음의 신화를 고른다 (마을·성소가 아니어도)
+      g.dev.choose(god)
     }
     const list = el('div', 'devpanel__relicList')
     for (const realm of REALMS) {
@@ -233,6 +235,7 @@ export class DevPanel {
       g.dev.unequipAll()
       for (const id of ['mjolnir', 'megingjord', 'jarngreipr'] as const) g.dev.equip(id)
       god = 'thor'
+      g.dev.choose(god)
     }
     g.progress.addXp(god, 1e9)
     g.dev.teleport(g.legend.center.x, g.legend.center.z)

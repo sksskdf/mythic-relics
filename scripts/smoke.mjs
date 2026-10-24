@@ -160,7 +160,7 @@ try {
   await page.evaluate(() => window.__game.pickups.remove('lokiMask'))
   console.log('땅 유물 설명 확인: 모델 위·빛기둥·발밑에서 카드가 뜨고, 벗어나면 사라짐')
 
-  // 유물 점검: 떨어진 유물 위에 서면 저절로 줍고, 토르 유물 3개가 모이면 발현된다.
+  // 유물 점검: 떨어진 유물 위에 서면 저절로 줍고, 첫 유물로 그 신화가 열려 바로 고른 신화가 된다 (E12-04).
   await page.evaluate(() => {
     const g = window.__game
     const p = g.hero.object.position
@@ -176,7 +176,8 @@ try {
     g.dev.equip('mjolnir')
     return g.powers.manifested
   })
-  if (manifested !== 'thor') throw new Error(`발현 실패: ${manifested}`)
+  if (manifested !== 'thor') throw new Error(`신화 고르기 실패: 토르 유물을 주웠는데 고른 신화가 ${manifested}입니다.`)
+  if (!(await page.evaluate(() => window.__game.progress.isOpen('thor')))) throw new Error('신화 개방: 토르 유물을 주웠는데 토르 신화가 열리지 않았습니다.')
   if ((await page.evaluate(() => window.__game.hero.rig.outfit.head)) !== 'thorHelm') throw new Error('외형: 발현했는데 모습이 그대로입니다.')
   // 발현 번개가 걷히고 나서 찍는다.
   await lookShot('4-manifest', 12)
@@ -188,7 +189,7 @@ try {
   const statRows = await page.locator('.menu-status__stat').count()
   if (statRows !== 8) throw new Error(`상태 탭: 능력치 줄이 ${statRows}개입니다.`)
   await page.screenshot({ path: 'test-results/menu-status.png' })
-  // 유물 탭: 유물을 가방에 넣고 다시 끼면 HUD·외형·발현이 바로 바뀐다.
+  // 유물 탭: 유물을 가방에 넣고 다시 끼면 HUD·외형이 바로 바뀐다. 고른 신화는 유물과 상관없이 그대로다 (E12-04).
   await page.locator('.menu__tab').nth(2).click()
   const beltSlot = await page.evaluate(() => window.__game.powers.loadout.slots.indexOf('megingjord'))
   await page.locator('.menu-relics__slot').nth(beltSlot).click()
@@ -197,11 +198,11 @@ try {
     const g = window.__game
     return { manifested: g.powers.manifested, waist: g.hero.rig.outfit.waist, bag: [...g.powers.loadout.bag] }
   })
-  if (stowed.manifested !== null || stowed.waist !== null || !stowed.bag.includes('megingjord')) throw new Error(`정보 화면: 가방에 넣기 실패 ${JSON.stringify(stowed)}`)
+  if (stowed.manifested !== 'thor' || stowed.waist !== null || !stowed.bag.includes('megingjord')) throw new Error(`정보 화면: 가방에 넣기 실패 ${JSON.stringify(stowed)}`)
   await page.locator('.menu-relics__item').first().hover()
   if (!(await page.locator('.rc__preview').textContent()).includes('신화')) throw new Error('정보 화면: 끼우면 신화가 열린다는 미리 보기가 없습니다.')
   await page.locator('.menu-relics__item').first().click()
-  if ((await page.evaluate(() => window.__game.powers.manifested)) !== 'thor') throw new Error('정보 화면: 다시 끼웠는데 발현하지 않습니다.')
+  if ((await page.evaluate(() => window.__game.powers.loadout.slots.includes('megingjord'))) !== true) throw new Error('정보 화면: 가방의 유물을 다시 끼지 못했습니다.')
   await page.click('.menu__tab:nth-child(4)')
   if (!(await page.locator('.menu-classes__now').textContent()).includes('천둥의 신')) throw new Error('정보 화면: 클래스 탭에 지금 클래스가 없습니다.')
   await page.keyboard.press('Escape')
@@ -240,7 +241,7 @@ try {
   // 보관함에서 무기를 짧은 검으로 고르면 묠니르를 껴도 검을 든다. (새로 고침 뒤에도 유지되는지 아래에서 확인)
   await page.evaluate(() => window.__game.appearance.choose('weapon', 'shortSword'))
   if ((await page.evaluate(() => window.__game.hero.rig.outfit.weapon)) !== 'shortSword') throw new Error('외형: 보관함 선택이 적용되지 않습니다.')
-  console.log('유물·외형 확인: 메긴교르드 줍기, 토르 유물 3개로 발현, 부위별 외형과 보관함 (test-results/look-*.png)')
+  console.log('유물·외형 확인: 메긴교르드 줍기로 토르 신화 열기·고르기, 부위별 외형과 보관함 (test-results/look-*.png)')
 
   // 지역 (E7): 새로 시작하면 마을. 마을 사람 곁에 가면 말풍선, 출구를 밟으면 암전 뒤 그 땅으로 넘어간다.
   if ((await page.evaluate(() => window.__game.region.id)) !== 'village') throw new Error('지역: 새로 시작했는데 마을이 아닙니다.')

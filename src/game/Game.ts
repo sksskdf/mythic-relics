@@ -83,6 +83,9 @@ export interface GameOptions {
   quality?: RenderQuality
 }
 
+/** 성소에서 이만큼 가까우면 고른 신화를 바꿀 수 있다 */
+const CHOOSE_NEAR_SANCTUARY = 6
+
 /** 출구를 밟았다고 보는 거리 (m), 암전 시간 (초, 어두워지는 데 한 번·밝아지는 데 한 번) */
 
 /** 플레이 기록: 검증과 수치 조정에 쓴다. */
@@ -164,7 +167,6 @@ export class Game {
   /** 지금 떠 있는 카드가 땅의 유물 카드인가 */
   private groundTooltip = false
   /** 가방까지 합쳐 발현할 수 있다고 이미 알린 신 */
-  private hintedGod: string | null = null
   /** 커서를 올린 HUD 유물 칸 (카드를 그 위에 띄운다) */
   private hoveredSlot: { slot: number; x: number; y: number } | null = null
   private readonly relics: RelicSystem
@@ -385,17 +387,7 @@ export class Game {
     // 새 외형은 메뉴 단추의 점으로만 알린다. (유물 이름 알림과 겹치지 않게)
     this.bus.on('looksUnlocked', () => this.menu.markNew())
     this.bus.on('outfitChanged', () => this.menu.refresh())
-    this.bus.on('loadoutChanged', () => {
-      this.menu.refresh()
-      // 칸이 다른 신 유물로 차 있어 가방의 유물로 발현할 수 있으면 알린다 (E6-07)
-      const god = this.powers.loadout.manifestable()
-      if (god && god !== this.hintedGod) {
-        this.hintedGod = god
-        this.menu.markTab('relics')
-        this.hud.showToast(`${godDef(god).name}의 유물이 모였다`)
-      }
-      if (!god) this.hintedGod = null
-    })
+    this.bus.on('loadoutChanged', () => this.menu.refresh())
     // HUD 유물 칸: 커서를 올리면 설명 카드, 누르면 유물 화면
     this.hud.onSlotClick = (slot) => this.menu.show('relics', slot)
     this.hud.onSlotHover = (slot, anchor) => {
@@ -435,6 +427,7 @@ export class Game {
     if (options.load) {
       this.persistence.restore(options.load, {
         equip: (id) => this.relics.equip(id, false),
+        choose: (god) => this.relics.choose(god, false),
         applyStats: () => this.growth.applyStats(),
         applyLooks: () => this.appearance.apply(),
       })
@@ -708,6 +701,19 @@ export class Game {
   }
 
   /** 월드 좌표가 화면 어디에 보이는가 (CSS 픽셀, 자동 점검용) */
+  /** 고른 신화를 바꿀 수 있는 곳인가: 마을, 또는 지역 성소 곁 (E12-04, DESIGN.md 4.2) */
+  get canChooseMyth(): boolean {
+    if (this.ctx.map.region.kind === 'hub') return true
+    if (!this.legend.present || this.legend.active) return false
+    const p = this.hero.object.position
+    return Math.hypot(p.x - this.legend.center.x, p.z - this.legend.center.z) <= CHOOSE_NEAR_SANCTUARY
+  }
+
+  /** 정보 화면에서 신화를 고른다. 마을·성소가 아니거나 닫힌 신화면 false */
+  chooseMyth(god: string): boolean {
+    return this.canChooseMyth && this.relics.choose(god, true)
+  }
+
   /** 기본 공격의 대상별 배율 (정예·보스에게 피해) */
   private readonly targetScale = (target: CombatTarget): number => this.damage.targetScale(target)
 

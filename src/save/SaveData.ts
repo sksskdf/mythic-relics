@@ -1,4 +1,6 @@
 import { REGIONS } from '../data/regions'
+import { CHOSEN_SLOTS } from '../myth/ClassProgress'
+import { legacyManifest } from '../myth/manifest'
 import { type CycleData, parseCycle } from '../progress/Cycle'
 import { type BodyLook, parseBody } from '../looks/body'
 import { isLookId, lookDef, type LookSlot, STARTING_LOOKS, WARDROBE_SLOTS } from '../looks/catalog'
@@ -21,8 +23,10 @@ export interface SaveData {
   bag: RelicId[]
   /** 땅에 떨어져 있던 유물 */
   ground: { id: RelicId; x: number; z: number }[]
-  /** 클래스별 레벨과 경험치 */
+  /** 신화별 개방 단계(0~4)와 신화 숙련 */
   classes: Partial<Record<God, { level: number; xp: number }>>
+  /** 고른 신화 (E12-04). 옛 저장은 1차 스프린트 발현 규칙으로 정한다 */
+  chosen: God[]
   /** 불운 보정: 마지막 유물 뒤로 놓친 횟수 */
   dropMisses: number
   /** 신위 게이지 */
@@ -92,6 +96,7 @@ export function parseSave(text: string | null): SaveData | null {
     bag,
     ground,
     classes,
+    chosen: parseChosen(data.chosen, slots, classes),
     dropMisses: Math.round(num(data.dropMisses, 0, 1000, 0)),
     divine: num(data.divine, 0, 1, 0),
     looks: data.version === 1 ? migrateLooks(slots, bag, classes) : parseLooks(data.looks),
@@ -100,6 +105,14 @@ export function parseSave(text: string | null): SaveData | null {
     region: parseRegion(data.region),
     scenes: Array.isArray(data.scenes) ? [...new Set(data.scenes.filter((s): s is string => typeof s === 'string' && s.length < 40))] : [],
   }
+}
+
+/** 고른 신화: 열린 신화만. 없으면(옛 저장) 칸의 유물로 1차 스프린트 발현 규칙을 따른다 */
+function parseChosen(raw: unknown, slots: readonly (RelicId | null)[], classes: SaveData['classes']): God[] {
+  const open = (god: God) => (classes[god]?.level ?? 0) >= 1
+  if (Array.isArray(raw)) return [...new Set(raw.filter((g): g is God => isGod(g) && open(g)))].slice(0, CHOSEN_SLOTS)
+  const legacy = legacyManifest(slots)
+  return legacy && open(legacy) ? [legacy] : []
 }
 
 function parseRegion(raw: unknown): SaveData['region'] {

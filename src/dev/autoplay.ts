@@ -117,14 +117,8 @@ export class Autoplayer {
     if (this.god) {
       powers.loadout.slots.forEach((id, slot) => id && relicDef(id).god !== this.god && this.game.dev.stow(slot))
     }
-    // 가방까지 합쳐 발현할 수 있으면 사람이 유물 화면에서 하듯 바꿔 낀다
-    const ready = powers.loadout.manifestable()
-    if (ready && (!this.god || ready === this.god)) {
-      for (const id of powers.loadout.bag.filter((b) => relicDef(b).god === ready)) {
-        const slot = powers.loadout.slots.findIndex((s) => s === null || relicDef(s).god !== ready)
-        if (slot >= 0) this.game.dev.wield(id, slot)
-      }
-    }
+    // 정한 신이 있으면 그 신화가 열리는 대로 고른다 (사람은 마을·성소에서 고른다)
+    if (this.god && powers.manifested !== this.god && this.game.progress.isOpen(this.god)) this.game.dev.choose(this.god)
     // 칸이 차 있어도 줍는다 (가방에 들어가고, 모이면 바꿔 낀다)
     if (!legend.active) {
       const pickup = nearest(pickups.list.filter((i) => !powers.loadout.has(i.id) && (!this.god || relicDef(i.id).god === this.god)), here)

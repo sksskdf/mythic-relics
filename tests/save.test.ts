@@ -9,6 +9,7 @@ const sample: SaveData = {
   bag: [],
   ground: [{ id: 'lokiMask', x: 3, z: -4 }],
   classes: { thor: { level: 2, xp: 40 } },
+  chosen: ['thor'],
   dropMisses: 3,
   divine: 0.5,
   looks: {
