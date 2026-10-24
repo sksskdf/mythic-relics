@@ -87,7 +87,10 @@ export class Autoplayer {
     const manifested = powers.manifested
     if (manifested && godDef(manifested).legend && progress.readyToPromote(manifested)) return fieldOf(manifested) ?? region.id
     // 벼릴 재료가 차면 마을 대장간으로 (E13-08)
-    if (this.forgeGods().some((god) => forgeReady(powers.loadout, god))) return Object.values(regions).find((r) => r.kind === 'hub')?.id ?? region.id
+    const hub = Object.values(regions).find((r) => r.kind === 'hub')?.id ?? region.id
+    if (this.forgeGods().some((god) => forgeReady(powers.loadout, god))) return hub
+    // 위협 단계가 새로 열렸으면 마을 촌장에게 (E14-07)
+    if (this.climb && this.game.threat.unlocked > this.game.threat.reached) return hub
     const here = region.kind === 'field' ? region.id : 'midgard'
     // 히든 신화는 자기 땅이 없어 지금 필드(마을이면 미드가르드)에서 싸운다
     if (this.god) return fieldOf(this.god) ?? here
@@ -199,6 +202,13 @@ export class Autoplayer {
     const worn = powers.loadout.slots.filter((id) => id !== null).length
     const boss = encounter.boss
     const bossOk = worn >= 2 && hp > 0.6
+    // 위협 단계를 올리는 봇: 2단계 뒤에는 열린 가장 높은 단계의 문지기(지역 보스)를 찾아간다 (E14-07)
+    const threat = this.game.threat
+    if (this.climb && !legend.active && progress.promotions >= 1 && threat.unlocked === threat.reached && threat.level === threat.reached && boss?.alive && hp > 0.6) {
+      this.step = 11
+      this.engage(here, boss)
+      return
+    }
     let candidates = enemies.filter((g) => {
       if (legend.active) return true
       if (g === boss) return bossOk

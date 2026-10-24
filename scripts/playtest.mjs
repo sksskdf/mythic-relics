@@ -14,6 +14,8 @@ const RUNS = Number(args[0] ?? 3)
 const LIMIT_MIN = Number(args[1] ?? 45)
 const THREAT = Number(process.argv.find((a) => a.startsWith('--threat='))?.slice(9) ?? 0)
 const SOURCE = process.argv.find((a) => a.startsWith('--source='))?.slice(9) ?? null
+/** --stack=stone 처럼 붙이면 그 원천 +3짜리 영웅 장비 여섯과 원천 숙련 +2를 끼고(원천 20, 각성 3단계) 시작한다 (원천 빌드 비교, scripts/source-trial.mjs) */
+const STACK = process.argv.find((a) => a.startsWith('--stack='))?.slice(8) ?? null
 /** --god=loki 처럼 붙이면 봇이 그 신 유물만 끼고 승급까지 간다 (E6-08) */
 const GOD = process.argv.find((a) => a.startsWith('--god='))?.slice(6) ?? null
 /** --relics=kusanagi,totsuka,... 처럼 붙이면 그 유물을 끼고(발현한 채) 시작해 제한 시간 동안 처치 속도를 잰다 (클래스 비교) */
@@ -61,6 +63,17 @@ try {
     await page.waitForFunction(() => window.__autoplay && window.__game.frame > 2, null, { timeout: 30000 })
     if (THREAT > 0) await page.evaluate((source) => Object.assign(window.__autoplay, { climb: true, source }), SOURCE)
     if (GOD) await page.evaluate((god) => (window.__autoplay.god = god), GOD)
+    if (STACK)
+      await page.evaluate((source) => {
+        const g = window.__game
+        const parts = ['head', 'body', 'hands', 'feet', 'trinket', 'trinket']
+        parts.forEach((part, i) => {
+          const item = { uid: `g:stack00${i}`, part, base: '시험', grade: 'hero', stats: [], source: { id: source, value: 3 } }
+          g.powers.loadout.addGear(item)
+          g.powers.loadout.equip(item.uid)
+        })
+        g.threat.mastery[source] = 2
+      }, STACK)
     if (REGION) await page.evaluate(() => (window.__autoplay.stay = true))
     let done = false
     while (!done) {
