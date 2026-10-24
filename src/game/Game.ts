@@ -93,7 +93,7 @@ const CHOOSE_NEAR_SANCTUARY = 6
 export interface PlayEvent {
   /** 게임 시간 (초) */
   t: number
-  type: 'relic' | 'manifest' | 'kill' | 'bossKill' | 'death' | 'legendStart' | 'legendFail' | 'promote' | 'hurt'
+  type: 'relic' | 'manifest' | 'open' | 'kill' | 'bossKill' | 'death' | 'legendStart' | 'legendFail' | 'promote' | 'hurt'
   detail?: string
 }
 
@@ -450,6 +450,7 @@ export class Game {
     const record = (type: PlayEvent['type'], detail?: string) => this.log.push({ t: Math.round(this.time * 10) / 10, type, detail })
     const { bus } = this
     bus.on('relicPicked', ({ id }) => record('relic', id))
+    bus.on('mythOpened', ({ god }) => record('open', god))
     bus.on('manifested', ({ god }) => record('manifest', god))
     bus.on('giantKilled', ({ giant }) => record(giant.spec.boss ? 'bossKill' : 'kill', giant.spec.boss))
     bus.on('heroHurt', ({ damage }) => record('hurt', String(Math.round(damage))))

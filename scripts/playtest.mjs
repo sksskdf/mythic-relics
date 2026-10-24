@@ -74,6 +74,8 @@ try {
       run,
       relics: Object.fromEntries(RELIC_IDS.map((id) => [id, first('relic', id)])),
       manifest: first('manifest'),
+      // 신화 개방 (E12-07): 첫째·둘째 신화가 열린 때와 연 신화 수
+      opened: log.filter((e) => e.type === 'open').map((e) => ({ t: e.t, god: e.detail })),
       bossKill: first('bossKill', 'giantKing'),
       legendStart: first('legendStart'),
       promote: first('promote'),
@@ -96,9 +98,9 @@ try {
     }
     results.push(result)
     console.log(
-      `#${run} 승급 ${fmt(result.promote)} | 발현 ${fmt(result.manifest)} | 거인 왕 ${fmt(result.bossKill)} | ` +
+      `#${run} 2단계 ${fmt(result.promote)} | 첫 신화 ${fmt(result.manifest)} | 신화 둘 ${fmt(result.opened[1]?.t)} (연 신화 ${result.opened.length}: ${result.opened.map((o) => o.god).join(', ')}) | 거인 왕 ${fmt(result.bossKill)} | ` +
         `유물 ${Object.entries(result.relics).map(([k, v]) => `${k} ${fmt(v)}`).join(', ')} | ` +
-        `처치 ${result.kills}(발현 뒤 분당 ${result.killRate}), 쓰러짐 ${result.deaths}, 피격 ${result.hurt}, 전설 실패 ${result.legendFails}` +
+        `처치 ${result.kills}(첫 신화 뒤 분당 ${result.killRate}), 쓰러짐 ${result.deaths}, 피격 ${result.hurt}, 전설 실패 ${result.legendFails}` +
         (LOOPS > 0 ? ` | 윤회 ${rebirths.map((t, i) => fmt(t - (rebirths[i - 1] ?? 0))).join(' → ')}` : '') +
         (errors.length ? ` | 오류 ${errors.length}` : ''),
     )

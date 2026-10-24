@@ -71,8 +71,10 @@ export class Autoplayer {
     const fieldOf = (god: God) => Object.values(regions).find((r) => r.realm === godDef(god).realm)?.id
     const manifested = powers.manifested
     if (manifested && godDef(manifested).legend && progress.readyToPromote(manifested)) return fieldOf(manifested) ?? region.id
-    if (this.god) return fieldOf(this.god) ?? region.id
-    return region.kind === 'field' ? region.id : 'midgard'
+    const here = region.kind === 'field' ? region.id : 'midgard'
+    // 히든 신화는 자기 땅이 없어 지금 필드(마을이면 미드가르드)에서 싸운다
+    if (this.god) return fieldOf(this.god) ?? here
+    return here
   }
 
   /** 다른 지역으로 가야 하면 출구로 걷는다 (마을을 거쳐 간다). 걸었으면 true */
