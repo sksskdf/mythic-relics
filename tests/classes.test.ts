@@ -8,7 +8,7 @@ import type { CombatTarget } from '../src/game/PlayerCombat'
 import { LOOKS } from '../src/looks/catalog'
 import { levelGains } from '../src/myth/levelGains'
 import { type God, GODS, RELIC_IDS, relicDef, type RelicId } from '../src/relics/data'
-import { resolveLoadout } from '../src/myth/manifest'
+import { legacyManifest } from '../src/myth/manifest'
 import { relicGods, relicIconRows } from '../src/relics/model'
 import { DataRelicEffect } from '../src/skills'
 import { ClassPassives } from '../src/skills/ClassPassives'
@@ -115,10 +115,10 @@ const gods = Object.keys(GODS) as God[]
 describe.each(gods)('클래스 %s', (god) => {
   const def = DATA.gods[god]!
 
-  it('자기 유물이 발현 수만큼 있고, 그것을 끼면 발현한다', () => {
+  it('자기 유물이 발현 수만큼 있다 (히든 신화를 여는 수, 옛 저장의 발현 규칙)', () => {
     const relics = relicsOf(god)
     expect(relics.length).toBeGreaterThanOrEqual(def.manifestCount)
-    expect(resolveLoadout(relics.slice(0, Math.min(4, def.manifestCount))).manifested).toBe(god)
+    expect(legacyManifest(relics.slice(0, Math.min(4, def.manifestCount)))).toBe(god)
   })
 
   it('유물마다 행동이 터지면 적을 친다', () => {

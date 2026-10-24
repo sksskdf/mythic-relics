@@ -15,6 +15,9 @@ export interface ClassRecord {
   xp: number
 }
 
+/** 고를 수 있는 신화 수. 위협 단계·균열·시련 보상으로 2까지 늘린다 (E16·E17) */
+export const CHOSEN_SLOTS = 1
+
 /** 숙련을 더한 결과 */
 export type MasteryResult = 'opened' | null
 
@@ -32,6 +35,8 @@ export const MASTERY_DAMAGE = 0.1
  */
 export class ClassProgress {
   readonly records = new Map<God, ClassRecord>()
+  /** 고른 신화 (E12-04). 지금은 1개, 보상으로 2개까지 (CHOSEN_SLOTS) */
+  chosen: God[] = []
 
   record(god: God): ClassRecord {
     let record = this.records.get(god)

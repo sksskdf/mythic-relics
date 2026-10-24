@@ -73,13 +73,13 @@ describe('데이터에만 넣은 시험용 유물', () => {
     expect(pickups.update(0.1, 0, 0, () => true)).toEqual(['testRelic'])
   })
 
-  it('장착하면 신의 유물 수에 들어가 발현되고, 지속 효과와 행동 연동 효과가 붙는다', () => {
+  it('장착하면 그 신의 유물로 세고(가호), 지속 효과와 행동 연동 효과가 붙는다', () => {
     const fx = new THREE.Group()
     const powers = new RelicPowers(fx)
     powers.equip('testRelic')
     powers.equip('mjolnir')
     const change = powers.equip('megingjord')
-    expect(change?.after.manifested).toBe('thor')
+    expect(change?.after.blessings).toEqual(['thor'])
     expect(gearModifiers(powers.loadout.slots).damageTaken).toBeCloseTo(0.8)
 
     const hits: number[] = []

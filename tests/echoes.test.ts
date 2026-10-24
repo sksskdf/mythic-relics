@@ -88,7 +88,8 @@ describe('메아리 (E12-03)', () => {
     echoes.list = [{ god: 'loki', stage: 2 }]
     run(echoes, ctx, echoEvery(godDef('loki').always.echo.every, 'seconds', 2) + 1)
     expect(hits.filter((h) => h.source === 'companion').length).toBeGreaterThanOrEqual(1)
-    run(echoes, ctx, 0.01)
+    // 마지막에 막 나타난 것도 달려들어 치고 사라질 만큼 더 돌린다
+    run(echoes, ctx, 0.6)
     expect(ctx.fx.children.length).toBe(0)
   })
 

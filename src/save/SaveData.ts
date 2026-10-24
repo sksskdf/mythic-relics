@@ -1,4 +1,7 @@
 import { REGIONS } from '../data/regions'
+import { CHOSEN_SLOTS } from '../myth/ClassProgress'
+import { hiddenUnlocked, legacyManifest } from '../myth/manifest'
+import { relicGods } from '../relics/model'
 import { type CycleData, parseCycle } from '../progress/Cycle'
 import { type BodyLook, parseBody } from '../looks/body'
 import { isLookId, lookDef, type LookSlot, STARTING_LOOKS, WARDROBE_SLOTS } from '../looks/catalog'
@@ -10,8 +13,10 @@ import { GODS, godDef, type God, isRelicId, relicDef, type RelicId } from '../re
  * - v1: 유물, 클래스, 드랍 보정, 신위
  * - v2: 외형 보관함(얻은 외형, 칸마다 고른 것) 추가 (E3)
  * - v3: 지금 있는 지역과 자리 (E7). 옛 저장은 마을에서 시작
+ * - v4: 신화 (E12-05). classes는 개방 단계 0~4와 신화 숙련, chosen은 고른 신화.
+ *   옛 저장은 가진 유물의 신화를 1단계로 열고(히든은 유물 수), 고른 신화는 1차 발현 규칙으로 정한다
  */
-export const SAVE_VERSION = 3
+export const SAVE_VERSION = 4
 
 export interface SaveData {
   version: typeof SAVE_VERSION
@@ -21,8 +26,10 @@ export interface SaveData {
   bag: RelicId[]
   /** 땅에 떨어져 있던 유물 */
   ground: { id: RelicId; x: number; z: number }[]
-  /** 클래스별 레벨과 경험치 */
+  /** 신화별 개방 단계(0~4)와 신화 숙련 */
   classes: Partial<Record<God, { level: number; xp: number }>>
+  /** 고른 신화 (E12-04). 옛 저장은 1차 스프린트 발현 규칙으로 정한다 */
+  chosen: God[]
   /** 불운 보정: 마지막 유물 뒤로 놓친 횟수 */
   dropMisses: number
   /** 신위 게이지 */
@@ -58,7 +65,7 @@ export function parseSave(text: string | null): SaveData | null {
   }
   if (typeof raw !== 'object' || raw === null) return null
   const data = raw as Record<string, unknown>
-  if (data.version !== SAVE_VERSION && data.version !== 1 && data.version !== 2) return null
+  if (data.version !== SAVE_VERSION && data.version !== 1 && data.version !== 2 && data.version !== 3) return null
 
   const seen = new Set<RelicId>()
   const unique = (id: unknown): id is RelicId => {
@@ -86,12 +93,14 @@ export function parseSave(text: string | null): SaveData | null {
     }
   }
 
+  const myths = (data.version as number) < 4 ? openOwned(classes, [...slots, ...bag]) : classes
   return {
     version: SAVE_VERSION,
     slots,
     bag,
     ground,
-    classes,
+    classes: myths,
+    chosen: parseChosen(data.chosen, slots, myths),
     dropMisses: Math.round(num(data.dropMisses, 0, 1000, 0)),
     divine: num(data.divine, 0, 1, 0),
     looks: data.version === 1 ? migrateLooks(slots, bag, classes) : parseLooks(data.looks),
@@ -100,6 +109,23 @@ export function parseSave(text: string | null): SaveData | null {
     region: parseRegion(data.region),
     scenes: Array.isArray(data.scenes) ? [...new Set(data.scenes.filter((s): s is string => typeof s === 'string' && s.length < 40))] : [],
   }
+}
+
+/** v3 → v4: 가진 유물의 신화를 1단계로 연다 (E12-04 규칙: 그 신 유물을 손에 넣으면 열린다. 히든은 유물 수) */
+function openOwned(classes: SaveData['classes'], owned: readonly (RelicId | null)[]): SaveData['classes'] {
+  const out: SaveData['classes'] = { ...classes }
+  const gods = new Set<God>(hiddenUnlocked(owned))
+  for (const id of owned) if (id) for (const god of relicGods(relicDef(id))) if (!godDef(god).hidden) gods.add(god)
+  for (const god of gods) if ((out[god]?.level ?? 0) < 1) out[god] = { level: 1, xp: 0 }
+  return out
+}
+
+/** 고른 신화: 열린 신화만. 없으면(옛 저장) 칸의 유물로 1차 스프린트 발현 규칙을 따른다 */
+function parseChosen(raw: unknown, slots: readonly (RelicId | null)[], classes: SaveData['classes']): God[] {
+  const open = (god: God) => (classes[god]?.level ?? 0) >= 1
+  if (Array.isArray(raw)) return [...new Set(raw.filter((g): g is God => isGod(g) && open(g)))].slice(0, CHOSEN_SLOTS)
+  const legacy = legacyManifest(slots)
+  return legacy && open(legacy) ? [legacy] : []
 }
 
 function parseRegion(raw: unknown): SaveData['region'] {

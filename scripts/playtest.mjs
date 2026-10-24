@@ -18,8 +18,10 @@ const GOD = process.argv.find((a) => a.startsWith('--god='))?.slice(6) ?? null
 const RELICS = process.argv.find((a) => a.startsWith('--relics='))?.slice(9) ?? null
 /** 기록할 유물: 데이터 파일에 있는 유물 전부 */
 const RELIC_IDS = Object.keys(JSON.parse(readFileSync(new globalThis.URL('../src/data/relics.json', import.meta.url), 'utf8')))
+/** --region=midgard 처럼 붙이면 그 지역에서 시작해 떠나지 않는다 (신화 비교를 같은 땅에서) */
+const REGION = process.argv.find((a) => a.startsWith('--region='))?.slice(9) ?? null
 const PORT = 4183
-const URL = RELICS ? `http://localhost:${PORT}/?relics=${RELICS}&autoplay` : `http://localhost:${PORT}/?fresh&autoplay`
+const URL = (RELICS ? `http://localhost:${PORT}/?relics=${RELICS}&autoplay` : `http://localhost:${PORT}/?fresh&autoplay`) + (REGION ? `&region=${REGION}` : '')
 const BROWSER = process.env.CHROMIUM_PATH ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'
 
 const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'ignore', detached: true })
@@ -57,6 +59,7 @@ try {
     await page.waitForFunction(() => window.__autoplay && window.__game.frame > 2, null, { timeout: 30000 })
     if (LOOPS > 0) await page.evaluate(() => (window.__autoplay.cycle = true))
     if (GOD) await page.evaluate((god) => (window.__autoplay.god = god), GOD)
+    if (REGION) await page.evaluate(() => (window.__autoplay.stay = true))
     let done = false
     while (!done) {
       const state = await page.evaluate(() => {
@@ -74,6 +77,8 @@ try {
       run,
       relics: Object.fromEntries(RELIC_IDS.map((id) => [id, first('relic', id)])),
       manifest: first('manifest'),
+      // 신화 개방 (E12-07): 첫째·둘째 신화가 열린 때와 연 신화 수
+      opened: log.filter((e) => e.type === 'open').map((e) => ({ t: e.t, god: e.detail })),
       bossKill: first('bossKill', 'giantKing'),
       legendStart: first('legendStart'),
       promote: first('promote'),
@@ -96,9 +101,9 @@ try {
     }
     results.push(result)
     console.log(
-      `#${run} 승급 ${fmt(result.promote)} | 발현 ${fmt(result.manifest)} | 거인 왕 ${fmt(result.bossKill)} | ` +
+      `#${run} 2단계 ${fmt(result.promote)} | 첫 신화 ${fmt(result.manifest)} | 신화 둘 ${fmt(result.opened[1]?.t)} (연 신화 ${result.opened.length}: ${result.opened.map((o) => o.god).join(', ')}) | 거인 왕 ${fmt(result.bossKill)} | ` +
         `유물 ${Object.entries(result.relics).map(([k, v]) => `${k} ${fmt(v)}`).join(', ')} | ` +
-        `처치 ${result.kills}(발현 뒤 분당 ${result.killRate}), 쓰러짐 ${result.deaths}, 피격 ${result.hurt}, 전설 실패 ${result.legendFails}` +
+        `처치 ${result.kills}(첫 신화 뒤 분당 ${result.killRate}), 쓰러짐 ${result.deaths}, 피격 ${result.hurt}, 전설 실패 ${result.legendFails}` +
         (LOOPS > 0 ? ` | 윤회 ${rebirths.map((t, i) => fmt(t - (rebirths[i - 1] ?? 0))).join(' → ')}` : '') +
         (errors.length ? ` | 오류 ${errors.length}` : ''),
     )

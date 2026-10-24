@@ -1,6 +1,8 @@
 import * as THREE from 'three'
 
-import { godDef, relicDef, type RelicId } from '../../relics/data'
+import { hiddenUnlocked } from '../../myth/manifest'
+import { type God, godDef, relicDef, type RelicId } from '../../relics/data'
+import { relicGods } from '../../relics/model'
 import { levelGains } from '../../myth/levelGains'
 import { classIcon } from '../../ui/classIcons'
 import type { GameContext } from '../context'
@@ -27,6 +29,39 @@ export class RelicSystem {
     ctx.bus.on('heroRevived', () => {
       this.decoy = null
     })
+    // 처음 열린 신화: 고른 신화가 없으면 바로 고른다 (E12-04)
+    ctx.bus.on('mythOpened', ({ god }) => {
+      if (!ctx.progress.chosen.length) this.choose(god, true)
+    })
+  }
+
+  /**
+   * 신화를 고른다 (E12-04): 궁극기·패시브·표식·공격 모션이 이 신화를 따른다.
+   * 열린 신화만 고를 수 있다. 마을·성소에서만 바꾸는 규칙은 부르는 쪽(정보 화면)이 지킨다.
+   */
+  choose(god: God, announce: boolean): boolean {
+    const { progress, powers, bus } = this.ctx
+    if (!progress.isOpen(god)) return false
+    progress.chosen = [god]
+    const change = powers.choose(god)
+    bus.emit('progressChanged', {})
+    this.changed(change, announce)
+    return true
+  }
+
+  /**
+   * 유물을 손에 넣었다: 그 신의 신화가 아직 닫혀 있으면 1단계로 연다 (E12-04, 첫 신화는 유물 하나로).
+   * 히든 신화는 그 신 유물을 발현 수만큼 모아야 열린다.
+   */
+  private unlock(id: RelicId, announce: boolean): void {
+    const { progress, powers, bus } = this.ctx
+    const gods = relicGods(relicDef(id)).filter((g) => !godDef(g).hidden)
+    for (const god of [...gods, ...hiddenUnlocked(powers.loadout.owned)]) {
+      if (!progress.open(god)) continue
+      bus.emit('progressChanged', {})
+      if (announce) bus.emit('mythOpened', { god })
+      else if (!progress.chosen.length) this.choose(god, false)
+    }
   }
 
   update(dt: number): void {
@@ -48,7 +83,7 @@ export class RelicSystem {
         this.ctx.hud.showToast(relicDef(id).name)
         bus.emit('relicPicked', { id })
         bus.emit('progressChanged', {})
-        this.changed(powers.equip(id), true, id)
+        this.equip(id, true)
       }
       powers.update(dt, skills)
     } else {
@@ -86,6 +121,7 @@ export class RelicSystem {
   /** 유물을 끼운다. announce가 false면 발현 연출 없이 (불러오기·점검용) */
   equip(id: RelicId, announce: boolean): void {
     this.changed(this.ctx.powers.equip(id), announce, id)
+    this.unlock(id, announce)
   }
 
   /** 발밑 빛: 가장 많이 낀 신의 색. 유물 하나에 1단계, 발현하면 3 + 레벨 */
@@ -148,8 +184,6 @@ export class RelicSystem {
     }
     if (before.manifested !== after.manifested && !after.manifested) this.decoy = null
     if (!after.manifested || before.manifested === after.manifested) return
-    // E12-04 전까지: 유물로 발현하면 그 신화가 열린다 (숙련 문턱을 넘은 것과 같다)
-    if (progress.open(after.manifested)) bus.emit('progressChanged', {})
     if (!announce) return
     bus.emit('manifested', { god: after.manifested })
     const god = godDef(after.manifested)
@@ -163,7 +197,7 @@ export class RelicSystem {
       for (const g of levelGains(god.id, lv)) if (lv === 1 || g.kind === 'power') lines.push(g.text)
     }
     lines.push(`궁극기 「${god.ultimate.name}」`)
-    hud.showGains('신화 개방', progress.title(god.id), god.color, classIcon(god.name), lines)
+    hud.showGains('고른 신화', progress.title(god.id), god.color, classIcon(god.name), lines)
     // 주변 적을 밀어낸다.
     const p = hero.object.position
     fx.puffs.burst(p, 30, 4)

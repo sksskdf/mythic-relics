@@ -95,7 +95,7 @@
     },
     "attack": "twin",
     "passive": {
-      "damageScale": 0.9,
+      "damageScale": 0.75,
       "companions": {
         "name": "그림자 분신",
         "look": "shadow",
@@ -230,6 +230,7 @@
     },
     "attack": "spear",
     "passive": {
+      "damageScale": 0.7,
       "companions": {
         "name": "후긴과 무닌",
         "look": "raven",
@@ -561,6 +562,7 @@
     },
     "attack": "staff",
     "passive": {
+      "damageScale": 0.9,
       "curse": {
         "name": "망자의 저주",
         "color": "#8a5fd0",
@@ -1541,7 +1543,7 @@
     },
     "attack": "club",
     "passive": {
-      "damageScale": 0.95,
+      "damageScale": 0.8,
       "orbit": {
         "name": "도깨비불",
         "shape": "flame",

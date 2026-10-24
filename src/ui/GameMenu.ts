@@ -1,8 +1,9 @@
 import { DATA } from '../data'
 import { MAX_LEVEL } from '../myth/ClassProgress'
+import { alwaysLines } from '../myth/alwaysText'
 import type { ClassProgress } from '../myth/ClassProgress'
 import { type Cycle, LAWS, type LawId, REBIRTH_NEED, RING_NEXT, RING_PREV, STARS, type StarId, TRAINING_TEXT, UNLOCKS } from '../progress/Cycle'
-import { allLevelGains } from '../myth/levelGains'
+import { allLevelGains, levelGains } from '../myth/levelGains'
 import type { SourceId } from '../data/schema'
 import { shortNumber } from './format'
 import { type God, godDef, relicDef, type RelicId } from '../relics/data'
@@ -77,6 +78,9 @@ export interface CycleHost {
   readonly doomActive: boolean
 }
 
+
+/** 신화권 이름 (숙련 안내) */
+const REALM_NAME: Readonly<Record<string, string>> = { norse: '북유럽', greek: '그리스', china: '중국', japan: '일본', korea: '한국' }
 /** 메뉴가 게임에서 읽고 부르는 것 */
 export interface MenuHost {
   readonly slots: readonly (RelicId | null)[]
@@ -88,6 +92,14 @@ export interface MenuHost {
   stow(slot: number): void
   drop(slot: number): void
   readonly progress: ClassProgress
+  /** 신화 탭 (E12-06): 고르기와 상시 효과 단계 */
+  readonly myths: {
+    /** 지금 고른 신화를 바꿀 수 있는 곳인가 (마을·성소) */
+    canChoose(): boolean
+    choose(god: God): boolean
+    /** 그 신화의 상시 효과 단계 (개방 단계, 그 신 유물을 끼면 +1) */
+    stage(god: God): number
+  }
   readonly wardrobe: WardrobeHost
   /** 설명 카드에 넣을 지금 상태 */
   cardContext(id: RelicId, preview?: { before: LoadoutState; after: LoadoutState }): RelicCardContext
@@ -152,6 +164,8 @@ export class GameMenu {
   private trainUnit: 1 | 10 | 100 | 'max' = 1
   /** 유물 화면에서 고른 칸 */
   private selectedSlot = 0
+  /** 신화 탭에서 눌러 본 신화 (없으면 고른 신화) */
+  private selectedMyth: God | null = null
   /** 유물 화면에서 커서를 올린 가방 유물 */
   private hovered: RelicId | null = null
   /** 힌트 말풍선 */
@@ -710,7 +724,7 @@ export class GameMenu {
    * 모든 ?는 올리거나 누르면 그 신화의 이야기로 된 힌트를 보여 준다.
    */
   /**
-   * 다음 승급까지의 두 걸음(경험치 채우기 → 승급 전설)과, Lv1~4 단계마다 얻는 것.
+   * 다음 단계까지의 두 걸음(숙련 채우기 → 전설)과, Lv1~4 단계마다 얻는 것.
    * 지난 단계는 밝게, 다음 단계는 금빛 테로 강조한다.
    */
   private promotionGuide(god: God): HTMLElement {
@@ -725,7 +739,7 @@ export class GameMenu {
       const ratio = progress.xpRatio(god)
       const ready = progress.readyToPromote(god)
       const step1 = el('div', `menu-promo__step${ready ? ' is-done' : ' is-now'}`)
-      step1.append(el('span', 'menu-promo__no', '1'), el('span', '', `${def.name}의 신화를 연 채 싸워 경험치를 채운다`))
+      step1.append(el('span', 'menu-promo__no', '1'), el('span', '', def.hidden ? `${def.name}의 신화를 고른 채 싸워 숙련을 채운다` : `${REALM_NAME[def.realm] ?? '그'} 몬스터를 잡아 숙련을 채운다 (고르면 더 빨리)`))
       const bar = el('div', 'ui-bar ui-bar--thin')
       bar.style.setProperty('--fill', def.color)
       bar.style.setProperty('--pct', ratio.toFixed(3))
@@ -753,6 +767,75 @@ export class GameMenu {
     })
     box.append(ladder)
     return box
+  }
+
+  /**
+   * 한 신화 카드 (E12-06): 단계·칭호, 상시 효과(열려 있으면 늘), 추가 효과(고르면), 다음 단계 조건, 고르기 단추.
+   */
+  private mythCard(god: God): HTMLElement {
+    const { progress, myths, loadout } = this.host
+    const def = godDef(god)
+    const level = progress.level(god)
+    const stage = myths.stage(god)
+    const chosen = loadout.manifested === god
+    const card = el('section', `menu-myth${level === 0 ? ' is-closed' : ''}`)
+    card.style.setProperty('--god', def.color)
+
+    const head = el('div', 'menu-myth__head')
+    head.append(img(level > 0 ? classIcon(def.name) : unknownSigil(), 'menu-myth__emblem'))
+    const name = el('div', 'menu-myth__name')
+    const title = el('div', 'menu-classes__title', level > 0 ? progress.title(god) : def.name)
+    if (level > 0) title.append(pips(level))
+    name.append(title, el('small', '', level > 0 ? def.name : '아직 열리지 않은 신화'))
+    head.append(name)
+    if (chosen) head.append(el('span', 'ui-tag ui-tag--solid menu-myth__chosen', '고른 신화'))
+    card.append(head)
+
+    // 상시 효과: 열린 신화면 고르지 않아도 늘 붙는다
+    const always = el('div', 'menu-myth__part')
+    always.append(el('b', '', '상시 효과'), el('small', '', stage > level ? '열려 있으면 늘 · 유물로 한 단계 위' : '열려 있으면 늘'))
+    const alwaysList = el('ul', '')
+    for (const line of alwaysLines(god, stage)) {
+      alwaysList.append(el('li', line.active ? 'is-on' : '', line.active ? line.text : `${line.text} (${line.from}단계부터)`))
+    }
+    always.append(alwaysList)
+    card.append(always)
+
+    // 추가 효과: 고른 신화만
+    const extra = el('div', `menu-myth__part${chosen ? '' : ' is-dim'}`)
+    extra.append(el('b', '', '추가 효과'), el('small', '', '고른 신화만'))
+    const extraList = el('ul', '')
+    for (const g of levelGains(god, 1)) if (g.kind === 'power' || g.kind === 'damage') extraList.append(el('li', chosen ? 'is-on' : '', g.text))
+    extraList.append(el('li', chosen ? 'is-on' : '', `궁극기 「${def.ultimate.name}」`))
+    extra.append(extraList)
+    card.append(extra)
+
+    // 고르기: 열린 신화만, 마을·성소에서만
+    if (level > 0 && !chosen) {
+      const can = myths.canChoose()
+      const button = el('button', 'menu-myth__choose', '이 신화 고르기')
+      button.type = 'button'
+      button.disabled = !can
+      if (can) button.addEventListener('click', () => myths.choose(god) && this.render())
+      else this.hintOn(button, '고른 신화는 마을이나 성소 곁에서만 바꿀 수 있다.')
+      card.append(button)
+    }
+
+    // 다음 단계: 못 연 신화는 여는 법, 연 신화는 숙련과 전설
+    if (level === 0) {
+      const open = el('div', 'menu-myth__part')
+      open.append(el('b', '', '여는 법'))
+      const how = def.hidden ? '숨겨진 신화. 이 신의 유물을 모두 모으면 열린다.' : `${def.name}의 유물을 손에 넣거나, 그 신화권 몬스터를 잡아 숙련을 채운다.`
+      open.append(el('p', '', how))
+      if (!def.hidden) {
+        const bar = el('div', 'ui-bar ui-bar--thin')
+        bar.style.setProperty('--fill', def.color)
+        bar.style.setProperty('--pct', progress.xpRatio(god).toFixed(3))
+        open.append(bar)
+      }
+      card.append(open)
+    } else card.append(this.promotionGuide(god))
+    return card
   }
 
   private renderClasses(): void {
@@ -801,12 +884,13 @@ export class GameMenu {
       const info = el('div', 'menu-classes__info')
       info.append(el('div', 'menu-classes__title', '이름 없는 모험가'))
       now.append(info)
-      this.hintOn(now, '한 신의 유물이 모이면 그 신의 힘이 깨어난다.')
+      this.hintOn(now, '한 신의 유물을 손에 넣으면 그 신의 힘이 깨어난다.')
     }
     wrap.append(now)
 
-    // 다음 승급 방법과 단계마다 얻는 것
-    if (current) wrap.append(this.promotionGuide(current))
+    // 눌러 본 신화(없으면 고른 신화)의 카드: 상시·추가 효과, 다음 단계, 고르기 (E12-06)
+    const focus = this.selectedMyth ?? current
+    if (focus) wrap.append(this.mythCard(focus))
 
     // 원천 넷: 이름, 차오르는 때, 숙련은 보석 점으로
     const sigils = el('div', 'menu-classes__sources')
@@ -826,9 +910,15 @@ export class GameMenu {
     wrap.append(sigils)
 
     // 신들의 지도
-    const node = (open: boolean, label: string, hint: string, extra = '', color?: string, icon?: string): HTMLElement => {
-      const chip = el('button', `menu-tree__node${open ? ' is-open' : ''}${extra}`)
+    const node = (open: boolean, label: string, hint: string, extra = '', color?: string, icon?: string, god?: God): HTMLElement => {
+      const chip = el('button', `menu-tree__node${open ? ' is-open' : ''}${extra}${god && god === focus ? ' is-selected' : ''}`)
       chip.type = 'button'
+      // 게임에 들어 있는 신화는 누르면 위 카드로 본다
+      if (god)
+        chip.addEventListener('click', () => {
+          this.selectedMyth = god
+          this.render()
+        })
       if (open) {
         if (icon) chip.append(img(icon))
         chip.append(label)
@@ -858,8 +948,8 @@ export class GameMenu {
         const title = c.titles[Math.max(0, level - 1)]!
         gods.append(
           level > 0
-            ? node(true, title, `${c.name}\n${c.hint}`, '', color, classIcon(c.name))
-            : node(false, c.name, c.hint, c.god ? ' is-near' : ''),
+            ? node(true, title, `${c.name}\n${c.hint}`, '', color, classIcon(c.name), c.god)
+            : node(false, c.name, c.hint, c.god ? ' is-near' : '', undefined, undefined, c.god),
         )
       }
       land.append(gods)

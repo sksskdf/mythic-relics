@@ -64,6 +64,13 @@ export class RelicPowers {
     return this.state.manifested
   }
 
+  /** 고른 신화를 바꾼다 (null이면 없앤다) */
+  choose(god: God | null): LoadoutChange | null {
+    if (this.loadout.chosen === god) return null
+    this.loadout.chosen = god
+    return this.refresh()
+  }
+
   /** 빈 칸이 있는가 */
   get hasFreeSlot(): boolean {
     return this.loadout.slots.includes(null)

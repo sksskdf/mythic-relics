@@ -71,8 +71,10 @@ export class Autoplayer {
     const fieldOf = (god: God) => Object.values(regions).find((r) => r.realm === godDef(god).realm)?.id
     const manifested = powers.manifested
     if (manifested && godDef(manifested).legend && progress.readyToPromote(manifested)) return fieldOf(manifested) ?? region.id
-    if (this.god) return fieldOf(this.god) ?? region.id
-    return region.kind === 'field' ? region.id : 'midgard'
+    const here = region.kind === 'field' ? region.id : 'midgard'
+    // 히든 신화는 자기 땅이 없어 지금 필드(마을이면 미드가르드)에서 싸운다
+    if (this.god) return fieldOf(this.god) ?? here
+    return here
   }
 
   /** 다른 지역으로 가야 하면 출구로 걷는다 (마을을 거쳐 간다). 걸었으면 true */
@@ -117,14 +119,8 @@ export class Autoplayer {
     if (this.god) {
       powers.loadout.slots.forEach((id, slot) => id && relicDef(id).god !== this.god && this.game.dev.stow(slot))
     }
-    // 가방까지 합쳐 발현할 수 있으면 사람이 유물 화면에서 하듯 바꿔 낀다
-    const ready = powers.loadout.manifestable()
-    if (ready && (!this.god || ready === this.god)) {
-      for (const id of powers.loadout.bag.filter((b) => relicDef(b).god === ready)) {
-        const slot = powers.loadout.slots.findIndex((s) => s === null || relicDef(s).god !== ready)
-        if (slot >= 0) this.game.dev.wield(id, slot)
-      }
-    }
+    // 정한 신이 있으면 그 신화가 열리는 대로 고른다 (사람은 마을·성소에서 고른다)
+    if (this.god && powers.manifested !== this.god && this.game.progress.isOpen(this.god)) this.game.dev.choose(this.god)
     // 칸이 차 있어도 줍는다 (가방에 들어가고, 모이면 바꿔 낀다)
     if (!legend.active) {
       const pickup = nearest(pickups.list.filter((i) => !powers.loadout.has(i.id) && (!this.god || relicDef(i.id).god === this.god)), here)

@@ -10,6 +10,8 @@ const AUTOSAVE_INTERVAL = 3
 export interface RestoreHost {
   /** 연출 없이 유물을 끼운다. */
   equip(id: RelicId): void
+  /** 연출 없이 신화를 고른다. */
+  choose(god: God): void
   /** 성장 기록에 맞춰 기본 능력치를 다시 계산한다. */
   applyStats(): void
   /** 외형 보관함을 되돌린 뒤 다시 입는다. */
@@ -50,6 +52,7 @@ export class Persistence {
       bag: [...powers.loadout.bag],
       ground: pickups.list.map((p) => ({ id: p.id, x: p.x, z: p.z })),
       classes,
+      chosen: [...progress.chosen],
       dropMisses: drops.misses,
       divine: combat.divine,
       looks: { unlocked: [...wardrobe.unlocked], choices: Object.fromEntries(wardrobe.choices) },
@@ -71,6 +74,8 @@ export class Persistence {
     for (const [god, record] of Object.entries(data.classes) as [God, { level: number; xp: number }][]) {
       Object.assign(progress.record(god), record)
     }
+    // 고른 신화를 먼저 정해 두어야, 유물을 끼울 때 처음 연 신화를 저절로 고르지 않는다
+    if (data.chosen.length) host.choose(data.chosen[0]!)
     host.applyStats()
     combat.health.reset()
     data.slots.forEach((id) => id && host.equip(id))

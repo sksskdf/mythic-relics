@@ -39,6 +39,12 @@ export class DevTools {
     bus.emit('progressChanged', {})
   }
 
+  /** 신화를 고른다 (마을·성소가 아니어도). 닫힌 신화면 먼저 연다 */
+  choose(god: string): void {
+    this.parts.progress.open(god)
+    this.parts.relics.choose(god, true)
+  }
+
   /** 유물 하나를 뺀다. (땅에 내려놓지 않고 없앤다) */
   unequip(id: RelicId): void {
     const slot = this.parts.powers.loadout.slots.indexOf(id)

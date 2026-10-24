@@ -1,5 +1,5 @@
-import { type God, godDef, type RelicId } from '../relics/data'
-import { countByGod, type LoadoutState, resolveLoadout } from '../myth/manifest'
+import type { God, RelicId } from '../relics/data'
+import { type LoadoutState, resolveLoadout } from '../myth/manifest'
 
 /** 유물 슬롯 수 */
 export const SLOT_COUNT = 4
@@ -9,19 +9,16 @@ export class Loadout {
   readonly slots: (RelicId | null)[] = Array.from({ length: SLOT_COUNT }, () => null)
   /** 슬롯이 꽉 차서 끼지 못한 유물 */
   readonly bag: RelicId[] = []
+  /** 고른 신화 (E12-04: 열린 신화 가운데 하나, 유물 수와 상관없다) */
+  chosen: God | null = null
 
   get state(): LoadoutState {
-    return resolveLoadout(this.slots)
+    return resolveLoadout(this.slots, this.chosen)
   }
 
-  /**
-   * 아직 아무 신도 발현하지 않았는데, 칸과 가방을 합치면 발현할 수 있는 신 (E6-07).
-   * 칸이 다른 신 유물로 차서 세 번째 유물이 가방에 들어간 경우를 알려 주려고 쓴다. 이미 발현했으면 바꿀지는 플레이어의 몫이다.
-   */
-  manifestable(): God | null {
-    if (this.state.manifested) return null
-    for (const [god, count] of countByGod([...this.slots, ...this.bag])) if (count >= godDef(god).manifestCount) return god
-    return null
+  /** 칸과 가방의 모든 유물 */
+  get owned(): RelicId[] {
+    return [...this.slots.filter((id): id is RelicId => id !== null), ...this.bag]
   }
 
   has(id: RelicId): boolean {
@@ -70,6 +67,6 @@ export class Loadout {
     const already = next.indexOf(id)
     if (id && already >= 0) next[already] = null
     next[slot] = id
-    return resolveLoadout(next)
+    return resolveLoadout(next, this.chosen)
   }
 }

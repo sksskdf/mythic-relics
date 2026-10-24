@@ -22,6 +22,7 @@ function legacyDamage(progress: ClassProgress, cycle: Cycle, manifested: string 
 function manifest(god: string): RelicPowers {
   const powers = new RelicPowers(new THREE.Group())
   for (const id of RELIC_IDS.filter((r) => relicDef(r).god === god).slice(0, godDef(god).manifestCount)) powers.equip(id)
+  powers.choose(god)
   return powers
 }
 
@@ -68,8 +69,7 @@ describe('빌드 상태 (E11-04)', () => {
       expect(state.attackSpeed, god).toBeCloseTo(godDef(god).passive.attackSpeed * (1 + st.attackSpeed), 10)
       expect(state.attack, god).toBe(godDef(god).attack)
     }
-    // 기본 신화 20개 (히든 아수라왕은 열기 조건이 따로 있어 유물만으로는 열리지 않는다)
-    expect(checked).toBeGreaterThanOrEqual(20)
+    expect(checked).toBe(Object.keys(GODS).length)
   })
 
   it('지속 효과 수치는 장비한 유물의 것을 곱한다 (빈 칸은 건너뜀)', () => {

@@ -9,6 +9,7 @@ const sample: SaveData = {
   bag: [],
   ground: [{ id: 'lokiMask', x: 3, z: -4 }],
   classes: { thor: { level: 2, xp: 40 } },
+  chosen: ['thor'],
   dropMisses: 3,
   divine: 0.5,
   looks: {
@@ -37,6 +38,26 @@ describe('저장 데이터', () => {
     const { scenes: _, ...old } = sample
     expect(parseSave(JSON.stringify(old))?.scenes).toEqual([])
     expect(parseSave(JSON.stringify({ ...sample, scenes: ['opening', 3, 'opening'] }))?.scenes).toEqual(['opening'])
+  })
+
+  it('v4: 신화. 옛 저장(v3)은 가진 유물의 신화를 열고, 고른 신화는 유물 셋 발현 규칙으로 정한다 (E12-05)', () => {
+    const { chosen: _, ...v3 } = { ...sample, version: 3, bag: ['lokiMask'] }
+    const data = parseSave(JSON.stringify(v3))!
+    expect(data.version).toBe(SAVE_VERSION)
+    // 토르는 원래 2단계 그대로, 가방의 로키 유물로 로키가 1단계로 열린다
+    expect(data.classes).toEqual({ thor: { level: 2, xp: 40 }, loki: { level: 1, xp: 0 } })
+    expect(data.chosen).toEqual(['thor'])
+    // 유물이 둘뿐이면(발현 전) 고른 신화 없이 열리기만 한다
+    const two = parseSave(JSON.stringify({ ...v3, slots: ['mjolnir', 'megingjord', null, null], classes: {} }))!
+    expect(two.classes.thor).toEqual({ level: 1, xp: 0 })
+    expect(two.chosen).toEqual([])
+  })
+
+  it('고른 신화는 열린 신화만, 칸 수만큼만 남긴다', () => {
+    expect(parseSave(JSON.stringify({ ...sample, chosen: ['zeus'] }))?.chosen).toEqual([])
+    expect(parseSave(JSON.stringify({ ...sample, chosen: ['thor', 'thor', 'nobody'] }))?.chosen).toEqual(['thor'])
+    // 개방 단계 0(숙련만 쌓인 신화)도 그대로 남는다
+    expect(parseSave(JSON.stringify({ ...sample, classes: { ...sample.classes, zeus: { level: 0, xp: 120 } } }))?.classes.zeus).toEqual({ level: 0, xp: 120 })
   })
 
   it('깨졌거나 버전이 다르면 새로 시작한다', () => {
