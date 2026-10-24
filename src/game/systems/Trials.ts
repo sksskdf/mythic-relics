@@ -60,7 +60,7 @@ export class TrialSystem {
     this.active = { id, level, t: 0 }
     // 결계 안 적: 위협 단계 배율 × 시련 난이도
     const base = threatScale(this.ctx.threat.level)
-    encounter.threat = { hp: base.hp * TRIAL_DIFFICULTY.hp[level - 1]!, damage: base.damage * TRIAL_DIFFICULTY.damage[level - 1]! }
+    encounter.threat = { hp: base.hp * TRIAL_DIFFICULTY.hp[level - 1]!, damage: base.damage * TRIAL_DIFFICULTY.damage[level - 1]! * (TRIALS[id].enemyDamage ?? 1) }
     legend.rules = { crowd: id === 'crowd' ? 2 : 1, timeLimit: id === 'timed' ? TRIAL_TIME[level - 1]! : null }
     powers.allowSlots = trialRules(id).slots
     const chosen = build.chosen
