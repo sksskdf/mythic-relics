@@ -64,6 +64,7 @@ export class Persistence {
       body: { ...wardrobe.body },
       threat: this.ctx.threat.toData(),
       conveniences: this.ctx.conveniences.toData(),
+      trials: this.ctx.trials.toData(),
       region: { id: this.ctx.map.region.id, x: this.ctx.hero.object.position.x, z: this.ctx.hero.object.position.z },
       scenes: [...this.ctx.scenesSeen],
     }
@@ -76,6 +77,7 @@ export class Persistence {
     wardrobe.body = { ...data.body }
     this.ctx.threat.load(data.threat)
     this.ctx.conveniences.load(data.conveniences)
+    this.ctx.trials.load(data.trials)
     for (const [slot, choice] of Object.entries(data.looks.choices) as [LookSlot, string | null][]) wardrobe.choose(slot, choice)
     host.applyLooks()
     for (const [god, record] of Object.entries(data.classes) as [God, { level: number; xp: number }][]) {

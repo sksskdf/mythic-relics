@@ -1,6 +1,7 @@
 import type { Build } from '../build/Build'
 import type { Conveniences } from '../progress/Conveniences'
 import type { ThreatProgress } from '../progress/Threat'
+import type { TrialProgress } from '../progress/Trials'
 import type * as THREE from 'three'
 
 import type { Wardrobe } from '../looks/outfit'
@@ -57,6 +58,8 @@ export interface GameContext {
   readonly drops: DropTable
   /** 세계 위협 단계와 원천 숙련 (E14-03·04) */
   readonly threat: ThreatProgress
+  /** 시련 기록과 영구 보상 (E16) */
+  readonly trials: TrialProgress
   /** 편의 자동화 (E14-05) */
   readonly conveniences: Conveniences
   /** 외형 보관함 (얻은 외형, 칸마다 고른 것) */

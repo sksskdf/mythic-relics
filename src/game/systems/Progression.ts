@@ -11,6 +11,8 @@ import { realmSigil } from '../../ui/sigils'
 import { realmInk } from '../../art/palette'
 import { type God, godDef, GODS, isRelicId, type RelicId } from '../../relics/data'
 import type { LegendKind } from '../../data/classKit'
+import type { LegendHost } from '../Legend'
+import { TRIAL_MILESTONES } from '../../data/trials'
 import type { GameContext } from '../context'
 import { godMoment } from './godMoments'
 
@@ -37,9 +39,9 @@ export class ProgressionSystem {
     const god = build.chosen
     const legend = god ? godDef(god).legend : undefined
     if (!god || !legend || !progress.readyToPromote(god)) return null
-    // 지역 성소는 그 신화권 클래스의 전설만 연다 (E7-07)
+    // 지역 성소는 그 신화권 클래스의 전설만 연다 (E7-07). 시련 마일스톤 「열린 성소」면 어디서나 (E16)
     const realm = this.ctx.map.region.realm
-    if (realm && godDef(god).realm !== realm) return null
+    if (realm && godDef(god).realm !== realm && !this.ctx.trials.has(TRIAL_MILESTONES[1].at)) return null
     return legend.kind
   }
 
@@ -48,10 +50,19 @@ export class ProgressionSystem {
     return this.readyKind() !== null
   }
 
+  /** 시련 (E16): 진행 중이면 전설의 시작·이김·짐을 시련이 받는다 */
+  trial: { active: boolean; onStart(): void; onWin(): void; onFail(): void } | null = null
+
   /** 승급 전설: 성소에 들어서면 시작하고, 이기면 승급한다. */
   update(dt: number): void {
-    const { legend, encounter, build, combat, hero, hud, view, bus } = this.ctx
-    legend.update(dt, encounter, {
+    const { legend, encounter } = this.ctx
+    legend.update(dt, encounter, this.legendHost())
+  }
+
+  /** 전설이 게임에 알리는 일 (시련도 같은 것을 쓴다) */
+  legendHost(): LegendHost {
+    const { build, combat, hero, hud, view, bus } = this.ctx
+    return {
       ready: () => {
         const god = build.chosen
         const kind = this.readyKind()
@@ -65,14 +76,21 @@ export class ProgressionSystem {
       },
       onStart: () => {
         bus.emit('legendStarted', {})
+        if (this.trial?.active) return this.trial.onStart()
         const def = godDef(this.challenger!)
         const ink = realmInk(def.realm)
         hud.showTitleCard(def.legend!.name, def.color, realmSigil(def.realm, ink.light, ink.dark), '전설')
         view.shake(0.3)
       },
-      onWin: () => this.challenger && this.promote(this.challenger),
-      onFail: () => bus.emit('legendFailed', {}),
-    })
+      onWin: () => {
+        if (this.trial?.active) this.trial.onWin()
+        else if (this.challenger) this.promote(this.challenger)
+      },
+      onFail: () => {
+        bus.emit('legendFailed', {})
+        if (this.trial?.active) this.trial.onFail()
+      },
+    }
   }
 
   /** 신화 숙련과 유물 드랍. 숙련은 그 몬스터 신화권의 신들에게 나눠 쌓인다. (DESIGN.md 5.2, E12-02) */

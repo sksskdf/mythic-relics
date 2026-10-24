@@ -1,6 +1,10 @@
 import type { RelicPowers } from '../game/RelicPowers'
 import type { ClassProgress } from '../myth/ClassProgress'
+import { type TrialId, trialRules } from '../data/trials'
 import type { ThreatProgress } from '../progress/Threat'
+import type { TrialProgress } from '../progress/Trials'
+import { isGearUid } from '../gear/roll'
+import { isRelicId } from '../relics/data'
 import { type BuildInputs, type BuildState, computeBuild } from './BuildState'
 
 /**
@@ -8,19 +12,28 @@ import { type BuildInputs, type BuildState, computeBuild } from './BuildState'
  * 피해·능력치를 쓰는 곳(Damage, Relics, 정보 화면)은 여기서 값을 읽는다.
  */
 export class Build {
-  constructor(private readonly from: { powers: RelicPowers; progress: ClassProgress; threat: ThreatProgress }) {}
+  constructor(private readonly from: { powers: RelicPowers; progress: ClassProgress; threat: ThreatProgress; trials?: TrialProgress; trial?: () => TrialId | null }) {}
 
   /** 지금의 재료 */
   inputs(): BuildInputs {
     const { powers, progress, threat } = this.from
     const open = new Map<string, number>()
     for (const [god, record] of progress.records) if (record.level >= 1) open.set(god, record.level)
+    const rules = trialRules(this.from.trial?.() ?? null)
+    const { loadout } = powers
+    // 시련 「세 칸의 짐」: 쓸 수 있는 칸만 (E16)
+    const slots = loadout.slots.map((id, i) => (rules.slots && !rules.slots.includes(i) ? null : id))
+    const relics = slots.map((id) => (id && isRelicId(id) ? id : null))
+    const gearItems = slots.flatMap((id) => (isGearUid(id) && loadout.gear.has(id) ? [loadout.gear.get(id)!] : []))
+    const inherited = relics.flatMap((id) => (id && loadout.inherited.has(id) ? [loadout.inherited.get(id)!] : []))
     return {
       open,
       chosen: powers.manifested ? [powers.manifested] : [],
-      gear: powers.loadout.relics,
+      gear: relics,
       // 일반 장비와, 대장간 유물이 바탕 장비에서 물려받은 수치 (원천 없음)
-      gearItems: [...powers.loadout.wornGear, ...powers.loadout.wornInherited.map((s) => ({ stats: [s], source: { id: 'flame' as const, value: 0 } }))],
+      gearItems: [...gearItems, ...inherited.map((s) => ({ stats: [s], source: { id: 'flame' as const, value: 0 } }))],
+      bonus: this.from.trials?.rewards(),
+      rules,
       stage: (id) => powers.loadout.stage(id),
       sourceMastery: (s) => threat.mastery[s],
       promotions: progress.promotions,
@@ -29,6 +42,7 @@ export class Build {
 
   /** 지금 고른 신화 (state.chosen과 같다. 자주 읽는 곳을 위해 전체 계산 없이) */
   get chosen(): string | null {
+    if (this.from.trial?.() === 'noMyth') return null
     return this.from.powers.manifested
   }
 

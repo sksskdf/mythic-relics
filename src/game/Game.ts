@@ -64,6 +64,9 @@ import { DevTools } from '../dev/DevTools'
 import { CONVENIENCES, Conveniences } from '../progress/Conveniences'
 import { ThreatProgress } from '../progress/Threat'
 import { ThreatSystem } from './systems/Threat'
+import { TrialSystem } from './systems/Trials'
+import { TRIAL_IDS, TRIAL_MILESTONES, type TrialId, TRIALS } from '../data/trials'
+import { TrialProgress } from '../progress/Trials'
 import { awakeningLevel } from '../data/awakening'
 import { SOURCE_IDS, type SourceId } from '../data/schema'
 import { Build } from '../build/Build'
@@ -102,7 +105,7 @@ const CHOOSE_NEAR_SANCTUARY = 6
 export interface PlayEvent {
   /** 게임 시간 (초) */
   t: number
-  type: 'relic' | 'manifest' | 'open' | 'forge' | 'gear' | 'kill' | 'bossKill' | 'death' | 'legendStart' | 'legendFail' | 'promote' | 'hurt' | 'threat' | 'region'
+  type: 'relic' | 'manifest' | 'open' | 'forge' | 'gear' | 'kill' | 'bossKill' | 'death' | 'legendStart' | 'legendFail' | 'promote' | 'hurt' | 'threat' | 'region' | 'trial'
   detail?: string
 }
 
@@ -127,6 +130,8 @@ export class Game {
   readonly drops = new DropTable()
   readonly wardrobe = new Wardrobe()
   readonly threat = new ThreatProgress()
+  readonly trials = new TrialProgress()
+  readonly trialSystem: TrialSystem
   readonly threatSystem: ThreatSystem
   /** 처음 보는 일의 대화 장면을 띄우는가 (봇·점검 스크립트는 끈다) */
   storyScenes = true
@@ -333,8 +338,9 @@ export class Game {
       wardrobe: this.wardrobe,
       scenesSeen,
       threat: this.threat,
+      trials: this.trials,
       conveniences: this.conveniences,
-      build: new Build({ powers: this.powers, progress: this.progress, threat: this.threat }),
+      build: new Build({ powers: this.powers, progress: this.progress, threat: this.threat, trials: this.trials, trial: () => this.trialSystem?.active?.id ?? null }),
       skills,
     }
     this.damage = new DamageSystem(this.ctx)
@@ -418,6 +424,20 @@ export class Game {
         },
         warp: (id) => this.warpTo(id),
       },
+      trials: {
+        open: () => this.trialSystem.open,
+        blocked: () => this.trialSystem.blocked(),
+        list: () =>
+          TRIAL_IDS.map((id) => {
+            const def = TRIALS[id]
+            const per = def.reward.per < 1 ? `+${Math.round(def.reward.per * 100)}%` : `+${def.reward.per}`
+            return { id, name: def.name, rule: def.rule, reward: def.reward.text, per, cleared: this.trials.cleared[id] ?? 0, best: [1, 2, 3, 4, 5].map((n) => this.trials.best[`${id}:${n}`] ?? null) }
+          }),
+        total: () => this.trials.total,
+        milestones: () => [...TRIAL_MILESTONES],
+        riftScale: () => this.trials.riftScale(),
+        start: (id, level) => this.trialSystem.start(id as TrialId, level),
+      },
       world: {
         nodes: () => {
           const layout = worldLayout(this.regions)
@@ -488,6 +508,7 @@ export class Game {
     this.growth = new ProgressionSystem(this.ctx)
     this.life = new HeroLife(this.ctx)
     this.threatSystem = new ThreatSystem(this.ctx)
+    this.trialSystem = new TrialSystem(this.ctx, this.growth, this.threatSystem)
     this.persistence = new Persistence(this.ctx, options.autosave ?? false)
     this.playerInput = new PlayerInput(this.ctx, this.input, this.pixel, container)
     this.playerInput.talkAt = (x, z) => (this.ctx.map.region.kind === 'hub' ? this.villagers.at(x, z) : null)
@@ -546,6 +567,7 @@ export class Game {
     bus.on('heroHurt', ({ damage }) => record('hurt', String(Math.round(damage))))
     bus.on('threatChanged', ({ level }) => record('threat', String(level)))
     bus.on('regionEntered', ({ id }) => record('region', id))
+    bus.on('trialEnded', ({ id, level, win, seconds }) => record('trial', `${id}:${level}:${win ? 'win' : 'fail'}:${Math.round(seconds)}`))
     bus.on('heroDied', () => record('death'))
     bus.on('legendStarted', () => record('legendStart'))
     bus.on('legendFailed', () => record('legendFail'))
@@ -946,6 +968,7 @@ export class Game {
     this.combat.targetScale = this.targetScale
     this.updateEnemies(dt)
     this.growth.update(dt)
+    this.trialSystem.update(dt)
     this.life.update(dt)
     this.appearance.update()
     this.sound.update()

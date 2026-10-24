@@ -21,7 +21,7 @@ import { glyph, SOURCE_COLORS, sourceSigil, unknownSigil } from './sigils'
 import { type WardrobeHost, WardrobePane } from './WardrobePane'
 import './menu.css'
 
-export type MenuTab = 'status' | 'sources' | 'relics' | 'classes' | 'map' | 'looks'
+export type MenuTab = 'status' | 'sources' | 'relics' | 'classes' | 'trials' | 'map' | 'looks'
 
 /** 탭은 그림으로만 보여 주고, 이름은 올렸을 때 힌트로 띄운다. */
 const TABS: readonly [MenuTab, Parameters<typeof glyph>[0], string][] = [
@@ -29,6 +29,7 @@ const TABS: readonly [MenuTab, Parameters<typeof glyph>[0], string][] = [
   ['sources', 'cycle', '원천'],
   ['relics', 'relics', '장비'],
   ['classes', 'classes', '신화'],
+  ['trials', 'scroll', '시련'],
   ['map', 'map', '지도'],
   ['looks', 'looks', '외형'],
 ]
@@ -58,6 +59,7 @@ const TAB_HINTS: Record<MenuTab, string> = {
   status: '상태\n지금 내 능력치와 걸려 있는 힘',
   sources: '원천\n장비의 원천이 쌓여 각성한 힘, 세계의 위협 단계, 손이 덜 가는 편의',
   relics: '유물\n낀 유물과 가방. 눌러서 바꿔 끼고, 바꾸면 어떻게 되는지 미리 본다',
+  trials: '시련\n제약을 건 전설. 깨면 그 제약과 이어진 힘이 영구히 붙는다',
   map: '지도\n마을에서 신화권마다 뻗은 땅 열다섯. 찾은 성소는 빛나고, 워프가 열리면 눌러서 간다',
   classes: '신화\n지금 신화의 개방 단계와 다음 단계로 가는 법, 만난 신들',
   looks: '외형\n부위마다 보이는 모습을 고른다',
@@ -70,6 +72,22 @@ const SOURCE_HELP = {
   branch: '원천 갈래\n처음 오르는 단계로 갈 때, 그동안 싸운 경험을 원천 하나에 부어 영구 숙련을 올린다. 숙련은 그 원천 수치에 더해진다.',
   resonance: '공명\n네 원천 숙련 가운데 가장 낮은 값. 1마다 모든 각성 효과가 5% 세진다. 골고루 키운 보상이다.',
   convenience: '편의\n같은 일을 여러 번 하면 손이 덜 가게 하나씩 열린다. 싸움은 그대로 내 몫이다.',
+}
+
+/** 시련 탭이 게임에서 읽고 부르는 것 (E16-04) */
+export interface TrialsHost {
+  /** 위협 3단계에 열린다 */
+  open(): boolean
+  /** 지금 시련을 열 수 없는 까닭 (열 수 있으면 null) */
+  blocked(): string | null
+  /** 시련마다: 이름, 제약, 보상(한 단계마다), 깬 난이도, 난이도마다 가장 빠른 기록(초) */
+  list(): { id: string; name: string; rule: string; reward: string; per: string; cleared: number; best: (number | null)[] }[]
+  /** 깬 난이도의 합과 마일스톤 */
+  total(): number
+  milestones(): { at: number; name: string; text: string }[]
+  /** 균열 보상 배율 (E17) */
+  riftScale(): number
+  start(id: string, level: number): boolean
 }
 
 /** 지도 탭이 게임에서 읽고 부르는 것 (E15-04) */
@@ -143,6 +161,7 @@ export interface MenuHost {
   stats(): HeroStats
   readonly sources: SourcesHost
   readonly world: WorldMapHost
+  readonly trials: TrialsHost
   /** 저장하고 처음 화면(슬롯 고르기)으로 */
   toTitle(): void
   /** 설정을 연다 (일시 정지 메뉴) */
@@ -352,7 +371,64 @@ export class GameMenu {
     else if (this.tab === 'relics') this.renderRelics()
     else if (this.tab === 'classes') this.renderClasses()
     else if (this.tab === 'map') this.renderMap()
+    else if (this.tab === 'trials') this.renderTrials()
     else this.wardrobe.render(this.body)
+  }
+
+  // ───────────────────────────── 시련 ─────────────────────────────
+
+  /**
+   * 시련 탭 (E16-04): 제약 여덟과 난이도 다섯, 내 기록과 영구 보상, 깬 수의 합 마일스톤.
+   * 필드 성소 결계 안에서 난이도를 누르면 그 자리에서 시작한다. 다음 난이도는 앞 난이도를 깨야 열린다.
+   */
+  private renderTrials(): void {
+    const { trials } = this.host
+    const wrap = el('div', 'menu-src')
+    const fmt = (sec: number) => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, '0')}`
+    const head = el('section', 'menu-src__panel')
+    const title = el('div', 'menu-src__title', `시련 · 깬 난이도 ${trials.total()}`)
+    head.append(title)
+    const blocked = trials.blocked()
+    head.append(el('div', 'menu-src__text', !trials.open() ? (blocked ?? '') : blocked ? `${blocked} · 고르면 바로 시작한다` : '성소 결계 안이다. 난이도를 누르면 바로 시작한다'))
+    wrap.append(head)
+    if (!trials.open()) {
+      this.body.append(wrap)
+      return
+    }
+    const grid = el('div', 'menu-trials')
+    for (const t of trials.list()) {
+      const card = el('section', `menu-src__source${t.cleared > 0 ? ' is-awake' : ''}`)
+      card.style.setProperty('--god', 'var(--c-gold-soft)')
+      const top = el('div', 'menu-src__head')
+      top.append(el('b', '', t.name))
+      const gems = el('div', 'ui-gems ui-gems--small')
+      for (let i = 0; i < 5; i++) gems.append(el('i', i < t.cleared ? 'is-on' : ''))
+      top.append(gems)
+      card.append(top, el('div', 'menu-src__line is-on', t.rule), el('div', 'menu-src__line', `깬 단계마다 ${t.reward} ${t.per}`))
+      const levels = el('div', 'menu-src__levels')
+      for (let n = 1; n <= 5; n++) {
+        const best = t.best[n - 1]
+        const b = el('button', `menu-src__level${n <= t.cleared ? ' is-on' : n === t.cleared + 1 ? ' is-next' : ' is-locked'}`, String(n))
+        b.type = 'button'
+        b.disabled = blocked !== null || n > t.cleared + 1
+        this.hintOn(b, `${t.name} ${n}단계\n${best ? `가장 빠른 기록 ${fmt(best)}` : n > t.cleared + 1 ? '앞 단계를 깨야 열린다' : '아직 기록 없음'}`)
+        b.addEventListener('click', () => trials.start(t.id, n) && this.toggle(false))
+        levels.append(b)
+      }
+      card.append(levels)
+      grid.append(card)
+    }
+    wrap.append(grid)
+    const ms = el('section', 'menu-src__panel')
+    ms.append(el('div', 'menu-src__title', '깬 난이도의 합'))
+    for (const m of trials.milestones()) {
+      const line = el('div', `menu-src__conv${trials.total() >= m.at ? ' is-on' : ''}`)
+      line.append(el('b', '', `${m.at} · ${m.name}`), el('small', '', m.text))
+      ms.append(line)
+    }
+    ms.append(el('div', 'menu-src__text', `기록이 빠를수록 균열 보상이 커진다 (지금 ×${trials.riftScale().toFixed(2)})`))
+    wrap.append(ms)
+    this.body.append(wrap)
   }
 
   // ───────────────────────────── 지도 ─────────────────────────────
