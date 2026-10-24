@@ -7,7 +7,7 @@ import { PixelRenderer } from '../render/PixelRenderer'
 import { QuarterViewCamera } from '../render/QuarterViewCamera'
 import { renderHeightFor, TARGET_RENDER_HEIGHT } from '../render/resolution'
 import { REGIONS, type RegionDef, START_REGION } from '../data/regions'
-import { godDef, relicDef, type RelicId } from '../relics/data'
+import { godDef, GODS, relicDef, type RelicId } from '../relics/data'
 import { Wardrobe } from '../looks/outfit'
 import { DropTable } from '../gear/DropTable'
 import { itemUnderPointer } from '../relics/hover'
@@ -64,6 +64,10 @@ import { DialogBox } from '../ui/DialogBox'
 import { DevTools } from '../dev/DevTools'
 import { Build } from '../build/Build'
 import { gearCard } from '../ui/gearCard'
+import { baseCandidates, nextRecipe } from '../gear/forge'
+import { materialName, mythMaterial } from '../gear/materials'
+import { mythRelic, stageName } from '../gear/mythRelic'
+import { GEAR } from '../gear/roll'
 import { alwaysStage } from '../build/BuildState'
 
 export interface GameOptions {
@@ -338,6 +342,26 @@ export class Game {
       slotsFor: (id) => powers.loadout.slots.map((_, i) => i).filter((i) => powers.loadout.fits(id, i)),
       get materials() {
         return powers.loadout.materials
+      },
+      forge: {
+        here: () => this.ctx.map.region.kind === 'hub',
+        gods: () => {
+          const { loadout } = powers
+          const chosen = this.ctx.build.chosen
+          return Object.keys(GODS).filter((god) => god === chosen || this.progress.isOpen(god) || loadout.has(mythRelic(god)) || (loadout.materials.get(mythMaterial(god) ?? '') ?? 0) > 0).sort((a, b) => Number(b === chosen) - Number(a === chosen))
+        },
+        next: (god) => {
+          const { loadout } = powers
+          const recipe = nextRecipe(loadout, god)
+          if (!recipe) return null
+          return {
+            name: stageName(recipe.relic, recipe.stage),
+            stage: recipe.stage,
+            materials: recipe.materials.map(({ id, count }) => ({ name: materialName(id), have: loadout.materials.get(id) ?? 0, need: count })),
+            ...(recipe.base ? { base: { part: GEAR.parts[recipe.base].name, ok: baseCandidates(loadout, recipe.base).length > 0 } } : {}),
+          }
+        },
+        make: (god) => this.ctx.map.region.kind === 'hub' && relics.forge(god),
       },
       get loadout() {
         return powers.state

@@ -2,6 +2,7 @@ import type * as THREE from 'three'
 
 import { type God, godDef, isRelicId, relicDef, type RelicId } from '../relics/data'
 import { STAGE_DAMAGE } from '../gear/mythRelic'
+import { craft } from '../gear/forge'
 import { Loadout } from '../gear/Loadout'
 import type { LoadoutState } from '../myth/manifest'
 import { createEffect } from '../skills'
@@ -91,6 +92,17 @@ export class RelicPowers {
     const effect = createEffect(relicDef(id), this.fx)
     effect.stageScale = STAGE_DAMAGE[this.loadout.stage(id) - 1] ?? 1
     return effect
+  }
+
+  /** 대장간에서 만든다(올린다) (E13-05). 칸이 바뀌면 효과를 다시 만들고, 단계가 오르면 피해 배율을 맞춘다 */
+  forge(god: God, baseId?: string): (NonNullable<ReturnType<typeof craft>> & { change: LoadoutChange }) | null {
+    const made = craft(this.loadout, god, baseId)
+    if (!made) return null
+    if (made.stage === 1 && made.slot >= 0) {
+      this.effects[made.slot]?.dispose()
+      this.effects[made.slot] = this.effectFor(made.relic)
+    } else this.refreshStages()
+    return { ...made, change: this.refresh() }
   }
 
   /** 유물 단계가 바뀌었다 (대장간): 낀 유물 효과의 피해 배율을 다시 맞춘다 */

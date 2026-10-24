@@ -13,6 +13,7 @@ const sample: SaveData = {
   gear: [],
   stages: {},
   materials: {},
+  inherited: {},
   dropMisses: 3,
   divine: 0.5,
   looks: {

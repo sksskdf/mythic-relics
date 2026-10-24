@@ -1,7 +1,8 @@
 import * as THREE from 'three'
 
 import { type God, godDef, isRelicId, relicDef, type RelicId } from '../../relics/data'
-import { isMythRelic, relicMyth } from '../../gear/mythRelic'
+import { isMythRelic, relicMyth, STAGE_DAMAGE, stageName } from '../../gear/mythRelic'
+import { statText } from '../../myth/alwaysText'
 import { type GearItem, gearName } from '../../gear/roll'
 import { levelGains } from '../../myth/levelGains'
 import { classIcon } from '../../ui/classIcons'
@@ -64,6 +65,28 @@ export class RelicSystem {
       if (announce) bus.emit('mythOpened', { god })
       else if (!progress.chosen.length) this.choose(god, false)
     }
+  }
+
+  /**
+   * 대장간 (E13-05): 그 신화의 유물을 만들거나 다음 단계로 올린다. 처음 만들면 그 신화가 열린다.
+   * 마을에서만 하는 규칙은 부르는 쪽(정보 화면)이 지킨다.
+   */
+  forge(god: God, baseId?: string): boolean {
+    const { powers, hud, fx, hero, view, bus } = this.ctx
+    const made = powers.forge(god, baseId)
+    if (!made) return false
+    const def = godDef(god)
+    const name = stageName(made.relic, made.stage)
+    bus.emit('forged', { relic: made.relic, stage: made.stage })
+    if (made.stage === 1) this.unlock(made.relic, true)
+    this.changed(made.change, true, made.relic)
+    const lines = [made.stage === 1 ? '대장간에서 처음 벼렸다' : `${made.stage}단계: 유물 효과 피해 ×${STAGE_DAMAGE[made.stage - 1]}`]
+    if (made.inherited) lines.push(`바탕 장비에서 물려받음: ${statText(made.inherited.kind, made.inherited.value)}`)
+    hud.showGains('대장간', name, def.color, classIcon(def.name), lines)
+    fx.power.burst(hero.object.position, def.color, 2 + made.stage)
+    view.shake(0.2 + made.stage * 0.08)
+    bus.emit('progressChanged', {})
+    return true
   }
 
   /**

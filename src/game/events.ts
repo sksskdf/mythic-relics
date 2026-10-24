@@ -18,6 +18,8 @@ export interface GameEvents {
   basicHits: { targets: readonly CombatTarget[] }
   /** 유물을 주웠다. */
   relicPicked: { id: RelicId }
+  /** 대장간에서 유물을 만들거나 올렸다 (E13-05) */
+  forged: { relic: RelicId; stage: number }
   /** 일반 장비를 주웠다 (E13-02) */
   gearPicked: { item: GearItem }
   /** 장착이 바뀌었다. announce가 false면 연출 없이 (불러오기 등) */

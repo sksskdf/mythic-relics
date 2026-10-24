@@ -54,6 +54,7 @@ export class Persistence {
       gear: [...powers.loadout.gear.values(), ...pickups.list.flatMap((p) => (p.gear ? [p.gear] : []))],
       stages: Object.fromEntries([...powers.loadout.stages].filter(([, n]) => n >= 2)),
       materials: Object.fromEntries(powers.loadout.materials),
+      inherited: Object.fromEntries(powers.loadout.inherited),
       ground: pickups.list.map((p) => ({ id: p.id, x: p.x, z: p.z })),
       classes,
       chosen: [...progress.chosen],
@@ -87,6 +88,7 @@ export class Persistence {
     for (const id of [...data.slots, ...data.bag]) if (id && gear.has(id)) powers.loadout.addGear(gear.get(id)!)
     for (const [id, n] of Object.entries(data.stages)) if (n) powers.loadout.stages.set(id, n)
     for (const [id, n] of Object.entries(data.materials)) powers.loadout.addMaterial(id, n)
+    for (const [id, s] of Object.entries(data.inherited)) if (s) powers.loadout.inherited.set(id, s)
     data.slots.forEach((id) => id && host.equip(id))
     powers.loadout.bag.push(...data.bag)
     for (const item of data.ground) pickups.drop(item.id, item.x, item.z, true, gear.get(item.id))

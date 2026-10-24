@@ -201,6 +201,7 @@ export class DevPanel {
         button('이 신화권 숙련', () => g.dev.gainMastery()),
         button('장비 떨구기', () => g.dev.dropGear()),
         button('영웅 장비', () => g.dev.dropGear(undefined, 'hero')),
+        button('대장간 재료', () => g.dev.fillForge()),
       ),
       row(
         button('궁극기 충전', () => (g.combat.divine = 1)),

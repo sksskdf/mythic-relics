@@ -144,7 +144,7 @@ describe('유물 드랍', () => {
       })
     }
 
-    it('히든 클래스만의 유물(후츠노미타마·아메노오하바리)은 무작위로 나오지 않고, 스사노오와 함께 쓰는 칼은 나온다', () => {
+    it('신화의 유물(후츠노미타마·쿠사나기)은 무작위로 나오지 않고, 재료가 된 칼(토츠카)은 나온다', () => {
       const drops = new DropTable(createRng(3), { ...DEFAULT_DROPS, base: 1 })
       drops.realm = 'japan'
       const seen = new Set<RelicId>()
@@ -152,8 +152,8 @@ describe('유물 드랍', () => {
         const id = drops.roll(new Set())
         if (id) seen.add(id)
       }
+      // 히든 신화의 유물(후츠노미타마)은 대장간에서만, 재료가 된 아메노오하바리는 나온다 (E13-05)
       expect(seen.has('futsu')).toBe(false)
-      expect(seen.has('ohabari')).toBe(false)
       // 쿠사나기는 스사노오 신화의 유물이라 무작위로 나오지 않고(지역 보스·대장간, E13-03), 토츠카는 재료로 나온다
       expect(seen.has('kusanagi')).toBe(false)
       expect(seen.has('totsuka')).toBe(true)
@@ -170,6 +170,7 @@ describe('유물 드랍', () => {
         }
       }
       const expected = MATERIAL_RELICS.filter((id) => !godDef(relicDef(id).god).hidden)
+      // 히든 신화의 재료는 신화권과 상관없이 드물게 섞인다
       for (const id of MYTH_RELICS) expect(seen.has(id), `${id}은 신화의 유물이라 무작위로 나오지 않는다`).toBe(false)
       for (const id of expected) expect(seen.has(id as RelicId), id).toBe(true)
     })

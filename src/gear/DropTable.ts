@@ -56,11 +56,9 @@ export class DropTable {
     readonly tuning: DropTuning = DEFAULT_DROPS,
     /**
      * 무작위로 나올 수 있는 유물: 재료가 된 유물만 (E13-03). 신화의 유물은 지역 보스가 떨어뜨리거나 대장간에서 만든다.
-     * 히든 신화의 유물은 무작위로 떨어지지 않는다.
+     * 히든 신화의 재료(아메노오하바리)도 재료라 나온다. 히든 신화의 유물(후츠노미타마)은 대장간에서만.
      */
-    private readonly pool: readonly RelicId[] = MATERIAL_RELICS.filter(
-      (id) => !Object.values(BOSS_RELICS).includes(id) && !godDef(relicDef(id).god).hidden,
-    ),
+    private readonly pool: readonly RelicId[] = MATERIAL_RELICS.filter((id) => !Object.values(BOSS_RELICS).includes(id)),
   ) {}
 
   /** 지금 일반 괴물을 잡았을 때의 드랍 확률 */

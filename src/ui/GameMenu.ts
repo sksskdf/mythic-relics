@@ -3,6 +3,7 @@ import { GRADE_COLORS } from '../art/palette'
 import { SLOT_PARTS } from '../data/gearData'
 import { GEAR, type GearItem, gearName } from '../gear/roll'
 import { gearCard } from './gearCard'
+import { josa } from './josa'
 import { materialName } from '../gear/materials'
 import { MAX_LEVEL } from '../myth/ClassProgress'
 import { alwaysLines } from '../myth/alwaysText'
@@ -26,7 +27,7 @@ export type MenuTab = 'status' | 'cycle' | 'relics' | 'classes' | 'looks'
 const TABS: readonly [MenuTab, MenuTab, string][] = [
   ['status', 'status', '상태'],
   ['cycle', 'cycle', '순환'],
-  ['relics', 'relics', '유물'],
+  ['relics', 'relics', '장비'],
   ['classes', 'classes', '신화'],
   ['looks', 'looks', '외형'],
 ]
@@ -96,6 +97,16 @@ export interface MenuHost {
   slotsFor(id: string): number[]
   /** 재료와 개수 */
   readonly materials: ReadonlyMap<string, number>
+  /** 대장간 (E13-05) */
+  readonly forge: {
+    /** 지금 벼릴 수 있는 곳인가 (마을) */
+    here(): boolean
+    /** 대장간에 보일 신화들 (고른 신화, 열린 신화, 재료나 유물이 있는 신화) */
+    gods(): God[]
+    /** 그 신화의 다음 제작: 만들 것의 이름, 재료(가진 수/필요한 수), 바탕 장비 부위와 있는지. 다 올렸으면 null */
+    next(god: God): { name: string; stage: number; materials: { name: string; have: number; need: number }[]; base?: { part: string; ok: boolean } } | null
+    make(god: God): boolean
+  }
   readonly loadout: LoadoutState
   /** slot에 id를 끼우면(null이면 비우면) 어떻게 되는지 */
   preview(slot: number, id: RelicId | null): LoadoutState
@@ -707,6 +718,9 @@ export class GameMenu {
     }
     left.append(bag)
 
+    // 대장간 (E13-05): 마을에서만 벼린다
+    left.append(this.forgePanel())
+
     // 재료 (E13-03: 재료가 된 유물, E13-04 재료)
     if (host.materials.size > 0) {
       const mats = el('div', 'menu-relics__materials')
@@ -738,6 +752,40 @@ export class GameMenu {
     }
     const preview = this.hovered ? { before: host.loadout, after: host.preview(this.selectedSlot, this.hovered) } : undefined
     detail.append(relicCard(relicDef(id), host.cardContext(id, preview)))
+  }
+
+  /** 대장간 칸: 신화마다 다음 제작과 모자란 재료, 「벼리기」 단추 (마을에서만 켜짐) */
+  private forgePanel(): HTMLElement {
+    const { forge } = this.host
+    const box = el('section', 'menu-forge')
+    const here = forge.here()
+    box.append(el('b', '', '대장간'), el('small', '', here ? '같은 부위 장비와 재료로 신화의 유물을 벼린다' : '마을 대장장이에게 가면 벼릴 수 있다'))
+    const gods = forge.gods()
+    if (gods.length === 0) box.append(el('p', 'menu-forge__empty', '신화를 열거나 재료를 모으면 여기에 제작법이 보인다'))
+    for (const god of gods) {
+      const next = forge.next(god)
+      const def = godDef(god)
+      const row = el('div', 'menu-forge__row')
+      row.style.setProperty('--god', def.color)
+      if (!next) {
+        row.append(el('span', 'menu-forge__name', `${def.name} · 4단계 완성`))
+        box.append(row)
+        continue
+      }
+      const ready = next.materials.every((m) => m.have >= m.need) && (next.base?.ok ?? true)
+      row.append(el('span', 'menu-forge__name', next.stage === 1 ? `${next.name} 만들기` : `${josa(next.name, '으로')} 올리기`))
+      const needs = el('span', 'menu-forge__needs')
+      for (const m of next.materials) needs.append(el('span', m.have >= m.need ? 'is-ok' : 'is-short', `${m.name} ${Math.min(m.have, m.need)}/${m.need}`))
+      if (next.base) needs.append(el('span', next.base.ok ? 'is-ok' : 'is-short', `바탕: ${next.base.part} 장비`))
+      row.append(needs)
+      const b = el('button', 'menu-forge__make', '벼리기')
+      b.type = 'button'
+      b.disabled = !here || !ready
+      if (here && ready) b.addEventListener('click', () => forge.make(god) && this.render())
+      row.append(b)
+      box.append(row)
+    }
+    return box
   }
 
   /** 칸·가방 단추에 그림: 유물은 유물 그림과 신의 색, 일반 장비는 등급 색 */

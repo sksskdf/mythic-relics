@@ -19,7 +19,8 @@ export class Build {
       open,
       chosen: powers.manifested ? [powers.manifested] : [],
       gear: powers.loadout.relics,
-      gearItems: powers.loadout.wornGear,
+      // 일반 장비와, 대장간 유물이 바탕 장비에서 물려받은 수치 (원천 없음)
+      gearItems: [...powers.loadout.wornGear, ...powers.loadout.wornInherited.map((s) => ({ stats: [s], source: { id: 'flame' as const, value: 0 } }))],
       stage: (id) => powers.loadout.stage(id),
       mastery: (source) => progress.mastery(source),
       promotions: progress.promotions,

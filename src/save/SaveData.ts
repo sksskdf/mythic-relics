@@ -1,6 +1,7 @@
 import { REGIONS } from '../data/regions'
 import { CHOSEN_SLOTS } from '../myth/ClassProgress'
 import { SLOT_PARTS } from '../data/gearData'
+import { STAT_KINDS, type StatKind } from '../data/mythAlways'
 import { isMythRelic } from '../gear/mythRelic'
 import { type GearItem, parseGearItem } from '../gear/roll'
 import { hiddenUnlocked, legacyManifest } from '../myth/manifest'
@@ -35,6 +36,8 @@ export interface SaveData {
   stages: Partial<Record<RelicId, number>>
   /** 재료 개수 */
   materials: Record<string, number>
+  /** 대장간 유물이 바탕 장비에서 물려받은 수치 (E13-05) */
+  inherited: Partial<Record<RelicId, { kind: StatKind; value: number }>>
   /** 땅에 떨어져 있던 유물·장비 */
   ground: { id: string; x: number; z: number }[]
   /** 신화별 개방 단계(0~4)와 신화 숙련 */
@@ -145,6 +148,7 @@ export function parseSave(text: string | null): SaveData | null {
     gear: [...gearById.values()].filter((g) => keep.has(g.uid)),
     stages,
     materials,
+    inherited: parseInherited(data.inherited),
     ground,
     classes: myths,
     chosen: parseChosen(data.chosen, legacySlots(data.slots), myths),
@@ -156,6 +160,18 @@ export function parseSave(text: string | null): SaveData | null {
     region: parseRegion(data.region),
     scenes: Array.isArray(data.scenes) ? [...new Set(data.scenes.filter((s): s is string => typeof s === 'string' && s.length < 40))] : [],
   }
+}
+
+/** 물려받은 수치: 신화의 유물에, 아는 수치 종류만 */
+function parseInherited(raw: unknown): SaveData['inherited'] {
+  const out: SaveData['inherited'] = {}
+  if (typeof raw !== 'object' || raw === null) return out
+  for (const [id, v] of Object.entries(raw as Record<string, unknown>)) {
+    const s = v as Record<string, unknown> | null
+    if (!isRelic(id) || !isMythRelic(id) || !s || !STAT_KINDS.includes(s.kind as StatKind) || typeof s.value !== 'number' || !Number.isFinite(s.value)) continue
+    out[id] = { kind: s.kind as StatKind, value: s.value }
+  }
+  return out
 }
 
 /** 옛 저장의 칸 그대로 (1차 발현 규칙으로 고른 신화를 정할 때) */
