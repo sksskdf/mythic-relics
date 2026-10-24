@@ -7,7 +7,7 @@ import { levelGains } from '../../myth/levelGains'
 import { classIcon } from '../../ui/classIcons'
 import { realmSigil } from '../../ui/sigils'
 import { realmInk } from '../../art/palette'
-import { type God, godDef, GODS, type RelicId } from '../../relics/data'
+import { type God, godDef, GODS, isRelicId, type RelicId } from '../../relics/data'
 import type { LegendKind } from '../../data/classKit'
 import type { GameContext } from '../context'
 import { godMoment } from './godMoments'
@@ -81,8 +81,9 @@ export class ProgressionSystem {
     if (combat.alive) combat.heal((giant.spec.boss ? HEAL_PER_BOSS : HEAL_PER_KILL) + this.ctx.build.state.stats.healOnKill)
     const owned = new Set<RelicId>([
       ...powers.loadout.ownedRelics,
-      ...powers.loadout.materials.keys(),
-      ...pickups.list.map((p) => p.id),
+      // 재료가 된 유물만 (새 재료는 유물이 아니다)
+      ...[...powers.loadout.materials.keys()].filter((id) => isRelicId(id)),
+      ...pickups.list.map((p) => p.id).filter((id) => isRelicId(id)),
     ])
     // 정예는 유물을 한 번 더 굴린다. 상시 효과(도깨비)는 그 확률만큼 한 번 더
     const rolls = (giant.elite ? ELITE_REWARD.dropRolls : 1) + (Math.random() < this.ctx.build.state.stats.dropChance ? 1 : 0)

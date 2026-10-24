@@ -67,6 +67,11 @@ export class DevTools {
     this.parts.bus.emit('progressChanged', {})
   }
 
+  /** 대장간에서 벼린다 (마을이 아니어도) */
+  forge(god: string): boolean {
+    return this.parts.relics.forge(god)
+  }
+
   /** 신화를 고른다 (마을·성소가 아니어도). 닫힌 신화면 먼저 연다 */
   choose(god: string): void {
     this.parts.progress.open(god)

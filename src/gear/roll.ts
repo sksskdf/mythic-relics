@@ -91,3 +91,13 @@ export function parseGearItem(raw: unknown, data: GearData = GEAR): GearItem | n
   return item
 }
 
+/** 장비의 대략적인 좋음: 수치마다 그 범위의 큰 쪽에 견준 크기의 합 + 원천 (봇이 바꿔 낄지 정할 때) */
+export function gearScore(item: GearItem, data: GearData = GEAR): number {
+  let score = item.source.value * 0.3
+  for (const s of item.stats) {
+    const [lo, hi] = data.ranges[s.kind]
+    score += Math.abs(s.value) / Math.max(Math.abs(lo), Math.abs(hi))
+  }
+  return score + (item.unique ? 1 : 0)
+}
+

@@ -3,6 +3,8 @@ import type { Game } from '../game/Game'
 import { angleDiff, angleTo, inLine } from '../combat/arc'
 import { SOURCE_IDS } from '../data/schema'
 import type { StarId } from '../progress/Cycle'
+import { forgeReady } from '../gear/forge'
+import { gearScore } from '../gear/roll'
 import { type God, godDef, relicDef } from '../relics/data'
 import type { Point2 } from '../world/colliders'
 
@@ -65,12 +67,21 @@ export class Autoplayer {
     }
   }
 
+  /** 봇이 벼릴 신화: 고른 신화, 그다음 열린 신화 */
+  private forgeGods(): God[] {
+    const chosen = this.game.powers.manifested
+    const open = this.game.progress.opened.filter((g) => g !== chosen)
+    return chosen ? [chosen, ...open] : open
+  }
+
   /** 가야 할 필드 (E7): 승급할 때가 된 신의 땅, 한 신만 쓰면 그 신의 땅, 아니면 지금 필드(마을이면 미드가르드) */
   private wantRegion(): string {
     const { powers, progress, region, regions } = this.game
     const fieldOf = (god: God) => Object.values(regions).find((r) => r.realm === godDef(god).realm)?.id
     const manifested = powers.manifested
     if (manifested && godDef(manifested).legend && progress.readyToPromote(manifested)) return fieldOf(manifested) ?? region.id
+    // 벼릴 재료가 차면 마을 대장간으로 (E13-08)
+    if (this.forgeGods().some((god) => forgeReady(powers.loadout, god))) return Object.values(regions).find((r) => r.kind === 'hub')?.id ?? region.id
     const here = region.kind === 'field' ? region.id : 'midgard'
     // 히든 신화는 자기 땅이 없어 지금 필드(마을이면 미드가르드)에서 싸운다
     if (this.god) return fieldOf(this.god) ?? here
@@ -121,6 +132,19 @@ export class Autoplayer {
     }
     // 정한 신이 있으면 그 신화가 열리는 대로 고른다 (사람은 마을·성소에서 고른다)
     if (this.god && powers.manifested !== this.god && this.game.progress.isOpen(this.god)) this.game.dev.choose(this.god)
+    // 가방의 일반 장비가 더 좋으면 바꿔 낀다 (빈 칸이면 그냥 낀다, 유물은 빼지 않는다) (E13-08)
+    for (const id of [...powers.loadout.bag]) {
+      const item = powers.loadout.gear.get(id)
+      if (!item) continue
+      const slots = powers.loadout.slots.map((_, i) => i).filter((i) => powers.loadout.fits(id, i))
+      const target = slots.find((i) => powers.loadout.slots[i] === null) ?? slots.find((i) => {
+        const worn = powers.loadout.gear.get(powers.loadout.slots[i] ?? '')
+        return worn !== undefined && gearScore(worn) < gearScore(item)
+      })
+      if (target !== undefined) this.game.dev.wield(id, target)
+    }
+    // 마을에 있으면 벼릴 수 있는 것을 모두 벼린다 (고른 신화부터)
+    if (this.game.region.kind === 'hub') for (const god of this.forgeGods()) if (forgeReady(powers.loadout, god)) this.game.dev.forge(god)
     // 칸이 차 있어도 줍는다 (가방에 들어가고, 모이면 바꿔 낀다)
     if (!legend.active) {
       const pickup = nearest(pickups.list.filter((i) => !powers.loadout.has(i.id) && (i.gear !== undefined || !this.god || relicDef(i.id).god === this.god)), here)

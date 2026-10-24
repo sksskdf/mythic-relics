@@ -79,6 +79,9 @@ try {
       manifest: first('manifest'),
       // 신화 개방 (E12-07): 첫째·둘째 신화가 열린 때와 연 신화 수
       opened: log.filter((e) => e.type === 'open').map((e) => ({ t: e.t, god: e.detail })),
+      // 장비와 대장간 (E13-08): 주운 장비 수, 대장간 제작
+      gear: count('gear'),
+      forged: log.filter((e) => e.type === 'forge').map((e) => ({ t: e.t, what: e.detail })),
       bossKill: first('bossKill', 'giantKing'),
       legendStart: first('legendStart'),
       promote: first('promote'),
@@ -101,7 +104,7 @@ try {
     }
     results.push(result)
     console.log(
-      `#${run} 2단계 ${fmt(result.promote)} | 첫 신화 ${fmt(result.manifest)} | 신화 둘 ${fmt(result.opened[1]?.t)} (연 신화 ${result.opened.length}: ${result.opened.map((o) => o.god).join(', ')}) | 거인 왕 ${fmt(result.bossKill)} | ` +
+      `#${run} 2단계 ${fmt(result.promote)} | 첫 신화 ${fmt(result.manifest)} | 신화 둘 ${fmt(result.opened[1]?.t)} (연 신화 ${result.opened.length}: ${result.opened.map((o) => o.god).join(', ')}) | 거인 왕 ${fmt(result.bossKill)} | 장비 ${result.gear}, 첫 제작 ${fmt(result.forged[0]?.t)}${result.forged[0] ? ` (${result.forged[0].what})` : ''} | ` +
         `유물 ${Object.entries(result.relics).map(([k, v]) => `${k} ${fmt(v)}`).join(', ')} | ` +
         `처치 ${result.kills}(첫 신화 뒤 분당 ${result.killRate}), 쓰러짐 ${result.deaths}, 피격 ${result.hurt}, 전설 실패 ${result.legendFails}` +
         (LOOPS > 0 ? ` | 윤회 ${rebirths.map((t, i) => fmt(t - (rebirths[i - 1] ?? 0))).join(' → ')}` : '') +

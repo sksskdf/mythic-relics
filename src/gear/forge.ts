@@ -144,3 +144,10 @@ export function salvage(loadout: Loadout, id: string, realm: string): { material
   return { material, count, slot }
 }
 
+/** 지금 바로 벼릴 수 있는가: 재료가 차고, 처음 제작이면 바탕 장비가 있다 */
+export function forgeReady(loadout: Loadout, god: God): boolean {
+  const recipe = nextRecipe(loadout, god)
+  if (!recipe || missing(loadout, recipe).length > 0) return false
+  return !recipe.base || baseCandidates(loadout, recipe.base).length > 0
+}
+
