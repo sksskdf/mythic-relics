@@ -41,7 +41,7 @@ export class DamageSystem {
   scale(source: DamageSource = 'other'): number {
     const state = this.ctx.build.state
     const stat = SOURCE_STAT[source]
-    return state.damageScale * (stat ? 1 + state.stats[stat] : 1)
+    return state.damageScale * (stat ? 1 + state.stats[stat] : 1) * this.ctx.powers.awakening.damageScale
   }
 
   /** 그 대상에게만 붙는 배율 (정예·보스에게 피해) */
@@ -83,6 +83,10 @@ export class DamageSystem {
       skills,
     )
     powers.echoes.onBasicHit(
+      hits.map((h) => h.target),
+      skills,
+    )
+    powers.awakening.onBasicHit(
       hits.map((h) => h.target),
       skills,
     )

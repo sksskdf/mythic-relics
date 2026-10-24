@@ -50,6 +50,8 @@ export class Encounter {
   private bossSpec: GiantSpec = KING
   /** 무리 하나에 정예가 섞일 확률 (점검할 때 0이나 1로 바꾼다) */
   eliteChance = ELITE_CHANCE
+  /** 위협 단계 배율 (E14-03): 새로 세우는 적에 건다 */
+  threat = { hp: 1, damage: 1 }
   /** 정예를 고를 때 쓰는 난수 (점검할 때 바꿔 끼운다) */
   rng: () => number = Math.random
 
@@ -193,6 +195,7 @@ export class Encounter {
 
   private addGiant(spec: GiantSpec, home: Point2): Giant {
     const giant = new Giant(spec, home, this.seed++)
+    if (this.threat.hp !== 1 || this.threat.damage !== 1) giant.applyThreat(this.threat)
     this.giants.push(giant)
     this.object.add(giant.object)
     return giant

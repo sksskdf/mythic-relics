@@ -1,3 +1,5 @@
+import { THREAT, threatGrades } from '../../data/threat'
+import { GRADES } from '../../data/gearData'
 import type { Giant } from '../../enemies/Giant'
 import { ELITE_REWARD } from '../../enemies/elite'
 import { MATERIALS, materialName, rollMaterials } from '../../gear/materials'
@@ -94,15 +96,18 @@ export class ProgressionSystem {
       break
     }
     // 재료 (E13-04): 잡는 순간 주머니로. 신화 고유·보스 재료만 알린다
+    const level = this.ctx.threat.level
     for (const { id, count } of rollMaterials(Math.random, { realm: giant.spec.realm, elite: !!giant.elite, boss: giant.spec.boss }, this.ctx.build.chosen)) {
-      powers.loadout.addMaterial(id, count)
+      // 위협 단계가 높을수록 하나 더 (E14-03)
+      powers.loadout.addMaterial(id, count + (Math.random() < THREAT.material * (level - 1) ? 1 : 0))
       if (MATERIALS[id]?.kind !== 'realm') this.ctx.hud.showToast(`${materialName(id)} · 재료`)
     }
     // 일반 장비 (E13-02): 졸개 6%, 정예 25%, 지역 보스는 반드시 (희귀 이상)
     const boss = giant.spec.boss !== undefined
-    const chance = boss ? GEAR.drop.boss : giant.elite ? GEAR.drop.elite : GEAR.drop.grunt
+    const chance = (boss ? GEAR.drop.boss : giant.elite ? GEAR.drop.elite : GEAR.drop.grunt) * THREAT.gearDrop ** (level - 1)
     if (Math.random() < chance) {
-      const item = rollGear(Math.random, boss ? { minGrade: GEAR.drop.bossMinGrade } : {})
+      const chances = threatGrades(gradeChances(), level)
+      const item = rollGear(Math.random, boss ? { minGrade: GEAR.drop.bossMinGrade, chances } : { chances })
       pickups.drop(item.uid, giant.x + 0.7, giant.z + 0.4, true, item)
     }
   }
@@ -182,4 +187,9 @@ function partName(def: ReturnType<typeof godDef>, part: string): string {
   const named = (def.passive as unknown as Record<string, { name?: string } | undefined>)[part]
   if (named?.name) return named.name
   return part === 'basicLightning' ? '번개' : part === 'bladeStorm' ? '칼날 폭풍' : def.name
+}
+
+/** 데이터의 등급 확률 */
+function gradeChances(): Record<(typeof GRADES)[number], number> {
+  return Object.fromEntries(GRADES.map((g) => [g, GEAR.grades[g].chance])) as Record<(typeof GRADES)[number], number>
 }

@@ -4,18 +4,15 @@ import { describe, expect, it } from 'vitest'
 import { Build } from '../src/build/Build'
 import { alwaysStage, computeBuild, echoEvery, gearModifiers, statAt, TOP_STAGE } from '../src/build/BuildState'
 import { RelicPowers } from '../src/game/RelicPowers'
-import { ClassProgress, MASTERY_DAMAGE, PER_PROMOTION } from '../src/myth/ClassProgress'
-import { Cycle } from '../src/progress/Cycle'
+import { ClassProgress, PER_PROMOTION } from '../src/myth/ClassProgress'
+import { ThreatProgress } from '../src/progress/Threat'
 import { GODS, godDef, RELIC_IDS, relicDef } from '../src/relics/data'
 
-/** 1차 스프린트의 피해 배율 공식 (E11-04 전 Damage.scale을 그대로 옮긴 것) */
-function legacyDamage(progress: ClassProgress, cycle: Cycle, manifested: string | null): number {
+/** 1차 스프린트의 피해 배율 공식에서 순환 성장·옛 원천 숙련을 뺀 것 (E14-06) */
+function legacyDamage(progress: ClassProgress, manifested: string | null): number {
   let scale = 1 + progress.promotions * PER_PROMOTION.damage
-  if (manifested) {
-    scale *= godDef(manifested).passive.damageScale
-    scale *= 1 + progress.mastery(godDef(manifested).source) * MASTERY_DAMAGE
-  }
-  return scale * cycle.damageScale
+  if (manifested) scale *= godDef(manifested).passive.damageScale
+  return scale
 }
 
 /** 그 신의 유물을 발현 수만큼 끼운 RelicPowers */
@@ -35,7 +32,7 @@ function promoteTimes(progress: ClassProgress, god: string, times: number): void
 
 describe('빌드 상태 (E11-04)', () => {
   it('아무것도 없으면 맨손의 모험가: 배율 1, 칼 모션', () => {
-    const state = new Build({ powers: new RelicPowers(new THREE.Group()), progress: new ClassProgress(), cycle: new Cycle() }).state
+    const state = new Build({ powers: new RelicPowers(new THREE.Group()), progress: new ClassProgress(), threat: new ThreatProgress() }).state
     expect(state.chosen).toBeNull()
     expect(state.level).toBe(0)
     expect(state.damageScale).toBe(1)
@@ -53,19 +50,15 @@ describe('빌드 상태 (E11-04)', () => {
       progress.record(god)
       promoteTimes(progress, god, 2)
       promoteTimes(progress, 'thor', 1)
-      const cycle = new Cycle()
-      cycle.training.flame = 3
-      cycle.training.stone = 2
-      cycle.training.wind = 1
-      const state = new Build({ powers, progress, cycle }).state
+      const state = new Build({ powers, progress, threat: new ThreatProgress() }).state
       expect(state.chosen, god).toBe(god)
       expect(state.level, god).toBe(progress.level(god))
       const st = state.stats
-      expect(state.damageScale, god).toBeCloseTo(legacyDamage(progress, cycle, god) * (1 + st.damage), 10)
+      expect(state.damageScale, god).toBeCloseTo(legacyDamage(progress, god) * (1 + st.damage), 10)
       const mods = gearModifiers(powers.loadout.slots)
       expect(state.modifiers, god).toEqual(mods)
-      expect(state.damageTaken, god).toBeCloseTo(mods.damageTaken * cycle.damageTakenScale * (1 + st.damageTaken), 10)
-      expect(state.moveSpeed, god).toBeCloseTo(mods.moveSpeed * cycle.moveSpeedScale * (1 + st.moveSpeed), 10)
+      expect(state.damageTaken, god).toBeCloseTo(mods.damageTaken * (1 + st.damageTaken), 10)
+      expect(state.moveSpeed, god).toBeCloseTo(mods.moveSpeed * (1 + st.moveSpeed), 10)
       expect(state.attackSpeed, god).toBeCloseTo(godDef(god).passive.attackSpeed * (1 + st.attackSpeed), 10)
       expect(state.attack, god).toBe(godDef(god).attack)
     }
@@ -81,17 +74,30 @@ describe('빌드 상태 (E11-04)', () => {
     expect(mods).toEqual(expected)
   })
 
-  it('계산은 재료만 보고, 고른 신화가 없으면 원천 숙련을 곱하지 않는다', () => {
-    const base = { open: new Map(), gear: [], mastery: () => 5, promotions: 2, cycle: { damage: 1, damageTaken: 1, moveSpeed: 1, bonusHp: 0 } }
+  it('계산은 재료만 보고, 고른 신화의 패시브 배율을 곱한다', () => {
+    const base = { open: new Map(), gear: [], promotions: 2 }
     expect(computeBuild({ ...base, chosen: [] }).damageScale).toBeCloseTo(1 + 2 * PER_PROMOTION.damage)
     const thor = computeBuild({ ...base, chosen: ['thor'], open: new Map([['thor', 3]]) })
     expect(thor.level).toBe(3)
-    expect(thor.damageScale).toBeCloseTo((1 + 2 * PER_PROMOTION.damage) * godDef('thor').passive.damageScale * (1 + 5 * MASTERY_DAMAGE))
+    expect(thor.damageScale).toBeCloseTo((1 + 2 * PER_PROMOTION.damage) * godDef('thor').passive.damageScale)
+  })
+
+  it('원천 수치는 장비 합 + 원천 숙련, 각성은 5/10/20, 공명은 숙련의 최솟값 (E14)', () => {
+    const gearItems = [
+      { stats: [], source: { id: 'stone' as const, value: 3 } },
+      { stats: [], source: { id: 'stone' as const, value: 3 } },
+    ]
+    const mastery = { flame: 1, hunt: 2, wind: 3, stone: 4 }
+    const state = computeBuild({ open: new Map(), chosen: [], gear: ['mjolnir'], gearItems, stage: () => 4, promotions: 0, sourceMastery: (s) => mastery[s] })
+    // 묠니르 4단계: 불꽃 +5
+    expect(state.sources).toEqual({ flame: 6, hunt: 2, wind: 3, stone: 10 })
+    expect(state.awakening).toEqual({ flame: 1, hunt: 0, wind: 0, stone: 2 })
+    expect(state.resonance).toBe(1)
   })
 })
 
 describe('상시 효과 적용 (E12-03)', () => {
-  const base = { gear: [] as (string | null)[], mastery: () => 0, promotions: 0, cycle: { damage: 1, damageTaken: 1, moveSpeed: 1, bonusHp: 0 } }
+  const base = { gear: [] as (string | null)[], promotions: 0 }
 
   it('상시 효과 단계는 개방 단계, 그 신화 유물을 끼면 한 단계 위 (5까지)', () => {
     expect(alwaysStage(0, true)).toBe(0)

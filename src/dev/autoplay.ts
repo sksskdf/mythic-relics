@@ -1,8 +1,7 @@
 import type { Giant, GiantDanger } from '../enemies/Giant'
 import type { Game } from '../game/Game'
 import { angleDiff, angleTo, inLine } from '../combat/arc'
-import { SOURCE_IDS } from '../data/schema'
-import type { StarId } from '../progress/Cycle'
+import type { SourceId } from '../data/schema'
 import { forgeReady } from '../gear/forge'
 import { gearScore } from '../gear/roll'
 import { mythRelic } from '../gear/mythRelic'
@@ -25,10 +24,12 @@ const EXIT_CLEAR = 3.5
 export class Autoplayer {
   private thinkTimer = 0
   private patrol = 0
-  /** 순환까지 돌리는가: 단련하고, 모이면 윤회한다 (scripts/playtest.mjs --loops) */
-  cycle = false
-  /** 윤회한 게임 시각 */
-  readonly rebirths: number[] = []
+  /** 위협 단계를 올리는가: 열리면 마을에 가서 원천 갈래를 고르고 오른다 (scripts/playtest.mjs --threat) */
+  climb = false
+  /** 원천 갈래로 고를 원천 (없으면 장비에 가장 많은 원천) */
+  source: SourceId | null = null
+  /** 위협 단계를 처음 오른 게임 시각 */
+  readonly climbs: number[] = []
   /** 이 신의 유물만 낀다 (다른 신 유물은 주우면 가방에 넣는다). null이면 가리지 않는다 (scripts/playtest.mjs --god) */
   god: God | null = null
   /** 다른 지역으로 가지 않고 이 자리에서만 싸운다 (scripts/enemy-trial.mjs) */
@@ -46,28 +47,19 @@ export class Autoplayer {
       if (this.thinkTimer <= 0) {
         this.thinkTimer = THINK
         this.think()
-        if (this.cycle) this.loop()
+        if (this.climb) this.climbUp()
       }
       this.game.advance(step, step)
     }
   }
 
-  /**
-   * 순환: 살 수 있는 단련 중 가장 싼 것을 사고, 윤회할 수 있으면 바로 윤회한다.
-   * 재는 별자리에 쓴다 (결정 → 비용 → 생명 → 불씨 차례로 싼 것부터)
-   */
-  private loop(): void {
-    const { cycle, cycleSystem, legend } = this.game
-    for (let i = 0; i < 50; i++) {
-      const cheapest = SOURCE_IDS.filter((s) => cycle.canTrain(s)).sort((a, b) => cycle.cost(a) - cycle.cost(b))[0]
-      if (!cheapest || cycleSystem.train(cheapest) === 0) break
-    }
-    if (legend.phase !== 'idle' || cycle.ashForRebirth() <= 0) return
-    if (cycleSystem.rebirth(null)) {
-      this.rebirths.push(this.game.time)
-      const order: StarId[] = ['gain', 'cheap', 'hp', 'start']
-      for (let i = 0; i < 20; i++) if (!order.some((id) => cycle.lightStar(id))) break
-    }
+  /** 위협 단계: 마을에 있고 다음 단계가 열렸으면, 정한 원천(없으면 장비에 가장 많은 원천)에 붓고 오른다 */
+  private climbUp(): void {
+    const { threat, threatSystem, region } = this.game
+    if (region.kind !== 'hub' || threat.unlocked <= threat.reached) return
+    const rows = this.game.sourceRows()
+    const pick = this.source ?? rows.reduce((a, b) => (b.total > a.total ? b : a)).id
+    if (threatSystem.advance(pick)) this.climbs.push(this.game.time)
   }
 
   /** 벼리기에 실패한 신화 (재료가 늘면 다시 해 본다) */
@@ -95,7 +87,10 @@ export class Autoplayer {
     const manifested = powers.manifested
     if (manifested && godDef(manifested).legend && progress.readyToPromote(manifested)) return fieldOf(manifested) ?? region.id
     // 벼릴 재료가 차면 마을 대장간으로 (E13-08)
-    if (this.forgeGods().some((god) => forgeReady(powers.loadout, god))) return Object.values(regions).find((r) => r.kind === 'hub')?.id ?? region.id
+    const hub = Object.values(regions).find((r) => r.kind === 'hub')?.id ?? region.id
+    if (this.forgeGods().some((god) => forgeReady(powers.loadout, god))) return hub
+    // 위협 단계가 새로 열렸으면 마을 촌장에게 (E14-07)
+    if (this.climb && this.game.threat.unlocked > this.game.threat.reached) return hub
     const here = region.kind === 'field' ? region.id : 'midgard'
     // 히든 신화는 자기 땅이 없어 지금 필드(마을이면 미드가르드)에서 싸운다
     if (this.god) return fieldOf(this.god) ?? here
@@ -207,6 +202,13 @@ export class Autoplayer {
     const worn = powers.loadout.slots.filter((id) => id !== null).length
     const boss = encounter.boss
     const bossOk = worn >= 2 && hp > 0.6
+    // 위협 단계를 올리는 봇: 2단계 뒤에는 열린 가장 높은 단계의 문지기(지역 보스)를 찾아간다 (E14-07)
+    const threat = this.game.threat
+    if (this.climb && !legend.active && progress.promotions >= 1 && threat.unlocked === threat.reached && threat.level === threat.reached && boss?.alive && hp > 0.6) {
+      this.step = 11
+      this.engage(here, boss)
+      return
+    }
     let candidates = enemies.filter((g) => {
       if (legend.active) return true
       if (g === boss) return bossOk

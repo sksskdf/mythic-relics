@@ -8,10 +8,10 @@ import { materialName } from '../gear/materials'
 import { MAX_LEVEL } from '../myth/ClassProgress'
 import { alwaysLines } from '../myth/alwaysText'
 import type { ClassProgress } from '../myth/ClassProgress'
-import { type Cycle, LAWS, type LawId, REBIRTH_NEED, RING_NEXT, RING_PREV, STARS, type StarId, TRAINING_TEXT, UNLOCKS } from '../progress/Cycle'
+import { AWAKEN_AT, AWAKENING_TEXT } from '../data/awakening'
+import { THREAT_MAX } from '../data/threat'
 import { allLevelGains, levelGains } from '../myth/levelGains'
 import type { SourceId } from '../data/schema'
-import { shortNumber } from './format'
 import { type God, godDef, relicDef, type RelicId } from '../relics/data'
 import type { LoadoutState } from '../myth/manifest'
 import { relicCard, type RelicCardContext, relicIcon } from './relicCard'
@@ -21,12 +21,12 @@ import { glyph, SOURCE_COLORS, sourceSigil, unknownSigil } from './sigils'
 import { type WardrobeHost, WardrobePane } from './WardrobePane'
 import './menu.css'
 
-export type MenuTab = 'status' | 'cycle' | 'relics' | 'classes' | 'looks'
+export type MenuTab = 'status' | 'sources' | 'relics' | 'classes' | 'looks'
 
 /** 탭은 그림으로만 보여 주고, 이름은 올렸을 때 힌트로 띄운다. */
-const TABS: readonly [MenuTab, MenuTab, string][] = [
+const TABS: readonly [MenuTab, Parameters<typeof glyph>[0], string][] = [
   ['status', 'status', '상태'],
-  ['cycle', 'cycle', '순환'],
+  ['sources', 'cycle', '원천'],
   ['relics', 'relics', '장비'],
   ['classes', 'classes', '신화'],
   ['looks', 'looks', '외형'],
@@ -55,35 +55,37 @@ export interface HeroStats {
 /** 탭에 올리면 나오는 설명 */
 const TAB_HINTS: Record<MenuTab, string> = {
   status: '상태\n지금 내 능력치와 걸려 있는 힘',
-  cycle: '순환\n원천 결정으로 단련하고, 윤회해 더 빨리 강해진다',
+  sources: '원천\n장비의 원천이 쌓여 각성한 힘, 세계의 위협 단계, 손이 덜 가는 편의',
   relics: '유물\n낀 유물과 가방. 눌러서 바꿔 끼고, 바꾸면 어떻게 되는지 미리 본다',
   classes: '신화\n지금 신화의 개방 단계와 다음 단계로 가는 법, 만난 신들',
   looks: '외형\n부위마다 보이는 모습을 고른다',
 }
 
-/** 순환 탭의 ? 설명 */
-const CYCLE_HELP = {
-  cycle: '순환\n싸울수록 원천 결정이 모이고, 결정으로 단련하고, 신화 개방 단계와 윤회를 거칠수록 같은 길을 더 빨리 강해지며 지나간다. 단계마다 새 장치가 열린다.',
-  train: '단련 (2고리)\n원천 결정을 써서 그 원천의 능력치를 올린다. 오를수록 비싸지고, 개방 단계가 오를 때마다 싸진다. 한 원천을 단련하면 고리의 다음 원천(바람→불꽃→사냥→바위→바람) 결정이 4%씩 더 들어온다.',
-  rebirth: '윤회 (4고리)\n세계를 처음으로 되돌린다. 단련과 결정은 사라지고 유물·개방 단계는 남는다. 재와 영구 배율 +10%를 얻고, 윤회할수록 새 장치가 열린다.',
-  stars: '별자리\n윤회의 재로 별을 밝혀 영구히 강해진다. 윤회해도 사라지지 않는다.',
-  auto: '자동 단련\n살 수 있는 단련 중 가장 싼 것을 1.2초마다 저절로 올린다.',
-  resonance: '원천 공명\n두 원천의 단련이 모두 Lv5 이상이면 그 원천들의 결정이 10% 더 들어온다.',
-  doom: '종말 (5고리)\n종말 보스를 불러 쓰러뜨리면 윤회의 규칙을 바꾸는 태초의 법을 하나 고른다.',
-  challenge: '도전\n다음 윤회에 원천 하나를 끊고 한 판을 끝내면, 그 원천 결정이 영구히 25% 더 들어온다.',
+/** 원천 탭의 ? 설명 */
+const SOURCE_HELP = {
+  awaken: '원천 각성\n장비마다 붙은 원천 수치와 원천 숙련을 더한 값이 5·10·20을 넘을 때마다 그 원천이 한 단계씩 깨어난다. 한 원천에 몰면 3단계, 나누면 두 원천이 2단계쯤.',
+  threat: '위협 단계\n세계 전체의 난이도. 오를수록 적이 세지고 정예가 늘며, 장비 등급과 재료가 좋아진다. 열린 가장 높은 단계에서 지역 보스를 이기면 다음 단계가 열린다. 마을 촌장에게서 고른다.',
+  branch: '원천 갈래\n처음 오르는 단계로 갈 때, 그동안 싸운 경험을 원천 하나에 부어 영구 숙련을 올린다. 숙련은 그 원천 수치에 더해진다.',
+  resonance: '공명\n네 원천 숙련 가운데 가장 낮은 값. 1마다 모든 각성 효과가 5% 세진다. 골고루 키운 보상이다.',
+  convenience: '편의\n같은 일을 여러 번 하면 손이 덜 가게 하나씩 열린다. 싸움은 그대로 내 몫이다.',
 }
 
-/** 순환 탭이 게임에서 읽고 부르는 것 */
-export interface CycleHost {
-  readonly state: Cycle
-  train(source: SourceId, count: number): number
-  rebirth(challenge: SourceId | null): boolean
-  lightStar(id: StarId): boolean
-  chooseLaw(id: LawId): boolean
-  summonDoom(): boolean
-  readonly doomActive: boolean
+/** 원천 탭이 게임에서 읽고 부르는 것 */
+export interface SourcesHost {
+  /** 원천마다: 장비 합, 숙련, 합계, 각성 단계 */
+  rows(): { id: SourceId; gear: number; mastery: number; total: number; level: number }[]
+  readonly threat: { level: number; unlocked: number; reached: number; battle: number; pour: number; resonance: number }
+  /** 단계를 고를 수 있는 곳인가 (마을) */
+  here(): boolean
+  choose(level: number): boolean
+  advance(source: SourceId): boolean
+  /** 편의: 이름, 설명, 열렸나, 진행 */
+  conveniences(): { id: string; name: string; text: string; open: boolean; have: number; need: number }[]
+  autoSalvage: boolean
+  /** 성소 워프: 갈 수 있는 곳 (열리지 않았으면 빈 목록) */
+  warps(): { id: string; name: string }[]
+  warp(id: string): boolean
 }
-
 
 /** 신화권 이름 (숙련 안내) */
 const REALM_NAME: Readonly<Record<string, string>> = { norse: '북유럽', greek: '그리스', china: '중국', japan: '일본', korea: '한국' }
@@ -128,7 +130,7 @@ export interface MenuHost {
   /** 설명 카드에 넣을 지금 상태 */
   cardContext(id: RelicId, preview?: { before: LoadoutState; after: LoadoutState }): RelicCardContext
   stats(): HeroStats
-  readonly cycle: CycleHost
+  readonly sources: SourcesHost
   /** 저장하고 처음 화면(슬롯 고르기)으로 */
   toTitle(): void
   /** 설정을 연다 (일시 정지 메뉴) */
@@ -182,10 +184,6 @@ export class GameMenu {
   private readonly tabButtons = new Map<MenuTab, HTMLButtonElement>()
   private readonly wardrobe: WardrobePane
   private tab: MenuTab = 'status'
-  /** 다음 윤회에 걸 도전 */
-  private nextChallenge: SourceId | null = null
-  /** 단련 단위 */
-  private trainUnit: 1 | 10 | 100 | 'max' = 1
   /** 유물 화면에서 고른 칸 */
   private selectedSlot = 0
   /** 신화 탭에서 눌러 본 신화 (없으면 고른 신화) */
@@ -338,212 +336,127 @@ export class GameMenu {
     for (const [id, b] of this.tabButtons) b.classList.toggle('is-on', id === this.tab)
     this.body.replaceChildren()
     if (this.tab === 'status') this.renderStatus()
-    else if (this.tab === 'cycle') this.renderCycle()
+    else if (this.tab === 'sources') this.renderSources()
     else if (this.tab === 'relics') this.renderRelics()
     else if (this.tab === 'classes') this.renderClasses()
     else this.wardrobe.render(this.body)
   }
 
-  // ───────────────────────────── 순환 ─────────────────────────────
+  // ───────────────────────────── 원천 ─────────────────────────────
 
   /**
-   * 순환 탭 (E4.5 회색 박스): 원천 넷의 단련, 윤회, 그리고 윤회할수록 하나씩 열리는 장치.
-   * 아직 열리지 않은 장치는 자물쇠와 "윤회 n회"만 보여 준다.
+   * 원천 탭 (E14): 원천 넷의 각성, 세계 위협 단계와 원천 갈래, 공명, 편의 자동화.
    */
-  private renderCycle(): void {
-    const { cycle } = this.host
-    const c = cycle.state
-    const wrap = el('div', 'menu-cycle')
+  private renderSources(): void {
+    const { sources } = this.host
+    const wrap = el('div', 'menu-src')
     const sourceName = (id: SourceId) => DATA.classes.sources.find((x) => x.id === id)!.name
-    /** 제목 옆의 ?: 올리거나 누르면 그 단계의 설명 */
+    /** 제목 옆의 ?: 올리거나 누르면 설명 */
     const titled = (text: string, help: string): HTMLElement => {
-      const t = el('div', 'menu-cycle__title', text)
-      const q = el('span', 'menu-cycle__help', '?')
+      const t = el('div', 'menu-src__title', text)
+      const q = el('span', 'menu-src__help', '?')
       this.hintOn(q, help)
       t.append(q)
       return t
     }
 
-    // 순환 전체: 첫 발현 전에는 잠겨 있다. 결정은 그 전에도 모인다.
-    if (!c.opened.has('train')) {
-      const locked = el('section', 'menu-cycle__panel is-locked')
-      locked.append(titled('순환', CYCLE_HELP.cycle))
-      const lock = el('div', 'menu-cycle__lock')
-      lock.append(img(glyph('lock', '#5d6876', '#2a3240')), el('span', '', '한 신의 유물을 모두 끼워 그 힘을 깨우면 열린다'))
-      locked.append(lock, el('div', 'menu-cycle__text', `모아 둔 결정: ${DATA.classes.sources.map((x) => `${x.name} ${shortNumber(c.essence[x.id])}`).join(' · ')}`))
-      wrap.append(locked)
-      this.body.append(wrap)
-      return
-    }
-
-    // 단련 단위
-    const units = el('div', 'menu-cycle__units')
-    units.append(titled('단련', CYCLE_HELP.train))
-    const unitBox = el('div', 'menu-cycle__unit-box')
-    for (const u of [1, 10, 100, 'max'] as const) {
-      const b = el('button', `ui-pill${this.trainUnit === u ? ' is-on' : ''}`, u === 'max' ? '최대' : `×${u}`)
-      b.type = 'button'
-      b.addEventListener('click', () => {
-        this.trainUnit = u
-        this.render()
-      })
-      unitBox.append(b)
-    }
-    units.append(unitBox)
-    wrap.append(units)
-
-    // 원천 넷
-    const grid = el('div', 'menu-cycle__sources')
-    for (const x of DATA.classes.sources) {
-      const card = el('section', 'menu-cycle__source')
-      card.style.setProperty('--god', SOURCE_COLORS[x.id]![0])
-      const head = el('div', 'menu-cycle__head')
-      head.append(img(sourceSigil(x.id)), el('b', '', x.name), el('small', '', `${x.gain} 모인다`))
+    // 원천 각성: 넷의 카드
+    const awaken = el('section', 'menu-src__panel')
+    awaken.append(titled('원천 각성', SOURCE_HELP.awaken))
+    const grid = el('div', 'menu-src__sources')
+    for (const row of sources.rows()) {
+      const card = el('section', `menu-src__source${row.level > 0 ? ' is-awake' : ''}`)
+      card.style.setProperty('--god', SOURCE_COLORS[row.id]![0])
+      const head = el('div', 'menu-src__head')
+      head.append(img(sourceSigil(row.id)), el('b', '', sourceName(row.id)))
+      const gems = el('div', 'ui-gems ui-gems--small')
+      for (let i = 0; i < 3; i++) gems.append(el('i', i < row.level ? 'is-on' : ''))
+      head.append(gems)
       card.append(head)
-      const amount = el('div', 'menu-cycle__amount')
-      amount.append(el('b', '', shortNumber(c.essence[x.id])), el('span', 'ui-tag ui-tag--plain', `×${c.gainScale(x.id).toFixed(2)}`))
-      this.hintOn(amount, `${x.name} 결정\n들어오는 배율 ×${c.gainScale(x.id).toFixed(2)}: 숙련, 고리의 앞 원천(${sourceName(RING_PREV[x.id])}) 단련, 윤회, 별자리${c.resonating(x.id) ? ', 공명' : ''}${c.challenge === x.id ? '\n도전 중이라 들어오지 않는다' : ''}`)
+      const amount = el('div', 'menu-src__amount')
+      amount.append(el('b', '', String(row.total)), el('span', '', row.mastery > 0 ? `장비 ${row.gear} + 숙련 ${row.mastery}` : '장비'))
       card.append(amount)
-      const level = c.training[x.id]
-      card.append(el('div', 'menu-cycle__now', level > 0 ? TRAINING_TEXT[x.id](level) : '아직 단련하지 않았다'))
-      card.append(el('div', 'menu-cycle__next', `다음: ${TRAINING_TEXT[x.id](level + 1)} · ${sourceName(RING_NEXT[x.id])} 결정 +${(level + 1) * 4}%`))
-      const want = this.trainUnit === 'max' ? Infinity : this.trainUnit
-      const q = c.quote(x.id, want)
-      const btn = el('button', 'menu-cycle__train')
-      btn.type = 'button'
-      btn.disabled = q.levels === 0
-      const gainLv = q.levels > 0 ? q.levels : 1
-      btn.append(el('span', '', `Lv${level} → ${level + gainLv}`), el('b', '', shortNumber(q.cost)))
-      btn.addEventListener('click', () => {
-        if (cycle.train(x.id, want) > 0) this.render()
-      })
-      card.append(btn)
+      AWAKENING_TEXT[row.id].forEach((text, i) => card.append(el('div', `menu-src__line${i < row.level ? ' is-on' : ''}`, `${i + 1} · ${text}`)))
+      const next = AWAKEN_AT.find((at) => row.total < at)
+      card.append(el('div', 'menu-src__next', next === undefined ? '모두 깨어났다' : `다음 각성까지 ${next - row.total}`))
       grid.append(card)
     }
-    wrap.append(grid)
+    awaken.append(grid)
+    wrap.append(awaken)
 
-    // 윤회
-    const rebirth = el('section', 'menu-cycle__panel')
-    rebirth.append(titled(`윤회${c.rebirths > 0 ? ` · ${c.rebirths}회` : ''}`, CYCLE_HELP.rebirth))
-    if (!c.opened.has('rebirth')) {
-      rebirth.classList.add('is-locked')
-      const lock = el('div', 'menu-cycle__lock')
-      lock.append(img(glyph('lock', '#5d6876', '#2a3240')), el('span', '', '신화가 처음으로 2단계가 되면 열린다'))
-      rebirth.append(lock)
-      wrap.append(rebirth)
-      this.body.append(wrap)
-      return
+    // 위협 단계와 원천 갈래
+    const t = sources.threat
+    const here = sources.here()
+    const threat = el('section', 'menu-src__panel')
+    threat.append(titled(`위협 단계 · ${t.level}단계`, SOURCE_HELP.threat))
+    const levels = el('div', 'menu-src__levels')
+    for (let n = 1; n <= THREAT_MAX; n++) {
+      const b = el('button', `menu-src__level${n === t.level ? ' is-on' : ''}`, String(n))
+      b.type = 'button'
+      b.disabled = !here || n > t.reached
+      if (n > t.unlocked) b.classList.add('is-locked')
+      else if (n > t.reached) b.classList.add('is-next')
+      b.addEventListener('click', () => sources.choose(n) && this.render())
+      levels.append(b)
     }
-    const bar = el('div', 'ui-bar ui-bar--thin')
-    bar.style.setProperty('--fill', 'var(--c-moon)')
-    bar.style.setProperty('--pct', Math.min(1, c.runTotal / REBIRTH_NEED).toFixed(3))
-    const ash = c.ashForRebirth()
-    const row = el('div', 'menu-cycle__row')
-    row.append(
-      el('span', '', ash > 0 ? `지금 윤회하면 재 +${ash}, 모든 결정 ×${(1 + (c.rebirths + 1) * 0.1).toFixed(1)}` : `이번 판에 결정 ${shortNumber(c.runTotal)} / ${REBIRTH_NEED}`),
-    )
-    const go = el('button', 'menu-cycle__go')
-    go.type = 'button'
-    go.disabled = ash <= 0
-    go.textContent = '윤회'
-    go.addEventListener('click', () => {
-      if (!go.classList.contains('is-confirm')) {
-        go.classList.add('is-confirm')
-        go.textContent = '한 번 더: 단련·결정이 사라진다'
-        return
+    threat.append(levels)
+    threat.append(el('div', 'menu-src__text', here ? '마을 촌장: 올라가 본 단계 안에서 고를 수 있다' : '마을 촌장에게 가면 단계를 고를 수 있다'))
+    if (t.unlocked > t.reached) {
+      const branch = el('div', 'menu-src__branch')
+      branch.append(titled(`${t.reached + 1}단계로 오르기 · 원천 갈래`, SOURCE_HELP.branch))
+      branch.append(el('div', 'menu-src__text', `그동안 싸운 경험 ${t.battle} → 고른 원천 숙련 +${t.pour}`))
+      const cards = el('div', 'menu-src__cards')
+      for (const row of sources.rows()) {
+        const b = el('button', 'menu-src__card')
+        b.type = 'button'
+        b.disabled = !here
+        b.style.setProperty('--god', SOURCE_COLORS[row.id]![0])
+        b.append(img(sourceSigil(row.id)), el('b', '', sourceName(row.id)), el('small', '', `${row.total} → ${row.total + t.pour}`))
+        b.addEventListener('click', () => sources.advance(row.id) && this.render())
+        cards.append(b)
       }
-      if (cycle.rebirth(this.nextChallenge)) {
-        this.nextChallenge = null
-        this.render()
-      }
-    })
-    row.append(go)
-    rebirth.append(bar, row)
-    wrap.append(rebirth)
+      branch.append(cards)
+      threat.append(branch)
+    } else {
+      threat.append(el('div', 'menu-src__text', t.unlocked >= THREAT_MAX ? '가장 높은 단계까지 열었다' : `${t.unlocked}단계에서 지역 보스를 이기면 ${t.unlocked + 1}단계가 열린다`))
+    }
+    wrap.append(threat)
 
-    // 차례로 열리는 장치
-    const devices = el('div', 'menu-cycle__devices')
-    const device = (at: number, name: string, help: string, body: () => HTMLElement | null) => {
-      const box = el('section', `menu-cycle__panel${c.rebirths >= at ? '' : ' is-locked'}`)
-      box.append(titled(c.rebirths >= at ? name : '?', c.rebirths >= at ? help : `윤회 ${at}회에 열리는 장치`))
-      if (c.rebirths < at) {
-        const lock = el('div', 'menu-cycle__lock')
-        lock.append(img(glyph('lock', '#5d6876', '#2a3240')), el('span', '', `윤회 ${at}회에 열린다`))
-        box.append(lock)
-      } else {
-        const content = body()
-        if (content) box.append(content)
-      }
-      devices.append(box)
-    }
-    device(UNLOCKS.rebirthToStars, `별자리 · 재 ${c.ash}`, CYCLE_HELP.stars, () => {
-      const list = el('div', 'menu-cycle__stars')
-      for (const id of Object.keys(STARS) as StarId[]) {
-        const def = STARS[id]
-        const level = c.star(id)
-        const b = el('button', 'menu-cycle__star')
-        b.type = 'button'
-        b.disabled = level >= def.max || c.ash < def.cost(level)
-        b.append(img(glyph('star', level > 0 ? '#ffd27a' : '#8d98a6', level > 0 ? '#a8862e' : '#3a4558')), el('b', '', def.name), el('small', '', level > 0 ? def.text(level) : def.text(1)))
-        const gems = el('span', 'ui-gems ui-gems--small')
-        gems.style.setProperty('--gem', '#ffd27a')
-        for (let i = 0; i < def.max; i++) gems.append(el('i', i < level ? 'is-on' : ''))
-        b.append(gems, el('span', 'menu-cycle__cost', level >= def.max ? '다 밝힘' : `재 ${def.cost(level)}`))
-        b.addEventListener('click', () => {
-          if (cycle.lightStar(id)) this.render()
-        })
-        list.append(b)
-      }
-      return list
-    })
-    device(UNLOCKS.autoTrain, '자동 단련', CYCLE_HELP.auto, () => el('div', 'menu-cycle__text', '살 수 있는 단련 중 가장 싼 것을 저절로 올린다.'))
-    device(UNLOCKS.resonance, '원천 공명', CYCLE_HELP.resonance, () => {
-      const on = DATA.classes.sources.filter((x) => c.resonating(x.id)).map((x) => x.name)
-      return el('div', 'menu-cycle__text', on.length > 0 ? `공명 중: ${on.join(', ')} 결정 +10%` : '두 원천의 단련이 모두 Lv5가 되면 서로 결정 +10%.')
-    })
-    device(UNLOCKS.doom, `종말${c.dooms > 0 ? ` · ${c.dooms}회` : ''}`, CYCLE_HELP.doom, () => {
-      const box = el('div', 'menu-cycle__doom')
-      if (c.lawPending) {
-        box.append(el('div', 'menu-cycle__text', '태초의 법을 하나 고른다. 윤회의 규칙이 바뀐다.'))
-        for (const id of Object.keys(LAWS) as LawId[]) {
-          if (c.laws.includes(id)) continue
-          const b = el('button', 'menu-cycle__law')
-          b.type = 'button'
-          b.append(el('b', '', LAWS[id].name), el('small', '', LAWS[id].text))
-          b.addEventListener('click', () => {
-            if (cycle.chooseLaw(id)) this.render()
-          })
-          box.append(b)
-        }
-      } else {
-        const b = el('button', 'menu-cycle__go')
-        b.type = 'button'
-        b.disabled = cycle.doomActive
-        b.textContent = cycle.doomActive ? '종말 보스가 와 있다' : '종말 보스 부르기'
-        b.addEventListener('click', () => {
-          if (cycle.summonDoom()) this.toggle(false)
-        })
-        box.append(b)
-      }
-      if (c.laws.length > 0) box.append(el('div', 'menu-cycle__text', `태초의 법: ${c.laws.map((l) => LAWS[l].name).join(', ')}`))
-      return box
-    })
-    device(UNLOCKS.challenge, '도전', CYCLE_HELP.challenge, () => {
-      const box = el('div', 'menu-cycle__challenges')
-      box.append(el('div', 'menu-cycle__text', c.challenge ? `지금 도전: ${sourceName(c.challenge)} 없이. 다음 윤회 때 끝난다.` : '다음 윤회에 걸 도전을 고른다. 그 원천 결정 없이 한 판을 끝내면 그 원천이 영구히 +25%.'))
-      for (const x of DATA.classes.sources) {
-        const b = el('button', `ui-pill${this.nextChallenge === x.id ? ' is-on' : ''}${c.cleared.has(x.id) ? ' is-done' : ''}`)
-        b.type = 'button'
-        b.append(img(sourceSigil(x.id)), `${x.name} 없이${c.cleared.has(x.id) ? ' ✓' : ''}`)
-        b.addEventListener('click', () => {
-          this.nextChallenge = this.nextChallenge === x.id ? null : x.id
+    // 공명과 편의
+    const lower = el('div', 'menu-src__lower')
+    const resonance = el('section', 'menu-src__panel')
+    resonance.append(titled(`공명 · ${t.resonance}`, SOURCE_HELP.resonance))
+    resonance.append(el('div', 'menu-src__text', t.resonance > 0 ? `모든 각성 효과 +${t.resonance * 5}%` : '네 원천 숙련이 모두 1 이상이면 공명이 시작된다'))
+    lower.append(resonance)
+    const conv = el('section', 'menu-src__panel')
+    conv.append(titled('편의', SOURCE_HELP.convenience))
+    for (const c of sources.conveniences()) {
+      const line = el('div', `menu-src__conv${c.open ? ' is-on' : ''}`)
+      line.append(el('b', '', c.name), el('small', '', c.open ? c.text : `${Math.min(c.have, c.need)} / ${c.need}`))
+      if (c.id === 'autoSalvage' && c.open) {
+        const toggle = el('button', 'ui-pill', sources.autoSalvage ? '켬' : '끔')
+        toggle.type = 'button'
+        toggle.addEventListener('click', () => {
+          sources.autoSalvage = !sources.autoSalvage
           this.render()
         })
-        box.append(b)
+        line.append(toggle)
       }
-      return box
-    })
-    wrap.append(devices)
+      conv.append(line)
+    }
+    const warps = sources.warps()
+    if (warps.length > 0) {
+      const row = el('div', 'menu-src__warps')
+      for (const w of warps) {
+        const b = el('button', 'ui-pill', w.name)
+        b.type = 'button'
+        b.addEventListener('click', () => sources.warp(w.id) && this.toggle(false))
+        row.append(b)
+      }
+      conv.append(row)
+    }
+    lower.append(conv)
+    wrap.append(lower)
     this.body.append(wrap)
   }
 

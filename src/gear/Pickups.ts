@@ -85,7 +85,8 @@ export class Pickups {
     for (const item of [...this.items]) this.remove(item.id)
   }
 
-  update(dt: number, heroX: number, heroZ: number, canPick: (id: string) => boolean): { id: string; gear?: GearItem }[] {
+  /** reach: 그것을 줍는 거리 (편의 자동화의 자동 줍기·재료 자동 모음, 없으면 발밑) */
+  update(dt: number, heroX: number, heroZ: number, canPick: (id: string) => boolean, reach?: (id: string, gear?: GearItem) => number): { id: string; gear?: GearItem }[] {
     const picked: { id: string; gear?: GearItem }[] = []
     for (let i = this.items.length - 1; i >= 0; i--) {
       const item = this.items[i]!
@@ -98,7 +99,7 @@ export class Pickups {
         if (dist > PICK_RADIUS * 1.5) item.armed = true
         continue
       }
-      if (dist <= PICK_RADIUS && canPick(item.id)) {
+      if (dist <= Math.max(PICK_RADIUS, reach?.(item.id, item.gear) ?? 0) && canPick(item.id)) {
         picked.push({ id: item.id, ...(item.gear ? { gear: item.gear } : {}) })
         item.root.removeFromParent()
         this.items.splice(i, 1)

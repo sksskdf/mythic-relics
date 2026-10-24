@@ -23,6 +23,7 @@
 | `src/gear/` | `Loadout`(칸 7·가방·일반 장비 `gear`·유물 단계 `stages`·재료 `materials`·물려받은 수치 `inherited`), `roll.ts`(일반 장비 굴리기, id는 `g:`로 시작), `mythRelic.ts`(신화마다 유물 하나와 부위·단계, 나머지는 재료), `materials.ts`(재료와 드랍), `forge.ts`(규칙으로 만드는 제작법·제작·분해), `Pickups`, `DropTable`. 칸에는 유물 id와 장비 id가 섞여 들어가므로 유물만 다루는 곳은 `isRelicId`나 `loadout.relics`로 거른다 |
 | `src/skills/MythEchoes.ts` | 상시 효과 메아리 (E12-03): 고르지 않은 열린 신화마다 패시브 부품이 가끔 한 번. 빌드 상태의 `echoes`를 `Relics`가 넘겨 준다 |
 | `src/myth/` | `manifest.ts`(고른 신화·가호 판정, 옛 발현 규칙 `legacyManifest`는 옛 저장과 히든 신화만), `ClassProgress`(개방 단계 0~4·신화 숙련·원천 숙련, 숙련 나누기 `masteryShares`), `levelGains`. E12에서 영구 개방·상시·추가 효과가 들어올 자리 |
+| 원천·위협 단계 (E14) | 빌드 상태에 `sources`(장비 + 원천 숙련)·`awakening`(0~3)·`resonance`. 각성 효과는 `powers.awakening`(`SourceAwakening`)이 기본 공격·처치·걸음·피격에서 돌고, 배율(기본 공격·모든 피해·공격/이동 속도·받는 피해)은 Game이 매 프레임 전투·이동에 곱한다. 위협 단계 배율은 `encounter.threat`·`eliteChance`로 새로 세우는 적에 건다 |
 | 읽는 길 | 게임 시스템은 지금 신화·단계를 `ctx.build.chosen`·`ctx.build.level`로 읽는다. 장비 칸 자체를 다루는 곳(장착·저장·유물 화면)은 `powers.loadout`을 본다 |
 
 E12~E14에서 새 규칙을 넣을 때는 `BuildInputs`에 재료를 더하고 `computeBuild`에서 계산을 늘린다. 시스템이 장비·신화를 직접 읽어 따로 계산하지 않는다.

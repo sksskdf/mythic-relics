@@ -21,14 +21,13 @@ import { levelGains } from '../myth/levelGains'
 import type { SkillContext } from '../skills/Skill'
 import { DamageNumbers } from '../ui/DamageNumbers'
 import { Hud } from '../ui/Hud'
-import { GameMenu, type HeroStats } from '../ui/GameMenu'
+import { GameMenu, type HeroStats, type SourcesHost } from '../ui/GameMenu'
 import { PauseMenu } from '../ui/PauseMenu'
 import type { RelicCardContext } from '../ui/relicCard'
 import { RelicTooltip } from '../ui/RelicTooltip'
 import { NavGrid } from '../world/navGrid'
 import { buildHeroModel } from '../world/heroModel'
 import type { BodyLook } from '../looks/body'
-import { Cycle } from '../progress/Cycle'
 import { TITLE_REQUEST } from '../save/SaveData'
 import { clampViewHeight, RENDER_SCALE, type RenderQuality, type Settings, settingsStorage } from '../save/settings'
 import { frameDelta } from './clock'
@@ -48,7 +47,6 @@ import { type CombatTarget, PlayerCombat } from './PlayerCombat'
 import { RelicPowers } from './RelicPowers'
 import { Stage } from './Stage'
 import { AppearanceSystem } from './systems/Appearance'
-import { CycleSystem } from './systems/CycleSystem'
 import { DamageSystem } from './systems/Damage'
 import { Effects } from './systems/Effects'
 import { HeroLife } from './systems/HeroLife'
@@ -62,6 +60,11 @@ import { TitleBackdrop } from './TitleBackdrop'
 import { DialogScene } from './DialogScene'
 import { DialogBox } from '../ui/DialogBox'
 import { DevTools } from '../dev/DevTools'
+import { CONVENIENCES, Conveniences } from '../progress/Conveniences'
+import { ThreatProgress } from '../progress/Threat'
+import { ThreatSystem } from './systems/Threat'
+import { awakeningLevel } from '../data/awakening'
+import { SOURCE_IDS, type SourceId } from '../data/schema'
 import { Build } from '../build/Build'
 import { gearCard } from '../ui/gearCard'
 import { baseCandidates, nextRecipe } from '../gear/forge'
@@ -98,7 +101,7 @@ const CHOOSE_NEAR_SANCTUARY = 6
 export interface PlayEvent {
   /** 게임 시간 (초) */
   t: number
-  type: 'relic' | 'manifest' | 'open' | 'forge' | 'gear' | 'kill' | 'bossKill' | 'death' | 'legendStart' | 'legendFail' | 'promote' | 'hurt'
+  type: 'relic' | 'manifest' | 'open' | 'forge' | 'gear' | 'kill' | 'bossKill' | 'death' | 'legendStart' | 'legendFail' | 'promote' | 'hurt' | 'threat'
   detail?: string
 }
 
@@ -122,8 +125,10 @@ export class Game {
   readonly progress = new ClassProgress()
   readonly drops = new DropTable()
   readonly wardrobe = new Wardrobe()
+  readonly threat = new ThreatProgress()
+  readonly threatSystem: ThreatSystem
+  readonly conveniences = new Conveniences()
   /** 순환 성장 (E4.5) */
-  readonly cycle = new Cycle()
   readonly legend: UtgardLegend
   /** 주인공 길찾기 격자 */
   readonly nav: NavGrid
@@ -159,7 +164,6 @@ export class Game {
   private readonly damage: DamageSystem
   /** 외형: 장착에 따른 모습, 외형 보관함 */
   readonly appearance: AppearanceSystem
-  readonly cycleSystem: CycleSystem
   /** 외형 보관함 화면 */
   /** 정보 화면 (유물·클래스·외형). 열려 있는 동안 게임이 멈춘다 */
   readonly menu: GameMenu
@@ -318,19 +322,19 @@ export class Game {
       progress: this.progress,
       drops: this.drops,
       wardrobe: this.wardrobe,
-      cycle: this.cycle,
       scenesSeen,
-      build: new Build({ powers: this.powers, progress: this.progress, cycle: this.cycle }),
+      threat: this.threat,
+      conveniences: this.conveniences,
+      build: new Build({ powers: this.powers, progress: this.progress, threat: this.threat }),
       skills,
     }
     this.damage = new DamageSystem(this.ctx)
     this.relics = new RelicSystem(this.ctx)
     this.appearance = new AppearanceSystem(this.ctx)
-    this.cycleSystem = new CycleSystem(this.ctx)
     const appearance = this.appearance
     const relics = this.relics
     const powers = this.powers
-    const cycleSystem = this.cycleSystem
+    const conveniences = this.conveniences
     this.menu = new GameMenu(this.hud.root, {
       get slots() {
         return powers.loadout.slots
@@ -384,16 +388,26 @@ export class Game {
         this.menu.toggle(false)
         this.pauseMenu.show(true)
       },
-      cycle: {
-        state: this.cycle,
-        train: (source, count) => cycleSystem.train(source, count),
-        rebirth: (challenge) => cycleSystem.rebirth(challenge),
-        lightStar: (id) => cycleSystem.lightStar(id),
-        chooseLaw: (id) => cycleSystem.chooseLaw(id),
-        summonDoom: () => cycleSystem.summonDoom(),
-        get doomActive() {
-          return cycleSystem.doomActive
+      sources: {
+        rows: () => this.sourceRows(),
+        threat: this.threatView(),
+        here: () => this.threatSystem.here,
+        choose: (level) => this.threatSystem.choose(level),
+        advance: (source) => this.threatSystem.advance(source),
+        conveniences: () => CONVENIENCES.map((c) => ({ id: c.id, name: c.name, text: c.text, open: this.conveniences.has(c.id), have: this.conveniences.counters[c.counter] ?? 0, need: c.need })),
+        get autoSalvage() {
+          return conveniences.autoSalvage
         },
+        set autoSalvage(on: boolean) {
+          conveniences.autoSalvage = on
+        },
+        warps: () => {
+          if (!this.conveniences.has('warp')) return []
+          return Object.values(this.regions)
+            .filter((r) => r.id !== this.ctx.map.region.id && (r.kind === 'hub' || this.conveniences.visited.has(r.id)))
+            .map((r) => ({ id: r.id, name: r.name }))
+        },
+        warp: (id) => this.warpTo(id),
       },
       wardrobe: {
         wardrobe: this.wardrobe,
@@ -440,6 +454,7 @@ export class Game {
     }
     this.growth = new ProgressionSystem(this.ctx)
     this.life = new HeroLife(this.ctx)
+    this.threatSystem = new ThreatSystem(this.ctx)
     this.persistence = new Persistence(this.ctx, options.autosave ?? false)
     this.playerInput = new PlayerInput(this.ctx, this.input, this.pixel, container)
     this.dev = new DevTools({
@@ -472,6 +487,9 @@ export class Game {
         applyStats: () => this.growth.applyStats(),
         applyLooks: () => this.appearance.apply(),
       })
+      // 위협 단계 배율은 불러온 단계로 (이미 세운 적도 다시 세운다)
+      this.threatSystem.apply()
+      if (this.threat.level > 1) this.encounter.resetAll()
     }
     for (const id of options.startRelics ?? []) this.relics.equip(id, false)
 
@@ -491,6 +509,7 @@ export class Game {
     bus.on('manifested', ({ god }) => record('manifest', god))
     bus.on('giantKilled', ({ giant }) => record(giant.spec.boss ? 'bossKill' : 'kill', giant.spec.boss))
     bus.on('heroHurt', ({ damage }) => record('hurt', String(Math.round(damage))))
+    bus.on('threatChanged', ({ level }) => record('threat', String(level)))
     bus.on('heroDied', () => record('death'))
     bus.on('legendStarted', () => record('legendStart'))
     bus.on('legendFailed', () => record('legendFail'))
@@ -558,6 +577,48 @@ export class Game {
 
   set exitsLocked(locked: boolean) {
     this.world.exitsLocked = locked
+  }
+
+  /** 정보 화면에 보일 위협 단계 (읽을 때마다 지금 값) */
+  private threatView(): SourcesHost['threat'] {
+    const threat = this.threat
+    return {
+      get level() {
+        return threat.level
+      },
+      get unlocked() {
+        return threat.unlocked
+      },
+      get reached() {
+        return threat.reached
+      },
+      get battle() {
+        return threat.battle
+      },
+      get pour() {
+        return threat.pour
+      },
+      get resonance() {
+        return threat.resonance
+      },
+    }
+  }
+
+  /** 원천마다: 장비의 합, 원천 숙련, 합계, 각성 단계 (HUD·정보 화면) */
+  sourceRows(): { id: SourceId; gear: number; mastery: number; total: number; level: number }[] {
+    const state = this.ctx.build.state
+    return SOURCE_IDS.map((id) => {
+      const mastery = this.threat.mastery[id]
+      const total = state.sources[id]
+      return { id, gear: total - mastery, mastery, total, level: awakeningLevel(total) }
+    })
+  }
+
+  /** 성소 워프 (E14-05): 마을이나 가 본 땅의 성소로 */
+  warpTo(id: string): boolean {
+    if (!this.conveniences.has('warp') || id === this.ctx.map.region.id) return false
+    if (this.regions[id]?.kind !== 'hub' && !this.conveniences.visited.has(id)) return false
+    return this.world.warpTo(id)
   }
 
   /** 출구로 다른 지역에 간다 (`World.travelTo`) */
@@ -755,7 +816,7 @@ export class Game {
   /** 월드 좌표가 화면 어디에 보이는가 (CSS 픽셀, 자동 점검용) */
   /** 고른 신화를 바꿀 수 있는 곳인가: 마을, 또는 지역 성소 곁 (E12-04, DESIGN.md 4.2) */
   get canChooseMyth(): boolean {
-    if (this.ctx.map.region.kind === 'hub') return true
+    if (this.ctx.map.region.kind === 'hub' || this.conveniences.has('quickChoose')) return true
     if (!this.legend.present || this.legend.active) return false
     const p = this.hero.object.position
     return Math.hypot(p.x - this.legend.center.x, p.z - this.legend.center.z) <= CHOOSE_NEAR_SANCTUARY
@@ -829,8 +890,14 @@ export class Game {
       onHits: (hits) => this.damage.onHeroHits(hits),
     })
     this.relics.update(dt)
-    this.cycleSystem.update(dt)
-    this.combat.damageScale = this.damage.scale('basic')
+    // 최대 생명: 개방 단계·상시 효과·장비 (빌드 상태 한 곳에서 계산)
+    const wantHp = this.ctx.build.state.maxHp
+    if (this.combat.health.max !== wantHp) this.combat.health.setMax(wantHp)
+    const awakening = this.powers.awakening
+    this.combat.damageScale = this.damage.scale('basic') * awakening.basicScale
+    this.combat.boostAttackSpeed = awakening.attackSpeed
+    this.combat.braceScale = awakening.takenScale
+    this.hero.boostScale = awakening.moveSpeed
     this.combat.targetScale = this.targetScale
     this.updateEnemies(dt)
     this.growth.update(dt)
@@ -958,8 +1025,7 @@ export class Game {
           : null,
         blessings: this.powers.state.blessings.map((g) => ({ name: godDef(g).name, color: godDef(g).color })),
         promote: manifested !== null && this.progress.readyToPromote(manifested),
-        essence: this.cycle.essence,
-        essenceOpen: this.cycle.opened.has('train'),
+        sources: Object.fromEntries(this.sourceRows().map((r) => [r.id, { value: r.total, level: r.level }])),
       },
       realDt,
     )

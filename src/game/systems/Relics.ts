@@ -1,3 +1,4 @@
+import { AUTO_PICKUP_RADIUS } from '../../progress/Conveniences'
 import * as THREE from 'three'
 
 import { type God, godDef, isRelicId, relicDef, type RelicId } from '../../relics/data'
@@ -94,8 +95,10 @@ export class RelicSystem {
   salvage(id: string): boolean {
     const { powers, hud, bus, map, build } = this.ctx
     const realm = map.region.realm ?? (build.chosen ? godDef(build.chosen).realm : 'norse')
+    const item = powers.loadout.gear.get(id)
     const done = powers.salvage(id, realm === 'hidden' ? 'norse' : realm)
-    if (!done) return false
+    if (!done || !item) return false
+    bus.emit('gearSalvaged', { item })
     if (done.slot >= 0) this.changed(done.change, false)
     hud.showToast(`분해 · ${materialName(done.material)} ×${done.count}`)
     bus.emit('progressChanged', {})
@@ -110,8 +113,15 @@ export class RelicSystem {
     const { powers, hud, bus } = this.ctx
     if (gear) {
       powers.loadout.addGear(gear)
-      hud.showToast(gearName(gear))
       bus.emit('gearPicked', { item: gear })
+      // 자동 분해 (E14-05): 흔함 등급이고 그 부위 칸이 이미 차 있으면 바로 재료로
+      const filled = powers.loadout.slots.every((s, i) => !powers.loadout.fits(id, i) || s !== null)
+      if (this.ctx.conveniences.salvaging && gear.grade === 'common' && filled) {
+        powers.loadout.bag.push(id)
+        this.salvage(id)
+        return
+      }
+      hud.showToast(gearName(gear))
       this.equip(id, true)
     } else if (!isMythRelic(id)) {
       powers.loadout.addMaterial(id)
@@ -139,7 +149,15 @@ export class RelicSystem {
     this.lastWalk.set(position.x, position.z)
 
     if (combat.alive) {
-      const picked = pickups.update(dt, position.x, position.z, (id) => !powers.loadout.has(id))
+      const conv = this.ctx.conveniences
+      const picked = pickups.update(
+        dt,
+        position.x,
+        position.z,
+        (id) => !powers.loadout.has(id),
+        // 편의 자동화 (E14-05): 둘레 장비는 걸어가지 않아도, 재료 유물은 어디서나
+        (id, gear) => (gear ? (conv.has('autoPickup') ? AUTO_PICKUP_RADIUS : 0) : !isMythRelic(id) && conv.has('autoMaterials') ? Infinity : 0),
+      )
       for (const { id, gear } of picked) this.take(id, gear)
       powers.update(dt, skills)
     } else {
@@ -172,6 +190,10 @@ export class RelicSystem {
     combat.divineScale = 1 + stats.ultCharge
     skills.area = 1 + stats.areaSize
     this.ctx.powers.echoes.list = build.echoes
+    const awakening = this.ctx.powers.awakening
+    awakening.levels = build.awakening
+    awakening.resonance = build.resonance
+    awakening.maxHp = build.maxHp
   }
 
   /** 유물을 끼운다. announce가 false면 발현 연출 없이 (불러오기·점검용) */

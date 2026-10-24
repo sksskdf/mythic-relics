@@ -1,5 +1,6 @@
 import type { Build } from '../build/Build'
-import type { Cycle } from '../progress/Cycle'
+import type { Conveniences } from '../progress/Conveniences'
+import type { ThreatProgress } from '../progress/Threat'
 import type * as THREE from 'three'
 
 import type { Wardrobe } from '../looks/outfit'
@@ -54,8 +55,10 @@ export interface GameContext {
   readonly pickups: Pickups
   readonly progress: ClassProgress
   readonly drops: DropTable
-  /** 순환 성장: 원천 결정, 단련, 윤회 (E4.5) */
-  readonly cycle: Cycle
+  /** 세계 위협 단계와 원천 숙련 (E14-03·04) */
+  readonly threat: ThreatProgress
+  /** 편의 자동화 (E14-05) */
+  readonly conveniences: Conveniences
   /** 외형 보관함 (얻은 외형, 칸마다 고른 것) */
   readonly wardrobe: Wardrobe
   /** 빌드 상태: 열린 신화·고른 신화·장비·원천 → 능력치 (E11-04) */

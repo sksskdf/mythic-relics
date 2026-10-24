@@ -10,6 +10,7 @@ import type { BasicHit, RelicEffect, SkillContext } from '../skills/Skill'
 import type { CombatTarget } from './PlayerCombat'
 import { ClassPassives } from '../skills/ClassPassives'
 import { MythEchoes } from '../skills/MythEchoes'
+import { SourceAwakening } from '../skills/SourceAwakening'
 import { createUltimate, type Ultimate } from '../skills/Ultimate'
 import { type HudSlot, SKILL_SLOTS } from '../ui/Hud'
 import { pixelIcon } from '../ui/pixelIcon'
@@ -35,6 +36,8 @@ export class RelicPowers {
   readonly classPassives: ClassPassives
   /** 상시 효과의 메아리: 고르지 않은 열린 신화들 (src/skills/MythEchoes.ts) */
   readonly echoes: MythEchoes
+  /** 원천 각성 (src/skills/SourceAwakening.ts, E14-02) */
+  readonly awakening: SourceAwakening
   state: LoadoutState
   private readonly icons = new Map<RelicId, string>()
 
@@ -43,6 +46,7 @@ export class RelicPowers {
     this.state = this.loadout.state
     this.classPassives = new ClassPassives(fx)
     this.echoes = new MythEchoes(fx)
+    this.awakening = new SourceAwakening(fx)
   }
 
   /** 지금 발현한 신의 궁극기 (발현하지 않았으면 null) */
@@ -154,6 +158,7 @@ export class RelicPowers {
     for (const u of this.ultimates.values()) u.update(dt, ctx)
     this.classPassives.update(dt, ctx)
     this.echoes.update(dt, ctx)
+    this.awakening.update(dt, ctx)
   }
 
   /** 기본 공격이 맞았다. (연타 연동: 묠니르, 다음 타격 강화: 메긴교르드) */
@@ -164,11 +169,13 @@ export class RelicPowers {
   /** 적을 쓰러뜨렸다. (처치 연동: 메긴교르드) */
   onKill(target: CombatTarget, ctx: SkillContext): void {
     for (const effect of this.effects) effect?.onKill?.(target, ctx)
+    this.awakening.onKill(target, ctx)
   }
 
   /** 주인공이 걸었다. (이동 연동: 변신의 가면) */
   onWalk(distance: number, ctx: SkillContext): void {
     for (const effect of this.effects) effect?.onWalk?.(distance, ctx)
+    this.awakening.onWalk(distance, ctx)
   }
 
   /** 맞기 직전에 유물이 끼어들 기회를 준다. (피격 연동: 야른그레이프르) */
@@ -177,7 +184,7 @@ export class RelicPowers {
     for (const effect of this.effects) {
       if (effect?.beforeHeroHit) result = effect.beforeHeroHit(result, fromX, fromZ, ctx)
     }
-    return result
+    return result > 0 ? this.awakening.beforeHeroHit(result, ctx) : result
   }
 
   /** HUD 칸 넷: 낀 유물만 칸 순서대로 (충전이 보이는 것은 유물뿐이다). slot은 장비 칸 번호 */

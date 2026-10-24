@@ -121,6 +121,15 @@ export class World {
     this.travel = { to, at: arrivalSpot(to, this.region.id), t: 0, switched: false }
   }
 
+  /** 성소 워프 (E14-05): 그 지역의 성소(마을이면 시작점)로 암전과 함께 바로 간다 */
+  warpTo(id: string): boolean {
+    const to = this.regions[id]
+    if (!to || this.travel || this.parts.legend.active) return false
+    this.parts.orders.clear()
+    this.travel = { to, at: to.sanctuary ? { x: to.sanctuary.x, z: to.sanctuary.z } : to.spawn, t: 0, switched: false }
+    return true
+  }
+
   /** 출구 밟기와 넘어가는 동안의 암전 (실제 시간으로 흐른다) */
   update(realDt: number): void {
     const travel = this.travel
