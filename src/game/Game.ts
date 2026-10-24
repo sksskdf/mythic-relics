@@ -102,7 +102,7 @@ const CHOOSE_NEAR_SANCTUARY = 6
 export interface PlayEvent {
   /** 게임 시간 (초) */
   t: number
-  type: 'relic' | 'manifest' | 'open' | 'forge' | 'gear' | 'kill' | 'bossKill' | 'death' | 'legendStart' | 'legendFail' | 'promote' | 'hurt' | 'threat'
+  type: 'relic' | 'manifest' | 'open' | 'forge' | 'gear' | 'kill' | 'bossKill' | 'death' | 'legendStart' | 'legendFail' | 'promote' | 'hurt' | 'threat' | 'region'
   detail?: string
 }
 
@@ -545,6 +545,7 @@ export class Game {
     bus.on('giantKilled', ({ giant }) => record(giant.spec.boss ? 'bossKill' : 'kill', giant.spec.boss))
     bus.on('heroHurt', ({ damage }) => record('hurt', String(Math.round(damage))))
     bus.on('threatChanged', ({ level }) => record('threat', String(level)))
+    bus.on('regionEntered', ({ id }) => record('region', id))
     bus.on('heroDied', () => record('death'))
     bus.on('legendStarted', () => record('legendStart'))
     bus.on('legendFailed', () => record('legendFail'))
