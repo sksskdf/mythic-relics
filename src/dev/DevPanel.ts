@@ -214,18 +214,24 @@ export class DevPanel {
         }),
       ),
       row(button('전설 시작', () => this.startLegend())),
-      // 순환 성장 (E4.5)
+      // 원천 각성·위협 단계·편의 (E14)
       row(
-        button('결정 +1000', () => {
-          for (const k of ['flame', 'hunt', 'wind', 'stone'] as const) g.cycle.gain(k, 1000 / g.cycle.gainScale(k) || 0)
+        button('위협 단계 열기', () => {
+          g.threat.unlocked = Math.min(10, g.threat.unlocked + 1)
           g.menu.refresh()
         }),
-        button('윤회 +1', () => {
-          g.cycle.rebirths += 1
-          g.cycle.ash += 5
+        button('경험 +500', () => {
+          g.threat.gainBattle(500)
           g.menu.refresh()
         }),
-        button('종말 보스', () => g.cycleSystem.summonDoom()),
+        button('숙련 +5', () => {
+          for (const k of ['flame', 'hunt', 'wind', 'stone'] as const) g.threat.mastery[k] += 5
+          g.menu.refresh()
+        }),
+        button('편의 모두', () => {
+          for (const id of ['autoPickup', 'autoSalvage', 'autoMaterials', 'quickChoose', 'warp'] as const) g.conveniences.open.add(id)
+          g.menu.refresh()
+        }),
       ),
     )
   }

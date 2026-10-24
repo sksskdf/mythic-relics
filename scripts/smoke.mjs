@@ -232,17 +232,19 @@ try {
   if (!myth.includes('상시 효과') || !myth.includes('추가 효과') || !myth.includes('고른 신화')) throw new Error(`정보 화면: 신화 카드가 모자랍니다 (${myth.slice(0, 60)})`)
   await page.keyboard.press('Escape')
   if (await page.evaluate(() => window.__game.paused)) throw new Error('정보 화면: 닫았는데 게임이 멈춰 있습니다.')
-  // 순환 탭: 결정이 있으면 단련할 수 있다
+  // 원천 탭 (E14): 각성 카드 넷, 다음 위협 단계가 열리면 마을에서 원천 갈래를 골라 오른다
   await page.evaluate(() => {
-    window.__game.cycle.essence.flame = 100
-    window.__game.cycle.opened.add('train')
+    window.__game.threat.unlocked = 2
+    window.__game.threat.gainBattle(250)
   })
   await page.click('.menu-button')
   await page.locator('.menu__tab').nth(1).click()
-  await page.locator('.menu-cycle__train').first().click()
-  if ((await page.evaluate(() => window.__game.cycle.training.flame)) !== 1) throw new Error('순환 탭: 불꽃 단련이 오르지 않았습니다.')
+  if ((await page.locator('.menu-src__source').count()) !== 4) throw new Error('원천 탭: 각성 카드가 넷이 아닙니다.')
+  await page.locator('.menu-src__card').first().click()
+  const climbed = await page.evaluate(() => ({ level: window.__game.threat.level, flame: window.__game.threat.mastery.flame }))
+  if (climbed.level !== 2 || climbed.flame !== 2) throw new Error(`원천 탭: 2단계로 오르며 불꽃 숙련 +2가 아닙니다 (${JSON.stringify(climbed)})`)
   await page.keyboard.press('Escape')
-  console.log('순환 확인: 결정으로 불꽃 단련 Lv1')
+  console.log('원천 확인: 각성 카드 넷, 경험 250을 불꽃에 부어 위협 2단계')
   console.log('정보 화면 확인: 상태 탭 능력치 8줄, 열면 멈춤, 가방에 넣기·다시 끼기와 미리 보기, 신화 탭, Esc로 닫기')
 
   // 일시 정지(E5): 창이 없을 때 Esc를 누르면 멈추고, 멈춘 동안 게임 시간이 흐르지 않는다.

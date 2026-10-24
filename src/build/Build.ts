@@ -1,6 +1,6 @@
 import type { RelicPowers } from '../game/RelicPowers'
 import type { ClassProgress } from '../myth/ClassProgress'
-import type { Cycle } from '../progress/Cycle'
+import type { ThreatProgress } from '../progress/Threat'
 import { type BuildInputs, type BuildState, computeBuild } from './BuildState'
 
 /**
@@ -8,11 +8,11 @@ import { type BuildInputs, type BuildState, computeBuild } from './BuildState'
  * 피해·능력치를 쓰는 곳(Damage, Relics, 정보 화면)은 여기서 값을 읽는다.
  */
 export class Build {
-  constructor(private readonly from: { powers: RelicPowers; progress: ClassProgress; cycle: Cycle }) {}
+  constructor(private readonly from: { powers: RelicPowers; progress: ClassProgress; threat: ThreatProgress }) {}
 
   /** 지금의 재료 */
   inputs(): BuildInputs {
-    const { powers, progress, cycle } = this.from
+    const { powers, progress, threat } = this.from
     const open = new Map<string, number>()
     for (const [god, record] of progress.records) if (record.level >= 1) open.set(god, record.level)
     return {
@@ -22,9 +22,8 @@ export class Build {
       // 일반 장비와, 대장간 유물이 바탕 장비에서 물려받은 수치 (원천 없음)
       gearItems: [...powers.loadout.wornGear, ...powers.loadout.wornInherited.map((s) => ({ stats: [s], source: { id: 'flame' as const, value: 0 } }))],
       stage: (id) => powers.loadout.stage(id),
-      mastery: (source) => progress.mastery(source),
+      sourceMastery: (s) => threat.mastery[s],
       promotions: progress.promotions,
-      cycle: { damage: cycle.damageScale, damageTaken: cycle.damageTakenScale, moveSpeed: cycle.moveSpeedScale, bonusHp: cycle.bonusHp },
     }
   }
 

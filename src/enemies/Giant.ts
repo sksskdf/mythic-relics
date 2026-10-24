@@ -107,6 +107,8 @@ export class Giant {
   blocked = 0
   /** 정예 배율 (E8-05): 피해 */
   damageScale = 1
+  /** 위협 단계 배율 (E14-03): 생명력·피해 */
+  private threat = { hp: 1, damage: 1 }
   /** 정예 종류 (없으면 보통) */
   elite: EliteKind | null = null
   private size = 1
@@ -152,6 +154,14 @@ export class Giant {
     return this.spec.radius * this.size
   }
 
+  /** 위협 단계 배율을 건다 (세울 때 한 번, 정예로 만들 때도 이어진다) */
+  applyThreat(scale: { hp: number; damage: number }): void {
+    this.threat = { ...scale }
+    this.damageScale = (this.elite ? ELITES[this.elite].damage : 1) * scale.damage
+    this.health.max = this.spec.hp * (this.elite ? ELITES[this.elite].hp : 1) * scale.hp
+    this.health.hp = this.health.max
+  }
+
   /** 정예로 만든다: 크고 단단하거나 사납거나 날래다. 발밑에 그 색 고리가 생긴다 */
   makeElite(kind: EliteKind): void {
     const def = ELITES[kind]
@@ -159,8 +169,8 @@ export class Giant {
     this.size = def.size
     this.speedScale = def.speed
     this.cooldownScale = def.cooldown
-    this.damageScale = def.damage
-    this.health.max = this.spec.hp * def.hp
+    this.damageScale = def.damage * this.threat.damage
+    this.health.max = this.spec.hp * def.hp * this.threat.hp
     this.health.hp = this.health.max
     this.collider.radius = this.radius
     this.rig.body.scale.setScalar(def.size)

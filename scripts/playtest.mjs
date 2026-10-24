@@ -2,7 +2,8 @@
 // 사용법: npm run build && node scripts/playtest.mjs [반복 횟수=3] [제한 시간(분)=45]
 // --gate 를 붙이면 승급하지 못했거나 오류가 난 판이 있을 때 실패로 끝난다. (CI)
 // --god=loki 를 붙이면 그 신 유물만 끼고 승급까지 간다.
-// --loops=N 을 붙이면 봇이 단련하고 윤회까지 하며, 윤회 N번이 될 때까지 회차마다 걸린 시간을 잰다. (순환 성장 곡선)
+// --threat=N 을 붙이면 2단계 뒤에도 이어서 보스를 잡고 위협 단계를 올리며, N단계에 오를 때까지 단계마다 시간·쓰러짐·피격을 잰다 (E14-07).
+// --source=flame 을 붙이면 원천 갈래를 그 원천에만 붓는다 (없으면 장비에 가장 많은 원천).
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { chromium } from 'playwright-core'
@@ -11,7 +12,8 @@ const args = process.argv.slice(2).filter((a) => !a.startsWith('--'))
 const GATE = process.argv.includes('--gate')
 const RUNS = Number(args[0] ?? 3)
 const LIMIT_MIN = Number(args[1] ?? 45)
-const LOOPS = Number(process.argv.find((a) => a.startsWith('--loops='))?.slice(8) ?? 0)
+const THREAT = Number(process.argv.find((a) => a.startsWith('--threat='))?.slice(9) ?? 0)
+const SOURCE = process.argv.find((a) => a.startsWith('--source='))?.slice(9) ?? null
 /** --god=loki 처럼 붙이면 봇이 그 신 유물만 끼고 승급까지 간다 (E6-08) */
 const GOD = process.argv.find((a) => a.startsWith('--god='))?.slice(6) ?? null
 /** --relics=kusanagi,totsuka,... 처럼 붙이면 그 유물을 끼고(발현한 채) 시작해 제한 시간 동안 처치 속도를 잰다 (클래스 비교) */
@@ -57,7 +59,7 @@ try {
     page.on('pageerror', (e) => errors.push(e.message))
     await page.goto(URL)
     await page.waitForFunction(() => window.__autoplay && window.__game.frame > 2, null, { timeout: 30000 })
-    if (LOOPS > 0) await page.evaluate(() => (window.__autoplay.cycle = true))
+    if (THREAT > 0) await page.evaluate((source) => Object.assign(window.__autoplay, { climb: true, source }), SOURCE)
     if (GOD) await page.evaluate((god) => (window.__autoplay.god = god), GOD)
     if (REGION) await page.evaluate(() => (window.__autoplay.stay = true))
     let done = false
@@ -65,11 +67,11 @@ try {
       const state = await page.evaluate(() => {
         window.__autoplay.run(30)
         const g = window.__game
-        return { t: g.time, promoted: g.progress.promotions >= 1, rebirths: window.__autoplay.rebirths.length }
+        return { t: g.time, promoted: g.progress.promotions >= 1, reached: g.threat.reached }
       })
-      done = (RELICS ? false : LOOPS > 0 ? state.rebirths >= LOOPS : state.promoted) || state.t > LIMIT_MIN * 60
+      done = (RELICS ? false : THREAT > 0 ? state.reached >= THREAT : state.promoted) || state.t > LIMIT_MIN * 60
     }
-    const rebirths = await page.evaluate(() => [...window.__autoplay.rebirths])
+    const climbs = await page.evaluate(() => [...window.__autoplay.climbs])
     // 끝났을 때 봇이 어디서 무엇을 하고 있었나 (멈춤을 찾을 때)
     const last = await page.evaluate(() => {
       const g = window.__game
@@ -105,7 +107,14 @@ try {
       damageTaken: log.filter((e) => e.type === 'hurt').reduce((s, e) => s + Number(e.detail), 0),
       legendFails: count('legendFail'),
       end: log.at(-1)?.t,
-      rebirths,
+      climbs,
+      // 위협 단계마다 (그 단계에 오른 뒤 다음 단계에 오르기까지): 걸린 시간, 처치, 쓰러짐, 피격
+      threat: [0, ...climbs].map((from, i) => {
+        const to = climbs[i] ?? log.at(-1)?.t ?? from
+        const inside = (e) => e.t >= from && e.t < to
+        return { level: i + 1, time: Math.round(to - from), kills: log.filter((e) => e.type === 'kill' && inside(e)).length, deaths: log.filter((e) => e.type === 'death' && inside(e)).length, hurt: log.filter((e) => e.type === 'hurt' && inside(e)).length }
+      }),
+      sources: await page.evaluate(() => window.__game.sourceRows()),
       last,
       errors,
       log,
@@ -115,7 +124,7 @@ try {
       `#${run} 2단계 ${fmt(result.promote)} | 첫 신화 ${fmt(result.manifest)} | 신화 둘 ${fmt(result.opened[1]?.t)} (연 신화 ${result.opened.length}: ${result.opened.map((o) => o.god).join(', ')}) | 거인 왕 ${fmt(result.bossKill)} | 장비 ${result.gear}, 첫 제작 ${fmt(result.forged[0]?.t)}${result.forged[0] ? ` (${result.forged[0].what})` : ''} | ` +
         `유물 ${Object.entries(result.relics).map(([k, v]) => `${k} ${fmt(v)}`).join(', ')} | ` +
         `처치 ${result.kills}(첫 신화 뒤 분당 ${result.killRate}), 쓰러짐 ${result.deaths}, 피격 ${result.hurt}, 전설 실패 ${result.legendFails}` +
-        (LOOPS > 0 ? ` | 윤회 ${rebirths.map((t, i) => fmt(t - (rebirths[i - 1] ?? 0))).join(' → ')}` : '') +
+        (THREAT > 0 ? ` | 위협 ${result.threat.map((x) => `${x.level}단계 ${fmt(x.time)}·쓰러짐 ${x.deaths}·피격 ${x.hurt}`).join(' → ')} | 원천 ${result.sources.map((x) => `${x.id} ${x.total}(${x.level})`).join(' ')}` : '') +
         (errors.length ? ` | 오류 ${errors.length}` : ''),
     )
     await page.close()

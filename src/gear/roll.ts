@@ -33,12 +33,12 @@ function round(kind: StatKind, value: number): number {
   return Math.round(value * 1000) / 1000
 }
 
-/** 등급을 굴린다. min보다 낮으면 min으로 올린다 (보스) */
-export function rollGrade(rng: () => number, min: Grade = 'common', data: GearData = GEAR): Grade {
+/** 등급을 굴린다. min보다 낮으면 min으로 올린다 (보스). chances가 있으면 데이터 확률 대신 (위협 단계, E14-03) */
+export function rollGrade(rng: () => number, min: Grade = 'common', data: GearData = GEAR, chances?: Readonly<Record<Grade, number>>): Grade {
   let r = rng()
   let grade: Grade = 'common'
   for (const g of GRADES) {
-    r -= data.grades[g].chance
+    r -= chances?.[g] ?? data.grades[g].chance
     grade = g
     if (r < 0) break
   }
@@ -46,9 +46,9 @@ export function rollGrade(rng: () => number, min: Grade = 'common', data: GearDa
 }
 
 /** 장비를 굴린다: 부위(없으면 무작위) → 등급 → 수치(부위 목록에서 겹치지 않게) → 원천 → 영웅이면 고유 효과. 같은 난수면 같은 장비 */
-export function rollGear(rng: () => number, options: { part?: GearPart; grade?: Grade; minGrade?: Grade } = {}, data: GearData = GEAR): GearItem {
+export function rollGear(rng: () => number, options: { part?: GearPart; grade?: Grade; minGrade?: Grade; chances?: Readonly<Record<Grade, number>> } = {}, data: GearData = GEAR): GearItem {
   const part = options.part ?? pick(rng, GEAR_PARTS)
-  const grade = options.grade ?? rollGrade(rng, options.minGrade, data)
+  const grade = options.grade ?? rollGrade(rng, options.minGrade, data, options.chances)
   const g = data.grades[grade]
   const pool = [...data.parts[part].stats]
   const stats: GearItem['stats'] = []

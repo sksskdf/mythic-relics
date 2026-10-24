@@ -32,10 +32,8 @@ export interface HudState {
   xpColor: string
   /** 왼쪽 위 초상: 발현한 클래스. 발현하지 않았으면 null */
   portrait: { name: string; title: string; color: string; level: number } | null
-  /** 원천 결정 보유량 (불꽃·사냥·바람·바위) */
-  essence: Readonly<Record<string, number>>
-  /** 순환이 열렸는가 (첫 발현 뒤). 그 전에는 결정 수를 감춘다 */
-  essenceOpen: boolean
+  /** 원천 수치 (장비의 합 + 원천 숙련)와 각성 단계 0~3 (E14-02). 모두 0이면 감춘다 */
+  sources: Readonly<Record<string, { value: number; level: number }>>
   /** 가호로 붙은 신들 */
   blessings: readonly { name: string; color: string }[]
   /** 경험치가 가득 차 승급 전설에 들어갈 수 있다 */
@@ -71,7 +69,7 @@ export class Hud {
   private readonly chips: HTMLElement
   private statusKey = ''
   private essenceBox!: HTMLElement
-  private readonly essenceEls = new Map<string, { cell: HTMLElement; count: HTMLElement; shown: string }>()
+  private readonly essenceEls = new Map<string, { cell: HTMLElement; count: HTMLElement; shown: string; level: number }>()
   private statusTip = ''
   private readonly tip: HTMLElement
   private readonly ultimate: HTMLElement
@@ -121,7 +119,7 @@ export class Hud {
     const gems = this.el('div', 'ui-gems ui-gems--small', side)
     for (let i = 0; i < 4; i++) this.gems.push(this.el('i', '', gems))
     this.chips = this.el('div', 'hud__chips', side)
-    // 원천 결정: 문장과 수 넷
+    // 원천: 문장과 수 넷, 각성 단계만큼 문장이 밝아진다
     const essence = this.el('div', 'hud__essence', this.root)
     this.essenceBox = essence
     for (const id of ['flame', 'hunt', 'wind', 'stone']) {
@@ -129,9 +127,9 @@ export class Hud {
       cell.append(this.img(sourceSigil(id)))
       const count = this.el('span', '', cell)
       count.textContent = '0'
-      this.essenceEls.set(id, { cell, count, shown: '0' })
+      this.essenceEls.set(id, { cell, count, shown: '0', level: 0 })
     }
-    this.tipOn(essence, '원천 결정\n불꽃은 때릴수록, 사냥은 쓰러뜨릴수록, 바람은 걸을수록, 바위는 맞을수록 모인다. 정보 화면 › 순환에서 단련에 쓴다.')
+    this.tipOn(essence, '원천\n장비에 붙은 원천 수치의 합. 5·10·20을 넘을 때마다 그 원천이 한 단계씩 각성한다. 자세한 것은 정보 화면 › 원천.')
 
     this.banner = this.el('div', 'hud__banner', this.root)
     this.card = this.el('div', 'hud__card', this.root)
@@ -197,9 +195,15 @@ export class Hud {
     this.life.style.setProperty('--trail', this.lifeTrailRatio.toFixed(3))
     this.life.classList.toggle('is-low', state.life <= 0.3)
     this.updateStatus(state)
-    this.essenceBox.hidden = !state.essenceOpen
+    this.essenceBox.hidden = Object.values(state.sources).every((s) => s.value <= 0)
     for (const [id, el] of this.essenceEls) {
-      const text = shortNumber(state.essence[id] ?? 0)
+      const source = state.sources[id] ?? { value: 0, level: 0 }
+      if (source.level !== el.level) {
+        el.cell.classList.remove(`is-awake-${el.level}`)
+        el.level = source.level
+        if (source.level > 0) el.cell.classList.add(`is-awake-${source.level}`)
+      }
+      const text = shortNumber(source.value)
       if (text === el.shown) continue
       el.shown = text
       el.count.textContent = text

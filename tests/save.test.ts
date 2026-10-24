@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { parseCycle } from '../src/progress/Cycle'
+import { parseConveniences } from '../src/progress/Conveniences'
+import { parseThreat } from '../src/progress/Threat'
 import { parseSave, SAVE_VERSION, type SaveData } from '../src/save/SaveData'
 
 const sample: SaveData = {
@@ -21,7 +22,8 @@ const sample: SaveData = {
     choices: { weapon: 'shortSword', cape: null },
   },
   body: { skin: 2, hair: 1, cloth: 3 },
-  cycle: parseCycle({ essence: { flame: 12.5 }, training: { wind: 2 }, rebirths: 1 }),
+  threat: parseThreat({ level: 2, unlocked: 3, reached: 2, mastery: { flame: 2 }, battle: 40 }),
+  conveniences: parseConveniences({ counters: { pickups: 5 }, open: ['autoPickup'] }),
   region: { id: 'olympus', x: 3.5, z: -12 },
   scenes: ['opening'],
 }
@@ -105,6 +107,19 @@ describe('저장 데이터', () => {
     expect(data?.looks.unlocked).toEqual(expect.arrayContaining(['shortSword', 'mjolnirHammer', 'megingjordBelt', 'ironGauntlets', 'thorHelm', 'thorCape']))
     expect(data?.looks.unlocked).not.toContain('lokiMaskFace')
     expect(data?.looks.choices).toEqual({})
+  })
+
+  it('v6: 옛 순환 성장은 재료로 바꿔 주고, 위협 단계는 1단계에서 시작한다 (E14-06)', () => {
+    const { threat: _t, conveniences: _c, ...rest } = sample
+    const v5 = { ...rest, version: 5, materials: { frostShard: 2 }, cycle: { essence: { flame: 250, hunt: 80.5, wind: 0, stone: 70 }, ash: 7 } }
+    const data = parseSave(JSON.stringify(v5))
+    expect(data?.version).toBe(SAVE_VERSION)
+    // 결정 400.5 → 서리 조각 4, 재 7 → 거인 왕의 심장 2
+    expect(data?.materials).toEqual({ frostShard: 6, giantHeart: 2 })
+    expect(data?.threat).toEqual({ level: 1, unlocked: 1, reached: 1, cleared: {}, mastery: { flame: 0, hunt: 0, wind: 0, stone: 0 }, battle: 0 })
+    expect(data?.conveniences.open).toEqual([])
+    // 위협 단계는 열린 단계를 넘지 않는다
+    expect(parseSave(JSON.stringify({ ...sample, threat: { level: 9, unlocked: 3, reached: 5 } }))?.threat).toMatchObject({ level: 3, unlocked: 3, reached: 3 })
   })
 
   it('기본 모습은 범위 밖이거나 없으면 기본값', () => {

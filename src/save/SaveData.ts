@@ -6,7 +6,8 @@ import { isMythRelic } from '../gear/mythRelic'
 import { type GearItem, parseGearItem } from '../gear/roll'
 import { hiddenUnlocked, legacyManifest } from '../myth/manifest'
 import { relicGods } from '../relics/model'
-import { type CycleData, parseCycle } from '../progress/Cycle'
+import { type ConvenienceData, parseConveniences } from '../progress/Conveniences'
+import { parseThreat, type ThreatData } from '../progress/Threat'
 import { type BodyLook, parseBody } from '../looks/body'
 import { isLookId, lookDef, type LookSlot, STARTING_LOOKS, WARDROBE_SLOTS } from '../looks/catalog'
 import type { LookChoice } from '../looks/outfit'
@@ -21,8 +22,13 @@ import { GODS, godDef, type God, isRelicId, relicDef, type RelicId } from '../re
  *   옛 저장은 가진 유물의 신화를 1단계로 열고(히든은 유물 수), 고른 신화는 1차 발현 규칙으로 정한다
  * - v5: 장비 (E13-06). 칸 7(유물 id 또는 장비 id), 일반 장비, 유물 단계, 재료.
  *   옛 저장의 재료가 된 유물(E13-03)은 재료로 옮기고, 신화의 유물은 1단계로 그 부위 칸에 다시 낀다
+ * - v6: 위협 단계·원천 숙련(E14-03·04)과 편의 자동화(E14-05). 순환 성장(E4.5)을 없앴다.
+ *   옛 저장의 원천 결정은 100개마다 서리 조각 하나, 윤회의 재는 셋마다 거인 왕의 심장 하나로 바꿔 준다 (E14-06)
  */
-export const SAVE_VERSION = 5
+export const SAVE_VERSION = 6
+
+/** 옛 순환 성장 → 재료 (E14-06) */
+export const CYCLE_REFUND = { essencePer: 100, essenceTo: 'frostShard', essenceMax: 300, ashPer: 3, ashTo: 'giantHeart', ashMax: 20 } as const
 
 export interface SaveData {
   version: typeof SAVE_VERSION
@@ -52,8 +58,10 @@ export interface SaveData {
   looks: { unlocked: string[]; choices: Partial<Record<LookSlot, LookChoice>> }
   /** 처음에 고른 기본 모습. 옛 저장에는 없어서 기본값 */
   body: BodyLook
-  /** 순환 성장 (E4.5). 옛 저장에는 없어서 처음 상태 */
-  cycle: CycleData
+  /** 세계 위협 단계와 원천 숙련 (E14). 옛 저장에는 없어서 1단계 */
+  threat: ThreatData
+  /** 편의 자동화 (E14-05) */
+  conveniences: ConvenienceData
   /** 지금 있는 지역과 자리 (E7). 옛 저장이거나 모르는 지역이면 null (마을에서 시작) */
   region: { id: string; x: number; z: number } | null
   /** 본 대화 장면 (E12-10). 옛 저장에는 없어서 빈 목록 */
@@ -79,7 +87,7 @@ export function parseSave(text: string | null): SaveData | null {
   }
   if (typeof raw !== 'object' || raw === null) return null
   const data = raw as Record<string, unknown>
-  if (data.version !== SAVE_VERSION && ![1, 2, 3, 4].includes(data.version as number)) return null
+  if (data.version !== SAVE_VERSION && ![1, 2, 3, 4, 5].includes(data.version as number)) return null
   const old = (data.version as number) < 5
 
   // 일반 장비 (v5)
@@ -95,6 +103,7 @@ export function parseSave(text: string | null): SaveData | null {
       if (id.length <= 40 && typeof n === 'number' && n >= 1) materials[id] = Math.min(9999, Math.round(n))
     }
   }
+  if ((data.version as number) < 6) refundCycle(data.cycle, materials)
 
   const seen = new Set<string>()
   /** 칸·가방·땅에 들어갈 수 있는 것: 신화의 유물이나 가진 일반 장비, 한 번씩만 */
@@ -156,10 +165,24 @@ export function parseSave(text: string | null): SaveData | null {
     divine: num(data.divine, 0, 1, 0),
     looks: data.version === 1 ? migrateLooks(legacySlots(data.slots), legacySlots(data.bag) as RelicId[], classes) : parseLooks(data.looks),
     body: parseBody(data.body),
-    cycle: parseCycle(data.cycle),
+    threat: parseThreat(data.threat),
+    conveniences: parseConveniences(data.conveniences),
     region: parseRegion(data.region),
     scenes: Array.isArray(data.scenes) ? [...new Set(data.scenes.filter((s): s is string => typeof s === 'string' && s.length < 40))] : [],
   }
+}
+
+/** v5 이하 → v6: 원천 결정과 윤회의 재를 재료로 바꿔 준다 */
+function refundCycle(raw: unknown, materials: Record<string, number>): void {
+  if (typeof raw !== 'object' || raw === null) return
+  const o = raw as Record<string, unknown>
+  const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : 0)
+  const essence = typeof o.essence === 'object' && o.essence !== null ? Object.values(o.essence as Record<string, unknown>).reduce<number>((a, v) => a + n(v), 0) : 0
+  const r = CYCLE_REFUND
+  const shards = Math.min(r.essenceMax, Math.floor(essence / r.essencePer))
+  const hearts = Math.min(r.ashMax, Math.floor(n(o.ash) / r.ashPer))
+  if (shards > 0) materials[r.essenceTo] = Math.min(9999, (materials[r.essenceTo] ?? 0) + shards)
+  if (hearts > 0) materials[r.ashTo] = Math.min(9999, (materials[r.ashTo] ?? 0) + hearts)
 }
 
 /** 물려받은 수치: 신화의 유물에, 아는 수치 종류만 */

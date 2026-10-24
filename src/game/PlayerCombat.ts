@@ -59,6 +59,10 @@ export class PlayerCombat {
   damageScale = 1
   /** 기본 공격 빠르기 배율 (발현 패시브) */
   attackSpeed = 1
+  /** 잠깐 붙는 공격 속도 배율 (사냥 각성) */
+  boostAttackSpeed = 1
+  /** 서 있을수록 받는 피해 배율 (바위 각성) */
+  braceScale = 1
   /** 공격 모션 (E6-10). 발현한 신의 무기를 따른다 */
   style: AttackStyle = 'blade'
   /** 내 공격의 넉백 배율, 내가 받는 피해·넉백 배율 (유물 지속 효과) */
@@ -121,7 +125,7 @@ export class PlayerCombat {
     else if (!this.target?.alive || !this.inReach(this.target)) this.target = this.nearest(enemies)
     if (this.target) this.hero.face(angleTo(position.x, position.z, this.target.x, this.target.z))
 
-    for (const event of this.combo.update(dt * this.attackSpeed, this.target !== null)) {
+    for (const event of this.combo.update(dt * this.attackSpeed * this.boostAttackSpeed, this.target !== null)) {
       if (event.type === 'end') continue
       const swing = this.combo.swings[event.index]!
       const strong = event.index === this.combo.swings.length - 1
@@ -143,7 +147,7 @@ export class PlayerCombat {
   takeHit(damage: number, fromX: number, fromZ: number, knockback: number): number {
     if (!this.alive || this.invulnerable > 0 || this.godMode) return 0
     const low = this.health.ratio < LOW_HP ? this.lowHpTakenScale : 1
-    const dealt = this.health.damage(damage * this.damageTakenScale * low)
+    const dealt = this.health.damage(damage * this.damageTakenScale * this.braceScale * low)
     knockback *= this.knockbackTakenScale
     this.invulnerable = INVULNERABLE_AFTER_HIT
     this.sinceHurt = 0

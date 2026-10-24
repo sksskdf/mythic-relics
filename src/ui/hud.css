@@ -477,7 +477,7 @@ button.hud__slot--empty {
   100% { opacity: 0; }
 }
 
-/* 원천 결정: 왼쪽 위 상태 아래 */
+/* 원천 수치: 왼쪽 위 상태 아래 */
 .hud__essence {
   position: absolute;
   left: calc(var(--unit) * 2 + env(safe-area-inset-left, 0px));
@@ -510,6 +510,17 @@ button.hud__slot--empty {
 .hud__essence[hidden] {
   display: none;
 }
+/* 각성 (E14-02): 깨지 않은 원천은 흐리고, 단계가 오를수록 문장이 빛난다 */
+.hud__essence-cell {
+  opacity: 0.6;
+}
+.hud__essence-cell[class*='is-awake-'] {
+  opacity: 1;
+  color: var(--c-gold-soft);
+}
+.hud__essence-cell.is-awake-1 img { filter: drop-shadow(0 0 1px #fff); }
+.hud__essence-cell.is-awake-2 img { filter: drop-shadow(0 0 2px #fff); }
+.hud__essence-cell.is-awake-3 img { filter: drop-shadow(0 0 3px #fff) drop-shadow(0 0 1px #fff); }
 
 /* 지역을 넘어갈 때의 암전 (E7-02) */
 .region-fade {

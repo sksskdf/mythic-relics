@@ -1,9 +1,10 @@
 import type { AttackStyle } from '../combat/styles'
+import { awakeningLevel } from '../data/awakening'
 import { type EchoTrigger, type MythAlways, STAT_KINDS, type StatKind } from '../data/mythAlways'
 import { SOURCE_IDS, type SourceId } from '../data/schema'
 import { relicSource } from '../gear/mythRelic'
-import { MASTERY_DAMAGE, PER_PROMOTION } from '../myth/ClassProgress'
-import { type God, godDef, relicDef, type RelicId, type Source } from '../relics/data'
+import { PER_PROMOTION } from '../myth/ClassProgress'
+import { type God, godDef, relicDef, type RelicId } from '../relics/data'
 import { type Modifiers, NO_MODIFIERS } from '../skills/Skill'
 
 /**
@@ -11,8 +12,7 @@ import { type Modifiers, NO_MODIFIERS } from '../skills/Skill'
  * 힘은 "열린 신화 + 고른 신화 + 장비 + 원천"을 모은 이 한 곳에서 계산한다.
  * - 고른 신화(지금은 발현한 신)는 추가 효과: 패시브·궁극기·공격 리듬
  * - 열린 신화는 모두 상시 효과(E12-03, DESIGN.md 4.2.1): 고르지 않은 신화의 메아리, 모든 열린 신화의 수치
- * - 장비 = 유물 칸, 원천 = 원천 숙련, 순환 성장 배율 (E14에서 없앰)
- * E13(일반 장비)·E14(원천 각성)에서 재료와 계산이 늘어난다.
+ * - 장비 = 유물과 일반 장비, 원천 = 장비의 원천 수치 (E14에서 각성)
  */
 
 /** 빌드 상태를 만드는 재료 */
@@ -27,12 +27,10 @@ export interface BuildInputs {
   gearItems?: readonly { stats: readonly { kind: StatKind; value: number }[]; source: { id: SourceId; value: number } }[]
   /** 유물 단계 (E13-03, 없으면 1) */
   stage?: (id: RelicId) => number
-  /** 원천 숙련 */
-  mastery: (source: Source) => number
+  /** 영구 원천 숙련 (E14-04): 장비의 원천 수치에 더해진다 */
+  sourceMastery?: (source: SourceId) => number
   /** 올린 개방 단계의 합 */
   promotions: number
-  /** 순환 성장 배율 (불꽃·바위·바람 단련) */
-  cycle: { damage: number; damageTaken: number; moveSpeed: number; bonusHp: number }
 }
 
 /** 기본 최대 생명 */
@@ -77,9 +75,9 @@ export interface BuildState {
   damageScale: number
   /** 장비한 유물들의 지속 효과 수치를 곱한 값 */
   modifiers: Modifiers
-  /** 순환 성장까지 곱한 받는 피해 배율 */
+  /** 받는 피해 배율 */
   damageTaken: number
-  /** 순환 성장까지 곱한 이동 속도 배율 */
+  /** 이동 속도 배율 */
   moveSpeed: number
   /** 공격 속도 배율 (고른 신화의 리듬) */
   attackSpeed: number
@@ -91,8 +89,12 @@ export interface BuildState {
   stats: Readonly<Record<StatKind, number>>
   /** 최대 생명 */
   maxHp: number
-  /** 원천 수치: 일반 장비와 유물(단계마다 +2~+5)의 합 (E14 각성의 재료) */
+  /** 원천 수치: 일반 장비와 유물(단계마다 +2~+5)의 합 + 원천 숙련 (E14) */
   sources: Readonly<Record<SourceId, number>>
+  /** 원천 각성 단계 0~3 (문턱 5/10/20, E14-02) */
+  awakening: Readonly<Record<SourceId, number>>
+  /** 공명: 네 원천 숙련의 최솟값 (E14-04). 모든 각성 효과가 그만큼 세진다 */
+  resonance: number
 }
 
 /** 장비한 유물들의 지속 효과 수치를 곱한다 */
@@ -132,27 +134,29 @@ export function computeBuild(inputs: BuildInputs): BuildState {
     const source = relicSource(id, inputs.stage?.(id) ?? 1)
     sources[source.id] += source.value
   }
+  for (const s of SOURCE_IDS) sources[s] += inputs.sourceMastery?.(s) ?? 0
+  const awakening = Object.fromEntries(SOURCE_IDS.map((s) => [s, awakeningLevel(sources[s])])) as Record<SourceId, number>
+  const resonance = Math.min(...SOURCE_IDS.map((s) => inputs.sourceMastery?.(s) ?? 0))
   let damageScale = (1 + inputs.promotions * PER_PROMOTION.damage) * (1 + stats.damage)
   if (god) {
     // 고른 신화의 패시브 (천둥의 신: 거인 특효)
     damageScale *= god.passive.damageScale
-    // 원천 숙련: 고른 신화와 같은 원천의 올린 단계만큼
-    damageScale *= 1 + inputs.mastery(god.source) * MASTERY_DAMAGE
   }
-  damageScale *= inputs.cycle.damage
   const modifiers = gearModifiers(inputs.gear)
   return {
     chosen,
     level: chosen ? (inputs.open.get(chosen) ?? 0) : 0,
     damageScale,
     modifiers,
-    damageTaken: modifiers.damageTaken * inputs.cycle.damageTaken * (1 + stats.damageTaken),
-    moveSpeed: modifiers.moveSpeed * inputs.cycle.moveSpeed * (1 + stats.moveSpeed),
+    damageTaken: modifiers.damageTaken * (1 + stats.damageTaken),
+    moveSpeed: modifiers.moveSpeed * (1 + stats.moveSpeed),
     attackSpeed: (god ? god.passive.attackSpeed : 1) * (1 + stats.attackSpeed),
     attack: god ? god.attack : 'blade',
     echoes,
     stats,
     sources,
-    maxHp: Math.round((BASE_HP + inputs.promotions * PER_PROMOTION.maxHp + inputs.cycle.bonusHp + stats.maxHp) * (1 + stats.maxHpPct)),
+    awakening,
+    resonance,
+    maxHp: Math.round((BASE_HP + inputs.promotions * PER_PROMOTION.maxHp + stats.maxHp) * (1 + stats.maxHpPct)),
   }
 }
