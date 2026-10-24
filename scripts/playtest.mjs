@@ -70,6 +70,12 @@ try {
       done = (RELICS ? false : LOOPS > 0 ? state.rebirths >= LOOPS : state.promoted) || state.t > LIMIT_MIN * 60
     }
     const rebirths = await page.evaluate(() => [...window.__autoplay.rebirths])
+    // 끝났을 때 봇이 어디서 무엇을 하고 있었나 (멈춤을 찾을 때)
+    const last = await page.evaluate(() => {
+      const g = window.__game
+      const p = g.hero.object.position
+      return { t: Math.round(g.time), region: g.region.id, x: Math.round(p.x), z: Math.round(p.z), hp: Math.round(g.combat.health.ratio * 100) / 100, moving: g.hero.isMoving, enemies: g.encounter.alive.length, chosen: g.powers.manifested, ready: g.progress.readyToPromote(g.powers.manifested ?? 'thor') }
+    })
     const log = await page.evaluate(() => window.__game.log)
     const first = (type, detail) => log.find((e) => e.type === type && (detail === undefined || e.detail === detail))?.t
     const count = (type) => log.filter((e) => e.type === type).length
@@ -99,6 +105,7 @@ try {
       legendFails: count('legendFail'),
       end: log.at(-1)?.t,
       rebirths,
+      last,
       errors,
       log,
     }
