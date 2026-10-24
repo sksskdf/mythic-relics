@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { allRecipes, craft, missing, nextRecipe, recipeFor, stageRelics } from '../src/gear/forge'
+import { allRecipes, craft, missing, nextRecipe, recipeFor, salvage, SALVAGE, stageRelics } from '../src/gear/forge'
 import { Loadout } from '../src/gear/Loadout'
 import { MATERIALS } from '../src/gear/materials'
 import { relicPart } from '../src/gear/mythRelic'
@@ -69,4 +69,17 @@ describe('대장간 제작법 (E13-05)', () => {
     }
     expect(nextRecipe(loadout, 'thor')).toBeNull()
   })
+
+  it('분해: 등급만큼 그 땅의 공통 재료가 나오고 장비는 사라진다 (낀 것도)', () => {
+    const loadout = new Loadout()
+    const ring = rollGear(createRng(4), { part: 'trinket', grade: 'rare' })
+    loadout.addGear(ring)
+    loadout.equip(ring.uid)
+    expect(salvage(loadout, ring.uid, 'greek')).toEqual({ material: 'olympusMarble', count: SALVAGE.rare, slot: 5 })
+    expect(loadout.slots[5]).toBeNull()
+    expect(loadout.gear.has(ring.uid)).toBe(false)
+    expect(loadout.materials.get('olympusMarble')).toBe(4)
+    expect(salvage(loadout, 'mjolnir', 'greek')).toBeNull()
+  })
 })
+

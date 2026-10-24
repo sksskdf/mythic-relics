@@ -3,6 +3,7 @@ import * as THREE from 'three'
 import { type God, godDef, isRelicId, relicDef, type RelicId } from '../../relics/data'
 import { isMythRelic, relicMyth, STAGE_DAMAGE, stageName } from '../../gear/mythRelic'
 import { statText } from '../../myth/alwaysText'
+import { materialName } from '../../gear/materials'
 import { type GearItem, gearName } from '../../gear/roll'
 import { levelGains } from '../../myth/levelGains'
 import { classIcon } from '../../ui/classIcons'
@@ -85,6 +86,18 @@ export class RelicSystem {
     hud.showGains('대장간', name, def.color, classIcon(def.name), lines)
     fx.power.burst(hero.object.position, def.color, 2 + made.stage)
     view.shake(0.2 + made.stage * 0.08)
+    bus.emit('progressChanged', {})
+    return true
+  }
+
+  /** 일반 장비를 분해해 그 땅(마을이면 고른 신화의 땅, 없으면 북유럽) 공통 재료로 바꾼다 (E13-07-3) */
+  salvage(id: string): boolean {
+    const { powers, hud, bus, map, build } = this.ctx
+    const realm = map.region.realm ?? (build.chosen ? godDef(build.chosen).realm : 'norse')
+    const done = powers.salvage(id, realm === 'hidden' ? 'norse' : realm)
+    if (!done) return false
+    if (done.slot >= 0) this.changed(done.change, false)
+    hud.showToast(`분해 · ${materialName(done.material)} ×${done.count}`)
     bus.emit('progressChanged', {})
     return true
   }

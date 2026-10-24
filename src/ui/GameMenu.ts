@@ -113,6 +113,8 @@ export interface MenuHost {
   wield(id: RelicId, slot: number): void
   stow(slot: number): void
   drop(slot: number): void
+  /** 일반 장비를 분해해 재료로 (E13-07-3) */
+  salvage(id: string): void
   readonly progress: ClassProgress
   /** 신화 탭 (E12-06): 고르기와 상시 효과 단계 */
   readonly myths: {
@@ -748,6 +750,15 @@ export class GameMenu {
       // 같은 부위에 지금 낀 일반 장비와 비교한다
       const wornId = host.slotsFor(id).map((i) => host.slots[i]).find((x) => x && x !== id && host.gearOf(x))
       detail.append(gearCard(gear, wornId ? host.gearOf(wornId) : null))
+      const b = el('button', 'menu-relics__salvage')
+      b.type = 'button'
+      b.append(img(glyph('salvage')), '분해')
+      this.hintOn(b, '분해하면 그 땅의 공통 재료가 나온다 (보통 1 · 좋음 2 · 희귀 4 · 영웅 8)')
+      b.addEventListener('click', () => {
+        this.hovered = null
+        host.salvage(id)
+      })
+      detail.append(b)
       return
     }
     const preview = this.hovered ? { before: host.loadout, after: host.preview(this.selectedSlot, this.hovered) } : undefined

@@ -1,5 +1,5 @@
 import { DATA } from '../data'
-import type { GearPart } from '../data/gearData'
+import type { GearPart, Grade } from '../data/gearData'
 import type { StatKind } from '../data/mythAlways'
 import { type God, godDef, GODS, relicDef, type RelicId } from '../relics/data'
 import type { Loadout } from './Loadout'
@@ -126,3 +126,21 @@ export function craft(loadout: Loadout, god: God, baseId?: string): { relic: Rel
   }
   return { relic: recipe.relic, stage: recipe.stage, ...(inherited ? { inherited } : {}), slot }
 }
+
+/** 분해하면 나오는 그 땅 공통 재료 수 (E13-07-3) */
+export const SALVAGE: Readonly<Record<Grade, number>> = { common: 1, good: 2, rare: 4, hero: 8 }
+
+/** 일반 장비를 분해한다: 칸이나 가방에서 없애고 공통 재료를 준다. 나온 재료와 수 (장비가 아니면 null) */
+export function salvage(loadout: Loadout, id: string, realm: string): { material: string; count: number; slot: number } | null {
+  const item = loadout.gear.get(id)
+  const material = realmMaterial(realm)
+  if (!item || !material || !loadout.has(id)) return null
+  const slot = loadout.slots.indexOf(id)
+  if (slot >= 0) loadout.unequip(slot)
+  else loadout.bag.splice(loadout.bag.indexOf(id), 1)
+  loadout.gear.delete(id)
+  const count = SALVAGE[item.grade]
+  loadout.addMaterial(material, count)
+  return { material, count, slot }
+}
+

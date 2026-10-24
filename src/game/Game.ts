@@ -370,6 +370,7 @@ export class Game {
       wield: (id, slot) => relics.wield(id, slot),
       stow: (slot) => relics.stow(slot),
       drop: (slot) => relics.unequip(slot, true),
+      salvage: (id) => relics.salvage(id) && this.menu.refresh(),
       progress: this.progress,
       myths: {
         canChoose: () => this.canChooseMyth,

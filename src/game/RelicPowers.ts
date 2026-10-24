@@ -2,7 +2,7 @@ import type * as THREE from 'three'
 
 import { type God, godDef, isRelicId, relicDef, type RelicId } from '../relics/data'
 import { STAGE_DAMAGE } from '../gear/mythRelic'
-import { craft } from '../gear/forge'
+import { craft, salvage } from '../gear/forge'
 import { Loadout } from '../gear/Loadout'
 import type { LoadoutState } from '../myth/manifest'
 import { createEffect } from '../skills'
@@ -103,6 +103,17 @@ export class RelicPowers {
       this.effects[made.slot] = this.effectFor(made.relic)
     } else this.refreshStages()
     return { ...made, change: this.refresh() }
+  }
+
+  /** 일반 장비를 분해한다 (E13-07-3). 칸에 있던 것이면 바뀐 것도 돌려준다 */
+  salvage(id: string, realm: string): (NonNullable<ReturnType<typeof salvage>> & { change: LoadoutChange }) | null {
+    const done = salvage(this.loadout, id, realm)
+    if (!done) return null
+    if (done.slot >= 0) {
+      this.effects[done.slot]?.dispose()
+      this.effects[done.slot] = null
+    }
+    return { ...done, change: this.refresh() }
   }
 
   /** 유물 단계가 바뀌었다 (대장간): 낀 유물 효과의 피해 배율을 다시 맞춘다 */
