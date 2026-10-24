@@ -3,6 +3,7 @@ import { GRADE_COLORS } from '../art/palette'
 import { SLOT_PARTS } from '../data/gearData'
 import { GEAR, type GearItem, gearName } from '../gear/roll'
 import { gearCard } from './gearCard'
+import { materialName } from '../gear/materials'
 import { MAX_LEVEL } from '../myth/ClassProgress'
 import { alwaysLines } from '../myth/alwaysText'
 import type { ClassProgress } from '../myth/ClassProgress'
@@ -10,7 +11,7 @@ import { type Cycle, LAWS, type LawId, REBIRTH_NEED, RING_NEXT, RING_PREV, STARS
 import { allLevelGains, levelGains } from '../myth/levelGains'
 import type { SourceId } from '../data/schema'
 import { shortNumber } from './format'
-import { type God, godDef, isRelicId, relicDef, type RelicId } from '../relics/data'
+import { type God, godDef, relicDef, type RelicId } from '../relics/data'
 import type { LoadoutState } from '../myth/manifest'
 import { relicCard, type RelicCardContext, relicIcon } from './relicCard'
 import { classIcon } from './classIcons'
@@ -710,7 +711,7 @@ export class GameMenu {
     if (host.materials.size > 0) {
       const mats = el('div', 'menu-relics__materials')
       mats.append(el('b', '', '재료'))
-      for (const [id, n] of host.materials) mats.append(el('span', '', `${isRelicId(id) ? relicDef(id).name : id} ×${n}`))
+      for (const [id, n] of host.materials) mats.append(el('span', '', `${materialName(id)} ×${n}`))
       left.append(mats)
     }
 

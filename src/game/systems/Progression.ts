@@ -1,5 +1,6 @@
 import type { Giant } from '../../enemies/Giant'
 import { ELITE_REWARD } from '../../enemies/elite'
+import { MATERIALS, materialName, rollMaterials } from '../../gear/materials'
 import { GEAR, rollGear } from '../../gear/roll'
 import { masteryShares, PER_PROMOTION } from '../../myth/ClassProgress'
 import { levelGains } from '../../myth/levelGains'
@@ -90,6 +91,11 @@ export class ProgressionSystem {
       if (!relic) continue
       pickups.drop(relic, giant.x, giant.z)
       break
+    }
+    // 재료 (E13-04): 잡는 순간 주머니로. 신화 고유·보스 재료만 알린다
+    for (const { id, count } of rollMaterials(Math.random, { realm: giant.spec.realm, elite: !!giant.elite, boss: giant.spec.boss }, this.ctx.build.chosen)) {
+      powers.loadout.addMaterial(id, count)
+      if (MATERIALS[id]?.kind !== 'realm') this.ctx.hud.showToast(`${materialName(id)} · 재료`)
     }
     // 일반 장비 (E13-02): 졸개 6%, 정예 25%, 지역 보스는 반드시 (희귀 이상)
     const boss = giant.spec.boss !== undefined
