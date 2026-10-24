@@ -14,7 +14,7 @@ export class Build {
   inputs(): BuildInputs {
     const { powers, progress, cycle } = this.from
     const open = new Map<string, number>()
-    for (const [god, record] of progress.records) open.set(god, record.level)
+    for (const [god, record] of progress.records) if (record.level >= 1) open.set(god, record.level)
     return {
       open,
       chosen: powers.manifested ? [powers.manifested] : [],

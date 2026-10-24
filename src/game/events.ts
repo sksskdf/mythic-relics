@@ -23,6 +23,8 @@ export interface GameEvents {
   manifested: { god: God }
   /** 승급했다. */
   promoted: { god: God; title: string }
+  /** 신화 숙련이 문턱을 넘어 신화가 처음 열렸다 (E12-02) */
+  mythOpened: { god: God }
   /** 주인공이 맞았다. */
   heroHurt: { damage: number }
   /** 주인공이 쓰러졌다. */

@@ -1,6 +1,6 @@
 import type { QuarterViewCamera } from '../render/QuarterViewCamera'
 import type { RelicId } from '../relics/data'
-import type { ClassProgress } from '../myth/ClassProgress'
+import { type ClassProgress, MASTERY_TO_OPEN } from '../myth/ClassProgress'
 import type { EventBus, GameEvents } from '../game/events'
 import type { HeroController } from '../game/HeroController'
 import type { HeroOrders } from '../game/HeroOrders'
@@ -20,6 +20,8 @@ export interface DevParts {
   hero: HeroController
   orders: HeroOrders
   view: QuarterViewCamera
+  /** 지금 지역의 신화권 (마을은 없음) */
+  region: () => string | undefined
 }
 
 /**
@@ -66,6 +68,11 @@ export class DevTools {
     if (!god) return
     progress.addXp(god, 1e9)
     growth.promote(god)
+  }
+
+  /** 이 지역 신화권의 신들에게 숙련을 준다 (신화 개방 시험). 신화권이 없는 마을이면 북유럽 */
+  gainMastery(amount = MASTERY_TO_OPEN * 4): void {
+    this.parts.growth.gainMastery(amount, this.parts.region() ?? 'norse')
   }
 
   /** 신화 성장(개방 단계·경험치)을 처음으로 되돌린다. */

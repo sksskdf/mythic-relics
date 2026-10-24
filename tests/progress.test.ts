@@ -1,15 +1,29 @@
 import { describe, expect, it } from 'vitest'
 
-import { ClassProgress, XP_TO_PROMOTE } from '../src/myth/ClassProgress'
+import { ClassProgress, MASTERY_TO_OPEN, masteryShares, SHARE_TO_OTHERS, XP_TO_PROMOTE } from '../src/myth/ClassProgress'
 import { DATA } from '../src/data'
 import { DEFAULT_DROPS, DropTable, representatives } from '../src/gear/DropTable'
 import { godDef, type RelicId, relicDef } from '../src/relics/data'
 import { createRng } from '../src/world/rng'
 
-describe('클래스 성장', () => {
-  it('경험치 바가 가득 차야 승급할 수 있고, 가득 찬 뒤에는 더 쌓이지 않는다', () => {
+describe('신화 성장 (E12-02)', () => {
+  it('숙련이 문턱을 넘으면 신화가 열리고, 한 번 열면 영구다', () => {
     const progress = new ClassProgress()
+    expect(progress.level('thor')).toBe(0)
     expect(progress.title('thor')).toBe('천둥의 신')
+    expect(progress.addXp('thor', MASTERY_TO_OPEN - 1)).toBeNull()
+    expect(progress.isOpen('thor')).toBe(false)
+    expect(progress.readyToPromote('thor')).toBe(false)
+    expect(progress.addXp('thor', 1)).toBe('opened')
+    expect(progress.level('thor')).toBe(1)
+    expect(progress.opened).toEqual(['thor'])
+    // 다시 숙련을 쌓아도 다시 열리지 않는다
+    expect(progress.addXp('thor', 10)).toBeNull()
+  })
+
+  it('숙련 바가 가득 차야 전설로 단계가 오르고, 가득 찬 뒤에는 더 쌓이지 않는다', () => {
+    const progress = new ClassProgress()
+    progress.open('thor')
     progress.addXp('thor', 100)
     expect(progress.promote('thor')).toBe(false)
     progress.addXp('thor', 99999)
@@ -20,13 +34,38 @@ describe('클래스 성장', () => {
     expect(progress.record('thor').xp).toBe(0)
   })
 
-  it('승급하면 그 원천 숙련과 총 승급 횟수가 오른다', () => {
+  it('열릴 때 남은 숙련은 다음 바로 넘어간다', () => {
     const progress = new ClassProgress()
-    progress.addXp('thor', 99999)
+    expect(progress.addXp('odin', MASTERY_TO_OPEN + 50)).toBe('opened')
+    expect(progress.record('odin').xp).toBe(50)
+    progress.addXp('loki', 1e9)
+    expect(progress.readyToPromote('loki')).toBe(true)
+  })
+
+  it('승급하면 그 원천 숙련과 총 승급 횟수가 오른다. 못 연 신화는 세지 않는다', () => {
+    const progress = new ClassProgress()
+    progress.addXp('zeus', 10)
+    progress.addXp('thor', 1e9)
     progress.promote('thor')
     expect(progress.mastery('flame')).toBe(1)
     expect(progress.mastery('wind')).toBe(0)
     expect(progress.promotions).toBe(1)
+  })
+
+  it('숙련은 그 신화권 신들에게 나눠 쌓이고, 고른 신화는 전부 받는다', () => {
+    const gods = Object.values(DATA.gods)
+    const norse = gods.filter((g) => g.realm === 'norse').map((g) => g.id)
+    const shares = masteryShares(20, 'norse', 'thor', gods)
+    expect([...shares.keys()].sort()).toEqual([...norse].sort())
+    expect(shares.get('thor')).toBe(20)
+    for (const god of norse.filter((g) => g !== 'thor')) expect(shares.get(god)).toBe(20 * SHARE_TO_OTHERS)
+    // 고른 신화가 다른 신화권이어도 고른 신화는 받는다
+    const away = masteryShares(20, 'greek', 'thor', gods)
+    expect(away.get('thor')).toBe(20)
+    expect(away.get('zeus')).toBe(20 * SHARE_TO_OTHERS)
+    // 히든 신화는 몬스터로 쌓이지 않는다 (고르면 받는다)
+    expect(masteryShares(20, 'norse', null, gods).has('asura')).toBe(false)
+    expect(masteryShares(20, undefined, null, gods).size).toBe(0)
   })
 })
 

@@ -419,6 +419,7 @@ export class Game {
       hero: this.hero,
       orders: this.orders,
       view: this.view,
+      region: () => this.ctx.map.region.realm ?? undefined,
     })
     this.audio = new AudioEngine(this.settings.volume)
     this.sound = new SoundSystem(this.ctx, this.audio)

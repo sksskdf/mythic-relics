@@ -81,7 +81,8 @@ export function parseSave(text: string | null): SaveData | null {
     for (const [god, value] of Object.entries(data.classes as Record<string, unknown>)) {
       if (!isGod(god) || typeof value !== 'object' || value === null) continue
       const record = value as Record<string, unknown>
-      classes[god] = { level: Math.round(num(record.level, 1, 4, 1)), xp: num(record.xp, 0, 1e6, 0) }
+      // 개방 단계 0은 숙련만 쌓이고 아직 못 연 신화 (E12-02)
+      classes[god] = { level: Math.round(num(record.level, 0, 4, 1)), xp: num(record.xp, 0, 1e6, 0) }
     }
   }
 

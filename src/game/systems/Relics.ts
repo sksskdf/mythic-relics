@@ -140,6 +140,8 @@ export class RelicSystem {
     }
     if (before.manifested !== after.manifested && !after.manifested) this.decoy = null
     if (!after.manifested || before.manifested === after.manifested) return
+    // E12-04 전까지: 유물로 발현하면 그 신화가 열린다 (숙련 문턱을 넘은 것과 같다)
+    if (progress.open(after.manifested)) bus.emit('progressChanged', {})
     if (!announce) return
     bus.emit('manifested', { god: after.manifested })
     const god = godDef(after.manifested)

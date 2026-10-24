@@ -53,7 +53,7 @@ export class CycleSystem {
     bus.on('manifested', () => open('train', '순환이 열렸다: 단련 (정보 화면 › 순환)'))
     bus.on('promoted', () => open('rebirth', '순환이 열렸다: 윤회 (정보 화면 › 순환)'))
     // 이미 발현·승급한 적 있는 저장이면 바로 연다
-    if (progress.records.size > 0) cycle.opened.add('train')
+    if (progress.opened.length > 0) cycle.opened.add('train')
     if (progress.promotions > 0) cycle.opened.add('rebirth')
     bus.on('giantKilled', ({ giant }) => {
       if (giant !== this.doomBoss) return
@@ -76,7 +76,7 @@ export class CycleSystem {
 
   update(dt: number): void {
     const { cycle, hero, combat, progress, bus } = this.ctx
-    if (!cycle.opened.has('train') && progress.records.size > 0) cycle.opened.add('train')
+    if (!cycle.opened.has('train') && progress.opened.length > 0) cycle.opened.add('train')
     if (!cycle.opened.has('rebirth') && progress.promotions > 0) cycle.opened.add('rebirth')
     // 걸은 거리 → 바람
     const p = hero.object.position
