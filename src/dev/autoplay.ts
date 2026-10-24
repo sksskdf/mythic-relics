@@ -105,7 +105,14 @@ export class Autoplayer {
     if (want === region.id) return false
     const exit = region.exits.find((e) => e.to === want) ?? region.exits.find((e) => this.game.regions[e.to]?.kind === 'hub')
     if (!exit) return false
-    if (!hero.isMoving || dist(hero.object.position, exit) > 1) hero.moveTo(exit)
+    const at = dist(hero.object.position, exit)
+    // 방금 그 출구로 들어와 그 위에 서 있으면, 출구는 한 번 벗어나야 다시 밟히므로 안쪽으로 한 걸음 물러난다
+    if (at < 2 && !hero.isMoving) {
+      const len = Math.hypot(exit.x, exit.z) || 1
+      hero.moveTo({ x: exit.x - (exit.x / len) * 4, z: exit.z - (exit.z / len) * 4 })
+      return true
+    }
+    if (!hero.isMoving || at > 1) hero.moveTo(exit)
     return true
   }
 
