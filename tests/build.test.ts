@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import { describe, expect, it } from 'vitest'
 
 import { Build } from '../src/build/Build'
-import { computeBuild, gearModifiers } from '../src/build/BuildState'
+import { alwaysStage, computeBuild, echoEvery, gearModifiers, statAt, TOP_STAGE } from '../src/build/BuildState'
 import { RelicPowers } from '../src/game/RelicPowers'
 import { ClassProgress, MASTERY_DAMAGE, PER_PROMOTION } from '../src/myth/ClassProgress'
 import { Cycle } from '../src/progress/Cycle'
@@ -42,7 +42,7 @@ describe('빌드 상태 (E11-04)', () => {
     expect(state.attackSpeed).toBe(1)
   })
 
-  it('모든 신화를 같은 장착·성장으로 두면 지금과 같은 피해 배율·지속 효과·공격 리듬이 나온다', () => {
+  it('모든 신화를 같은 장착·성장으로 두면 1차 스프린트 값에 상시 효과 수치만 더 곱해진다', () => {
     let checked = 0
     for (const god of Object.keys(GODS)) {
       const powers = manifest(god)
@@ -59,12 +59,13 @@ describe('빌드 상태 (E11-04)', () => {
       const state = new Build({ powers, progress, cycle }).state
       expect(state.chosen, god).toBe(god)
       expect(state.level, god).toBe(progress.level(god))
-      expect(state.damageScale, god).toBeCloseTo(legacyDamage(progress, cycle, god), 10)
+      const st = state.stats
+      expect(state.damageScale, god).toBeCloseTo(legacyDamage(progress, cycle, god) * (1 + st.damage), 10)
       const mods = gearModifiers(powers.loadout.slots)
       expect(state.modifiers, god).toEqual(mods)
-      expect(state.damageTaken, god).toBeCloseTo(mods.damageTaken * cycle.damageTakenScale, 10)
-      expect(state.moveSpeed, god).toBeCloseTo(mods.moveSpeed * cycle.moveSpeedScale, 10)
-      expect(state.attackSpeed, god).toBe(godDef(god).passive.attackSpeed)
+      expect(state.damageTaken, god).toBeCloseTo(mods.damageTaken * cycle.damageTakenScale * (1 + st.damageTaken), 10)
+      expect(state.moveSpeed, god).toBeCloseTo(mods.moveSpeed * cycle.moveSpeedScale * (1 + st.moveSpeed), 10)
+      expect(state.attackSpeed, god).toBeCloseTo(godDef(god).passive.attackSpeed * (1 + st.attackSpeed), 10)
       expect(state.attack, god).toBe(godDef(god).attack)
     }
     // 기본 신화 20개 (히든 아수라왕은 열기 조건이 따로 있어 유물만으로는 열리지 않는다)
@@ -81,10 +82,65 @@ describe('빌드 상태 (E11-04)', () => {
   })
 
   it('계산은 재료만 보고, 고른 신화가 없으면 원천 숙련을 곱하지 않는다', () => {
-    const base = { open: new Map(), gear: [], mastery: () => 5, promotions: 2, cycle: { damage: 1, damageTaken: 1, moveSpeed: 1 } }
+    const base = { open: new Map(), gear: [], mastery: () => 5, promotions: 2, cycle: { damage: 1, damageTaken: 1, moveSpeed: 1, bonusHp: 0 } }
     expect(computeBuild({ ...base, chosen: [] }).damageScale).toBeCloseTo(1 + 2 * PER_PROMOTION.damage)
     const thor = computeBuild({ ...base, chosen: ['thor'], open: new Map([['thor', 3]]) })
     expect(thor.level).toBe(3)
     expect(thor.damageScale).toBeCloseTo((1 + 2 * PER_PROMOTION.damage) * godDef('thor').passive.damageScale * (1 + 5 * MASTERY_DAMAGE))
+  })
+})
+
+describe('상시 효과 적용 (E12-03)', () => {
+  const base = { gear: [] as (string | null)[], mastery: () => 0, promotions: 0, cycle: { damage: 1, damageTaken: 1, moveSpeed: 1, bonusHp: 0 } }
+
+  it('상시 효과 단계는 개방 단계, 그 신화 유물을 끼면 한 단계 위 (5까지)', () => {
+    expect(alwaysStage(0, true)).toBe(0)
+    expect(alwaysStage(1, false)).toBe(1)
+    expect(alwaysStage(2, true)).toBe(3)
+    expect(alwaysStage(4, true)).toBe(TOP_STAGE)
+  })
+
+  it('메아리는 1단계에서 every[0], 2단계부터 every[1], 5단계는 더 자주', () => {
+    expect(echoEvery([5, 3], 'hits', 1)).toBe(5)
+    expect(echoEvery([5, 3], 'hits', 4)).toBe(3)
+    expect(echoEvery([5, 3], 'hits', 5)).toBe(2)
+    expect(echoEvery([10, 7], 'seconds', 5)).toBeCloseTo(5.6)
+    expect(echoEvery([0.2, 0.35], 'chance', 5)).toBeCloseTo(0.42)
+  })
+
+  it('수치는 3단계부터: 3단계 value[0], 4단계 value[1], 5단계 ×1.5', () => {
+    const stat = godDef('loki').always.stat
+    expect(statAt(stat, 2)).toBe(0)
+    expect(statAt(stat, 3)).toBe(stat.value[0])
+    expect(statAt(stat, 4)).toBe(stat.value[1])
+    expect(statAt(stat, 5)).toBeCloseTo(stat.value[1] * 1.5)
+  })
+
+  it('고르지 않은 열린 신화만 메아리를 내고, 수치는 고른 신화도 함께 낸다', () => {
+    const state = computeBuild({ ...base, chosen: ['thor'], open: new Map([['thor', 4], ['zeus', 1], ['loki', 3]]) })
+    expect(state.echoes.map((e) => e.god).sort()).toEqual(['loki', 'zeus'])
+    expect(state.stats.bossDamage).toBe(godDef('thor').always.stat.value[1])
+    expect(state.stats.attackSpeed).toBe(godDef('loki').always.stat.value[0])
+    expect(state.stats.skyDamage).toBe(0)
+  })
+
+  it('같은 종류 수치는 더하고, 다른 종류끼리는 곱한다', () => {
+    // 최대 생명 +20(프레이 4단계)과 +10%(마고할미 4단계)
+    const state = computeBuild({ ...base, chosen: [], open: new Map([['freyr', 4], ['mago', 4]]) })
+    expect(state.maxHp).toBe(Math.round((100 + 20) * 1.1))
+    // 고른 신화의 공격 리듬(제우스)과 상시 공격 빠르기(로키 4단계)는 곱한다
+    const fast = computeBuild({ ...base, chosen: ['zeus'], open: new Map([['loki', 4], ['zeus', 1]]) })
+    expect(fast.attackSpeed).toBeCloseTo(godDef('zeus').passive.attackSpeed * (1 + godDef('loki').always.stat.value[1]))
+    // 받는 피해: 스사노오 −6%와 유물의 배율을 곱한다
+    const tough = computeBuild({ ...base, chosen: [], open: new Map([['susanoo', 4]]), gear: ['megingjord'] })
+    expect(tough.damageTaken).toBeCloseTo(gearModifiers(['megingjord']).damageTaken * (1 + godDef('susanoo').always.stat.value[1]))
+  })
+
+  it('그 신화 유물을 끼면 상시 효과가 한 단계 위로 작동한다', () => {
+    const without = computeBuild({ ...base, chosen: [], open: new Map([['thor', 2]]) })
+    const withRelic = computeBuild({ ...base, chosen: [], open: new Map([['thor', 2]]), gear: ['mjolnir'] })
+    expect(without.stats.bossDamage).toBe(0)
+    expect(withRelic.stats.bossDamage).toBe(godDef('thor').always.stat.value[0])
+    expect(withRelic.echoes[0]!.stage).toBe(3)
   })
 })

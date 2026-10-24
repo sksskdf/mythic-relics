@@ -39,6 +39,23 @@
         "style": "lightning"
       }
     },
+    "always": {
+      "echo": {
+        "part": "basicLightning",
+        "every": [
+          5,
+          3
+        ],
+        "damage": 3
+      },
+      "stat": {
+        "kind": "bossDamage",
+        "value": [
+          0.05,
+          0.1
+        ]
+      }
+    },
     "ultimate": {
       "kind": "skyBarrage",
       "name": "묠니르의 심판",
@@ -97,6 +114,23 @@
         "burstDamage": 7
       }
     },
+    "always": {
+      "echo": {
+        "part": "companions",
+        "every": [
+          12,
+          8
+        ],
+        "damage": 5
+      },
+      "stat": {
+        "kind": "attackSpeed",
+        "value": [
+          0.03,
+          0.06
+        ]
+      }
+    },
     "ultimate": {
       "kind": "legion",
       "name": "환영 군단",
@@ -142,6 +176,23 @@
         "radius": 4,
         "base": 3,
         "perLevel": 1
+      }
+    },
+    "always": {
+      "echo": {
+        "part": "bladeStorm",
+        "every": [
+          0.2,
+          0.35
+        ],
+        "damage": 4
+      },
+      "stat": {
+        "kind": "damage",
+        "value": [
+          0.03,
+          0.06
+        ]
       }
     },
     "ultimate": {
@@ -200,6 +251,23 @@
         "burstMinLevel": 3,
         "burstRadius": 1.4,
         "burstDamage": 8
+      }
+    },
+    "always": {
+      "echo": {
+        "part": "companions",
+        "every": [
+          10,
+          7
+        ],
+        "damage": 4
+      },
+      "stat": {
+        "kind": "masteryGain",
+        "value": [
+          0.1,
+          0.2
+        ]
       }
     },
     "ultimate": {
@@ -276,6 +344,23 @@
         ]
       }
     },
+    "always": {
+      "echo": {
+        "part": "companions",
+        "every": [
+          12,
+          8
+        ],
+        "damage": 6
+      },
+      "stat": {
+        "kind": "maxHp",
+        "value": [
+          10,
+          20
+        ]
+      }
+    },
     "ultimate": {
       "kind": "wave",
       "name": "알프헤임의 봄",
@@ -338,6 +423,23 @@
           16
         ],
         "style": "lightning"
+      }
+    },
+    "always": {
+      "echo": {
+        "part": "skyStrike",
+        "every": [
+          8,
+          6
+        ],
+        "damage": 6
+      },
+      "stat": {
+        "kind": "skyDamage",
+        "value": [
+          0.1,
+          0.2
+        ]
       }
     },
     "ultimate": {
@@ -404,6 +506,23 @@
         "knockback": 4
       }
     },
+    "always": {
+      "echo": {
+        "part": "pulse",
+        "every": [
+          9,
+          6
+        ],
+        "damage": 6
+      },
+      "stat": {
+        "kind": "areaSize",
+        "value": [
+          0.08,
+          0.15
+        ]
+      }
+    },
     "ultimate": {
       "kind": "wave",
       "name": "해일",
@@ -453,6 +572,23 @@
         ],
         "duration": 4,
         "spreadMinLevel": 3
+      }
+    },
+    "always": {
+      "echo": {
+        "part": "curse",
+        "every": [
+          4,
+          3
+        ],
+        "damage": 2
+      },
+      "stat": {
+        "kind": "healOnKill",
+        "value": [
+          1,
+          2
+        ]
       }
     },
     "ultimate": {
@@ -533,6 +669,23 @@
         "range": 6
       }
     },
+    "always": {
+      "echo": {
+        "part": "volley",
+        "every": [
+          4,
+          3
+        ],
+        "damage": 3
+      },
+      "stat": {
+        "kind": "basicDamage",
+        "value": [
+          0.05,
+          0.1
+        ]
+      }
+    },
     "ultimate": {
       "kind": "rain",
       "name": "달빛 화살비",
@@ -596,6 +749,23 @@
         "burstDamage": 9
       }
     },
+    "always": {
+      "echo": {
+        "part": "companions",
+        "every": [
+          12,
+          8
+        ],
+        "damage": 4
+      },
+      "stat": {
+        "kind": "companionDamage",
+        "value": [
+          0.1,
+          0.2
+        ]
+      }
+    },
     "ultimate": {
       "kind": "legion",
       "name": "칠십이 분신",
@@ -653,6 +823,23 @@
           11
         ],
         "hitInterval": 0.5
+      }
+    },
+    "always": {
+      "echo": {
+        "part": "orbit",
+        "every": [
+          10,
+          7
+        ],
+        "damage": 4
+      },
+      "stat": {
+        "kind": "ultCharge",
+        "value": [
+          0.08,
+          0.15
+        ]
       }
     },
     "ultimate": {
@@ -717,6 +904,23 @@
           13
         ],
         "style": "water"
+      }
+    },
+    "always": {
+      "echo": {
+        "part": "skyStrike",
+        "every": [
+          9,
+          6
+        ],
+        "damage": 4
+      },
+      "stat": {
+        "kind": "regen",
+        "value": [
+          0.5,
+          1
+        ]
       }
     },
     "ultimate": {
@@ -790,6 +994,23 @@
           14
         ],
         "hitInterval": 0.6
+      }
+    },
+    "always": {
+      "echo": {
+        "part": "trail",
+        "every": [
+          3,
+          2
+        ],
+        "damage": 3
+      },
+      "stat": {
+        "kind": "dotDamage",
+        "value": [
+          0.1,
+          0.2
+        ]
       }
     },
     "ultimate": {
@@ -866,6 +1087,23 @@
         ]
       }
     },
+    "always": {
+      "echo": {
+        "part": "skyStrike",
+        "every": [
+          9,
+          6
+        ],
+        "damage": 6
+      },
+      "stat": {
+        "kind": "healingTaken",
+        "value": [
+          0.15,
+          0.3
+        ]
+      }
+    },
     "ultimate": {
       "kind": "skyBarrage",
       "name": "태양 강림",
@@ -924,6 +1162,23 @@
         ],
         "hitInterval": 0.5,
         "speed": 3.2
+      }
+    },
+    "always": {
+      "echo": {
+        "part": "orbit",
+        "every": [
+          10,
+          7
+        ],
+        "damage": 3
+      },
+      "stat": {
+        "kind": "orbitDamage",
+        "value": [
+          0.1,
+          0.2
+        ]
       }
     },
     "ultimate": {
@@ -988,6 +1243,23 @@
         "knockback": 2
       }
     },
+    "always": {
+      "echo": {
+        "part": "pulse",
+        "every": [
+          9,
+          6
+        ],
+        "damage": 5
+      },
+      "stat": {
+        "kind": "pulseDamage",
+        "value": [
+          0.1,
+          0.2
+        ]
+      }
+    },
     "ultimate": {
       "kind": "skyBarrage",
       "name": "대뢰",
@@ -1035,6 +1307,23 @@
         "base": 2,
         "perLevel": 1,
         "color": "#4a7ad0"
+      }
+    },
+    "always": {
+      "echo": {
+        "part": "bladeStorm",
+        "every": [
+          0.2,
+          0.35
+        ],
+        "damage": 4
+      },
+      "stat": {
+        "kind": "damageTaken",
+        "value": [
+          -0.03,
+          -0.06
+        ]
       }
     },
     "ultimate": {
@@ -1105,6 +1394,23 @@
         ],
         "life": 1.6,
         "width": 0.8
+      }
+    },
+    "always": {
+      "echo": {
+        "part": "volley",
+        "every": [
+          4,
+          3
+        ],
+        "damage": 4
+      },
+      "stat": {
+        "kind": "moveSpeed",
+        "value": [
+          0.04,
+          0.08
+        ]
       }
     },
     "ultimate": {
@@ -1179,6 +1485,23 @@
         "cooldown": 30
       }
     },
+    "always": {
+      "echo": {
+        "part": "companions",
+        "every": [
+          15,
+          10
+        ],
+        "damage": 4
+      },
+      "stat": {
+        "kind": "lowHpGuard",
+        "value": [
+          -0.05,
+          -0.1
+        ]
+      }
+    },
     "ultimate": {
       "kind": "wave",
       "name": "되살림의 물결",
@@ -1238,6 +1561,23 @@
         ],
         "hitInterval": 0.6,
         "speed": 2.8
+      }
+    },
+    "always": {
+      "echo": {
+        "part": "orbit",
+        "every": [
+          10,
+          7
+        ],
+        "damage": 4
+      },
+      "stat": {
+        "kind": "dropChance",
+        "value": [
+          0.05,
+          0.1
+        ]
       }
     },
     "ultimate": {
@@ -1302,6 +1642,23 @@
           21
         ],
         "style": "stone"
+      }
+    },
+    "always": {
+      "echo": {
+        "part": "skyStrike",
+        "every": [
+          10,
+          7
+        ],
+        "damage": 7
+      },
+      "stat": {
+        "kind": "maxHpPct",
+        "value": [
+          0.05,
+          0.1
+        ]
       }
     },
     "ultimate": {

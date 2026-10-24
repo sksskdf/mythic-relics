@@ -25,6 +25,7 @@ export class SoundSystem {
     bus.on('relicPicked', () => audio.play('relic'))
     bus.on('loadoutChanged', ({ announce }) => announce && audio.play('equip'))
     bus.on('manifested', () => audio.play('manifest'))
+    bus.on('mythOpened', () => audio.play('manifest'))
     const regionTheme = () => audio.setTheme(themeForRealm(ctx.map.region.realm))
     bus.on('promoted', () => {
       audio.play('promote')

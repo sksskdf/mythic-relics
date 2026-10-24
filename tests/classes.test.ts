@@ -65,6 +65,7 @@ function setup(enemies: Dummy[], god: God | null = null, level = 0) {
   let hp = 0.25
   const healed: number[] = []
   const ctx: SkillContext = {
+    area: 1,
     hero,
     enemies,
     manifested: god,

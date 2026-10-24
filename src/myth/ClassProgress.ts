@@ -1,13 +1,22 @@
 import { type God, godDef, type Source } from '../relics/data'
 
 export const MAX_LEVEL = 4
-/** 레벨마다 다음 승급까지 필요한 경험치 (Lv1→2, Lv2→3, Lv3→4) */
+/** 1단계(신화 개방)에 필요한 신화 숙련 */
+export const MASTERY_TO_OPEN = 200
+/** 단계마다 다음 단계까지 필요한 신화 숙련 (1→2, 2→3, 3→4). 숙련이 차면 그 신화의 전설을 깨야 오른다 */
 export const XP_TO_PROMOTE: readonly number[] = [1000, 2000, 3500]
+/** 고른 신화가 아닌 그 신화권 신이 받는 몫 (DESIGN.md 5.2, E12-02) */
+export const SHARE_TO_OTHERS = 0.25
 
 export interface ClassRecord {
+  /** 개방 단계 0~4. 0은 아직 못 연 신화, 한 번 열면 내려가지 않는다 */
   level: number
+  /** 신화 숙련: 지금 단계에서 쌓인 양 (단계가 오르면 0부터) */
   xp: number
 }
+
+/** 숙련을 더한 결과 */
+export type MasteryResult = 'opened' | null
 
 /** 승급 한 번마다 오르는 기본 능력치 (DESIGN.md 6.2: 총 승급 횟수에서 나온다) */
 export const PER_PROMOTION = { maxHp: 15, damage: 0.05 }
@@ -15,10 +24,11 @@ export const PER_PROMOTION = { maxHp: 15, damage: 0.05 }
 export const MASTERY_DAMAGE = 0.1
 
 /**
- * 클래스 성장 기록. (DESIGN.md 5.2)
- * - 발현 상태로 괴물을 잡으면 그 클래스에 경험치가 쌓인다. 가호 상태에서는 쌓이지 않는다.
- * - 경험치 바가 가득 차면 승급 대기. 승급 전설을 깨면 다음 레벨로 오른다.
- * - 승급하면 그 원천의 숙련가 오르고, 총 승급 횟수만큼 기본 능력치가 오른다.
+ * 신화 성장 기록. (DESIGN.md 5.2, E12-02)
+ * - 그 신화권 몬스터를 잡으면 그 신화권 신들에게 신화 숙련이 쌓인다 (`masteryShares`). 고르지 않은 신화도 쌓인다.
+ * - 숙련이 문턱을 넘으면 1단계가 열린다. 한 번 열면 영구다.
+ * - 2~4단계는 숙련이 차고 그 신화의 전설을 깨야 오른다.
+ * - 오르면 그 원천의 숙련이 오르고, 총 승급 횟수만큼 기본 능력치가 오른다.
  */
 export class ClassProgress {
   readonly records = new Map<God, ClassRecord>()
@@ -26,46 +36,78 @@ export class ClassProgress {
   record(god: God): ClassRecord {
     let record = this.records.get(god)
     if (!record) {
-      record = { level: 1, xp: 0 }
+      record = { level: 0, xp: 0 }
       this.records.set(god, record)
     }
     return record
   }
 
+  /** 개방 단계 (못 연 신화는 0) */
   level(god: God): number {
-    return this.record(god).level
+    return this.records.get(god)?.level ?? 0
   }
 
+  /** 열린 신화인가 */
+  isOpen(god: God): boolean {
+    return this.level(god) >= 1
+  }
+
+  /** 열린 신화들 */
+  get opened(): God[] {
+    return [...this.records].filter(([, r]) => r.level >= 1).map(([god]) => god)
+  }
+
+  /** 지금 단계의 칭호 (못 연 신화는 1단계 칭호) */
   title(god: God): string {
-    return godDef(god).titles[this.level(god) - 1]!
+    return godDef(god).titles[Math.max(1, this.level(god)) - 1]!
   }
 
-  /** 다음 승급까지 필요한 경험치. 최고 레벨이면 0 */
+  /** 다음 단계까지 필요한 숙련. 최고 단계면 0 */
   xpNeeded(god: God): number {
-    return XP_TO_PROMOTE[this.level(god) - 1] ?? 0
+    const level = this.level(god)
+    return level === 0 ? MASTERY_TO_OPEN : (XP_TO_PROMOTE[level - 1] ?? 0)
   }
 
-  /** 경험치 바 비율 0~1 */
+  /** 숙련 바 비율 0~1 */
   xpRatio(god: God): number {
     const needed = this.xpNeeded(god)
-    return needed > 0 ? Math.min(1, this.record(god).xp / needed) : 1
+    return needed > 0 ? Math.min(1, (this.records.get(god)?.xp ?? 0) / needed) : 1
   }
 
-  /** 경험치 바가 가득 차서 승급 전설에 들어갈 수 있는가 */
+  /** 숙련이 차서 전설에 들어갈 수 있는가 (열린 신화만) */
   readyToPromote(god: God): boolean {
     const needed = this.xpNeeded(god)
-    return needed > 0 && this.record(god).xp >= needed
+    return this.isOpen(god) && needed > 0 && this.record(god).xp >= needed
   }
 
-  /** 경험치를 더한다. 바가 가득 차면 더 쌓이지 않는다. */
-  addXp(god: God, amount: number): void {
+  /** 신화를 연다 (숙련 문턱, 또는 유물 발현). 새로 열었으면 true */
+  open(god: God): boolean {
     const record = this.record(god)
-    const needed = this.xpNeeded(god)
-    if (needed <= 0) return
-    record.xp = Math.min(needed, record.xp + amount)
+    if (record.level >= 1) return false
+    record.level = 1
+    record.xp = 0
+    return true
   }
 
-  /** 승급 전설을 깼다. 승급했으면 true */
+  /** 숙련을 더한다. 문턱을 넘으면 신화가 열리고 남은 숙련은 다음 바로 넘어간다. 열린 신화는 바가 가득 차면 더 쌓이지 않는다. */
+  addXp(god: God, amount: number): MasteryResult {
+    const record = this.record(god)
+    const total = record.xp + amount
+    if (record.level === 0) {
+      if (total < MASTERY_TO_OPEN) {
+        record.xp = total
+        return null
+      }
+      this.open(god)
+      record.xp = Math.min(this.xpNeeded(god), total - MASTERY_TO_OPEN)
+      return 'opened'
+    }
+    const needed = this.xpNeeded(god)
+    if (needed > 0) record.xp = Math.min(needed, total)
+    return null
+  }
+
+  /** 전설을 깼다. 승급했으면 true */
   promote(god: God): boolean {
     if (!this.readyToPromote(god)) return false
     const record = this.record(god)
@@ -77,16 +119,29 @@ export class ClassProgress {
   /** 총 승급 횟수 */
   get promotions(): number {
     let total = 0
-    for (const record of this.records.values()) total += record.level - 1
+    for (const record of this.records.values()) total += Math.max(0, record.level - 1)
     return total
   }
 
-  /** 원천 숙련: 그 원천에 속한 클래스들의 승급 횟수 합 */
+  /** 원천 숙련: 그 원천에 속한 신화들의 승급 횟수 합 */
   mastery(source: Source): number {
     let total = 0
     for (const [god, record] of this.records) {
-      if (godDef(god).source === source) total += record.level - 1
+      if (godDef(god).source === source) total += Math.max(0, record.level - 1)
     }
     return total
   }
+}
+
+/**
+ * 몬스터 하나를 잡았을 때 신화 숙련이 누구에게 얼마나 가는가 (E12-02-1).
+ * - 그 몬스터 신화권의 신들이 모두 받는다: 고른 신화는 전부, 나머지는 SHARE_TO_OTHERS 몫씩.
+ * - 고른 신화가 다른 신화권(또는 히든)이어도 고른 신화는 전부 받는다. 신화권이 없는 몬스터는 고른 신화만.
+ * - 히든 신화는 몬스터로 쌓이지 않는다 (유물로 연다).
+ */
+export function masteryShares(amount: number, realm: string | undefined, chosen: God | null, gods: readonly { id: God; realm: string; hidden: boolean }[]): Map<God, number> {
+  const out = new Map<God, number>()
+  if (realm) for (const g of gods) if (!g.hidden && g.realm === realm && g.id !== chosen) out.set(g.id, amount * SHARE_TO_OTHERS)
+  if (chosen) out.set(chosen, amount)
+  return out
 }

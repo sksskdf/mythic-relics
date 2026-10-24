@@ -55,7 +55,7 @@ export function companionBody(look: CompanionLook, color: string, material: THRE
   return { root, flying: look === 'raven' }
 }
 
-function orbMesh(shape: OrbitShape, color: number): THREE.Mesh {
+export function orbMesh(shape: OrbitShape, color: number): THREE.Mesh {
   const material = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.95, depthWrite: false })
   const geometry =
     shape === 'ring'
@@ -160,7 +160,7 @@ export class ClassPassives {
       this.skyTimer -= dt
       if (this.skyTimer <= 0) {
         this.skyTimer = atLevel(sky.interval, level)
-        const near = enemiesWithin(ctx.enemies, hero.x, hero.z, sky.radius)
+        const near = enemiesWithin(ctx.enemies, hero.x, hero.z, sky.radius * ctx.area)
           .sort(() => Math.random() - 0.5)
           .slice(0, atLevel(sky.targets, level))
         for (const enemy of near) {
@@ -170,7 +170,7 @@ export class ClassPassives {
             ctx.flash(at, SKY_COLORS[sky.style], 1)
             ctx.puffs.burst(at, 5, 1.2)
           }
-          ctx.hit(enemy, atLevel(sky.damage, level), 0, 0, 1, sky.style === 'lightning' ? 'thunder' : 'normal')
+          ctx.hit(enemy, atLevel(sky.damage, level), 0, 0, 1, sky.style === 'lightning' ? 'thunder' : 'normal', 'sky')
         }
       }
     }
@@ -213,7 +213,7 @@ export class ClassPassives {
           const dx = enemy.x - hero.x
           const dz = enemy.z - hero.z
           const len = Math.hypot(dx, dz) || 1
-          ctx.hit(enemy, atLevel(orbit.damage, level), dx / len, dz / len, 2, 'normal')
+          ctx.hit(enemy, atLevel(orbit.damage, level), dx / len, dz / len, 2, 'normal', 'orbit')
         }
       })
     }
@@ -224,12 +224,12 @@ export class ClassPassives {
       this.pulseTimer -= dt
       if (this.pulseTimer <= 0) {
         this.pulseTimer = atLevel(pulse.interval, level)
-        const radius = atLevel(pulse.radius, level)
+        const radius = atLevel(pulse.radius, level) * ctx.area
         for (const enemy of enemiesWithin(ctx.enemies, hero.x, hero.z, radius)) {
           const dx = enemy.x - hero.x
           const dz = enemy.z - hero.z
           const len = Math.hypot(dx, dz) || 1
-          ctx.hit(enemy, atLevel(pulse.damage, level), dx / len, dz / len, pulse.knockback, 'normal')
+          ctx.hit(enemy, atLevel(pulse.damage, level), dx / len, dz / len, pulse.knockback, 'normal', 'pulse')
         }
         this.pulseMaterial.color.set(pulse.color)
         this.pulseRadius = radius
@@ -280,7 +280,7 @@ export class ClassPassives {
       state.tick -= dt
       if (state.tick <= 0) {
         state.tick = TICK
-        ctx.hit(enemy, atLevel(curse.dps, level) * TICK, 0, 0, 0, 'normal')
+        ctx.hit(enemy, atLevel(curse.dps, level) * TICK, 0, 0, 0, 'normal', 'dot')
         ctx.puffs.burst(new THREE.Vector3(enemy.x, hero.y + 1.2, enemy.z), 2, 0.5)
       }
       if (state.left <= 0) this.cursed.delete(enemy)
@@ -362,7 +362,7 @@ export class ClassPassives {
     this.trailTick = TICK
     const struck = new Set<CombatTarget>()
     for (const seg of this.trail) for (const enemy of enemiesWithin(ctx.enemies, seg.x, seg.z, trail.width / 2 + 0.2)) struck.add(enemy)
-    for (const enemy of struck) ctx.hit(enemy, atLevel(trail.dps, level) * TICK, 0, 0, 0, 'normal')
+    for (const enemy of struck) ctx.hit(enemy, atLevel(trail.dps, level) * TICK, 0, 0, 0, 'normal', 'dot')
   }
 
   private updateScatter(dt: number): void {
@@ -438,7 +438,7 @@ export class ClassPassives {
     const len = Math.hypot(dx, dz) || 1
     const tint = new THREE.Color(p.color).getHex()
     ctx.slashes.spawn(from, Math.atan2(dx, dz), 1.4, 0.9, false, tint)
-    if (target.alive) ctx.hit(target, atLevel(p.damage, level), dx / len, dz / len, p.look === 'boar' ? 6 : 2, 'normal')
+    if (target.alive) ctx.hit(target, atLevel(p.damage, level), dx / len, dz / len, p.look === 'boar' ? 6 : 2, 'normal', 'companion')
     ctx.sound('clone', target.x, target.z)
     if (level < p.burstMinLevel) return
     ctx.puffs.burst(new THREE.Vector3(target.x, from.y + 0.5, target.z), 6, 1.5)
@@ -446,7 +446,7 @@ export class ClassPassives {
       const ex = enemy.x - target.x
       const ez = enemy.z - target.z
       const el = Math.hypot(ex, ez) || 1
-      ctx.hit(enemy, p.burstDamage, ex / el, ez / el, 3, 'normal')
+      ctx.hit(enemy, p.burstDamage, ex / el, ez / el, 3, 'normal', 'companion')
     }
   }
 

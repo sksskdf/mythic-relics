@@ -1,17 +1,16 @@
 import type { Giant } from '../../enemies/Giant'
 import { ELITE_REWARD } from '../../enemies/elite'
-import { PER_PROMOTION } from '../../myth/ClassProgress'
+import { masteryShares, PER_PROMOTION } from '../../myth/ClassProgress'
 import { levelGains } from '../../myth/levelGains'
 import { classIcon } from '../../ui/classIcons'
 import { realmSigil } from '../../ui/sigils'
 import { realmInk } from '../../art/palette'
-import { type God, godDef, type RelicId } from '../../relics/data'
+import { type God, godDef, GODS, type RelicId } from '../../relics/data'
 import type { LegendKind } from '../../data/classKit'
 import type { GameContext } from '../context'
 import { godMoment } from './godMoments'
 
-/** 주인공의 기본 생명력 */
-export const BASE_HP = 100
+export { BASE_HP } from '../../build/BuildState'
 /** 적을 쓰러뜨렸을 때 되찾는 생명력 */
 const HEAL_PER_KILL = 4
 const HEAL_PER_BOSS = 30
@@ -71,21 +70,19 @@ export class ProgressionSystem {
     })
   }
 
-  /** 경험치와 유물 드랍. 경험치는 발현한 클래스에만 쌓인다. (DESIGN.md 5.2) */
+  /** 신화 숙련과 유물 드랍. 숙련은 그 몬스터 신화권의 신들에게 나눠 쌓인다. (DESIGN.md 5.2, E12-02) */
   private onGiantKilled(giant: Giant): void {
-    const { build, powers, progress, combat, drops, pickups, bus } = this.ctx
-    const manifested = build.chosen
-    if (manifested) progress.addXp(manifested, giant.spec.xp * (giant.elite ? ELITE_REWARD.xp : 1))
+    const { powers, combat, drops, pickups } = this.ctx
+    this.gainMastery(giant.spec.xp * (giant.elite ? ELITE_REWARD.xp : 1), giant.spec.realm)
     // 적을 쓰러뜨리면 생명력을 조금 되찾는다. 몰려오는 무리를 쓸어 내며 버틸 수 있게 한다.
-    if (combat.alive) combat.health.heal(giant.spec.boss ? HEAL_PER_BOSS : HEAL_PER_KILL)
-    bus.emit('progressChanged', {})
+    if (combat.alive) combat.heal((giant.spec.boss ? HEAL_PER_BOSS : HEAL_PER_KILL) + this.ctx.build.state.stats.healOnKill)
     const owned = new Set<RelicId>([
       ...powers.loadout.slots.filter((id): id is RelicId => id !== null),
       ...powers.loadout.bag,
       ...pickups.list.map((p) => p.id),
     ])
-    // 정예는 유물을 한 번 더 굴린다
-    const rolls = giant.elite ? ELITE_REWARD.dropRolls : 1
+    // 정예는 유물을 한 번 더 굴린다. 상시 효과(도깨비)는 그 확률만큼 한 번 더
+    const rolls = (giant.elite ? ELITE_REWARD.dropRolls : 1) + (Math.random() < this.ctx.build.state.stats.dropChance ? 1 : 0)
     for (let i = 0; i < rolls; i++) {
       const relic = drops.roll(owned, giant.spec.boss)
       if (!relic) continue
@@ -94,10 +91,32 @@ export class ProgressionSystem {
     }
   }
 
+  /** 신화 숙련을 그 신화권 신들에게 나눠 쌓는다. 문턱을 넘은 신화는 열린다. */
+  gainMastery(amount: number, realm: string | undefined): void {
+    const { build, progress, bus } = this.ctx
+    // 상시 효과: 신화 숙련 얻는 양 (오딘)
+    amount *= 1 + build.state.stats.masteryGain
+    for (const [god, share] of masteryShares(amount, realm, build.chosen, Object.values(GODS))) {
+      if (progress.addXp(god, share) === 'opened') this.announceOpened(god)
+    }
+    bus.emit('progressChanged', {})
+  }
+
+  /** 숙련이 문턱을 넘어 신화가 처음 열렸다: 칭호 카드와 그 신의 순간 (고르지 않아도 상시 효과가 붙는다) */
+  private announceOpened(god: God): void {
+    const { hud, fx, hero, bus } = this.ctx
+    const def = godDef(god)
+    bus.emit('mythOpened', { god })
+    const echo = def.always.echo
+    hud.showGains('신화 개방', def.titles[0], def.color, classIcon(def.name), [`${def.name}의 힘이 깨어났다`, `상시 효과: ${partName(def, echo.part)} 메아리`])
+    fx.power.burst(hero.object.position, def.color, 3)
+    hud.flash(def.color)
+  }
+
   /** 승급: 칭호가 바뀌고, 스킬이 강해지고, 원천 숙련과 기본 능력치가 오른다. */
   promote(god: God): void {
     const { progress, combat, hero, hud, fx, view, feel, bus } = this.ctx
-    const hpBefore = BASE_HP + progress.promotions * PER_PROMOTION.maxHp
+    const hpBefore = this.ctx.build.state.maxHp
     const dmgBefore = 1 + progress.promotions * PER_PROMOTION.damage
     if (!progress.promote(god)) return
     bus.emit('promoted', { god, title: progress.title(god) })
@@ -106,7 +125,7 @@ export class ProgressionSystem {
     combat.health.reset()
     const p = hero.object.position
     // 무엇이 얼마나 강해졌는지: 기본 능력치는 전→후, 그 단계에서 새로 생긴 힘은 한 줄씩
-    const hpAfter = BASE_HP + progress.promotions * PER_PROMOTION.maxHp
+    const hpAfter = this.ctx.build.state.maxHp
     const dmgAfter = 1 + progress.promotions * PER_PROMOTION.damage
     const level = progress.level(god)
     const lines = [
@@ -127,7 +146,7 @@ export class ProgressionSystem {
 
   /** 총 승급 횟수에서 나오는 기본 능력치 (DESIGN.md 6.2) */
   applyStats(): void {
-    this.ctx.combat.health.setMax(BASE_HP + this.ctx.progress.promotions * PER_PROMOTION.maxHp + this.ctx.cycle.bonusHp)
+    this.ctx.combat.health.setMax(this.ctx.build.state.maxHp)
   }
 
   /** 클래스 성장(레벨·경험치)을 처음으로 되돌린다. */
@@ -137,4 +156,11 @@ export class ProgressionSystem {
     this.ctx.combat.health.reset()
     this.ctx.bus.emit('progressChanged', {})
   }
+}
+
+/** 메아리가 본뜬 패시브 부품의 화면 이름 (이름이 없는 부품은 신 이름) */
+function partName(def: ReturnType<typeof godDef>, part: string): string {
+  const named = (def.passive as unknown as Record<string, { name?: string } | undefined>)[part]
+  if (named?.name) return named.name
+  return part === 'basicLightning' ? '번개' : part === 'bladeStorm' ? '칼날 폭풍' : def.name
 }

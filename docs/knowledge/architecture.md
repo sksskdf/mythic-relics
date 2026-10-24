@@ -19,9 +19,10 @@
 | 곳 | 바꾼 뒤 |
 | --- | --- |
 | `src/game/Game.ts` | 957줄 → 870줄 안팎. 지역 이동은 `World`, 개발 지름길은 `src/dev/DevTools.ts`(`game.dev.*`), 시작 화면 뒤 장면은 `TitleBackdrop`. Game에는 `enterRegion`·`travelTo`·`regions`·`exitsLocked` 위임만 남김 |
-| 빌드 상태 | `src/build/BuildState.ts`의 `computeBuild(inputs)`: 열린 신화·고른 신화·장비·원천·순환 배율 → 피해 배율·지속 효과·받는 피해·이동 속도·공격 리듬. 게임 안에서는 `ctx.build`(`Build`, 부를 때마다 계산, `chosen`·`level`은 가볍게). `tests/build.test.ts`가 1차 공식과 같은 값인지 지킨다 |
+| 빌드 상태 | `src/build/BuildState.ts`의 `computeBuild(inputs)`: 열린 신화·고른 신화·장비·원천·순환 배율 → 피해 배율·지속 효과·받는 피해·이동 속도·공격 리듬·최대 생명, 상시 효과(메아리 목록 `echoes`, 수치 합 `stats`). 게임 안에서는 `ctx.build`(`Build`, 부를 때마다 계산, `chosen`·`level`은 가볍게). `tests/build.test.ts`가 1차 공식 × 상시 수치인지 지킨다 |
 | `src/gear/` | `Loadout`(칸 4·가방), `Pickups`, `DropTable`. E13에서 일반 장비·제작이 들어올 자리 |
-| `src/myth/` | `manifest.ts`(발현·가호 판정, 지금은 유물 수), `ClassProgress`(개방 단계·경험치·원천 숙련), `levelGains`. E12에서 영구 개방·상시·추가 효과가 들어올 자리 |
+| `src/skills/MythEchoes.ts` | 상시 효과 메아리 (E12-03): 고르지 않은 열린 신화마다 패시브 부품이 가끔 한 번. 빌드 상태의 `echoes`를 `Relics`가 넘겨 준다 |
+| `src/myth/` | `manifest.ts`(발현·가호 판정, 지금은 유물 수), `ClassProgress`(개방 단계 0~4·신화 숙련·원천 숙련, 숙련 나누기 `masteryShares`), `levelGains`. E12에서 영구 개방·상시·추가 효과가 들어올 자리 |
 | 읽는 길 | 게임 시스템은 지금 신화·단계를 `ctx.build.chosen`·`ctx.build.level`로 읽는다. 장비 칸 자체를 다루는 곳(장착·저장·유물 화면)은 `powers.loadout`을 본다 |
 
 E12~E14에서 새 규칙을 넣을 때는 `BuildInputs`에 재료를 더하고 `computeBuild`에서 계산을 늘린다. 시스템이 장비·신화를 직접 읽어 따로 계산하지 않는다.

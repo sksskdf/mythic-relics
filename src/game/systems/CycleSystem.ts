@@ -2,13 +2,11 @@ import * as THREE from 'three'
 
 import { SOURCE_IDS, type SourceId } from '../../data/schema'
 import type { Giant } from '../../enemies/Giant'
-import { PER_PROMOTION } from '../../myth/ClassProgress'
 import { type LawId, LAWS, STARS, type StarId, UNLOCKS } from '../../progress/Cycle'
 import { DATA } from '../../data'
 import { SOURCE_COLORS } from '../../ui/sigils'
 import { heightAt } from '../../world/terrain'
 import type { GameContext } from '../context'
-import { BASE_HP } from './Progression'
 
 /** 결정 기본량: 때린 적 하나, 쓰러뜨린 적 하나(보스), 걸은 거리, 받은 피해 */
 const GAIN = { hit: 1, kill: 4, bossKill: 40, walkMeters: 1.5, hurtPerEssence: 2 }
@@ -37,7 +35,7 @@ export class CycleSystem {
     bus.on('targetKilled', ({ target }) => {
       const boss = 'spec' in target && (target as Giant).spec.boss !== undefined
       this.gain('hunt', boss ? GAIN.bossKill : GAIN.kill, target.x, target.z)
-      if (cycle.healOnKill > 0) ctx.combat.health.heal(cycle.healOnKill)
+      if (cycle.healOnKill > 0) ctx.combat.heal(cycle.healOnKill)
     })
     bus.on('heroHurt', ({ damage }) => {
       const p = ctx.hero.object.position
@@ -53,7 +51,7 @@ export class CycleSystem {
     bus.on('manifested', () => open('train', '순환이 열렸다: 단련 (정보 화면 › 순환)'))
     bus.on('promoted', () => open('rebirth', '순환이 열렸다: 윤회 (정보 화면 › 순환)'))
     // 이미 발현·승급한 적 있는 저장이면 바로 연다
-    if (progress.records.size > 0) cycle.opened.add('train')
+    if (progress.opened.length > 0) cycle.opened.add('train')
     if (progress.promotions > 0) cycle.opened.add('rebirth')
     bus.on('giantKilled', ({ giant }) => {
       if (giant !== this.doomBoss) return
@@ -76,7 +74,7 @@ export class CycleSystem {
 
   update(dt: number): void {
     const { cycle, hero, combat, progress, bus } = this.ctx
-    if (!cycle.opened.has('train') && progress.records.size > 0) cycle.opened.add('train')
+    if (!cycle.opened.has('train') && progress.opened.length > 0) cycle.opened.add('train')
     if (!cycle.opened.has('rebirth') && progress.promotions > 0) cycle.opened.add('rebirth')
     // 걸은 거리 → 바람
     const p = hero.object.position
@@ -96,7 +94,8 @@ export class CycleSystem {
       if (cycle.autoTrain()) this.dirtyTimer = 1
     }
     // 단련 능력치: 바위 단련은 최대 생명으로
-    const wantHp = BASE_HP + progress.promotions * PER_PROMOTION.maxHp + cycle.bonusHp
+    // 최대 생명: 승급·바위 단련·상시 효과 (빌드 상태 한 곳에서 계산)
+    const wantHp = this.ctx.build.state.maxHp
     if (combat.health.max !== wantHp) combat.health.setMax(wantHp)
     // 저장 (결정은 자주 들어오니 잠깐 모았다가)
     if (this.dirtyTimer > 0) {

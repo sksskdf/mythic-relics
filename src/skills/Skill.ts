@@ -12,6 +12,9 @@ import type { God, RelicId } from '../relics/data'
 import type { DamageStyle } from '../ui/DamageNumbers'
 
 /** 스킬이 세계와 주고받는 것들. Game이 프레임마다 채워 준다. */
+/** 피해가 어디서 왔는가: 상시 효과 수치(하늘 공격 피해 +10% 등)가 이것을 보고 붙는다 (E12-03) */
+export type DamageSource = 'basic' | 'sky' | 'companion' | 'orbit' | 'pulse' | 'dot' | 'other'
+
 export interface SkillContext {
   hero: HeroController
   /** 살아 있는 적 */
@@ -33,8 +36,10 @@ export interface SkillContext {
   heal(amount: number): void
   /** 주인공 생명 비율 0~1 */
   heroHp(): number
-  /** 주인공이 적에게 피해를 준다. 배율, 피해 숫자, 신위 게이지는 Game이 처리한다. */
-  hit(target: CombatTarget, damage: number, dirX: number, dirZ: number, knockback: number, style: DamageStyle): void
+  /** 상시 효과의 범위 배율 (파동·하늘 공격 넓이) */
+  area: number
+  /** 주인공이 적에게 피해를 준다. 배율, 피해 숫자, 신위 게이지는 Game이 처리한다. source는 상시 효과 수치를 고른다 */
+  hit(target: CombatTarget, damage: number, dirX: number, dirZ: number, knockback: number, style: DamageStyle, source?: DamageSource): void
   shake(amount: number): void
   /** 소리를 낸다. x·z가 있으면 그 자리에서 */
   sound(cue: SoundCue, x?: number, z?: number): void

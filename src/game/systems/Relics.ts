@@ -73,6 +73,14 @@ export class RelicSystem {
     combat.attackSpeed = build.attackSpeed
     combat.setStyle(build.attack)
     hero.speedScale = build.moveSpeed
+    // 상시 효과 수치 (E12-03)
+    const stats = build.stats
+    combat.healScale = 1 + stats.healingTaken
+    combat.bonusRegen = stats.regen
+    combat.lowHpTakenScale = 1 + stats.lowHpGuard
+    combat.divineScale = 1 + stats.ultCharge
+    skills.area = 1 + stats.areaSize
+    this.ctx.powers.echoes.list = build.echoes
   }
 
   /** 유물을 끼운다. announce가 false면 발현 연출 없이 (불러오기·점검용) */
@@ -140,6 +148,8 @@ export class RelicSystem {
     }
     if (before.manifested !== after.manifested && !after.manifested) this.decoy = null
     if (!after.manifested || before.manifested === after.manifested) return
+    // E12-04 전까지: 유물로 발현하면 그 신화가 열린다 (숙련 문턱을 넘은 것과 같다)
+    if (progress.open(after.manifested)) bus.emit('progressChanged', {})
     if (!announce) return
     bus.emit('manifested', { god: after.manifested })
     const god = godDef(after.manifested)

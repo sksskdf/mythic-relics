@@ -275,15 +275,16 @@ export class Game {
       enemies: [],
       manifested: null,
       level: 0,
+      area: 1,
       fx: this.fx.skills,
       lightning: this.fx.lightning,
       puffs: this.fx.puffs,
       slashes: this.fx.slashes,
       shots: this.fx.shots,
       flash: (at, color, strength) => this.fx.power.burst(at, color, strength),
-      heal: (amount) => this.combat.health.heal(amount),
+      heal: (amount) => this.combat.heal(amount),
       heroHp: () => this.combat.health.ratio,
-      hit: (target, damage, dirX, dirZ, knockback, style) => this.damage.deal(target, damage, dirX, dirZ, knockback, style),
+      hit: (target, damage, dirX, dirZ, knockback, style, source) => this.damage.deal(target, damage, dirX, dirZ, knockback, style, source),
       shake: (amount) => this.view.shake(amount),
       sound: (cue, x, z) => this.bus.emit('sound', { cue, x, z }),
       setDecoy: (decoy) => {
@@ -419,6 +420,7 @@ export class Game {
       hero: this.hero,
       orders: this.orders,
       view: this.view,
+      region: () => this.ctx.map.region.realm ?? undefined,
     })
     this.audio = new AudioEngine(this.settings.volume)
     this.sound = new SoundSystem(this.ctx, this.audio)
@@ -706,6 +708,9 @@ export class Game {
   }
 
   /** 월드 좌표가 화면 어디에 보이는가 (CSS 픽셀, 자동 점검용) */
+  /** 기본 공격의 대상별 배율 (정예·보스에게 피해) */
+  private readonly targetScale = (target: CombatTarget): number => this.damage.targetScale(target)
+
   screenPoint(x: number, y: number, z: number): { x: number; y: number } {
     return worldToScreen(new THREE.Vector3(x, y, z), this.container.clientHeight, this.pixel.size, this.view.camera, this.view.subpixel)
   }
@@ -768,6 +773,7 @@ export class Game {
     this.relics.update(dt)
     this.cycleSystem.update(dt)
     this.combat.damageScale = this.damage.scale('basic')
+    this.combat.targetScale = this.targetScale
     this.updateEnemies(dt)
     this.growth.update(dt)
     this.life.update(dt)

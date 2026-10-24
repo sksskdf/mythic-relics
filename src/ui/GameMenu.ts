@@ -759,7 +759,7 @@ export class GameMenu {
     const { progress, loadout } = this.host
     const tree = DATA.classes
     const wrap = el('div', 'menu-classes')
-    const levelOf = (god: God | undefined): number => (god && progress.records.has(god) ? progress.level(god) : 0)
+    const levelOf = (god: God | undefined): number => (god ? progress.level(god) : 0)
 
     // 지금 클래스: 문장, 칭호, 레벨 점, 경험치 막대, 승급 전설 두루마리
     const now = el('section', 'menu-classes__now')

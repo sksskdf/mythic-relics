@@ -37,6 +37,8 @@ const INVULNERABLE_AFTER_HIT = 0.3
 /** 마지막으로 맞은 뒤 이 시간이 지나면 생명력이 차오른다. */
 const REGEN_DELAY = 3
 const REGEN_PER_SECOND = 12
+/** 이 아래면 「생명이 낮을 때」 (바리공주 상시 효과) */
+const LOW_HP = 0.35
 
 /**
  * 주인공의 자동 전투. 조작 최소화 원칙에 따라 공격 버튼이 없다.
@@ -63,6 +65,12 @@ export class PlayerCombat {
   knockbackScale = 1
   damageTakenScale = 1
   knockbackTakenScale = 1
+  /** 상시 효과 (E12-03): 대상별 피해 배율, 받는 회복, 늘 도는 재생, 생명이 낮을 때 받는 피해, 신위 게이지 충전 */
+  targetScale: (target: CombatTarget) => number = () => 1
+  healScale = 1
+  bonusRegen = 0
+  lowHpTakenScale = 1
+  divineScale = 1
 
   private invulnerable = 0
   private sinceHurt = REGEN_DELAY
@@ -98,7 +106,8 @@ export class PlayerCombat {
   update(dt: number, enemies: readonly CombatTarget[], hooks: CombatHooks): void {
     this.invulnerable = Math.max(0, this.invulnerable - dt)
     this.sinceHurt += dt
-    if (this.alive && this.sinceHurt > REGEN_DELAY) this.health.heal(REGEN_PER_SECOND * dt)
+    if (this.alive && this.sinceHurt > REGEN_DELAY) this.heal(REGEN_PER_SECOND * dt)
+    if (this.alive && this.bonusRegen > 0) this.heal(this.bonusRegen * dt)
 
     if (!this.alive || this.hero.isMoving) {
       this.combo.cancel()
@@ -133,7 +142,8 @@ export class PlayerCombat {
    */
   takeHit(damage: number, fromX: number, fromZ: number, knockback: number): number {
     if (!this.alive || this.invulnerable > 0 || this.godMode) return 0
-    const dealt = this.health.damage(damage * this.damageTakenScale)
+    const low = this.health.ratio < LOW_HP ? this.lowHpTakenScale : 1
+    const dealt = this.health.damage(damage * this.damageTakenScale * low)
     knockback *= this.knockbackTakenScale
     this.invulnerable = INVULNERABLE_AFTER_HIT
     this.sinceHurt = 0
@@ -155,7 +165,12 @@ export class PlayerCombat {
   }
 
   addDivine(amount: number): void {
-    this.divine = Math.min(1, this.divine + amount)
+    this.divine = Math.min(1, this.divine + amount * this.divineScale)
+  }
+
+  /** 생명을 되찾는다 (받는 회복 배율을 곱한다) */
+  heal(amount: number): void {
+    this.health.heal(amount * this.healScale)
   }
 
   private inReach(target: CombatTarget): boolean {
@@ -186,7 +201,7 @@ export class PlayerCombat {
       const dx = enemy.x - p.x
       const dz = enemy.z - p.z
       const len = Math.hypot(dx, dz) || 1
-      const dealt = enemy.takeHit(swing.damage * this.damageScale, dx / len, dz / len, swing.knockback * this.knockbackScale)
+      const dealt = enemy.takeHit(swing.damage * this.damageScale * this.targetScale(enemy), dx / len, dz / len, swing.knockback * this.knockbackScale)
       if (dealt > 0) hits.push({ target: enemy, damage: dealt, strong })
     }
     if (swing.shape === 'shot') for (const target of struck.slice(0, swing.shots ?? 1)) hooks?.onShot?.(target, strong)
