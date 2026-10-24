@@ -32,6 +32,7 @@ function setup(enemies: CombatTarget[]) {
   const fx = new THREE.Group()
   const decoys: ({ x: number; z: number } | null)[] = []
   const ctx: SkillContext = {
+    area: 1,
     hero,
     enemies,
     manifested: null,

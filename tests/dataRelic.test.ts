@@ -86,6 +86,7 @@ describe('데이터에만 넣은 시험용 유물', () => {
     const near = dummy(1.5, 0, hits)
     const hero = new HeroController(buildHeroModel(), new NavGrid(20, 0.5, [], 0.4), () => [], 20)
     const ctx: SkillContext = {
+    area: 1,
       hero,
       enemies: [near],
       manifested: null,

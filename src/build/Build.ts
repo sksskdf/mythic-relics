@@ -21,7 +21,7 @@ export class Build {
       gear: powers.loadout.slots,
       mastery: (source) => progress.mastery(source),
       promotions: progress.promotions,
-      cycle: { damage: cycle.damageScale, damageTaken: cycle.damageTakenScale, moveSpeed: cycle.moveSpeedScale },
+      cycle: { damage: cycle.damageScale, damageTaken: cycle.damageTakenScale, moveSpeed: cycle.moveSpeedScale, bonusHp: cycle.bonusHp },
     }
   }
 

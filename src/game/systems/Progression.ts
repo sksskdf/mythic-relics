@@ -10,8 +10,7 @@ import type { LegendKind } from '../../data/classKit'
 import type { GameContext } from '../context'
 import { godMoment } from './godMoments'
 
-/** 주인공의 기본 생명력 */
-export const BASE_HP = 100
+export { BASE_HP } from '../../build/BuildState'
 /** 적을 쓰러뜨렸을 때 되찾는 생명력 */
 const HEAL_PER_KILL = 4
 const HEAL_PER_BOSS = 30
@@ -76,14 +75,14 @@ export class ProgressionSystem {
     const { powers, combat, drops, pickups } = this.ctx
     this.gainMastery(giant.spec.xp * (giant.elite ? ELITE_REWARD.xp : 1), giant.spec.realm)
     // 적을 쓰러뜨리면 생명력을 조금 되찾는다. 몰려오는 무리를 쓸어 내며 버틸 수 있게 한다.
-    if (combat.alive) combat.health.heal(giant.spec.boss ? HEAL_PER_BOSS : HEAL_PER_KILL)
+    if (combat.alive) combat.heal((giant.spec.boss ? HEAL_PER_BOSS : HEAL_PER_KILL) + this.ctx.build.state.stats.healOnKill)
     const owned = new Set<RelicId>([
       ...powers.loadout.slots.filter((id): id is RelicId => id !== null),
       ...powers.loadout.bag,
       ...pickups.list.map((p) => p.id),
     ])
-    // 정예는 유물을 한 번 더 굴린다
-    const rolls = giant.elite ? ELITE_REWARD.dropRolls : 1
+    // 정예는 유물을 한 번 더 굴린다. 상시 효과(도깨비)는 그 확률만큼 한 번 더
+    const rolls = (giant.elite ? ELITE_REWARD.dropRolls : 1) + (Math.random() < this.ctx.build.state.stats.dropChance ? 1 : 0)
     for (let i = 0; i < rolls; i++) {
       const relic = drops.roll(owned, giant.spec.boss)
       if (!relic) continue
@@ -95,6 +94,8 @@ export class ProgressionSystem {
   /** 신화 숙련을 그 신화권 신들에게 나눠 쌓는다. 문턱을 넘은 신화는 열린다. */
   gainMastery(amount: number, realm: string | undefined): void {
     const { build, progress, bus } = this.ctx
+    // 상시 효과: 신화 숙련 얻는 양 (오딘)
+    amount *= 1 + build.state.stats.masteryGain
     for (const [god, share] of masteryShares(amount, realm, build.chosen, Object.values(GODS))) {
       if (progress.addXp(god, share) === 'opened') this.announceOpened(god)
     }
@@ -115,7 +116,7 @@ export class ProgressionSystem {
   /** 승급: 칭호가 바뀌고, 스킬이 강해지고, 원천 숙련과 기본 능력치가 오른다. */
   promote(god: God): void {
     const { progress, combat, hero, hud, fx, view, feel, bus } = this.ctx
-    const hpBefore = BASE_HP + progress.promotions * PER_PROMOTION.maxHp
+    const hpBefore = this.ctx.build.state.maxHp
     const dmgBefore = 1 + progress.promotions * PER_PROMOTION.damage
     if (!progress.promote(god)) return
     bus.emit('promoted', { god, title: progress.title(god) })
@@ -124,7 +125,7 @@ export class ProgressionSystem {
     combat.health.reset()
     const p = hero.object.position
     // 무엇이 얼마나 강해졌는지: 기본 능력치는 전→후, 그 단계에서 새로 생긴 힘은 한 줄씩
-    const hpAfter = BASE_HP + progress.promotions * PER_PROMOTION.maxHp
+    const hpAfter = this.ctx.build.state.maxHp
     const dmgAfter = 1 + progress.promotions * PER_PROMOTION.damage
     const level = progress.level(god)
     const lines = [
@@ -145,7 +146,7 @@ export class ProgressionSystem {
 
   /** 총 승급 횟수에서 나오는 기본 능력치 (DESIGN.md 6.2) */
   applyStats(): void {
-    this.ctx.combat.health.setMax(BASE_HP + this.ctx.progress.promotions * PER_PROMOTION.maxHp + this.ctx.cycle.bonusHp)
+    this.ctx.combat.health.setMax(this.ctx.build.state.maxHp)
   }
 
   /** 클래스 성장(레벨·경험치)을 처음으로 되돌린다. */
