@@ -16,6 +16,8 @@ const THREAT = Number(process.argv.find((a) => a.startsWith('--threat='))?.slice
 const SOURCE = process.argv.find((a) => a.startsWith('--source='))?.slice(9) ?? null
 /** --stack=stone 처럼 붙이면 그 원천 +3짜리 영웅 장비 여섯과 원천 숙련 +2를 끼고(원천 20, 각성 3단계) 시작한다 (원천 빌드 비교, scripts/source-trial.mjs) */
 const STACK = process.argv.find((a) => a.startsWith('--stack='))?.slice(8) ?? null
+/** --trials 를 붙이면 위협 3단계·토르 2단계(묠니르)로 시작해 시련 1단계 여덟을 차례로 깬다 (E16-05). --relics=mjolnir --region=midgard 와 함께 쓴다 */
+const TRIALS = process.argv.includes('--trials')
 /** --god=loki 처럼 붙이면 봇이 그 신 유물만 끼고 승급까지 간다 (E6-08) */
 const GOD = process.argv.find((a) => a.startsWith('--god='))?.slice(6) ?? null
 /** --relics=kusanagi,totsuka,... 처럼 붙이면 그 유물을 끼고(발현한 채) 시작해 제한 시간 동안 처치 속도를 잰다 (클래스 비교) */
@@ -63,6 +65,14 @@ try {
     await page.waitForFunction(() => window.__autoplay && window.__game.frame > 2, null, { timeout: 30000 })
     if (THREAT > 0) await page.evaluate((source) => Object.assign(window.__autoplay, { climb: true, source }), SOURCE)
     if (GOD) await page.evaluate((god) => (window.__autoplay.god = god), GOD)
+    if (TRIALS)
+      await page.evaluate(() => {
+        const g = window.__game
+        Object.assign(g.threat, { unlocked: 3, reached: 3, level: 3 })
+        g.threatSystem.apply()
+        g.dev.promote()
+        Object.assign(window.__autoplay, { trials: true })
+      })
     if (STACK)
       await page.evaluate((source) => {
         const g = window.__game
@@ -80,9 +90,9 @@ try {
       const state = await page.evaluate(() => {
         window.__autoplay.run(30)
         const g = window.__game
-        return { t: g.time, promoted: g.progress.promotions >= 1, reached: g.threat.reached }
+        return { t: g.time, promoted: g.progress.promotions >= 1, reached: g.threat.reached, trialsLeft: window.__autoplay.trialsLeft() }
       })
-      done = (RELICS ? false : THREAT > 0 ? state.reached >= THREAT : state.promoted) || state.t > LIMIT_MIN * 60
+      done = (TRIALS ? !state.trialsLeft : RELICS ? false : THREAT > 0 ? state.reached >= THREAT : state.promoted) || state.t > LIMIT_MIN * 60
     }
     const climbs = await page.evaluate(() => [...window.__autoplay.climbs])
     // 끝났을 때 봇이 어디서 무엇을 하고 있었나 (멈춤을 찾을 때)
@@ -121,6 +131,8 @@ try {
       legendFails: count('legendFail'),
       end: log.at(-1)?.t,
       climbs,
+      // 시련 (E16-05): 시련:난이도:결과:초
+      trials: log.filter((e) => e.type === 'trial').map((e) => e.detail),
       // 지역 이동 (E15-07): 처음 들어간 때, 보스의 땅에 처음 닿은 때
       regions: log.filter((e, i) => e.type === 'region' && log.findIndex((x) => x.type === 'region' && x.detail === e.detail) === i).map((e) => ({ id: e.detail, t: e.t })),
       bossLand: log.find((e) => e.type === 'region' && ['utgard', 'lycia', 'huoyanshan', 'hiikawa', 'songdo'].includes(e.detail))?.t,
@@ -140,6 +152,7 @@ try {
       `#${run} 2단계 ${fmt(result.promote)} | 첫 신화 ${fmt(result.manifest)} | 신화 둘 ${fmt(result.opened[1]?.t)} (연 신화 ${result.opened.length}: ${result.opened.map((o) => o.god).join(', ')}) | 거인 왕 ${fmt(result.bossKill)} | 장비 ${result.gear}, 첫 제작 ${fmt(result.forged[0]?.t)}${result.forged[0] ? ` (${result.forged[0].what})` : ''} | ` +
         `유물 ${Object.entries(result.relics).map(([k, v]) => `${k} ${fmt(v)}`).join(', ')} | ` +
         `처치 ${result.kills}(첫 신화 뒤 분당 ${result.killRate}), 쓰러짐 ${result.deaths}, 피격 ${result.hurt}, 전설 실패 ${result.legendFails}` +
+        (TRIALS ? ` | 시련 ${result.trials.join(', ')}` : '') +
         (THREAT > 0 ? ` | 보스의 땅 ${fmt(result.bossLand)} | 위협 ${result.threat.map((x) => `${x.level}단계 ${fmt(x.time)}·쓰러짐 ${x.deaths}·피격 ${x.hurt}`).join(' → ')} | 원천 ${result.sources.map((x) => `${x.id} ${x.total}(${x.level})`).join(' ')}` : '') +
         (errors.length ? ` | 오류 ${errors.length}` : ''),
     )

@@ -168,7 +168,7 @@ export class RelicSystem {
     const boss = encounter.boss
     const bossNear = !!boss && boss.alive && Math.hypot(boss.x - position.x, boss.z - position.z) < 10
     const ultimate = powers.ultimate
-    if (combat.alive && ultimate && combat.divine >= 1 && !powers.ultimateActive && ultimate.worthUsing(skills, bossNear)) {
+    if (combat.alive && ultimate && combat.divine >= 1 && !powers.ultimateActive && !this.ctx.build.state.noUltimate && ultimate.worthUsing(skills, bossNear)) {
       combat.divine = 0
       ultimate.start(skills)
       feel.stop(0.12)
@@ -184,8 +184,9 @@ export class RelicSystem {
     hero.speedScale = build.moveSpeed
     // 상시 효과 수치 (E12-03)
     const stats = build.stats
-    combat.healScale = 1 + stats.healingTaken
-    combat.bonusRegen = stats.regen
+    // 시련 「마른 샘」(E16): 생명이 차오르지 않는다
+    combat.healScale = build.noHeal ? 0 : 1 + stats.healingTaken
+    combat.bonusRegen = build.noHeal ? 0 : stats.regen
     combat.lowHpTakenScale = 1 + stats.lowHpGuard
     combat.divineScale = 1 + stats.ultCharge
     skills.area = 1 + stats.areaSize

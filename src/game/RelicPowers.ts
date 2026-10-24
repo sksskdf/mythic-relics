@@ -34,6 +34,15 @@ export class RelicPowers {
   private readonly ultimates = new Map<God, Ultimate>()
   /** 프레임마다 도는 발현 패시브 부품 (src/skills/ClassPassives.ts) */
   readonly classPassives: ClassPassives
+  /** 시련 「세 칸의 짐」(E16): 효과가 도는 칸. null이면 모두 */
+  allowSlots: readonly number[] | null = null
+
+  /** 지금 도는 유물 효과 (시련으로 막힌 칸은 뺀다) */
+  private get live(): (RelicEffect | null)[] {
+    const allow = this.allowSlots
+    return allow ? this.effects.filter((_, i) => allow.includes(i)) : this.effects
+  }
+
   /** 상시 효과의 메아리: 고르지 않은 열린 신화들 (src/skills/MythEchoes.ts) */
   readonly echoes: MythEchoes
   /** 원천 각성 (src/skills/SourceAwakening.ts, E14-02) */
@@ -154,7 +163,7 @@ export class RelicPowers {
   }
 
   update(dt: number, ctx: SkillContext): void {
-    for (const effect of this.effects) effect?.update(dt, ctx)
+    for (const effect of this.live) effect?.update(dt, ctx)
     for (const u of this.ultimates.values()) u.update(dt, ctx)
     this.classPassives.update(dt, ctx)
     this.echoes.update(dt, ctx)
@@ -163,25 +172,25 @@ export class RelicPowers {
 
   /** 기본 공격이 맞았다. (연타 연동: 묠니르, 다음 타격 강화: 메긴교르드) */
   onBasicHit(hit: BasicHit, ctx: SkillContext): void {
-    for (const effect of this.effects) effect?.onBasicHit?.(hit, ctx)
+    for (const effect of this.live) effect?.onBasicHit?.(hit, ctx)
   }
 
   /** 적을 쓰러뜨렸다. (처치 연동: 메긴교르드) */
   onKill(target: CombatTarget, ctx: SkillContext): void {
-    for (const effect of this.effects) effect?.onKill?.(target, ctx)
+    for (const effect of this.live) effect?.onKill?.(target, ctx)
     this.awakening.onKill(target, ctx)
   }
 
   /** 주인공이 걸었다. (이동 연동: 변신의 가면) */
   onWalk(distance: number, ctx: SkillContext): void {
-    for (const effect of this.effects) effect?.onWalk?.(distance, ctx)
+    for (const effect of this.live) effect?.onWalk?.(distance, ctx)
     this.awakening.onWalk(distance, ctx)
   }
 
   /** 맞기 직전에 유물이 끼어들 기회를 준다. (피격 연동: 야른그레이프르) */
   beforeHeroHit(damage: number, fromX: number, fromZ: number, ctx: SkillContext): number {
     let result = damage
-    for (const effect of this.effects) {
+    for (const effect of this.live) {
       if (effect?.beforeHeroHit) result = effect.beforeHeroHit(result, fromX, fromZ, ctx)
     }
     return result > 0 ? this.awakening.beforeHeroHit(result, ctx) : result

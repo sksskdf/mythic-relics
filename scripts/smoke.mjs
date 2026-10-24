@@ -397,6 +397,33 @@ try {
   if (!(await page.evaluate(() => window.__game.powers.loadout.has('mjolnir')))) throw new Error('처음 화면에서 슬롯을 골랐는데 유물이 없습니다.')
   console.log('처음 화면 확인: 정보 화면에서 처음 화면으로, 슬롯을 골라 그대로 이어 감')
 
+  // 시련 (E16): 위협 3단계가 되면 필드 성소 결계 안에서 시련 탭의 난이도를 눌러 바로 연다. 제약은 시련 중에만 걸린다
+  await page.evaluate(() => {
+    const g = window.__game
+    Object.assign(g.threat, { unlocked: 3, reached: 3 })
+    // 진행 중인 전설이 있으면 그만두고(지역을 다시 지을 수 있게), 둘레 적이 밀어내거나 쓰러뜨리지 않게 치우고 성소 가운데 곁에 선다
+    if (g.legend.active) g.legend.abort(g.encounter, g.growth.legendHost())
+    g.enterRegion(g.regions.midgard)
+    g.encounter.clearAll()
+    if (!g.combat.alive) g.dev.revive()
+    g.orders.clear()
+    g.hero.teleport(g.legend.center.x + 4, g.legend.center.z)
+    g.hero.stop()
+  })
+  const trialBlocked = await page.evaluate(() => {
+    const g = window.__game
+    const p = g.hero.object.position
+    return g.trialSystem.blocked() && { why: g.trialSystem.blocked(), phase: g.legend.phase, d: Math.hypot(p.x - g.legend.center.x, p.z - g.legend.center.z), trial: g.trialSystem.active, region: g.region.id }
+  })
+  if (trialBlocked) throw new Error(`시련: 성소 곁인데 열 수 없습니다 ${JSON.stringify(trialBlocked)}`)
+  await page.click('.menu-button')
+  await page.locator('.menu__tab', { hasText: '시련' }).click()
+  if ((await page.locator('.menu-trials .menu-src__source').count()) !== 8) throw new Error('시련: 시련 카드가 여덟이 아닙니다.')
+  await page.locator('.menu-trials .menu-src__source').filter({ hasText: '유리 몸' }).getByRole('button', { name: '1', exact: true }).click()
+  const trial = await page.evaluate(() => ({ id: window.__game.trialSystem.active?.id, legend: window.__game.legend.active, maxHp: window.__game.combat.health.max }))
+  if (trial.id !== 'glass' || !trial.legend) throw new Error(`시련: 유리 몸 1단계가 열리지 않습니다 ${JSON.stringify(trial)}`)
+  console.log(`시련 확인: 성소에서 시련 탭으로 유리 몸 1단계를 열고 전설이 시작됨 (최대 생명 ${trial.maxHp})`)
+
   // 개발 패널: ?dev 로 열고 단추로 유물·적·전설을 바로 바꿔 본다.
   await page.goto(`${URL}?dev&region=midgard`)
   await page.waitForSelector('.devpanel button', { timeout: 15000 })

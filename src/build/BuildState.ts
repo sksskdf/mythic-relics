@@ -1,5 +1,6 @@
 import type { AttackStyle } from '../combat/styles'
 import { awakeningLevel } from '../data/awakening'
+import { NO_RULES, type TrialRules } from '../data/trials'
 import { type EchoTrigger, type MythAlways, STAT_KINDS, type StatKind } from '../data/mythAlways'
 import { SOURCE_IDS, type SourceId } from '../data/schema'
 import { relicSource } from '../gear/mythRelic'
@@ -31,6 +32,10 @@ export interface BuildInputs {
   sourceMastery?: (source: SourceId) => number
   /** 올린 개방 단계의 합 */
   promotions: number
+  /** 시련 보상 (E16): 수치 종류마다 더한다 */
+  bonus?: Partial<Record<StatKind, number>>
+  /** 시련 중 제약 (E16): 고른 신화 없이·최대 생명·이동 속도 등. 장비 칸 제한은 재료를 모을 때 거른다 */
+  rules?: TrialRules
 }
 
 /** 기본 최대 생명 */
@@ -89,6 +94,9 @@ export interface BuildState {
   stats: Readonly<Record<StatKind, number>>
   /** 최대 생명 */
   maxHp: number
+  /** 시련 제약: 생명이 차오르지 않는다, 궁극기를 쓸 수 없다 (E16) */
+  noHeal: boolean
+  noUltimate: boolean
   /** 원천 수치: 일반 장비와 유물(단계마다 +2~+5)의 합 + 원천 숙련 (E14) */
   sources: Readonly<Record<SourceId, number>>
   /** 원천 각성 단계 0~3 (문턱 5/10/20, E14-02) */
@@ -109,7 +117,8 @@ export function gearModifiers(gear: readonly (RelicId | null)[]): Modifiers {
 
 /** 재료에서 빌드 상태를 계산한다. (부수 효과 없음) */
 export function computeBuild(inputs: BuildInputs): BuildState {
-  const chosen = inputs.chosen[0] ?? null
+  const rules = inputs.rules ?? NO_RULES
+  const chosen = rules.noMyth ? null : (inputs.chosen[0] ?? null)
   const god = chosen ? godDef(chosen) : null
   // 상시 효과: 같은 종류 수치는 더하고, 다른 종류끼리는 아래에서 곱한다
   const worn = new Set(inputs.gear.filter((id): id is RelicId => id !== null).map((id) => relicDef(id).god))
@@ -121,7 +130,7 @@ export function computeBuild(inputs: BuildInputs): BuildState {
     const always = godDef(id).always
     stats[always.stat.kind] += statAt(always.stat, stage)
     // 고른 신화는 패시브 전체가 돌아 메아리를 따로 내지 않는다
-    if (!inputs.chosen.includes(id)) echoes.push({ god: id, stage })
+    if (id !== chosen) echoes.push({ god: id, stage })
   }
   // 일반 장비 수치 (E13-02)와 원천 수치
   const sources = Object.fromEntries(SOURCE_IDS.map((s) => [s, 0])) as Record<SourceId, number>
@@ -135,6 +144,7 @@ export function computeBuild(inputs: BuildInputs): BuildState {
     sources[source.id] += source.value
   }
   for (const s of SOURCE_IDS) sources[s] += inputs.sourceMastery?.(s) ?? 0
+  for (const [kind, value] of Object.entries(inputs.bonus ?? {}) as [StatKind, number][]) stats[kind] += value
   const awakening = Object.fromEntries(SOURCE_IDS.map((s) => [s, awakeningLevel(sources[s])])) as Record<SourceId, number>
   const resonance = Math.min(...SOURCE_IDS.map((s) => inputs.sourceMastery?.(s) ?? 0))
   let damageScale = (1 + inputs.promotions * PER_PROMOTION.damage) * (1 + stats.damage)
@@ -149,7 +159,7 @@ export function computeBuild(inputs: BuildInputs): BuildState {
     damageScale,
     modifiers,
     damageTaken: modifiers.damageTaken * (1 + stats.damageTaken),
-    moveSpeed: modifiers.moveSpeed * (1 + stats.moveSpeed),
+    moveSpeed: modifiers.moveSpeed * (1 + stats.moveSpeed) * rules.moveScale,
     attackSpeed: (god ? god.passive.attackSpeed : 1) * (1 + stats.attackSpeed),
     attack: god ? god.attack : 'blade',
     echoes,
@@ -157,6 +167,8 @@ export function computeBuild(inputs: BuildInputs): BuildState {
     sources,
     awakening,
     resonance,
-    maxHp: Math.round((BASE_HP + inputs.promotions * PER_PROMOTION.maxHp + stats.maxHp) * (1 + stats.maxHpPct)),
+    maxHp: Math.round((BASE_HP + inputs.promotions * PER_PROMOTION.maxHp + stats.maxHp) * (1 + stats.maxHpPct) * rules.maxHpScale),
+    noHeal: rules.noHeal,
+    noUltimate: rules.noUltimate,
   }
 }

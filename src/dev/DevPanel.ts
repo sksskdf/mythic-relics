@@ -228,6 +228,10 @@ export class DevPanel {
           for (const k of ['flame', 'hunt', 'wind', 'stone'] as const) g.threat.mastery[k] += 5
           g.menu.refresh()
         }),
+        button('시련 열기', () => {
+          Object.assign(g.threat, { unlocked: Math.max(3, g.threat.unlocked), reached: Math.max(3, g.threat.reached) })
+          g.menu.refresh()
+        }),
         button('편의 모두', () => {
           for (const id of ['autoPickup', 'autoSalvage', 'autoMaterials', 'quickChoose', 'warp'] as const) g.conveniences.open.add(id)
           g.menu.refresh()

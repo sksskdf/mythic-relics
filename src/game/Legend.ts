@@ -81,6 +81,10 @@ export class UtgardLegend {
   radius = 0
   /** 이 지역에 성소가 있나 (마을에는 없다) */
   present = true
+  /** 시련 규칙 (E16): 적 수 배율, 시간 제한(초, 없으면 null). 전설이 끝나면 되돌린다 */
+  rules: { crowd: number; timeLimit: number | null } = { crowd: 1, timeLimit: null }
+  /** 시간 제한이 있는 전설의 남은 시간 */
+  timeLeft: number | null = null
 
   constructor(center: Point2, radius: number) {
     // 둥글게 선 룬스톤 여섯 개와 바닥의 룬 고리
@@ -165,6 +169,13 @@ export class UtgardLegend {
       this.fail(encounter, host)
       return
     }
+    if (this.timeLeft !== null) {
+      this.timeLeft -= dt
+      if (this.timeLeft <= 0) {
+        this.fail(encounter, host)
+        return
+      }
+    }
 
     this.keepInside()
     const remaining = this.giants.filter((g) => !g.gone)
@@ -207,7 +218,15 @@ export class UtgardLegend {
     }
   }
 
+  /** 성소에 들어서지 않고 바로 연다 (시련, E16). 이미 진행 중이거나 성소가 없으면 false */
+  begin(kind: LegendKind, encounter: Encounter, host: LegendHost): boolean {
+    if (this.active || !this.present) return false
+    this.start(kind, encounter, host)
+    return true
+  }
+
   private start(kind: LegendKind, encounter: Encounter, host: LegendHost): void {
+    this.timeLeft = this.rules.timeLimit
     this.barrier.visible = true
     host.setArena({ x: this.center.x, z: this.center.z, radius: this.radius - 0.6 })
     host.onStart()
@@ -240,15 +259,15 @@ export class UtgardLegend {
       return
     }
     this.spawnTimer -= dt
-    if (this.spawnTimer > 0 || this.giants.length >= rule.crowd) return
-    this.spawnTimer = rule.every
+    if (this.spawnTimer > 0 || this.giants.length >= Math.round(rule.crowd * this.rules.crowd)) return
+    this.spawnTimer = rule.every / this.rules.crowd
     const a = Math.random() * Math.PI * 2
     const r = this.radius * 0.8
     this.giants.push(encounter.spawn(GRUNT, { x: this.center.x + Math.sin(a) * r, z: this.center.z + Math.cos(a) * r }, true))
   }
 
   private spawnWave(encounter: Encounter): void {
-    const count = WAVES[this.wave]!
+    const count = Math.round(WAVES[this.wave]! * this.rules.crowd)
     const offset = Math.random() * Math.PI * 2
     for (let i = 0; i < count; i++) {
       const a = offset + (i / count) * Math.PI * 2
@@ -266,6 +285,11 @@ export class UtgardLegend {
     this.giants.push(this.boss)
   }
 
+  /** 진행 중인 전설을 그만둔다 (진 것으로 친다, 개발 지름길) */
+  abort(encounter: Encounter, host: LegendHost): void {
+    if (this.active) this.fail(encounter, host)
+  }
+
   private fail(encounter: Encounter, host: LegendHost): void {
     for (const giant of this.giants) encounter.remove(giant)
     this.giants.length = 0
@@ -275,6 +299,8 @@ export class UtgardLegend {
 
   private finish(host: LegendHost): void {
     this.phase = 'idle'
+    this.timeLeft = null
+    this.rules = { crowd: 1, timeLimit: null }
     this.boss = null
     this.barrier.visible = false
     host.setArena(null)

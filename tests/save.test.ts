@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { parseConveniences } from '../src/progress/Conveniences'
 import { parseThreat } from '../src/progress/Threat'
+import { parseTrials } from '../src/progress/Trials'
 import { parseSave, SAVE_VERSION, type SaveData } from '../src/save/SaveData'
 
 const sample: SaveData = {
@@ -24,6 +25,7 @@ const sample: SaveData = {
   body: { skin: 2, hair: 1, cloth: 3 },
   threat: parseThreat({ level: 2, unlocked: 3, reached: 2, mastery: { flame: 2 }, battle: 40 }),
   conveniences: parseConveniences({ counters: { pickups: 5 }, open: ['autoPickup'] }),
+  trials: parseTrials({ cleared: { glass: 2, slow: 9 }, best: { 'glass:2': 71.3, 'nope:1': 5 } }),
   region: { id: 'olympus', x: 3.5, z: -12 },
   scenes: ['opening'],
 }
