@@ -7,7 +7,7 @@ import { PixelRenderer } from '../render/PixelRenderer'
 import { QuarterViewCamera } from '../render/QuarterViewCamera'
 import { renderHeightFor, TARGET_RENDER_HEIGHT } from '../render/resolution'
 import { REGIONS, type RegionDef, START_REGION } from '../data/regions'
-import { godDef, relicDef, type RelicId } from '../relics/data'
+import { godDef, GODS, relicDef, type RelicId } from '../relics/data'
 import { Wardrobe } from '../looks/outfit'
 import { DropTable } from '../gear/DropTable'
 import { itemUnderPointer } from '../relics/hover'
@@ -63,6 +63,11 @@ import { DialogScene } from './DialogScene'
 import { DialogBox } from '../ui/DialogBox'
 import { DevTools } from '../dev/DevTools'
 import { Build } from '../build/Build'
+import { gearCard } from '../ui/gearCard'
+import { baseCandidates, nextRecipe } from '../gear/forge'
+import { materialName, mythMaterial } from '../gear/materials'
+import { mythRelic, stageName } from '../gear/mythRelic'
+import { GEAR } from '../gear/roll'
 import { alwaysStage } from '../build/BuildState'
 
 export interface GameOptions {
@@ -93,7 +98,7 @@ const CHOOSE_NEAR_SANCTUARY = 6
 export interface PlayEvent {
   /** 게임 시간 (초) */
   t: number
-  type: 'relic' | 'manifest' | 'open' | 'kill' | 'bossKill' | 'death' | 'legendStart' | 'legendFail' | 'promote' | 'hurt'
+  type: 'relic' | 'manifest' | 'open' | 'forge' | 'gear' | 'kill' | 'bossKill' | 'death' | 'legendStart' | 'legendFail' | 'promote' | 'hurt'
   detail?: string
 }
 
@@ -333,6 +338,31 @@ export class Game {
       get bag() {
         return powers.loadout.bag
       },
+      gearOf: (id) => powers.loadout.gear.get(id),
+      slotsFor: (id) => powers.loadout.slots.map((_, i) => i).filter((i) => powers.loadout.fits(id, i)),
+      get materials() {
+        return powers.loadout.materials
+      },
+      forge: {
+        here: () => this.ctx.map.region.kind === 'hub',
+        gods: () => {
+          const { loadout } = powers
+          const chosen = this.ctx.build.chosen
+          return Object.keys(GODS).filter((god) => god === chosen || this.progress.isOpen(god) || loadout.has(mythRelic(god)) || (loadout.materials.get(mythMaterial(god) ?? '') ?? 0) > 0).sort((a, b) => Number(b === chosen) - Number(a === chosen))
+        },
+        next: (god) => {
+          const { loadout } = powers
+          const recipe = nextRecipe(loadout, god)
+          if (!recipe) return null
+          return {
+            name: stageName(recipe.relic, recipe.stage),
+            stage: recipe.stage,
+            materials: recipe.materials.map(({ id, count }) => ({ name: materialName(id), have: loadout.materials.get(id) ?? 0, need: count })),
+            ...(recipe.base ? { base: { part: GEAR.parts[recipe.base].name, ok: baseCandidates(loadout, recipe.base).length > 0 } } : {}),
+          }
+        },
+        make: (god) => this.ctx.map.region.kind === 'hub' && relics.forge(god),
+      },
       get loadout() {
         return powers.state
       },
@@ -340,11 +370,12 @@ export class Game {
       wield: (id, slot) => relics.wield(id, slot),
       stow: (slot) => relics.stow(slot),
       drop: (slot) => relics.unequip(slot, true),
+      salvage: (id) => relics.salvage(id) && this.menu.refresh(),
       progress: this.progress,
       myths: {
         canChoose: () => this.canChooseMyth,
         choose: (god) => this.chooseMyth(god),
-        stage: (god) => alwaysStage(this.progress.level(god), powers.loadout.slots.some((id) => id !== null && relicDef(id).god === god)),
+        stage: (god) => alwaysStage(this.progress.level(god), powers.loadout.relics.some((id) => id !== null && relicDef(id).god === god)),
       },
       cardContext: (id, preview) => this.cardContext(id, preview),
       stats: () => this.heroStats(),
@@ -395,8 +426,11 @@ export class Game {
     this.bus.on('outfitChanged', () => this.menu.refresh())
     this.bus.on('loadoutChanged', () => this.menu.refresh())
     // HUD 유물 칸: 커서를 올리면 설명 카드, 누르면 유물 화면
-    this.hud.onSlotClick = (slot) => this.menu.show('relics', slot)
-    this.hud.onSlotHover = (slot, anchor) => {
+    // HUD 칸 i → 그 유물이 있는 장비 칸
+    const equipSlot = (i: number | null) => (i === null ? null : (this.powers.hudSlots()[i]?.slot ?? null))
+    this.hud.onSlotClick = (i) => this.menu.show('relics', equipSlot(i) ?? 0)
+    this.hud.onSlotHover = (i, anchor) => {
+      const slot = equipSlot(i)
       const id = slot === null ? null : this.powers.loadout.slots[slot]
       if (!id || !anchor) {
         this.hoveredSlot = null
@@ -418,6 +452,7 @@ export class Game {
       hero: this.hero,
       orders: this.orders,
       view: this.view,
+      pickups: this.pickups,
       region: () => this.ctx.map.region.realm ?? undefined,
     })
     this.audio = new AudioEngine(this.settings.volume)
@@ -451,6 +486,8 @@ export class Game {
     const { bus } = this
     bus.on('relicPicked', ({ id }) => record('relic', id))
     bus.on('mythOpened', ({ god }) => record('open', god))
+    bus.on('forged', ({ relic, stage }) => record('forge', `${relic}:${stage}`))
+    bus.on('gearPicked', ({ item }) => record('gear', item.grade))
     bus.on('manifested', ({ god }) => record('manifest', god))
     bus.on('giantKilled', ({ giant }) => record(giant.spec.boss ? 'bossKill' : 'kill', giant.spec.boss))
     bus.on('heroHurt', ({ damage }) => record('hurt', String(Math.round(damage))))
@@ -652,7 +689,7 @@ export class Game {
       const god = godDef(g)
       powers.push({ kind: 'god', name: god.name, color: god.color, label: `${god.name}의 가호`, what: '유물의 힘만 쓴다' })
     }
-    for (const id of this.powers.loadout.slots) {
+    for (const id of this.powers.loadout.relics) {
       if (!id) continue
       const def = relicDef(id)
       powers.push({ kind: 'relic', name: id, color: godDef(def.god).color, label: def.name, what: def.passive.description })
@@ -678,8 +715,8 @@ export class Game {
     return {
       place: slot >= 0 ? { kind: 'slot', slot } : loadout.bag.includes(id) ? { kind: 'bag' } : { kind: 'ground' },
       ...(slot >= 0 ? { charge: this.powers.effects[slot]?.charge ?? 0 } : {}),
-      equipped: loadout.slots,
-      owned: new Set([...loadout.slots.filter((x): x is RelicId => x !== null), ...loadout.bag]),
+      equipped: loadout.relics,
+      owned: new Set(loadout.ownedRelics),
       manifested,
       level: manifested ? this.progress.level(manifested) : 0,
       ...(preview ? { preview } : {}),
@@ -695,7 +732,15 @@ export class Game {
     }
     const { pointer } = this.input
     const near = this.pickupUnderPointer(pointer)
-    if (near) {
+    const nearGear = near ? this.pickups.gearOf(near.id) : undefined
+    if (near && nearGear) {
+      // 땅의 일반 장비: 같은 부위에 지금 낀 장비와 비교한 카드
+      const { loadout } = this.powers
+      const wornId = loadout.slots.find((id, i) => id && loadout.fits(nearGear.uid, i) && loadout.gear.has(id))
+      const worn = wornId ? loadout.gear.get(wornId) : null
+      this.tooltip.showCard(near.id, `${near.id}|${wornId ?? ''}`, () => gearCard(nearGear, worn), pointer.x, pointer.y)
+      this.groundTooltip = true
+    } else if (near) {
       const place = { kind: 'ground' } as const
       const free = this.powers.loadout.slots.indexOf(null)
       const preview = free >= 0 ? { before: this.powers.state, after: this.powers.loadout.preview(free, near.id) } : undefined
@@ -729,7 +774,7 @@ export class Game {
   }
 
   /** 커서 아래의 땅 유물: 화면에 보이는 유물 모양(발밑 ~ 떠 있는 모델 위)과 커서 사이의 화면 거리로 고른다 */
-  private pickupUnderPointer(pointer: { x: number; y: number }): { id: RelicId; x: number; z: number } | null {
+  private pickupUnderPointer(pointer: { x: number; y: number }): { id: string; x: number; z: number } | null {
     const height = this.container.clientHeight
     const size = this.pixel.size
     const { camera, subpixel } = this.view

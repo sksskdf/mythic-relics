@@ -77,6 +77,8 @@ export interface RelicEffect {
   readonly modifiers?: Partial<Modifiers>
   /** 행동 연동 효과의 충전 정도 0~1 (HUD 표시용) */
   readonly charge: number
+  /** 유물 단계에 따른 피해 배율 (E13-03, 1단계 1) */
+  stageScale: number
   /** 매 프레임: 오라, 날아가는 투사체 등 */
   update(dt: number, ctx: SkillContext): void
   /** 기본 공격이 적을 맞혔다. */

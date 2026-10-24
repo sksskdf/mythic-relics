@@ -1,0 +1,78 @@
+{
+  "slots": {
+    "weapon": {
+      "name": "무기",
+      "bases": ["짧은 검", "도끼", "창", "철퇴"],
+      "stats": ["damage", "basicDamage", "bossDamage", "attackSpeed"]
+    },
+    "head": {
+      "name": "머리",
+      "bases": ["가죽 두건", "철 투구", "깃털 관"],
+      "stats": ["maxHp", "ultCharge", "masteryGain", "healingTaken"]
+    },
+    "body": {
+      "name": "몸",
+      "bases": ["누빈 웃옷", "사슬 갑옷", "비늘 갑옷"],
+      "stats": ["maxHp", "maxHpPct", "damageTaken", "regen", "lowHpGuard"]
+    },
+    "hands": {
+      "name": "손",
+      "bases": ["가죽 장갑", "철 손목대", "주술 팔찌"],
+      "stats": ["attackSpeed", "basicDamage", "skyDamage", "companionDamage", "orbitDamage", "pulseDamage", "dotDamage"]
+    },
+    "feet": {
+      "name": "발",
+      "bases": ["가죽 장화", "철 정강이받이", "바람 신발"],
+      "stats": ["moveSpeed", "damageTaken", "healOnKill", "areaSize"]
+    },
+    "trinket": {
+      "name": "장신구",
+      "bases": ["뼈 목걸이", "돌 반지", "부적"],
+      "stats": ["damage", "bossDamage", "areaSize", "dropChance", "ultCharge", "healOnKill", "skyDamage", "companionDamage", "orbitDamage", "pulseDamage", "dotDamage"]
+    }
+  },
+  "grades": {
+    "common": { "name": "보통", "stats": 1, "scale": 1, "source": [1, 1], "chance": 0.6 },
+    "good": { "name": "좋음", "stats": 2, "scale": 1.15, "source": [1, 2], "chance": 0.28 },
+    "rare": { "name": "희귀", "stats": 3, "scale": 1.3, "source": [2, 2], "chance": 0.1 },
+    "hero": { "name": "영웅", "stats": 4, "scale": 1.5, "source": [3, 3], "chance": 0.02 }
+  },
+  "ranges": {
+    "damage": [0.02, 0.04],
+    "bossDamage": [0.04, 0.08],
+    "basicDamage": [0.04, 0.08],
+    "skyDamage": [0.06, 0.12],
+    "companionDamage": [0.06, 0.12],
+    "orbitDamage": [0.06, 0.12],
+    "pulseDamage": [0.06, 0.12],
+    "dotDamage": [0.06, 0.12],
+    "attackSpeed": [0.02, 0.05],
+    "moveSpeed": [0.03, 0.06],
+    "areaSize": [0.04, 0.08],
+    "maxHp": [8, 16],
+    "maxHpPct": [0.03, 0.06],
+    "regen": [0.3, 0.8],
+    "healOnKill": [1, 2],
+    "healingTaken": [0.06, 0.12],
+    "damageTaken": [-0.05, -0.02],
+    "lowHpGuard": [-0.08, -0.04],
+    "ultCharge": [0.04, 0.08],
+    "masteryGain": [0.05, 0.1],
+    "dropChance": [0.02, 0.05]
+  },
+  "drop": { "grunt": 0.06, "elite": 0.25, "boss": 1, "bossMinGrade": "rare" },
+  "uniques": {
+    "thunderCall": { "name": "천둥 부름", "text": "다섯 번째 공격마다 번개" },
+    "ember": { "name": "불씨", "text": "처치하면 작은 폭발" },
+    "whirlStep": { "name": "회오리 걸음", "text": "걸은 자리에 바람" },
+    "stoneSkin": { "name": "바위 껍질", "text": "맞으면 2초 동안 받는 피해 −30% (10초에 한 번)" },
+    "bloodHunt": { "name": "피의 사냥", "text": "처치 셋마다 생명 10" },
+    "shadowBlade": { "name": "그림자 칼", "text": "10% 확률로 두 번 친다" },
+    "moonShield": { "name": "달빛 방패", "text": "생명 50% 아래에서 보호막 (30초에 한 번)" },
+    "frost": { "name": "서리", "text": "맞힌 적이 2초 느려진다" },
+    "deepEcho": { "name": "깊은 메아리", "text": "메아리 간격 −20%" },
+    "huntersEye": { "name": "사냥꾼의 눈", "text": "정예·보스에게 피해 +15%" },
+    "divineBreath": { "name": "신의 숨결", "text": "궁극기를 쓰면 생명 20% 회복" },
+    "pilgrim": { "name": "순례자", "text": "지역을 옮기면 10초 동안 이동 속도 +20%" }
+  }
+}

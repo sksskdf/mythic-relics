@@ -10,6 +10,8 @@ export interface HudSlot {
   icon: string | null
   /** 행동 연동 효과의 충전 정도 0~1 (1이면 다 참) */
   charge: number
+  /** 이 유물이 있는 장비 칸 번호 (빈 칸이면 null) */
+  slot: number | null
 }
 
 export interface HudState {

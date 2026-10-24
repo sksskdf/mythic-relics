@@ -1,5 +1,9 @@
 import { REGIONS } from '../data/regions'
 import { CHOSEN_SLOTS } from '../myth/ClassProgress'
+import { SLOT_PARTS } from '../data/gearData'
+import { STAT_KINDS, type StatKind } from '../data/mythAlways'
+import { isMythRelic } from '../gear/mythRelic'
+import { type GearItem, parseGearItem } from '../gear/roll'
 import { hiddenUnlocked, legacyManifest } from '../myth/manifest'
 import { relicGods } from '../relics/model'
 import { type CycleData, parseCycle } from '../progress/Cycle'
@@ -15,17 +19,27 @@ import { GODS, godDef, type God, isRelicId, relicDef, type RelicId } from '../re
  * - v3: 지금 있는 지역과 자리 (E7). 옛 저장은 마을에서 시작
  * - v4: 신화 (E12-05). classes는 개방 단계 0~4와 신화 숙련, chosen은 고른 신화.
  *   옛 저장은 가진 유물의 신화를 1단계로 열고(히든은 유물 수), 고른 신화는 1차 발현 규칙으로 정한다
+ * - v5: 장비 (E13-06). 칸 7(유물 id 또는 장비 id), 일반 장비, 유물 단계, 재료.
+ *   옛 저장의 재료가 된 유물(E13-03)은 재료로 옮기고, 신화의 유물은 1단계로 그 부위 칸에 다시 낀다
  */
-export const SAVE_VERSION = 4
+export const SAVE_VERSION = 5
 
 export interface SaveData {
   version: typeof SAVE_VERSION
-  /** 유물 슬롯 4칸 */
-  slots: (RelicId | null)[]
-  /** 슬롯이 꽉 차서 못 낀 유물 */
-  bag: RelicId[]
-  /** 땅에 떨어져 있던 유물 */
-  ground: { id: RelicId; x: number; z: number }[]
+  /** 장비 칸 7 (유물 id 또는 일반 장비 id). 불러올 때 그 부위 칸에 다시 낀다 */
+  slots: (string | null)[]
+  /** 가방 (유물 id 또는 일반 장비 id) */
+  bag: string[]
+  /** 가진 일반 장비의 내용 (칸·가방·땅에 있는 것) */
+  gear: GearItem[]
+  /** 유물 단계 2~4 (1단계는 적지 않는다) */
+  stages: Partial<Record<RelicId, number>>
+  /** 재료 개수 */
+  materials: Record<string, number>
+  /** 대장간 유물이 바탕 장비에서 물려받은 수치 (E13-05) */
+  inherited: Partial<Record<RelicId, { kind: StatKind; value: number }>>
+  /** 땅에 떨어져 있던 유물·장비 */
+  ground: { id: string; x: number; z: number }[]
   /** 신화별 개방 단계(0~4)와 신화 숙련 */
   classes: Partial<Record<God, { level: number; xp: number }>>
   /** 고른 신화 (E12-04). 옛 저장은 1차 스프린트 발현 규칙으로 정한다 */
@@ -65,21 +79,45 @@ export function parseSave(text: string | null): SaveData | null {
   }
   if (typeof raw !== 'object' || raw === null) return null
   const data = raw as Record<string, unknown>
-  if (data.version !== SAVE_VERSION && data.version !== 1 && data.version !== 2 && data.version !== 3) return null
+  if (data.version !== SAVE_VERSION && ![1, 2, 3, 4].includes(data.version as number)) return null
+  const old = (data.version as number) < 5
 
-  const seen = new Set<RelicId>()
-  const unique = (id: unknown): id is RelicId => {
-    if (!isRelic(id) || seen.has(id)) return false
+  // 일반 장비 (v5)
+  const gearById = new Map<string, GearItem>()
+  for (const g of Array.isArray(data.gear) ? data.gear : []) {
+    const item = parseGearItem(g)
+    if (item && !gearById.has(item.uid)) gearById.set(item.uid, item)
+  }
+  // 재료: v5는 저장된 것, 옛 저장은 재료가 된 유물을 여기로 옮긴다
+  const materials: Record<string, number> = {}
+  if (!old && typeof data.materials === 'object' && data.materials !== null) {
+    for (const [id, n] of Object.entries(data.materials as Record<string, unknown>)) {
+      if (id.length <= 40 && typeof n === 'number' && n >= 1) materials[id] = Math.min(9999, Math.round(n))
+    }
+  }
+
+  const seen = new Set<string>()
+  /** 칸·가방·땅에 들어갈 수 있는 것: 신화의 유물이나 가진 일반 장비, 한 번씩만 */
+  const unique = (id: unknown, ground = false): id is string => {
+    if (typeof id !== 'string' || seen.has(id)) return false
+    // 재료가 된 유물: 땅에는 그대로, 옛 저장의 칸·가방에 있던 것은 재료로
+    if (isRelic(id) && !isMythRelic(id) && !ground) {
+      if (old) materials[id] = (materials[id] ?? 0) + 1
+      return false
+    }
+    if (!isRelic(id) && !gearById.has(id)) return false
     seen.add(id)
     return true
   }
   const slotsRaw = Array.isArray(data.slots) ? data.slots : []
-  const slots = [0, 1, 2, 3].map((i) => (unique(slotsRaw[i]) ? (slotsRaw[i] as RelicId) : null))
-  const bag = (Array.isArray(data.bag) ? data.bag : []).filter(unique)
+  const slots = Array.from({ length: SLOT_PARTS.length }, (_, i) => (unique(slotsRaw[i]) ? (slotsRaw[i] as string) : null))
+  // 옛 저장(칸 4)의 남은 칸도 놓치지 않는다
+  for (let i = SLOT_PARTS.length; i < slotsRaw.length; i++) if (unique(slotsRaw[i])) slots.push(slotsRaw[i] as string)
+  const bag = (Array.isArray(data.bag) ? data.bag : []).filter((id): id is string => unique(id))
   const ground = (Array.isArray(data.ground) ? data.ground : [])
-    .filter((g): g is { id: RelicId; x: number; z: number } => {
+    .filter((g): g is { id: string; x: number; z: number } => {
       const item = g as Record<string, unknown>
-      return typeof g === 'object' && g !== null && typeof item.x === 'number' && typeof item.z === 'number' && unique(item.id)
+      return typeof g === 'object' && g !== null && typeof item.x === 'number' && typeof item.z === 'number' && unique(item.id, true)
     })
     .map((g) => ({ id: g.id, x: num(g.x, -100, 100, 0), z: num(g.z, -100, 100, 0) }))
 
@@ -93,22 +131,52 @@ export function parseSave(text: string | null): SaveData | null {
     }
   }
 
-  const myths = (data.version as number) < 4 ? openOwned(classes, [...slots, ...bag]) : classes
+  const relicsOwned = [...slots, ...bag].filter((id): id is RelicId => !!id && isRelic(id))
+  const myths = (data.version as number) < 4 ? openOwned(classes, [...relicsOwned, ...Object.keys(materials)]) : classes
+  // 유물 단계: 가진 신화의 유물만, 2~4
+  const stages: SaveData['stages'] = {}
+  if (!old && typeof data.stages === 'object' && data.stages !== null) {
+    for (const [id, n] of Object.entries(data.stages as Record<string, unknown>)) {
+      if (isRelic(id) && isMythRelic(id) && typeof n === 'number' && n >= 2) stages[id] = Math.min(4, Math.round(n))
+    }
+  }
+  const keep = new Set([...slots, ...bag, ...ground.map((g) => g.id)])
   return {
     version: SAVE_VERSION,
-    slots,
-    bag,
+    slots: slots.slice(0, SLOT_PARTS.length),
+    bag: [...bag, ...slots.slice(SLOT_PARTS.length).filter((id): id is string => id !== null)],
+    gear: [...gearById.values()].filter((g) => keep.has(g.uid)),
+    stages,
+    materials,
+    inherited: parseInherited(data.inherited),
     ground,
     classes: myths,
-    chosen: parseChosen(data.chosen, slots, myths),
+    chosen: parseChosen(data.chosen, legacySlots(data.slots), myths),
     dropMisses: Math.round(num(data.dropMisses, 0, 1000, 0)),
     divine: num(data.divine, 0, 1, 0),
-    looks: data.version === 1 ? migrateLooks(slots, bag, classes) : parseLooks(data.looks),
+    looks: data.version === 1 ? migrateLooks(legacySlots(data.slots), legacySlots(data.bag) as RelicId[], classes) : parseLooks(data.looks),
     body: parseBody(data.body),
     cycle: parseCycle(data.cycle),
     region: parseRegion(data.region),
     scenes: Array.isArray(data.scenes) ? [...new Set(data.scenes.filter((s): s is string => typeof s === 'string' && s.length < 40))] : [],
   }
+}
+
+/** 물려받은 수치: 신화의 유물에, 아는 수치 종류만 */
+function parseInherited(raw: unknown): SaveData['inherited'] {
+  const out: SaveData['inherited'] = {}
+  if (typeof raw !== 'object' || raw === null) return out
+  for (const [id, v] of Object.entries(raw as Record<string, unknown>)) {
+    const s = v as Record<string, unknown> | null
+    if (!isRelic(id) || !isMythRelic(id) || !s || !STAT_KINDS.includes(s.kind as StatKind) || typeof s.value !== 'number' || !Number.isFinite(s.value)) continue
+    out[id] = { kind: s.kind as StatKind, value: s.value }
+  }
+  return out
+}
+
+/** 옛 저장의 칸 그대로 (1차 발현 규칙으로 고른 신화를 정할 때) */
+function legacySlots(raw: unknown): (RelicId | null)[] {
+  return (Array.isArray(raw) ? raw : []).map((id) => (isRelic(id) ? id : null))
 }
 
 /** v3 → v4: 가진 유물의 신화를 1단계로 연다 (E12-04 규칙: 그 신 유물을 손에 넣으면 열린다. 히든은 유물 수) */

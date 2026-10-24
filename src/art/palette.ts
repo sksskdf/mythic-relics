@@ -78,3 +78,6 @@ export function readsAsDanger(color: number): boolean {
   const gap = Math.min(Math.abs(c.h - danger.h), 360 - Math.abs(c.h - danger.h))
   return gap < DANGER_HUE_GAP && c.s >= DANGER_SATURATION && c.v >= 0.5
 }
+
+/** 장비 등급 색 (E13-02): 땅의 빛기둥과 장비 그림. 화면 글은 theme.css의 --c-grade-* 토큰 */
+export const GRADE_COLORS = { common: '#c9ccd2', good: '#7fd47a', rare: '#5aa8ff', hero: '#c58aff' } as const

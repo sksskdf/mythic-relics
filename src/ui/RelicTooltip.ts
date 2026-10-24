@@ -27,14 +27,19 @@ export class RelicTooltip {
    * 매 프레임 불러도 된다.
    */
   show(def: RelicDef, ctx: RelicCardContext | undefined, x: number, y: number, above = false): void {
-    if (this.target !== def.id) {
-      this.target = def.id
+    const key = `${def.id}|${ctx?.place?.kind ?? ''}|${ctx?.charge === undefined ? '' : Math.round(ctx.charge * 20)}|${ctx?.manifested ?? ''}${ctx?.level ?? ''}|${ctx?.preview?.after.manifested ?? ''}`
+    this.showCard(def.id, key, () => relicCard(def, ctx), x, y, above)
+  }
+
+  /** 아무 카드나 띄운다 (일반 장비 카드 등). target이 바뀌면 처음부터 잠깐 기다렸다 뜬다, key가 바뀌면 다시 그린다 */
+  showCard(target: string, key: string, make: () => HTMLElement, x: number, y: number, above = false): void {
+    if (this.target !== target) {
+      this.target = target
       this.since = performance.now()
       this.root.classList.remove('is-shown')
     }
-    const key = `${def.id}|${ctx?.place?.kind ?? ''}|${ctx?.charge === undefined ? '' : Math.round(ctx.charge * 20)}|${ctx?.manifested ?? ''}${ctx?.level ?? ''}|${ctx?.preview?.after.manifested ?? ''}`
     if (this.key !== key) {
-      this.root.replaceChildren(relicCard(def, ctx))
+      this.root.replaceChildren(make())
       this.key = key
     }
     this.root.hidden = false

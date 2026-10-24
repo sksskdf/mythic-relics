@@ -26,6 +26,8 @@ export class SoundSystem {
     bus.on('loadoutChanged', ({ announce }) => announce && audio.play('equip'))
     bus.on('manifested', () => audio.play('manifest'))
     bus.on('mythOpened', () => audio.play('manifest'))
+    bus.on('forged', () => audio.play('manifest'))
+    bus.on('gearPicked', () => audio.play('equip'))
     const regionTheme = () => audio.setTheme(themeForRealm(ctx.map.region.realm))
     bus.on('promoted', () => {
       audio.play('promote')

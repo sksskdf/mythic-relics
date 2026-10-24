@@ -1,4 +1,8 @@
 import type { QuarterViewCamera } from '../render/QuarterViewCamera'
+import type { GearPart, Grade } from '../data/gearData'
+import type { Pickups } from '../gear/Pickups'
+import { baseCandidates, nextRecipe } from '../gear/forge'
+import { rollGear } from '../gear/roll'
 import type { RelicId } from '../relics/data'
 import { type ClassProgress, MASTERY_TO_OPEN } from '../myth/ClassProgress'
 import type { EventBus, GameEvents } from '../game/events'
@@ -20,6 +24,7 @@ export interface DevParts {
   hero: HeroController
   orders: HeroOrders
   view: QuarterViewCamera
+  pickups: Pickups
   /** 지금 지역의 신화권 (마을은 없음) */
   region: () => string | undefined
 }
@@ -37,6 +42,34 @@ export class DevTools {
     if (powers.loadout.has(id) || !powers.hasFreeSlot) return
     relics.equip(id, true)
     bus.emit('progressChanged', {})
+  }
+
+  /** 일반 장비 하나를 그 자리에 떨어뜨린다 (부위·등급을 정할 수 있다). 장비 id를 돌려준다 */
+  dropGear(part?: GearPart, grade?: Grade, x?: number, z?: number): string {
+    const p = this.parts.hero.object.position
+    const item = rollGear(Math.random, { ...(part ? { part } : {}), ...(grade ? { grade } : {}) })
+    this.parts.pickups.drop(item.uid, x ?? p.x + 1.5, z ?? p.z, true, item)
+    return item.uid
+  }
+
+  /** 그 신화(없으면 고른 신화)의 다음 제작 재료를 채우고, 바탕이 없으면 그 부위 장비를 가방에 넣는다 (대장간 시험) */
+  fillForge(god?: string): void {
+    const { powers } = this.parts
+    const target = god ?? powers.manifested ?? 'thor'
+    const recipe = nextRecipe(powers.loadout, target)
+    if (!recipe) return
+    for (const { id, count } of recipe.materials) powers.loadout.addMaterial(id, count)
+    if (recipe.base && baseCandidates(powers.loadout, recipe.base).length === 0) {
+      const item = rollGear(Math.random, { part: recipe.base })
+      powers.loadout.addGear(item)
+      powers.loadout.bag.push(item.uid)
+    }
+    this.parts.bus.emit('progressChanged', {})
+  }
+
+  /** 대장간에서 벼린다 (마을이 아니어도) */
+  forge(god: string): boolean {
+    return this.parts.relics.forge(god)
   }
 
   /** 신화를 고른다 (마을·성소가 아니어도). 닫힌 신화면 먼저 연다 */

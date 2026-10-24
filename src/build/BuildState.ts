@@ -1,5 +1,7 @@
 import type { AttackStyle } from '../combat/styles'
 import { type EchoTrigger, type MythAlways, STAT_KINDS, type StatKind } from '../data/mythAlways'
+import { SOURCE_IDS, type SourceId } from '../data/schema'
+import { relicSource } from '../gear/mythRelic'
 import { MASTERY_DAMAGE, PER_PROMOTION } from '../myth/ClassProgress'
 import { type God, godDef, relicDef, type RelicId, type Source } from '../relics/data'
 import { type Modifiers, NO_MODIFIERS } from '../skills/Skill'
@@ -19,8 +21,12 @@ export interface BuildInputs {
   open: ReadonlyMap<God, number>
   /** 고른 신화 (지금은 발현한 신 하나, 없으면 빈 목록) */
   chosen: readonly God[]
-  /** 장비 (지금은 유물 칸, 빈 칸은 null) */
+  /** 칸에 낀 유물 (빈 칸과 일반 장비는 null) */
   gear: readonly (RelicId | null)[]
+  /** 칸에 낀 일반 장비 (E13-02): 수치는 상시 효과 수치와 같은 종류끼리 더한다 */
+  gearItems?: readonly { stats: readonly { kind: StatKind; value: number }[]; source: { id: SourceId; value: number } }[]
+  /** 유물 단계 (E13-03, 없으면 1) */
+  stage?: (id: RelicId) => number
   /** 원천 숙련 */
   mastery: (source: Source) => number
   /** 올린 개방 단계의 합 */
@@ -85,6 +91,8 @@ export interface BuildState {
   stats: Readonly<Record<StatKind, number>>
   /** 최대 생명 */
   maxHp: number
+  /** 원천 수치: 일반 장비와 유물(단계마다 +2~+5)의 합 (E14 각성의 재료) */
+  sources: Readonly<Record<SourceId, number>>
 }
 
 /** 장비한 유물들의 지속 효과 수치를 곱한다 */
@@ -113,6 +121,17 @@ export function computeBuild(inputs: BuildInputs): BuildState {
     // 고른 신화는 패시브 전체가 돌아 메아리를 따로 내지 않는다
     if (!inputs.chosen.includes(id)) echoes.push({ god: id, stage })
   }
+  // 일반 장비 수치 (E13-02)와 원천 수치
+  const sources = Object.fromEntries(SOURCE_IDS.map((s) => [s, 0])) as Record<SourceId, number>
+  for (const item of inputs.gearItems ?? []) {
+    for (const s of item.stats) stats[s.kind] += s.value
+    sources[item.source.id] += item.source.value
+  }
+  for (const id of inputs.gear) {
+    if (!id) continue
+    const source = relicSource(id, inputs.stage?.(id) ?? 1)
+    sources[source.id] += source.value
+  }
   let damageScale = (1 + inputs.promotions * PER_PROMOTION.damage) * (1 + stats.damage)
   if (god) {
     // 고른 신화의 패시브 (천둥의 신: 거인 특효)
@@ -133,6 +152,7 @@ export function computeBuild(inputs: BuildInputs): BuildState {
     attack: god ? god.attack : 'blade',
     echoes,
     stats,
+    sources,
     maxHp: Math.round((BASE_HP + inputs.promotions * PER_PROMOTION.maxHp + inputs.cycle.bonusHp + stats.maxHp) * (1 + stats.maxHpPct)),
   }
 }

@@ -3,7 +3,10 @@ import type { Game } from '../game/Game'
 import { angleDiff, angleTo, inLine } from '../combat/arc'
 import { SOURCE_IDS } from '../data/schema'
 import type { StarId } from '../progress/Cycle'
-import { type God, godDef, relicDef } from '../relics/data'
+import { forgeReady } from '../gear/forge'
+import { gearScore } from '../gear/roll'
+import { mythRelic } from '../gear/mythRelic'
+import { type God, godDef, isRelicId, relicDef } from '../relics/data'
 import type { Point2 } from '../world/colliders'
 
 /** 판단 간격 (초). 사람의 반응 속도쯤으로 둔다. */
@@ -30,6 +33,8 @@ export class Autoplayer {
   god: God | null = null
   /** 다른 지역으로 가지 않고 이 자리에서만 싸운다 (scripts/enemy-trial.mjs) */
   stay = false
+  /** 마지막 생각이 끝난 단계 (멈춤을 찾을 때) */
+  step = 0
 
   constructor(private readonly game: Game) {}
 
@@ -65,12 +70,32 @@ export class Autoplayer {
     }
   }
 
+  /** 벼리기에 실패한 신화 (재료가 늘면 다시 해 본다) */
+  private readonly forgeBlocked = new Set<God>()
+  private forgeMaterials = 0
+  /** 출구 위에서 안쪽으로 물러나는 중 */
+  private backing = false
+
+  /** 봇이 벼릴 신화: 고른 신화, 그다음 열린 신화 (실패한 것은 재료가 늘 때까지 빼고) */
+  private forgeGods(): God[] {
+    const total = [...this.game.powers.loadout.materials.values()].reduce((a, b) => a + b, 0)
+    if (total !== this.forgeMaterials) {
+      this.forgeMaterials = total
+      this.forgeBlocked.clear()
+    }
+    const chosen = this.game.powers.manifested
+    const open = this.game.progress.opened.filter((g) => g !== chosen)
+    return (chosen ? [chosen, ...open] : open).filter((g) => !this.forgeBlocked.has(g))
+  }
+
   /** 가야 할 필드 (E7): 승급할 때가 된 신의 땅, 한 신만 쓰면 그 신의 땅, 아니면 지금 필드(마을이면 미드가르드) */
   private wantRegion(): string {
     const { powers, progress, region, regions } = this.game
     const fieldOf = (god: God) => Object.values(regions).find((r) => r.realm === godDef(god).realm)?.id
     const manifested = powers.manifested
     if (manifested && godDef(manifested).legend && progress.readyToPromote(manifested)) return fieldOf(manifested) ?? region.id
+    // 벼릴 재료가 차면 마을 대장간으로 (E13-08)
+    if (this.forgeGods().some((god) => forgeReady(powers.loadout, god))) return Object.values(regions).find((r) => r.kind === 'hub')?.id ?? region.id
     const here = region.kind === 'field' ? region.id : 'midgard'
     // 히든 신화는 자기 땅이 없어 지금 필드(마을이면 미드가르드)에서 싸운다
     if (this.god) return fieldOf(this.god) ?? here
@@ -85,13 +110,24 @@ export class Autoplayer {
     if (want === region.id) return false
     const exit = region.exits.find((e) => e.to === want) ?? region.exits.find((e) => this.game.regions[e.to]?.kind === 'hub')
     if (!exit) return false
-    if (!hero.isMoving || dist(hero.object.position, exit) > 1) hero.moveTo(exit)
+    const at = dist(hero.object.position, exit)
+    // 방금 그 출구로 들어와 그 위에 서 있으면, 출구는 한 번 벗어나야 다시 밟히므로 안쪽으로 한 걸음 물러난다
+    // 물러나는 동안에는 출구로 다시 걷지 않는다 (출구가 다시 밟히는 거리까지 벗어날 때까지)
+    if (this.backing && at < 3.6 && hero.isMoving) return true
+    this.backing = false
+    if (at < 2 && !hero.isMoving) {
+      const len = Math.hypot(exit.x, exit.z) || 1
+      hero.moveTo({ x: exit.x - (exit.x / len) * 5, z: exit.z - (exit.z / len) * 5 })
+      this.backing = true
+      return true
+    }
+    if (!hero.isMoving || at > 1) hero.moveTo(exit)
     return true
   }
 
   private think(): void {
     const { hero, combat, encounter, pickups, legend, progress, powers } = this.game
-    if (!combat.alive) return
+    if (!combat.alive) return void (this.step = 1)
     const p = hero.object.position
     const here = { x: p.x, z: p.z }
     const enemies = encounter.alive
@@ -101,42 +137,69 @@ export class Autoplayer {
     if (dangers.some((d) => inDanger(here, d, MARGIN))) {
       const escape = this.findEscape(here, dangers)
       if (escape) hero.moveTo(escape)
+      this.step = 2
       return
     }
     // 피했으면 예고가 끝날 때까지 다시 들어가지 않는다.
-    if (dangers.length > 0 && hero.isMoving) return
+    if (dangers.length > 0 && hero.isMoving) return void (this.step = 3)
 
     // 2. 생명력이 낮으면 물러나 회복한다. (전설 결계 안에서는 물러날 곳이 없다)
     const hp = combat.health.ratio
     const near = enemies.filter((g) => dist(g, here) < 9)
     if (hp < 0.35 && near.length > 0 && !legend.active) {
       hero.moveTo(this.retreatPoint(here, near))
+      this.step = 4
       return
     }
-    if (hp < 0.7 && near.length === 0 && !legend.active && !hero.isMoving) return
+    if (hp < 0.7 && near.length === 0 && !legend.active && !hero.isMoving) return void (this.step = 5)
 
     // 3. 떨어진 유물을 줍는다. 한 신만 쓰는 봇은 다른 신 유물을 가방에 넣는다.
     if (this.god) {
-      powers.loadout.slots.forEach((id, slot) => id && relicDef(id).god !== this.god && this.game.dev.stow(slot))
+      powers.loadout.relics.forEach((id, slot) => id && relicDef(id).god !== this.god && this.game.dev.stow(slot))
     }
     // 정한 신이 있으면 그 신화가 열리는 대로 고른다 (사람은 마을·성소에서 고른다)
     if (this.god && powers.manifested !== this.god && this.game.progress.isOpen(this.god)) this.game.dev.choose(this.god)
+    // 고른 신화의 유물이 가방에 있으면 그 부위 칸에 낀다 (대장간에서 만든 유물이 가방으로 들어간 때)
+    const own = powers.manifested ? mythRelic(powers.manifested) : null
+    if (own && powers.loadout.bag.includes(own)) {
+      const slots = powers.loadout.slots.map((_, i) => i).filter((i) => powers.loadout.fits(own, i))
+      const target = slots.find((i) => powers.loadout.slots[i] === null) ?? slots.find((i) => !isRelicId(powers.loadout.slots[i] ?? ''))
+      if (target !== undefined) this.game.dev.wield(own, target)
+    }
+    // 가방의 일반 장비가 더 좋으면 바꿔 낀다 (빈 칸이면 그냥 낀다, 유물은 빼지 않는다) (E13-08)
+    for (const id of [...powers.loadout.bag]) {
+      const item = powers.loadout.gear.get(id)
+      if (!item) continue
+      const slots = powers.loadout.slots.map((_, i) => i).filter((i) => powers.loadout.fits(id, i))
+      const target = slots.find((i) => powers.loadout.slots[i] === null) ?? slots.find((i) => {
+        const worn = powers.loadout.gear.get(powers.loadout.slots[i] ?? '')
+        return worn !== undefined && gearScore(worn) < gearScore(item)
+      })
+      if (target !== undefined) this.game.dev.wield(id, target)
+    }
+    // 마을에 있으면 벼릴 수 있는 것을 모두 벼린다 (고른 신화부터)
+    // 벼리기에 실패한 신화는 재료가 바뀔 때까지 건너뛴다 (마을에 갇히지 않게)
+    if (this.game.region.kind === 'hub') {
+      for (const god of this.forgeGods()) if (forgeReady(powers.loadout, god) && !this.game.dev.forge(god)) this.forgeBlocked.add(god)
+    }
     // 칸이 차 있어도 줍는다 (가방에 들어가고, 모이면 바꿔 낀다)
     if (!legend.active) {
-      const pickup = nearest(pickups.list.filter((i) => !powers.loadout.has(i.id) && (!this.god || relicDef(i.id).god === this.god)), here)
+      const pickup = nearest(pickups.list.filter((i) => !powers.loadout.has(i.id) && (i.gear !== undefined || !this.god || relicDef(i.id).god === this.god)), here)
       if (pickup && near.length < 3) {
         hero.moveTo(pickup)
+        this.step = 6
         return
       }
     }
 
     // 4. 다른 땅으로 가야 하면 출구로 (마을에서 시작하면 필드로, 승급할 때가 되면 그 신의 땅으로)
-    if (this.travel()) return
+    if (this.travel()) return void (this.step = 7)
 
     // 5. 승급 준비가 되면 성소로 간다.
     const manifested = powers.manifested
     if (!legend.active && legend.present && manifested && godDef(manifested).legend && progress.readyToPromote(manifested) && hp > 0.8) {
       hero.moveTo(legend.center)
+      this.step = 8
       return
     }
 
@@ -160,12 +223,14 @@ export class Autoplayer {
         const k = Math.min(1, 11 / len)
         return { x: c.x + (spawn.x - c.x) * k, z: c.z + (spawn.z - c.z) * k }
       })
-      if (patrol.length === 0) return
+      if (patrol.length === 0) return void (this.step = 9)
       const point = patrol[this.patrol % patrol.length]!
       if (dist(here, point) < 2) this.patrol += 1
       else if (!hero.isMoving) hero.moveTo(point)
+      this.step = 10
       return
     }
+    this.step = 99
     this.engage(here, target)
   }
 

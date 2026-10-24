@@ -1,11 +1,13 @@
 import type { Giant } from '../../enemies/Giant'
 import { ELITE_REWARD } from '../../enemies/elite'
+import { MATERIALS, materialName, rollMaterials } from '../../gear/materials'
+import { GEAR, rollGear } from '../../gear/roll'
 import { masteryShares, PER_PROMOTION } from '../../myth/ClassProgress'
 import { levelGains } from '../../myth/levelGains'
 import { classIcon } from '../../ui/classIcons'
 import { realmSigil } from '../../ui/sigils'
 import { realmInk } from '../../art/palette'
-import { type God, godDef, GODS, type RelicId } from '../../relics/data'
+import { type God, godDef, GODS, isRelicId, type RelicId } from '../../relics/data'
 import type { LegendKind } from '../../data/classKit'
 import type { GameContext } from '../context'
 import { godMoment } from './godMoments'
@@ -78,9 +80,10 @@ export class ProgressionSystem {
     // 적을 쓰러뜨리면 생명력을 조금 되찾는다. 몰려오는 무리를 쓸어 내며 버틸 수 있게 한다.
     if (combat.alive) combat.heal((giant.spec.boss ? HEAL_PER_BOSS : HEAL_PER_KILL) + this.ctx.build.state.stats.healOnKill)
     const owned = new Set<RelicId>([
-      ...powers.loadout.slots.filter((id): id is RelicId => id !== null),
-      ...powers.loadout.bag,
-      ...pickups.list.map((p) => p.id),
+      ...powers.loadout.ownedRelics,
+      // 재료가 된 유물만 (새 재료는 유물이 아니다)
+      ...[...powers.loadout.materials.keys()].filter((id) => isRelicId(id)),
+      ...pickups.list.map((p) => p.id).filter((id) => isRelicId(id)),
     ])
     // 정예는 유물을 한 번 더 굴린다. 상시 효과(도깨비)는 그 확률만큼 한 번 더
     const rolls = (giant.elite ? ELITE_REWARD.dropRolls : 1) + (Math.random() < this.ctx.build.state.stats.dropChance ? 1 : 0)
@@ -89,6 +92,18 @@ export class ProgressionSystem {
       if (!relic) continue
       pickups.drop(relic, giant.x, giant.z)
       break
+    }
+    // 재료 (E13-04): 잡는 순간 주머니로. 신화 고유·보스 재료만 알린다
+    for (const { id, count } of rollMaterials(Math.random, { realm: giant.spec.realm, elite: !!giant.elite, boss: giant.spec.boss }, this.ctx.build.chosen)) {
+      powers.loadout.addMaterial(id, count)
+      if (MATERIALS[id]?.kind !== 'realm') this.ctx.hud.showToast(`${materialName(id)} · 재료`)
+    }
+    // 일반 장비 (E13-02): 졸개 6%, 정예 25%, 지역 보스는 반드시 (희귀 이상)
+    const boss = giant.spec.boss !== undefined
+    const chance = boss ? GEAR.drop.boss : giant.elite ? GEAR.drop.elite : GEAR.drop.grunt
+    if (Math.random() < chance) {
+      const item = rollGear(Math.random, boss ? { minGrade: GEAR.drop.bossMinGrade } : {})
+      pickups.drop(item.uid, giant.x + 0.7, giant.z + 0.4, true, item)
     }
   }
 

@@ -70,6 +70,13 @@ try {
       done = (RELICS ? false : LOOPS > 0 ? state.rebirths >= LOOPS : state.promoted) || state.t > LIMIT_MIN * 60
     }
     const rebirths = await page.evaluate(() => [...window.__autoplay.rebirths])
+    // 끝났을 때 봇이 어디서 무엇을 하고 있었나 (멈춤을 찾을 때)
+    const last = await page.evaluate(() => {
+      const g = window.__game
+      const p = g.hero.object.position
+      const a = window.__autoplay
+      return { step: a.step, want: a.wantRegion(), gods: a.forgeGods(), locked: g.hero.locked, armed: g.world.exitArmed, traveling: g.world.traveling, mats: Object.fromEntries(g.powers.loadout.materials), bag: g.powers.loadout.bag, slots: g.powers.loadout.slots, picks: g.pickups.list.map((i) => i.id), t: Math.round(g.time), region: g.region.id, x: Math.round(p.x), z: Math.round(p.z), hp: Math.round(g.combat.health.ratio * 100) / 100, moving: g.hero.isMoving, enemies: g.encounter.alive.length, chosen: g.powers.manifested, ready: g.progress.readyToPromote(g.powers.manifested ?? 'thor') }
+    })
     const log = await page.evaluate(() => window.__game.log)
     const first = (type, detail) => log.find((e) => e.type === type && (detail === undefined || e.detail === detail))?.t
     const count = (type) => log.filter((e) => e.type === type).length
@@ -79,6 +86,9 @@ try {
       manifest: first('manifest'),
       // 신화 개방 (E12-07): 첫째·둘째 신화가 열린 때와 연 신화 수
       opened: log.filter((e) => e.type === 'open').map((e) => ({ t: e.t, god: e.detail })),
+      // 장비와 대장간 (E13-08): 주운 장비 수, 대장간 제작
+      gear: count('gear'),
+      forged: log.filter((e) => e.type === 'forge').map((e) => ({ t: e.t, what: e.detail })),
       bossKill: first('bossKill', 'giantKing'),
       legendStart: first('legendStart'),
       promote: first('promote'),
@@ -96,12 +106,13 @@ try {
       legendFails: count('legendFail'),
       end: log.at(-1)?.t,
       rebirths,
+      last,
       errors,
       log,
     }
     results.push(result)
     console.log(
-      `#${run} 2단계 ${fmt(result.promote)} | 첫 신화 ${fmt(result.manifest)} | 신화 둘 ${fmt(result.opened[1]?.t)} (연 신화 ${result.opened.length}: ${result.opened.map((o) => o.god).join(', ')}) | 거인 왕 ${fmt(result.bossKill)} | ` +
+      `#${run} 2단계 ${fmt(result.promote)} | 첫 신화 ${fmt(result.manifest)} | 신화 둘 ${fmt(result.opened[1]?.t)} (연 신화 ${result.opened.length}: ${result.opened.map((o) => o.god).join(', ')}) | 거인 왕 ${fmt(result.bossKill)} | 장비 ${result.gear}, 첫 제작 ${fmt(result.forged[0]?.t)}${result.forged[0] ? ` (${result.forged[0].what})` : ''} | ` +
         `유물 ${Object.entries(result.relics).map(([k, v]) => `${k} ${fmt(v)}`).join(', ')} | ` +
         `처치 ${result.kills}(첫 신화 뒤 분당 ${result.killRate}), 쓰러짐 ${result.deaths}, 피격 ${result.hurt}, 전설 실패 ${result.legendFails}` +
         (LOOPS > 0 ? ` | 윤회 ${rebirths.map((t, i) => fmt(t - (rebirths[i - 1] ?? 0))).join(' → ')}` : '') +

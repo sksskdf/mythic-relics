@@ -1,4 +1,10 @@
 import { DATA } from '../data'
+import { GRADE_COLORS } from '../art/palette'
+import { SLOT_PARTS } from '../data/gearData'
+import { GEAR, type GearItem, gearName } from '../gear/roll'
+import { gearCard } from './gearCard'
+import { josa } from './josa'
+import { materialName } from '../gear/materials'
 import { MAX_LEVEL } from '../myth/ClassProgress'
 import { alwaysLines } from '../myth/alwaysText'
 import type { ClassProgress } from '../myth/ClassProgress'
@@ -21,7 +27,7 @@ export type MenuTab = 'status' | 'cycle' | 'relics' | 'classes' | 'looks'
 const TABS: readonly [MenuTab, MenuTab, string][] = [
   ['status', 'status', '상태'],
   ['cycle', 'cycle', '순환'],
-  ['relics', 'relics', '유물'],
+  ['relics', 'relics', '장비'],
   ['classes', 'classes', '신화'],
   ['looks', 'looks', '외형'],
 ]
@@ -83,14 +89,32 @@ export interface CycleHost {
 const REALM_NAME: Readonly<Record<string, string>> = { norse: '북유럽', greek: '그리스', china: '중국', japan: '일본', korea: '한국' }
 /** 메뉴가 게임에서 읽고 부르는 것 */
 export interface MenuHost {
-  readonly slots: readonly (RelicId | null)[]
-  readonly bag: readonly RelicId[]
+  readonly slots: readonly (string | null)[]
+  readonly bag: readonly string[]
+  /** 일반 장비 내용 (id가 장비면) */
+  gearOf(id: string): GearItem | undefined
+  /** 장비·유물이 들어가는 칸들 */
+  slotsFor(id: string): number[]
+  /** 재료와 개수 */
+  readonly materials: ReadonlyMap<string, number>
+  /** 대장간 (E13-05) */
+  readonly forge: {
+    /** 지금 벼릴 수 있는 곳인가 (마을) */
+    here(): boolean
+    /** 대장간에 보일 신화들 (고른 신화, 열린 신화, 재료나 유물이 있는 신화) */
+    gods(): God[]
+    /** 그 신화의 다음 제작: 만들 것의 이름, 재료(가진 수/필요한 수), 바탕 장비 부위와 있는지. 다 올렸으면 null */
+    next(god: God): { name: string; stage: number; materials: { name: string; have: number; need: number }[]; base?: { part: string; ok: boolean } } | null
+    make(god: God): boolean
+  }
   readonly loadout: LoadoutState
   /** slot에 id를 끼우면(null이면 비우면) 어떻게 되는지 */
   preview(slot: number, id: RelicId | null): LoadoutState
   wield(id: RelicId, slot: number): void
   stow(slot: number): void
   drop(slot: number): void
+  /** 일반 장비를 분해해 재료로 (E13-07-3) */
+  salvage(id: string): void
   readonly progress: ClassProgress
   /** 신화 탭 (E12-06): 고르기와 상시 효과 단계 */
   readonly myths: {
@@ -637,17 +661,15 @@ export class GameMenu {
     }
     left.append(state)
 
-    // 장착 칸 4개
+    // 장비 칸 7개 (E13): 무기·머리·몸·손·발·장신구 둘. 유물도 자기 부위 칸을 차지한다
     const slots = el('div', 'menu-relics__slots')
     host.slots.forEach((id, i) => {
       const b = el('button', `menu-relics__slot${i === this.selectedSlot ? ' is-selected' : ''}`)
       b.type = 'button'
-      b.dataset.n = String(i + 1)
-      if (id) {
-        b.style.backgroundImage = `url(${relicIcon(relicDef(id))})`
-        b.style.setProperty('--god', godDef(relicDef(id).god).color)
-      }
-      b.setAttribute('aria-label', id ? relicDef(id).name : `빈 칸 ${i + 1}`)
+      const part = GEAR.parts[SLOT_PARTS[i]!].name
+      b.dataset.n = part
+      this.paintItem(b, id)
+      b.setAttribute('aria-label', id ? this.itemName(id) : `빈 ${part} 칸`)
       b.addEventListener('click', () => {
         this.selectedSlot = i
         this.hovered = null
@@ -674,26 +696,40 @@ export class GameMenu {
     action('drop', '발밑에 내려놓기', () => host.drop(this.selectedSlot))
     left.append(actions)
 
-    // 가방
+    // 가방: 누르면 그 부위 칸에 낀다 (고른 칸이 맞는 부위면 그 칸, 아니면 비어 있는 칸부터)
     const bag = el('div', 'menu-relics__bag')
     bag.style.backgroundImage = `url(${glyph('bag', '#222a36', '#141a24')})`
     for (const id of host.bag) {
       const b = el('button', 'menu-relics__item')
       b.type = 'button'
-      b.style.backgroundImage = `url(${relicIcon(relicDef(id))})`
-      b.style.setProperty('--god', godDef(relicDef(id).god).color)
-      b.setAttribute('aria-label', relicDef(id).name)
+      this.paintItem(b, id)
+      b.setAttribute('aria-label', this.itemName(id))
       b.addEventListener('pointerenter', () => {
         this.hovered = id
         this.renderDetail(detail)
       })
       b.addEventListener('click', () => {
         this.hovered = null
-        host.wield(id, this.selectedSlot)
+        const fits = host.slotsFor(id)
+        const slot = fits.includes(this.selectedSlot) ? this.selectedSlot : (fits.find((i) => host.slots[i] === null) ?? fits[0])
+        if (slot === undefined) return
+        this.selectedSlot = slot
+        host.wield(id, slot)
       })
       bag.append(b)
     }
     left.append(bag)
+
+    // 대장간 (E13-05): 마을에서만 벼린다
+    left.append(this.forgePanel())
+
+    // 재료 (E13-03: 재료가 된 유물, E13-04 재료)
+    if (host.materials.size > 0) {
+      const mats = el('div', 'menu-relics__materials')
+      mats.append(el('b', '', '재료'))
+      for (const [id, n] of host.materials) mats.append(el('span', '', `${materialName(id)} ×${n}`))
+      left.append(mats)
+    }
 
     layout.append(left, detail)
     this.body.append(layout)
@@ -709,8 +745,77 @@ export class GameMenu {
       detail.append(img(unknownSigil('#2a3240'), 'menu-relics__empty'))
       return
     }
+    const gear = host.gearOf(id)
+    if (gear) {
+      // 같은 부위에 지금 낀 일반 장비와 비교한다
+      const wornId = host.slotsFor(id).map((i) => host.slots[i]).find((x) => x && x !== id && host.gearOf(x))
+      detail.append(gearCard(gear, wornId ? host.gearOf(wornId) : null))
+      const b = el('button', 'menu-relics__salvage')
+      b.type = 'button'
+      b.append(img(glyph('salvage')), '분해')
+      this.hintOn(b, '분해하면 그 땅의 공통 재료가 나온다 (보통 1 · 좋음 2 · 희귀 4 · 영웅 8)')
+      b.addEventListener('click', () => {
+        this.hovered = null
+        host.salvage(id)
+      })
+      detail.append(b)
+      return
+    }
     const preview = this.hovered ? { before: host.loadout, after: host.preview(this.selectedSlot, this.hovered) } : undefined
     detail.append(relicCard(relicDef(id), host.cardContext(id, preview)))
+  }
+
+  /** 대장간 칸: 신화마다 다음 제작과 모자란 재료, 「벼리기」 단추 (마을에서만 켜짐) */
+  private forgePanel(): HTMLElement {
+    const { forge } = this.host
+    const box = el('section', 'menu-forge')
+    const here = forge.here()
+    box.append(el('b', '', '대장간'), el('small', '', here ? '같은 부위 장비와 재료로 신화의 유물을 벼린다' : '마을 대장장이에게 가면 벼릴 수 있다'))
+    const gods = forge.gods()
+    if (gods.length === 0) box.append(el('p', 'menu-forge__empty', '신화를 열거나 재료를 모으면 여기에 제작법이 보인다'))
+    for (const god of gods) {
+      const next = forge.next(god)
+      const def = godDef(god)
+      const row = el('div', 'menu-forge__row')
+      row.style.setProperty('--god', def.color)
+      if (!next) {
+        row.append(el('span', 'menu-forge__name', `${def.name} · 4단계 완성`))
+        box.append(row)
+        continue
+      }
+      const ready = next.materials.every((m) => m.have >= m.need) && (next.base?.ok ?? true)
+      row.append(el('span', 'menu-forge__name', next.stage === 1 ? `${next.name} 만들기` : `${josa(next.name, '으로')} 올리기`))
+      const needs = el('span', 'menu-forge__needs')
+      for (const m of next.materials) needs.append(el('span', m.have >= m.need ? 'is-ok' : 'is-short', `${m.name} ${Math.min(m.have, m.need)}/${m.need}`))
+      if (next.base) needs.append(el('span', next.base.ok ? 'is-ok' : 'is-short', `바탕: ${next.base.part} 장비`))
+      row.append(needs)
+      const b = el('button', 'menu-forge__make', '벼리기')
+      b.type = 'button'
+      b.disabled = !here || !ready
+      if (here && ready) b.addEventListener('click', () => forge.make(god) && this.render())
+      row.append(b)
+      box.append(row)
+    }
+    return box
+  }
+
+  /** 칸·가방 단추에 그림: 유물은 유물 그림과 신의 색, 일반 장비는 등급 색 */
+  private paintItem(b: HTMLElement, id: string | null): void {
+    if (!id) return
+    const gear = this.host.gearOf(id)
+    if (gear) {
+      b.classList.add('is-gear')
+      b.style.setProperty('--god', GRADE_COLORS[gear.grade])
+      b.dataset.grade = gear.grade
+      return
+    }
+    b.style.backgroundImage = `url(${relicIcon(relicDef(id))})`
+    b.style.setProperty('--god', godDef(relicDef(id).god).color)
+  }
+
+  private itemName(id: string): string {
+    const gear = this.host.gearOf(id)
+    return gear ? gearName(gear) : relicDef(id).name
   }
 
   // ───────────────────────────── 클래스 ─────────────────────────────

@@ -1,8 +1,10 @@
 import * as THREE from 'three'
 
-import { hiddenUnlocked } from '../../myth/manifest'
-import { type God, godDef, relicDef, type RelicId } from '../../relics/data'
-import { relicGods } from '../../relics/model'
+import { type God, godDef, isRelicId, relicDef, type RelicId } from '../../relics/data'
+import { isMythRelic, relicMyth, STAGE_DAMAGE, stageName } from '../../gear/mythRelic'
+import { statText } from '../../myth/alwaysText'
+import { materialName } from '../../gear/materials'
+import { type GearItem, gearName } from '../../gear/roll'
 import { levelGains } from '../../myth/levelGains'
 import { classIcon } from '../../ui/classIcons'
 import type { GameContext } from '../context'
@@ -54,9 +56,11 @@ export class RelicSystem {
    * 히든 신화는 그 신 유물을 발현 수만큼 모아야 열린다.
    */
   private unlock(id: RelicId, announce: boolean): void {
-    const { progress, powers, bus } = this.ctx
-    const gods = relicGods(relicDef(id)).filter((g) => !godDef(g).hidden)
-    for (const god of [...gods, ...hiddenUnlocked(powers.loadout.owned)]) {
+    const { progress, bus } = this.ctx
+    // 신화의 유물(E13-03)을 손에 넣으면 그 신화가 열린다. 히든 신화도 그 유물이 열쇠다
+    const myth = relicMyth(id)
+    if (!myth) return
+    for (const god of [myth]) {
       if (!progress.open(god)) continue
       bus.emit('progressChanged', {})
       if (announce) bus.emit('mythOpened', { god })
@@ -64,8 +68,65 @@ export class RelicSystem {
     }
   }
 
+  /**
+   * 대장간 (E13-05): 그 신화의 유물을 만들거나 다음 단계로 올린다. 처음 만들면 그 신화가 열린다.
+   * 마을에서만 하는 규칙은 부르는 쪽(정보 화면)이 지킨다.
+   */
+  forge(god: God, baseId?: string): boolean {
+    const { powers, hud, fx, hero, view, bus } = this.ctx
+    const made = powers.forge(god, baseId)
+    if (!made) return false
+    const def = godDef(god)
+    const name = stageName(made.relic, made.stage)
+    bus.emit('forged', { relic: made.relic, stage: made.stage })
+    if (made.stage === 1) this.unlock(made.relic, true)
+    this.changed(made.change, true, made.relic)
+    const lines = [made.stage === 1 ? '대장간에서 처음 벼렸다' : `${made.stage}단계: 유물 효과 피해 ×${STAGE_DAMAGE[made.stage - 1]}`]
+    if (made.inherited) lines.push(`바탕 장비에서 물려받음: ${statText(made.inherited.kind, made.inherited.value)}`)
+    hud.showGains('대장간', name, def.color, classIcon(def.name), lines)
+    fx.power.burst(hero.object.position, def.color, 2 + made.stage)
+    view.shake(0.2 + made.stage * 0.08)
+    bus.emit('progressChanged', {})
+    return true
+  }
+
+  /** 일반 장비를 분해해 그 땅(마을이면 고른 신화의 땅, 없으면 북유럽) 공통 재료로 바꾼다 (E13-07-3) */
+  salvage(id: string): boolean {
+    const { powers, hud, bus, map, build } = this.ctx
+    const realm = map.region.realm ?? (build.chosen ? godDef(build.chosen).realm : 'norse')
+    const done = powers.salvage(id, realm === 'hidden' ? 'norse' : realm)
+    if (!done) return false
+    if (done.slot >= 0) this.changed(done.change, false)
+    hud.showToast(`분해 · ${materialName(done.material)} ×${done.count}`)
+    bus.emit('progressChanged', {})
+    return true
+  }
+
+  /**
+   * 땅에서 주웠다 (E13-02): 일반 장비는 그 부위의 빈 칸이나 가방으로, 신화의 유물은 칸에 끼며 신화를 연다,
+   * 재료가 된 유물(E13-03)은 재료 주머니로.
+   */
+  take(id: string, gear?: GearItem): void {
+    const { powers, hud, bus } = this.ctx
+    if (gear) {
+      powers.loadout.addGear(gear)
+      hud.showToast(gearName(gear))
+      bus.emit('gearPicked', { item: gear })
+      this.equip(id, true)
+    } else if (!isMythRelic(id)) {
+      powers.loadout.addMaterial(id)
+      hud.showToast(`${relicDef(id).name} · 재료`)
+      bus.emit('relicPicked', { id })
+    } else {
+      hud.showToast(relicDef(id).name)
+      bus.emit('relicPicked', { id })
+      this.equip(id, true)
+    }
+    bus.emit('progressChanged', {})
+  }
+
   update(dt: number): void {
-    const { hero, combat, powers, pickups, encounter, skills, feel, bus } = this.ctx
+    const { hero, combat, powers, pickups, encounter, skills, feel } = this.ctx
     const position = hero.object.position
     skills.enemies = encounter.alive
     skills.manifested = this.ctx.build.chosen
@@ -79,12 +140,7 @@ export class RelicSystem {
 
     if (combat.alive) {
       const picked = pickups.update(dt, position.x, position.z, (id) => !powers.loadout.has(id))
-      for (const id of picked) {
-        this.ctx.hud.showToast(relicDef(id).name)
-        bus.emit('relicPicked', { id })
-        bus.emit('progressChanged', {})
-        this.equip(id, true)
-      }
+      for (const { id, gear } of picked) this.take(id, gear)
       powers.update(dt, skills)
     } else {
       pickups.update(dt, position.x, position.z, () => false)
@@ -128,7 +184,7 @@ export class RelicSystem {
   updateGlow(): void {
     const { powers, progress, fx } = this.ctx
     const counts = new Map<string, number>()
-    for (const id of powers.loadout.slots) if (id) counts.set(relicDef(id).god, (counts.get(relicDef(id).god) ?? 0) + 1)
+    for (const id of powers.loadout.relics) if (id) counts.set(relicDef(id).god, (counts.get(relicDef(id).god) ?? 0) + 1)
     const manifested = this.ctx.build.chosen
     if (manifested) {
       fx.power.setGlow(godDef(manifested).color, 2 + progress.level(manifested))
@@ -148,7 +204,8 @@ export class RelicSystem {
     this.ctx.bus.emit('progressChanged', {})
     if (drop) {
       const p = this.ctx.hero.object.position
-      this.ctx.pickups.drop(result.relic, p.x, p.z, false)
+      // 일반 장비는 내용과 함께 내려놓는다
+      this.ctx.pickups.drop(result.relic, p.x, p.z, false, this.ctx.powers.loadout.gear.get(result.relic))
     }
     this.changed(result.change, drop)
   }
@@ -176,9 +233,9 @@ export class RelicSystem {
     const { bus, hud, progress, hero, fx, view, feel, encounter, skills } = this.ctx
     bus.emit('loadoutChanged', { change, announce })
     // 유물을 낄 때마다: 그 신의 색 빛기둥. 같은 신 유물이 많을수록 크다.
-    if (announce && worn) {
+    if (announce && worn && isRelicId(worn)) {
       const god = relicDef(worn).god
-      const count = this.ctx.powers.loadout.slots.filter((id) => id && relicDef(id).god === god).length
+      const count = this.ctx.powers.loadout.relics.filter((id) => id && relicDef(id).god === god).length
       fx.power.burst(hero.object.position, godDef(god).color, count)
       view.shake(0.12 + count * 0.06)
     }

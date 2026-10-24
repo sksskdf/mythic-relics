@@ -43,6 +43,8 @@ const UNKNOWN = ['............', '....aaaa....', '...a....a...', '........a...',
 
 /** 작은 그림 단추들 */
 const GLYPHS: Record<string, readonly string[]> = {
+  // 분해 (E13-07-3): 망치
+  salvage: ['............', '..aaaaaaa...', '..abbbbba...', '..aaaaaaa...', '.....ab.....', '.....ab.....', '.....ab.....', '.....ab.....', '.....ab.....', '.....ab.....', '....aaaa....', '............'],
   // 가방에 넣기
   bag: ['....aaaa....', '...a....a...', '..aaaaaaaa..', '.abbbbbbbba.', '.abbbaabbba.', '.abbbaabbba.', '.abbbbbbbba.', '.abbbbbbbba.', '.abbbbbbbba.', '..aaaaaaaa..', '............', '............'],
   // 발밑에 내려놓기

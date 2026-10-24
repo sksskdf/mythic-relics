@@ -5,11 +5,15 @@ import { parseSave, SAVE_VERSION, type SaveData } from '../src/save/SaveData'
 
 const sample: SaveData = {
   version: SAVE_VERSION,
-  slots: ['mjolnir', 'megingjord', null, 'jarngreipr'],
+  slots: ['mjolnir', null, null, null, null, null, null],
   bag: [],
   ground: [{ id: 'lokiMask', x: 3, z: -4 }],
   classes: { thor: { level: 2, xp: 40 } },
   chosen: ['thor'],
+  gear: [],
+  stages: {},
+  materials: {},
+  inherited: {},
   dropMisses: 3,
   divine: 0.5,
   looks: {
@@ -41,7 +45,7 @@ describe('저장 데이터', () => {
   })
 
   it('v4: 신화. 옛 저장(v3)은 가진 유물의 신화를 열고, 고른 신화는 유물 셋 발현 규칙으로 정한다 (E12-05)', () => {
-    const { chosen: _, ...v3 } = { ...sample, version: 3, bag: ['lokiMask'] }
+    const { chosen: _, ...v3 } = { ...sample, version: 3, slots: ['mjolnir', 'megingjord', null, 'jarngreipr'], bag: ['lokiMask'] }
     const data = parseSave(JSON.stringify(v3))!
     expect(data.version).toBe(SAVE_VERSION)
     // 토르는 원래 2단계 그대로, 가방의 로키 유물로 로키가 1단계로 열린다
@@ -70,13 +74,13 @@ describe('저장 데이터', () => {
     const data = parseSave(
       JSON.stringify({
         ...sample,
-        slots: ['mjolnir', 'mjolnir', 'excalibur', null],
+        slots: ['mjolnir', 'mjolnir', 'excalibur', null, null, null, null],
         ground: [{ id: 'mjolnir', x: 1, z: 1 }, { id: 'lokiMask', x: 1, z: 'x' }],
         classes: { thor: { level: 9, xp: -5 }, nobody: { level: 2, xp: 0 } },
         divine: 3,
       }),
     )
-    expect(data?.slots).toEqual(['mjolnir', null, null, null])
+    expect(data?.slots).toEqual(['mjolnir', null, null, null, null, null, null])
     expect(data?.ground).toEqual([])
     expect(data?.classes).toEqual({ thor: { level: 4, xp: 0 } })
     expect(data?.divine).toBe(1)
@@ -93,9 +97,11 @@ describe('저장 데이터', () => {
 
   it('이전 버전(v1) 저장도 불러지고, 가진 유물과 발현해 본 클래스의 외형을 얻은 것으로 친다', () => {
     const { looks: _looks, ...rest } = sample
-    const data = parseSave(JSON.stringify({ ...rest, version: 1 }))
+    const data = parseSave(JSON.stringify({ ...rest, version: 1, slots: ['mjolnir', 'megingjord', null, 'jarngreipr'] }))
     expect(data?.version).toBe(SAVE_VERSION)
-    expect(data?.slots).toEqual(sample.slots)
+    // 신화의 유물(묠니르)은 칸에, 재료가 된 유물(메긴교르드·야른그레이프르)은 재료로 (E13-06)
+    expect(data?.slots).toEqual(['mjolnir', null, null, null, null, null, null])
+    expect(data?.materials).toEqual({ megingjord: 1, jarngreipr: 1 })
     expect(data?.looks.unlocked).toEqual(expect.arrayContaining(['shortSword', 'mjolnirHammer', 'megingjordBelt', 'ironGauntlets', 'thorHelm', 'thorCape']))
     expect(data?.looks.unlocked).not.toContain('lokiMaskFace')
     expect(data?.looks.choices).toEqual({})
