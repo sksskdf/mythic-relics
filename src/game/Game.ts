@@ -63,6 +63,7 @@ import { DialogScene } from './DialogScene'
 import { DialogBox } from '../ui/DialogBox'
 import { DevTools } from '../dev/DevTools'
 import { Build } from '../build/Build'
+import { alwaysStage } from '../build/BuildState'
 
 export interface GameOptions {
   /** 처음부터 끼고 시작할 유물 (점검용) */
@@ -340,6 +341,11 @@ export class Game {
       stow: (slot) => relics.stow(slot),
       drop: (slot) => relics.unequip(slot, true),
       progress: this.progress,
+      myths: {
+        canChoose: () => this.canChooseMyth,
+        choose: (god) => this.chooseMyth(god),
+        stage: (god) => alwaysStage(this.progress.level(god), powers.loadout.slots.some((id) => id !== null && relicDef(id).god === god)),
+      },
       cardContext: (id, preview) => this.cardContext(id, preview),
       stats: () => this.heroStats(),
       toTitle: () => this.toTitle(),

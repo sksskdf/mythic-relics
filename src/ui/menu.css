@@ -902,6 +902,104 @@
   color: var(--c-ink-1);
 }
 
+/* 한 신화 카드 (E12-06): 상시·추가 효과, 고르기 */
+.menu-myth {
+  --god: var(--c-moon);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  margin-top: var(--sp-5);
+  padding: var(--sp-4) var(--sp-5);
+  background: var(--c-stone-lo);
+  box-shadow: inset 2px 2px 0 var(--c-groove), inset -1px -1px 0 var(--c-stone-hi);
+}
+.menu-myth__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+}
+.menu-myth__emblem {
+  width: 40px;
+  height: 40px;
+  image-rendering: pixelated;
+}
+.menu-myth__name {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.menu-myth__name small {
+  font: var(--t-small);
+  color: var(--c-ink-3);
+}
+.menu-myth.is-closed .menu-classes__title {
+  color: var(--c-ink-3);
+}
+.menu-myth__part {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-2) var(--sp-4);
+}
+.menu-myth__part > b {
+  font: var(--t-strong);
+  color: var(--god);
+}
+.menu-myth__part > small {
+  font: var(--t-small);
+  color: var(--c-ink-3);
+}
+.menu-myth__part > ul,
+.menu-myth__part > p,
+.menu-myth__part > .ui-bar {
+  flex-basis: 100%;
+  margin: 0;
+}
+.menu-myth__part > ul {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding-left: var(--sp-5);
+  font: var(--t-body);
+  color: var(--c-ink-3);
+}
+.menu-myth__part > p {
+  font: var(--t-body);
+  color: var(--c-ink-2);
+}
+.menu-myth__part li.is-on {
+  color: var(--c-ink-1);
+}
+.menu-myth__part.is-dim > b {
+  color: var(--c-ink-3);
+}
+.menu-myth__choose {
+  align-self: flex-start;
+  padding: var(--sp-3) var(--sp-5);
+  font: var(--t-body);
+  color: var(--c-ink-1);
+  border: 0;
+  background: var(--c-stone-hi);
+  box-shadow: var(--stone-raised);
+  cursor: pointer;
+}
+.menu-myth__choose:not(:disabled):hover {
+  background: #4a4e58;
+}
+.menu-myth__choose:disabled {
+  color: var(--c-ink-4);
+  background: var(--c-stone);
+  cursor: default;
+}
+.menu-myth .menu-promo {
+  margin-top: 0;
+}
+.menu-tree__node.is-selected {
+  outline: 1px solid var(--c-gilt);
+  outline-offset: 1px;
+}
+
 /* 다음 승급과 단계 */
 .menu-promo {
   --god: var(--c-moon);

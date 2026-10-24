@@ -204,7 +204,10 @@ try {
   await page.locator('.menu-relics__item').first().click()
   if ((await page.evaluate(() => window.__game.powers.loadout.slots.includes('megingjord'))) !== true) throw new Error('정보 화면: 가방의 유물을 다시 끼지 못했습니다.')
   await page.click('.menu__tab:nth-child(4)')
-  if (!(await page.locator('.menu-classes__now').textContent()).includes('천둥의 신')) throw new Error('정보 화면: 클래스 탭에 지금 클래스가 없습니다.')
+  if (!(await page.locator('.menu-classes__now').textContent()).includes('천둥의 신')) throw new Error('정보 화면: 신화 탭에 지금 신화가 없습니다.')
+  // 신화 카드 (E12-06): 상시·추가 효과와 고른 신화 표시
+  const myth = await page.locator('.menu-myth').textContent()
+  if (!myth.includes('상시 효과') || !myth.includes('추가 효과') || !myth.includes('고른 신화')) throw new Error(`정보 화면: 신화 카드가 모자랍니다 (${myth.slice(0, 60)})`)
   await page.keyboard.press('Escape')
   if (await page.evaluate(() => window.__game.paused)) throw new Error('정보 화면: 닫았는데 게임이 멈춰 있습니다.')
   // 순환 탭: 결정이 있으면 단련할 수 있다
