@@ -2,6 +2,7 @@ import type { Giant, GiantDanger } from '../enemies/Giant'
 import type { Game } from '../game/Game'
 import { angleDiff, angleTo, inLine } from '../combat/arc'
 import type { SourceId } from '../data/schema'
+import { nextHop } from '../data/regions'
 import { forgeReady } from '../gear/forge'
 import { gearScore } from '../gear/roll'
 import { mythRelic } from '../gear/mythRelic'
@@ -83,14 +84,21 @@ export class Autoplayer {
   /** 가야 할 필드 (E7): 승급할 때가 된 신의 땅, 한 신만 쓰면 그 신의 땅, 아니면 지금 필드(마을이면 미드가르드) */
   private wantRegion(): string {
     const { powers, progress, region, regions } = this.game
-    const fieldOf = (god: God) => Object.values(regions).find((r) => r.realm === godDef(god).realm)?.id
+    const fieldOf = (god: God) => Object.values(regions).find((r) => r.realm === godDef(god).realm && r.zone === 'entrance')?.id
     const manifested = powers.manifested
     if (manifested && godDef(manifested).legend && progress.readyToPromote(manifested)) return fieldOf(manifested) ?? region.id
     // 벼릴 재료가 차면 마을 대장간으로 (E13-08)
     const hub = Object.values(regions).find((r) => r.kind === 'hub')?.id ?? region.id
     if (this.forgeGods().some((god) => forgeReady(powers.loadout, god))) return hub
     // 위협 단계가 새로 열렸으면 마을 촌장에게 (E14-07)
-    if (this.climb && this.game.threat.unlocked > this.game.threat.reached) return hub
+    const threat = this.game.threat
+    if (this.climb && threat.unlocked > threat.reached) return hub
+    // 2단계 뒤에는 고른 신화(없으면 북유럽)의 보스의 땅으로 가서 문지기를 친다 (E15: 보스는 보스의 땅에만)
+    if (this.climb && progress.promotions >= 1 && threat.unlocked === threat.reached && threat.level === threat.reached) {
+      const realm = manifested ? godDef(manifested).realm : 'norse'
+      const bossLand = Object.values(regions).find((r) => r.zone === 'boss' && r.realm === realm)?.id
+      if (bossLand) return bossLand
+    }
     const here = region.kind === 'field' ? region.id : 'midgard'
     // 히든 신화는 자기 땅이 없어 지금 필드(마을이면 미드가르드)에서 싸운다
     if (this.god) return fieldOf(this.god) ?? here
@@ -103,7 +111,8 @@ export class Autoplayer {
     if (legend.active || this.stay) return false
     const want = this.wantRegion()
     if (want === region.id) return false
-    const exit = region.exits.find((e) => e.to === want) ?? region.exits.find((e) => this.game.regions[e.to]?.kind === 'hub')
+    const hop = nextHop(region.id, want, this.game.regions)
+    const exit = region.exits.find((e) => e.to === hop) ?? region.exits.find((e) => this.game.regions[e.to]?.kind === 'hub')
     if (!exit) return false
     const at = dist(hero.object.position, exit)
     // 방금 그 출구로 들어와 그 위에 서 있으면, 출구는 한 번 벗어나야 다시 밟히므로 안쪽으로 한 걸음 물러난다

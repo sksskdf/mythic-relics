@@ -25,7 +25,7 @@ export interface ThemeDef {
 
 const C = PROP_COLORS
 
-export const THEMES = {
+const BASE_THEMES = {
   /** 미드가르드 설원: 눈 덮인 침엽수림 */
   snow: {
     ground: { base: 0xe6edf4, shade: 0xc9d5e1, alt: 0xb7c8da, path: 0xb9b7b3, earth: 0x6f5f50, stone: 0x868d98 },
@@ -154,6 +154,82 @@ export const THEMES = {
     },
   },
 } satisfies Record<string, ThemeDef>
+
+/** 같은 신화권 땅의 다른 얼굴 (E15): 그 신화권 테마를 바탕으로 땅·물·빛·날림만 바꾼다. 소품 색 바꾸기는 그대로 */
+function variant(base: ThemeDef, patch: { ground?: Partial<ThemeDef['ground']>; water?: Partial<ThemeDef['water']>; light?: Partial<ThemeDef['light']>; particles?: ThemeDef['particles']; border?: readonly string[] }): ThemeDef {
+  return {
+    ...base,
+    ground: { ...base.ground, ...patch.ground },
+    water: { ...base.water, ...patch.water },
+    light: { ...base.light, ...patch.light },
+    particles: patch.particles ?? base.particles,
+    border: patch.border ?? base.border,
+  }
+}
+
+/** 깊은 땅과 보스의 땅 (E15-02·03) */
+const DEEP_THEMES = {
+  /** 요툰헤임 빙하: 푸른 얼음, 차가운 빛 */
+  glacier: variant(BASE_THEMES.snow, {
+    ground: { base: 0xcfe2ef, shade: 0xa9c4da, alt: 0x93b4cf, path: 0x9fb0bf },
+    light: { sky: 0x7f9ab4, hemiSky: 0xa8c8ff, hemiGround: 0x3a4a60, sun: 0xd8e8ff, sunIntensity: 2.7 },
+  }),
+  /** 우트가르드: 거인의 성터, 어두운 돌과 흐린 빛 */
+  utgard: variant(BASE_THEMES.snow, {
+    ground: { base: 0x9aa0a8, shade: 0x80868f, alt: 0x8d9299, path: 0x6f6a66, stone: 0x5d636c },
+    water: { surface: 0x4f6f86, deep: 0x3a5468 },
+    light: { sky: 0x5f6a7a, hemiSky: 0x9aa8c8, hemiGround: 0x2a3040, hemi: 0.75, sun: 0xffd8b0, sunIntensity: 2.7 },
+    particles: { kind: 'snow', color: 0xc8d0dc },
+  }),
+  /** 델포이 골짜기: 그늘진 녹음 */
+  delphi: variant(BASE_THEMES.olympus, {
+    ground: { base: 0x94ad62, shade: 0x7f9852, alt: 0xa6b86e },
+    light: { sky: 0x9cc4dc, hemiSky: 0xd0e8f0, sunIntensity: 2.7 },
+  }),
+  /** 리키아 화산: 검은 현무암과 붉은 흙, 불티 */
+  volcano: variant(BASE_THEMES.olympus, {
+    ground: { base: 0x9c8a7c, shade: 0x847264, alt: 0xa8927e, path: 0x9a7a5a, earth: 0x8a3a24, stone: 0x4a4440 },
+    water: { surface: 0xd8682a, deep: 0xa83a1a },
+    light: { sky: 0x8a6a5a, hemiSky: 0xffc8a0, hemiGround: 0x3a2018, hemi: 0.8, sun: 0xffb070, sunIntensity: 2.7 },
+    particles: { kind: 'embers', color: 0xff8040 },
+  }),
+  /** 곤륜산 기슭: 안개 낀 높은 땅 */
+  kunlun: variant(BASE_THEMES.hwagwasan, {
+    ground: { base: 0xa8bc90, shade: 0x92a87c, alt: 0xb8c8a0 },
+    light: { sky: 0xc0d0d8, hemiSky: 0xe8f0f0, hemi: 0.95, sunIntensity: 2.7 },
+  }),
+  /** 화염산: 붉게 탄 땅과 불티 */
+  flame: variant(BASE_THEMES.hwagwasan, {
+    ground: { base: 0xb89070, shade: 0x9e785c, alt: 0xc49c78, path: 0xd0a070, earth: 0x9a3a1a, stone: 0x7a5a48 },
+    water: { surface: 0xe07a30, deep: 0xb04a1a },
+    light: { sky: 0xd09070, hemiSky: 0xffd0a0, hemiGround: 0x4a2818, sun: 0xffc080, sunIntensity: 2.8 },
+    particles: { kind: 'embers', color: 0xffa040 },
+  }),
+  /** 이즈모 숲: 짙은 숲 그늘 */
+  izumo: variant(BASE_THEMES.takamagahara, {
+    ground: { base: 0x7e9c5e, shade: 0x6a874e, alt: 0x8eaa68 },
+    light: { sky: 0x98b4c4, hemiSky: 0xd8ecdc, hemiGround: 0x2e3a28, sunIntensity: 2.7 },
+  }),
+  /** 히이카와 강변: 물빛 도는 저녁 */
+  river: variant(BASE_THEMES.takamagahara, {
+    ground: { base: 0x9cb08c, shade: 0x86997a, alt: 0xadc09a, path: 0xd4c8a8 },
+    water: { surface: 0x5a8ac0, deep: 0x3a6a9a },
+    light: { sky: 0xb09ab8, hemiSky: 0xf0d8e8, hemiGround: 0x3a3048, sun: 0xffc8a8, sunIntensity: 2.7 },
+  }),
+  /** 태백산 숲: 깊은 솔숲 */
+  taebaek: variant(BASE_THEMES.sinsi, {
+    ground: { base: 0x8a9a5e, shade: 0x76864e, alt: 0x9aa868 },
+    light: { sky: 0xa0b4c0, hemiSky: 0xe0e8d8, hemiGround: 0x303828, sunIntensity: 2.7 },
+  }),
+  /** 송도 옛터: 무너진 도읍, 잿빛 흙 */
+  ruins: variant(BASE_THEMES.sinsi, {
+    ground: { base: 0xa8a08c, shade: 0x928a78, alt: 0xb4ac98, path: 0x8a8274, earth: 0x6a5a4a },
+    light: { sky: 0x9a9488, hemiSky: 0xe0d8c8, hemiGround: 0x3a3428, hemi: 0.8, sun: 0xffd8a8, sunIntensity: 2.7 },
+    particles: { kind: 'embers', color: 0xd0a070 },
+  }),
+}
+
+export const THEMES = { ...BASE_THEMES, ...DEEP_THEMES }
 
 export type ThemeId = keyof typeof THEMES
 export const THEME_IDS = Object.keys(THEMES) as ThemeId[]
