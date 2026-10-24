@@ -225,7 +225,8 @@ describe('적 데이터 규칙 (E8-01)', () => {
           expect(ENEMIES[id]!.realm, `${region.id}: ${id}`).toBe(region.realm)
         }
       }
-      const boss = ENEMIES[region.boss?.enemy ?? 'king']!
+      if (!region.boss) continue
+      const boss = ENEMIES[region.boss.enemy ?? 'king']!
       expect(boss.role, region.id).toBe('boss')
       expect(boss.realm, region.id).toBe(region.realm)
     }

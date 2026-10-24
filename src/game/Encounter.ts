@@ -28,6 +28,8 @@ export interface EncounterLayout {
   camps: { x: number; z: number; count: number; members?: readonly string[] }[]
   /** 보스 자리와 보스 (마을처럼 보스가 없는 지역은 null, enemy가 없으면 거인 왕) */
   boss: { x: number; z: number; enemy?: string } | null
+  /** 정예 확률에 더하는 값 (깊은 땅, E15) */
+  elite?: number
 }
 
 type WorldBase = Omit<GiantWorld, 'nav' | 'giants' | 'summon'>
@@ -50,6 +52,8 @@ export class Encounter {
   private bossSpec: GiantSpec = KING
   /** 무리 하나에 정예가 섞일 확률 (점검할 때 0이나 1로 바꾼다) */
   eliteChance = ELITE_CHANCE
+  /** 지금 지역이 더하는 정예 확률 (깊은 땅) */
+  private regionElite = 0
   /** 위협 단계 배율 (E14-03): 새로 세우는 적에 건다 */
   threat = { hp: 1, damage: 1 }
   /** 정예를 고를 때 쓰는 난수 (점검할 때 바꿔 끼운다) */
@@ -71,6 +75,7 @@ export class Encounter {
   }
 
   private place(layout: EncounterLayout): void {
+    this.regionElite = layout.elite ?? 0
     const gruntNav = this.navs.get(GRUNT)!
     this.camps = layout.camps.map((c) => ({
       center: gruntNav.nearestFree(c) ?? c,
@@ -210,7 +215,7 @@ export class Encounter {
       camp.giants.push(this.addGiant(spec, spot ?? camp.center))
     }
     // 가끔 한 마리가 정예로 나온다 (부르는 적은 빼고: 정예 졸개가 끝없이 불어나지 않게)
-    if (this.rng() < this.eliteChance) {
+    if (this.rng() < this.eliteChance + this.regionElite) {
       const candidates = camp.giants.filter((g) => g.spec.role !== 'summoner')
       const pick = candidates[Math.floor(this.rng() * candidates.length)]
       pick?.makeElite(ELITE_KINDS[Math.floor(this.rng() * ELITE_KINDS.length)]!)

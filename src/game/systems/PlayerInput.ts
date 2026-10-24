@@ -15,6 +15,10 @@ export class PlayerInput {
   private readonly cursor = new THREE.Vector3()
   /** 커서 아래의 몬스터 (이름표용, 프레임마다 갱신) */
   hovered: Giant | null = null
+  /** 누른 땅 가까이 선 마을 사람 (E15-06). 그 사람에게 걸어가 말을 건다 */
+  talkAt: (x: number, z: number) => string | null = () => null
+  /** 말 걸 사람을 정했다 (null이면 그만둠) */
+  onTalk: (name: string | null) => void = () => {}
 
   constructor(
     private readonly ctx: GameContext,
@@ -29,6 +33,7 @@ export class PlayerInput {
     const ground = cursor ? { x: cursor.x, z: cursor.z } : null
     this.hovered = this.enemyUnderCursor()
     if (this.input.wasPressed('move')) {
+      this.onTalk(ground && !this.hovered ? this.talkAt(ground.x, ground.z) : null)
       orders.press(ground, this.hovered)
     } else if (this.input.isDown('move')) orders.hold(ground)
     else orders.release()

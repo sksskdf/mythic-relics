@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { DataError } from '../src/data/check'
 import regionsText from '../src/data/regions.json?raw'
-import { arrivalSpot, exitColor, formatRegions, parseRegions, RAW_REGIONS, REALM_COLORS, REGIONS, SPAWN_CLEAR, START_REGION } from '../src/data/regions'
+import { arrivalSpot, exitColor, formatRegions, nextHop, worldLayout, parseRegions, RAW_REGIONS, REALM_COLORS, REGIONS, SPAWN_CLEAR, START_REGION } from '../src/data/regions'
 import { GRUNT, KING } from '../src/enemies/Giant'
 import { Encounter } from '../src/game/Encounter'
 import { UtgardLegend } from '../src/game/Legend'
@@ -43,6 +43,12 @@ describe.each(regions.map((r) => [r.id, r] as const))('지역 %s', (_id, region)
     }
   })
 
+  it('보스는 무리·성소에서 18m 이상 떨어져 지나가다 깨우지 않는다 (DESIGN 9.2.1)', () => {
+    if (!region.boss) return
+    for (const camp of region.camps) expect(Math.hypot(camp.x - region.boss.x, camp.z - region.boss.z), `무리 (${camp.x}, ${camp.z})`).toBeGreaterThanOrEqual(18)
+    if (region.sanctuary) expect(Math.hypot(region.sanctuary.x - region.boss.x, region.sanctuary.z - region.boss.z)).toBeGreaterThanOrEqual(18)
+  })
+
   it('보스가 설 자리가 있고, 무리는 시작점에서 떨어져 있다', () => {
     if (region.boss) expect(kingNav.nearestFree(region.boss)).not.toBeNull()
     for (const camp of region.camps) expect(Math.hypot(camp.x - region.spawn.x, camp.z - region.spawn.z)).toBeGreaterThan(8)
@@ -76,20 +82,70 @@ describe.each(regions.map((r) => [r.id, r] as const))('지역 %s', (_id, region)
   })
 })
 
-describe('세계 (E7)', () => {
-  it('마을 하나와 1차 신화권 필드 다섯이 있고, 마을에서 시작한다', () => {
+describe('세계 (E7, E15)', () => {
+  it('마을 하나와 신화권마다 입구 들판·깊은 땅·보스의 땅, 모두 16곳이고 마을에서 시작한다 (E15-01)', () => {
     const hubs = regions.filter((r) => r.kind === 'hub')
     expect(hubs).toHaveLength(1)
     expect(START_REGION).toBe(hubs[0]!.id)
+    expect(regions).toHaveLength(16)
     const fields = regions.filter((r) => r.kind === 'field')
-    expect(fields.map((r) => r.realm).sort()).toEqual(['china', 'greek', 'japan', 'korea', 'norse'])
-    expect(new Set(fields.map((r) => r.theme)).size).toBe(5)
+    for (const realm of ['china', 'greek', 'japan', 'korea', 'norse']) {
+      expect(fields.filter((r) => r.realm === realm).map((r) => r.zone).sort(), realm).toEqual(['boss', 'deep', 'entrance'])
+    }
+    expect(new Set(fields.filter((r) => r.zone === 'entrance').map((r) => r.theme)).size).toBe(5)
   })
 
-  it('마을에서 필드 다섯으로 가는 출구가 있고, 필드마다 마을로 돌아오는 출구가 있다', () => {
+  it('마을 → 입구 들판 → 깊은 땅 → 보스의 땅으로 이어지고, 이웃은 서로 오간다', () => {
     const hub = REGIONS[START_REGION]!
-    expect(hub.exits.map((e) => e.to).sort()).toEqual(regions.filter((r) => r.kind === 'field').map((r) => r.id).sort())
-    for (const field of regions.filter((r) => r.kind === 'field')) expect(field.exits.some((e) => e.to === hub.id), field.id).toBe(true)
+    const entrances = regions.filter((r) => r.zone === 'entrance')
+    expect(hub.exits.map((e) => e.to).sort()).toEqual(entrances.map((r) => r.id).sort())
+    for (const entrance of entrances) {
+      const deep = regions.find((r) => r.zone === 'deep' && r.realm === entrance.realm)!
+      const boss = regions.find((r) => r.zone === 'boss' && r.realm === entrance.realm)!
+      expect(entrance.exits.map((e) => e.to).sort(), entrance.id).toEqual([deep.id, hub.id].sort())
+      expect(deep.exits.map((e) => e.to).sort(), deep.id).toEqual([boss.id, entrance.id].sort())
+      expect(boss.exits.map((e) => e.to), boss.id).toEqual([deep.id])
+    }
+    for (const r of regions) for (const e of r.exits) expect(REGIONS[e.to]!.exits.some((back) => back.to === r.id), `${r.id} → ${e.to}`).toBe(true)
+  })
+
+  it('어느 지역에서 어느 지역으로든 이웃을 따라 갈 수 있다 (봇·지도의 다음 이웃)', () => {
+    expect(nextHop('village', 'utgard')).toBe('midgard')
+    expect(nextHop('midgard', 'utgard')).toBe('jotunheim')
+    expect(nextHop('utgard', 'songdo')).toBe('jotunheim')
+    expect(nextHop('village', 'village')).toBeNull()
+    for (const a of regions) {
+      for (const b of regions) {
+        if (a === b) continue
+        // 다음 이웃을 따라가면 16번 안에 닿는다
+        let at = a.id
+        for (let i = 0; i < regions.length && at !== b.id; i++) at = nextHop(at, b.id)!
+        expect(at, `${a.id} → ${b.id}`).toBe(b.id)
+      }
+    }
+  })
+
+  it('세계 지도: 마을이 가운데, 모든 지역이 서로 다른 자리에, 입구·깊은 땅·보스의 땅 차례로 멀어진다 (E15-04)', () => {
+    const layout = worldLayout()
+    expect(Object.keys(layout).sort()).toEqual(regions.map((r) => r.id).sort())
+    expect(layout[START_REGION]).toEqual({ x: 0, y: 0 })
+    const spots = Object.values(layout).map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`)
+    expect(new Set(spots).size).toBe(spots.length)
+    const far = (id: string) => Math.hypot(layout[id]!.x, layout[id]!.y)
+    for (const r of regions.filter((x) => x.zone === 'entrance')) {
+      const deep = regions.find((x) => x.zone === 'deep' && x.realm === r.realm)!
+      const boss = regions.find((x) => x.zone === 'boss' && x.realm === r.realm)!
+      expect(far(r.id)).toBeCloseTo(1)
+      expect(far(deep.id)).toBeCloseTo(2)
+      expect(far(boss.id)).toBeCloseTo(3)
+    }
+  })
+
+  it('보스는 보스의 땅에만, 깊은 땅은 정예가 더 섞인다', () => {
+    for (const r of regions.filter((x) => x.kind === 'field')) {
+      expect(r.boss !== null, r.id).toBe(r.zone === 'boss')
+      if (r.zone === 'deep') expect(r.elite, r.id).toBeGreaterThan(0)
+    }
   })
 
   it('출구 빛기둥 색은 갈 곳의 신화권 색이다 (글 없이 어디로 가는지 안다)', () => {
@@ -137,7 +193,9 @@ describe('지역 데이터 검사', () => {
 
   const cases: [string, (d: any) => void, RegExp][] = [
     ['범위 밖 소품', (d) => (d.midgard.props[0].x = 99), /props\[0\]\.x: .*38 이하/],
-    ['마을에 적', (d) => d.village.camps.push({ x: 10, z: 10, count: 3 }), /마을에는 적을 두지 않습니다/],
+    ['마을에 적', (d) => d.village.camps.push({ x: 10, z: 10, count: 3 }), /마을에는 적과 자리를 두지 않습니다/],
+    ['돌아오는 출구가 없음', (d) => (d.jotunheim.exits = d.jotunheim.exits.filter((e: { to: string }) => e.to !== 'utgard')), /jotunheim에서 돌아오는 출구가 없습니다/],
+    ['보스의 땅이 아닌데 보스', (d) => (d.midgard.boss = { x: 0, z: -20 }), /보스 자리는 보스의 땅에만/],
     ['성소 없는 필드', (d) => delete d.olympus.sanctuary, /olympus\.sanctuary: 필드는 성소가/],
     ['신화권 없는 필드', (d) => delete d.sinsi.realm, /sinsi\.realm: 필드는 신화권이/],
     ['너무 긴 말', (d) => (d.village.npcs[0].lines[0] = '가'.repeat(41)), /lines\[0\]: 1~40글자/],

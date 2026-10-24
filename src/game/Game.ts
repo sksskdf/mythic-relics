@@ -6,7 +6,7 @@ import { Input } from '../input/Input'
 import { PixelRenderer } from '../render/PixelRenderer'
 import { QuarterViewCamera } from '../render/QuarterViewCamera'
 import { renderHeightFor, TARGET_RENDER_HEIGHT } from '../render/resolution'
-import { REGIONS, type RegionDef, START_REGION } from '../data/regions'
+import { REALM_COLORS, REGIONS, type RegionDef, START_REGION, worldLayout } from '../data/regions'
 import { godDef, GODS, relicDef, type RelicId } from '../relics/data'
 import { Wardrobe } from '../looks/outfit'
 import { DropTable } from '../gear/DropTable'
@@ -57,6 +57,7 @@ import { SoundSystem } from './systems/Sound'
 import { RelicSystem } from './systems/Relics'
 import { World } from './World'
 import { TitleBackdrop } from './TitleBackdrop'
+import { SCENES } from '../data/scenes'
 import { DialogScene } from './DialogScene'
 import { DialogBox } from '../ui/DialogBox'
 import { DevTools } from '../dev/DevTools'
@@ -101,7 +102,7 @@ const CHOOSE_NEAR_SANCTUARY = 6
 export interface PlayEvent {
   /** 게임 시간 (초) */
   t: number
-  type: 'relic' | 'manifest' | 'open' | 'forge' | 'gear' | 'kill' | 'bossKill' | 'death' | 'legendStart' | 'legendFail' | 'promote' | 'hurt' | 'threat'
+  type: 'relic' | 'manifest' | 'open' | 'forge' | 'gear' | 'kill' | 'bossKill' | 'death' | 'legendStart' | 'legendFail' | 'promote' | 'hurt' | 'threat' | 'region'
   detail?: string
 }
 
@@ -127,6 +128,10 @@ export class Game {
   readonly wardrobe = new Wardrobe()
   readonly threat = new ThreatProgress()
   readonly threatSystem: ThreatSystem
+  /** 처음 보는 일의 대화 장면을 띄우는가 (봇·점검 스크립트는 끈다) */
+  storyScenes = true
+  /** 걸어가 말을 걸 마을 사람 */
+  private talkTo: string | null = null
   readonly conveniences = new Conveniences()
   /** 순환 성장 (E4.5) */
   readonly legend: UtgardLegend
@@ -280,6 +285,10 @@ export class Game {
       clearOrders: () => this.orders.clear(),
       onSeen: () => this.bus.emit('progressChanged', {}),
       seen: scenesSeen,
+      speakerAt: (who) => {
+        const boss = this.encounter.alive.find((g) => g.spec.name === who)
+        return boss ? { x: boss.x, z: boss.z } : null
+      },
     })
 
     const skills: SkillContext = {
@@ -409,6 +418,25 @@ export class Game {
         },
         warp: (id) => this.warpTo(id),
       },
+      world: {
+        nodes: () => {
+          const layout = worldLayout(this.regions)
+          return Object.values(this.regions).map((r) => ({
+            id: r.id,
+            name: r.name,
+            color: `#${(r.realm ? REALM_COLORS[r.realm] : REALM_COLORS.hub).toString(16).padStart(6, '0')}`,
+            zone: r.zone,
+            x: layout[r.id]?.x ?? 0,
+            y: layout[r.id]?.y ?? 0,
+            links: r.exits.map((e) => e.to),
+            here: r.id === this.ctx.map.region.id,
+            found: r.kind === 'hub' || this.conveniences.visited.has(r.id),
+            cleared: r.realm ? (this.threat.cleared[r.realm] ?? 0) : 0,
+          }))
+        },
+        canWarp: () => this.conveniences.has('warp'),
+        warp: (id) => this.warpTo(id),
+      },
       wardrobe: {
         wardrobe: this.wardrobe,
         get autoOutfit() {
@@ -434,6 +462,11 @@ export class Game {
     })
     this.pauseMenu.onToggle = onToggle
     this.hud.onPortraitClick = () => this.menu.show('status')
+    this.minimap.canvas.addEventListener('click', () => this.menu.show('map'))
+    // 대화 장면 (E15-06): 마을 사람을 누르면 걸어가 말을 걸고, 처음 보는 일에는 짧은 장면
+    this.bus.on('mythOpened', ({ god }) => this.story(`myth${capital(god)}`))
+    this.bus.on('forged', ({ stage }) => stage === 1 && this.story('forgeFirst'))
+    this.bus.on('threatChanged', () => this.threat.level === this.threat.reached && this.threat.reached >= 2 && this.story('threatUp'))
     this.tooltip = new RelicTooltip(container)
     // 새 외형은 메뉴 단추의 점으로만 알린다. (유물 이름 알림과 겹치지 않게)
     this.bus.on('looksUnlocked', () => this.menu.markNew())
@@ -457,6 +490,8 @@ export class Game {
     this.threatSystem = new ThreatSystem(this.ctx)
     this.persistence = new Persistence(this.ctx, options.autosave ?? false)
     this.playerInput = new PlayerInput(this.ctx, this.input, this.pixel, container)
+    this.playerInput.talkAt = (x, z) => (this.ctx.map.region.kind === 'hub' ? this.villagers.at(x, z) : null)
+    this.playerInput.onTalk = (name) => (this.talkTo = name)
     this.dev = new DevTools({
       bus: this.bus,
       relics: this.relics,
@@ -510,6 +545,7 @@ export class Game {
     bus.on('giantKilled', ({ giant }) => record(giant.spec.boss ? 'bossKill' : 'kill', giant.spec.boss))
     bus.on('heroHurt', ({ damage }) => record('hurt', String(Math.round(damage))))
     bus.on('threatChanged', ({ level }) => record('threat', String(level)))
+    bus.on('regionEntered', ({ id }) => record('region', id))
     bus.on('heroDied', () => record('death'))
     bus.on('legendStarted', () => record('legendStart'))
     bus.on('legendFailed', () => record('legendFail'))
@@ -604,6 +640,14 @@ export class Game {
     }
   }
 
+  /** 처음 보는 일의 짧은 대화 장면 (E15-06). 본 장면·꺼 둔 때(봇·점검)·다른 지역의 장면은 열지 않는다 */
+  story(id: string): boolean {
+    const scene = SCENES[id]
+    if (!this.storyScenes || !scene || this.ctx.scenesSeen.has(id)) return false
+    if (scene.region && scene.region !== this.ctx.map.region.id) return false
+    return this.scenes.play(id)
+  }
+
   /** 원천마다: 장비의 합, 원천 숙련, 합계, 각성 단계 (HUD·정보 화면) */
   sourceRows(): { id: SourceId; gear: number; mastery: number; total: number; level: number }[] {
     const state = this.ctx.build.state
@@ -661,8 +705,9 @@ export class Game {
     // 정보 화면이 열려 있으면 게임은 멈추고 화면만 그린다. (E4-07)
     if (!this.paused) {
       // 대화 중에는 이동 입력을 받지 않고, 카메라는 주인공과 말하는 사람 사이를 본다 (E12-10)
+      // 대화 중에는 세계가 멈춘다 (싸우다 신화가 열리거나 보스가 말해도 맞지 않게, E15-06)
       const talking = this.scenes.active
-      this.update(realDt, !talking)
+      this.update(talking ? 0 : realDt, !talking)
       this.scenes.update(realDt)
       this.view.follow(talking ? this.scenes.focus : this.hero.object.position, realDt)
       if (!talking) this.updateGroundTooltip()
@@ -908,6 +953,26 @@ export class Game {
     const position = this.hero.object.position
     this.fx.update(dt, this.hero, this.elapsed)
     this.villagers.update(dt, position, (x, y, z) => this.screenPoint(x, y, z))
+    // 말 걸기: 마을 사람 곁에 닿으면 대화 장면 (E15-06)
+    if (this.talkTo) {
+      const v = this.villagers.find(this.talkTo)
+      if (!v) this.talkTo = null
+      else if (Math.hypot(position.x - v.def.x, position.z - v.def.z) < 2.6) {
+        const talk = Object.values(SCENES).find((sc) => sc.id.startsWith('talk') && sc.lines[0]!.who === this.talkTo)
+        if (talk) this.scenes.play(talk.id)
+        this.talkTo = null
+      }
+    }
+    // 보스 등장: 처음 싸움이 붙으면 한마디 (E15-06)
+    const boss = this.encounter.boss
+    if (boss?.alive && this.encounter.bossEngaged && !this.legend.active) this.story(`boss${capital(boss.spec.id)}`)
+    // 성소를 찾았다 (E15-04): 성소 결계 안에 들어서면 그 지역으로 워프할 수 있다
+    const sanctuary = this.ctx.map.region.sanctuary
+    if (sanctuary && !this.conveniences.visited.has(this.ctx.map.region.id) && Math.hypot(position.x - sanctuary.x, position.z - sanctuary.z) < sanctuary.radius) {
+      this.conveniences.visited.add(this.ctx.map.region.id)
+      this.hud.showToast('성소를 찾았다 · 지도')
+      this.bus.emit('progressChanged', {})
+    }
     this.minimap.update(dt, { hero: position, relics: this.pickups.list, sanctuaryReady: this.legend.present && this.growth.sanctuaryOpen })
     this.stage.update(this.elapsed)
     this.stage.follow(position)
@@ -1063,3 +1128,6 @@ export class Game {
     this.stage.fitShadow(this.view.viewHeight)
   }
 }
+
+/** 장면 id의 뒷말: 첫 글자를 대문자로 (mythThor, bossOrochi) */
+const capital = (id: string): string => id.charAt(0).toUpperCase() + id.slice(1)

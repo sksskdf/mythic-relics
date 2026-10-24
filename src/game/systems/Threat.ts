@@ -32,9 +32,6 @@ export class ThreatSystem {
     bus.on('gearSalvaged', () => this.count('salvaged', 1))
     bus.on('forged', () => this.count('forged', 1))
     bus.on('mythOpened', () => this.count('opened', progress.opened.length, 'set'))
-    bus.on('regionEntered', ({ id }) => {
-      ctx.conveniences.visited.add(id)
-    })
   }
 
   /** 지금 단계의 배율을 적 무리에 건다 (다음에 세우는 적부터) */

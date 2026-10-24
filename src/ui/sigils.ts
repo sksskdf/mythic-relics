@@ -67,6 +67,8 @@ const GLYPHS: Record<string, readonly string[]> = {
   looks: ['............', '.....aa.....', '....a..a....', '.......a....', '......a.....', '.....aa.....', '....abba....', '...abbbba...', '..abbbbbba..', '.abbbbbbbba.', '.aaaaaaaaaa.', '............'],
   // 순환 탭: 맞물려 도는 두 화살표
   cycle: ['....aaaa....', '..aa....a...', '.a.......a..', '.a......aaa.', 'a........a..', 'a...........', '...........a', '..a........a', '.aaa......a.', '..a.......a.', '...a....aa..', '....aaaa....'],
+  // 지도 탭: 접힌 지도와 길 (E15-04)
+  map: ['............', '.aaaaaaaaaa.', '.abbbabbbba.', '.abbbabbaba.', '.abaaaaaaba.', '.abbbabbbba.', '.abbbabbbba.', '.abbaaaabba.', '.abbbabbbba.', '.abbbabbbba.', '.aaaaaaaaaa.', '............'],
   // 별자리
   star: ['.....a......', '.....a......', '....aba.....', 'aaaabbbaaaa.', '.abbbbbbba..', '..abbbbba...', '..abbabba...', '.abba.abba..', '.aa.....aa..', '............', '............', '............'],
   // 상태 탭: 사람

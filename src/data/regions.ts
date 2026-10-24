@@ -24,6 +24,10 @@ export type PropKind = (typeof PROP_KINDS)[number]
 export const REGION_KINDS = ['field', 'hub'] as const
 export type RegionKind = (typeof REGION_KINDS)[number]
 
+/** 필드의 자리 (E15-01): 입구 들판(마을과 이어짐) → 깊은 땅(정예·전설 성소) → 보스의 땅(신화 보스 무대) */
+export const REGION_ZONES = ['entrance', 'deep', 'boss'] as const
+export type RegionZone = (typeof REGION_ZONES)[number]
+
 export type FieldRealm = Exclude<Realm, 'hidden'>
 
 /** 신화권 색: 출구의 빛기둥·지도. 마을은 모닥불 빛 */
@@ -55,6 +59,10 @@ export interface RegionDef {
   id: string
   name: string
   kind: RegionKind
+  /** 필드의 자리 (마을은 null) */
+  zone: RegionZone | null
+  /** 무리에 정예가 섞일 확률에 더하는 값 (깊은 땅) */
+  elite: number
   /** 이 지역에서 주로 떨어지는 유물의 신화권 (마을은 없음) */
   realm: FieldRealm | null
   theme: RegionTheme
@@ -101,7 +109,7 @@ export function parseRegions(rawRegions: unknown, path = 'regions.json'): Record
   const out: Record<string, RegionDef> = {}
   for (const [id, o] of table(rawRegions, path)) {
     const p = `${path}.${id}`
-    onlyKeys(o, p, ['name', 'kind', 'realm', 'theme', 'halfExtent', 'seed', 'spawn', 'sanctuary', 'ponds', 'paths', 'camps', 'boss', 'exits', 'npcs', 'props'])
+    onlyKeys(o, p, ['name', 'kind', 'zone', 'elite', 'realm', 'theme', 'halfExtent', 'seed', 'spawn', 'sanctuary', 'ponds', 'paths', 'camps', 'boss', 'exits', 'npcs', 'props'])
     const half = num(o, 'halfExtent', p, { min: 10, max: 120 })
     const kind = o.kind === undefined ? 'field' : oneOf(o, 'kind', p, REGION_KINDS)
     let realm: FieldRealm | null = null
@@ -119,6 +127,8 @@ export function parseRegions(rawRegions: unknown, path = 'regions.json'): Record
       id,
       name: str(o, 'name', p),
       kind,
+      zone: o.zone === undefined ? null : oneOf(o, 'zone', p, REGION_ZONES),
+      elite: optNum(o, 'elite', p) ?? 0,
       realm,
       theme: oneOf(o, 'theme', p, REGION_THEMES),
       halfExtent: half,
@@ -186,9 +196,11 @@ export function parseRegions(rawRegions: unknown, path = 'regions.json'): Record
     if (kind === 'field') {
       if (!realm) throw new DataError(`${p}.realm`, '필드는 신화권이 있어야 합니다')
       if (region.camps.length === 0) throw new DataError(`${p}.camps`, '졸개 무리가 하나 이상 있어야 합니다')
-      if (!region.boss) throw new DataError(`${p}.boss`, '필드는 보스 자리가 있어야 합니다')
-      if (!region.sanctuary) throw new DataError(`${p}.sanctuary`, '필드는 성소가 있어야 합니다')
-    } else if (region.camps.length > 0 || region.boss) throw new DataError(`${p}.camps`, '마을에는 적을 두지 않습니다')
+      if (!region.zone) throw new DataError(`${p}.zone`, '필드는 자리(entrance·deep·boss)가 있어야 합니다')
+      if ((region.zone === 'boss') !== (region.boss !== null)) throw new DataError(`${p}.boss`, '보스 자리는 보스의 땅에만 있어야 합니다')
+      if (!region.sanctuary) throw new DataError(`${p}.sanctuary`, '필드는 성소가 있어야 합니다 (워프)')
+      if (region.elite < 0 || region.elite > 0.5) throw new DataError(`${p}.elite`, '정예 확률은 0~0.5입니다')
+    } else if (region.camps.length > 0 || region.boss || region.zone) throw new DataError(`${p}.camps`, '마을에는 적과 자리를 두지 않습니다')
     out[id] = region
   }
   for (const region of Object.values(out)) {
@@ -200,6 +212,12 @@ export function parseRegions(rawRegions: unknown, path = 'regions.json'): Record
       if (Math.hypot(prop.x - region.spawn.x, prop.z - region.spawn.z) < SPAWN_CLEAR) {
         throw new DataError(`${path}.${region.id}.props[${i}]`, `시작점 ${SPAWN_CLEAR}m 안에 소품을 둘 수 없습니다`)
       }
+    })
+  }
+  // 이웃은 서로 이어진다: 가는 출구가 있으면 돌아오는 출구도 있다 (E15-01)
+  for (const region of Object.values(out)) {
+    region.exits.forEach((exit, i) => {
+      if (!out[exit.to]!.exits.some((back) => back.to === region.id)) throw new DataError(`${path}.${region.id}.exits[${i}].to`, `${exit.to}에서 돌아오는 출구가 없습니다`)
     })
   }
   if (Object.keys(out).length === 0) throw new DataError(path, '지역이 하나 이상 있어야 합니다')
@@ -230,6 +248,51 @@ export const START_REGION = Object.values(REGIONS).find((r) => r.kind === 'hub')
 export function exitColor(to: string): number {
   const region = REGIONS[to]
   return region?.realm ? REALM_COLORS[region.realm] : REALM_COLORS.hub
+}
+
+/**
+ * 세계 지도 위 자리 (E15-04): 마을이 가운데(0, 0), 마을의 출구 쪽으로 신화권마다 한 줄로 뻗는다.
+ * 마을에서 넘는 횟수만큼 떨어진다 (입구 들판 1, 깊은 땅 2, 보스의 땅 3). 화면 오른쪽이 x, 아래가 y
+ */
+export function worldLayout(regions: Readonly<Record<string, RegionDef>> = REGIONS): Record<string, { x: number; y: number }> {
+  const hub = Object.values(regions).find((r) => r.kind === 'hub')
+  if (!hub) return {}
+  const out: Record<string, { x: number; y: number }> = { [hub.id]: { x: 0, y: 0 } }
+  for (const exit of hub.exits) {
+    const len = Math.hypot(exit.x, exit.z) || 1
+    const dir = { x: exit.x / len, y: exit.z / len }
+    let at = exit.to
+    let prev = hub.id
+    for (let depth = 1; at && !out[at]; depth++) {
+      out[at] = { x: dir.x * depth, y: dir.y * depth }
+      const next = regions[at]?.exits.find((e) => e.to !== prev && !out[e.to])?.to
+      prev = at
+      at = next as string
+    }
+  }
+  return out
+}
+
+/** from에서 to로 가려면 먼저 넘어갈 이웃 지역 (출구를 따라 가장 적게 넘는 길). 같거나 길이 없으면 null (E15-07) */
+export function nextHop(from: string, to: string, regions: Readonly<Record<string, RegionDef>> = REGIONS): string | null {
+  if (from === to || !regions[from] || !regions[to]) return null
+  const firstStep = new Map<string, string>()
+  const queue: string[] = []
+  for (const e of regions[from]!.exits) {
+    if (firstStep.has(e.to)) continue
+    firstStep.set(e.to, e.to)
+    queue.push(e.to)
+  }
+  while (queue.length > 0) {
+    const id = queue.shift()!
+    if (id === to) return firstStep.get(id)!
+    for (const e of regions[id]?.exits ?? []) {
+      if (e.to === from || firstStep.has(e.to)) continue
+      firstStep.set(e.to, firstStep.get(id)!)
+      queue.push(e.to)
+    }
+  }
+  return null
 }
 
 /** 들어간 곳: 갈 지역에서 온 지역으로 되돌아가는 출구 앞 (없으면 시작점) */

@@ -67,6 +67,11 @@ export class Villagers {
     })
   }
 
+  /** 그 자리(누른 땅) 가까이 선 마을 사람의 이름 (E15-06: 눌러서 말 걸기) */
+  at(x: number, z: number, radius = 1.3): string | null {
+    return this.villagers.find((v) => Math.hypot(v.def.x - x, v.def.z - z) < radius)?.def.name ?? null
+  }
+
   /** 지금 말풍선을 띄운 사람의 이름들 (점검용) */
   get talking(): string[] {
     return this.villagers.filter((v) => !v.bubble.hidden).map((v) => v.def.name)

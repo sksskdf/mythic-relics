@@ -16,7 +16,7 @@ export const LINE_MAX_CHARS = 32
 export const SCENE_MAX_LINES = 6
 
 export interface SceneLine {
-  /** 말하는 사람: 그 지역 마을 사람의 이름 */
+  /** 말하는 사람: 그 지역 마을 사람의 이름 (지역이 없는 장면은 신화·보스의 이름) */
   who: string
   text: string
   pose?: ScenePose
@@ -24,8 +24,8 @@ export interface SceneLine {
 
 export interface SceneDef {
   id: string
-  /** 장면이 벌어지는 지역 (말하는 사람을 찾는 곳) */
-  region: string
+  /** 장면이 벌어지는 지역 (말하는 사람을 찾는 곳). 없으면 어디서나 (신화 개방·보스 등장) */
+  region: string | null
   lines: SceneLine[]
 }
 
@@ -34,10 +34,10 @@ export function parseScenes(rawScenes: unknown, path = 'scenes.json'): Record<st
   for (const [id, o] of table(rawScenes, path)) {
     const p = `${path}.${id}`
     onlyKeys(o, p, ['region', 'lines'])
-    const regionId = str(o, 'region', p)
-    const region = REGIONS[regionId]
-    if (!region) throw new DataError(`${p}.region`, `없는 지역입니다 ("${regionId}")`)
-    const names = new Set(region.npcs.map((n) => n.name))
+    const regionId = o.region === undefined ? null : str(o, 'region', p)
+    const region = regionId === null ? null : REGIONS[regionId]
+    if (regionId !== null && !region) throw new DataError(`${p}.region`, `없는 지역입니다 ("${regionId}")`)
+    const names = region ? new Set(region.npcs.map((n) => n.name)) : null
     const rows = list(o, 'lines', p)
     if (rows.length === 0 || rows.length > SCENE_MAX_LINES) throw new DataError(`${p}.lines`, `대사는 1~${SCENE_MAX_LINES}줄이어야 합니다`)
     const lines = rows.map((row, i): SceneLine => {
@@ -45,7 +45,7 @@ export function parseScenes(rawScenes: unknown, path = 'scenes.json'): Record<st
       const l: Obj = obj(row, lp)
       onlyKeys(l, lp, ['who', 'text', 'pose'])
       const who = str(l, 'who', lp)
-      if (!names.has(who)) throw new DataError(`${lp}.who`, `${region.name}에 없는 사람입니다 ("${who}")`)
+      if (names && !names.has(who)) throw new DataError(`${lp}.who`, `${region!.name}에 없는 사람입니다 ("${who}")`)
       const text = str(l, 'text', lp)
       if ([...text].length > LINE_MAX_CHARS) throw new DataError(`${lp}.text`, `대사는 ${LINE_MAX_CHARS}자 안이어야 합니다 (${[...text].length}자)`)
       return { who, text, ...(l.pose !== undefined ? { pose: oneOf(l, 'pose', lp, SCENE_POSES) } : {}) }

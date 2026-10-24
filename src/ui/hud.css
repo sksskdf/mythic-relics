@@ -559,7 +559,13 @@ button.hud__slot--empty {
   image-rendering: pixelated;
   background: var(--c-bg-0);
   box-shadow: 0 0 0 2px var(--c-groove);
-  pointer-events: none;
+  pointer-events: auto;
+  cursor: pointer;
+  z-index: 40;
+}
+/* 누르면 세계 지도 (E15-04) */
+.minimap:hover {
+  box-shadow: 0 0 0 2px var(--c-gold-soft);
 }
 .devmode .minimap {
   right: calc(300px + clamp(4px, 0.9vh, 10px) * 2 + 8px);
