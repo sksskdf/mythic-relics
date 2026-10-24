@@ -11,7 +11,7 @@ export const CONVENIENCES: readonly { id: ConvenienceId; name: string; text: str
   { id: 'autoSalvage', name: '자동 분해', text: '흔함 등급 장비는 줍자마자 재료로 분해한다 (장비 탭에서 끄고 켠다)', counter: 'salvaged', need: 10 },
   { id: 'autoMaterials', name: '재료 자동 모음', text: '떨어진 재료 유물이 바로 주머니에 들어온다', counter: 'forged', need: 1 },
   { id: 'quickChoose', name: '신화 빠르게 바꾸기', text: '마을·성소가 아니어도 고른 신화를 바꿀 수 있다', counter: 'opened', need: 4 },
-  { id: 'warp', name: '성소 워프', text: '작은 지도를 눌러 마을이나 가 본 땅으로 바로 간다', counter: 'threat', need: 2 },
+  { id: 'warp', name: '성소 워프', text: '지도에서 마을이나 찾은 성소를 눌러 바로 간다', counter: 'threat', need: 2 },
 ]
 
 /** 자동 줍기 거리 (m) */
@@ -22,7 +22,7 @@ export interface ConvenienceData {
   open: ConvenienceId[]
   /** 자동 분해 켬 (열린 뒤 기본 켬) */
   autoSalvage: boolean
-  /** 가 본 지역 (워프 목적지) */
+  /** 성소를 찾은 지역 (워프 목적지, E15-04) */
   visited: string[]
 }
 

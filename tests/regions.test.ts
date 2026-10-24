@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { DataError } from '../src/data/check'
 import regionsText from '../src/data/regions.json?raw'
-import { arrivalSpot, exitColor, formatRegions, nextHop, parseRegions, RAW_REGIONS, REALM_COLORS, REGIONS, SPAWN_CLEAR, START_REGION } from '../src/data/regions'
+import { arrivalSpot, exitColor, formatRegions, nextHop, worldLayout, parseRegions, RAW_REGIONS, REALM_COLORS, REGIONS, SPAWN_CLEAR, START_REGION } from '../src/data/regions'
 import { GRUNT, KING } from '../src/enemies/Giant'
 import { Encounter } from '../src/game/Encounter'
 import { UtgardLegend } from '../src/game/Legend'
@@ -122,6 +122,22 @@ describe('세계 (E7, E15)', () => {
         for (let i = 0; i < regions.length && at !== b.id; i++) at = nextHop(at, b.id)!
         expect(at, `${a.id} → ${b.id}`).toBe(b.id)
       }
+    }
+  })
+
+  it('세계 지도: 마을이 가운데, 모든 지역이 서로 다른 자리에, 입구·깊은 땅·보스의 땅 차례로 멀어진다 (E15-04)', () => {
+    const layout = worldLayout()
+    expect(Object.keys(layout).sort()).toEqual(regions.map((r) => r.id).sort())
+    expect(layout[START_REGION]).toEqual({ x: 0, y: 0 })
+    const spots = Object.values(layout).map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`)
+    expect(new Set(spots).size).toBe(spots.length)
+    const far = (id: string) => Math.hypot(layout[id]!.x, layout[id]!.y)
+    for (const r of regions.filter((x) => x.zone === 'entrance')) {
+      const deep = regions.find((x) => x.zone === 'deep' && x.realm === r.realm)!
+      const boss = regions.find((x) => x.zone === 'boss' && x.realm === r.realm)!
+      expect(far(r.id)).toBeCloseTo(1)
+      expect(far(deep.id)).toBeCloseTo(2)
+      expect(far(boss.id)).toBeCloseTo(3)
     }
   })
 

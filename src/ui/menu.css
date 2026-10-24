@@ -1186,6 +1186,82 @@
   .menu-classes__sources { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
+/* 지도 (E15-04): 마을이 가운데, 신화권마다 세 땅 */
+.menu-map {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.menu-map__board {
+  position: relative;
+  width: min(100%, 460px);
+  aspect-ratio: 1;
+  max-width: 100%;
+  background: var(--c-stone-lo);
+  box-shadow: inset 2px 2px 0 var(--c-groove), inset -1px -1px 0 var(--c-stone-hi);
+}
+.menu-map__svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.menu-map__road {
+  stroke: var(--c-line-2);
+  stroke-width: 0.06;
+}
+.menu-map__node {
+  --realm: var(--c-moon);
+}
+.menu-map__node circle,
+.menu-map__node rect {
+  fill: var(--c-bg-1);
+  stroke: var(--realm);
+  stroke-width: 0.06;
+}
+.menu-map__node.is-found circle,
+.menu-map__node.is-found rect {
+  fill: var(--realm);
+}
+.menu-map__node.is-here circle,
+.menu-map__node.is-here rect {
+  stroke: var(--c-ink-1);
+  stroke-width: 0.1;
+}
+.menu-map__labels {
+  position: absolute;
+  inset: 0;
+}
+.menu-map__label {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: translate(-50%, 18px);
+  padding: 0 var(--sp-1);
+  font: var(--t-small);
+  color: var(--c-ink-2);
+  white-space: nowrap;
+  border: 0;
+  background: none;
+  cursor: help;
+}
+.menu-map__label small {
+  font: var(--t-small);
+  color: var(--c-gold-soft);
+}
+.menu-map__label.is-here {
+  color: var(--c-ink-1);
+}
+.menu-map__label:not(:disabled) {
+  color: var(--c-gold-soft);
+  cursor: pointer;
+}
+.menu-map__label:not(:disabled):hover {
+  color: var(--c-ink-1);
+}
+
 /* 원천 (E14): 각성·위협 단계·공명·편의 */
 .menu-src {
   display: flex;

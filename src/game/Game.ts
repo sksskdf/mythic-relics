@@ -6,7 +6,7 @@ import { Input } from '../input/Input'
 import { PixelRenderer } from '../render/PixelRenderer'
 import { QuarterViewCamera } from '../render/QuarterViewCamera'
 import { renderHeightFor, TARGET_RENDER_HEIGHT } from '../render/resolution'
-import { REGIONS, type RegionDef, START_REGION } from '../data/regions'
+import { REALM_COLORS, REGIONS, type RegionDef, START_REGION, worldLayout } from '../data/regions'
 import { godDef, GODS, relicDef, type RelicId } from '../relics/data'
 import { Wardrobe } from '../looks/outfit'
 import { DropTable } from '../gear/DropTable'
@@ -409,6 +409,25 @@ export class Game {
         },
         warp: (id) => this.warpTo(id),
       },
+      world: {
+        nodes: () => {
+          const layout = worldLayout(this.regions)
+          return Object.values(this.regions).map((r) => ({
+            id: r.id,
+            name: r.name,
+            color: `#${(r.realm ? REALM_COLORS[r.realm] : REALM_COLORS.hub).toString(16).padStart(6, '0')}`,
+            zone: r.zone,
+            x: layout[r.id]?.x ?? 0,
+            y: layout[r.id]?.y ?? 0,
+            links: r.exits.map((e) => e.to),
+            here: r.id === this.ctx.map.region.id,
+            found: r.kind === 'hub' || this.conveniences.visited.has(r.id),
+            cleared: r.realm ? (this.threat.cleared[r.realm] ?? 0) : 0,
+          }))
+        },
+        canWarp: () => this.conveniences.has('warp'),
+        warp: (id) => this.warpTo(id),
+      },
       wardrobe: {
         wardrobe: this.wardrobe,
         get autoOutfit() {
@@ -434,6 +453,7 @@ export class Game {
     })
     this.pauseMenu.onToggle = onToggle
     this.hud.onPortraitClick = () => this.menu.show('status')
+    this.minimap.canvas.addEventListener('click', () => this.menu.show('map'))
     this.tooltip = new RelicTooltip(container)
     // 새 외형은 메뉴 단추의 점으로만 알린다. (유물 이름 알림과 겹치지 않게)
     this.bus.on('looksUnlocked', () => this.menu.markNew())
@@ -908,6 +928,13 @@ export class Game {
     const position = this.hero.object.position
     this.fx.update(dt, this.hero, this.elapsed)
     this.villagers.update(dt, position, (x, y, z) => this.screenPoint(x, y, z))
+    // 성소를 찾았다 (E15-04): 성소 결계 안에 들어서면 그 지역으로 워프할 수 있다
+    const sanctuary = this.ctx.map.region.sanctuary
+    if (sanctuary && !this.conveniences.visited.has(this.ctx.map.region.id) && Math.hypot(position.x - sanctuary.x, position.z - sanctuary.z) < sanctuary.radius) {
+      this.conveniences.visited.add(this.ctx.map.region.id)
+      this.hud.showToast('성소를 찾았다 · 지도')
+      this.bus.emit('progressChanged', {})
+    }
     this.minimap.update(dt, { hero: position, relics: this.pickups.list, sanctuaryReady: this.legend.present && this.growth.sanctuaryOpen })
     this.stage.update(this.elapsed)
     this.stage.follow(position)
