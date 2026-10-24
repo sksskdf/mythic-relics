@@ -2,6 +2,7 @@ import type { Build } from '../build/Build'
 import type { Conveniences } from '../progress/Conveniences'
 import type { ThreatProgress } from '../progress/Threat'
 import type { TrialProgress } from '../progress/Trials'
+import type { RiftProgress } from '../progress/Rift'
 import type * as THREE from 'three'
 
 import type { Wardrobe } from '../looks/outfit'
@@ -58,6 +59,8 @@ export interface GameContext {
   readonly drops: DropTable
   /** 세계 위협 단계와 원천 숙련 (E14-03·04) */
   readonly threat: ThreatProgress
+  /** 균열 기록과 성좌판 (E17) */
+  readonly rift: RiftProgress
   /** 시련 기록과 영구 보상 (E16) */
   readonly trials: TrialProgress
   /** 편의 자동화 (E14-05) */

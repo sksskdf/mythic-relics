@@ -67,6 +67,11 @@ import { ThreatSystem } from './systems/Threat'
 import { TrialSystem } from './systems/Trials'
 import { TRIAL_IDS, TRIAL_MILESTONES, type TrialId, TRIALS } from '../data/trials'
 import { TrialProgress } from '../progress/Trials'
+import { blessingDef, STARS } from '../data/rift'
+import { LIMIT_REALMS, REALM_NAMES } from '../data/threat'
+import { RiftProgress } from '../progress/Rift'
+import { RiftSystem } from './systems/Rift'
+import { BlessingPicker } from '../ui/BlessingPicker'
 import { awakeningLevel } from '../data/awakening'
 import { SOURCE_IDS, type SourceId } from '../data/schema'
 import { Build } from '../build/Build'
@@ -105,7 +110,7 @@ const CHOOSE_NEAR_SANCTUARY = 6
 export interface PlayEvent {
   /** 게임 시간 (초) */
   t: number
-  type: 'relic' | 'manifest' | 'open' | 'forge' | 'gear' | 'kill' | 'bossKill' | 'death' | 'legendStart' | 'legendFail' | 'promote' | 'hurt' | 'threat' | 'region' | 'trial'
+  type: 'relic' | 'manifest' | 'open' | 'forge' | 'gear' | 'kill' | 'bossKill' | 'death' | 'legendStart' | 'legendFail' | 'promote' | 'hurt' | 'threat' | 'region' | 'trial' | 'rift'
   detail?: string
 }
 
@@ -131,6 +136,9 @@ export class Game {
   readonly wardrobe = new Wardrobe()
   readonly threat = new ThreatProgress()
   readonly trials = new TrialProgress()
+  readonly rift = new RiftProgress()
+  readonly riftSystem: RiftSystem
+  private readonly blessingPicker: BlessingPicker
   readonly trialSystem: TrialSystem
   readonly threatSystem: ThreatSystem
   /** 처음 보는 일의 대화 장면을 띄우는가 (봇·점검 스크립트는 끈다) */
@@ -339,8 +347,9 @@ export class Game {
       scenesSeen,
       threat: this.threat,
       trials: this.trials,
+      rift: this.rift,
       conveniences: this.conveniences,
-      build: new Build({ powers: this.powers, progress: this.progress, threat: this.threat, trials: this.trials, trial: () => this.trialSystem?.active?.id ?? null }),
+      build: new Build({ powers: this.powers, progress: this.progress, threat: this.threat, trials: this.trials, trial: () => this.trialSystem?.active?.id ?? null, rift: this.rift, blessings: () => this.riftSystem?.blessings ?? [] }),
       skills,
     }
     this.damage = new DamageSystem(this.ctx)
@@ -438,6 +447,37 @@ export class Game {
         riftScale: () => this.trials.riftScale(),
         start: (id, level) => this.trialSystem.start(id as TrialId, level),
       },
+      rift: {
+        open: () => this.riftSystem.open,
+        progress: () => LIMIT_REALMS.map((realm) => ({ name: REALM_NAMES[realm] ?? realm, cleared: this.threat.cleared[realm] ?? 0 })),
+        canEnter: () => this.riftSystem.canEnter,
+        enter: () => this.riftSystem.enter(),
+        run: () => {
+          const run = this.riftSystem.run
+          return run ? { depth: run.depth, blessings: run.blessings.map((id) => blessingDef(id)?.name ?? id) } : null
+        },
+        best: () => this.rift.best,
+        stars: () => this.rift.stars,
+        scale: () => this.trials.riftScale(),
+        chart: () => {
+          const isOpen = (god: string) => this.progress.isOpen(god)
+          return Object.values(STARS).map((star) => ({
+            god: star.god,
+            name: godDef(star.god).name,
+            color: godDef(star.god).color,
+            x: star.x,
+            y: star.y,
+            neighbors: star.neighbors,
+            lit: this.rift.lit.has(star.god),
+            can: this.rift.canLight(star.god, isOpen),
+          }))
+        },
+        light: (god) => {
+          const ok = this.rift.light(god, (g) => this.progress.isOpen(g))
+          if (ok) this.bus.emit('progressChanged', {})
+          return ok
+        },
+      },
       world: {
         nodes: () => {
           const layout = worldLayout(this.regions)
@@ -486,6 +526,7 @@ export class Game {
     // 대화 장면 (E15-06): 마을 사람을 누르면 걸어가 말을 걸고, 처음 보는 일에는 짧은 장면
     this.bus.on('mythOpened', ({ god }) => this.story(`myth${capital(god)}`))
     this.bus.on('forged', ({ stage }) => stage === 1 && this.story('forgeFirst'))
+    this.bus.on('limitBroken', () => this.story('limitBreak'))
     this.bus.on('threatChanged', () => this.threat.level === this.threat.reached && this.threat.reached >= 2 && this.story('threatUp'))
     this.tooltip = new RelicTooltip(container)
     // 새 외형은 메뉴 단추의 점으로만 알린다. (유물 이름 알림과 겹치지 않게)
@@ -509,6 +550,17 @@ export class Game {
     this.life = new HeroLife(this.ctx)
     this.threatSystem = new ThreatSystem(this.ctx)
     this.trialSystem = new TrialSystem(this.ctx, this.growth, this.threatSystem)
+    this.blessingPicker = new BlessingPicker(this.hud.root)
+    this.riftSystem = new RiftSystem(
+      this.ctx,
+      this.threatSystem,
+      {
+        enter: (region) => this.world.enter(region),
+        home: () => this.world.travelTo(START_REGION),
+        offer: (choices, pick) => this.blessingPicker.show(choices, pick),
+      },
+      this.scene,
+    )
     this.persistence = new Persistence(this.ctx, options.autosave ?? false)
     this.playerInput = new PlayerInput(this.ctx, this.input, this.pixel, container)
     this.playerInput.talkAt = (x, z) => (this.ctx.map.region.kind === 'hub' ? this.villagers.at(x, z) : null)
@@ -567,6 +619,8 @@ export class Game {
     bus.on('heroHurt', ({ damage }) => record('hurt', String(Math.round(damage))))
     bus.on('threatChanged', ({ level }) => record('threat', String(level)))
     bus.on('regionEntered', ({ id }) => record('region', id))
+    bus.on('riftFloor', ({ depth }) => record('rift', `floor:${depth}`))
+    bus.on('riftEnded', ({ depth, reason }) => record('rift', `${reason}:${depth}`))
     bus.on('trialEnded', ({ id, level, win, seconds }) => record('trial', `${id}:${level}:${win ? 'win' : 'fail'}:${Math.round(seconds)}`))
     bus.on('heroDied', () => record('death'))
     bus.on('legendStarted', () => record('legendStart'))
@@ -659,7 +713,15 @@ export class Game {
       get resonance() {
         return threat.resonance
       },
+      get max() {
+        return threat.max
+      },
     }
+  }
+
+  /** 축복 고르기 창을 닫는다 (봇이 대신 골랐을 때) */
+  hideBlessings(): void {
+    this.blessingPicker.hide()
   }
 
   /** 처음 보는 일의 짧은 대화 장면 (E15-06). 본 장면·꺼 둔 때(봇·점검)·다른 지역의 장면은 열지 않는다 */
@@ -969,6 +1031,7 @@ export class Game {
     this.updateEnemies(dt)
     this.growth.update(dt)
     this.trialSystem.update(dt)
+    this.riftSystem.update(dt)
     this.life.update(dt)
     this.appearance.update()
     this.sound.update()

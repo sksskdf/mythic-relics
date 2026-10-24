@@ -20,8 +20,8 @@ export const PROP_KINDS = [
 ] as const
 export type PropKind = (typeof PROP_KINDS)[number]
 
-/** 지역 종류: 싸우는 필드 / 적이 없는 마을 (E7-04) */
-export const REGION_KINDS = ['field', 'hub'] as const
+/** 지역 종류: 싸우는 필드 / 적이 없는 마을 (E7-04) / 균열 층 (E17, 데이터에는 없고 그때그때 만든다) */
+export const REGION_KINDS = ['field', 'hub', 'rift'] as const
 export type RegionKind = (typeof REGION_KINDS)[number]
 
 /** 필드의 자리 (E15-01): 입구 들판(마을과 이어짐) → 깊은 땅(정예·전설 성소) → 보스의 땅(신화 보스 무대) */

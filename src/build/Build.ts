@@ -1,3 +1,7 @@
+import { blessingDef } from '../data/rift'
+import type { StatKind } from '../data/mythAlways'
+import type { SourceId } from '../data/schema'
+import type { RiftProgress } from '../progress/Rift'
 import type { RelicPowers } from '../game/RelicPowers'
 import type { ClassProgress } from '../myth/ClassProgress'
 import { type TrialId, trialRules } from '../data/trials'
@@ -12,7 +16,7 @@ import { type BuildInputs, type BuildState, computeBuild } from './BuildState'
  * 피해·능력치를 쓰는 곳(Damage, Relics, 정보 화면)은 여기서 값을 읽는다.
  */
 export class Build {
-  constructor(private readonly from: { powers: RelicPowers; progress: ClassProgress; threat: ThreatProgress; trials?: TrialProgress; trial?: () => TrialId | null }) {}
+  constructor(private readonly from: { powers: RelicPowers; progress: ClassProgress; threat: ThreatProgress; trials?: TrialProgress; trial?: () => TrialId | null; rift?: RiftProgress; blessings?: () => readonly string[] }) {}
 
   /** 지금의 재료 */
   inputs(): BuildInputs {
@@ -32,12 +36,25 @@ export class Build {
       gear: relics,
       // 일반 장비와, 대장간 유물이 바탕 장비에서 물려받은 수치 (원천 없음)
       gearItems: [...gearItems, ...inherited.map((s) => ({ stats: [s], source: { id: 'flame' as const, value: 0 } }))],
-      bonus: this.from.trials?.rewards(),
+      ...this.blessed(),
+      starred: this.from.rift?.lit,
       rules,
       stage: (id) => powers.loadout.stage(id),
       sourceMastery: (s) => threat.mastery[s],
       promotions: progress.promotions,
     }
+  }
+
+  /** 시련 보상(E16)과 균열의 축복(E17): 더할 수치와 각성 단계 */
+  private blessed(): { bonus: Partial<Record<StatKind, number>>; awakenBonus: Partial<Record<SourceId, number>> } {
+    const bonus: Partial<Record<StatKind, number>> = { ...this.from.trials?.rewards() }
+    const awakenBonus: Partial<Record<SourceId, number>> = {}
+    for (const id of this.from.blessings?.() ?? []) {
+      const b = blessingDef(id)
+      if (b?.stat) bonus[b.stat.kind] = (bonus[b.stat.kind] ?? 0) + b.stat.value
+      if (b?.awaken) awakenBonus[b.awaken] = (awakenBonus[b.awaken] ?? 0) + 1
+    }
+    return { bonus, awakenBonus }
   }
 
   /** 지금 고른 신화 (state.chosen과 같다. 자주 읽는 곳을 위해 전체 계산 없이) */

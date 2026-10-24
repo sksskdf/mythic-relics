@@ -1,0 +1,55 @@
+/* 균열의 축복 고르기 (E17-03) */
+.blessing {
+  position: fixed;
+  left: 50%;
+  top: 30%;
+  transform: translateX(-50%);
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-5);
+  background: rgba(7, 8, 11, 0.8);
+  box-shadow: 0 0 0 2px var(--c-groove);
+  font-family: var(--font-body);
+  pointer-events: auto;
+}
+.blessing[hidden] {
+  display: none;
+}
+.blessing__title {
+  font: var(--t-title);
+  color: var(--c-moon);
+}
+.blessing__row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--sp-3);
+}
+.blessing__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 150px;
+  padding: var(--sp-4) var(--sp-3);
+  border: 0;
+  background: var(--c-stone-hi);
+  box-shadow: var(--stone-raised);
+  color: var(--c-ink-1);
+  cursor: pointer;
+}
+.blessing__card b {
+  font: var(--t-body);
+  font-weight: normal;
+  color: var(--c-gold-soft);
+}
+.blessing__card small {
+  font: var(--t-small);
+  color: var(--c-ink-2);
+}
+.blessing__card:hover {
+  background: #4a4e58;
+}

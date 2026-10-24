@@ -32,6 +32,10 @@ export class Autoplayer {
   source: SourceId | null = null
   /** 시련을 하는가: 위협 3단계가 되면 아직 못 깬 시련 1단계를 차례로 (scripts/playtest.mjs --trials) */
   trials = false
+  /** 균열을 내려가는가: 마을에서 들어가 층마다 첫 축복을 고르고 다음 층 문으로 (scripts/playtest.mjs --rift) */
+  rift = false
+  /** 균열 층마다 깬 게임 시각 (층 번호, 시각) */
+  readonly riftFloors: { depth: number; t: number }[] = []
   /** 위협 단계를 처음 오른 게임 시각 */
   readonly climbs: number[] = []
   /** 이 신의 유물만 낀다 (다른 신 유물은 주우면 가방에 넣는다). null이면 가리지 않는다 (scripts/playtest.mjs --god) */
@@ -124,7 +128,7 @@ export class Autoplayer {
   /** 다른 지역으로 가야 하면 출구로 걷는다 (마을을 거쳐 간다). 걸었으면 true */
   private travel(): boolean {
     const { region, hero, legend } = this.game
-    if (legend.active || this.stay) return false
+    if (legend.active || this.stay || this.rift) return false
     const want = this.wantRegion()
     if (want === region.id) return false
     const hop = nextHop(region.id, want, this.game.regions)
@@ -214,6 +218,33 @@ export class Autoplayer {
 
     // 4. 다른 땅으로 가야 하면 출구로 (마을에서 시작하면 필드로, 승급할 때가 되면 그 신의 땅으로)
     if (this.travel()) return void (this.step = 7)
+
+    // 4.4 균열 (E17): 층을 깼으면 첫 축복을 고르고 다음 층 문으로, 마을이면 들어간다
+    if (this.rift) {
+      const rs = this.game.riftSystem
+      const run = rs.run
+      if (!run && rs.canEnter && hp > 0.9) {
+        rs.enter()
+        this.step = 13
+        return
+      }
+      if (run && run.cleared) {
+        if (!run.picked && run.choices[0]) {
+          this.riftFloors.push({ depth: run.depth, t: this.game.time })
+          // 살아남는 것부터: 받는 피해·생명 → 피해 → 나머지
+          const order = ['guard', 'vigor', 'fury', 'spring', 'feast', 'giantBane', 'edge', 'storm', 'haste']
+          const rank = (id: string) => (order.indexOf(id) + order.length + 1) % (order.length + 1)
+          const best = [...run.choices].sort((a, b) => rank(a.id) - rank(b.id))[0]!
+          rs.pick(best.id)
+          this.game.hideBlessings()
+        }
+        if (run.picked && hp > 0.6) {
+          if (!hero.isMoving || dist(here, run.floor.portal) > 2) hero.moveTo(run.floor.portal)
+          this.step = 14
+          return
+        }
+      }
+    }
 
     // 4.5 시련 (E16): 생명이 넉넉하면 성소 가운데로 가서 연다
     const trial = this.nextTrial()
@@ -326,7 +357,8 @@ export class Autoplayer {
       const a = (i / 12) * Math.PI * 2
       const point = { x: here.x + Math.sin(a) * 10, z: here.z + Math.cos(a) * 10 }
       if (Math.abs(point.x) > half || Math.abs(point.z) > half) continue
-      if (this.nearExit(point)) continue
+      // 가는 길에 출구를 밟지 않게 (균열에서는 나가는 문을 밟으면 끝난다)
+      if ([0.25, 0.5, 0.75, 1].some((t) => this.nearExit({ x: here.x + (point.x - here.x) * t, z: here.z + (point.z - here.z) * t }))) continue
       let score = Math.min(...near.map((g) => dist(g, point)))
       if (boss?.alive && !near.includes(boss) && dist(boss, point) < 18) score -= 20
       if (score > bestScore) {

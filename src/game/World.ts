@@ -97,7 +97,7 @@ export class World {
     this.dress(region)
     const colliders = stage.map.colliders
     nav.rebuild(region.halfExtent, colliders)
-    encounter.reset(region, colliders, region.halfExtent)
+    encounter.reset({ ...region, respawn: region.kind !== 'rift' }, colliders, region.halfExtent)
     legend.moveTo(region.sanctuary && (nav.nearestFree(region.sanctuary) ?? region.sanctuary), region.sanctuary?.radius)
     hero.halfExtent = region.halfExtent
     orders.clear()

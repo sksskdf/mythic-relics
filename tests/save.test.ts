@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { parseConveniences } from '../src/progress/Conveniences'
 import { parseThreat } from '../src/progress/Threat'
 import { parseTrials } from '../src/progress/Trials'
+import { parseRift } from '../src/progress/Rift'
 import { parseSave, SAVE_VERSION, type SaveData } from '../src/save/SaveData'
 
 const sample: SaveData = {
@@ -26,6 +27,7 @@ const sample: SaveData = {
   threat: parseThreat({ level: 2, unlocked: 3, reached: 2, mastery: { flame: 2 }, battle: 40 }),
   conveniences: parseConveniences({ counters: { pickups: 5 }, open: ['autoPickup'] }),
   trials: parseTrials({ cleared: { glass: 2, slow: 9 }, best: { 'glass:2': 71.3, 'nope:1': 5 } }),
+  rift: parseRift({ best: 12, stars: 3, lit: ['thor', 'odin', 'nobody'] }),
   region: { id: 'olympus', x: 3.5, z: -12 },
   scenes: ['opening'],
 }
@@ -118,8 +120,9 @@ describe('저장 데이터', () => {
     expect(data?.version).toBe(SAVE_VERSION)
     // 결정 400.5 → 서리 조각 4, 재 7 → 거인 왕의 심장 2
     expect(data?.materials).toEqual({ frostShard: 6, giantHeart: 2 })
-    expect(data?.threat).toEqual({ level: 1, unlocked: 1, reached: 1, cleared: {}, mastery: { flame: 0, hunt: 0, wind: 0, stone: 0 }, battle: 0 })
+    expect(data?.threat).toEqual({ level: 1, unlocked: 1, reached: 1, cleared: {}, mastery: { flame: 0, hunt: 0, wind: 0, stone: 0 }, battle: 0, limitBroken: false })
     expect(data?.conveniences.open).toEqual([])
+    // 옛 별자리는 v5 저장에 없으면 0
     // 위협 단계는 열린 단계를 넘지 않는다
     expect(parseSave(JSON.stringify({ ...sample, threat: { level: 9, unlocked: 3, reached: 5 } }))?.threat).toMatchObject({ level: 3, unlocked: 3, reached: 3 })
   })

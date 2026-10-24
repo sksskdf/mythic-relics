@@ -25,6 +25,7 @@ export class ThreatSystem {
       threat.gainBattle(boss ? BATTLE.boss : giant.elite ? BATTLE.elite : BATTLE.kill)
       if (!boss || ctx.legend.active) return
       if (threat.bossDefeated(giant.spec.realm)) this.announceOpened()
+      if (!threat.limitBroken && threat.canBreak) this.breakLimit()
       bus.emit('progressChanged', {})
     })
     bus.on('gearPicked', () => this.count('pickups', 1))
@@ -79,9 +80,22 @@ export class ThreatSystem {
     return true
   }
 
+  /** 한계를 깸 (E17-01): 다섯 신화권 보스를 모두 10단계에서 이겼다. 위협 단계의 끝이 사라지고 균열이 열린다 */
+  breakLimit(): void {
+    const { threat, hud, fx, hero, view, bus } = this.ctx
+    threat.limitBroken = true
+    if (threat.unlocked >= THREAT_MAX) threat.unlocked = THREAT_MAX + 1
+    hud.flash('#e6d2ff')
+    view.shake(0.5)
+    fx.power.burst(hero.object.position, '#e6d2ff', 5)
+    hud.showGains('한계를 깸', '세계의 끝이 갈라졌다', '#e6d2ff', '', ['위협 단계의 끝이 사라졌다', '마을에서 균열에 들어갈 수 있다 (정보 화면 › 균열)'])
+    bus.emit('limitBroken', {})
+    bus.emit('progressChanged', {})
+  }
+
   private announceOpened(): void {
     const { hud, threat } = this.ctx
-    const top = threat.unlocked >= THREAT_MAX ? ' (끝)' : ''
+    const top = threat.unlocked >= threat.max ? ' (끝)' : ''
     hud.showToast(`위협 ${threat.unlocked}단계가 열렸다${top} · 마을 촌장`)
   }
 

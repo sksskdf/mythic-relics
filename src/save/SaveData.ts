@@ -9,6 +9,7 @@ import { relicGods } from '../relics/model'
 import { type ConvenienceData, parseConveniences } from '../progress/Conveniences'
 import { parseThreat, type ThreatData } from '../progress/Threat'
 import { parseTrials, type TrialData } from '../progress/Trials'
+import { parseRift, type RiftData } from '../progress/Rift'
 import { type BodyLook, parseBody } from '../looks/body'
 import { isLookId, lookDef, type LookSlot, STARTING_LOOKS, WARDROBE_SLOTS } from '../looks/catalog'
 import type { LookChoice } from '../looks/outfit'
@@ -26,8 +27,9 @@ import { GODS, godDef, type God, isRelicId, relicDef, type RelicId } from '../re
  * - v6: 위협 단계·원천 숙련(E14-03·04)과 편의 자동화(E14-05). 순환 성장(E4.5)을 없앴다.
  *   옛 저장의 원천 결정은 100개마다 서리 조각 하나, 윤회의 재는 셋마다 거인 왕의 심장 하나로 바꿔 준다 (E14-06)
  * - v7: 시련 기록 (E16). 옛 저장에는 없어서 깬 시련 없음
+ * - v8: 균열 기록과 성좌판 (E17). 1차 스프린트 별자리에서 밝힌 별은 그 수만큼 성좌판의 별로 돌려준다
  */
-export const SAVE_VERSION = 7
+export const SAVE_VERSION = 8
 
 /** 옛 순환 성장 → 재료 (E14-06) */
 export const CYCLE_REFUND = { essencePer: 100, essenceTo: 'frostShard', essenceMax: 300, ashPer: 3, ashTo: 'giantHeart', ashMax: 20 } as const
@@ -66,6 +68,8 @@ export interface SaveData {
   conveniences: ConvenienceData
   /** 시련: 깬 난이도와 기록 (E16) */
   trials: TrialData
+  /** 균열 기록과 성좌판 (E17) */
+  rift: RiftData
   /** 지금 있는 지역과 자리 (E7). 옛 저장이거나 모르는 지역이면 null (마을에서 시작) */
   region: { id: string; x: number; z: number } | null
   /** 본 대화 장면 (E12-10). 옛 저장에는 없어서 빈 목록 */
@@ -91,7 +95,7 @@ export function parseSave(text: string | null): SaveData | null {
   }
   if (typeof raw !== 'object' || raw === null) return null
   const data = raw as Record<string, unknown>
-  if (data.version !== SAVE_VERSION && ![1, 2, 3, 4, 5, 6].includes(data.version as number)) return null
+  if (data.version !== SAVE_VERSION && ![1, 2, 3, 4, 5, 6, 7].includes(data.version as number)) return null
   const old = (data.version as number) < 5
 
   // 일반 장비 (v5)
@@ -172,6 +176,7 @@ export function parseSave(text: string | null): SaveData | null {
     threat: parseThreat(data.threat),
     conveniences: parseConveniences(data.conveniences),
     trials: parseTrials(data.trials),
+    rift: parseRift(data.rift, (data.version as number) < 6 ? oldStars(data.cycle) : 0),
     region: parseRegion(data.region),
     scenes: Array.isArray(data.scenes) ? [...new Set(data.scenes.filter((s): s is string => typeof s === 'string' && s.length < 40))] : [],
   }
@@ -188,6 +193,14 @@ function refundCycle(raw: unknown, materials: Record<string, number>): void {
   const hearts = Math.min(r.ashMax, Math.floor(n(o.ash) / r.ashPer))
   if (shards > 0) materials[r.essenceTo] = Math.min(9999, (materials[r.essenceTo] ?? 0) + shards)
   if (hearts > 0) materials[r.ashTo] = Math.min(9999, (materials[r.ashTo] ?? 0) + hearts)
+}
+
+/** v5 이하의 별자리(E4.5)에서 밝힌 별 수 → 성좌판의 별 (E17-05) */
+function oldStars(raw: unknown): number {
+  if (typeof raw !== 'object' || raw === null) return 0
+  const stars = (raw as Record<string, unknown>).stars
+  if (typeof stars !== 'object' || stars === null) return 0
+  return Object.values(stars as Record<string, unknown>).reduce<number>((s, v) => s + (typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.min(10, Math.round(v)) : 0), 0)
 }
 
 /** 물려받은 수치: 신화의 유물에, 아는 수치 종류만 */
