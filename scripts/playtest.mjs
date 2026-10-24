@@ -18,8 +18,10 @@ const GOD = process.argv.find((a) => a.startsWith('--god='))?.slice(6) ?? null
 const RELICS = process.argv.find((a) => a.startsWith('--relics='))?.slice(9) ?? null
 /** 기록할 유물: 데이터 파일에 있는 유물 전부 */
 const RELIC_IDS = Object.keys(JSON.parse(readFileSync(new globalThis.URL('../src/data/relics.json', import.meta.url), 'utf8')))
+/** --region=midgard 처럼 붙이면 그 지역에서 시작해 떠나지 않는다 (신화 비교를 같은 땅에서) */
+const REGION = process.argv.find((a) => a.startsWith('--region='))?.slice(9) ?? null
 const PORT = 4183
-const URL = RELICS ? `http://localhost:${PORT}/?relics=${RELICS}&autoplay` : `http://localhost:${PORT}/?fresh&autoplay`
+const URL = (RELICS ? `http://localhost:${PORT}/?relics=${RELICS}&autoplay` : `http://localhost:${PORT}/?fresh&autoplay`) + (REGION ? `&region=${REGION}` : '')
 const BROWSER = process.env.CHROMIUM_PATH ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'
 
 const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'ignore', detached: true })
@@ -57,6 +59,7 @@ try {
     await page.waitForFunction(() => window.__autoplay && window.__game.frame > 2, null, { timeout: 30000 })
     if (LOOPS > 0) await page.evaluate(() => (window.__autoplay.cycle = true))
     if (GOD) await page.evaluate((god) => (window.__autoplay.god = god), GOD)
+    if (REGION) await page.evaluate(() => (window.__autoplay.stay = true))
     let done = false
     while (!done) {
       const state = await page.evaluate(() => {
