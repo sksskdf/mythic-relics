@@ -285,6 +285,11 @@ export class UtgardLegend {
     this.giants.push(this.boss)
   }
 
+  /** 진행 중인 전설을 그만둔다 (진 것으로 친다, 개발 지름길) */
+  abort(encounter: Encounter, host: LegendHost): void {
+    if (this.active) this.fail(encounter, host)
+  }
+
   private fail(encounter: Encounter, host: LegendHost): void {
     for (const giant of this.giants) encounter.remove(giant)
     this.giants.length = 0

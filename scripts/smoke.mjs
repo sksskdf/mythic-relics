@@ -401,9 +401,21 @@ try {
   await page.evaluate(() => {
     const g = window.__game
     Object.assign(g.threat, { unlocked: 3, reached: 3 })
+    // 진행 중인 전설이 있으면 그만두고(지역을 다시 지을 수 있게), 둘레 적이 밀어내거나 쓰러뜨리지 않게 치우고 성소 가운데 곁에 선다
+    if (g.legend.active) g.legend.abort(g.encounter, g.growth.legendHost())
     g.enterRegion(g.regions.midgard)
-    g.hero.teleport(g.legend.center.x + 2, g.legend.center.z)
+    g.encounter.clearAll()
+    if (!g.combat.alive) g.dev.revive()
+    g.orders.clear()
+    g.hero.teleport(g.legend.center.x + 4, g.legend.center.z)
+    g.hero.stop()
   })
+  const trialBlocked = await page.evaluate(() => {
+    const g = window.__game
+    const p = g.hero.object.position
+    return g.trialSystem.blocked() && { why: g.trialSystem.blocked(), phase: g.legend.phase, d: Math.hypot(p.x - g.legend.center.x, p.z - g.legend.center.z), trial: g.trialSystem.active, region: g.region.id }
+  })
+  if (trialBlocked) throw new Error(`시련: 성소 곁인데 열 수 없습니다 ${JSON.stringify(trialBlocked)}`)
   await page.click('.menu-button')
   await page.locator('.menu__tab', { hasText: '시련' }).click()
   if ((await page.locator('.menu-trials .menu-src__source').count()) !== 8) throw new Error('시련: 시련 카드가 여덟이 아닙니다.')
