@@ -24,6 +24,9 @@ export class Input {
     })
     window.addEventListener('pointerup', (e) => this.release(mouseCode(e.button)))
     window.addEventListener('pointermove', (e) => this.updatePointer(e))
+    // 커서가 게임 화면이나 창 밖으로 나가면 마지막 위치를 가리키지 않는다
+    element.addEventListener('pointerleave', () => (this.pointer.inside = false))
+    window.addEventListener('blur', () => (this.pointer.inside = false))
     window.addEventListener('keydown', (e) => {
       if (e.repeat) return
       if (resolveAction(this.bindings, e.code)) e.preventDefault()

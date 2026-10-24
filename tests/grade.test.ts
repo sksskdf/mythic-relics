@@ -20,4 +20,11 @@ describe('몬스터 등급 (E12-09)', () => {
     }
     for (const kind of ELITE_KINDS) expect(gradeOf({ spec: ENEMIES.grunt!, elite: kind }).tone).toBe(`var(--c-elite-${kind})`)
   })
+
+  it('지운 몬스터(지역 이동·전설 실패)는 쓰러진 것으로 보여 이름표가 남지 않는다', () => {
+    const giant = new Giant(ENEMIES.grunt!, { x: 0, z: 0 })
+    expect(giant.alive).toBe(true)
+    giant.dispose()
+    expect(giant.alive).toBe(false)
+  })
 })

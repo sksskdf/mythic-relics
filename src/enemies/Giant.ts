@@ -348,6 +348,9 @@ export class Giant {
 
   /** 지운다. 예고 표시도 함께 지운다. */
   dispose(): void {
+    // 지역을 옮기거나 전설에 실패해 지운 거인도 쓰러진 것으로 둔다.
+    // 그래야 공격 대상·커서 대상·이름표·보스 막대가 지운 거인을 계속 붙잡지 않는다.
+    this.state = 'dead'
     this.clearTelegraph()
     for (const wave of this.waves) wave.telegraph.dispose()
     this.waves.length = 0
