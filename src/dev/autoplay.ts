@@ -67,11 +67,20 @@ export class Autoplayer {
     }
   }
 
-  /** 봇이 벼릴 신화: 고른 신화, 그다음 열린 신화 */
+  /** 벼리기에 실패한 신화 (재료가 늘면 다시 해 본다) */
+  private readonly forgeBlocked = new Set<God>()
+  private forgeMaterials = 0
+
+  /** 봇이 벼릴 신화: 고른 신화, 그다음 열린 신화 (실패한 것은 재료가 늘 때까지 빼고) */
   private forgeGods(): God[] {
+    const total = [...this.game.powers.loadout.materials.values()].reduce((a, b) => a + b, 0)
+    if (total !== this.forgeMaterials) {
+      this.forgeMaterials = total
+      this.forgeBlocked.clear()
+    }
     const chosen = this.game.powers.manifested
     const open = this.game.progress.opened.filter((g) => g !== chosen)
-    return chosen ? [chosen, ...open] : open
+    return (chosen ? [chosen, ...open] : open).filter((g) => !this.forgeBlocked.has(g))
   }
 
   /** 가야 할 필드 (E7): 승급할 때가 된 신의 땅, 한 신만 쓰면 그 신의 땅, 아니면 지금 필드(마을이면 미드가르드) */
@@ -144,7 +153,10 @@ export class Autoplayer {
       if (target !== undefined) this.game.dev.wield(id, target)
     }
     // 마을에 있으면 벼릴 수 있는 것을 모두 벼린다 (고른 신화부터)
-    if (this.game.region.kind === 'hub') for (const god of this.forgeGods()) if (forgeReady(powers.loadout, god)) this.game.dev.forge(god)
+    // 벼리기에 실패한 신화는 재료가 바뀔 때까지 건너뛴다 (마을에 갇히지 않게)
+    if (this.game.region.kind === 'hub') {
+      for (const god of this.forgeGods()) if (forgeReady(powers.loadout, god) && !this.game.dev.forge(god)) this.forgeBlocked.add(god)
+    }
     // 칸이 차 있어도 줍는다 (가방에 들어가고, 모이면 바꿔 낀다)
     if (!legend.active) {
       const pickup = nearest(pickups.list.filter((i) => !powers.loadout.has(i.id) && (i.gear !== undefined || !this.god || relicDef(i.id).god === this.god)), here)
