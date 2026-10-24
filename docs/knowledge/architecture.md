@@ -20,6 +20,7 @@
 | --- | --- |
 | `src/game/Game.ts` | 957줄 → 870줄 안팎. 지역 이동은 `World`, 개발 지름길은 `src/dev/DevTools.ts`(`game.dev.*`), 시작 화면 뒤 장면은 `TitleBackdrop`. Game에는 `enterRegion`·`travelTo`·`regions`·`exitsLocked` 위임만 남김 |
 | 빌드 상태 | `src/build/BuildState.ts`의 `computeBuild(inputs)`: 열린 신화·고른 신화·장비·원천·순환 배율 → 피해 배율·지속 효과·받는 피해·이동 속도·공격 리듬·최대 생명, 상시 효과(메아리 목록 `echoes`, 수치 합 `stats`). 게임 안에서는 `ctx.build`(`Build`, 부를 때마다 계산, `chosen`·`level`은 가볍게). `tests/build.test.ts`가 1차 공식 × 상시 수치인지 지킨다 |
+| 세계 (E15) | 지역 16곳: `RegionDef.zone`(entrance·deep·boss)·`elite`. `nextHop`(봇·지도의 다음 이웃), `worldLayout`(지도 자리). 대화 장면은 `Game.story(id)`가 처음 보는 일에만 열고, 대화 중에는 세계가 멈춘다 |
 | `src/gear/` | `Loadout`(칸 7·가방·일반 장비 `gear`·유물 단계 `stages`·재료 `materials`·물려받은 수치 `inherited`), `roll.ts`(일반 장비 굴리기, id는 `g:`로 시작), `mythRelic.ts`(신화마다 유물 하나와 부위·단계, 나머지는 재료), `materials.ts`(재료와 드랍), `forge.ts`(규칙으로 만드는 제작법·제작·분해), `Pickups`, `DropTable`. 칸에는 유물 id와 장비 id가 섞여 들어가므로 유물만 다루는 곳은 `isRelicId`나 `loadout.relics`로 거른다 |
 | `src/skills/MythEchoes.ts` | 상시 효과 메아리 (E12-03): 고르지 않은 열린 신화마다 패시브 부품이 가끔 한 번. 빌드 상태의 `echoes`를 `Relics`가 넘겨 준다 |
 | `src/myth/` | `manifest.ts`(고른 신화·가호 판정, 옛 발현 규칙 `legacyManifest`는 옛 저장과 히든 신화만), `ClassProgress`(개방 단계 0~4·신화 숙련·원천 숙련, 숙련 나누기 `masteryShares`), `levelGains`. E12에서 영구 개방·상시·추가 효과가 들어올 자리 |
