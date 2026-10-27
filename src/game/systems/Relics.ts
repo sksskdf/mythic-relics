@@ -167,6 +167,9 @@ export class RelicSystem {
       powers.update(dt, skills)
     } else {
       pickups.update(dt, position.x, position.z, () => false)
+      // 쓰러져 있는 동안에도 날아가던 망치·고리 같은 연출은 마저 움직인다. 적을 비워 새로 맞히지는 않는다
+      skills.enemies = []
+      powers.update(dt, skills)
     }
 
     // 궁극기: 발현 상태에서 신위 게이지가 가득 차고, 쓸 만한 때가 오면 저절로 나간다.

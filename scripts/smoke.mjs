@@ -481,17 +481,29 @@ try {
     return { region: g.region.id, traveling: g.world.traveling, run: g.riftSystem.run !== null }
   })
   if (pushed.region !== 'rift' || pushed.traveling || !pushed.run) throw new Error(`균열: 걸어가지 않았는데 나가는 문이 열립니다 ${JSON.stringify(pushed)}`)
+  // 땅을 누른 이동이 아니면(문 곁의 적을 쫓을 때 등) 문 위를 지나가도 나가지 않는다
+  const chased = await page.evaluate(() => {
+    const g = window.__game
+    const exit = g.region.exits[0]
+    g.hero.teleport(exit.x + 4, exit.z)
+    g.advance(0.2, 1 / 30)
+    g.orders.clear()
+    g.hero.moveTo(exit)
+    g.advance(3, 1 / 30)
+    return { region: g.region.id, traveling: g.world.traveling, run: g.riftSystem.run !== null }
+  })
+  if (chased.region !== 'rift' || chased.traveling || !chased.run) throw new Error(`균열: 땅을 누르지 않았는데 나가는 문이 열립니다 ${JSON.stringify(chased)}`)
   const left = await page.evaluate(() => {
     const g = window.__game
     const exit = g.region.exits[0]
     g.hero.teleport(exit.x + 4, exit.z)
     g.advance(0.2, 1 / 30)
-    g.hero.moveTo(exit)
+    g.orders.press({ x: exit.x, z: exit.z }, null)
     g.advance(3, 1 / 30)
     return { run: g.riftSystem.run, best: g.rift.best, region: g.region.id }
   })
   if (left.run || left.best < 1 || left.region !== 'village') throw new Error(`균열: 나가는 문으로 걸어갔는데 끝나지 않았습니다 ${JSON.stringify(left)}`)
-  console.log('균열 확인: 한계를 깨고 마을에서 들어가, 1층을 깨 축복을 고르고 2층으로, 밀려 밟은 나가는 문은 닫혀 있고 걸어가면 나와 끝')
+  console.log('균열 확인: 한계를 깨고 마을에서 들어가, 1층을 깨 축복을 고르고 2층으로, 밀려 밟거나 적을 쫓다 밟은 나가는 문은 닫혀 있고 땅을 눌러 걸어가면 나와 끝')
 
   // 개발 패널: ?dev 로 열고 단추로 유물·적·전설을 바로 바꿔 본다.
   await page.goto(`${URL}?dev&region=midgard`)

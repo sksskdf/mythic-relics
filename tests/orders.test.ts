@@ -126,6 +126,14 @@ describe('클릭 지시', () => {
     expect(orders.order).toBeNull()
   })
 
+  it('쓰러진 동안에는 회복 효과가 들어와도 되살아나지 않는다', () => {
+    const { combat } = setup([])
+    combat.takeHit(1e6, 0, 1, 0)
+    expect(combat.alive).toBe(false)
+    combat.heal(50)
+    expect(combat.alive).toBe(false)
+  })
+
   it('길이 막혀 나아가지 못하면 잠깐 뒤 걷기를 그만둔다', () => {
     const { hero, step } = setup([])
     // 길찾기가 모르는 벽(움직이는 장애물 등)에 막힌 경우

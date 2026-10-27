@@ -163,12 +163,13 @@ export class World {
       }
       return
     }
-    const { combat, legend, hero } = this.parts
+    const { combat, legend, hero, orders } = this.parts
     if (!combat.alive || legend.active || this.exitsLocked) return
     const p = hero.object.position
     let nearest = Infinity
-    // 균열의 나가는 문은 그 문으로 걸어가던 중일 때만 연다: 밀려나거나 적을 쫓다 밟아 축복을 잃지 않게
-    const goal = this.region.kind === 'rift' ? hero.goal : null
+    // 균열의 나가는 문은 땅을 눌러 그 문으로 걸어가던 중일 때만 연다:
+    // 밀려나거나, 문 곁의 적을 눌러 다가가다 밟아 축복을 잃지 않게
+    const goal = this.region.kind === 'rift' && orders.order?.kind === 'move' ? hero.goal : null
     for (const exit of this.region.exits) {
       const d = Math.hypot(exit.x - p.x, exit.z - p.z)
       nearest = Math.min(nearest, d)

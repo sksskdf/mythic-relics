@@ -174,6 +174,8 @@ export class PlayerCombat {
 
   /** 생명을 되찾는다 (받는 회복 배율을 곱한다) */
   heal(amount: number): void {
+    // 쓰러진 동안에는 차오르지 않는다 (되살리기는 HeroLife만 한다)
+    if (!this.alive) return
     this.health.heal(amount * this.healScale)
   }
 
