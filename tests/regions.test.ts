@@ -208,6 +208,10 @@ describe('지역 데이터 검사', () => {
     ['무리가 없음', (d) => (d.midgard.camps = []), /camps: 졸개 무리가 하나 이상/],
     ['히든 신화권', (d) => (d.midgard.realm = 'hidden'), /realm: 지역의 신화권은 히든일 수 없습니다/],
     ['모르는 칸', (d) => (d.midgard.weather = 'snow'), /weather/],
+    ['벽돌 자리가 아닌 세계 칸', (d) => (d.midgard.cell = { col: 0, row: 1 }), /midgard\.cell: 벽돌 자리/],
+    ['겹친 세계 칸', (d) => (d.kunlun.cell = { ...d.hwagwasan.cell }), /칸이 겹칩니다/],
+    ['이웃이 아닌 칸으로 가는 출구', (d) => (d.huoyanshan.cell = { col: 4, row: 0 }), /이웃 칸이 아닙니다: (kunlun|huoyanshan)/],
+    ['통로 입구에서 벗어난 출구', (d) => (d.midgard.exits[0].x -= 2), /midgard\.exits\[0\]: 통로 입구/],
   ]
   for (const [name, edit, message] of cases) {
     it(`틀린 데이터: ${name}`, () => {

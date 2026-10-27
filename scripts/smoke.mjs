@@ -324,12 +324,18 @@ try {
   const bubble = await page.locator('.npc-bubble:not([hidden])').first().textContent()
   if (!bubble) throw new Error('지역: 마을 사람 말풍선이 비었습니다.')
   if (!(await page.locator('.minimap').isVisible())) throw new Error('지역: 작은 지도가 보이지 않습니다.')
-  await page.evaluate(() => window.__game.dev.teleport(0, -16))
+  // 출구 자리는 세계 통로 입구 (E19-01): 데이터에서 읽는다
+  const gate = await page.evaluate(() => {
+    const exit = window.__game.region.exits.find((e) => e.to === 'midgard')
+    const back = window.__game.regions.midgard.exits.find((e) => e.to === 'village')
+    return { exit, back }
+  })
+  await page.evaluate(({ x, z }) => window.__game.dev.teleport(x * 0.75, z * 0.75), gate.exit)
   await page.waitForTimeout(300)
-  await page.evaluate(() => window.__game.dev.teleport(0, -22))
+  await page.evaluate(({ x, z }) => window.__game.dev.teleport(x, z), gate.exit)
   await page.waitForFunction(() => window.__game.region.id === 'midgard', null, { timeout: 15000 })
   const arrived = await page.evaluate(() => ({ ...window.__game.hero.object.position }))
-  if (Math.hypot(arrived.x, arrived.z - 32) > 2) throw new Error(`지역: 미드가르드의 마을 쪽 출구 앞에 서야 합니다 ${JSON.stringify(arrived)}`)
+  if (Math.hypot(arrived.x - gate.back.x, arrived.z - gate.back.z) > 6) throw new Error(`지역: 미드가르드의 마을 쪽 출구 앞에 서야 합니다 ${JSON.stringify({ arrived, back: gate.back })}`)
   await page.waitForFunction(() => getComputedStyle(document.querySelector('.region-fade')).opacity === '0', null, { timeout: 15000 })
   // 지역을 여러 번 오가도 GPU 자원(형상·텍스처)이 늘지 않는다 (E7 자동 검증: 지역 전환 반복)
   const memoryAfter = async (times) =>

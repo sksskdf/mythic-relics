@@ -7,6 +7,7 @@ import { THEME_IDS, type ThemeId } from '../world/themes'
 import { DataError, list, num, type Obj, obj, oneOf, onlyKeys, optNum, str, table } from './check'
 import { REALMS, type Realm } from './classKit'
 import raw from './regions.json'
+import { adjacency, CELL, type Cell, cellKey, cellOrigin, passages, validCell } from './world'
 
 /** 지형 테마: 땅 색·흩뿌림·테두리 숲·하늘빛 (src/world/themes.ts) */
 export const REGION_THEMES = THEME_IDS
@@ -66,6 +67,8 @@ export interface RegionDef {
   /** 이 지역에서 주로 떨어지는 유물의 신화권 (마을은 없음) */
   realm: FieldRealm | null
   theme: RegionTheme
+  /** 하나로 이어진 세계의 칸 (E19, `src/data/world.ts`). 세계 밖의 균열 층은 null */
+  cell: Cell | null
   /** 움직일 수 있는 범위 (한 변의 절반, m) */
   halfExtent: number
   /** 흩뿌림·테두리 숲의 시드 */
@@ -109,8 +112,12 @@ export function parseRegions(rawRegions: unknown, path = 'regions.json'): Record
   const out: Record<string, RegionDef> = {}
   for (const [id, o] of table(rawRegions, path)) {
     const p = `${path}.${id}`
-    onlyKeys(o, p, ['name', 'kind', 'zone', 'elite', 'realm', 'theme', 'halfExtent', 'seed', 'spawn', 'sanctuary', 'ponds', 'paths', 'camps', 'boss', 'exits', 'npcs', 'props'])
-    const half = num(o, 'halfExtent', p, { min: 10, max: 120 })
+    onlyKeys(o, p, ['name', 'kind', 'zone', 'elite', 'realm', 'theme', 'cell', 'halfExtent', 'seed', 'spawn', 'sanctuary', 'ponds', 'paths', 'camps', 'boss', 'exits', 'npcs', 'props'])
+    const half = num(o, 'halfExtent', p, { min: 10, max: CELL / 2 - 4 })
+    const c = obj(o.cell, `${p}.cell`)
+    onlyKeys(c, `${p}.cell`, ['col', 'row'])
+    const cell = { col: num(c, 'col', `${p}.cell`), row: num(c, 'row', `${p}.cell`) }
+    if (!validCell(cell)) throw new DataError(`${p}.cell`, '벽돌 자리여야 합니다 (짝수 줄은 정수 칸, 홀수 줄은 반 칸)')
     const kind = o.kind === undefined ? 'field' : oneOf(o, 'kind', p, REGION_KINDS)
     let realm: FieldRealm | null = null
     if (o.realm !== undefined) {
@@ -131,6 +138,7 @@ export function parseRegions(rawRegions: unknown, path = 'regions.json'): Record
       elite: optNum(o, 'elite', p) ?? 0,
       realm,
       theme: oneOf(o, 'theme', p, REGION_THEMES),
+      cell,
       halfExtent: half,
       seed: num(o, 'seed', p),
       spawn: spot(o.spawn, `${p}.spawn`, [], half),
@@ -144,7 +152,8 @@ export function parseRegions(rawRegions: unknown, path = 'regions.json'): Record
         const po = obj(r, q)
         onlyKeys(po, q, ['points', 'width'])
         const points = list(po, 'points', q).map((pt, j) => {
-          const s = spot(pt, `${q}.points[${j}]`, [], half + 2)
+          // 길은 숲 띠를 지르는 통로까지 이어질 수 있다 (칸 끝까지)
+          const s = spot(pt, `${q}.points[${j}]`, [], CELL / 2)
           return { x: s.x, z: s.z }
         })
         if (points.length < 2) throw new DataError(`${q}.points`, '점이 둘 이상이어야 합니다')
@@ -219,6 +228,32 @@ export function parseRegions(rawRegions: unknown, path = 'regions.json'): Record
     region.exits.forEach((exit, i) => {
       if (!out[exit.to]!.exits.some((back) => back.to === region.id)) throw new DataError(`${path}.${region.id}.exits[${i}].to`, `${exit.to}에서 돌아오는 출구가 없습니다`)
     })
+  }
+  // 세계 칸 (E19): 칸마다 지역 하나, 출구는 이웃 칸으로만
+  const taken = new Map<string, string>()
+  for (const region of Object.values(out)) {
+    const key = cellKey(region.cell!)
+    if (taken.has(key)) throw new DataError(`${path}.${region.id}.cell`, `칸이 겹칩니다: ${taken.get(key)}`)
+    taken.set(key, region.id)
+  }
+  for (const region of Object.values(out)) {
+    region.exits.forEach((exit, i) => {
+      if (!adjacency(region.cell!, out[exit.to]!.cell!)) throw new DataError(`${path}.${region.id}.exits[${i}].to`, `이웃 칸이 아닙니다: ${exit.to} (출구는 이웃 칸으로만)`)
+    })
+  }
+  // 출구는 이웃 사이 통로의 입구에 선다 (옮기는 것은 scripts/place-world.mjs)
+  const placed = Object.fromEntries(Object.values(out).map((r) => [r.id, { ...r, cell: r.cell! }]))
+  for (const passage of passages(placed)) {
+    for (const [self, other, at] of [[passage.from, passage.to, passage.fromExit], [passage.to, passage.from, passage.toExit]] as const) {
+      const region = out[self]!
+      const o = cellOrigin(region.cell!)
+      const i = region.exits.findIndex((e) => e.to === other)
+      const exit = region.exits[i]!
+      const want = { x: Math.round((at.x - o.x) * 100) / 100, z: Math.round((at.z - o.z) * 100) / 100 }
+      if (Math.hypot(exit.x - want.x, exit.z - want.z) > 0.05) {
+        throw new DataError(`${path}.${self}.exits[${i}]`, `통로 입구 (${want.x}, ${want.z})에 있어야 합니다 (node scripts/place-world.mjs)`)
+      }
+    }
   }
   if (Object.keys(out).length === 0) throw new DataError(path, '지역이 하나 이상 있어야 합니다')
   return out
