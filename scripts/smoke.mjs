@@ -130,6 +130,23 @@ try {
   const moved = await heroPos()
   console.log(`이동 확인: (${before.x.toFixed(1)}, ${before.z.toFixed(1)}) → (${moved.x.toFixed(1)}, ${moved.z.toFixed(1)})`)
 
+  // 장 흐름 (E22): 처음에는 목표 한 줄이 미드가르드를 가리키고, 아직 안 열린 올림포스로 가는 통로는 결계가 막는다
+  const sealed = await page.evaluate(() => {
+    const g = window.__game
+    const exit = g.region.exits.find((e) => e.to === 'olympus')
+    const start = { x: g.hero.object.position.x, z: g.hero.object.position.z }
+    g.dev.teleport(exit.x, exit.z + 3)
+    g.orders.press({ x: exit.x, z: exit.z - 60 }, null)
+    g.advance(6, 1 / 30)
+    const out = { region: g.region.id, z: g.hero.object.position.z, half: g.region.halfExtent, barriers: g.barrierSpots.map((b) => b.to).sort(), goal: document.querySelector('.chapter-goal span')?.textContent ?? '' }
+    g.dev.teleport(start.x, start.z)
+    return out
+  })
+  if (sealed.goal !== '미드가르드 설원으로') throw new Error(`장 흐름: 처음 목표 한 줄이 다릅니다 ${JSON.stringify(sealed)}`)
+  if (sealed.region !== 'village' || sealed.z < -sealed.half - 0.6) throw new Error(`장 흐름: 결계가 올림포스로 가는 길을 막지 않습니다 ${JSON.stringify(sealed)}`)
+  if (sealed.barriers.join() !== 'hwagwasan,olympus,sinsi,takamagahara') throw new Error(`장 흐름: 마을의 결계가 다릅니다 ${JSON.stringify(sealed)}`)
+  console.log(`장 흐름 확인: 목표 「${sealed.goal}」, 마을의 결계 넷(${sealed.barriers.join('·')}), 올림포스 쪽 통로에서 걸음이 막힘`)
+
   // 자동 공격 점검: 멈춰 있는 주인공 바로 앞에 졸개를 세우면, 버튼 없이도 때려서 생명력이 줄어야 한다.
   await page.waitForFunction(() => !window.__game.hero.isMoving, null, { timeout: 20000 })
   await page.evaluate(() => {

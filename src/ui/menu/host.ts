@@ -67,9 +67,11 @@ export interface RiftMenuHost {
 export interface WorldMapHost {
   /**
    * 지역마다: 이름, 신화권 색, 자리(입구·깊은 땅·보스), 지도 위 자리(세계 칸, 북쪽이 위), 땅의 너비(칸 한 변 = 1),
-   * 이웃, 지금 여기인가, 성소를 찾았나, 그 신화권 보스를 이긴 가장 높은 위협 단계
+   * 이웃, 지금 여기인가, 성소를 찾았나, 그 신화권 보스를 이긴 가장 높은 위협 단계, 결계로 막혔나 (E22)
    */
-  nodes(): { id: string; name: string; color: string; zone: string | null; x: number; y: number; size: number; links: string[]; here: boolean; found: boolean; cleared: number }[]
+  nodes(): { id: string; name: string; color: string; zone: string | null; x: number; y: number; size: number; links: string[]; here: boolean; found: boolean; cleared: number; locked: boolean }[]
+  /** 다음 목표: 가야 할 땅과 목표 한 줄 (E22-04). 엔딩 뒤이거나 다 했으면 null */
+  goal(): { region: string; text: string } | null
   /** 지도 위 내 자리 (세계 칸 단위). 세계 밖(균열)이면 null */
   me(): { x: number; y: number } | null
   /** 성소 워프가 열렸나 */

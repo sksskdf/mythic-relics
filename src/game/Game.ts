@@ -45,8 +45,8 @@ import { type CombatTarget, PlayerCombat } from './PlayerCombat'
 import { RelicPowers } from './RelicPowers'
 import { Stage } from './Stage'
 import { AppearanceSystem } from './systems/Appearance'
-import { ChapterSystem } from './systems/Chapters'
-import { MythChoiceSystem } from './systems/MythChoice'
+import { chapterColor, ChapterSystem } from './systems/Chapters'
+import { MythChoiceSystem, realmGods } from './systems/MythChoice'
 import { DamageSystem } from './systems/Damage'
 import { Effects } from './systems/Effects'
 import { HeroLife } from './systems/HeroLife'
@@ -63,6 +63,7 @@ import { DevTools } from '../dev/DevTools'
 import { ChapterProgress } from '../progress/Chapters'
 import { Barriers } from '../world/Barriers'
 import { MythPicker } from '../ui/MythPicker'
+import { ChapterHud } from '../ui/ChapterHud'
 import { Conveniences } from '../progress/Conveniences'
 import { Ending } from '../progress/Ending'
 import { ThreatProgress } from '../progress/Threat'
@@ -155,6 +156,8 @@ export class Game {
   /** 성소에서 신화 고르기 (E22-03) */
   readonly mythChoice: MythChoiceSystem
   private readonly mythPicker: MythPicker
+  /** 목표 한 줄과 장 제목 띠 (E22-04) */
+  readonly chapterHud: ChapterHud
   /** 성소의 전설과 시련 결계 (E6-04) */
   readonly legend: UtgardLegend
   /** 주인공 길찾기 격자 */
@@ -424,8 +427,12 @@ export class Game {
     this.chapterSystem = new ChapterSystem(this.ctx)
     this.mythPicker = new MythPicker(this.hud.root)
     this.mythChoice = new MythChoiceSystem(this.ctx, this.mythPicker)
-    // 다음 장이 열리면 그 땅으로 가는 결계가 풀린다 (E22-02)
-    this.bus.on('chapterChanged', () => this.world.refreshLinks())
+    // 다음 장이 열리면 그 땅으로 가는 결계가 풀리고(E22-02) 장 제목 띠가 지나간다 (E22-04)
+    this.chapterHud = new ChapterHud(this.hud.root)
+    this.bus.on('chapterChanged', ({ chapter }) => {
+      this.world.refreshLinks()
+      if (chapter) this.chapterHud.showChapter(chapter.title, chapter.name, chapterColor(chapter))
+    })
     this.trialSystem = new TrialSystem(this.ctx, this.growth, this.threatSystem)
     this.blessingPicker = new BlessingPicker(this.hud.root)
     this.riftSystem = new RiftSystem(
@@ -677,6 +684,65 @@ export class Game {
     this.audio.update()
   }
 
+  /**
+   * 다음 목표의 자리 (지금 땅 좌표, E22-04): 지금 땅이면 성소(고르기·전설)·보스·대장장이, 다른 땅이면 그쪽 통로 입구.
+   * 작은 지도의 금빛 표시와 봇이 쓴다
+   */
+  goalSpot(): { x: number; z: number } | null {
+    const goal = this.chapters.goal
+    const region = this.ctx.map.region
+    if (!goal || region.kind === 'rift') return null
+    if (goal.region !== region.id) return this.world.wayTo(goal.region)
+    if (goal.kind === 'boss') return region.boss
+    if (goal.kind === 'forge') return region.npcs.find((n) => n.name === '대장장이') ?? null
+    return region.sanctuary
+  }
+
+  /**
+   * 개발 지름길 (E22): 지금 목표를 한 것으로 한다. 들어설 땅이면 그리로 가고, 고르기는 그 신화권 첫 신화,
+   * 신화 단계는 고른 신화를 그 단계까지, 보스는 이긴 것으로(여는 신화권도), 벼리기는 재료를 채워 벼린다
+   */
+  skipGoal(): void {
+    const goal = this.chapters.goal
+    if (!goal) return
+    switch (goal.kind) {
+      case 'enter':
+        // 걸어 넘어가는 동안 기다리지 않게 들어선 것으로 먼저 적는다
+        this.chapters.enter(goal.region)
+        this.world.travelTo(goal.region)
+        break
+      case 'choose': {
+        const god = realmGods(goal.realm!).find((g) => !this.progress.isOpen(g))
+        if (god && this.progress.open(god)) this.bus.emit('mythOpened', { god })
+        break
+      }
+      case 'level':
+        if (!this.ctx.build.chosen) break
+        while (this.progress.level(this.ctx.build.chosen) < goal.n!) this.dev.promote()
+        break
+      case 'boss': {
+        this.chapters.bossDefeated(goal.region)
+        if (goal.opens) this.mythChoice.openRealm(goal.opens)
+        break
+      }
+      case 'forge': {
+        const god = this.ctx.build.chosen
+        if (!god) break
+        for (let i = 0; i < goal.n! && this.chapters.goal === goal; i++) {
+          this.dev.fillForge(god)
+          this.dev.forge(god)
+        }
+        break
+      }
+    }
+    this.chapterSystem.check()
+  }
+
+  /** 지금 땅에 서 있는 결계 (점검용) */
+  get barrierSpots(): { to: string; x: number; z: number }[] {
+    return this.barriers.spots
+  }
+
   /** 신화 고르기 카드가 떠 있나 (봇·점검용) */
   get mythPickerOpen(): boolean {
     return this.mythPicker.open
@@ -827,7 +893,7 @@ export class Game {
       this.hud.showToast('성소를 찾았다 · 지도')
       this.bus.emit('progressChanged', {})
     }
-    this.minimap.update(dt, { hero: position, relics: this.pickups.list, sanctuaryReady: this.legend.present && (this.growth.sanctuaryOpen || this.mythChoice.here !== null) })
+    this.minimap.update(dt, { hero: position, relics: this.pickups.list, sanctuaryReady: this.legend.present && (this.growth.sanctuaryOpen || this.mythChoice.here !== null), goal: this.goalSpot() })
     // 이웃 땅 조각과 이웃 무리는 한 프레임에 하나씩만 짓는다 (조각이 먼저)
     if (!this.stage.update(this.elapsed)) this.encounter.buildStep()
     this.stage.follow(position)
@@ -895,6 +961,9 @@ export class Game {
       },
       realDt,
     )
+    // 목표 한 줄 (E22-04): 보스 막대가 서거나 전설·대화 중이면 잠깐 감춘다
+    const fighting = this.legend.active || (boss !== null && this.encounter.bossEngaged)
+    this.chapterHud.setGoal(this.chapterSystem.goalView(), fighting || this.scenes.active || this.world.traveling)
   }
 
   // ── 화면 ──────────────────────────────────────────

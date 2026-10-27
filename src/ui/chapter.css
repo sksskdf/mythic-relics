@@ -1,0 +1,97 @@
+/* 장과 목표 안내 (E22-04): 목표 한 줄과 장 제목 띠 */
+.chapter-goal {
+  position: absolute;
+  left: 50%;
+  top: calc(var(--unit) * 2.4 + env(safe-area-inset-top, 0px));
+  transform: translateX(-50%);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-3);
+  max-width: calc(100vw - var(--unit) * 70);
+  padding: var(--sp-2) var(--sp-5);
+  background: var(--c-veil);
+  box-shadow: 0 0 0 1px var(--c-groove);
+  font: var(--t-body);
+  color: var(--c-moon);
+  white-space: nowrap;
+  pointer-events: none;
+}
+.chapter-goal[hidden] {
+  display: none;
+}
+/* 안내 색(금빛) 마름모 */
+.chapter-goal__mark {
+  width: 6px;
+  height: 6px;
+  background: var(--c-gold-soft);
+  transform: rotate(45deg);
+}
+.chapter-goal__bar {
+  display: none;
+  flex-basis: 100%;
+  height: 2px;
+  background: var(--c-groove);
+}
+.chapter-goal.has-bar .chapter-goal__bar {
+  display: block;
+}
+.chapter-goal__bar > div {
+  height: 100%;
+  background: var(--c-gold-soft);
+  transition: width 0.3s ease-out;
+}
+.chapter-goal.is-new {
+  animation: chapter-goal-new 1.2s ease-out;
+}
+@keyframes chapter-goal-new {
+  0% { box-shadow: 0 0 0 1px var(--c-gold-soft), 0 0 12px var(--c-gold-soft); color: var(--c-gold-soft); }
+  100% { box-shadow: 0 0 0 1px var(--c-groove); color: var(--c-moon); }
+}
+
+/* 장 제목 띠: 화면을 가로지르는 어두운 띠에 그 장 신화권 색의 글 */
+.chapter-band {
+  --glow: var(--c-gold-soft);
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 36%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-5);
+  padding: var(--sp-4) 0;
+  background: linear-gradient(90deg, transparent, rgba(7, 8, 11, 0.85) 20%, rgba(7, 8, 11, 0.85) 80%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--glow) 50%, transparent), inset 0 -1px 0 color-mix(in srgb, var(--glow) 50%, transparent);
+  opacity: 0;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.chapter-band b {
+  font: var(--t-body);
+  font-weight: normal;
+  color: var(--c-ink-2);
+  letter-spacing: 0.2em;
+}
+.chapter-band i {
+  width: 6px;
+  height: 6px;
+  background: var(--glow);
+  transform: rotate(45deg);
+}
+.chapter-band span {
+  font: 30px/1.2 var(--font-display);
+  letter-spacing: 0.12em;
+  color: var(--glow);
+}
+/* 지역 이름 카드가 먼저 뜨고 조금 뒤에 지나간다 */
+.chapter-band.is-showing {
+  animation: chapter-band 4.2s ease-out 1.2s both;
+}
+@keyframes chapter-band {
+  0% { opacity: 0; transform: translateX(-12%); }
+  15% { opacity: 1; transform: translateX(0); }
+  80% { opacity: 1; transform: translateX(0); }
+  100% { opacity: 0; transform: translateX(8%); }
+}

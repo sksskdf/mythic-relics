@@ -173,7 +173,12 @@ export class MenuData {
             here: r.id === ctx.map.region.id,
             found: r.kind === 'hub' || conveniences.visited.has(r.id),
             cleared: r.realm ? (game.threat.cleared[r.realm] ?? 0) : 0,
+            locked: !ctx.chapters.isOpen(r.id),
           }))
+        },
+        goal: () => {
+          const goal = ctx.chapters.goal
+          return goal ? { region: goal.region, text: goal.goal } : null
         },
         me: () => {
           const cell = ctx.map.region.cell

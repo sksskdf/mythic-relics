@@ -1,6 +1,6 @@
 import { Vector3 } from 'three'
 
-import { arrivalSpot, exitColor, REGIONS, type RegionDef } from '../data/regions'
+import { arrivalSpot, exitColor, nextHop, REGIONS, type RegionDef } from '../data/regions'
 import { CELL, cellKey, cellOrigin, crossingAt, neighborCells, type RegionLink, regionLinks, walkRects } from '../data/world'
 import { walkArea, type WalkArea } from '../world/colliders'
 import { collidersFor } from '../world/regionMap'
@@ -171,6 +171,21 @@ export class World {
   /** 작은 지도: 이어진 세계면 열린 통로와 이웃 땅까지 (E19-05) */
   private drawMinimap(region: RegionDef): void {
     this.parts.minimap.setRegion(region, region.cell ? { neighbors: this.neighborLands(region), passages: this.links.map((l) => l.rect) } : null)
+  }
+
+  /**
+   * 그 땅으로 가려면 향할 곳 (지금 땅 좌표, E22-04): 지금 땅이면 null, 아니면 다음 이웃으로 가는 열린 통로 입구.
+   * 길이 없으면(막힌 땅을 지나야만 하면) null
+   */
+  wayTo(id: string): { x: number; z: number } | null {
+    const region = this.region
+    if (id === region.id) return null
+    const hop = nextHop(region.id, id, this.regions)
+    const link = this.links.find((l) => l.to === hop)
+    if (!link) return null
+    const r = link.rect
+    const along = link.dir * region.halfExtent
+    return link.axis === 'x' ? { x: along, z: (r.minZ + r.maxZ) / 2 } : { x: (r.minX + r.maxX) / 2, z: along }
   }
 
   /** 막힌 땅으로 가는 통로 입구마다 갈 땅의 신화권 색으로 결계를 세운다 (E22-02) */

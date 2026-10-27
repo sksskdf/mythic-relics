@@ -21,12 +21,19 @@ const overlaps = (a: Box, b: Box) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 &
  * 지도 탭 (E15-04): 마을이 가운데, 신화권마다 입구 들판 → 깊은 땅 → 보스의 땅이 한 줄로 뻗는다.
  * 하나로 이어진 세계(E19-05)라 땅은 세계 칸 자리 그대로(화면 방향으로 돌려) 그리고, 내 자리를 점으로 찍는다.
  * 지금 있는 곳은 테두리, 찾은 성소는 채운 점. 워프가 열렸으면 찾은 성소를 눌러 바로 간다.
+ * 다음 목표의 땅은 금빛 고리가 뛰고, 결계로 막힌 땅은 흐리게 (E22-04).
  */
 export function renderMap(ctx: TabContext, body: HTMLElement): void {
   const { world } = ctx.host
   const nodes = world.nodes().map((n) => ({ ...n, ...view(n) }))
   const warp = world.canWarp()
+  const goal = world.goal()
   const wrap = el('div', 'menu-map')
+  if (goal) {
+    const line = el('div', 'menu-map__goal-line')
+    line.append(el('i', ''), el('span', '', goal.text))
+    wrap.append(line)
+  }
   const NS = 'http://www.w3.org/2000/svg'
   const svg = document.createElementNS(NS, 'svg')
   svg.setAttribute('class', 'menu-map__svg')
@@ -40,7 +47,7 @@ export function renderMap(ctx: TabContext, body: HTMLElement): void {
     land.setAttribute('width', String(n.size))
     land.setAttribute('height', String(n.size))
     land.setAttribute('transform', `rotate(45 ${n.x} ${n.y})`)
-    land.setAttribute('class', 'menu-map__land')
+    land.setAttribute('class', `menu-map__land${n.locked ? ' is-locked' : ''}`)
     land.style.setProperty('--realm', n.color)
     svg.append(land)
   }
@@ -53,7 +60,7 @@ export function renderMap(ctx: TabContext, body: HTMLElement): void {
       line.setAttribute('y1', String(n.y))
       line.setAttribute('x2', String(m.x))
       line.setAttribute('y2', String(m.y))
-      line.setAttribute('class', 'menu-map__road')
+      line.setAttribute('class', `menu-map__road${n.locked || m.locked ? ' is-locked' : ''}`)
       svg.append(line)
     }
   }
@@ -86,7 +93,7 @@ export function renderMap(ctx: TabContext, body: HTMLElement): void {
   const sides = new Map([...nodes].sort((a, b) => Number(named(b)) - Number(named(a))).map((n) => [n.id, named(n) ? place(n) : '']))
   for (const n of nodes) {
     const g = document.createElementNS(NS, 'g')
-    g.setAttribute('class', `menu-map__node${n.here ? ' is-here' : ''}${n.found ? ' is-found' : ''}${warp && n.found && !n.here ? ' can-warp' : ''}`)
+    g.setAttribute('class', `menu-map__node${n.here ? ' is-here' : ''}${n.found ? ' is-found' : ''}${n.locked ? ' is-locked' : ''}${warp && n.found && !n.here ? ' can-warp' : ''}`)
     g.style.setProperty('--realm', n.color)
     const shape = document.createElementNS(NS, n.zone === 'boss' ? 'rect' : 'circle')
     if (n.zone === 'boss') {
@@ -101,9 +108,18 @@ export function renderMap(ctx: TabContext, body: HTMLElement): void {
       shape.setAttribute('r', n.zone === null ? '0.32' : '0.22')
     }
     g.append(shape)
+    // 다음 목표의 땅: 금빛 고리
+    if (goal?.region === n.id) {
+      const ring = document.createElementNS(NS, 'circle')
+      ring.setAttribute('cx', String(n.x))
+      ring.setAttribute('cy', String(n.y))
+      ring.setAttribute('r', '0.42')
+      ring.setAttribute('class', 'menu-map__goal')
+      g.append(ring)
+    }
     svg.append(g)
     // 이름은 HTML로 얹는다 (갈무리 글꼴, 정해진 크기)
-    const label = el('button', `menu-map__label${sides.get(n.id)}${n.here ? ' is-here' : ''}${named(n) ? '' : ' is-quiet'}`)
+    const label = el('button', `menu-map__label${sides.get(n.id)}${n.here ? ' is-here' : ''}${named(n) ? '' : ' is-quiet'}${n.locked ? ' is-locked' : ''}${goal?.region === n.id ? ' is-goal' : ''}`)
     label.type = 'button'
     label.style.left = `${((n.x + HALF) / (HALF * 2)) * 100}%`
     label.style.top = `${((n.y + HALF) / (HALF * 2)) * 100}%`
@@ -115,7 +131,9 @@ export function renderMap(ctx: TabContext, body: HTMLElement): void {
       const zone = n.zone === 'entrance' ? '입구 들판' : n.zone === 'deep' ? '깊은 땅 (정예가 많다)' : n.zone === 'boss' ? '보스의 땅' : '마을'
       const how = n.here ? '지금 여기' : warp ? (n.found ? '누르면 워프' : '성소를 찾으면 워프할 수 있다') : n.found ? '성소를 찾았다' : '아직 성소를 찾지 못했다'
       const won = n.zone === 'boss' && n.cleared > 0 ? ` · ${n.cleared}단계 이김` : ''
-      return `${n.name}\n${zone}${won} · ${how}`
+      const seal = n.locked ? '\n결계로 막혀 있다' : ''
+      const next = goal?.region === n.id ? `\n다음 목표: ${goal.text}` : ''
+      return `${n.name}\n${zone}${won} · ${how}${seal}${next}`
     })
     labels.append(label)
   }
@@ -133,6 +151,8 @@ export function renderMap(ctx: TabContext, body: HTMLElement): void {
   const board = el('div', 'menu-map__board')
   board.append(svg, labels)
   wrap.append(board)
-  wrap.append(el('div', 'menu-src__text', warp ? '찾은 성소를 누르면 워프한다' : '성소 워프는 위협 2단계에 열린다 (정보 화면 › 원천 › 편의)'))
+  // 성소 워프는 엔딩 뒤 장치라 그 전에는 말하지 않는다 (E21-06)
+  if (warp) wrap.append(el('div', 'menu-src__text', '찾은 성소를 누르면 워프한다'))
+  else if (ctx.host.afterEnding()) wrap.append(el('div', 'menu-src__text', '성소 워프는 위협 2단계에 열린다 (정보 화면 › 원천 › 편의)'))
   body.append(wrap)
 }
