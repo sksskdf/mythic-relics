@@ -199,3 +199,50 @@ describe('무리 밀고 지나가기', () => {
     expect(grunt.state).toBe('stagger')
   })
 })
+
+describe('뒷걸음치는 적 쫓기', () => {
+  /** 주인공이 가까이 오면 speed(m/s)로 물러나는 적 (거리 유지·원거리 몬스터) */
+  function kiter(x: number, z: number, keep: number, speed: number) {
+    const hits: number[] = []
+    const t = {
+      x,
+      z,
+      radius: 0.75,
+      alive: true,
+      takeHit: (damage: number) => {
+        hits.push(damage)
+        return damage
+      },
+    }
+    const move = (hero: { x: number; z: number }, dt: number) => {
+      const dx = t.x - hero.x
+      const dz = t.z - hero.z
+      const d = Math.hypot(dx, dz) || 1
+      if (d < keep) {
+        t.x += (dx / d) * speed * dt
+        t.z += (dz / d) * speed * dt
+      }
+    }
+    return { target: t as CombatTarget, hits, move }
+  }
+
+  it('물러나는 적을 쫓아도 휘두르기를 끊었다 다시 시작하지 않는다 (휘두른 만큼 맞힌다)', () => {
+    const { target, hits, move } = kiter(0, 6, 4.5, 3)
+    const hero = new HeroController(buildHeroModel(), new NavGrid(30, 0.5, [], 0.4), () => [], 30)
+    const combat = new PlayerCombat(hero)
+    const orders = new HeroOrders(hero, combat)
+    let swings = 0
+    const hooks = { onSwing: () => swings++, onHits: () => {} }
+    orders.press(null, target)
+    for (let t = 0; t < 6; t += 1 / 60) {
+      orders.update([target])
+      hero.update(1 / 60)
+      combat.update(1 / 60, [target], hooks)
+      move({ x: hero.object.position.x, z: hero.object.position.z }, 1 / 60)
+    }
+    // 고치기 전: 6초에 휘두르기 시작 42번, 거의 못 맞힘 (시작하자마자 끊김)
+    // 쉬지 않고 물러나기만 하는 적이라도 휘두르기는 제 빠르기로 나가고, 절반은 맞는다
+    expect(swings).toBeLessThan(20)
+    expect(hits.length).toBeGreaterThanOrEqual(Math.floor(swings / 2))
+  })
+})

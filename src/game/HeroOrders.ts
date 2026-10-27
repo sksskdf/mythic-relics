@@ -2,6 +2,9 @@ import type { Point2 } from '../world/colliders'
 import type { HeroController } from './HeroController'
 import type { CombatTarget, PlayerCombat } from './PlayerCombat'
 
+/** 공격하러 쫓을 때 사거리 안쪽으로 이만큼(m) 더 들어가서 멈춘다 (경계에서 멈췄다 걸었다 하지 않게) */
+const CHASE_INSIDE = 0.6
+
 /** 플레이어가 내린 지시 */
 export type Order =
   /** 땅을 눌러 이동. 가는 길에 적을 만나도 싸우지 않고 끝까지 간다. */
@@ -94,17 +97,29 @@ export class HeroOrders {
     this.updateAttack(target)
   }
 
-  /** 대상이 사거리 밖이면 다가가고, 안이면 멈춘다. 멈추면 PlayerCombat이 친다. */
+  /**
+   * 대상이 사거리 밖이면 다가가고, 안이면 멈춘다. 멈추면 PlayerCombat이 친다.
+   * 뒷걸음치거나 거리를 두는 적(원거리 몬스터)을 쫓을 때 사거리 경계에서 멈췄다 걸었다 하면
+   * 휘두르기가 시작되자마자 끊겨 공격 모션만 빠르게 되풀이된다. 그래서
+   * - 시작한 휘두르기는 끝까지 휘두르고(그동안 쫓지 않는다)
+   * - 쫓을 때는 사거리 안쪽으로 넉넉히 들어가 멈추고, 멈춘 뒤에는 사거리를 벗어나야 다시 쫓는다.
+   */
   private updateAttack(target: CombatTarget): void {
     if (!target.alive) {
       this.clear()
       return
     }
+    if (this.combat.combo.swinging) {
+      if (this.hero.isMoving) this.hero.stop()
+      return
+    }
     const p = this.hero.object.position
     const dist = Math.hypot(target.x - p.x, target.z - p.z)
-    if (dist <= this.combat.reachTo(target) - 0.25) {
-      this.hero.stop()
-    } else if (this.hero.canRepath || !this.hero.isMoving) {
+    const reach = this.combat.reachTo(target)
+    if (this.hero.isMoving) {
+      if (dist <= reach - CHASE_INSIDE) this.hero.stop()
+      else if (this.hero.canRepath) this.hero.moveTo({ x: target.x, z: target.z })
+    } else if (dist > reach) {
       this.hero.moveTo({ x: target.x, z: target.z })
     }
   }
