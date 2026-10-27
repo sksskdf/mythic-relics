@@ -27,6 +27,15 @@
 | 원천·위협 단계 (E14) | 빌드 상태에 `sources`(장비 + 원천 숙련)·`awakening`(0~3)·`resonance`. 각성 효과는 `powers.awakening`(`SourceAwakening`)이 기본 공격·처치·걸음·피격에서 돌고, 배율(기본 공격·모든 피해·공격/이동 속도·받는 피해)은 Game이 매 프레임 전투·이동에 곱한다. 위협 단계 배율은 `encounter.threat`·`eliteChance`로 새로 세우는 적에 건다 |
 | 읽는 길 | 게임 시스템은 지금 신화·단계를 `ctx.build.chosen`·`ctx.build.level`로 읽는다. 장비 칸 자체를 다루는 곳(장착·저장·유물 화면)은 `powers.loadout`을 본다 |
 
+## 2차 스프린트 중간 점검에서 나눈 곳 (2026-10-27)
+
+| 곳 | 나눈 뒤 |
+| --- | --- |
+| `src/ui/GameMenu.ts` | 1279줄 → 225줄. 틀(탭 줄·힌트·여닫기)만 남기고 탭은 `src/ui/menu/`: `statusTab`·`sourcesTab`·`trialsTab`·`riftTab`·`mapTab`는 함수(`renderX(ctx, body)`), 기억할 것이 있는 장비·신화 탭은 클래스(`RelicsTab`의 고른 칸·커서 올린 것, `MythTab`의 눌러 본 신화). 탭이 쓰는 것은 `TabContext`(host·힌트·다시 그리기·닫기), 게임에서 읽는 형식은 `menu/host.ts` |
+| `src/game/Game.ts` | 1278줄 → 861줄. 정보 화면에 넘길 값과 할 일·능력치·설명 카드 상태는 `MenuData`, 대화 장면을 여는 때와 미루기·말 걸기는 `Storyline`, 공격 궤적·원거리 공격 모습은 `AttackFx`, 커서 아래 카드·이름표는 `HoverCards`. Game에는 `story`·`storyScenes`·`sourceRows` 위임이 남음 |
+
+새 탭은 `src/ui/menu/`에 파일을 만들고 `GameMenu.render`에 한 줄을 더한다. 탭이 게임에서 읽을 것은 `menu/host.ts`의 형식에 더하고 `MenuData.host()`에서 채운다.
+
 E12~E14에서 새 규칙을 넣을 때는 `BuildInputs`에 재료를 더하고 `computeBuild`에서 계산을 늘린다. 시스템이 장비·신화를 직접 읽어 따로 계산하지 않는다.
 
 ## E14에서 걷어낼 것

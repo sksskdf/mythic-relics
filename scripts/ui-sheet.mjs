@@ -1,8 +1,9 @@
 // 정보 화면·HUD 모음 (QA): 중반쯤의 상태를 꾸민 뒤 정보 화면 탭마다, 화면 크기마다 찍는다.
 // 사용법: npm run build && node scripts/ui-sheet.mjs [저장 폴더=test-results/ui] [크기=1280x720,960x540,390x844]
 // 결과: <폴더>/<크기>-<탭>.png, <크기>-hud.png. 글이 넘치거나 잘리는지, 좁은 화면에서 깨지는지 직접 본다.
+// UI_DOM=1 이면 탭마다 정보 화면의 DOM도 <크기>-<탭>.html로 남긴다 (코드를 나눈 뒤 화면이 그대로인지 diff로 견줄 때)
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { chromium } from 'playwright-core'
 
 const [dir = 'test-results/ui', sizesArg = '1280x720,960x540,390x844'] = process.argv.slice(2)
@@ -33,6 +34,16 @@ try {
     const [width, height] = size.split('x').map(Number)
     const page = await browser.newPage({ viewport: { width, height } })
     page.on('pageerror', (e) => errors.push(`${size}: ${e.message}`))
+    // 장비 굴림이 판마다 같게 Math.random을 씨앗 고정으로 (DOM을 견줄 수 있게)
+    await page.addInitScript(() => {
+      let s = 20261027
+      Math.random = () => {
+        s = (s + 0x6d2b79f5) | 0
+        let t = Math.imul(s ^ (s >>> 15), 1 | s)
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+      }
+    })
     await page.goto(`http://localhost:${PORT}/?fresh&relics=&region=village&noscenes`)
     await page.waitForFunction(() => (window.__game?.frame ?? 0) > 3, null, { timeout: 60000 })
     // 중반쯤: 토르를 고르고 신화 셋을 열고, 장비 몇 개와 재료, 위협 3단계, 시련 몇 개, 한계를 깬 뒤 별 셋
@@ -70,6 +81,7 @@ try {
       }, tab)
       await wait()
       await page.screenshot({ path: `${dir}/${size}-${tab}.png` })
+      if (process.env.UI_DOM) writeFileSync(`${dir}/${size}-${tab}.html`, (await page.evaluate(() => document.querySelector('.menu').outerHTML)).replace(/></g, '>\n<'))
       // 넘친 글: 상자 밖으로 삐져나온 요소 수
       const overflow = await page.evaluate(() => {
         const out = []
