@@ -1314,6 +1314,16 @@
   background: none;
   cursor: help;
 }
+.menu-map__label.is-quiet {
+  /* 이름 없이 누를 자리만 (좁은 화면) */
+  width: 24px;
+  height: 24px;
+  transform: translate(-50%, -50%);
+}
+.menu-map__label.is-quiet span,
+.menu-map__label.is-quiet small {
+  display: none;
+}
 .menu-map__label.is-above {
   flex-direction: column-reverse;
   transform: translate(-50%, calc(-100% - 18px));
