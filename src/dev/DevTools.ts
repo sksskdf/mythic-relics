@@ -58,6 +58,16 @@ export class DevTools {
     return item.uid
   }
 
+  /** 일반 장비 하나를 바로 낀다 (체크리스트 QA·개발 패널). 장비 id를 돌려준다 */
+  wear(part: GearPart, grade?: Grade): string {
+    const { powers, bus } = this.parts
+    const item = rollGear(Math.random, { part, ...(grade ? { grade } : {}) })
+    powers.loadout.addGear(item)
+    powers.loadout.equip(item.uid)
+    bus.emit('progressChanged', {})
+    return item.uid
+  }
+
   /** 적을 그 자리에 세운다 (점검 스크립트). 없는 id면 졸개 */
   spawn(id: string, x: number, z: number): void {
     this.parts.encounter.spawn(ENEMIES[id] ?? GRUNT, { x, z }, true)

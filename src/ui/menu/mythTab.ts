@@ -185,6 +185,8 @@ export class MythTab {
       now.append(img(unknownSigil(), 'menu-classes__emblem'))
       const info = el('div', 'menu-classes__info')
       info.append(el('div', 'menu-classes__title', '이름 없는 모험가'))
+      // 처음 여는 사람도 무엇을 하면 되는지 바로 알게 (체크리스트 QA, 2026-10-27)
+      info.append(el('p', 'menu-classes__how', '몬스터를 잡아 그 신화권의 숙련을 채우거나, 보스가 떨어뜨린 신의 유물을 주우면 신화가 열린다.'))
       now.append(info)
       this.ctx.hintOn(now, '한 신의 유물을 손에 넣으면 그 신의 힘이 깨어난다.')
     }

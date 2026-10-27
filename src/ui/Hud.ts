@@ -42,6 +42,8 @@ export interface HudState {
 
 /** 유물 스킬 칸 수 */
 export const SKILL_SLOTS = 4
+/** 얻은 것 카드 하나가 다음 카드에 자리를 내주기 전에 보이는 시간 (ms). 카드 자체는 5초 뒤 사라진다 */
+const GAINS_MIN_MS = 3000
 
 /**
  * HUD: 왼쪽 위에 지금의 나, 아래 가운데에 떠 있는 묶음 하나. (DESIGN.md 10.5)
@@ -83,6 +85,10 @@ export class Hud {
   private readonly card: HTMLElement
   private readonly toast: HTMLElement
   private readonly gains: HTMLElement
+  /** 카드를 띄운 때(ms)와 기다리는 카드: 같은 때 열린 것(위협 단계 + 편의 등)이 서로 덮지 않게 차례로 보인다 */
+  private gainsShownAt = -Infinity
+  private readonly gainsQueue: (() => void)[] = []
+  private gainsTimer: ReturnType<typeof setTimeout> | null = null
   private readonly flashEl: HTMLElement
   /** 화면 번쩍임: 설정에서 끌 수 있다 */
   flashEnabled = true
@@ -289,6 +295,27 @@ export class Hud {
    * lines의 각 줄은 얻은 것 하나. "→"가 있으면 앞은 흐리게, 뒤는 밝게 보인다.
    */
   showGains(kind: string, title: string, color: string, icon: string, lines: readonly string[]): void {
+    this.gainsQueue.push(() => this.renderGains(kind, title, color, icon, lines))
+    this.nextGains()
+  }
+
+  /** 앞 카드가 GAINS_MIN_MS 넘게 보였으면 다음 카드를 띄운다 */
+  private nextGains(): void {
+    if (this.gainsTimer !== null || this.gainsQueue.length === 0) return
+    const wait = this.gainsShownAt + GAINS_MIN_MS - performance.now()
+    if (wait > 0) {
+      this.gainsTimer = setTimeout(() => {
+        this.gainsTimer = null
+        this.nextGains()
+      }, wait)
+      return
+    }
+    this.gainsShownAt = performance.now()
+    this.gainsQueue.shift()!()
+    this.nextGains()
+  }
+
+  private renderGains(kind: string, title: string, color: string, icon: string, lines: readonly string[]): void {
     const card = this.gains
     card.replaceChildren()
     card.style.setProperty('--glow', color)
