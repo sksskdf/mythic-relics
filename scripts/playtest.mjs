@@ -117,7 +117,9 @@ try {
       const g = window.__game
       const p = g.hero.object.position
       const a = window.__autoplay
-      return { step: a.step, want: a.wantRegion(), gods: a.forgeGods(), locked: g.hero.locked, armed: g.world.exitArmed, traveling: g.world.traveling, mats: Object.fromEntries(g.powers.loadout.materials), bag: g.powers.loadout.bag, slots: g.powers.loadout.slots, picks: g.pickups.list.map((i) => i.id), t: Math.round(g.time), region: g.region.id, x: Math.round(p.x), z: Math.round(p.z), hp: Math.round(g.combat.health.ratio * 100) / 100, moving: g.hero.isMoving, enemies: g.encounter.alive.length, chosen: g.powers.manifested, ready: g.progress.readyToPromote(g.powers.manifested ?? 'thor') }
+      return { step: a.step, want: a.wantRegion(), gods: a.forgeGods(), locked: g.hero.locked, armed: g.world.exitArmed, traveling: g.world.traveling, mats: Object.fromEntries(g.powers.loadout.materials), bag: g.powers.loadout.bag, slots: g.powers.loadout.slots, picks: g.pickups.list.map((i) => i.id), t: Math.round(g.time), region: g.region.id, x: Math.round(p.x), z: Math.round(p.z), hp: Math.round(g.combat.health.ratio * 100) / 100, moving: g.hero.isMoving, enemies: g.encounter.alive.length, chosen: g.powers.manifested, ready: g.progress.readyToPromote(g.powers.manifested ?? 'thor'),
+        // 멈춘 판을 풀 실마리: 살아 있는 적의 자리·상태, 길찾기에서 막힌 칸인지, 갈 수 있는 곳 안인지 (E19)
+        foes: g.encounter.alive.map((e) => ({ id: e.spec.id, x: Math.round(e.x * 10) / 10, z: Math.round(e.z * 10) / 10, state: e.state, home: [Math.round(e.home.x), Math.round(e.home.z)], blocked: g.nav.isBlocked({ x: e.x, z: e.z }), inArea: g.nav.area.rects.some((r) => e.x >= r.minX && e.x <= r.maxX && e.z >= r.minZ && e.z <= r.maxZ) })) }
     })
     const log = await page.evaluate(() => window.__game.log)
     const first = (type, detail) => log.find((e) => e.type === type && (detail === undefined || e.detail === detail))?.t
@@ -190,6 +192,8 @@ if (GATE) {
   const failed = results.filter((r) => r.promote === undefined || r.errors.length > 0)
   if (failed.length > 0) {
     console.error(`봇 검증 실패: ${failed.length}판이 ${LIMIT_MIN}분 안에 승급하지 못했거나 오류가 났습니다.`)
+    // CI 기록만으로도 원인을 볼 수 있게 끝난 자리와 살아 있는 적을 남긴다
+    for (const r of failed) console.error(`#${r.run} 끝: ${JSON.stringify({ step: r.last?.step, region: r.last?.region, at: [r.last?.x, r.last?.z], moving: r.last?.moving, foes: r.last?.foes })}`)
     process.exit(1)
   }
   console.log('봇 검증 통과')

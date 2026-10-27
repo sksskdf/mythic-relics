@@ -1,6 +1,7 @@
 import { arrivalSpot, REGIONS, type RegionDef } from '../data/regions'
 import { CELL, cellKey, cellOrigin, crossingAt, neighborCells, type RegionLink, regionLinks, walkRects } from '../data/world'
 import { walkArea, type WalkArea } from '../world/colliders'
+import { collidersFor } from '../world/regionMap'
 import { realmInk } from '../art/palette'
 import type { DropTable } from '../gear/DropTable'
 import type { Pickups } from '../gear/Pickups'
@@ -90,7 +91,13 @@ export class World {
 
   /** 지금 땅 둘레에 그려지는 땅들의 적 배치와, 지금 땅 좌표로 옮길 만큼 (E19). 세계 칸이 없는 균열이면 없음 */
   neighborLayouts(region: RegionDef): NeighborLayout[] {
-    return this.neighborLands(region).map(({ region: r, offset }) => ({ id: r.id, layout: { ...r, respawn: true }, offset }))
+    return this.neighborLands(region).map(({ region: r, offset }) => ({
+      id: r.id,
+      layout: { ...r, respawn: true },
+      offset,
+      // 그 땅의 바위·나무·마을 사람 (무리를 세울 때 그 안에 서지 않게)
+      colliders: [...r.props.flatMap(collidersFor), ...r.npcs.map((n) => ({ x: n.x, z: n.z, radius: 0.45 }))].map((c) => ({ ...c, x: c.x + offset.x, z: c.z + offset.z })),
+    }))
   }
 
   /** 지금 땅 둘레(이웃 칸)의 땅들과, 그 땅을 지금 땅 좌표로 옮길 만큼 */

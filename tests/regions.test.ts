@@ -331,6 +331,21 @@ describe('이어진 세계의 적 (E19-04)', () => {
     expect(encounter.parkedGiants).not.toContain(chaser)
   })
 
+  it('이웃 땅 무리는 그 땅의 바위를 비켜 서고, 깨우면 집 자리가 막힌 칸이 아니다', () => {
+    const encounter = new Encounter({ camps: [], boss: null }, [], areaA)
+    encounter.eliteChance = 0
+    encounter.reset(layoutA, [], areaA)
+    // B의 무리 자리(지금 땅 좌표 −8, −95)에 큰 바위
+    const rock = { x: -8, z: -95, radius: 2.5 }
+    encounter.setNeighbors([{ ...neighborB, colliders: [rock] }])
+    encounter.flushNeighbors()
+    for (const g of encounter.parkedGiants) expect(Math.hypot(g.x - rock.x, g.z - rock.z)).toBeGreaterThan(rock.radius)
+    const rockB = { ...rock, z: rock.z + 100 }
+    encounter.cross(layoutB, { x: 0, z: 100 }, [rockB], areaB)
+    const nav = new NavGrid(areaB, 0.5, [rockB], GRUNT.radius)
+    for (const g of encounter.giants.filter((x) => x.spec === GRUNT)) expect(nav.isBlocked(g.home)).toBe(false)
+  })
+
   it('이웃이 아니게 된 땅의 무리는 지운다', () => {
     const encounter = setup()
     const parked = encounter.parkedGiants
