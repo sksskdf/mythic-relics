@@ -73,6 +73,14 @@ describe('데이터에만 넣은 시험용 유물', () => {
     expect(pickups.update(0.1, 0, 0, () => true)).toEqual([{ id: 'testRelic' }])
   })
 
+  it('걸어서 이웃 땅으로 넘어가면 떨어진 것도 같은 만큼 옮겨 제자리에 남고, 너무 먼 것은 치운다 (E19)', () => {
+    const pickups = new Pickups()
+    pickups.drop('testRelic', 5, -30)
+    pickups.drop('mjolnir', 0, -80)
+    pickups.shift(0, -40, 100)
+    expect(pickups.list.map(({ id, x, z }) => ({ id, x, z }))).toEqual([{ id: 'testRelic', x: 5, z: -70 }])
+  })
+
   it('장착하면 그 신의 유물로 세고(가호), 지속 효과와 행동 연동 효과가 붙는다', () => {
     const fx = new THREE.Group()
     const powers = new RelicPowers(fx)

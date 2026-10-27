@@ -10,6 +10,7 @@ import { HeroController } from '../src/game/HeroController'
 import { type CombatTarget, PlayerCombat } from '../src/game/PlayerCombat'
 import { buildHeroModel } from '../src/world/heroModel'
 import { NavGrid } from '../src/world/navGrid'
+import { squareArea } from '../src/world/colliders'
 
 const nav = new NavGrid(20, 0.5, [], 0.75)
 
@@ -20,7 +21,7 @@ function makeWorld(hero: { x: number; z: number }) {
   const world: GiantWorld = {
     hero: { ...hero, radius: 0.4, alive: true },
     nav,
-    halfExtent: 20,
+    area: squareArea(20),
     staticColliders: [],
     giants: [],
     hitHero: (damage) => hits.push(damage),

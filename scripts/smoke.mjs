@@ -324,19 +324,25 @@ try {
   const bubble = await page.locator('.npc-bubble:not([hidden])').first().textContent()
   if (!bubble) throw new Error('지역: 마을 사람 말풍선이 비었습니다.')
   if (!(await page.locator('.minimap').isVisible())) throw new Error('지역: 작은 지도가 보이지 않습니다.')
-  // 출구 자리는 세계 통로 입구 (E19-01): 데이터에서 읽는다
-  const gate = await page.evaluate(() => {
-    const exit = window.__game.region.exits.find((e) => e.to === 'midgard')
-    const back = window.__game.regions.midgard.exits.find((e) => e.to === 'village')
-    return { exit, back }
+  // 하나로 이어진 세계 (E19-02): 마을의 미드가르드 쪽 문을 지나 통로를 걸으면, 가운데를 넘을 때 암전 없이 미드가르드가 된다
+  const walked = await page.evaluate(() => {
+    const g = window.__game
+    const exit = g.region.exits.find((e) => e.to === 'midgard')
+    g.dev.teleport(exit.x, exit.z + 3)
+    // 통로 너머(미드가르드 안쪽)를 누른다. 마을에서는 통로 끝까지만 갈 수 있다
+    g.orders.press({ x: exit.x, z: exit.z - 60 }, null)
+    let fade = 0
+    for (let i = 0; i < 360 && g.region.id === 'village'; i++) {
+      g.advance(1 / 30, 1 / 30)
+      fade = Math.max(fade, Number(getComputedStyle(document.querySelector('.region-fade')).opacity) || 0)
+    }
+    g.advance(1, 1 / 30)
+    const p = g.hero.object.position
+    return { region: g.region.id, fade, moving: g.hero.isMoving, x: p.x, z: p.z, half: g.region.halfExtent }
   })
-  await page.evaluate(({ x, z }) => window.__game.dev.teleport(x * 0.75, z * 0.75), gate.exit)
-  await page.waitForTimeout(300)
-  await page.evaluate(({ x, z }) => window.__game.dev.teleport(x, z), gate.exit)
-  await page.waitForFunction(() => window.__game.region.id === 'midgard', null, { timeout: 15000 })
-  const arrived = await page.evaluate(() => ({ ...window.__game.hero.object.position }))
-  if (Math.hypot(arrived.x - gate.back.x, arrived.z - gate.back.z) > 6) throw new Error(`지역: 미드가르드의 마을 쪽 출구 앞에 서야 합니다 ${JSON.stringify({ arrived, back: gate.back })}`)
-  await page.waitForFunction(() => getComputedStyle(document.querySelector('.region-fade')).opacity === '0', null, { timeout: 15000 })
+  if (walked.region !== 'midgard') throw new Error(`이어진 세계: 통로를 걸었는데 미드가르드로 넘어가지 않습니다 ${JSON.stringify(walked)}`)
+  if (walked.fade > 0.01) throw new Error(`이어진 세계: 걸어서 넘어가는데 화면이 어두워집니다 ${JSON.stringify(walked)}`)
+  if (!walked.moving) throw new Error(`이어진 세계: 넘어간 뒤 누른 곳까지 이어 걷지 않습니다 ${JSON.stringify(walked)}`)
   // 지역을 여러 번 오가도 GPU 자원(형상·텍스처)이 늘지 않는다 (E7 자동 검증: 지역 전환 반복)
   const memoryAfter = async (times) =>
     page.evaluate(async (n) => {
@@ -361,7 +367,7 @@ try {
   if (memB.geometries > memA.geometries + 8 || memB.textures > memA.textures + 2) throw new Error(`지역: 오갈수록 GPU 자원이 늘어납니다 ${JSON.stringify({ memA, memB })}`)
   if (memB.ms > 3000) throw new Error(`지역: 지역을 짓는 데 3초가 넘게 걸립니다 (${memB.ms}ms)`)
   console.log(`지역 전환 반복 확인: ${regionCount}곳을 한 바퀴 돈 뒤 형상 ${memA.geometries}·텍스처 ${memA.textures}, 두 바퀴 더 돈 뒤 ${memB.geometries}·${memB.textures}, 한 번 짓는 데 평균 ${memB.ms}ms (소프트웨어 렌더링)`)
-  console.log(`지역 확인: 마을에서 시작, 말풍선 「${bubble}」, 작은 지도, 출구를 밟아 미드가르드로`)
+  console.log(`지역 확인: 마을에서 시작, 말풍선 「${bubble}」, 작은 지도, 통로를 걸어 암전 없이 미드가르드로`)
 
   // 세계 지도와 성소 워프 (E15-04): 지도 탭에 열여섯 곳, 찾은 성소를 누르면 그 땅으로
   await page.evaluate(() => {

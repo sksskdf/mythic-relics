@@ -13,6 +13,7 @@ import { DATA } from '../src/data'
 import { createUltimate } from '../src/skills/Ultimate'
 import { buildHeroModel } from '../src/world/heroModel'
 import { NavGrid } from '../src/world/navGrid'
+import { squareArea } from '../src/world/colliders'
 
 function dummy(x: number, z: number, hits: number[]): CombatTarget {
   return {
@@ -176,7 +177,7 @@ describe('변신의 가면 환영 분신', () => {
       hero: { x: 8, z: 0, radius: 0.4, alive: true },
       decoy: { x: -6, z: 0, radius: 0.4 },
       nav: new NavGrid(20, 0.5, [], 0.75),
-      halfExtent: 20,
+      area: squareArea(20),
       staticColliders: [],
       giants: [giant],
       hitHero: () => {},

@@ -23,6 +23,8 @@ import { AttackFx } from './AttackFx'
 import { HoverCards } from './HoverCards'
 import { PauseMenu } from '../ui/PauseMenu'
 import { NavGrid } from '../world/navGrid'
+import { regionLinks, walkRects } from '../data/world'
+import { walkArea } from '../world/colliders'
 import { buildHeroModel } from '../world/heroModel'
 import type { BodyLook } from '../looks/body'
 import { TITLE_REQUEST } from '../save/SaveData'
@@ -213,11 +215,13 @@ export class Game {
 
     // 지역 (E7): 저장한 지역이 없으면 첫 지역에서 시작한다
     const region = REGIONS[options.region ?? options.load?.region?.id ?? START_REGION] ?? REGIONS[START_REGION]!
-    this.stage = new Stage(this.scene, region)
+    this.stage = new Stage(this.scene, region, REGIONS)
     const map = this.stage.map
-    const nav = new NavGrid(region.halfExtent, 0.5, map.colliders, HERO_RADIUS)
+    // 움직일 수 있는 곳: 땅의 네모와 이웃으로 가는 통로 (E19)
+    const area = walkArea(walkRects(region.halfExtent, regionLinks(REGIONS, region.id)))
+    const nav = new NavGrid(area, 0.5, map.colliders, HERO_RADIUS)
     this.nav = nav
-    this.encounter = new Encounter(region, map.colliders, region.halfExtent)
+    this.encounter = new Encounter(region, map.colliders, area)
     this.scene.add(this.encounter.object)
 
     const rig = buildHeroModel()
@@ -228,7 +232,7 @@ export class Game {
       nav,
       // 적을 무시하고 걸을 때는 보스만 길을 막고, 졸개는 밀고 지나간다.
       () => [...map.colliders, ...this.encounter.colliders(this.orders?.plowing ?? false)],
-      region.halfExtent,
+      area,
     )
     this.hero.teleport(region.spawn.x, region.spawn.z)
     this.combat = new PlayerCombat(this.hero)
@@ -765,7 +769,7 @@ export class Game {
     const shattered = this.encounter.update(dt, {
       hero: { x: position.x, z: position.z, radius: HERO_RADIUS, alive: this.combat.alive },
       decoy: this.relics.decoy,
-      halfExtent: this.region.halfExtent,
+      area: this.nav.area,
       staticColliders: this.stage.map.colliders,
       effects: this.fx.skills,
       hitHero: (damage, fromX, fromZ, knockback) => this.damage.hitHero(damage, fromX, fromZ, knockback),

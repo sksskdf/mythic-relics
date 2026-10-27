@@ -96,6 +96,21 @@ export class Pickups {
     for (let i = this.items.length - 1; i >= 0; i--) this.discard(i)
   }
 
+  /**
+   * 원점이 옮겨졌다 (E19: 걸어서 이웃 땅으로 넘어감). 떨어진 것도 같은 만큼 옮겨 제자리에 그대로 둔다.
+   * 지금 땅의 이웃보다 멀어진 것(far 밖)은 치운다.
+   */
+  shift(dx: number, dz: number, far: number): void {
+    for (let i = this.items.length - 1; i >= 0; i--) {
+      const item = this.items[i]!
+      item.x += dx
+      item.z += dz
+      item.root.position.x += dx
+      item.root.position.z += dz
+      if (Math.max(Math.abs(item.x), Math.abs(item.z)) > far) this.discard(i)
+    }
+  }
+
   /** 땅에서 걷어 내고 모델과 빛기둥 재질을 GPU에서 내린다 (드랍마다 쌓이지 않게) */
   private discard(index: number): void {
     const [item] = this.items.splice(index, 1)

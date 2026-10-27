@@ -188,3 +188,75 @@ export function clampToRects(rects: readonly Rect[], x: number, z: number, inset
 function clamp(v: number, lo: number, hi: number): number {
   return lo > hi ? (lo + hi) / 2 : Math.max(lo, Math.min(hi, v))
 }
+
+/**
+ * 떠다니는 원점 (E19-02): 게임은 지금 있는 땅의 지역 안 좌표로 돈다. 아래는 모두 그 땅의 지역 안 좌표다.
+ */
+
+/** 통로를 이 거리(m)만큼 양쪽 땅의 네모 안으로 늘려 잇는다 (가장자리를 안으로 당겨도 이음목에 틈이 없게) */
+export const PASSAGE_OVERLAP = 2
+/** 통로 가운데에서 이만큼(m) 더 가야 다음 땅으로 넘어간다 (경계에서 깜박이지 않게) */
+export const CROSS_MARGIN = 1
+
+/** 이웃 땅으로 이어지는 통로 하나 (지금 땅의 지역 안 좌표) */
+export interface RegionLink {
+  to: string
+  /** 지금 땅의 좌표에 더하면 이웃 땅의 좌표가 된다 */
+  shift: Spot
+  /** 통로 네모 (양쪽 땅 안으로 PASSAGE_OVERLAP만큼 늘림) */
+  rect: Rect
+  /** 통로가 뻗은 축과 이웃 쪽 방향, 통로 가운데 (축 좌표) */
+  axis: 'x' | 'z'
+  dir: 1 | -1
+  mid: number
+}
+
+const linkCache = new WeakMap<object, Map<string, RegionLink[]>>()
+
+/** 그 땅에서 이웃으로 이어지는 통로들 (세계 칸이 없는 균열 층이면 없음) */
+export function regionLinks(regions: Readonly<Record<string, Omit<PlacedRegion, 'cell'> & { cell: Cell | null }>>, id: string): RegionLink[] {
+  let byId = linkCache.get(regions)
+  if (!byId) {
+    byId = new Map()
+    linkCache.set(regions, byId)
+  }
+  const cached = byId.get(id)
+  if (cached) return cached
+  const self = regions[id]
+  if (!self?.cell) {
+    byId.set(id, [])
+    return []
+  }
+  const placed: Record<string, PlacedRegion> = {}
+  for (const r of Object.values(regions)) if (r.cell) placed[r.id] = { ...r, cell: r.cell }
+  const o = cellOrigin(self.cell)
+  const links: RegionLink[] = []
+  for (const p of passages(placed)) {
+    if (p.from !== id && p.to !== id) continue
+    const to = p.from === id ? p.to : p.from
+    const other = cellOrigin(placed[to]!.cell)
+    const axis = adjacency(self.cell, placed[to]!.cell) === 'side' ? 'x' : 'z'
+    const dir = Math.sign(axis === 'x' ? other.x - o.x : other.z - o.z) as 1 | -1
+    const r = { minX: p.rect.minX - o.x, maxX: p.rect.maxX - o.x, minZ: p.rect.minZ - o.z, maxZ: p.rect.maxZ - o.z }
+    const rect = axis === 'x' ? { ...r, minX: r.minX - PASSAGE_OVERLAP, maxX: r.maxX + PASSAGE_OVERLAP } : { ...r, minZ: r.minZ - PASSAGE_OVERLAP, maxZ: r.maxZ + PASSAGE_OVERLAP }
+    const mid = axis === 'x' ? (r.minX + r.maxX) / 2 : (r.minZ + r.maxZ) / 2
+    links.push({ to, shift: { x: o.x - other.x, z: o.z - other.z }, rect, axis, dir, mid })
+  }
+  byId.set(id, links)
+  return links
+}
+
+/** 그 땅에서 움직일 수 있는 곳: 땅의 네모와 이웃으로 가는 통로들 (지역 안 좌표) */
+export function walkRects(halfExtent: number, links: readonly RegionLink[]): Rect[] {
+  return [{ minX: -halfExtent, maxX: halfExtent, minZ: -halfExtent, maxZ: halfExtent }, ...links.map((l) => l.rect)]
+}
+
+/** 통로 가운데를 CROSS_MARGIN 넘게 지나 이웃 땅 쪽에 있으면 그 통로. 아니면 null */
+export function crossingAt(links: readonly RegionLink[], x: number, z: number): RegionLink | null {
+  for (const link of links) {
+    if (!inRect(link.rect, x, z)) continue
+    const along = link.axis === 'x' ? x : z
+    if ((along - link.mid) * link.dir > CROSS_MARGIN) return link
+  }
+  return null
+}

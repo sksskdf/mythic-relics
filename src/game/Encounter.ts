@@ -2,7 +2,7 @@ import * as THREE from 'three'
 
 import { ELITE_CHANCE, ELITE_KINDS } from '../enemies/elite'
 import { ENEMIES, Giant, GRUNT, type GiantSpec, type GiantWorld, KING } from '../enemies/Giant'
-import type { CircleCollider, Point2 } from '../world/colliders'
+import type { CircleCollider, Point2, WalkArea } from '../world/colliders'
 import { NavGrid } from '../world/navGrid'
 
 /** 졸개 무리가 모여 있는 곳 */
@@ -65,18 +65,18 @@ export class Encounter {
   /** 정예를 고를 때 쓰는 난수 (점검할 때 바꿔 끼운다) */
   rng: () => number = Math.random
 
-  constructor(layout: EncounterLayout, staticColliders: readonly CircleCollider[], halfExtent: number) {
+  constructor(layout: EncounterLayout, staticColliders: readonly CircleCollider[], bounds: number | WalkArea) {
     for (const spec of [GRUNT, KING]) {
-      this.navs.set(spec, new NavGrid(halfExtent, 0.5, staticColliders, spec.radius))
+      this.navs.set(spec, new NavGrid(bounds, 0.5, staticColliders, spec.radius))
     }
     this.place(layout)
   }
 
   /** 지역을 바꿨다(또는 편집했다): 거인을 모두 지우고 새 배치로 다시 세운다. */
-  reset(layout: EncounterLayout, staticColliders: readonly CircleCollider[], halfExtent: number): void {
+  reset(layout: EncounterLayout, staticColliders: readonly CircleCollider[], bounds: number | WalkArea): void {
     for (const giant of [...this.giants]) this.remove(giant)
     this.pendingSummons.length = 0
-    for (const nav of this.navs.values()) nav.rebuild(halfExtent, staticColliders)
+    for (const nav of this.navs.values()) nav.rebuild(bounds, staticColliders)
     this.place(layout)
   }
 

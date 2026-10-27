@@ -4,6 +4,9 @@ import { REGIONS } from '../src/data/regions'
 import {
   adjacency,
   CELL,
+  cellKey,
+  CROSS_MARGIN,
+  crossingAt,
   cellOrigin,
   cellRect,
   clampToRects,
@@ -16,9 +19,15 @@ import {
   passages,
   type Rect,
   rectDistance,
+  regionLinks,
   validCell,
   walkRect,
+  walkRects,
 } from '../src/data/world'
+import { clampToArea, inArea, walkArea } from '../src/world/colliders'
+import { NavGrid } from '../src/world/navGrid'
+import { cellTheme } from '../src/world/regionMap'
+import { EDGE_BLEND, edgeWave, heightAt, withTerrainFrame } from '../src/world/terrain'
 
 /**
  * 하나로 이어진 세계 (E19-01). 지역 데이터 전부를 돈다: 지역을 더하면 같은 검사가 저절로 붙는다.
@@ -153,5 +162,112 @@ describe('갈 수 있는 곳으로 당기기', () => {
     const at = clampToRects(rects, 0, -40)
     expect(at.z).toBeGreaterThan(-40)
     expect(rects.some((r) => inRect(r, at.x, at.z, 1e-6))).toBe(true)
+  })
+})
+
+describe('걸어서 넘어가기 (E19-02)', () => {
+  const regions = Object.fromEntries(Object.values(REGIONS).map((r) => [r.id, r]))
+
+  it('통로마다 양쪽에서 서로를 가리키고, 옮김은 반대다', () => {
+    for (const r of Object.values(placed)) {
+      for (const link of regionLinks(regions, r.id)) {
+        const back = regionLinks(regions, link.to).find((l) => l.to === r.id)
+        expect(back, `${r.id} → ${link.to}`).toBeDefined()
+        expect(back!.shift.x).toBeCloseTo(-link.shift.x)
+        expect(back!.shift.z).toBeCloseTo(-link.shift.z)
+        expect(back!.dir).toBe(-link.dir)
+      }
+    }
+  })
+
+  it('통로는 제 땅의 네모와 이웃 땅의 네모에 겹쳐 끊김 없이 걸을 수 있다', () => {
+    for (const r of Object.values(placed)) {
+      const own = walkRects(r.halfExtent, [])[0]!
+      for (const link of regionLinks(regions, r.id)) {
+        const other = placed[link.to]!
+        const there = { minX: -other.halfExtent - link.shift.x, maxX: other.halfExtent - link.shift.x, minZ: -other.halfExtent - link.shift.z, maxZ: other.halfExtent - link.shift.z }
+        expect(overlaps(link.rect, own), `${r.id} → ${link.to}`).toBe(true)
+        expect(overlaps(link.rect, there), `${r.id} → ${link.to}`).toBe(true)
+      }
+    }
+  })
+
+  it('통로 가운데를 조금 넘어야 이웃 땅이 되고, 넘어간 자리는 이웃 쪽에서 되돌아오는 자리가 아니다', () => {
+    const link = regionLinks(regions, 'village').find((l) => l.to === 'midgard')!
+    const across = link.axis === 'x' ? (a: number) => ({ x: a, z: (link.rect.minZ + link.rect.maxZ) / 2 }) : (a: number) => ({ x: (link.rect.minX + link.rect.maxX) / 2, z: a })
+    const before = across(link.mid + link.dir * (CROSS_MARGIN - 0.2))
+    const after = across(link.mid + link.dir * (CROSS_MARGIN + 0.2))
+    expect(crossingAt(regionLinks(regions, 'village'), before.x, before.z)).toBeNull()
+    expect(crossingAt(regionLinks(regions, 'village'), after.x, after.z)?.to).toBe('midgard')
+    // 미드가르드 좌표로 옮기면 그 통로의 반대쪽에 있어 곧바로 되돌아가지 않는다
+    const there = { x: after.x + link.shift.x, z: after.z + link.shift.z }
+    expect(crossingAt(regionLinks(regions, 'midgard'), there.x, there.z)).toBeNull()
+  })
+
+  it('세계 칸이 없는 땅(균열 층)은 통로가 없다', () => {
+    expect(regionLinks({ ...regions, rift: { ...regions.village!, id: 'rift', cell: null } }, 'rift')).toEqual([])
+  })
+})
+
+describe('땅 높이는 세계 좌표를 따른다 (E19-02)', () => {
+  it('두 땅의 경계에서 어느 쪽 원점으로 재도 높이가 같다', () => {
+    const village = placed.village!
+    const midgard = placed.midgard!
+    const ov = cellOrigin(village.cell)
+    const om = cellOrigin(midgard.cell)
+    const keep = heightAt(0, 0)
+    for (const [wx, wz] of [[ov.x + 3, ov.z - 49], [om.x - 2, om.z + 50], [ov.x, ov.z - 50]] as const) {
+      const fromVillage = withTerrainFrame(ov, REGIONS.village!.ponds, () => heightAt(wx - ov.x, wz - ov.z))
+      const fromMidgard = withTerrainFrame(om, REGIONS.midgard!.ponds, () => heightAt(wx - om.x, wz - om.z))
+      expect(fromVillage).toBeCloseTo(fromMidgard, 5)
+    }
+    // 잠깐 바꾼 틀은 끝나면 되돌아온다
+    expect(heightAt(0, 0)).toBe(keep)
+  })
+
+  it('경계를 흔드는 물결도 어느 쪽 원점으로 재든 같다 (양쪽 칸이 같은 선을 경계로 삼는다)', () => {
+    const ov = cellOrigin(placed.village!.cell)
+    const om = cellOrigin(placed.midgard!.cell)
+    for (const [wx, wz] of [[ov.x - 20, ov.z - 50], [ov.x + 7, ov.z - 47]] as const) {
+      const a = withTerrainFrame(ov, [], () => edgeWave(wx - ov.x, wz - ov.z))
+      const b = withTerrainFrame(om, [], () => edgeWave(wx - om.x, wz - om.z))
+      expect(a).toBeCloseTo(b, 6)
+      expect(Math.abs(a)).toBeLessThanOrEqual(EDGE_BLEND)
+    }
+  })
+})
+
+describe('칸의 땅 얼굴 (E19-03)', () => {
+  it('지역이 있는 칸은 그 지역, 빈 칸은 가장 가까운 지역의 얼굴이다', () => {
+    expect(cellTheme(REGIONS, placed.midgard!.cell)).toBe(REGIONS.midgard!.theme)
+    const used = new Set(Object.values(placed).map((r) => cellKey(r.cell)))
+    const empty = neighborCells(placed.village!.cell).concat(neighborCells(placed.midgard!.cell)).find((c) => !used.has(cellKey(c)))!
+    expect(empty).toBeDefined()
+    const o = cellOrigin(empty)
+    const nearest = Math.min(...Object.values(placed).map((r) => Math.hypot(cellOrigin(r.cell).x - o.x, cellOrigin(r.cell).z - o.z)))
+    const owners = Object.values(placed).filter((r) => Math.abs(Math.hypot(cellOrigin(r.cell).x - o.x, cellOrigin(r.cell).z - o.z) - nearest) < 1e-6)
+    expect(owners.map((r) => REGIONS[r.id]!.theme)).toContain(cellTheme(REGIONS, empty))
+  })
+})
+
+describe('통로가 있는 땅의 길찾기 (E19-02)', () => {
+  const area = walkArea([
+    { minX: -10, maxX: 10, minZ: -10, maxZ: 10 },
+    { minX: -1.5, maxX: 1.5, minZ: -16, maxZ: -8 },
+  ])
+
+  it('땅과 통로 밖의 칸은 막히고, 통로 끝까지는 길이 있다', () => {
+    const nav = new NavGrid(area, 0.5, [], 0.4)
+    expect(nav.halfExtent).toBe(16)
+    expect(nav.isBlocked({ x: 6, z: -14 })).toBe(true)
+    expect(nav.isBlocked({ x: 0, z: -14 })).toBe(false)
+    const path = nav.findPath({ x: 6, z: 6 }, { x: 0, z: -15 })
+    expect(path.at(-1)).toEqual({ x: 0, z: -15 })
+    for (const p of path) expect(inArea(area, p.x, p.z)).toBe(true)
+  })
+
+  it('숲 띠의 점은 땅이나 통로 가장자리로 당긴다', () => {
+    const at = clampToArea({ x: 6, z: -14 }, area)
+    expect(inArea(area, at.x, at.z, -1e-6)).toBe(true)
   })
 })

@@ -21,30 +21,61 @@ export interface Pond {
   radius: number
 }
 
-/** 지금 지역의 얼어붙은 연못들. 이 주변은 땅을 평평하게 다진다. (지역을 바꿀 때 setPonds) */
+/**
+ * 지금 땅의 원점 (세계 좌표, E19 떠다니는 원점). 게임은 지역 안 좌표로 돌지만, 땅 높이와 땅 무늬는
+ * 세계 좌표로 재서 이웃 땅과 경계에서 어긋나지 않게 한다.
+ */
+let originX = 0
+let originZ = 0
+/** 지금 지역의 얼어붙은 연못들 (세계 좌표). 이 주변은 땅을 평평하게 다진다. (지역을 바꿀 때 setPonds) */
 let ponds: readonly Pond[] = [{ x: 9, z: -6, radius: 4 }]
 
-/** 지역을 바꾼다: 땅 높이가 이 지역의 연못을 따른다. */
+/** 지금 땅의 원점(세계 좌표)을 바꾼다. 연못은 setPonds로 다시 넣는다 */
+export function setTerrainOrigin(x: number, z: number): void {
+  originX = x
+  originZ = z
+}
+
+/** 지역을 바꾼다: 땅 높이가 이 지역의 연못(지역 안 좌표)을 따른다. */
 export function setPonds(next: readonly Pond[]): void {
-  ponds = next
+  ponds = next.map((p) => ({ x: p.x + originX, z: p.z + originZ, radius: p.radius }))
+}
+
+/** 다른 땅(이웃 조각)의 원점과 연못으로 잠깐 바꿔 fn을 돌린다. 끝나면 되돌린다 */
+export function withTerrainFrame<T>(origin: { x: number; z: number }, localPonds: readonly Pond[], fn: () => T): T {
+  const keep = { x: originX, z: originZ, ponds }
+  setTerrainOrigin(origin.x, origin.z)
+  setPonds(localPonds)
+  try {
+    return fn()
+  } finally {
+    originX = keep.x
+    originZ = keep.z
+    ponds = keep.ponds
+  }
+}
+
+/** 세계 좌표의 기복 */
+function worldHeight(wx: number, wz: number): number {
+  return (smoothNoise(wx, wz) - 0.5) * 0.5
 }
 
 function rawHeight(x: number, z: number): number {
-  return (smoothNoise(x, z) - 0.5) * 0.5
+  return worldHeight(x + originX, z + originZ)
 }
 
-/** 땅 높이. 걷는 데 지장이 없도록 아주 완만하게만 오르내린다. */
+/** 땅 높이 (지역 안 좌표). 걷는 데 지장이 없도록 아주 완만하게만 오르내린다. */
 export function heightAt(x: number, z: number): number {
   let h = rawHeight(x, z)
   for (const pond of ponds) {
-    const d = Math.hypot(x - pond.x, z - pond.z)
+    const d = Math.hypot(x + originX - pond.x, z + originZ - pond.z)
     const flatten = 1 - Math.min(1, Math.max(0, (d - pond.radius) / 2.5))
-    if (flatten > 0) h += (pondLevel(pond) - h) * flatten
+    if (flatten > 0) h += (worldHeight(pond.x, pond.z) - 0.05 - h) * flatten
   }
   return h
 }
 
-/** 연못 수면 높이 */
+/** 연못 수면 높이 (연못은 지역 안 좌표) */
 export function pondLevel(pond: Pond): number {
   return rawHeight(pond.x, pond.z) - 0.05
 }
@@ -83,14 +114,33 @@ interface GroundColors {
 const GROUND_TEXEL = 0.5
 
 /** 지점의 땅 색을 정한다. 색을 섞지 않고 단계로 끊어서 픽셀 아트처럼 또렷하게 만든다. */
-function groundColorAt(x: number, z: number, jitter: number, colors: GroundColors, paths: readonly GroundPath[], out: THREE.Color): THREE.Color {
-  const n = smoothNoise(x * 1.7 + 13, z * 1.7 - 7) + jitter
+/** 길과 그 둘레 네모 (멀리 떨어진 칸은 길까지 거리를 재지 않고 건너뛴다) */
+interface PathBox {
+  path: GroundPath
+  minX: number
+  maxX: number
+  minZ: number
+  maxZ: number
+}
+
+function pathBoxes(paths: readonly GroundPath[]): PathBox[] {
+  return paths.map((path) => {
+    const pad = path.width / 2 + 0.2
+    const xs = path.points.map((p) => p.x)
+    const zs = path.points.map((p) => p.z)
+    return { path, minX: Math.min(...xs) - pad, maxX: Math.max(...xs) + pad, minZ: Math.min(...zs) - pad, maxZ: Math.max(...zs) + pad }
+  })
+}
+
+function groundColorAt(x: number, z: number, jitter: number, colors: GroundColors, paths: readonly PathBox[], out: THREE.Color): THREE.Color {
+  const n = smoothNoise((x + originX) * 1.7 + 13, (z + originZ) * 1.7 - 7) + jitter
   out.copy(colors.base)
   if (n < 0.28) out.copy(colors.alt)
   else if (n < 0.42) out.copy(colors.shade)
 
   // 다져진 길 (지역 데이터의 paths)
-  for (const path of paths) {
+  for (const { path, minX, maxX, minZ, maxZ } of paths) {
+    if (x < minX || x > maxX || z < minZ || z > maxZ) continue
     if (distanceToPath(x, z, path) < path.width / 2 + jitter * 3) {
       out.copy(colors.path)
       break
@@ -98,16 +148,14 @@ function groundColorAt(x: number, z: number, jitter: number, colors: GroundColor
   }
 
   // 드문드문 드러난 흙과 바위
-  const bare = smoothNoise(x * 0.9 - 31, z * 0.9 + 17) + jitter
+  const bare = smoothNoise((x + originX) * 0.9 - 31, (z + originZ) * 0.9 + 17) + jitter
   if (bare > 0.955) out.copy(colors.earth)
   else if (bare > 0.93) out.copy(colors.stone)
   return out
 }
 
-/** 기복이 있는 땅. 색은 0.5미터 칸 단위로 칠한 저해상도 텍스처로 입힌다. 색과 길은 지역마다 다르다. */
-export function buildGround(halfExtent: number, theme: ThemeDef, paths: readonly GroundPath[], seed = 11): THREE.Mesh {
-  const g = theme.ground
-  const colors: GroundColors = {
+function groundColors(g: ThemeDef['ground']): GroundColors {
+  return {
     base: new THREE.Color(g.base),
     shade: new THREE.Color(g.shade),
     alt: new THREE.Color(g.alt),
@@ -115,6 +163,30 @@ export function buildGround(halfExtent: number, theme: ThemeDef, paths: readonly
     earth: new THREE.Color(g.earth),
     stone: new THREE.Color(g.stone),
   }
+}
+
+/** 칸 경계에서 이웃 땅 얼굴이 섞여 드는 너비 (m, 한쪽) */
+export const EDGE_BLEND = 8
+
+/**
+ * 칸 경계를 물결처럼 흔드는 값 (m, 대개 ±3, 많아야 ±EDGE_BLEND). 세계 좌표로 재므로 양쪽 칸이 같은 값을 본다.
+ * 경계에서 depth만큼 들어온 점은 이 값이 depth보다 크면 이웃 얼굴이다 → 양쪽이 같은 물결 선을 경계로 삼는다.
+ */
+export function edgeWave(x: number, z: number): number {
+  return (smoothNoise((x + originX) * 0.35 + 5, (z + originZ) * 0.35 - 11) - 0.5) * 2 * EDGE_BLEND
+}
+
+/** 땅 가장자리에서 섞을 이웃 땅 얼굴과, 경계에서 들어온 거리 (m). 섞지 않으면 null */
+export type GroundBlend = (x: number, z: number) => { theme: ThemeDef; depth: number } | null
+
+/**
+ * 기복이 있는 땅. 색은 0.5미터 칸 단위로 칠한 저해상도 텍스처로 입힌다. 색과 길은 지역마다 다르다.
+ * blend가 있으면 경계 둘레를 물결 선(edgeWave) 너머는 이웃 땅의 색으로 칠한다 (E19-03: 경계 이음매 섞기).
+ */
+export function buildGround(halfExtent: number, theme: ThemeDef, paths: readonly GroundPath[], seed = 11, blend?: GroundBlend): THREE.Mesh {
+  const colors = groundColors(theme.ground)
+  const others = new Map<ThemeDef, GroundColors>()
+  const boxes = pathBoxes(paths)
   const size = halfExtent * 2 + 8
   // 격자 한 칸이 1m를 넘으면 땅 표면이 heightAt과 어긋나 바닥에 붙인 표시(예고·이동 표시)가 묻힌다.
   const segments = Math.ceil(size / 0.8)
@@ -135,7 +207,14 @@ export function buildGround(halfExtent: number, theme: ThemeDef, paths: readonly
       // 평면의 v 좌표는 z와 반대 방향이다.
       const x = (col + 0.5) * GROUND_TEXEL - size / 2
       const z = size / 2 - (row + 0.5) * GROUND_TEXEL
-      groundColorAt(x, z, (rng() - 0.5) * 0.06, colors, paths, color)
+      const jitter = (rng() - 0.5) * 0.06
+      const mix = blend?.(x, z)
+      let palette = colors
+      if (mix && edgeWave(x, z) + (rng() - 0.5) * 1.5 > mix.depth) {
+        palette = others.get(mix.theme) ?? groundColors(mix.theme.ground)
+        others.set(mix.theme, palette)
+      }
+      groundColorAt(x, z, jitter, palette, boxes, color)
       color.convertLinearToSRGB()
       const i = (row * texels + col) * 4
       data[i] = Math.round(color.r * 255)

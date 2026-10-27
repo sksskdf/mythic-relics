@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 
 import { angleDiff } from '../combat/arc'
-import { type CircleCollider, clampToBounds, type Point2, pushOut } from '../world/colliders'
+import { type CircleCollider, clampToArea, type Point2, pushOut, squareArea, type WalkArea } from '../world/colliders'
 import type { HeroRig } from '../world/heroModel'
 import type { NavGrid } from '../world/navGrid'
 import { heightAt } from '../world/terrain'
@@ -69,12 +69,16 @@ export class HeroController {
     readonly rig: HeroRig,
     private readonly nav: NavGrid,
     private readonly colliders: () => readonly CircleCollider[],
-    /** 움직일 수 있는 범위 (지역마다 다르다) */
-    public halfExtent: number,
+    /** 움직일 수 있는 곳 (지역마다 다르다. 수 하나면 가운데가 원점인 네모) */
+    bounds: number | WalkArea,
     readonly tuning: HeroTuning = DEFAULT_TUNING,
   ) {
     this.object = rig.root
+    this.area = typeof bounds === 'number' ? squareArea(bounds) : bounds
   }
+
+  /** 움직일 수 있는 곳: 땅의 네모와 이웃으로 가는 통로 (E19) */
+  area: WalkArea
 
   get isMoving(): boolean {
     return this.path.length > 0
@@ -120,7 +124,7 @@ export class HeroController {
    */
   moveTo(target: Point2): void {
     const position = this.object.position
-    let goal = clampToBounds(target, this.halfExtent - HERO_RADIUS)
+    let goal = clampToArea(target, this.area, HERO_RADIUS)
     if (this.arena) goal = clampToCircle(goal, { ...this.arena, radius: Math.max(0, this.arena.radius - HERO_RADIUS) })
     this.path = this.nav.findPath({ x: position.x, z: position.z }, goal)
     this.repathTimer = this.tuning.repathInterval
@@ -138,6 +142,15 @@ export class HeroController {
   /** 밀어낸다 (m/s). 시간이 지나면 줄어든다. */
   push(vx: number, vz: number): void {
     this.knock.set(this.knock.x + vx, this.knock.y + vz)
+  }
+
+  /** 원점이 옮겨졌다 (E19: 걸어서 이웃 땅으로 넘어감). 자리와 걷던 길을 같은 만큼 옮긴다 */
+  shift(dx: number, dz: number): void {
+    const p = this.object.position
+    p.x += dx
+    p.z += dz
+    p.y = heightAt(p.x, p.z)
+    this.path = this.path.map((q) => ({ x: q.x + dx, z: q.z + dz }))
   }
 
   /** 지정한 위치로 순간이동한다. (부활 등) */
@@ -207,7 +220,7 @@ export class HeroController {
     const position = this.object.position
     let next = { x: position.x + dx, z: position.z + dz }
     next = pushOut(next, HERO_RADIUS, this.colliders())
-    next = clampToBounds(next, this.halfExtent)
+    next = clampToArea(next, this.area)
     if (this.arena) next = clampToCircle(next, this.arena)
     position.x = next.x
     position.z = next.z

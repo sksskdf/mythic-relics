@@ -4,6 +4,7 @@ import { clampToCircle } from '../game/HeroController'
 import { angleDiff, angleTo, inLine } from '../combat/arc'
 import type { SourceId } from '../data/schema'
 import { nextHop } from '../data/regions'
+import { regionLinks } from '../data/world'
 import { TRIAL_IDS, type TrialId } from '../data/trials'
 import { forgeReady } from '../gear/forge'
 import { gearScore } from '../gear/roll'
@@ -85,8 +86,6 @@ export class Autoplayer {
   /** 벼리기에 실패한 신화 (재료가 늘면 다시 해 본다) */
   private readonly forgeBlocked = new Set<God>()
   private forgeMaterials = 0
-  /** 출구 위에서 안쪽으로 물러나는 중 */
-  private backing = false
 
   /** 봇이 벼릴 신화: 고른 신화, 그다음 열린 신화 (실패한 것은 재료가 늘 때까지 빼고) */
   private forgeGods(): God[] {
@@ -126,27 +125,23 @@ export class Autoplayer {
     return here
   }
 
-  /** 다른 지역으로 가야 하면 출구로 걷는다 (마을을 거쳐 간다). 걸었으면 true */
+  /** 다른 지역으로 가야 하면 이웃으로 가는 통로를 따라 걸어 넘어간다 (마을을 거쳐 간다, E19). 걸었으면 true */
   private travel(): boolean {
     const { region, hero, legend } = this.game
     if (legend.active || this.stay || this.rift) return false
     const want = this.wantRegion()
     if (want === region.id) return false
     const hop = nextHop(region.id, want, this.game.regions)
-    const exit = region.exits.find((e) => e.to === hop) ?? region.exits.find((e) => this.game.regions[e.to]?.kind === 'hub')
-    if (!exit) return false
-    const at = dist(hero.object.position, exit)
-    // 방금 그 출구로 들어와 그 위에 서 있으면, 출구는 한 번 벗어나야 다시 밟히므로 안쪽으로 한 걸음 물러난다
-    // 물러나는 동안에는 출구로 다시 걷지 않는다 (출구가 다시 밟히는 거리까지 벗어날 때까지)
-    if (this.backing && at < 3.6 && hero.isMoving) return true
-    this.backing = false
-    if (at < 2 && !hero.isMoving) {
-      const len = Math.hypot(exit.x, exit.z) || 1
-      hero.moveTo({ x: exit.x - (exit.x / len) * 5, z: exit.z - (exit.z / len) * 5 })
-      this.backing = true
-      return true
-    }
-    if (!hero.isMoving || at > 1) hero.moveTo(exit)
+    const links = regionLinks(this.game.regions, region.id)
+    const link = links.find((l) => l.to === hop) ?? links.find((l) => this.game.regions[l.to]?.kind === 'hub')
+    if (!link) return false
+    // 통로 저쪽 끝을 누른다: 가운데를 지나면 그 땅으로 바뀌고, 다음 생각에서 그 땅의 할 일을 고른다
+    const r = link.rect
+    const across =
+      link.axis === 'x'
+        ? { x: link.dir > 0 ? r.maxX - 0.5 : r.minX + 0.5, z: (r.minZ + r.maxZ) / 2 }
+        : { x: (r.minX + r.maxX) / 2, z: link.dir > 0 ? r.maxZ - 0.5 : r.minZ + 0.5 }
+    if (!hero.isMoving || dist(hero.goal ?? across, across) > 1) hero.moveTo(across)
     return true
   }
 
