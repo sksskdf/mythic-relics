@@ -1,6 +1,7 @@
 import { arrivalSpot, REGIONS, type RegionDef } from '../data/regions'
 import { CELL, cellKey, cellOrigin, crossingAt, neighborCells, type RegionLink, regionLinks, walkRects } from '../data/world'
 import { walkArea, type WalkArea } from '../world/colliders'
+import { collidersFor } from '../world/regionMap'
 import { realmInk } from '../art/palette'
 import type { DropTable } from '../gear/DropTable'
 import type { Pickups } from '../gear/Pickups'
@@ -97,7 +98,10 @@ export class World {
       .filter((r) => r.cell && near.has(cellKey(r.cell)))
       .map((r) => {
         const o = cellOrigin(r.cell!)
-        return { id: r.id, layout: { ...r, respawn: true }, offset: { x: o.x - here.x, z: o.z - here.z } }
+        const offset = { x: o.x - here.x, z: o.z - here.z }
+        // 그 땅의 바위·나무·마을 사람 (무리를 세울 때 그 안에 서지 않게)
+        const colliders = [...r.props.flatMap(collidersFor), ...r.npcs.map((n) => ({ x: n.x, z: n.z, radius: 0.45 }))].map((c) => ({ ...c, x: c.x + offset.x, z: c.z + offset.z }))
+        return { id: r.id, layout: { ...r, respawn: true }, offset, colliders }
       })
   }
 

@@ -152,8 +152,13 @@ export class Autoplayer {
     const here = { x: p.x, z: p.z }
     const enemies = encounter.alive
 
+    // 다른 땅으로 떠나는 길이면 생명이 넉넉한 동안 예고를 피하지 않고 통로로 걸어간다 (E19: 통로를 다 걸어야 넘어가므로
+    // 피하기를 되풀이하면 쫓아오는 무리에 막혀 떠나지 못한다. 사람도 그냥 걸어 나간다)
+    const hp = combat.health.ratio
+    const leaving = hp >= 0.5 && !legend.active && !this.stay && !this.rift && this.wantRegion() !== this.game.region.id
+
     // 1. 예고 범위 안에 있으면 빠져나간다.
-    const dangers = enemies.flatMap((g) => g.dangers)
+    const dangers = leaving ? [] : enemies.flatMap((g) => g.dangers)
     if (dangers.some((d) => inDanger(here, d, MARGIN))) {
       const escape = this.findEscape(here, dangers)
       if (escape) hero.moveTo(escape)
@@ -164,7 +169,6 @@ export class Autoplayer {
     if (dangers.length > 0 && hero.isMoving) return void (this.step = 3)
 
     // 2. 생명력이 낮으면 물러나 회복한다. (전설 결계 안에서는 물러날 곳이 없다)
-    const hp = combat.health.ratio
     const near = enemies.filter((g) => dist(g, here) < 9)
     if (hp < 0.35 && near.length > 0 && !legend.active) {
       hero.moveTo(this.retreatPoint(here, near))

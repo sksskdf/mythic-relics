@@ -2,7 +2,7 @@ import * as THREE from 'three'
 
 import { ELITE_CHANCE, ELITE_KINDS } from '../enemies/elite'
 import { ENEMIES, Giant, GRUNT, type GiantSpec, type GiantWorld, KING } from '../enemies/Giant'
-import { type CircleCollider, inArea, type Point2, type WalkArea } from '../world/colliders'
+import { type CircleCollider, inArea, type Point2, pushOut, type WalkArea } from '../world/colliders'
 import { NavGrid } from '../world/navGrid'
 
 /** 졸개 무리가 모여 있는 곳 */
@@ -55,11 +55,12 @@ interface Parked {
   giants: Giant[]
 }
 
-/** 이웃 땅 하나: 그 땅의 배치와, 지금 땅 좌표로 옮길 만큼 (그 칸 자리 − 지금 칸 자리) */
+/** 이웃 땅 하나: 그 땅의 배치와, 지금 땅 좌표로 옮길 만큼 (그 칸 자리 − 지금 칸 자리), 그 땅의 소품 충돌체 (지금 땅 좌표) */
 export interface NeighborLayout {
   id: string
   layout: EncounterLayout
   offset: Point2
+  colliders?: readonly CircleCollider[]
 }
 
 /**
@@ -210,12 +211,14 @@ export class Encounter {
     this.building = null
   }
 
-  /** 이웃 땅의 무리를 무리 하나씩 세운다. 길찾기 격자가 없는 땅이라 자리는 배치 그대로 */
+  /** 이웃 땅의 무리를 무리 하나씩 세운다. 길찾기 격자가 없는 땅이라 그 땅의 바위·나무에서 밀어내기만 한다 */
   private *neighborSteps(n: NeighborLayout): Generator<void, Parked> {
-    const herd = this.newHerd(n.layout, (p) => p, n.offset)
+    const colliders = n.colliders ?? []
+    const clear = (p: Point2) => pushOut(p, GRUNT.radius + 0.4, colliders)
+    const herd = this.newHerd(n.layout, clear, n.offset)
     const giants: Giant[] = []
     for (const camp of herd.camps) {
-      this.fillCamp(camp, herd.elite, null, giants)
+      this.fillCamp(camp, herd.elite, clear, giants)
       yield
     }
     if (herd.bossHome) {
@@ -270,6 +273,11 @@ export class Encounter {
       this.parked.delete(to.id!)
       const gruntNav = this.navs.get(GRUNT)!
       for (const camp of waiting.herd.camps) camp.center = gruntNav.nearestFree(camp.center) ?? camp.center
+      // 길찾기 격자 없이 세운 거인들이라, 집 자리가 막힌 칸이면 가까운 빈 칸으로 (돌아가다 끝없이 맴돌지 않게)
+      for (const giant of waiting.giants) {
+        const home = this.navFor(giant.spec).nearestFree(giant.home)
+        if (home) Object.assign(giant.home, { x: home.x, z: home.z })
+      }
       this.load(waiting.herd)
       this.giants.push(...waiting.giants.filter((g) => !g.gone))
     } else {
@@ -409,13 +417,13 @@ export class Encounter {
   }
 
   /**
-   * 무리를 채운다. 지금 땅이면 길찾기 격자로 빈 자리를 찾아 지금 땅의 적으로, 이웃 땅이면(nav 없음) 배치 자리 그대로 into에 넣는다
+   * 무리를 채운다. free로 빈 자리를 찾고(지금 땅은 길찾기 격자), into가 있으면 지금 땅의 적 대신 거기에 넣는다 (이웃 땅)
    */
-  private fillCamp(camp: Camp, elite = this.regionElite, nav: NavGrid | null = this.navs.get(GRUNT)!, into: Giant[] | null = null): void {
+  private fillCamp(camp: Camp, elite = this.regionElite, free: (p: Point2) => Point2 | null = (p) => this.navs.get(GRUNT)!.nearestFree(p), into: Giant[] | null = null): void {
     for (let i = 0; i < camp.count; i++) {
       const angle = (i / camp.count) * Math.PI * 2
       const around = { x: camp.center.x + Math.sin(angle) * 2.2, z: camp.center.z + Math.cos(angle) * 2.2 }
-      const spot = nav ? nav.nearestFree(around) : around
+      const spot = free(around)
       const spec = camp.members.length > 0 ? camp.members[i % camp.members.length]! : GRUNT
       const giant = into ? this.makeGiant(spec, spot ?? camp.center) : this.addGiant(spec, spot ?? camp.center)
       into?.push(giant)
