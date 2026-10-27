@@ -616,6 +616,31 @@ try {
 
   mkdirSync('test-results', { recursive: true })
   await page.screenshot({ path: 'test-results/smoke.png' })
+
+  // 장 흐름을 끝까지 (E22-05): 새 판에서 목표를 차례로 건너뛰면 마지막 보스 뒤 엔딩, 결계가 모두 풀리고 목표 한 줄이 사라진다
+  const end = await browser.newPage({ viewport: { width: 1280, height: 720 } })
+  end.on('pageerror', (e) => errors.push(e.message))
+  // 이어진 세계(E19)는 이웃 땅까지 지어 처음 여는 데 오래 걸린다 (troubleshooting.md)
+  await end.goto(`${URL}?fresh&noscenes`, { timeout: 90000 })
+  await end.waitForFunction(() => (window.__game?.frame ?? 0) > 2 && window.__game.playing, null, { timeout: 60000 })
+  const ending = await end.evaluate(() => {
+    const g = window.__game
+    const chapters = []
+    for (let i = 0; i < 30 && g.chapters.goal; i++) {
+      const id = g.chapters.chapter?.id
+      if (chapters.at(-1) !== id) chapters.push(id)
+      g.skipGoal()
+      g.advance(2, 1 / 30)
+    }
+    g.advance(1, 1 / 30)
+    return { chapters, ending: g.ending.reached, region: g.region.id, barriers: g.barrierSpots.length, log: g.log.filter((e) => e.type === 'ending').length, frame: g.frame }
+  })
+  // 목표 한 줄은 화면을 그릴 때 바뀐다
+  await end.waitForFunction((f) => window.__game.frame > f + 2, ending.frame, { timeout: 60000 })
+  ending.goal = await end.evaluate(() => !document.querySelector('.chapter-goal').hidden)
+  await end.close()
+  if (!ending.ending || ending.log !== 1 || ending.barriers > 0 || ending.goal) throw new Error(`장 흐름: 끝까지 가도 엔딩이 아닙니다 ${JSON.stringify(ending)}`)
+  console.log(`엔딩 확인: ${ending.chapters.join(' → ')} → 갈라진 하늘의 왕을 이기면 엔딩, 결계가 모두 풀리고 목표 한 줄이 사라짐`)
   await browser.close()
 
   if (errors.length) {

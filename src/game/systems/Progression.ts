@@ -39,9 +39,10 @@ export class ProgressionSystem {
     const god = build.chosen
     const legend = god ? godDef(god).legend : undefined
     if (!god || !legend || !progress.readyToPromote(god)) return null
-    // 지역 성소는 그 신화권 클래스의 전설만 연다 (E7-07). 시련 마일스톤 「열린 성소」면 어디서나 (E16)
+    // 엔딩 뒤에는 지역 성소가 그 신화권 클래스의 전설만 연다 (E7-07). 시련 마일스톤 「열린 성소」면 어디서나 (E16).
+    // 데모(엔딩 전)에서는 장 흐름이 정한 성소(요툰헤임·델포이)에서 고른 신화의 전설을 연다 (E22)
     const realm = this.ctx.map.region.realm
-    if (realm && godDef(god).realm !== realm && !this.ctx.trials.has(TRIAL_MILESTONES[1].at)) return null
+    if (this.ctx.ending.reached && realm && godDef(god).realm !== realm && !this.ctx.trials.has(TRIAL_MILESTONES[1].at)) return null
     return legend.kind
   }
 

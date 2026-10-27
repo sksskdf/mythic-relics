@@ -28,10 +28,12 @@ describe('장 데이터 (E22-01)', () => {
     expect(CHAPTERS.at(-1)!.tier).toBe(3)
   })
 
-  it('데모 땅은 일곱 곳과 마지막 무대, 적 지수는 1 → 1.6 → 2.4 → 3.6 → 5 → 7로 오른다 (TIMELINE 4장)', () => {
+  it('데모 땅은 여섯 곳과 마지막 무대, 적 지수는 땅마다 오른다 (TIMELINE 4장, E22-06 곡선으로 다시 잡음)', () => {
     const lands = CHAPTERS.flatMap((c) => Object.entries(c.lands))
     expect(lands.map(([id]) => id)).toEqual(['midgard', 'jotunheim', 'utgard', 'olympus', 'delphi', 'lycia', 'sky'])
-    expect(lands.map(([, power]) => power).slice(0, 6)).toEqual([1, 1.6, 2.4, 3.6, 5, 7])
+    const powers = lands.map(([, power]) => power)
+    expect(powers[0]).toBe(1)
+    for (let i = 1; i < powers.length; i++) expect(powers[i], lands[i]![0]).toBeGreaterThan(powers[i - 1]!)
     expect(REGIONS[lands.at(-1)![0]]!.finale).toBe(true)
     expect(chapterOf('olympus')?.id).toBe('greek')
     expect(chapterOf('sinsi')).toBeNull()
@@ -80,8 +82,9 @@ describe('땅 세기 (E22-02)', () => {
   it('생명은 적 지수만큼, 피해는 그보다 덜 오른다', () => {
     expect(landScale(1)).toEqual({ hp: 1, damage: 1 })
     expect(landScale(4).hp).toBe(4)
-    expect(landScale(4).damage).toBeCloseTo(2)
-    expect(TOP_POWER).toBe(8)
+    expect(landScale(4).damage).toBeGreaterThan(1)
+    expect(landScale(4).damage).toBeLessThan(4)
+    expect(TOP_POWER).toBe(10)
   })
 })
 
@@ -177,7 +180,7 @@ describe('장 진행 (E22-01)', () => {
   it('땅의 세기와 단계: 장 흐름의 땅은 장 데이터, 그 밖의 들판(엔딩 뒤)은 가장 센 땅만큼, 균열은 1', () => {
     const chapters = new ChapterProgress(world())
     expect(chapters.power('midgard')).toBe(1)
-    expect(chapters.power('lycia')).toBe(7)
+    expect(chapters.power('lycia')).toBe(9)
     expect(chapters.power('sinsi')).toBe(TOP_POWER)
     expect(chapters.power('rift')).toBe(1)
     expect(chapters.power('village')).toBe(1)

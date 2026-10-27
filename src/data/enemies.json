@@ -1349,5 +1349,16 @@
     "hp": 2500,
     "aggroRange": 30,
     "leashRange": 60
+  },
+  "skyKing": {
+    "extends": "king",
+    "name": "우트가르드의 왕",
+    "realm": "norse",
+    "boss": "skyKing",
+    "xp": 0,
+    "tint": "#d8c2ff",
+    "hp": 1200,
+    "aggroRange": 18,
+    "leashRange": 40
   }
 }

@@ -101,7 +101,7 @@ const CHOOSE_NEAR_SANCTUARY = 6
 export interface PlayEvent {
   /** 게임 시간 (초) */
   t: number
-  type: 'relic' | 'manifest' | 'open' | 'forge' | 'gear' | 'kill' | 'bossKill' | 'death' | 'legendStart' | 'legendFail' | 'promote' | 'hurt' | 'threat' | 'region' | 'trial' | 'rift'
+  type: 'relic' | 'manifest' | 'open' | 'forge' | 'gear' | 'kill' | 'bossKill' | 'death' | 'legendStart' | 'legendFail' | 'promote' | 'hurt' | 'threat' | 'region' | 'trial' | 'rift' | 'chapter' | 'ending'
   detail?: string
 }
 
@@ -158,6 +158,8 @@ export class Game {
   private readonly mythPicker: MythPicker
   /** 목표 한 줄과 장 제목 띠 (E22-04) */
   readonly chapterHud: ChapterHud
+  /** 마지막 보스를 이겼다: 엔딩 장면이 끝나면(scene) 또는 바로(now) 엔딩 뒤로 (E22-05) */
+  private endingDue: 'scene' | 'now' | null = null
   /** 성소의 전설과 시련 결계 (E6-04) */
   readonly legend: UtgardLegend
   /** 주인공 길찾기 격자 */
@@ -432,6 +434,8 @@ export class Game {
     this.bus.on('chapterChanged', ({ chapter }) => {
       this.world.refreshLinks()
       if (chapter) this.chapterHud.showChapter(chapter.title, chapter.name, chapterColor(chapter))
+      // 마지막 장을 끝냈다 (E22-05): 엔딩 장면 뒤에 엔딩 뒤 장치가 열린다. 장면을 띄우지 않으면(봇) 바로
+      else if (!this.ending.reached) this.endingDue = this.storyline.play('ending') ? 'scene' : 'now'
     })
     this.trialSystem = new TrialSystem(this.ctx, this.growth, this.threatSystem)
     this.blessingPicker = new BlessingPicker(this.hud.root)
@@ -514,6 +518,7 @@ export class Game {
     bus.on('heroHurt', ({ damage }) => record('hurt', String(Math.round(damage))))
     bus.on('threatChanged', ({ level }) => record('threat', String(level)))
     bus.on('regionEntered', ({ id }) => record('region', id))
+    bus.on('chapterChanged', ({ chapter }) => record('chapter', chapter?.id ?? 'end'))
     bus.on('riftFloor', ({ depth }) => record('rift', `floor:${depth}`))
     bus.on('riftEnded', ({ depth, reason }) => record('rift', `${reason}:${depth}`))
     bus.on('trialEnded', ({ id, level, win, seconds }) => record('trial', `${id}:${level}:${win ? 'win' : 'fail'}:${Math.round(seconds)}`))
@@ -528,7 +533,26 @@ export class Game {
     return this.persistence.snapshot()
   }
 
-  /** 첫 엔딩을 보았다 (E21-06): 엔딩 뒤 장치를 연다. 마지막 보스가 생기기 전에는 개발 패널과 점검 스크립트만 부른다 */
+  /** 첫 엔딩 (E22-05): 엔딩 뒤 장치를 열고 「첫 엔딩」 띠와 무엇이 열렸는지 큰 카드로 알린다 */
+  private showEnding(): void {
+    this.endingDue = null
+    this.reachEnding()
+    const gold = '#ffd27a'
+    this.hud.flash(gold)
+    this.fx.power.burst(this.hero.object.position, gold, 5)
+    this.view.shake(0.4)
+    this.chapterHud.showChapter('첫 엔딩', '갈라진 하늘이 닫혔다', gold)
+    this.hud.showGains('첫 엔딩', '갈라진 하늘이 닫혔다', gold, '', [
+      '남은 신화권의 결계가 풀렸다',
+      '위협 단계: 같은 땅을 더 세게 다시 걷는다 (마을 촌장)',
+      '시련·균열·성좌판이 열렸다 (정보 화면)',
+      '신화 4단계·유물 3·4단계, 땅에 떨어지는 유물',
+    ])
+    this.bus.emit('sound', { cue: 'promote' })
+    this.log.push({ t: Math.round(this.time * 10) / 10, type: 'ending' })
+  }
+
+  /** 첫 엔딩을 보았다 (E21-06): 엔딩 뒤 장치를 연다. 마지막 보스를 이기면 엔딩 장면 뒤에 부르고(E22-05), 개발 패널과 점검 스크립트도 부른다 */
   reachEnding(): void {
     if (this.ending.reached) return
     this.ending.reached = true
@@ -874,6 +898,7 @@ export class Game {
     this.updateEnemies(dt)
     this.growth.update(dt)
     this.mythChoice.update()
+    if (this.endingDue && !this.scenes.active && (this.endingDue === 'now' || this.ctx.scenesSeen.has('ending'))) this.showEnding()
     this.trialSystem.update(dt)
     this.riftSystem.update(dt)
     this.life.update(dt)

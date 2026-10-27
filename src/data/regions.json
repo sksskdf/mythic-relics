@@ -2797,7 +2797,7 @@
       { "x": -14, "z": -12, "count": 3, "members": ["grunt", "grunt", "grunt"] },
       { "x": 20, "z": 6, "count": 3, "members": ["stoneThrower", "frostWitch", "harpy"] }
     ],
-    "boss": { "x": 0, "z": -30, "enemy": "utgardKing" },
+    "boss": { "x": 0, "z": -30, "enemy": "skyKing" },
     "exits": [
       { "x": -25, "z": 37, "to": "midgard" },
       { "x": 25, "z": 37, "to": "olympus" }

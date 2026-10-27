@@ -11,8 +11,11 @@ import { REGIONS } from './regions'
 export const STEP_KINDS = ['enter', 'choose', 'level', 'boss', 'forge'] as const
 export type StepKind = (typeof STEP_KINDS)[number]
 
-/** 땅 적 피해가 적 지수를 따르는 정도: 생명은 적 지수만큼, 피해는 그 제곱근만큼 (주인공 생명은 공격만큼 크게 늘지 않는다) */
-export const LAND_DAMAGE_EXPONENT = 0.5
+/**
+ * 땅 적 피해가 적 지수를 따르는 정도: 생명은 적 지수만큼, 피해는 적 지수의 0.55제곱만큼 (주인공 생명은 공격만큼 크게 늘지 않는다).
+ * E22-06 곡선: 0.5면 그 땅 보통 적에게 맞고 버티는 대가 10~18이라 목표(들어설 때 8, 떠날 때 12)보다 길어 올렸다
+ */
+export const LAND_DAMAGE_EXPONENT = 0.55
 
 /** 땅 세기(적 지수) → 그 땅 적의 생명·피해 배율 (E22-02) */
 export function landScale(power: number): { hp: number; damage: number } {

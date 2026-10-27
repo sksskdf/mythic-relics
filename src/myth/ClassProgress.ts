@@ -3,8 +3,8 @@ import { type God, godDef } from '../relics/data'
 export const MAX_LEVEL = 4
 /** 데모(첫 엔딩까지)의 단계 끝: 4단계는 엔딩 뒤 (E21-01, TIMELINE.md 3장) */
 export const DEMO_MAX_LEVEL = 3
-/** 1단계(신화 개방)에 필요한 신화 경험치 */
-export const MASTERY_TO_OPEN = 200
+/** 1단계(신화 개방)에 필요한 신화 경험치. 데모에서는 이만큼 차면 미드가르드 성소에서 첫 신화를 고른다 (E22-06: 사람 기준 12분쯤) */
+export const MASTERY_TO_OPEN = 450
 /** 단계마다 다음 단계까지 필요한 신화 경험치 (1→2, 2→3, 3→4). 차면 그 신화의 전설을 깨야 오른다 */
 export const XP_TO_PROMOTE: readonly number[] = [1000, 2000, 3500]
 

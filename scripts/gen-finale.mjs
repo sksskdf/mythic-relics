@@ -51,7 +51,7 @@ const exits = [
   { ...pt(20, 37), to: 'olympus' },
 ]
 const spawn = pt(0, 31)
-const boss = { ...pt(0, -30), enemy: 'utgardKing' }
+const boss = { ...pt(0, -30), enemy: 'skyKing' }
 const main = [pt(0, 31), pt(3, 22), pt(-2, 12), pt(2, 2), pt(-3, -8), pt(1, -18), pt(0, -27)]
 const sanctuary = { ...pt(-25, 10), radius: 9 }
 const paths = [

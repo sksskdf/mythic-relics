@@ -4,6 +4,7 @@ import { DataError } from '../src/data/check'
 import regionsText from '../src/data/regions.json?raw'
 import { arrivalSpot, exitColor, formatRegions, nextHop, worldLayout, parseRegions, RAW_REGIONS, REALM_COLORS, REGIONS, SPAWN_CLEAR, START_REGION } from '../src/data/regions'
 import { GRUNT, KING } from '../src/enemies/Giant'
+import { LAND_DAMAGE_EXPONENT } from '../src/data/chapters'
 import { Encounter } from '../src/game/Encounter'
 import { UtgardLegend } from '../src/game/Legend'
 import { CROSS_MARGIN, crossingAt, regionLinks, walkRects } from '../src/data/world'
@@ -133,7 +134,8 @@ describe('세계 (E7, E15)', () => {
 
   it('마지막 무대는 미드가르드와 올림포스 두 곳에서 걸어 들어간다 (E22)', () => {
     expect(REGIONS.sky!.exits.map((e) => e.to).sort()).toEqual(['midgard', 'olympus'])
-    expect(REGIONS.sky!.boss?.enemy).toBe('utgardKing')
+    // 마지막 보스는 균열의 우트가르드의 왕과 모습·이름이 같고 세기는 따로 (E22-05)
+    expect(REGIONS.sky!.boss?.enemy).toBe('skyKing')
     const into = regions.filter((r) => r.exits.some((e) => e.to === 'sky')).map((r) => r.id)
     expect(into.sort()).toEqual(['midgard', 'olympus'])
   })
@@ -283,7 +285,7 @@ describe('지역을 바꿔 다시 짓기', () => {
     const gruntHp = (e: Encounter) => Math.min(...e.giants.filter((g) => g.spec === GRUNT).map((g) => g.health.max))
     expect(gruntHp(strong)).toBeCloseTo(gruntHp(weak) * 4)
     expect(strong.boss!.health.max).toBeCloseTo(weak.boss!.health.max * 4)
-    expect(strong.boss!.damageScale).toBeCloseTo(2)
+    expect(strong.boss!.damageScale).toBeCloseTo(4 ** LAND_DAMAGE_EXPONENT)
     // 전설의 적도 그 땅의 세기로
     expect(strong.spawn(GRUNT, { x: 0, z: 5 }, false).health.max).toBeCloseTo(GRUNT.hp * 4)
   })

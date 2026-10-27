@@ -43,22 +43,24 @@ try {
     window.__game.reachEnding()
     Object.assign(window.__autoplay, { climb: true })
   })
+  // 처음부터 하는 판은 장 흐름의 목표를 따라 엔딩까지 (E22-06)
+  else await page.evaluate(() => (window.__autoplay.chapters = true))
   const snaps = []
   let next = 0
   for (;;) {
     const s = await page.evaluate((every) => {
       window.__autoplay.run(every)
       const g = window.__game
-      return { t: g.time, save: g.snapshot(), region: g.region.id, threat: g.threat.level, reached: g.threat.reached, chosen: g.powers.manifested, opened: g.progress.opened.length, level: g.powers.manifested ? g.progress.level(g.powers.manifested) : 0 }
+      return { t: g.time, save: g.snapshot(), region: g.region.id, threat: g.threat.level, reached: g.threat.reached, chosen: g.powers.manifested, opened: g.progress.opened.length, level: g.powers.manifested ? g.progress.level(g.powers.manifested) : 0, chapter: g.chapters.chapter?.id ?? 'end', ending: g.ending.reached }
     }, EVERY)
     if (s.t >= next) {
       snaps.push(s)
       next += EVERY
-      console.log(`저장 ${fmt(s.t)} ${s.region} 위협 ${s.threat} 신화 ${s.opened}(${s.chosen ?? '-'} ${s.level}단계)`)
+      console.log(`저장 ${fmt(s.t)} ${s.chapter} ${s.region} 위협 ${s.threat} 신화 ${s.opened}(${s.chosen ?? '-'} ${s.level}단계)`)
     }
-    if (s.t > LIMIT_MIN * 60 || (THREAT > 0 && s.reached >= THREAT)) break
+    if (s.t > LIMIT_MIN * 60 || (THREAT > 0 && s.reached >= THREAT) || (THREAT === 0 && s.ending)) break
   }
-  const log = await page.evaluate(() => window.__game.log.filter((e) => ['open', 'promote', 'forge', 'gear', 'bossKill', 'threat', 'region', 'death'].includes(e.type)))
+  const log = await page.evaluate(() => window.__game.log.filter((e) => ['open', 'promote', 'forge', 'gear', 'bossKill', 'threat', 'region', 'death', 'chapter', 'ending'].includes(e.type)))
   await page.close()
 
   // 2) 저장마다 힘 재기
