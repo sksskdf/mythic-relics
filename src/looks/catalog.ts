@@ -1,4 +1,5 @@
 import { CLASS_LOOKS } from './classLooks'
+import { GEAR_LOOKS } from './gearLooks'
 
 /**
  * 외형 목록. (E3, DESIGN.md 10.4)
@@ -71,12 +72,14 @@ const list: LookDef[] = [
   { id: 'futsuGauntlets', slot: 'arms', name: '후츠노미타마' },
   { id: 'asuraBladeArmor', slot: 'torso', name: '칼날 갑주' },
   { id: 'asuraBladeGreaves', slot: 'legs', name: '칼날 정강이받이' },
+  { id: 'asuraKatar', slot: 'weapon', name: '아수라의 주먹칼' },
   { id: 'asuraArms', slot: 'mark', name: '칼을 쥔 여섯 팔', aura: 'asura' },
   // E6 1차 클래스 (src/looks/classLooks.ts)
   ...CLASS_LOOKS,
 ]
 
-export const LOOKS: Readonly<Record<string, LookDef>> = Object.fromEntries(list.map((look) => [look.id, look]))
+/** 모든 외형 (장비 외형 포함). 보관함에 모으는 것은 LOOK_IDS (장비 외형은 끼고 있는 동안만 보인다) */
+export const LOOKS: Readonly<Record<string, LookDef>> = Object.fromEntries([...list, ...GEAR_LOOKS].map((look) => [look.id, look]))
 export const LOOK_IDS: readonly string[] = list.map((look) => look.id)
 
 /** 처음 모습. 비어 있는 칸(null)은 아무것도 걸치지 않는다. */

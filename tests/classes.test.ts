@@ -86,6 +86,7 @@ function setup(enemies: Dummy[], god: God | null = null, level = 0) {
       hp = Math.min(1, hp + amount / 100)
     },
     heroHp: () => hp,
+    chips: () => {},
     setDecoy: () => {},
   }
   return { hero, fx, ctx, healed }

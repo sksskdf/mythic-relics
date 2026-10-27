@@ -1,12 +1,15 @@
 import * as THREE from 'three'
 
-import type { ActionDef, AuraDef } from '../data/schema'
+import type { ActionDef, ActionLook, AuraDef } from '../data/schema'
 import type { CombatTarget } from '../game/PlayerCombat'
 import { EFFECT_LAYER } from '../render/PixelRenderer'
 import { voxelMesh } from '../voxel/mesher'
 import { inArc } from '../combat/arc'
-import { emberIngot, mistletoe, mjolnir, RELIC_VOXEL } from '../voxel/models/relics'
+import { LOOK_MODELS } from '../voxel/models/looks'
+import { RELIC_VOXEL } from '../voxel/models/relics'
 import { buildHeroModel } from '../world/heroModel'
+import { makeMissile, MISSILE_CHIPS, type Missile, QuakeLook, turnMissile } from './actionLooks'
+import { shadowRig } from './ClassPassives'
 import { enemiesWithin, nearestEnemy, type SkillContext } from './Skill'
 
 /** 발현·레벨 조건으로 세진 정도 (유물 데이터의 bonus를 합친 값) */
@@ -120,9 +123,10 @@ export function createAura(def: AuraDef): Aura {
 
 // ───────────────────────────── 행동 ─────────────────────────────
 
-/** 망치 투척: 대상 쪽으로 날아가며 닿는 적을 모두 때리고, 손으로 돌아오며 한 번 더 때린다. */
+/** 망치 투척: 대상 쪽으로 날아가며 닿는 적을 모두 때리고, 손으로 돌아오며 한 번 더 때린다. (모습: 도는 망치, 곧게 나는 창) */
 class HammerThrow implements Action {
-  private readonly mesh: THREE.Mesh
+  private readonly missile: Missile
+  private readonly mesh: THREE.Object3D
   private phase: 'ready' | 'out' | 'back' = 'ready'
   private readonly dir = new THREE.Vector3()
   private travelled = 0
@@ -133,10 +137,10 @@ class HammerThrow implements Action {
   constructor(
     private readonly p: Readonly<Record<string, number>>,
     fx: THREE.Object3D,
+    look: ActionLook,
   ) {
-    this.mesh = voxelMesh(mjolnir(), { voxelSize: RELIC_VOXEL * 1.3, pivot: [4.5, 6, 2.5] })
-    this.mesh.visible = false
-    fx.add(this.mesh)
+    this.missile = makeMissile(look, fx)
+    this.mesh = this.missile.holder
   }
 
   get busy(): boolean {
@@ -160,9 +164,8 @@ class HammerThrow implements Action {
   update(dt: number, ctx: SkillContext): void {
     if (this.phase === 'ready') return
     const hero = ctx.hero.object.position
-    this.mesh.rotation.y = Math.atan2(this.dir.x, this.dir.z)
-    this.mesh.rotateX(dt * 28)
     if (this.phase === 'out') {
+      turnMissile(this.missile, this.dir.x, this.dir.z, dt)
       const step = this.p.outSpeed! * dt
       this.mesh.position.addScaledVector(this.dir, step)
       this.travelled += step
@@ -180,6 +183,8 @@ class HammerThrow implements Action {
         return
       }
       to.divideScalar(dist)
+      // 창은 돌아올 때 손 쪽을 보고 난다
+      turnMissile(this.missile, this.missile.spin === 'none' ? to.x : this.dir.x, this.missile.spin === 'none' ? to.z : this.dir.z, dt)
       this.mesh.position.addScaledVector(to, Math.min(dist, this.p.backSpeed! * dt))
       this.mesh.position.y = hero.y + 1.1
       this.hitAlong(ctx, to.x, to.z)
@@ -202,17 +207,21 @@ class HammerThrow implements Action {
   }
 }
 
-/** 땅 내리찍기: 주변을 모두 때리고 멀리 밀어낸다. */
+/** 땅 내리찍기: 주변을 모두 때리고 멀리 밀어낸다. 고리에 덧붙는 것은 모습마다 다르다 (actionLooks.ts의 QuakeLook) */
 class Quake implements Action {
   readonly busy = false
   private readonly ring: THREE.Mesh
-  private readonly material = new THREE.MeshBasicMaterial({ color: 0xffe08a, transparent: true, depthWrite: false })
+  private readonly material: THREE.MeshBasicMaterial
+  private readonly look: QuakeLook
   private ringLife = 0
 
   constructor(
     private readonly p: Readonly<Record<string, number>>,
     fx: THREE.Object3D,
+    look: ActionLook<'quake'>,
   ) {
+    this.look = new QuakeLook(look, fx)
+    this.material = new THREE.MeshBasicMaterial({ color: this.look.color, transparent: true, depthWrite: false })
     this.ring = new THREE.Mesh(new THREE.RingGeometry(0.85, 1, 48), this.material)
     this.ring.rotation.x = -Math.PI / 2
     this.ring.layers.set(EFFECT_LAYER)
@@ -231,11 +240,17 @@ class Quake implements Action {
     this.ring.position.set(hero.x, hero.y + 0.15, hero.z)
     this.ring.visible = true
     this.ringLife = 0.3
-    ctx.puffs.burst(hero, 28, 4)
+    ctx.puffs.burst(hero, this.look.look === 'boar' ? 40 : 28, 4)
+    this.look.fire(ctx, this.p.radius!)
     ctx.shake(0.3)
   }
 
   update(dt: number): void {
+    // 겹물결: 첫 고리가 지나간 뒤 한 번 더
+    if (this.look.update(dt)) {
+      this.ringLife = 0.3
+      this.ring.visible = true
+    }
     if (this.ringLife <= 0) return
     this.ringLife -= dt
     const t = 1 - this.ringLife / 0.3
@@ -247,24 +262,25 @@ class Quake implements Action {
   dispose(): void {
     this.ring.removeFromParent()
     this.material.dispose()
+    this.look.dispose()
   }
 }
 
 interface Ingot {
-  mesh: THREE.Mesh
+  missile: Missile
   target: CombatTarget
   boost: Boost
 }
 
-/** 쇳덩이 되던지기: 때린 쪽에 가장 가까운 적에게 달군 쇳덩이를 던진다. */
+/** 쇳덩이 되던지기: 때린 쪽에 가장 가까운 적에게 달군 쇳덩이를 던진다. (모습: 쇳덩이·달 원반·물방울·돌·칼) */
 class IngotThrow implements Action {
   readonly busy = false
   private readonly ingots: Ingot[] = []
-  private readonly geometrySource = emberIngot()
 
   constructor(
     private readonly p: Readonly<Record<string, number>>,
     private readonly fx: THREE.Object3D,
+    private readonly look: ActionLook,
   ) {}
 
   fire(ctx: SkillContext, cue: Cue, boost: Boost): void {
@@ -272,10 +288,10 @@ class IngotThrow implements Action {
     const from = cue.from ?? hero
     const target = nearestEnemy(ctx.enemies, from.x, from.z, 3) ?? nearestEnemy(ctx.enemies, hero.x, hero.z, 12)
     if (target) {
-      const mesh = voxelMesh(this.geometrySource, { voxelSize: RELIC_VOXEL * 1.6, pivot: [2.5, 1.5, 1.5] })
-      mesh.position.set(hero.x, hero.y + 1.2, hero.z)
-      this.fx.add(mesh)
-      this.ingots.push({ mesh, target, boost })
+      const missile = makeMissile(this.look, this.fx)
+      missile.holder.position.set(hero.x, hero.y + 1.2, hero.z)
+      missile.holder.visible = true
+      this.ingots.push({ missile, target, boost })
     }
     ctx.puffs.burst(new THREE.Vector3(hero.x, hero.y + 1, hero.z), 6, 1.2)
   }
@@ -283,11 +299,10 @@ class IngotThrow implements Action {
   update(dt: number, ctx: SkillContext): void {
     for (let i = this.ingots.length - 1; i >= 0; i--) {
       const ingot = this.ingots[i]!
-      const p = ingot.mesh.position
+      const p = ingot.missile.holder.position
       const to = new THREE.Vector3(ingot.target.x - p.x, 0, ingot.target.z - p.z)
       const dist = to.length()
-      ingot.mesh.rotation.y += dt * 20
-      ingot.mesh.rotation.x += dt * 13
+      turnMissile(ingot.missile, to.x, to.z, dt)
       if (!ingot.target.alive) {
         this.remove(i)
         continue
@@ -298,6 +313,8 @@ class IngotThrow implements Action {
         ctx.hit(ingot.target, this.p.damage! * ingot.boost.damageScale, dx, dz, this.p.knockback!, 'strong')
         boostLightning(ctx, ingot.target, ingot.boost, dx, dz)
         ctx.puffs.burst(p, 10, 2)
+        const chips = MISSILE_CHIPS[this.look]
+        if (chips) ctx.chips(p, chips, 12, 0.6, 0.1)
         ctx.shake(0.15)
         this.remove(i)
         continue
@@ -308,8 +325,11 @@ class IngotThrow implements Action {
 
   private remove(index: number): void {
     const [ingot] = this.ingots.splice(index, 1)
-    ingot?.mesh.removeFromParent()
-    ingot?.mesh.geometry.dispose()
+    if (!ingot) return
+    ingot.missile.holder.removeFromParent()
+    ingot.missile.holder.traverse((o) => {
+      if (o instanceof THREE.Mesh) o.geometry.dispose()
+    })
   }
 
   dispose(): void {
@@ -317,10 +337,13 @@ class IngotThrow implements Action {
   }
 }
 
-/** 환영 분신: 제자리에 분신을 남긴다. 적은 분신을 쫓고, 분신은 사라질 때 터진다. */
+/**
+ * 환영 분신: 제자리에 분신을 남긴다. 적은 분신을 쫓고, 분신은 사라질 때 터진다.
+ * 모습: ghost 주인공을 닮은 반투명 분신(로키), shade 두건 쓴 그림자 연기(하데스, 사라질 때 보라 연기)
+ */
 class Decoy implements Action {
-  private readonly decoy = buildHeroModel()
   private readonly material = new THREE.MeshBasicMaterial({ color: 0x8fe07a, transparent: true, opacity: 0.55, depthWrite: false })
+  private readonly decoy: { root: THREE.Object3D }
   private life = 0
   private boost = NO_BOOST
 
@@ -331,7 +354,9 @@ class Decoy implements Action {
   constructor(
     private readonly p: Readonly<Record<string, number>>,
     fx: THREE.Object3D,
+    private readonly look: ActionLook,
   ) {
+    this.decoy = look === 'shade' ? shadowRig(this.material) : buildHeroModel()
     this.decoy.root.traverse((o) => {
       if (o instanceof THREE.Mesh) {
         o.material = this.material
@@ -356,14 +381,15 @@ class Decoy implements Action {
     this.decoy.root.visible = true
     ctx.setDecoy({ x: hero.x, z: hero.z, radius: 0.4 })
     ctx.puffs.burst(hero, 10, 1.5)
+    if (this.look === 'shade') ctx.chips(hero, [0x2a1a3a, 0x8a5fd0], 14, 0.5, 0.12)
   }
 
   update(dt: number, ctx: SkillContext): void {
     if (this.life <= 0) return
     this.life -= dt
-    // 끝나 갈수록 빠르게 깜빡인다.
-    const blink = this.life < 1 ? Math.sin(this.life * 40) > 0 : true
-    this.material.opacity = blink ? 0.55 : 0.2
+    // 끝나 갈수록 빠르게 깜빡인다. 그림자는 깜빡이지 않고 일렁이며 옅어진다
+    if (this.look === 'shade') this.material.opacity = 0.35 + Math.sin(this.life * 9) * 0.15
+    else this.material.opacity = (this.life < 1 ? Math.sin(this.life * 40) > 0 : true) ? 0.55 : 0.2
     if (this.life <= 0) this.vanish(ctx)
   }
 
@@ -377,6 +403,7 @@ class Decoy implements Action {
       boostLightning(ctx, enemy, this.boost, dx, dz)
     }
     ctx.puffs.burst(p, 18, 3)
+    if (this.look === 'shade') ctx.chips(p, [0x2a1a3a, 0x8a5fd0, 0x5a3a8a], 24, 1.2, 0.14)
     ctx.shake(0.12)
   }
 
@@ -448,25 +475,59 @@ class FlameSweep implements Action {
   }
 }
 
-/** 발드르의 화살 (겨우살이 가지): 가장 먼 적 쪽으로 가지를 던져 길 위의 적을 모두 꿰뚫는다. */
+/** 길게 뻗는 것 (여의봉·햇빛): 주인공 자리에서 끝이 뻗어 나간다 */
+function stretchMesh(look: 'pole' | 'beam', fx: THREE.Object3D): { holder: THREE.Group; body: THREE.Object3D; material?: THREE.MeshBasicMaterial } {
+  const holder = new THREE.Group()
+  let body: THREE.Object3D
+  let material: THREE.MeshBasicMaterial | undefined
+  if (look === 'pole') {
+    const grid = LOOK_MODELS.wukongStaff!()
+    // 길이 1m짜리로 맞춰 두고 z로 늘린다 (끝이 원점)
+    const mesh = voxelMesh(grid, { voxelSize: RELIC_VOXEL * 1.4, pivot: [grid.sizeX / 2, grid.sizeY / 2, 0] })
+    mesh.scale.z = 1 / (grid.sizeZ * RELIC_VOXEL * 1.4)
+    body = new THREE.Group().add(mesh)
+  } else {
+    material = new THREE.MeshBasicMaterial({ color: 0xffe9a0, transparent: true, opacity: 0.85, depthWrite: false })
+    const geometry = new THREE.BoxGeometry(0.34, 0.34, 1)
+    geometry.translate(0, 0, 0.5)
+    const mesh = new THREE.Mesh(geometry, material)
+    mesh.layers.set(EFFECT_LAYER)
+    mesh.renderOrder = 12
+    body = mesh
+  }
+  holder.add(body)
+  holder.visible = false
+  fx.add(holder)
+  return { holder, body, ...(material ? { material } : {}) }
+}
+
+/**
+ * 꿰뚫기: 가장 먼 적 쪽으로 던져 길 위의 적을 모두 꿰뚫는다.
+ * 모습: branch 겨우살이 가지(발드르의 화살), bolt 번개 창과 번개 줄기, arrow 은빛 화살, pole 쭉 늘어나는 여의봉, beam 곧게 뻗는 햇빛
+ */
 class Pierce implements Action {
-  private readonly mesh: THREE.Mesh
+  private readonly missile: Missile | null = null
+  private readonly stretch: ReturnType<typeof stretchMesh> | null = null
   private readonly dir = new THREE.Vector3()
+  private readonly origin = new THREE.Vector3()
+  private readonly tip = new THREE.Vector3()
   private travelled = -1
+  /** 다 뻗은 뒤 사라지기까지 (늘어나는 것만) */
+  private fade = 0
   private boost = NO_BOOST
   private readonly struck = new Set<CombatTarget>()
 
   constructor(
     private readonly p: Readonly<Record<string, number>>,
     fx: THREE.Object3D,
+    private readonly look: ActionLook,
   ) {
-    this.mesh = voxelMesh(mistletoe(), { voxelSize: RELIC_VOXEL * 1.2, pivot: [4.5, 6, 1.5] })
-    this.mesh.visible = false
-    fx.add(this.mesh)
+    if (look === 'pole' || look === 'beam') this.stretch = stretchMesh(look, fx)
+    else this.missile = makeMissile(look, fx)
   }
 
   get busy(): boolean {
-    return this.travelled >= 0
+    return this.travelled >= 0 || this.fade > 0
   }
 
   fire(ctx: SkillContext, _cue: Cue, boost: Boost): void {
@@ -483,19 +544,38 @@ class Pierce implements Action {
     if (!target) return
     this.boost = boost
     this.dir.set(target.x - hero.x, 0, target.z - hero.z).normalize()
-    this.mesh.position.set(hero.x, hero.y + 1.1, hero.z)
-    this.mesh.rotation.set(Math.PI / 2, 0, -Math.atan2(this.dir.x, this.dir.z))
-    this.mesh.visible = true
+    this.origin.set(hero.x, hero.y + 1.1, hero.z)
+    this.tip.copy(this.origin)
+    const shown = this.missile?.holder ?? this.stretch!.holder
+    shown.position.copy(this.origin)
+    shown.rotation.y = Math.atan2(this.dir.x, this.dir.z)
+    shown.visible = true
+    if (this.stretch) this.stretch.body.scale.z = 0.01
+    if (this.stretch?.material) this.stretch.material.opacity = 0.85
     this.travelled = 0
+    this.fade = 0
     this.struck.clear()
+    // 번개 창: 던지는 순간 끝까지 번개 줄기가 먼저 그어진다
+    if (this.look === 'bolt') ctx.lightning.strike(this.origin.clone(), this.origin.clone().addScaledVector(this.dir, this.p.range!), 0.12, 0.3)
   }
 
   update(dt: number, ctx: SkillContext): void {
+    if (this.fade > 0) {
+      this.fade -= dt
+      if (this.stretch?.material) this.stretch.material.opacity = Math.max(0, this.fade / 0.25) * 0.85
+      else if (this.stretch) this.stretch.body.scale.z = Math.max(0.01, this.stretch.body.scale.z * (1 - dt * 12))
+      if (this.fade <= 0) this.stretch!.holder.visible = false
+      return
+    }
     if (this.travelled < 0) return
     const step = this.p.speed! * dt
-    this.mesh.position.addScaledVector(this.dir, step)
     this.travelled += step
-    const p = this.mesh.position
+    this.tip.addScaledVector(this.dir, step)
+    if (this.missile) {
+      this.missile.holder.position.copy(this.tip)
+      turnMissile(this.missile, this.dir.x, this.dir.z, dt)
+    } else this.stretch!.body.scale.z = this.travelled
+    const p = this.tip
     for (const enemy of ctx.enemies) {
       if (!enemy.alive || this.struck.has(enemy)) continue
       if (Math.hypot(enemy.x - p.x, enemy.z - p.z) > enemy.radius + this.p.hitRadius!) continue
@@ -503,31 +583,35 @@ class Pierce implements Action {
       ctx.hit(enemy, this.p.damage! * this.boost.damageScale, this.dir.x, this.dir.z, this.p.knockback!, 'strong')
       boostLightning(ctx, enemy, this.boost, this.dir.x, this.dir.z)
       ctx.puffs.burst(new THREE.Vector3(enemy.x, p.y, enemy.z), 6, 1.4)
+      const chips = MISSILE_CHIPS[this.look]
+      if (chips) ctx.chips(new THREE.Vector3(enemy.x, p.y, enemy.z), chips, 6, 0.4, 0.08)
     }
     if (this.travelled >= this.p.range! + 2) {
-      this.mesh.visible = false
       this.travelled = -1
+      if (this.missile) this.missile.holder.visible = false
+      else this.fade = 0.25
     }
   }
 
   dispose(): void {
-    this.mesh.removeFromParent()
+    ;(this.missile?.holder ?? this.stretch?.holder)?.removeFromParent()
+    this.stretch?.material?.dispose()
   }
 }
 
 export function createAction(def: ActionDef, fx: THREE.Object3D): Action {
   switch (def.kind) {
     case 'hammerThrow':
-      return new HammerThrow(def.params, fx)
+      return new HammerThrow(def.params, fx, def.look)
     case 'quake':
-      return new Quake(def.params, fx)
+      return new Quake(def.params, fx, def.look as ActionLook<'quake'>)
     case 'ingotThrow':
-      return new IngotThrow(def.params, fx)
+      return new IngotThrow(def.params, fx, def.look)
     case 'decoy':
-      return new Decoy(def.params, fx)
+      return new Decoy(def.params, fx, def.look)
     case 'flameSweep':
       return new FlameSweep(def.params, fx)
     case 'pierce':
-      return new Pierce(def.params, fx)
+      return new Pierce(def.params, fx, def.look)
   }
 }

@@ -53,6 +53,7 @@
       },
       "action": {
         "kind": "hammerThrow",
+        "look": "hammer",
         "damage": 16,
         "range": 10,
         "outSpeed": 20,
@@ -226,6 +227,7 @@
       },
       "action": {
         "kind": "decoy",
+        "look": "ghost",
         "life": 4,
         "blastRadius": 2.6,
         "blastDamage": 20,
@@ -394,6 +396,7 @@
       },
       "action": {
         "kind": "quake",
+        "look": "gale",
         "radius": 3.6,
         "damage": 18,
         "knockback": 6
@@ -518,6 +521,7 @@
       },
       "action": {
         "kind": "ingotThrow",
+        "look": "blade",
         "damage": 30,
         "speed": 24,
         "knockback": 5
@@ -609,6 +613,7 @@
       },
       "action": {
         "kind": "hammerThrow",
+        "look": "spear",
         "damage": 16,
         "range": 10,
         "outSpeed": 20,
@@ -734,6 +739,7 @@
       },
       "action": {
         "kind": "quake",
+        "look": "boar",
         "radius": 3.2,
         "damage": 26,
         "knockback": 9
@@ -856,6 +862,7 @@
       },
       "action": {
         "kind": "pierce",
+        "look": "bolt",
         "damage": 30,
         "range": 12,
         "speed": 26,
@@ -979,6 +986,7 @@
       },
       "action": {
         "kind": "quake",
+        "look": "pillar",
         "radius": 3.2,
         "damage": 26,
         "knockback": 9
@@ -1104,6 +1112,7 @@
       },
       "action": {
         "kind": "decoy",
+        "look": "shade",
         "life": 4,
         "blastRadius": 2.6,
         "blastDamage": 20,
@@ -1226,6 +1235,7 @@
       },
       "action": {
         "kind": "pierce",
+        "look": "arrow",
         "damage": 30,
         "range": 12,
         "speed": 26,
@@ -1352,6 +1362,7 @@
       },
       "action": {
         "kind": "pierce",
+        "look": "pole",
         "damage": 30,
         "range": 12,
         "speed": 26,
@@ -1477,6 +1488,7 @@
       },
       "action": {
         "kind": "ingotThrow",
+        "look": "moon",
         "damage": 30,
         "speed": 22,
         "knockback": 6
@@ -1597,6 +1609,7 @@
       },
       "action": {
         "kind": "quake",
+        "look": "ripple",
         "radius": 3.2,
         "damage": 26,
         "knockback": 9
@@ -1722,6 +1735,7 @@
       },
       "action": {
         "kind": "quake",
+        "look": "wheels",
         "radius": 3,
         "damage": 24,
         "knockback": 7
@@ -1846,6 +1860,7 @@
       },
       "action": {
         "kind": "pierce",
+        "look": "beam",
         "damage": 30,
         "range": 12,
         "speed": 26,
@@ -1969,6 +1984,7 @@
       },
       "action": {
         "kind": "quake",
+        "look": "moon",
         "radius": 3.2,
         "damage": 26,
         "knockback": 9
@@ -2090,6 +2106,7 @@
       },
       "action": {
         "kind": "quake",
+        "look": "thunder",
         "radius": 3.2,
         "damage": 26,
         "knockback": 9
@@ -2255,6 +2272,7 @@
       },
       "action": {
         "kind": "quake",
+        "look": "sun",
         "radius": 3.2,
         "damage": 26,
         "knockback": 9
@@ -2379,6 +2397,7 @@
       },
       "action": {
         "kind": "ingotThrow",
+        "look": "water",
         "damage": 30,
         "speed": 22,
         "knockback": 6
@@ -2500,6 +2519,7 @@
       },
       "action": {
         "kind": "quake",
+        "look": "foxfire",
         "radius": 3.2,
         "damage": 26,
         "knockback": 9
@@ -2626,6 +2646,7 @@
       },
       "action": {
         "kind": "ingotThrow",
+        "look": "stone",
         "damage": 30,
         "speed": 22,
         "knockback": 6

@@ -2,6 +2,7 @@ import * as THREE from 'three'
 
 import { AudioEngine } from '../audio/AudioEngine'
 import type { SwingSpec } from '../combat/combo'
+import { STYLES } from '../combat/styles'
 import { Input } from '../input/Input'
 import { PixelRenderer } from '../render/PixelRenderer'
 import { QuarterViewCamera } from '../render/QuarterViewCamera'
@@ -316,6 +317,7 @@ export class Game {
       slashes: this.fx.slashes,
       shots: this.fx.shots,
       flash: (at, color, strength) => this.fx.power.burst(at, color, strength),
+      chips: (at, palette, count, height = 0.8, size = 0.12) => this.fx.debris.burst(at, count, palette, height, size),
       heal: (amount) => this.combat.heal(amount),
       heroHp: () => this.combat.health.ratio,
       hit: (target, damage, dirX, dirZ, knockback, style, source) => this.damage.deal(target, damage, dirX, dirZ, knockback, style, source),
@@ -577,6 +579,8 @@ export class Game {
       view: this.view,
       pickups: this.pickups,
       region: () => this.ctx.map.region.realm ?? undefined,
+      skills: this.ctx.skills,
+      encounter: this.encounter,
     })
     this.audio = new AudioEngine(this.settings.volume)
     this.sound = new SoundSystem(this.ctx, this.audio)
@@ -1070,20 +1074,26 @@ export class Game {
     const facing = this.hero.facing
     const god = this.ctx.build.chosen
     const tint = god && !strong ? new THREE.Color(godDef(god).color).lerp(new THREE.Color(0xffffff), 0.5).getHex() : undefined
+    // 마지막 타는 공격 모션마다 정한 조각이 튄다 (물·꽃잎·돌 등, E18)
+    const chips = strong ? STYLES[this.combat.style].chips : undefined
     switch (swing.shape ?? 'arc') {
       case 'arc':
         this.fx.slashes.spawn(p, facing, swing.range, swing.halfAngle, strong, tint)
+        if (chips) this.fx.debris.burst(this.ahead(p, facing, swing.range * 0.6), 10, chips, 0.6, 0.1)
         break
       case 'ring':
         this.fx.slashes.spawn(p, facing, swing.range, Math.PI, strong, tint)
+        if (chips) this.fx.debris.burst(p, 16, chips, 0.8, 0.1)
         break
       case 'line':
         this.fx.slashes.spawn(p, facing, swing.range, Math.atan2(swing.width ?? 0.6, swing.range), strong, tint)
+        if (chips) this.fx.debris.burst(this.ahead(p, facing, swing.range * 0.8), 10, chips, 0.5, 0.1)
         break
       case 'burst': {
-        const at = new THREE.Vector3(p.x + Math.sin(facing) * swing.range * 0.75, p.y, p.z + Math.cos(facing) * swing.range * 0.75)
+        const at = this.ahead(p, facing, swing.range * 0.75)
         this.fx.slashes.spawn(at, facing, swing.width ?? 1.5, Math.PI, strong, tint)
         this.fx.puffs.burst(at, 10, 2)
+        if (chips) this.fx.debris.burst(at, 14, chips, 0.9, 0.1)
         break
       }
       case 'shot':
@@ -1092,14 +1102,35 @@ export class Game {
     this.audio.play('swing', undefined, strong ? 1 : 0.7)
   }
 
-  /** 원거리 공격이 날아간다: 벼락은 번개 줄기, 그 밖에는 화살·빛 조각 */
+  /** 주인공 앞 distance(m) 자리 */
+  private ahead(p: THREE.Vector3, facing: number, distance: number): THREE.Vector3 {
+    return new THREE.Vector3(p.x + Math.sin(facing) * distance, p.y, p.z + Math.cos(facing) * distance)
+  }
+
+  /** 원거리 공격이 날아간다: 벼락은 번개 줄기, 고리는 도는 금고리, 바위는 포물선, 그 밖에는 화살·빛 조각 (E18) */
   private shotFx(target: CombatTarget, strong: boolean): void {
     const p = this.hero.object.position
     const from = new THREE.Vector3(p.x, p.y + 1.3, p.z)
     const to = new THREE.Vector3(target.x, heightAt(target.x, target.z) + 0.9, target.z)
     const god = this.ctx.build.chosen
-    if (this.combat.style === 'bolt') this.fx.lightning.strike(from, to, strong ? 0.12 : 0.07, 0.12)
-    else this.fx.shots.fire(from, to, god ? new THREE.Color(godDef(god).color).getHex() : 0xf2f7ff)
+    const color = god ? new THREE.Color(godDef(god).color).getHex() : 0xf2f7ff
+    const style = STYLES[this.combat.style]
+    switch (style.shot ?? 'streak') {
+      case 'lightning':
+        this.fx.lightning.strike(from, to, strong ? 0.12 : 0.07, 0.12)
+        break
+      case 'ring':
+        this.fx.shots.fire(from, to, 0xffd040, 0.16, { scale: [4.5, 0.8, 0.3], spin: 30 })
+        break
+      case 'stone': {
+        const big = strong ? 1.6 : 1
+        this.fx.shots.fire(from, to, 0xa89a80, strong ? 0.32 : 0.24, { scale: [3.4 * big, 3 * big, 0.26 * big], arc: strong ? 2.2 : 1.4, spin: 8 })
+        break
+      }
+      default:
+        this.fx.shots.fire(from, to, color)
+    }
+    if (strong && style.chips) this.fx.debris.burst(to, 10, style.chips, 0.7, 0.1)
   }
 
   private updateEnemies(dt: number): void {

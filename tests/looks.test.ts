@@ -2,7 +2,9 @@ import * as THREE from 'three'
 import { describe, expect, it } from 'vitest'
 
 import { BASE_OUTFIT, LOOK_IDS, lookDef } from '../src/looks/catalog'
+import { GEAR_LOOKS, gearLook, parseGearLook } from '../src/looks/gearLooks'
 import { autoOutfit, Wardrobe } from '../src/looks/outfit'
+import { GEAR } from '../src/gear/roll'
 import { godDef, relicDef } from '../src/relics/data'
 import { LOOK_MODELS } from '../src/voxel/models/looks'
 import { buildHeroModel } from '../src/world/heroModel'
@@ -48,6 +50,48 @@ describe('장착에 따른 모습 (기본 < 유물 < 발현)', () => {
     expect(outfit.cape).toBe('thorCape')
     expect(outfit.weapon).toBe('shortSword')
     expect(outfit.arms).toBe('ironGauntlets')
+  })
+})
+
+describe('일반 장비 외형 (E18-04-5)', () => {
+  const size = (id: string) => {
+    const g = LOOK_MODELS[id]!()
+    return [g.sizeX, g.sizeY, g.sizeZ].join('×')
+  }
+  const occupancy = (id: string) => {
+    const g = LOOK_MODELS[id]!()
+    return `${g.sizeX}×${g.sizeY}×${g.sizeZ}:${Array.from(g.cells, (c) => (c ? 1 : 0)).join('')}`
+  }
+
+  it('부위·바탕·등급마다 외형이 있고, 머리·몸·손·발은 그 칸의 기본 외형과 격자 크기가 같다 (같은 원점에 끼운다)', () => {
+    const parts = ['weapon', 'head', 'body', 'hands', 'feet'] as const
+    expect(GEAR_LOOKS.length).toBe(parts.reduce((n, p) => n + GEAR.parts[p].bases.length, 0) * 4)
+    for (const look of GEAR_LOOKS) {
+      expect(LOOK_MODELS[look.id], look.id).toBeTypeOf('function')
+      expect(parseGearLook(look.id), look.id).not.toBeNull()
+      const slot = lookDef(look.id).slot
+      if (slot !== 'weapon') expect(size(look.id), look.id).toBe(size(BASE_OUTFIT[slot]!))
+    }
+  })
+
+  it('같은 부위의 바탕끼리는 실루엣이 다르고, 등급은 색만 다르다', () => {
+    for (const part of ['weapon', 'head', 'body', 'hands', 'feet'] as const) {
+      const bases = GEAR.parts[part].bases.map((_, i) => occupancy(`gear-${part}-${i}-common`))
+      expect(new Set(bases).size, part).toBe(bases.length)
+      expect(occupancy(`gear-${part}-0-rare`), part).toBe(bases[0])
+    }
+  })
+
+  it('낀 장비는 기본 모습만 덮고, 유물·신화 외형이 그 위에 온다. 장신구는 몸에 보이지 않는다', () => {
+    const helm = gearLook({ part: 'head', base: '철 투구', grade: 'rare' })!
+    const sword = gearLook({ part: 'weapon', base: '도끼', grade: 'good' })!
+    expect(gearLook({ part: 'trinket', base: '부적', grade: 'hero' })).toBeNull()
+    const plain = autoOutfit({ gearLooks: [helm, sword], relicLooks: [], manifestLooks: {} })
+    expect(plain.head).toBe(helm)
+    expect(plain.weapon).toBe(sword)
+    const thor = autoOutfit({ gearLooks: [helm, sword], relicLooks: looksOf('mjolnir'), manifestLooks: godDef('thor').looks })
+    expect(thor.head).toBe('thorHelm')
+    expect(thor.weapon).toBe('mjolnirHammer')
   })
 })
 

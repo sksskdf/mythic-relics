@@ -30,6 +30,8 @@ export interface SkillContext {
   slashes: Slashes
   /** 날아가는 화살·빛 (연출만) */
   shots: Shots
+  /** 색 조각이 튀어 흩어진다 (E18: 물방울·꽃잎·불티·돌 부스러기). height는 튀는 높이, size는 조각 크기(m) */
+  chips(at: THREE.Vector3, palette: readonly number[], count: number, height?: number, size?: number): void
   /** 그 자리에서 빛기둥이 솟는다 (strength 1~4) */
   flash(at: THREE.Vector3, color: string | number, strength: number): void
   /** 주인공 생명 회복 */
@@ -89,6 +91,8 @@ export interface RelicEffect {
   beforeHeroHit?(damage: number, fromX: number, fromZ: number, ctx: SkillContext): number
   /** 주인공이 distance(m)만큼 걸었다. */
   onWalk?(distance: number, ctx: SkillContext): void
+  /** 충전과 터지는 때를 건너뛰고 바로 터뜨린다 (개발 패널·연속 스크린숏) */
+  forceFire?(ctx: SkillContext): void
   dispose(): void
 }
 

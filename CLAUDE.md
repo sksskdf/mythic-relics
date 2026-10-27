@@ -51,6 +51,7 @@
 - `npm run build && node scripts/bench.mjs [적 수=40] [화질=normal|low|high]`: 적에 둘러싸인 싸움의 게임 갱신 시간·그리기 호출·삼각형 수 (`test-results/bench.json`). 모델·맵·연출을 바꾸면 재 본다. 이 환경은 소프트웨어 렌더링이라 fps는 사용자에게 확인을 부탁한다 (개발 패널 오른쪽 위에 fps).
 - `npm run build && node scripts/enemy-sheet.mjs [파일.png] [적 id,...]`: 모든 적을 보통·정예로 세운 모습 모음. 적 모델을 바꾸면 찍어 본다.
 - `npm run build && node scripts/class-sheet.mjs [파일.png] [신 id,...]`: 모든 클래스를 자기 유물로 발현시킨 Lv1·Lv4 모습 모음. 클래스·외형을 바꾸면 찍어 본다.
+- `npm run build && node scripts/motion-sheet.mjs [파일.png] [신 id,...]`: 신화마다 1타·2타·마지막 타·유물 행동·궁극기를 게임을 멈춘 채 찍어 신화권별로 모은다 (E18). 동작·유물 행동·궁극기를 바꾸면 찍어 보고, 겹치지 않는지는 `tests/identity.test.ts`와 `ART.md` 9장.
 - `npm run build && node scripts/shot.mjs <파일.png> "<주소 뒤 값>" "<게임 안 코드>" [프레임]`: 원하는 상태의 스크린숏. 화면이 바뀌는 작업은 스크린숏을 직접 보고 확인한다.
 - `node scripts/gen-regions.mjs`: 신화권마다 깊은 땅·보스의 땅을 규칙으로 다시 만든다(E15). 이미 있는 그 땅을 덮어쓰니 규칙을 바꿀 때만 돌린다.
 - 지도는 개발 패널 「지도」 탭에서 고친다: 편집을 켜고 땅을 누르면 고른 도구가 동작하고, 「저장」은 개발 서버(`pnpm dev`)가 `src/data/regions.json`에 쓴다 (`vite.config.ts`의 saveRegions).
@@ -67,7 +68,7 @@
 | `src/game/` | `Game.ts`(조립과 메인 루프), `World`(지역 들어가기 `enter`·출구 이동 `travelTo`·암전, Game에도 같은 이름의 위임이 있음), `TitleBackdrop`(시작 화면 뒤 장면), `Villagers`(마을 사람과 말풍선), `events.ts`(이벤트 버스), `context.ts`(시스템 공용 상태), `Stage`(빛·맵), `HeroController`(이동), `HeroOrders`(클릭 → 지시), `PlayerCombat`(자동 공격), `Encounter`(적 무리·보스), `Legend`(승급 전설), `RelicPowers`(장착한 유물 효과) |
 | `src/game/systems/` | 규칙: `Damage`(피해), `Relics`(줍기·장착·발현), `Progression`(경험치·드랍·승급), `HeroLife`(쓰러짐·부활), `Persistence`(저장), `PlayerInput`(클릭), `Effects`(연출), `Sound`(소리), `Threat`(위협 단계·원천 갈래·편의 자동화 세기), `Trials`(시련 진행: 제약·난이도·기록). 시스템끼리는 버스로만 주고받는다 |
 | `src/enemies/` | 적 AI(`Giant.ts`: 상태, 공격 예고, 돌진·던지기·막기·부르기·거리 유지·둘러싸기), 날아가는 것(`Projectile.ts`), 정예(`elite.ts`), 모델 생성기(`enemyModel.ts`: 몸 종류 여섯, 거인은 `giantModel.ts`) |
-| `src/skills/` | 유물 효과(`index.ts`: 데이터 → 효과), 행동·오라 종류(`actions.ts`), 궁극기 |
+| `src/skills/` | 유물 효과(`index.ts`: 데이터 → 효과), 행동·오라 종류(`actions.ts`), 행동의 모습(`actionLooks.ts`: 던지는 것·땅 울림 연출, E18), 궁극기(`Ultimate.ts`, 종류+모양) |
 | `src/looks/` | 외형: 칸과 외형 목록(`catalog.ts`, 1차 클래스는 `classLooks.ts`), 장착 → 모습·보관함(`outfit.ts`). 모델은 `src/voxel/models/looks.ts`(손으로 찍은 것)·`classLooks.ts`(생성기 `gen.ts`로 만든 것), 적용은 `systems/Appearance.ts` |
 | `src/relics/` | 유물·신 데이터(`data.ts`), 유물 모델·아이콘, 커서 아래 유물 고르기 |
 | `src/gear/` | 장비(E13): 칸 7과 가방(`Loadout`), 일반 장비 굴리기(`roll`), 신화의 유물과 단계(`mythRelic`), 재료(`materials`), 대장간 제작법·분해(`forge`), 땅에 떨어진 것(`Pickups`), 드랍 규칙(`DropTable`) |

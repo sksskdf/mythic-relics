@@ -36,6 +36,7 @@ function setup(enemies: CombatTarget[]) {
     flash: () => {},
     heal: () => {},
     heroHp: () => 1,
+    chips: () => {},
     setDecoy: () => {},
   }
   return { ctx, hits }

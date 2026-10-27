@@ -205,6 +205,7 @@ export class DevPanel {
       ),
       row(
         button('궁극기 충전', () => (g.combat.divine = 1)),
+        button('유물 행동', () => g.dev.fireRelic()),
         button('외형 모두 얻기', () => {
           g.wardrobe.unlock(LOOK_IDS)
           g.menu.refresh()

@@ -4,7 +4,7 @@ import { DATA } from '../data'
 import type { RelicDef } from '../data/schema'
 import type { CombatTarget } from '../game/PlayerCombat'
 import { type Action, type Aura, type Boost, createAction, createAura, type Cue } from './actions'
-import { type BasicHit, enemiesWithin, type RelicEffect, type SkillContext } from './Skill'
+import { type BasicHit, enemiesWithin, nearestEnemy, type RelicEffect, type SkillContext } from './Skill'
 
 /**
  * 유물 데이터로 만드는 효과. 유물 1개 = 지속 효과 + 행동 연동 효과 (DESIGN.md 8.3)
@@ -88,6 +88,13 @@ export class DataRelicEffect implements RelicEffect {
     const { charge, release } = this.trigger
     if (charge.by === 'combo' && !this.action.busy) this.progress = hit.finisher ? 1 : (hit.comboIndex + 1) / hit.comboLength
     if (release.on === 'basicHit' && this.ready()) this.fire(ctx, hit.targets[0] ? { target: hit.targets[0] } : {})
+  }
+
+  forceFire(ctx: SkillContext): void {
+    if (this.action.busy) return
+    const hero = ctx.hero.object.position
+    const near = nearestEnemy(ctx.enemies, hero.x, hero.z, 12)
+    this.fire(ctx, near ? { target: near, from: { x: near.x, z: near.z } } : {})
   }
 
   onKill(_target: CombatTarget): void {

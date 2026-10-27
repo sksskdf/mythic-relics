@@ -5,8 +5,8 @@
  */
 import { color, DataError, type Leveled, leveled, num, type Obj, obj, oneOf, onlyKeys, optNum, str } from './check'
 
-/** 하늘에서 내리치는 것의 모양 */
-export const SKY_STYLES = ['lightning', 'sun', 'moon', 'stone', 'water', 'fire'] as const
+/** 하늘에서 내리치는 것의 모양 (hammer: 번개 두른 망치가 떨어짐, storm: 북 울림 고리와 번개 여럿, E18) */
+export const SKY_STYLES = ['lightning', 'sun', 'moon', 'stone', 'water', 'fire', 'hammer', 'storm'] as const
 /** 동료·분신의 모습 */
 export const COMPANION_LOOKS = ['shadow', 'monkey', 'shade', 'spirit', 'raven', 'boar', 'hound'] as const
 /** 몸 둘레를 도는 것의 모양 */
@@ -14,7 +14,11 @@ export const ORBIT_SHAPES = ['orb', 'ring', 'flame', 'bead', 'mirror'] as const
 /** 궁극기 종류 */
 export const ULTIMATE_KINDS = ['skyBarrage', 'legion', 'bladeDance', 'wave', 'rain'] as const
 /** 비처럼 쏟아지는 것 */
-export const RAIN_STYLES = ['arrow', 'spear', 'fire', 'star', 'petal', 'stone'] as const
+export const RAIN_STYLES = ['arrow', 'spear', 'fire', 'star', 'petal', 'stone', 'foxfire'] as const
+/** 퍼지는 물결의 모양 (E18): 꽃잎·물벽·겹물결·어둠 원반·칼바람·혼령 */
+export const WAVE_STYLES = ['bloom', 'tide', 'ripple', 'night', 'gale', 'spirit'] as const
+/** 칼춤의 모양 (E18): 여섯 칼, 불꽃 */
+export const BLADE_STYLES = ['six', 'fire'] as const
 /** 승급 전설 종류: 무리 뒤 보스 / 시간 안에 처치 수 / 시간 동안 버티기 */
 export const LEGEND_KINDS = ['boss', 'tally', 'survive'] as const
 /** 신화권 (hidden은 히든 클래스) */
@@ -25,6 +29,8 @@ export type CompanionLook = (typeof COMPANION_LOOKS)[number]
 export type OrbitShape = (typeof ORBIT_SHAPES)[number]
 export type UltimateKind = (typeof ULTIMATE_KINDS)[number]
 export type RainStyle = (typeof RAIN_STYLES)[number]
+export type WaveStyle = (typeof WAVE_STYLES)[number]
+export type BladeStyle = (typeof BLADE_STYLES)[number]
 export type LegendKind = (typeof LEGEND_KINDS)[number]
 export type Realm = (typeof REALMS)[number]
 
@@ -80,7 +86,7 @@ export interface UltimateDef {
   radius: number
   /** 다음 것까지 간격 (초) */
   interval: number
-  style?: SkyStyle | CompanionLook | RainStyle
+  style?: SkyStyle | CompanionLook | RainStyle | WaveStyle | BladeStyle
   /** 쓰는 순간 회복 (생명) */
   heal?: number
 }
@@ -242,7 +248,7 @@ export function parseUltimate(raw: unknown, p: string): UltimateDef {
   const o = obj(raw, p)
   onlyKeys(o, p, ['kind', 'name', 'color', 'reach', 'damage', 'count', 'radius', 'interval', 'style', 'heal'])
   const kind = oneOf(o, 'kind', p, ULTIMATE_KINDS)
-  const styles: readonly string[] = kind === 'skyBarrage' ? SKY_STYLES : kind === 'legion' ? COMPANION_LOOKS : kind === 'rain' ? RAIN_STYLES : []
+  const styles: readonly string[] = { skyBarrage: SKY_STYLES, legion: COMPANION_LOOKS, rain: RAIN_STYLES, wave: WAVE_STYLES, bladeDance: BLADE_STYLES }[kind]
   const def: UltimateDef = {
     kind,
     name: str(o, 'name', p),

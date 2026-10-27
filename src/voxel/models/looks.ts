@@ -1,6 +1,10 @@
 import { createRng } from '../../world/rng'
 import { VoxelGrid } from '../VoxelGrid'
 import { CLASS_LOOK_MODELS } from './classLooks'
+import { asuraKatar } from './mythWeapons'
+import { gearGrid } from './gearLooks'
+import { GEAR_LOOKS, parseGearLook } from '../../looks/gearLooks'
+import { GRADE_COLORS } from '../../art/palette'
 import { HERO_COLORS, heroCape, heroTorso } from './hero'
 
 /**
@@ -518,7 +522,15 @@ export const LOOK_MODELS: Readonly<Record<string, (level?: number) => VoxelGrid>
   totsukaSash,
   futsuGauntlets,
   asuraBladeArmor,
+  asuraKatar,
   asuraBladeGreaves,
   asuraArms,
   ...CLASS_LOOK_MODELS,
+  // 일반 장비 외형 (E18-04-5): 부위·바탕·등급마다
+  ...Object.fromEntries(
+    GEAR_LOOKS.map((look) => {
+      const [part, base, grade] = parseGearLook(look.id)!
+      return [look.id, () => gearGrid(part, base, GRADE_COLORS[grade], grade === 'hero')]
+    }),
+  ),
 }

@@ -50,6 +50,7 @@ function setup(enemies: CombatTarget[]) {
     flash: () => {},
     heal: () => {},
     heroHp: () => 1,
+    chips: () => {},
     setDecoy: (d) => decoys.push(d),
   }
   return { hero, fx, ctx, decoys }

@@ -12,6 +12,9 @@ import type { RelicPowers } from '../game/RelicPowers'
 import type { HeroLife } from '../game/systems/HeroLife'
 import type { ProgressionSystem } from '../game/systems/Progression'
 import type { RelicSystem } from '../game/systems/Relics'
+import type { Encounter } from '../game/Encounter'
+import { ENEMIES, GRUNT } from '../enemies/Giant'
+import type { SkillContext } from '../skills/Skill'
 
 /** 개발 도구가 손대는 게임의 부품 */
 export interface DevParts {
@@ -27,6 +30,9 @@ export interface DevParts {
   pickups: Pickups
   /** 지금 지역의 신화권 (마을은 없음) */
   region: () => string | undefined
+  /** 스킬이 세계와 주고받는 것 (유물 행동을 바로 터뜨릴 때) */
+  skills: SkillContext
+  encounter: Encounter
 }
 
 /**
@@ -50,6 +56,22 @@ export class DevTools {
     const item = rollGear(Math.random, { ...(part ? { part } : {}), ...(grade ? { grade } : {}) })
     this.parts.pickups.drop(item.uid, x ?? p.x + 1.5, z ?? p.z, true, item)
     return item.uid
+  }
+
+  /** 적을 그 자리에 세운다 (점검 스크립트). 없는 id면 졸개 */
+  spawn(id: string, x: number, z: number): void {
+    this.parts.encounter.spawn(ENEMIES[id] ?? GRUNT, { x, z }, true)
+  }
+
+  /** 낀 유물(없으면 고른 신화의 유물)의 행동을 충전 없이 바로 터뜨린다 (E18 연속 스크린숏, 개발 패널) */
+  fireRelic(id?: RelicId): boolean {
+    const { powers, skills } = this.parts
+    const relic = id ?? (powers.manifested ? GODS[powers.manifested]?.relic : undefined)
+    const slot = relic ? powers.loadout.slots.indexOf(relic) : -1
+    const effect = slot >= 0 ? powers.effects[slot] : null
+    if (!effect?.forceFire) return false
+    effect.forceFire(skills)
+    return true
   }
 
   /** 한계를 깬 무렵의 빌드 (균열 시험, E17-07): 영웅 장비 여섯을 끼고, 고른 신화를 최고 단계로, 같은 신화권 신화를 모두 연다 */

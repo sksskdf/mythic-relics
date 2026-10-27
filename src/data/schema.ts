@@ -145,6 +145,25 @@ export const ACTION_PARAMS = {
 export type AuraKind = keyof typeof AURA_PARAMS
 export type ActionKind = keyof typeof ACTION_PARAMS
 
+/**
+ * 행동의 모습 (E18): 같은 종류라도 무엇을 던지고 어떻게 터지는지가 신화마다 다르다. 첫 것이 기본.
+ * 동작은 같고 연출만 바뀐다 (src/skills/actions.ts, src/skills/actionLooks.ts)
+ */
+export const ACTION_LOOKS = {
+  /** 날아갔다 돌아오는 것: 도는 망치, 곧게 나는 창 */
+  hammerThrow: ['hammer', 'spear'],
+  /** 둘레를 치는 고리 */
+  quake: ['dust', 'boar', 'pillar', 'ripple', 'wheels', 'moon', 'thunder', 'gale', 'sun', 'foxfire'],
+  /** 되던지는 것 */
+  ingotThrow: ['ingot', 'moon', 'water', 'stone', 'blade'],
+  /** 남기는 분신 */
+  decoy: ['ghost', 'shade'],
+  flameSweep: ['flame'],
+  /** 꿰뚫는 것 */
+  pierce: ['branch', 'bolt', 'arrow', 'pole', 'beam'],
+} as const satisfies Record<ActionKind, readonly string[]>
+export type ActionLook<K extends ActionKind = ActionKind> = (typeof ACTION_LOOKS)[K][number]
+
 export interface AuraDef {
   kind: AuraKind
   params: Readonly<Record<string, number>>
@@ -152,6 +171,8 @@ export interface AuraDef {
 
 export interface ActionDef {
   kind: ActionKind
+  /** 모습 (ACTION_LOOKS, 없으면 그 종류의 첫 것) */
+  look: ActionLook
   params: Readonly<Record<string, number>>
 }
 
@@ -216,8 +237,8 @@ export interface RelicDef {
   }
 }
 
-function params(o: Obj, path: string, names: readonly string[]): Record<string, number> {
-  onlyKeys(o, path, ['kind', ...names])
+function params(o: Obj, path: string, names: readonly string[], extra: readonly string[] = []): Record<string, number> {
+  onlyKeys(o, path, ['kind', ...extra, ...names])
   return Object.fromEntries(names.map((name) => [name, num(o, name, path, { min: 0 })]))
 }
 
@@ -363,7 +384,11 @@ export function parseRelic(id: string, raw: unknown, refs: RelicRefs, path = `re
       description: str(t, 'description', tp),
       charge,
       release,
-      action: { kind, params: params(actionRaw, `${tp}.action`, ACTION_PARAMS[kind]) },
+      action: {
+        kind,
+        look: actionRaw.look === undefined ? ACTION_LOOKS[kind][0] : oneOf(actionRaw, 'look', `${tp}.action`, ACTION_LOOKS[kind] as readonly ActionLook[]),
+        params: params(actionRaw, `${tp}.action`, ACTION_PARAMS[kind], ['look']),
+      },
       bonus,
     },
   }
@@ -777,7 +802,7 @@ export interface GameData {
  * 유물·클래스·외형의 정합 (DESIGN.md 10.4)
  * - 유물의 외형은 표식 칸일 수 없다.
  * - 같은 신의 유물끼리는 부위가 겹치지 않는다.
- * - 발현 외형은 그 신의 유물이 차지한 부위를 덮지 않는다.
+ * - 신화 외형은 그 신화의 유물(gods.relic)이 차지한 부위를 덮지 않는다. (나머지 유물은 E13부터 재료라 끼지 않는다)
  * - 발현에 필요한 유물 수만큼 그 신의 유물이 있어야 한다. (아직 없는 유물은 히든이 아닌 신만 허용: 신화권이 다 들어오기 전)
  */
 function checkLookHarmony(gods: Record<string, GodDef>, relics: Record<string, RelicDef>): void {
@@ -791,7 +816,7 @@ function checkLookHarmony(gods: Record<string, GodDef>, relics: Record<string, R
       const other = used.get(slot)
       if (other) throw new DataError(`relics.json.${relic.id}.look`, `같은 신의 유물 "${other}"와 부위(${slot})가 겹칩니다`)
       used.set(slot, relic.id)
-      if (god.looks[slot] !== undefined) {
+      if (relic.id === god.relic && god.looks[slot] !== undefined) {
         throw new DataError(`gods.json.${god.id}.looks.${slot}`, `${god.id}의 유물 "${relic.id}"가 차지한 부위라 신화 외형을 둘 수 없습니다`)
       }
     }

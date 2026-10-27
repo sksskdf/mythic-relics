@@ -8,7 +8,30 @@ const DEG = Math.PI / 180
  * gods.json의 attack으로 고른다. 발현하지 않았으면 blade(짧은 검).
  * - 판정 모양: arc 부채꼴, ring 둘레 전부, line 앞으로 곧은 띠(width는 반폭), burst 앞쪽 range 거리의 원(width는 반지름), shot 가장 가까운 적 하나에게 날아감
  */
-export const ATTACK_STYLES = ['blade', 'hammer', 'spear', 'bow', 'staff', 'twin', 'pole', 'bolt', 'fan', 'mirror', 'drum', 'club'] as const
+export const ATTACK_STYLES = [
+  'blade',
+  'hammer',
+  'spear',
+  'bow',
+  'staff',
+  'twin',
+  'pole',
+  'bolt',
+  'fan',
+  'mirror',
+  'drum',
+  'club',
+  // E18: 신화마다 동작이 하나씩 (ART.md 9장)
+  'sixarm',
+  'katana',
+  'greatsword',
+  'trident',
+  'chakram',
+  'pearl',
+  'blossom',
+  'crescent',
+  'boulder',
+] as const
 export type AttackStyle = (typeof ATTACK_STYLES)[number]
 
 /** 3연타 진행: wind 젖히기(0→1), strike 휘두르기(0→1), settle 돌아오기(0→1) */
@@ -20,12 +43,19 @@ export interface SwingPhase {
   settle: number
 }
 
+/** 원거리 공격이 날아가는 모습 (E18): 번개 줄기, 가는 조각, 도는 고리, 포물선으로 나는 바위 */
+export type ShotLook = 'lightning' | 'streak' | 'ring' | 'stone'
+
 export interface StyleDef {
   /** 이름 (설명 카드·상태 탭) */
   name: string
   combo: readonly SwingSpec[]
   /** 휘두르는 자세. 걷기·숨쉬기 자세를 덮어쓴다 */
   pose(rig: HeroRig, p: SwingPhase): void
+  /** shot이 날아가는 모습 (없으면 가는 조각) */
+  shot?: ShotLook
+  /** 마지막 타가 맞은 자리에 튀는 조각 색 (물·꽃잎·돌 등) */
+  chips?: readonly number[]
 }
 
 const s = (o: Partial<SwingSpec> & Pick<SwingSpec, 'duration' | 'hitTime' | 'damage' | 'range'>): SwingSpec => ({
@@ -176,6 +206,7 @@ export const STYLES: Readonly<Record<AttackStyle, StyleDef>> = {
   // 벼락 던지기: 손에 쥔 번개를 적에게 던진다. 마지막 타는 큰 벼락
   bolt: {
     name: '벼락',
+    shot: 'lightning',
     combo: [
       s({ duration: 0.4, hitTime: 0.2, damage: 11, range: 6, shape: 'shot', knockback: 3, lunge: 0 }),
       s({ duration: 0.4, hitTime: 0.2, damage: 11, range: 6, shape: 'shot', knockback: 3, lunge: 0 }),
@@ -264,6 +295,219 @@ export const STYLES: Readonly<Record<AttackStyle, StyleDef>> = {
         body.rotation.y = side * 0.5 * (wind - strike) * (1 - settle)
       }
     },
+  },
+  // 육비 (아수라왕): 여섯 팔이 앞을 번갈아 빠르게 치고, 마지막 타는 팔을 활짝 벌렸다가 엇갈려 크게 벤다
+  sixarm: {
+    name: '육비',
+    combo: [
+      s({ duration: 0.22, hitTime: 0.08, damage: 7, range: 2, shape: 'burst', width: 1.1, knockback: 2, lunge: 0.15 }),
+      s({ duration: 0.22, hitTime: 0.08, damage: 7, range: 2, shape: 'burst', width: 1.1, knockback: 2, lunge: 0.15 }),
+      s({ duration: 0.5, hitTime: 0.24, damage: 20, range: 2.3, halfAngle: 110 * DEG, knockback: 8, lunge: 0.3 }),
+    ],
+    pose(rig, { index, last, wind, strike, settle }) {
+      const { body, rightArm, leftArm } = rig
+      if (last) {
+        rightArm.rotation.z = (-1.6 * wind + 2.4 * strike) * (1 - settle)
+        leftArm.rotation.z = (1.6 * wind - 2.4 * strike) * (1 - settle)
+        rightArm.rotation.x = leftArm.rotation.x = -1.2 * wind * (1 - settle)
+        body.rotation.x = (-0.2 * wind + 0.35 * strike) * (1 - settle)
+      } else {
+        // 두 팔이 엇갈려 연달아 내지른다
+        const jab = Math.min(1, wind * 0.4 + strike) * (1 - settle)
+        const lead = index === 0 ? rightArm : leftArm
+        const back = index === 0 ? leftArm : rightArm
+        lead.rotation.x = -1.6 * jab
+        back.rotation.x = -1.6 * (1 - jab) * 0.6
+        body.rotation.y = (index === 0 ? -0.3 : 0.3) * jab
+      }
+    },
+    chips: [0xc050e0, 0xd7dee5],
+  },
+  // 거합 (스사노오): 칼집에서 뽑으며 내딛어 길게 베고, 되베고, 마지막 타는 두 손으로 큰 원호를 그린다
+  katana: {
+    name: '거합',
+    combo: [
+      s({ duration: 0.4, hitTime: 0.12, damage: 12, range: 3.6, shape: 'line', width: 0.45, knockback: 3, lunge: 0.7 }),
+      s({ duration: 0.32, hitTime: 0.12, damage: 9, range: 2.3, halfAngle: 70 * DEG, knockback: 3, lunge: 0 }),
+      s({ duration: 0.62, hitTime: 0.34, damage: 24, range: 2.8, halfAngle: 100 * DEG, knockback: 8, lunge: 0.2 }),
+    ],
+    pose(rig, { index, last, wind, strike, settle }) {
+      const { body, rightArm, leftArm } = rig
+      if (last) {
+        rightArm.rotation.x = leftArm.rotation.x = -2.6 * wind + 2.2 * strike + 0.4 * settle
+        body.rotation.y = -1.2 * wind + 2.4 * strike - 1.2 * settle
+      } else if (index === 0) {
+        // 허리춤에서 앞으로 뽑아 벤다: 몸을 낮춰 내딛는다
+        body.rotation.y = 0.9 * wind - 1.6 * strike + 0.7 * settle
+        rightArm.rotation.x = 0.5 * wind - 1.6 * strike + 1.1 * settle
+        rightArm.rotation.z = 0.7 * wind * (1 - strike)
+        leftArm.rotation.x = 0.4 * wind * (1 - settle)
+        body.rotation.x = 0.3 * strike * (1 - settle)
+        body.position.y = -0.12 * strike * (1 - settle)
+      } else {
+        body.rotation.y = -0.7 * wind + 1.3 * strike - 0.6 * settle
+        rightArm.rotation.x = -1.4 * wind + 0.4 * strike + 1 * settle
+      }
+    },
+  },
+  // 대검 (해모수): 두 손으로 무겁고 넓게 휩쓸고, 마지막 타는 높이 들어 내려쪼갠다
+  greatsword: {
+    name: '대검',
+    combo: [
+      s({ duration: 0.52, hitTime: 0.24, damage: 15, range: 2.6, halfAngle: 85 * DEG, knockback: 6, lunge: 0.25 }),
+      s({ duration: 0.52, hitTime: 0.24, damage: 15, range: 2.6, halfAngle: 85 * DEG, knockback: 6, lunge: 0.25 }),
+      s({ duration: 0.82, hitTime: 0.44, damage: 34, range: 3.6, shape: 'line', width: 1.2, knockback: 12, lunge: 0.6 }),
+    ],
+    pose(rig, { index, last, wind, strike, settle }) {
+      const { body, rightArm, leftArm } = rig
+      if (last) {
+        rightArm.rotation.x = leftArm.rotation.x = -3.1 * wind + 3 * strike + 0.1 * settle
+        body.rotation.x = -0.3 * wind + 0.7 * strike - 0.4 * settle
+        body.position.y = 0.2 * wind * (1 - strike)
+      } else {
+        const side = index === 0 ? 1 : -1
+        body.rotation.y = side * (1.3 * wind - 2.4 * strike + 1.1 * settle)
+        rightArm.rotation.x = leftArm.rotation.x = -1.5 * wind + 0.5 * strike + 1 * settle
+      }
+    },
+    chips: [0xffcf40, 0xff9a3c],
+  },
+  // 삼지창 (포세이돈): 두 손으로 넓게 찌르고, 마지막 타는 높이 들어 내려찍어 앞에 물을 터뜨린다
+  trident: {
+    name: '삼지창',
+    combo: [
+      s({ duration: 0.36, hitTime: 0.15, damage: 11, range: 3, shape: 'line', width: 1, knockback: 4, lunge: 0.3 }),
+      s({ duration: 0.36, hitTime: 0.15, damage: 11, range: 3, shape: 'line', width: 1, knockback: 4, lunge: 0.3 }),
+      s({ duration: 0.66, hitTime: 0.34, damage: 26, range: 3.2, shape: 'burst', width: 2, knockback: 10, lunge: 0.2 }),
+    ],
+    pose(rig, { index, last, wind, strike, settle }) {
+      const { body, rightArm, leftArm } = rig
+      if (last) {
+        rightArm.rotation.x = leftArm.rotation.x = -3 * wind + 2.6 * strike + 0.4 * settle
+        body.rotation.x = -0.2 * wind + 0.5 * strike - 0.3 * settle
+      } else {
+        // 두 손 찌르기: 둘째는 낮게
+        const low = index === 1 ? 0.35 : 0
+        rightArm.rotation.x = leftArm.rotation.x = (-0.4 - low) * wind - (1.2 - low) * strike + (1.6 - low) * settle
+        body.rotation.x = 0.2 * strike * (1 - settle)
+      }
+    },
+    chips: [0x6fc3ff, 0xbfe9ff, 0x3fa8c8],
+  },
+  // 건곤권 (나타): 왼손으로 금고리를 던지고, 마지막 타는 두 개를 엇갈려 던진다
+  chakram: {
+    name: '건곤권',
+    shot: 'ring',
+    combo: [
+      s({ duration: 0.38, hitTime: 0.18, damage: 11, range: 5.5, shape: 'shot', knockback: 3, lunge: 0 }),
+      s({ duration: 0.38, hitTime: 0.18, damage: 11, range: 5.5, shape: 'shot', knockback: 3, lunge: 0 }),
+      s({ duration: 0.62, hitTime: 0.32, damage: 15, range: 5.5, shape: 'shot', shots: 2, splash: 1, knockback: 6, lunge: 0 }),
+    ],
+    pose(rig, { last, wind, strike, settle }) {
+      const { body, rightArm, leftArm } = rig
+      // 원반을 던지듯 몸 앞으로 감았다가 바깥으로 편다
+      leftArm.rotation.x = -1.2 * wind * (1 - settle)
+      leftArm.rotation.z = (-1 * wind + 2 * strike) * (1 - settle)
+      body.rotation.y = (-0.8 * wind + 1.2 * strike) * (1 - settle)
+      if (last) {
+        rightArm.rotation.x = -1.2 * wind * (1 - settle)
+        rightArm.rotation.z = (1 * wind - 2 * strike) * (1 - settle)
+      }
+    },
+  },
+  // 여의주 (용왕): 왼손의 여의주를 내밀어 앞에 물이 솟고, 마지막 타는 두 손을 들었다 내려 둘레에 물결을 일으킨다
+  pearl: {
+    name: '여의주',
+    combo: [
+      s({ duration: 0.42, hitTime: 0.2, damage: 12, range: 4, shape: 'burst', width: 1.1, knockback: 4, lunge: 0 }),
+      s({ duration: 0.42, hitTime: 0.2, damage: 12, range: 4, shape: 'burst', width: 1.1, knockback: 4, lunge: 0 }),
+      s({ duration: 0.64, hitTime: 0.32, damage: 20, range: 3, shape: 'ring', knockback: 9, lunge: 0 }),
+    ],
+    pose(rig, { last, wind, strike, settle }) {
+      const { body, rightArm, leftArm } = rig
+      if (last) {
+        rightArm.rotation.x = leftArm.rotation.x = -2.8 * wind + 0.8 * strike + 2 * settle
+        rightArm.rotation.z = -1 * strike * (1 - settle)
+        leftArm.rotation.z = 1 * strike * (1 - settle)
+        body.position.y = 0.1 * wind * (1 - strike)
+      } else {
+        leftArm.rotation.x = -0.6 * wind - 1 * strike + 1.6 * settle
+        body.rotation.y = 0.3 * wind * (1 - settle)
+        body.rotation.x = -0.1 * wind + 0.15 * strike * (1 - settle)
+      }
+    },
+    chips: [0x3fc8b0, 0xbff0e6],
+  },
+  // 꽃 (바리): 환생꽃을 흔들어 둘레에 꽃잎을 흩고, 마지막 타는 앞으로 크게 피운다
+  blossom: {
+    name: '꽃',
+    combo: [
+      s({ duration: 0.3, hitTime: 0.12, damage: 8, range: 1.9, shape: 'ring', knockback: 5, lunge: 0 }),
+      s({ duration: 0.3, hitTime: 0.12, damage: 8, range: 1.9, shape: 'ring', knockback: 5, lunge: 0 }),
+      s({ duration: 0.6, hitTime: 0.3, damage: 20, range: 3.4, shape: 'burst', width: 1.8, knockback: 9, lunge: 0.1 }),
+    ],
+    pose(rig, { index, last, wind, strike, settle }) {
+      const { body, rightArm, leftArm } = rig
+      if (last) {
+        rightArm.rotation.x = -2.4 * wind + 1 * strike + 1.4 * settle
+        leftArm.rotation.x = -1.4 * strike * (1 - settle)
+        body.rotation.x = -0.15 * wind + 0.25 * strike * (1 - settle)
+      } else {
+        // 머리 위에서 꽃을 흔든다 (좌우로 떨림)
+        rightArm.rotation.x = -2.5 * Math.max(wind, 1 - settle)
+        rightArm.rotation.z = Math.sin(strike * Math.PI * 4) * 0.45 * (1 - settle)
+        body.rotation.y = (index === 0 ? 0.25 : -0.25) * strike * (1 - settle)
+      }
+    },
+    chips: [0xffb8d8, 0xff8ab0, 0xffffff],
+  },
+  // 초승달 (츠쿠요미): 홀로 넓은 초승달을 긋고, 마지막 타는 달빛 칼날을 멀리 날린다
+  crescent: {
+    name: '초승달',
+    combo: [
+      s({ duration: 0.3, hitTime: 0.12, damage: 9, range: 2.6, halfAngle: 85 * DEG, knockback: 3, lunge: 0.2 }),
+      s({ duration: 0.3, hitTime: 0.12, damage: 9, range: 2.6, halfAngle: 85 * DEG, knockback: 3, lunge: 0.2 }),
+      s({ duration: 0.58, hitTime: 0.3, damage: 20, range: 5.2, shape: 'line', width: 0.7, knockback: 5, lunge: 0 }),
+    ],
+    pose(rig, { index, last, wind, strike, settle }) {
+      const { body, rightArm, leftArm } = rig
+      if (last) {
+        rightArm.rotation.x = leftArm.rotation.x = -2 * wind + 1.6 * strike + 0.4 * settle
+        rightArm.rotation.z = -0.8 * wind * (1 - strike)
+        leftArm.rotation.z = 0.8 * wind * (1 - strike)
+      } else {
+        // 위에서 아래로 비스듬히 긋는다 (첫째는 오른쪽 위에서, 둘째는 왼쪽 위에서)
+        const side = index === 0 ? 1 : -1
+        rightArm.rotation.x = -2.2 * wind + 1.8 * strike + 0.4 * settle
+        rightArm.rotation.z = side * (-0.9 * wind + 1.4 * strike) * (1 - settle)
+        body.rotation.y = side * (0.4 * wind - 0.8 * strike) * (1 - settle)
+      }
+    },
+    chips: [0x9fb0f0, 0xd8e4ff],
+  },
+  // 바위 (마고): 돌망치로 바위를 퍼 올려 쳐 날리고, 마지막 타는 큰 바위를 머리 위로 들어 던진다
+  boulder: {
+    name: '바위',
+    shot: 'stone',
+    combo: [
+      s({ duration: 0.48, hitTime: 0.26, damage: 13, range: 6, shape: 'shot', splash: 1, knockback: 5, lunge: 0 }),
+      s({ duration: 0.48, hitTime: 0.26, damage: 13, range: 6, shape: 'shot', splash: 1, knockback: 5, lunge: 0 }),
+      s({ duration: 0.8, hitTime: 0.44, damage: 28, range: 6, shape: 'shot', splash: 2.2, knockback: 10, lunge: 0 }),
+    ],
+    pose(rig, { last, wind, strike, settle }) {
+      const { body, rightArm, leftArm } = rig
+      if (last) {
+        rightArm.rotation.x = leftArm.rotation.x = -3 * wind + 2.4 * strike + 0.6 * settle
+        body.rotation.x = (-0.3 * wind + 0.55 * strike) * (1 - settle)
+        body.position.y = 0.15 * wind * (1 - strike)
+      } else {
+        // 아래에서 위로 퍼 올리듯 친다 (공을 치듯)
+        rightArm.rotation.x = leftArm.rotation.x = (1.2 * wind - 3 * strike) * (1 - settle)
+        body.rotation.y = (0.6 * wind - 0.9 * strike) * (1 - settle)
+        body.rotation.x = (0.3 * wind - 0.35 * strike) * (1 - settle)
+      }
+    },
+    chips: [0xa89a80, 0x7a6a52, 0xc8b898],
   },
 }
 

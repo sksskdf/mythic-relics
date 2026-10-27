@@ -44,7 +44,7 @@ export const SOURCE_COLORS: Readonly<Record<string, readonly [string, string, st
 }
 
 /** 하늘에서 내리치는 공격(패시브·궁극기)의 빛 */
-export const SKY_COLORS = { lightning: 0x9fe3ff, sun: 0xffd27a, moon: 0xd8e4ff, stone: 0xa89a80, water: 0x6fc3ff, fire: 0xffb02a } as const
+export const SKY_COLORS = { lightning: 0x9fe3ff, sun: 0xffd27a, moon: 0xd8e4ff, stone: 0xa89a80, water: 0x6fc3ff, fire: 0xffb02a, hammer: 0x7fd4ff, storm: 0xf0d040 } as const
 
 /** 신화권 문장(픽셀 그림)에 칠할 밝은 색·어두운 색 */
 export function realmInk(realm: string): { light: string; dark: string } {
