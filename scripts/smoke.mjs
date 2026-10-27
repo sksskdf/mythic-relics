@@ -34,7 +34,8 @@ try {
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text()))
 
   await page.goto(URL)
-  await page.waitForFunction(() => (window.__game?.frame ?? 0) > 10, null, { timeout: 15000 })
+  // CI 러너의 소프트웨어 렌더링은 판마다 두세 배 느리기도 하다 (이웃 조각까지 그리는 E19부터 첫 프레임들이 무거움, troubleshooting.md)
+  await page.waitForFunction(() => (window.__game?.frame ?? 0) > 10, null, { timeout: 30000 })
   const frames = await page.evaluate(() => window.__game.frame)
 
   // 시작 화면: 처음 실행이면 로딩이 끝난 뒤 저장 슬롯 3개(모두 빈 슬롯). 빈 슬롯 → 캐릭터 만들기 → [시작]

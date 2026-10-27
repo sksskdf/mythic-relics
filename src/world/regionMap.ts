@@ -33,7 +33,7 @@ import {
   torii,
   well,
 } from '../voxel/models/landmarks'
-import type { VoxelGrid } from '../voxel/VoxelGrid'
+import { VoxelGrid } from '../voxel/VoxelGrid'
 import { EFFECT_LAYER } from '../render/PixelRenderer'
 import { toonMaterial } from '../render/toon'
 import type { CircleCollider } from './colliders'
@@ -53,7 +53,8 @@ export interface Built {
 /** 소품마다 모양이 조금씩 다른 변형을 몇 개 만들어 두고 돌려 쓴다. */
 const VARIANTS = 3
 
-type VariantFactory = (variant: number, theme: ThemeId) => () => Built
+/** plain: 깊은 숲에 쓰는 단순한 모양 (칸을 두 배로, 비슷한 색을 하나로 모아 삼각형을 줄임). 복셀 모델만 따른다 */
+type VariantFactory = (variant: number, theme: ThemeId, plain?: boolean) => () => Built
 
 /** 같은 모델을 테마 색으로 바꿔 칠한다 (팔레트만 바꾼다) */
 function recolored(grid: VoxelGrid, theme: ThemeDef): VoxelGrid {
@@ -61,13 +62,63 @@ function recolored(grid: VoxelGrid, theme: ThemeDef): VoxelGrid {
   return grid
 }
 
+/** 비슷한 색(sRGB 거리 PLAIN_NEAR 안)을 가장 많이 쓴 색 하나로 모은다. 모양은 그대로, 같은 색 면이 크게 합쳐진다 */
+const PLAIN_NEAR = 0.17
+
+function plainGrid(grid: VoxelGrid): VoxelGrid {
+  const counts = new Map<number, number>()
+  for (const c of grid.cells) if (c) counts.set(c, (counts.get(c) ?? 0) + 1)
+  const order = [...counts.keys()].sort((a, b) => counts.get(b)! - counts.get(a)!)
+  const rgb = (i: number) => new THREE.Color(grid.palette[i]!)
+  const lead: number[] = []
+  const to = new Map<number, number>()
+  for (const i of order) {
+    const c = rgb(i)
+    const near = lead.find((j) => {
+      const d = rgb(j)
+      return Math.hypot(c.r - d.r, c.g - d.g, c.b - d.b) < PLAIN_NEAR
+    })
+    if (near === undefined) lead.push(i)
+    to.set(i, near ?? i)
+  }
+  for (let k = 0; k < grid.cells.length; k++) if (grid.cells[k]) grid.cells[k] = to.get(grid.cells[k]!)!
+  return grid
+}
+
+/** 칸 2×2×2를 하나로 (반이 넘게 차 있으면 가장 많은 색으로). 멀리서 보는 나무는 칸이 커도 모양이 같아 보인다 */
+function halfGrid(grid: VoxelGrid): VoxelGrid {
+  const out = new VoxelGrid(Math.ceil(grid.sizeX / 2), Math.ceil(grid.sizeY / 2), Math.ceil(grid.sizeZ / 2))
+  const votes = new Map<number, number>()
+  for (let y = 0; y < out.sizeY; y++) {
+    for (let z = 0; z < out.sizeZ; z++) {
+      for (let x = 0; x < out.sizeX; x++) {
+        votes.clear()
+        let filled = 0
+        for (let k = 0; k < 8; k++) {
+          const c = grid.get(x * 2 + (k & 1), y * 2 + ((k >> 1) & 1), z * 2 + ((k >> 2) & 1))
+          if (!c) continue
+          filled++
+          votes.set(c, (votes.get(c) ?? 0) + 1)
+        }
+        if (filled < 3) continue
+        let best = 0
+        let most = 0
+        for (const [c, n] of votes) if (n > most) [best, most] = [c, n]
+        out.set(x, y, z, grid.palette[best]!)
+      }
+    }
+  }
+  return out
+}
+
 function cachedVoxel(make: (seed: number) => VoxelGrid, voxelSize: number): VariantFactory {
   const geometries = new Map<string, THREE.BufferGeometry>()
-  return (variant, theme) => () => {
-    const key = `${variant}|${theme}`
+  return (variant, theme, plain = false) => () => {
+    const key = `${variant}|${theme}|${plain}`
     let geometry = geometries.get(key)
     if (!geometry) {
-      geometry = buildVoxelGeometry(recolored(make(variant * 101 + 17), THEMES[theme]), { voxelSize })
+      const grid = recolored(make(variant * 101 + 17), THEMES[theme])
+      geometry = plain ? buildVoxelGeometry(plainGrid(halfGrid(grid)), { voxelSize: voxelSize * 2 }) : buildVoxelGeometry(grid, { voxelSize })
       geometries.set(key, geometry)
     }
     const mesh = new THREE.Mesh(geometry, voxelMaterial())
@@ -300,9 +351,11 @@ function buildBorder(seed: number, halfExtent: number, theme: ThemeId): THREE.Gr
 /** 숲 칸의 간격 (m). 칸마다 조금 흔들어 놓아 줄이 보이지 않게 한다 */
 const FOREST_STEP = 2.1
 /** 숲을 이만한 네모(m)로 나눠 그린다. 화면 밖 네모는 그리지 않는다 (시야 거르기) */
-const FOREST_TILE = 10
-/** 트인 땅에서 이 거리(m) 안의 숲 가장자리는 빽빽하게 심고 그림자를 드리운다. 그 안쪽 깊은 숲은 성기게, 크게, 그림자 없이 */
+const FOREST_TILE = 6
+/** 트인 땅에서 이 거리(m) 안의 숲 가장자리는 빽빽하게 심는다. 그 안쪽 깊은 숲은 성기게, 크게, 단순한 모양으로 */
 const FOREST_EDGE = 6
+/** 그림자는 트인 땅에 닿는 맨 앞줄(이 거리 m 안)만 드리운다. 숲 안쪽 그림자는 우듬지에 가려 보이지 않는다 */
+const FOREST_SHADE = 3
 
 /**
  * 하나로 이어진 세계의 숲 (E19): 칸(한 변 CELL) 안에서 트인 땅 밖(depth > 0)을 나무로 채운다.
@@ -331,26 +384,26 @@ function buildForest(seed: number, theme: ThemeId, depth: (x: number, z: number)
       if (d <= 0) continue
       const edge = d < FOREST_EDGE
       // 깊은 숲은 위에서 내려다보면 우듬지만 보이므로, 덜 심고 크게 키워 틈을 메운다
-      if (skip < (edge ? 0.1 : 0.4)) continue
+      if (skip < (edge ? 0.1 : 0.5)) continue
       dummy.position.set(px, heightAt(px, pz), pz)
       dummy.rotation.set(0, rng() * Math.PI * 2, 0)
-      dummy.scale.setScalar(edge ? 0.9 + grow * 0.6 : 1.2 + grow * 0.6)
+      dummy.scale.setScalar(edge ? 0.9 + grow * 0.6 : 1.2 + grow * 0.5)
       dummy.updateMatrix()
-      const key = `${face}|${kind}|${variant}|${edge ? 1 : 0}|${Math.floor((px + half) / FOREST_TILE)}|${Math.floor((pz + half) / FOREST_TILE)}`
+      const key = `${face}|${kind}|${variant}|${d < FOREST_SHADE ? 1 : 0}|${edge ? 0 : 1}|${Math.floor((px + half) / FOREST_TILE)}|${Math.floor((pz + half) / FOREST_TILE)}`
       const list = spots.get(key) ?? []
       list.push(dummy.matrix.clone())
       spots.set(key, list)
     }
   }
   for (const [key, matrices] of spots) {
-    const [face, kind, variant, edge] = key.split('|') as [ThemeId, PropKind, string, string]
-    const mesh = BUILDERS[kind](Number(variant), face)().object
+    const [face, kind, variant, shade, plain] = key.split('|') as [ThemeId, PropKind, string, string, string]
+    const mesh = BUILDERS[kind](Number(variant), face, plain === '1')().object
     if (!(mesh instanceof THREE.Mesh)) continue
     const trees = new THREE.InstancedMesh(mesh.geometry, mesh.material, matrices.length)
     matrices.forEach((m, i) => trees.setMatrixAt(i, m))
     trees.instanceMatrix.needsUpdate = true
     trees.computeBoundingSphere()
-    trees.castShadow = edge === '1'
+    trees.castShadow = shade === '1'
     trees.receiveShadow = true
     trees.userData.instanced = true
     group.add(trees)
