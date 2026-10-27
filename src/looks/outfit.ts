@@ -10,17 +10,20 @@ export type LookChoice = 'auto' | string | null
 export interface OutfitSources {
   /** 장착한 유물들의 외형 id */
   relicLooks: readonly string[]
+  /** 낀 일반 장비의 외형 (E18-04-5): 기본 모습만 덮고, 유물·신화 외형 아래에 깔린다 */
+  gearLooks?: readonly string[]
   /** 발현한 신의 외형 (칸 → id, 표식 포함). 발현하지 않았으면 비어 있다 */
   manifestLooks: Readonly<Partial<Record<LookSlot, string>>>
 }
 
 /**
  * 장착 상태가 정하는 모습. (E3-06 외형 우선순위)
- * 기본 모험가 < 유물 외형 < 발현 외형. 같은 칸이면 뒤의 것이 덮는다.
+ * 기본 모험가 < 일반 장비 외형(E18) < 유물 외형 < 발현 외형. 같은 칸이면 뒤의 것이 덮는다.
  * 가호(발현하지 않은 신의 유물)는 유물 외형만 보이고, 발현 외형은 붙지 않는다.
  */
 export function autoOutfit(sources: OutfitSources): Outfit {
   const outfit: Outfit = { ...BASE_OUTFIT }
+  for (const id of sources.gearLooks ?? []) outfit[lookDef(id).slot] = id
   for (const id of sources.relicLooks) outfit[lookDef(id).slot] = id
   for (const [slot, id] of Object.entries(sources.manifestLooks) as [LookSlot, string][]) outfit[slot] = id
   return outfit

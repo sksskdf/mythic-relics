@@ -9,6 +9,18 @@ interface Shot {
   to: THREE.Vector3
   t: number
   life: number
+  /** 포물선 높이 (m, 0이면 곧게) */
+  arc: number
+  /** 날며 도는 빠르기 (0이면 앞을 본 채) */
+  spin: number
+}
+
+/** 날아가는 것의 모양 (E18): 크기 배율과 포물선·회전 */
+export interface ShotShape {
+  /** 가로·세로·길이 배율 (기본 1, 1, 1: 0.06×0.06×0.9m 조각) */
+  scale?: [number, number, number]
+  arc?: number
+  spin?: number
 }
 
 /**
@@ -29,19 +41,22 @@ export class Shots {
       mesh.layers.set(EFFECT_LAYER)
       mesh.renderOrder = 12
       this.object.add(mesh)
-      this.pool.push({ mesh, material, from: new THREE.Vector3(), to: new THREE.Vector3(), t: 1, life: 1 })
+      this.pool.push({ mesh, material, from: new THREE.Vector3(), to: new THREE.Vector3(), t: 1, life: 1, arc: 0, spin: 0 })
     }
   }
 
-  /** from에서 to로 seconds초 동안 날아간다 */
-  fire(from: THREE.Vector3, to: THREE.Vector3, color: number, seconds = 0.12): void {
+  /** from에서 to로 seconds초 동안 날아간다. shape로 크기·포물선·회전을 바꾼다 (바위·고리) */
+  fire(from: THREE.Vector3, to: THREE.Vector3, color: number, seconds = 0.12, shape: ShotShape = {}): void {
     const shot = this.pool[this.next]!
     this.next = (this.next + 1) % this.pool.length
     shot.from.copy(from)
     shot.to.copy(to)
     shot.t = 0
     shot.life = seconds
+    shot.arc = shape.arc ?? 0
+    shot.spin = shape.spin ?? 0
     shot.material.color.setHex(color)
+    shot.mesh.scale.set(...(shape.scale ?? [1, 1, 1]))
     shot.mesh.visible = true
     shot.mesh.position.copy(from)
     shot.mesh.lookAt(to)
@@ -58,6 +73,8 @@ export class Shots {
       shot.t += dt
       const k = Math.min(1, shot.t / shot.life)
       shot.mesh.position.lerpVectors(shot.from, shot.to, k)
+      if (shot.arc > 0) shot.mesh.position.y += Math.sin(k * Math.PI) * shot.arc
+      if (shot.spin !== 0) shot.mesh.rotateY(shot.spin * dt)
       shot.material.opacity = 1 - k * 0.3
       if (k >= 1) shot.mesh.visible = false
     }

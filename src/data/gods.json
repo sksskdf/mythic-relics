@@ -65,7 +65,7 @@
       "count": 8,
       "radius": 1.6,
       "interval": 0.16,
-      "style": "lightning"
+      "style": "hammer"
     },
     "looks": {
       "head": "thorHelm",
@@ -146,7 +146,8 @@
     "looks": {
       "head": "lokiCrown",
       "torso": "lokiTunic",
-      "cape": "lokiCape"
+      "cape": "lokiCape",
+      "weapon": "laevateinnBlade"
     },
     "legend": {
       "name": "대장장이들의 내기",
@@ -170,7 +171,7 @@
       "column": 2,
       "row": 1
     },
-    "attack": "blade",
+    "attack": "sixarm",
     "passive": {
       "damageScale": 1.1,
       "bladeStorm": {
@@ -200,6 +201,7 @@
     "ultimate": {
       "kind": "bladeDance",
       "name": "육비난무",
+      "style": "six",
       "color": "#c050e0",
       "reach": 5,
       "damage": 12,
@@ -209,7 +211,8 @@
     },
     "looks": {
       "torso": "asuraBladeArmor",
-      "legs": "asuraBladeGreaves"
+      "legs": "asuraBladeGreaves",
+      "weapon": "asuraKatar"
     },
     "mark": "asuraArms",
     "hidden": true,
@@ -369,6 +372,7 @@
     "ultimate": {
       "kind": "wave",
       "name": "알프헤임의 봄",
+      "style": "bloom",
       "color": "#e6c34e",
       "reach": 6,
       "damage": 30,
@@ -380,7 +384,8 @@
     "looks": {
       "head": "freyrCirclet",
       "torso": "freyrTunic",
-      "cape": "freyrCape"
+      "cape": "freyrCape",
+      "weapon": "freyrSword"
     },
     "legend": {
       "name": "알프헤임의 수확",
@@ -486,7 +491,7 @@
       "column": 1,
       "row": 0
     },
-    "attack": "spear",
+    "attack": "trident",
     "passive": {
       "damageScale": 1.1,
       "pulse": {
@@ -533,6 +538,7 @@
     "ultimate": {
       "kind": "wave",
       "name": "해일",
+      "style": "tide",
       "color": "#3fa8c8",
       "reach": 6,
       "damage": 32,
@@ -614,7 +620,8 @@
     "looks": {
       "head": "hadesCrown",
       "torso": "hadesRobe",
-      "cape": "hadesCape"
+      "cape": "hadesCape",
+      "weapon": "hadesBident"
     },
     "legend": {
       "name": "키클롭스의 선물",
@@ -868,7 +875,8 @@
     "looks": {
       "head": "changeBun",
       "torso": "changeDress",
-      "cape": "changeRibbons"
+      "cape": "changeRibbons",
+      "weapon": "changeBranch"
     },
     "legend": {
       "name": "불사약을 삼킨 밤",
@@ -892,7 +900,7 @@
       "column": 2,
       "row": 0
     },
-    "attack": "staff",
+    "attack": "pearl",
     "passive": {
       "damageScale": 1.05,
       "skyStrike": {
@@ -939,6 +947,7 @@
     "ultimate": {
       "kind": "wave",
       "name": "사해의 해일",
+      "style": "ripple",
       "color": "#3fc8b0",
       "reach": 6,
       "damage": 26,
@@ -974,9 +983,9 @@
       "column": 3,
       "row": 0
     },
-    "attack": "spear",
+    "attack": "chakram",
     "passive": {
-      "damageScale": 1.05,
+      "damageScale": 1.3,
       "trail": {
         "name": "풍화륜 불길",
         "color": "#ffb02a",
@@ -1030,6 +1039,7 @@
     "ultimate": {
       "kind": "bladeDance",
       "name": "삼두육비",
+      "style": "fire",
       "color": "#ff7ab8",
       "reach": 5,
       "damage": 12,
@@ -1067,6 +1077,7 @@
     },
     "attack": "mirror",
     "passive": {
+      "damageScale": 1.25,
       "skyStrike": {
         "name": "햇살",
         "interval": [
@@ -1157,7 +1168,7 @@
       "column": 1,
       "row": 0
     },
-    "attack": "twin",
+    "attack": "crescent",
     "passive": {
       "orbit": {
         "name": "곡옥",
@@ -1200,6 +1211,7 @@
     "ultimate": {
       "kind": "wave",
       "name": "영원한 밤",
+      "style": "night",
       "color": "#6a7ae0",
       "reach": 6,
       "damage": 30,
@@ -1210,7 +1222,8 @@
     "looks": {
       "head": "tsukuyomiHead",
       "torso": "tsukuyomiRobe",
-      "cape": "tsukuyomiCape"
+      "cape": "tsukuyomiCape",
+      "weapon": "tsukuyomiScepter"
     },
     "legend": {
       "name": "우케모치의 연회",
@@ -1236,6 +1249,7 @@
     },
     "attack": "drum",
     "passive": {
+      "damageScale": 1.15,
       "pulse": {
         "name": "천둥북",
         "color": "#f0d040",
@@ -1286,7 +1300,7 @@
       "count": 12,
       "radius": 1.6,
       "interval": 0.12,
-      "style": "lightning"
+      "style": "storm"
     },
     "looks": {
       "head": "raijinHead",
@@ -1316,7 +1330,7 @@
       "column": 3,
       "row": 0
     },
-    "attack": "blade",
+    "attack": "katana",
     "passive": {
       "damageScale": 1.1,
       "bladeStorm": {
@@ -1347,6 +1361,7 @@
     "ultimate": {
       "kind": "wave",
       "name": "폭풍신의 칼바람",
+      "style": "gale",
       "color": "#4a7ad0",
       "reach": 6,
       "damage": 26,
@@ -1381,7 +1396,7 @@
       "column": 0,
       "row": 0
     },
-    "attack": "blade",
+    "attack": "greatsword",
     "passive": {
       "damageScale": 1.15,
       "volley": {
@@ -1446,7 +1461,8 @@
     "looks": {
       "torso": "haemosuRobe",
       "cape": "haemosuCape",
-      "legs": "haemosuBoots"
+      "legs": "haemosuBoots",
+      "weapon": "haemosuSword"
     },
     "legend": {
       "name": "하백과의 둔갑 겨루기",
@@ -1470,7 +1486,7 @@
       "column": 1,
       "row": 0
     },
-    "attack": "staff",
+    "attack": "blossom",
     "passive": {
       "damageScale": 0.95,
       "companions": {
@@ -1525,6 +1541,7 @@
     "ultimate": {
       "kind": "wave",
       "name": "되살림의 물결",
+      "style": "spirit",
       "color": "#9fe0c0",
       "reach": 6,
       "damage": 24,
@@ -1536,7 +1553,8 @@
     "looks": {
       "head": "bariHead",
       "torso": "bariDress",
-      "cape": "bariCape"
+      "cape": "bariCape",
+      "weapon": "bariFlower"
     },
     "legend": {
       "name": "서천 꽃밭 가는 길",
@@ -1610,7 +1628,7 @@
       "count": 18,
       "radius": 1.4,
       "interval": 0.08,
-      "style": "fire"
+      "style": "foxfire"
     },
     "looks": {
       "torso": "dokkaebiTunic",
@@ -1639,7 +1657,7 @@
       "column": 3,
       "row": 0
     },
-    "attack": "hammer",
+    "attack": "boulder",
     "passive": {
       "damageScale": 1.1,
       "skyStrike": {
@@ -1697,7 +1715,8 @@
     "looks": {
       "head": "magoHead",
       "torso": "magoDress",
-      "cape": "magoCape"
+      "cape": "magoCape",
+      "weapon": "magoMallet"
     },
     "legend": {
       "name": "바다를 메운 치마",

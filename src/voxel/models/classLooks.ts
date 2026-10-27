@@ -1,5 +1,6 @@
 import type { VoxelGrid } from '../VoxelGrid'
 import { cape, gear, head, mark, torso, weapon } from './gen'
+import { bariBellFlower, haemosuGreatsword, magoStoneMallet, nezhaFireSpear } from './mythWeapons'
 
 /**
  * E6 1차 클래스(북유럽·그리스·중국·일본·한국)의 외형 모델. 생성기(gen.ts)로 부품을 골라 색을 입힌다.
@@ -104,7 +105,8 @@ export const CLASS_LOOK_MODELS: Readonly<Record<string, Build>> = {
   nezhaHead: () => head({ hair: BLACK, style: 'topknot', gear: 'band', gearColor: 0xe0303a }),
   nezhaTunic: () => torso({ kind: 'tunic', main: 0xe0303a, trim: GOLD, pattern: 'emblem', accent: 0xffd040 }),
   nezhaRibbons: () => cape({ kind: 'ribbons', main: 0xff6a4a, trim: 0xffd040 }),
-  nezhaSpear: () => weapon({ kind: 'spear', shaft: 0xc0302a, head: GOLD, accent: 0xff6a3a }),
+  // 손으로 찍은 신화 무기 (E18, mythWeapons.ts)
+  nezhaSpear: nezhaFireSpear,
   nezhaHalo: (level) => mark({ kind: 'halo', main: 0xff6a4a, light: 0xffd040, stamp: 'flame' }, level),
 
   // ── 아마테라스: 유물(무기·허리·손) / 발현(머리·몸·등)
@@ -145,7 +147,7 @@ export const CLASS_LOOK_MODELS: Readonly<Record<string, Build>> = {
   // ── 해모수: 유물(손·머리·무기) / 발현(몸·등·다리)
   haemosuReins: () => gear({ kind: 'bracers', main: 0xc0302a, accent: GOLD }),
   haemosuCrown: () => head({ hair: BLACK, style: 'topknot', beard: BLACK, gear: 'crown', gearColor: GOLD, horns: 'feathers', hornColor: 0x1c1c1c }),
-  haemosuSword: () => weapon({ kind: 'sword', shaft: 0xc0302a, head: 0xfff0c0, accent: GOLD }),
+  haemosuSword: haemosuGreatsword,
   haemosuRobe: () => torso({ kind: 'robe', main: 0xe0302a, trim: GOLD, pattern: 'emblem', accent: 0xffcf40 }),
   haemosuCape: () => cape({ kind: 'cape', main: GOLD, trim: 0xffcf40 }),
   haemosuBoots: () => gear({ kind: 'boots', main: 0x2a2a2a, accent: GOLD }),
@@ -154,7 +156,7 @@ export const CLASS_LOOK_MODELS: Readonly<Record<string, Build>> = {
   // ── 바리공주: 유물(허리·다리·무기) / 발현(머리·몸·등)
   bariGourd: () => gear({ kind: 'gourd', main: 0x9fe0c0, accent: WHITE }),
   bariIronShoes: () => gear({ kind: 'boots', main: 0x5b636c, accent: 0x8e98a3 }),
-  bariFlower: () => weapon({ kind: 'flower', shaft: 0x4a8a3a, head: 0xff8ab0, accent: 0xfff0a0 }),
+  bariFlower: bariBellFlower,
   bariHead: () => head({ hair: BLACK, style: 'long', gear: 'veil', gearColor: WHITE, gearAccent: 0xe0303a }),
   bariDress: () => torso({ kind: 'dress', main: WHITE, trim: 0xe0303a, pattern: 'sash', accent: 0x4a78c8 }),
   bariCape: () => cape({ kind: 'ribbons', main: 0xe0303a, trim: 0xf0d040 }),
@@ -171,7 +173,7 @@ export const CLASS_LOOK_MODELS: Readonly<Record<string, Build>> = {
 
   // ── 마고할미: 유물(허리·무기·손) / 발현(머리·몸·등)
   magoSkirt: () => gear({ kind: 'sash', main: 0x8a6a4a, accent: 0xc8a070 }),
-  magoMallet: () => weapon({ kind: 'mallet', shaft: WOOD, head: 0x8a8278, accent: 0xc8c0b0 }),
+  magoMallet: magoStoneMallet,
   magoBasket: () => gear({ kind: 'bracers', main: 0x8a6a3a, accent: 0xc8a070 }),
   magoHead: () => head({ hair: 0xe8e8e0, style: 'bun', gear: 'band', gearColor: 0x8a6a4a }),
   magoDress: () => torso({ kind: 'dress', main: 0xa08060, trim: 0xe8e0c8, pattern: 'belt', accent: 0x6a5a3a }),

@@ -1,5 +1,6 @@
 import { type BodyLook, bodyKey } from '../../looks/body'
 import { lookDef, type LookSlot } from '../../looks/catalog'
+import { gearLook, parseGearLook } from '../../looks/gearLooks'
 import { autoOutfit, type LookChoice, type Outfit } from '../../looks/outfit'
 import { godDef, relicDef } from '../../relics/data'
 import type { GameContext } from '../context'
@@ -20,6 +21,7 @@ export class AppearanceSystem {
     const { powers, build } = this.ctx
     const manifested = build.chosen
     return autoOutfit({
+      gearLooks: powers.loadout.slots.map((uid) => (uid ? powers.loadout.gear.get(uid) : undefined)).flatMap((item) => (item ? (gearLook(item) ?? []) : [])),
       relicLooks: powers.loadout.relics.filter((id) => id !== null).map((id) => relicDef(id).look),
       manifestLooks: manifested ? { ...godDef(manifested).looks, mark: godDef(manifested).mark } : {},
     })
@@ -29,7 +31,8 @@ export class AppearanceSystem {
   refresh(): void {
     const { wardrobe, bus } = this.ctx
     const auto = this.auto
-    const added = wardrobe.unlock(Object.values(auto).filter((id): id is string => id !== null))
+    // 장비 외형은 끼고 있는 동안만 보이고 보관함에는 모으지 않는다
+    const added = wardrobe.unlock(Object.values(auto).filter((id): id is string => id !== null && !parseGearLook(id)))
     if (added.length > 0) {
       bus.emit('looksUnlocked', { ids: added })
       bus.emit('progressChanged', {})
