@@ -45,13 +45,13 @@ try {
   await page.locator('.title-slot').first().click()
   await page.locator('.title-swatch').nth(2).click()
   await page.click('.title__button--primary')
-  await page.waitForFunction(() => window.__game.playing, null, { timeout: 5000 })
+  await page.waitForFunction(() => window.__game.playing, null, { timeout: 15000 })
   const skin = await page.evaluate(() => window.__game.wardrobe.body.skin)
   if (skin !== 2) throw new Error(`캐릭터 만들기: 고른 피부가 ${skin}입니다.`)
   console.log('시작 화면 확인: 빈 슬롯 → 캐릭터 만들기(피부 고름) → [시작]으로 플레이 시작')
 
   // 첫 장면 (E12-10): 새로 시작하면 촌장과 대화. HUD가 숨고, 한 번 누르면 글이 완성되고 한 번 더 누르면 다음 줄
-  await page.waitForFunction(() => window.__game.scenes.current === 'opening' && !document.querySelector('.dialog')?.hidden, null, { timeout: 5000 }).catch(() => {
+  await page.waitForFunction(() => window.__game.scenes.current === 'opening' && !document.querySelector('.dialog')?.hidden, null, { timeout: 15000 }).catch(() => {
     throw new Error('첫 장면: 새로 시작했는데 대화 장면이 열리지 않습니다.')
   })
   if (!(await page.evaluate(() => window.__game.hud.root.classList.contains('is-hidden')))) throw new Error('첫 장면: 대화 중에 HUD가 보입니다.')
@@ -86,8 +86,10 @@ try {
     const g = window.__game
     g.hero.teleport(5.2, -7.6)
     g.playerInput.onTalk('대장장이')
+    // 걸어가 말을 거는 동안 실제 프레임을 기다리지 않고 게임 시간을 직접 흘린다 (느린 CI 러너에서도 같게)
+    for (let i = 0; i < 150 && g.scenes.current !== 'talkSmith'; i++) g.advance(1 / 30, 1 / 30)
   })
-  await page.waitForFunction(() => window.__game.scenes.current === 'talkSmith', null, { timeout: 5000 }).catch(() => {
+  await page.waitForFunction(() => window.__game.scenes.current === 'talkSmith', null, { timeout: 15000 }).catch(() => {
     throw new Error('대화: 대장장이 곁에서 말을 걸었는데 장면이 열리지 않습니다.')
   })
   await closeDialog()
@@ -100,7 +102,7 @@ try {
   })
   if (deferred.during || !deferred.menuOpen) throw new Error('대화: 정보 화면이 열린 채 장면이 시작됩니다 (창이 숨은 채 멈춤).')
   await page.evaluate(() => window.__game.menu.toggle(false))
-  await page.waitForFunction(() => window.__game.scenes.current === 'forgeFirst', null, { timeout: 5000 }).catch(() => {
+  await page.waitForFunction(() => window.__game.scenes.current === 'forgeFirst', null, { timeout: 15000 }).catch(() => {
     throw new Error('대화: 정보 화면을 닫았는데 미룬 장면이 열리지 않습니다.')
   })
   await closeDialog()
