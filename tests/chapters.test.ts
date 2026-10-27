@@ -37,6 +37,18 @@ describe('장 데이터 (E22-01)', () => {
     expect(chapterOf('sinsi')).toBeNull()
   })
 
+  it('장 보스를 이기면 그 신화권 신화가 열리고, 신화권마다 처음 하나는 그 입구 성소에서 고른다 (E22-03)', () => {
+    const steps = CHAPTERS.flatMap((c) => c.steps)
+    expect(steps.filter((s) => s.opens).map((s) => [s.region, s.opens])).toEqual([
+      ['utgard', 'norse'],
+      ['lycia', 'greek'],
+    ])
+    expect(steps.filter((s) => s.kind === 'choose').map((s) => [s.region, s.realm])).toEqual([
+      ['midgard', 'norse'],
+      ['olympus', 'greek'],
+    ])
+  })
+
   it('장마다 보스나 대장간으로 끝나고, 목표 한 줄은 짧다', () => {
     for (const c of CHAPTERS) {
       for (const s of c.steps) expect([...s.goal].length, s.goal).toBeLessThanOrEqual(GOAL_MAX_CHARS)
@@ -60,6 +72,7 @@ describe('장 데이터 (E22-01)', () => {
     bad((d) => (d.north.steps[1].goal = '가'.repeat(GOAL_MAX_CHARS + 1)), /자 안/)
     bad((d) => delete d.finale, /마지막 무대의 보스/)
     bad((d) => (d.greek.steps[0].when = 'x'), /모르는 항목/)
+    bad((d) => (d.north.steps[0].opens = 'norse'), /boss에만/)
   })
 })
 

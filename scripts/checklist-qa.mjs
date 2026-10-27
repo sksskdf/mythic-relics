@@ -78,14 +78,18 @@ const sections = {
     const base = rows[0].damage
     for (const r of rows) r.vsOne = `${Math.round((r.damage / base - 1) * 100)}%`
     await page.close()
-    // 새로 여는 순간: 경험치로 로키가 열릴 때 화면
+    // 새로 여는 순간 (E22-03): 경험치가 차면 미드가르드 성소 가운데에서 넷 가운데 하나를 골라 연다
     const page2 = await fresh(browser, '?fresh&relics=&region=midgard')
     await page2.evaluate(() => {
       const g = window.__game
-      g.dev.choose('thor')
       g.storyScenes = true
       g.dev.gainMastery()
+      g.hero.teleport(g.legend.center.x, g.legend.center.z)
     })
+    await page2.waitForFunction(() => window.__game.mythPickerOpen, null, { timeout: 30000 })
+    await shot(page2, 'e12-1-pick')
+    await page2.click('.myth-pick__card[data-god="loki"]')
+    await page2.waitForTimeout(500)
     const opened = await page2.evaluate(() => ({ opened: window.__game.progress.opened, scene: window.__game.scenes.current }))
     await shot(page2, 'e12-1-open')
     await page2.close()

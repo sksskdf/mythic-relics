@@ -16,7 +16,7 @@
       { "kind": "enter", "region": "jotunheim", "goal": "요툰헤임 빙하로" },
       { "kind": "level", "region": "jotunheim", "n": 2, "goal": "요툰헤임 성소의 전설을 깬다" },
       { "kind": "enter", "region": "utgard", "goal": "우트가르드로" },
-      { "kind": "boss", "region": "utgard", "goal": "거인 왕을 쓰러뜨린다" }
+      { "kind": "boss", "region": "utgard", "opens": "norse", "goal": "거인 왕을 쓰러뜨린다" }
     ]
   },
   "interlude": {
@@ -33,10 +33,11 @@
     "lands": { "olympus": 3.6, "delphi": 5, "lycia": 7 },
     "steps": [
       { "kind": "enter", "region": "olympus", "goal": "올림포스 기슭으로" },
+      { "kind": "choose", "region": "olympus", "realm": "greek", "goal": "올림포스 성소에서 그리스 신화를 연다" },
       { "kind": "enter", "region": "delphi", "goal": "델포이 골짜기로" },
       { "kind": "level", "region": "delphi", "n": 3, "goal": "델포이 성소의 전설을 깬다" },
       { "kind": "enter", "region": "lycia", "goal": "리키아 화산으로" },
-      { "kind": "boss", "region": "lycia", "goal": "키마이라를 쓰러뜨린다" }
+      { "kind": "boss", "region": "lycia", "opens": "greek", "goal": "키마이라를 쓰러뜨린다" }
     ]
   },
   "finale": {

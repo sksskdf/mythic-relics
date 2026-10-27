@@ -30,7 +30,7 @@ export class ProgressionSystem {
 
   constructor(private readonly ctx: GameContext) {
     ctx.bus.on('giantKilled', ({ giant }) => this.onGiantKilled(giant))
-    ctx.bus.on('mythOpened', ({ god }) => this.announceOpened(god))
+    ctx.bus.on('mythOpened', ({ god, quiet }) => !quiet && this.announceOpened(god))
   }
 
   /** 지금 이 지역 성소에서 열 수 있는 승급 전설 (없으면 null) */

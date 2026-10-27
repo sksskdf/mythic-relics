@@ -81,6 +81,8 @@ export class UtgardLegend {
   radius = 0
   /** 이 지역에 성소가 있나 (마을에는 없다) */
   present = true
+  /** 전설이 아니어도 빛기둥을 세운다 (성소에서 신화를 고를 수 있을 때, E22-03) */
+  beacon = false
   /** 시련 규칙 (E16): 적 수 배율, 시간 제한(초, 없으면 null). 전설이 끝나면 되돌린다 */
   rules: { crowd: number; timeLimit: number | null } = { crowd: 1, timeLimit: null }
   /** 시간 제한이 있는 전설의 남은 시간 */
@@ -153,8 +155,9 @@ export class UtgardLegend {
     const ready = kind !== null
     // 들어갈 수 있을 때만 빛기둥이 서고 룬이 밝게 빛난다. (글 대신 빛으로 알려 준다)
     const pulse = 0.5 + Math.sin(this.time * 3) * 0.5
-    this.beamMaterial.opacity = this.phase === 'idle' && ready ? 0.18 + pulse * 0.12 : 0
-    this.glyphMaterial.opacity = this.phase !== 'idle' ? 0.15 : ready ? 0.5 + pulse * 0.4 : 0.2
+    const lit = ready || (this.beacon && this.present)
+    this.beamMaterial.opacity = this.phase === 'idle' && lit ? 0.18 + pulse * 0.12 : 0
+    this.glyphMaterial.opacity = this.phase !== 'idle' ? 0.15 : lit ? 0.5 + pulse * 0.4 : 0.2
     this.barrierMaterial.opacity = 0.22 + pulse * 0.08
 
     if (this.phase === 'idle') {

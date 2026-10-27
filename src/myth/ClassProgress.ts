@@ -33,7 +33,7 @@ export const PER_OPENED = { damage: 0.04, maxHp: 5 }
 /**
  * 신화 성장 기록. (DESIGN.md 5.2, E12-02 → E21-01)
  * - 몬스터를 잡으면 고른 신화만 경험치를 받는다 (`masteryShares`). 고른 신화가 없으면 그 신화권 신들이 받아 첫 신화를 연다.
- * - 경험치가 문턱을 넘으면 1단계가 열린다. 한 번 열면 영구다.
+ * - 경험치가 문턱을 넘으면 1단계가 열린다. 데모에서는 문턱에서 멈추고 성소에서 넷 중 하나를 고른다 (E22-03). 한 번 열면 영구다.
  * - 2단계부터는 경험치가 차고 그 신화의 전설을 깨야 오른다. 데모는 3단계까지 (levelCap).
  * - 총 승급 횟수만큼 기본 능력치가 크게 오른다 (PER_PROMOTION).
  */
@@ -41,8 +41,14 @@ export class ClassProgress {
   readonly records = new Map<God, ClassRecord>()
   /** 고른 신화 (E12-04). 지금은 1개, 보상으로 2개까지 (CHOSEN_SLOTS) */
   chosen: God[] = []
-  /** 엔딩 뒤인가 (한계를 깸). 그 뒤로는 4단계까지 오른다 */
-  constructor(private readonly afterEnding: () => boolean = () => false) {}
+  /**
+   * afterEnding: 엔딩 뒤인가. 그 뒤로는 4단계까지 오른다.
+   * openByXp: 경험치가 문턱을 넘으면 신화가 저절로 열리는가. 데모(엔딩 전)에서는 끄고, 문턱까지만 쌓아 성소에서 고르게 한다 (E22-03)
+   */
+  constructor(
+    private readonly afterEnding: () => boolean = () => false,
+    private readonly openByXp: () => boolean = () => true,
+  ) {}
 
   /** 개발 지름길이 데모 끝 단계를 넘겼다 (4단계 외형·궁극기 점검) */
   uncapped = false
@@ -81,6 +87,11 @@ export class ClassProgress {
     return godDef(god).titles[Math.max(1, this.level(god)) - 1]!
   }
 
+  /** 쌓인 경험치 (기록을 만들지 않고 읽는다) */
+  xpOf(god: God): number {
+    return this.records.get(god)?.xp ?? 0
+  }
+
   /** 다음 단계까지 필요한 경험치. 오를 수 있는 끝 단계면 0 */
   xpNeeded(god: God): number {
     const level = this.level(god)
@@ -114,8 +125,9 @@ export class ClassProgress {
     const record = this.record(god)
     const total = record.xp + amount
     if (record.level === 0) {
-      if (total < MASTERY_TO_OPEN) {
-        record.xp = total
+      if (total < MASTERY_TO_OPEN || !this.openByXp()) {
+        // 데모에서는 문턱까지만 쌓인다: 그 신화권 성소에서 하나를 고르는 순간이 된다 (E22-03)
+        record.xp = Math.min(total, MASTERY_TO_OPEN)
         return null
       }
       this.open(god)

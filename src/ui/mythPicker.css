@@ -1,0 +1,79 @@
+/* 신화 고르기 (E22-03): 성소 가운데에 서면 그 신화권 신화 넷이 카드로 선다 */
+.myth-pick {
+  position: fixed;
+  /* 가운데에 두되 너비는 카드 넷만큼 (left 50%로 옮기면 화면 반 너비에서 줄이 꺾인다) */
+  inset: 0;
+  margin: auto;
+  width: fit-content;
+  height: fit-content;
+  /* 정보 화면(40)·일시 정지(45) 아래 */
+  z-index: 35;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-4);
+  max-width: calc(100vw - var(--sp-7));
+  padding: var(--sp-6);
+  background: var(--c-veil);
+  box-shadow: 0 0 0 2px var(--c-groove);
+  font-family: var(--font-body);
+  pointer-events: auto;
+}
+.myth-pick[hidden] {
+  display: none;
+}
+.myth-pick__title {
+  font: var(--t-title);
+  color: var(--c-moon);
+}
+.myth-pick__note {
+  font: var(--t-small);
+  color: var(--c-ink-2);
+  text-align: center;
+}
+.myth-pick__row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--sp-4);
+}
+.myth-pick__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 150px;
+  padding: var(--sp-5) var(--sp-4);
+  border: 0;
+  border-top: 2px solid var(--glow);
+  background: var(--c-stone-hi);
+  box-shadow: var(--stone-raised);
+  color: var(--c-ink-1);
+  cursor: pointer;
+}
+.myth-pick__card img {
+  width: 48px;
+  height: 48px;
+  image-rendering: pixelated;
+}
+.myth-pick__card b {
+  font: var(--t-body);
+  font-weight: normal;
+  color: var(--glow);
+}
+.myth-pick__card span {
+  font: var(--t-small);
+  color: var(--c-gold-soft);
+}
+.myth-pick__card ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font: var(--t-small);
+  color: var(--c-ink-2);
+  text-align: center;
+}
+.myth-pick__card:hover {
+  background: var(--c-stone-hover);
+  outline: 1px solid var(--glow);
+}

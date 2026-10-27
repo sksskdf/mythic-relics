@@ -40,8 +40,11 @@ export interface GameEvents {
   manifested: { god: God }
   /** 승급했다. */
   promoted: { god: God; title: string }
-  /** 신화가 처음 열렸다: 숙련 문턱(E12-02) 또는 그 신 유물을 처음 손에 넣음(E12-04) */
-  mythOpened: { god: God }
+  /**
+   * 신화가 처음 열렸다: 숙련 문턱(E12-02), 그 신 유물을 처음 손에 넣음(E12-04), 성소에서 고름·장 보스(E22-03).
+   * quiet면 신화마다 카드·장면을 띄우지 않는다 (장 보스가 여럿을 한꺼번에 열 때 한 장으로 알린다)
+   */
+  mythOpened: { god: God; quiet?: boolean }
   /** 주인공이 맞았다. */
   heroHurt: { damage: number }
   /** 주인공이 쓰러졌다. */

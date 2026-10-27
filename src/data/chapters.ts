@@ -30,6 +30,8 @@ export interface ChapterStep {
   realm?: string
   /** level: 신화 단계, forge: 유물 단계 */
   n?: number
+  /** boss: 이기면 그 신화권의 닫힌 신화가 모두 열린다 (E22-03) */
+  opens?: string
   /** HUD 목표 한 줄 */
   goal: string
 }
@@ -72,7 +74,7 @@ export function parseChapters(rawChapters: unknown, regions = REGIONS, path = 'c
     const steps = rows.map((row, i): ChapterStep => {
       const sp = `${p}.steps[${i}]`
       const s: Obj = obj(row, sp)
-      onlyKeys(s, sp, ['kind', 'region', 'realm', 'n', 'goal'])
+      onlyKeys(s, sp, ['kind', 'region', 'realm', 'n', 'opens', 'goal'])
       const kind = oneOf(s, 'kind', sp, STEP_KINDS)
       const regionId = str(s, 'region', sp)
       const region = regions[regionId]
@@ -86,6 +88,8 @@ export function parseChapters(rawChapters: unknown, regions = REGIONS, path = 'c
       if (kind === 'level' || kind === 'forge') step.n = num(s, 'n', sp, kind === 'level' ? { min: 2, max: 4 } : { min: 1, max: 4 })
       else if (s.n !== undefined) throw new DataError(`${sp}.n`, '단계는 level·forge에만 씁니다')
       if (kind === 'boss' && !region.boss) throw new DataError(`${sp}.region`, `보스가 없는 땅입니다 ("${regionId}")`)
+      if (kind === 'boss' && s.opens !== undefined) step.opens = oneOf(s, 'opens', sp, REALMS)
+      else if (s.opens !== undefined) throw new DataError(`${sp}.opens`, '여는 신화권은 boss에만 씁니다')
       if (kind === 'choose' && !region.sanctuary) throw new DataError(`${sp}.region`, `성소가 없는 땅입니다 ("${regionId}")`)
       if (kind === 'forge' && region.kind !== 'hub') throw new DataError(`${sp}.region`, '유물은 마을 대장간에서 벼립니다')
       return step

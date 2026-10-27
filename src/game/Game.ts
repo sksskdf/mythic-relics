@@ -46,6 +46,7 @@ import { RelicPowers } from './RelicPowers'
 import { Stage } from './Stage'
 import { AppearanceSystem } from './systems/Appearance'
 import { ChapterSystem } from './systems/Chapters'
+import { MythChoiceSystem } from './systems/MythChoice'
 import { DamageSystem } from './systems/Damage'
 import { Effects } from './systems/Effects'
 import { HeroLife } from './systems/HeroLife'
@@ -61,6 +62,7 @@ import { DialogBox } from '../ui/DialogBox'
 import { DevTools } from '../dev/DevTools'
 import { ChapterProgress } from '../progress/Chapters'
 import { Barriers } from '../world/Barriers'
+import { MythPicker } from '../ui/MythPicker'
 import { Conveniences } from '../progress/Conveniences'
 import { Ending } from '../progress/Ending'
 import { ThreatProgress } from '../progress/Threat'
@@ -121,7 +123,11 @@ export class Game {
   readonly pickups = new Pickups()
   /** 첫 엔딩을 보았나 (E21-06): 엔딩 뒤 장치는 여기서만 연다 */
   readonly ending = new Ending()
-  readonly progress = new ClassProgress(() => this.ending.has('mythStage4'))
+  readonly progress = new ClassProgress(
+    () => this.ending.has('mythStage4'),
+    // 데모에서는 경험치로 저절로 열리지 않고 성소에서 고른다 (E22-03)
+    () => this.ending.reached,
+  )
   readonly drops = new DropTable()
   readonly wardrobe = new Wardrobe()
   readonly threat = new ThreatProgress()
@@ -146,6 +152,9 @@ export class Game {
   readonly chapterSystem: ChapterSystem
   /** 막힌 땅으로 가는 통로의 결계 (E22-02) */
   private readonly barriers = new Barriers()
+  /** 성소에서 신화 고르기 (E22-03) */
+  readonly mythChoice: MythChoiceSystem
+  private readonly mythPicker: MythPicker
   /** 성소의 전설과 시련 결계 (E6-04) */
   readonly legend: UtgardLegend
   /** 주인공 길찾기 격자 */
@@ -413,6 +422,8 @@ export class Game {
     this.life = new HeroLife(this.ctx)
     this.threatSystem = new ThreatSystem(this.ctx)
     this.chapterSystem = new ChapterSystem(this.ctx)
+    this.mythPicker = new MythPicker(this.hud.root)
+    this.mythChoice = new MythChoiceSystem(this.ctx, this.mythPicker)
     // 다음 장이 열리면 그 땅으로 가는 결계가 풀린다 (E22-02)
     this.bus.on('chapterChanged', () => this.world.refreshLinks())
     this.trialSystem = new TrialSystem(this.ctx, this.growth, this.threatSystem)
@@ -666,9 +677,14 @@ export class Game {
     this.audio.update()
   }
 
-  /** 정보 화면이나 일시 정지 메뉴가 열려 있어 게임이 멈췄는가 */
+  /** 신화 고르기 카드가 떠 있나 (봇·점검용) */
+  get mythPickerOpen(): boolean {
+    return this.mythPicker.open
+  }
+
+  /** 정보 화면·일시 정지 메뉴·신화 고르기가 열려 있어 게임이 멈췄는가 */
   get paused(): boolean {
-    return this.menu.open || (this.pauseMenu?.open ?? false)
+    return this.menu.open || (this.pauseMenu?.open ?? false) || (this.mythPicker?.open ?? false)
   }
 
   /**
@@ -791,6 +807,7 @@ export class Game {
     this.combat.targetScale = this.targetScale
     this.updateEnemies(dt)
     this.growth.update(dt)
+    this.mythChoice.update()
     this.trialSystem.update(dt)
     this.riftSystem.update(dt)
     this.life.update(dt)
@@ -810,7 +827,7 @@ export class Game {
       this.hud.showToast('성소를 찾았다 · 지도')
       this.bus.emit('progressChanged', {})
     }
-    this.minimap.update(dt, { hero: position, relics: this.pickups.list, sanctuaryReady: this.legend.present && this.growth.sanctuaryOpen })
+    this.minimap.update(dt, { hero: position, relics: this.pickups.list, sanctuaryReady: this.legend.present && (this.growth.sanctuaryOpen || this.mythChoice.here !== null) })
     // 이웃 땅 조각과 이웃 무리는 한 프레임에 하나씩만 짓는다 (조각이 먼저)
     if (!this.stage.update(this.elapsed)) this.encounter.buildStep()
     this.stage.follow(position)

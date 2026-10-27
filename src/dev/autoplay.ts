@@ -99,6 +99,9 @@ export class Autoplayer {
     const { powers, progress, region, regions } = this.game
     const fieldOf = (god: God) => Object.values(regions).find((r) => r.realm === godDef(god).realm && r.zone === 'entrance')?.id
     const manifested = powers.manifested
+    // 성소에서 신화를 고를 수 있으면 그 땅으로 (E22-03)
+    const offer = this.game.mythChoice.offer()
+    if (offer) return offer.region
     if (manifested && godDef(manifested).legend && progress.readyToPromote(manifested)) return fieldOf(manifested) ?? region.id
     // 벼릴 재료가 차면 마을 대장간으로 (E13-08)
     const hub = Object.values(regions).find((r) => r.kind === 'hub')?.id ?? region.id
@@ -248,6 +251,15 @@ export class Autoplayer {
         if (!hero.isMoving) hero.moveTo(legend.center)
       } else this.game.trialSystem.start(trial, 1)
       this.step = 12
+      return
+    }
+
+    // 4.8 신화 고르기 (E22-03): 성소 가운데로 가서, 카드가 뜨면 정한 신(없으면 첫 신화)을 고른다
+    const offer = this.game.mythChoice.here
+    if (offer && !legend.active && hp > 0.6) {
+      if (this.game.mythPickerOpen) this.game.mythChoice.pick(this.god && offer.gods.includes(this.god) ? this.god : offer.gods[0]!)
+      else if (dist(here, legend.center) > 1.2) hero.moveTo(legend.center)
+      this.step = 15
       return
     }
 
