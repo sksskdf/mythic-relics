@@ -497,9 +497,13 @@ try {
     const p = g.riftSystem.run.floor.portal
     g.hero.teleport(p.x, p.z)
     g.riftSystem.update(0.1)
-    return { depth: g.riftSystem.run?.depth, blessings: g.riftSystem.run?.blessings.length, region: g.region.id }
+    g.stage.flush()
+    g.encounter.flushNeighbors()
+    // 균열은 세계 밖 따로 된 공간 (E19-06): 이웃 땅 조각·무리·통로가 없다
+    return { depth: g.riftSystem.run?.depth, blessings: g.riftSystem.run?.blessings.length, region: g.region.id, chunks: g.stage.others.size, parked: g.encounter.parkedGiants.length, links: g.world.links.length }
   })
   if (floor2.depth !== 2 || floor2.blessings !== 1) throw new Error(`균열: 축복을 고르고 문에 닿았는데 2층이 아닙니다 ${JSON.stringify(floor2)}`)
+  if (floor2.chunks || floor2.parked || floor2.links) throw new Error(`균열: 세계 밖인데 이웃 땅이 붙어 있습니다 ${JSON.stringify(floor2)}`)
   // 나가는 문: 밀려서(걸어가던 곳이 아닌데) 밟으면 그대로, 문으로 걸어가면 나간다
   const pushed = await page.evaluate(() => {
     const g = window.__game
