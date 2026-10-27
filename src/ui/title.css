@@ -106,7 +106,7 @@
 }
 .title__button:hover,
 .title__button:focus-visible {
-  background: #4a4e58;
+  background: var(--c-stone-hover);
   outline: 1px solid var(--c-moon);
   outline-offset: 4px;
 }

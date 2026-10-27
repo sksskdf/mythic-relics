@@ -21,6 +21,15 @@ const TICK = 0.5
 /** 메아리 파동 넓이: 그 패시브 1단계 넓이의 비율 */
 const PULSE_SHARE = 0.7
 
+/** 장면에서 빼고, 이것만 쓰는 형상이면 GPU에서도 해제한다 (터질 때마다 새로 만들므로) */
+function release(object: THREE.Object3D, owned: boolean): void {
+  object.removeFromParent()
+  if (!owned) return
+  object.traverse((o) => {
+    if (o instanceof THREE.Mesh) o.geometry.dispose()
+  })
+}
+
 /**
  * 상시 효과의 메아리 (E12-03, DESIGN.md 4.2.1).
  * 고르지 않은 열린 신화마다, 그 신화 고유 패시브 부품이 가끔 한 번 터진다.
@@ -34,7 +43,8 @@ export class MythEchoes {
 
   private readonly timers = new Map<God, number>()
   private readonly hits = new Map<God, number>()
-  private readonly ghosts: { root: THREE.Object3D; target: CombatTarget; from: THREE.Vector3; t: number; damage: number; color: number }[] = []
+  /** owned: 이 메아리만 쓰는 형상이라 사라질 때 해제한다 (그림자 분신은 주인공과 형상을 함께 쓴다) */
+  private readonly ghosts: { root: THREE.Object3D; target: CombatTarget; from: THREE.Vector3; t: number; damage: number; color: number; owned: boolean }[] = []
   private readonly orbs: { mesh: THREE.Mesh; t: number; radius: number; damage: number; struck: Set<CombatTarget> }[] = []
   private readonly rings: { mesh: THREE.Mesh; life: number; radius: number }[] = []
   private readonly flames: { mesh: THREE.Mesh; x: number; z: number; life: number; full: number; dps: number; width: number }[] = []
@@ -137,7 +147,8 @@ export class MythEchoes {
         root.position.set(hero.x + Math.sin(ctx.hero.facing + side * 1.6) * 1.2, hero.y, hero.z + Math.cos(ctx.hero.facing + side * 1.6) * 1.2)
         this.fx.add(root)
         ctx.puffs.burst(root.position, 5, 1)
-        this.ghosts.push({ root, target, from: root.position.clone(), t: 0, damage, color: new THREE.Color(comp.color).getHex() })
+        const owned = comp.look === 'raven' || comp.look === 'boar' || comp.look === 'hound'
+        this.ghosts.push({ root, target, from: root.position.clone(), t: 0, damage, color: new THREE.Color(comp.color).getHex(), owned })
         break
       }
       case 'orbit': {
@@ -239,7 +250,7 @@ export class MythEchoes {
       const fade = (g.t - GHOST_DASH) / GHOST_FADE
       g.root.scale.setScalar(Math.max(0.05, 1 - fade))
       if (fade >= 1) {
-        g.root.removeFromParent()
+        release(g.root, g.owned)
         this.ghosts.splice(i, 1)
       }
     }
@@ -261,7 +272,8 @@ export class MythEchoes {
         ctx.hit(enemy, o.damage, dx / len, dz / len, 1.5, 'normal', 'orbit')
       }
       if (o.t >= ORB_TURN) {
-        o.mesh.removeFromParent()
+        release(o.mesh, true)
+        ;(o.mesh.material as THREE.Material).dispose()
         this.orbs.splice(i, 1)
       }
     }
@@ -276,7 +288,7 @@ export class MythEchoes {
       r.mesh.scale.setScalar(0.4 + t * r.radius)
       ;(r.mesh.material as THREE.MeshBasicMaterial).opacity = (1 - t) * 0.7
       if (r.life <= 0) {
-        r.mesh.removeFromParent()
+        release(r.mesh, true)
         ;(r.mesh.material as THREE.Material).dispose()
         this.rings.splice(i, 1)
       }
@@ -289,7 +301,7 @@ export class MythEchoes {
       f.life -= dt
       ;(f.mesh.material as THREE.MeshBasicMaterial).opacity = Math.max(0, f.life / f.full) * 0.7
       if (f.life <= 0) {
-        f.mesh.removeFromParent()
+        release(f.mesh, true)
         ;(f.mesh.material as THREE.Material).dispose()
         this.flames.splice(i, 1)
       }
@@ -317,10 +329,10 @@ export class MythEchoes {
   }
 
   dispose(): void {
-    for (const g of this.ghosts.splice(0)) g.root.removeFromParent()
-    for (const o of this.orbs.splice(0)) o.mesh.removeFromParent()
-    for (const r of this.rings.splice(0)) r.mesh.removeFromParent()
-    for (const f of this.flames.splice(0)) f.mesh.removeFromParent()
+    for (const g of this.ghosts.splice(0)) release(g.root, g.owned)
+    for (const o of this.orbs.splice(0)) release(o.mesh, true)
+    for (const r of this.rings.splice(0)) release(r.mesh, true)
+    for (const f of this.flames.splice(0)) release(f.mesh, true)
     this.dots.clear()
     for (const m of this.materials.values()) m.dispose()
   }

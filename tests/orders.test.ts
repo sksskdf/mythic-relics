@@ -103,6 +103,37 @@ describe('클릭 지시', () => {
     step(4)
     expect(hero.object.position.z).toBeGreaterThan(8.5)
   })
+
+  it('맵 밖을 누르면 가장자리까지 가서 멈추고, 그 뒤에는 둘레 적과 싸운다', () => {
+    const { target, hits } = dummy(18.2, 0)
+    const { hero, orders, step } = setup([target])
+    orders.press({ x: 0, z: 40 }, null)
+    step(5)
+    expect(hero.object.position.z).toBeGreaterThan(19)
+    expect(orders.order).toBeNull()
+    hero.teleport(16.5, 0)
+    step(2)
+    expect(hits.length).toBeGreaterThan(0)
+  })
+
+  it('결계 밖을 누르면 결계 가장자리에서 멈춘다 (승급 전설)', () => {
+    const { hero, orders, step } = setup([])
+    hero.arena = { x: 0, z: 0, radius: 6 }
+    orders.press({ x: 0, z: 15 }, null)
+    step(3)
+    expect(Math.hypot(hero.object.position.x, hero.object.position.z)).toBeLessThanOrEqual(6)
+    expect(hero.isMoving).toBe(false)
+    expect(orders.order).toBeNull()
+  })
+
+  it('길이 막혀 나아가지 못하면 잠깐 뒤 걷기를 그만둔다', () => {
+    const { hero, step } = setup([])
+    // 길찾기가 모르는 벽(움직이는 장애물 등)에 막힌 경우
+    ;(hero as unknown as { colliders: () => unknown }).colliders = () => [{ x: 0, z: 1.5, radius: 1 }]
+    hero.moveTo({ x: 0, z: 8 })
+    step(1)
+    expect(hero.isMoving).toBe(false)
+  })
 })
 
 describe('무리 밀고 지나가기', () => {

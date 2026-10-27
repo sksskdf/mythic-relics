@@ -90,7 +90,20 @@ try {
     throw new Error('대화: 대장장이 곁에서 말을 걸었는데 장면이 열리지 않습니다.')
   })
   await closeDialog()
-  console.log('대화 확인: 신화 개방 장면(한 번만, 세계 멈춤), 마을 사람에게 말 걸기')
+  // 정보 화면에서 처음 벼리기 등으로 장면이 오면, 창(HUD 안)이 숨은 채 멈추지 않게 창을 닫을 때까지 미룬다
+  const deferred = await page.evaluate(() => {
+    const g = window.__game
+    g.menu.toggle(true)
+    g.story('forgeFirst')
+    return { during: g.scenes.active, menuOpen: g.menu.open }
+  })
+  if (deferred.during || !deferred.menuOpen) throw new Error('대화: 정보 화면이 열린 채 장면이 시작됩니다 (창이 숨은 채 멈춤).')
+  await page.evaluate(() => window.__game.menu.toggle(false))
+  await page.waitForFunction(() => window.__game.scenes.current === 'forgeFirst', null, { timeout: 5000 }).catch(() => {
+    throw new Error('대화: 정보 화면을 닫았는데 미룬 장면이 열리지 않습니다.')
+  })
+  await closeDialog()
+  console.log('대화 확인: 신화 개방 장면(한 번만, 세계 멈춤), 마을 사람에게 말 걸기, 창이 열린 동안 온 장면은 닫은 뒤')
   // 이 뒤의 점검(대장간 제작 등)이 처음 보는 일 장면에 막히지 않게 끈다
   await page.evaluate(() => (window.__game.storyScenes = false))
 
@@ -456,13 +469,29 @@ try {
     return { depth: g.riftSystem.run?.depth, blessings: g.riftSystem.run?.blessings.length, region: g.region.id }
   })
   if (floor2.depth !== 2 || floor2.blessings !== 1) throw new Error(`균열: 축복을 고르고 문에 닿았는데 2층이 아닙니다 ${JSON.stringify(floor2)}`)
+  // 나가는 문: 밀려서(걸어가던 곳이 아닌데) 밟으면 그대로, 문으로 걸어가면 나간다
+  const pushed = await page.evaluate(() => {
+    const g = window.__game
+    g.encounter.clearAll()
+    const exit = g.region.exits[0]
+    g.hero.teleport(exit.x + 4, exit.z)
+    g.advance(0.2, 1 / 30)
+    g.hero.teleport(exit.x, exit.z)
+    g.advance(0.5, 1 / 30)
+    return { region: g.region.id, traveling: g.world.traveling, run: g.riftSystem.run !== null }
+  })
+  if (pushed.region !== 'rift' || pushed.traveling || !pushed.run) throw new Error(`균열: 걸어가지 않았는데 나가는 문이 열립니다 ${JSON.stringify(pushed)}`)
   const left = await page.evaluate(() => {
     const g = window.__game
-    g.enterRegion(g.regions.village)
+    const exit = g.region.exits[0]
+    g.hero.teleport(exit.x + 4, exit.z)
+    g.advance(0.2, 1 / 30)
+    g.hero.moveTo(exit)
+    g.advance(3, 1 / 30)
     return { run: g.riftSystem.run, best: g.rift.best, region: g.region.id }
   })
-  if (left.run || left.best < 1 || left.region !== 'village') throw new Error(`균열: 나왔는데 끝나지 않았습니다 ${JSON.stringify(left)}`)
-  console.log('균열 확인: 한계를 깨고 마을에서 들어가, 1층을 깨 축복을 고르고 2층으로, 나오면 끝')
+  if (left.run || left.best < 1 || left.region !== 'village') throw new Error(`균열: 나가는 문으로 걸어갔는데 끝나지 않았습니다 ${JSON.stringify(left)}`)
+  console.log('균열 확인: 한계를 깨고 마을에서 들어가, 1층을 깨 축복을 고르고 2층으로, 밀려 밟은 나가는 문은 닫혀 있고 걸어가면 나와 끝')
 
   // 개발 패널: ?dev 로 열고 단추로 유물·적·전설을 바로 바꿔 본다.
   await page.goto(`${URL}?dev&region=midgard`)

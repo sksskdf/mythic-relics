@@ -32,6 +32,9 @@ describe('대장간 제작법 (E13-05)', () => {
       expect(r.materials.length, `${r.relic} ${r.stage}`).toBeGreaterThan(0)
       for (const { id } of r.materials) expect(MATERIALS[id] !== undefined || droppable.has(id), `${r.relic} ${r.stage}단계 ${id}`).toBe(true)
       if (r.stage === 1) expect(r.base).toBe(relicPart(r.relic))
+      // 같은 재료가 두 줄로 들지 않는다 (두 줄이면 모자란지 셀 때 한 줄씩만 본다)
+      const ids = r.materials.map((m) => m.id)
+      expect(new Set(ids).size, `${r.relic} ${r.stage}단계`).toBe(ids.length)
     }
   })
 

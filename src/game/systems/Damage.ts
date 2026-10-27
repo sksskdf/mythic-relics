@@ -181,6 +181,8 @@ export class DamageSystem {
     const { combat, powers, skills, feel, view, numbers, hero, bus } = this.ctx
     if (!combat.canBeHit) return
     const reduced = powers.beforeHeroHit(damage, fromX, fromZ, skills)
+    // 보호막 등이 다 막았으면 맞지 않은 것으로 친다 (밀리지도, 무적 시간이 돌지도 않게)
+    if (reduced <= 0) return
     const dealt = combat.takeHit(reduced, fromX, fromZ, knockback)
     if (dealt <= 0) return
     feel.stop(0.05)

@@ -156,7 +156,7 @@ export interface MenuHost {
     /** 대장간에 보일 신화들 (고른 신화, 열린 신화, 재료나 유물이 있는 신화) */
     gods(): God[]
     /** 그 신화의 다음 제작: 만들 것의 이름, 재료(가진 수/필요한 수), 바탕 장비 부위와 있는지. 다 올렸으면 null */
-    next(god: God): { name: string; stage: number; materials: { name: string; have: number; need: number }[]; base?: { part: string; ok: boolean } } | null
+    next(god: God): { name: string; stage: number; materials: { name: string; have: number; need: number }[]; base?: { part: string; ok: boolean; item?: string } } | null
     make(god: God): boolean
   }
   readonly loadout: LoadoutState
@@ -877,8 +877,7 @@ export class GameMenu {
       })
       b.addEventListener('click', () => {
         this.hovered = null
-        const fits = host.slotsFor(id)
-        const slot = fits.includes(this.selectedSlot) ? this.selectedSlot : (fits.find((i) => host.slots[i] === null) ?? fits[0])
+        const slot = this.wieldSlot(id)
         if (slot === undefined) return
         this.selectedSlot = slot
         host.wield(id, slot)
@@ -928,8 +927,16 @@ export class GameMenu {
       detail.append(b)
       return
     }
-    const preview = this.hovered ? { before: host.loadout, after: host.preview(this.selectedSlot, this.hovered) } : undefined
+    // 미리보기는 누르면 실제로 낄 칸으로 본다
+    const target = this.hovered ? this.wieldSlot(this.hovered) : undefined
+    const preview = this.hovered && target !== undefined ? { before: host.loadout, after: host.preview(target, this.hovered) } : undefined
     detail.append(relicCard(relicDef(id), host.cardContext(id, preview)))
+  }
+
+  /** 가방의 것을 누르면 낄 칸: 고른 칸이 맞는 부위면 그 칸, 아니면 비어 있는 맞는 칸부터 */
+  private wieldSlot(id: string): number | undefined {
+    const fits = this.host.slotsFor(id)
+    return fits.includes(this.selectedSlot) ? this.selectedSlot : (fits.find((i) => this.host.slots[i] === null) ?? fits[0])
   }
 
   /** 대장간 칸: 신화마다 다음 제작과 모자란 재료, 「벼리기」 단추 (마을에서만 켜짐) */
@@ -954,7 +961,8 @@ export class GameMenu {
       row.append(el('span', 'menu-forge__name', next.stage === 1 ? `${next.name} 만들기` : `${josa(next.name, '으로')} 올리기`))
       const needs = el('span', 'menu-forge__needs')
       for (const m of next.materials) needs.append(el('span', m.have >= m.need ? 'is-ok' : 'is-short', `${m.name} ${Math.min(m.have, m.need)}/${m.need}`))
-      if (next.base) needs.append(el('span', next.base.ok ? 'is-ok' : 'is-short', `바탕: ${next.base.part} 장비`))
+      // 바탕은 사라지므로 어느 장비가 쓰이는지 이름으로 보인다 (가방 것부터)
+      if (next.base) needs.append(el('span', next.base.ok ? 'is-ok' : 'is-short', `바탕: ${next.base.item ?? `${next.base.part} 장비`}`))
       row.append(needs)
       const b = el('button', 'menu-forge__make', '벼리기')
       b.type = 'button'
@@ -1164,10 +1172,11 @@ export class GameMenu {
     const focus = this.selectedMyth ?? current
     if (focus) wrap.append(this.mythCard(focus))
 
-    // 원천 넷: 이름, 차오르는 때, 숙련은 보석 점으로
+    // 원천 넷: 이름, 차오르는 때, 원천 숙련(위협 단계를 올릴 때 부은 것)은 보석 점으로
     const sigils = el('div', 'menu-classes__sources')
+    const rows = this.host.sources.rows()
     for (const x of tree.sources) {
-      const value = progress.mastery(x.id)
+      const value = rows.find((r) => r.id === x.id)?.mastery ?? 0
       const known = tree.mythologies.some((m) => m.classes.some((c) => c.source === x.id && levelOf(c.god) > 0))
       const cell = el('span', `menu-classes__source${known ? ' is-known' : ''}`)
       cell.style.setProperty('--god', SOURCE_COLORS[x.id]![0])
@@ -1176,7 +1185,7 @@ export class GameMenu {
       words.append(el('b', '', x.name), el('small', '', x.gain))
       cell.append(words)
       if (value > 0) cell.append(pips(Math.min(value, 4), 4))
-      this.hintOn(cell, `${x.name}\n${x.gain} 차오르는 힘. 같은 원천의 신화가 단계를 올릴 때마다 숙련이 오르고, 지금 신화가 그 원천이면 피해가 늘어난다.${value > 0 ? `\n숙련 ${value}` : ''}`)
+      this.hintOn(cell, `${x.name}\n${x.gain} 차오르는 힘. 위협 단계를 올릴 때 전투 경험을 부어 숙련을 쌓으면 각성에 닿기 쉬워진다.${value > 0 ? `\n원천 숙련 ${value}` : ''}`)
       sigils.append(cell)
     }
     wrap.append(sigils)

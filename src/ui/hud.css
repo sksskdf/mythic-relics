@@ -85,7 +85,7 @@
   padding: 0;
   border: 0;
   background: var(--c-stone-lo);
-  box-shadow: inset 2px 2px 0 var(--c-groove), inset -1px -1px 0 var(--c-stone-hi), 0 0 0 1px rgba(7, 8, 11, 0.8);
+  box-shadow: inset 2px 2px 0 var(--c-groove), inset -1px -1px 0 var(--c-stone-hi), 0 0 0 1px var(--c-veil);
 }
 button.hud__slot {
   pointer-events: auto;
@@ -518,9 +518,9 @@ button.hud__slot--empty {
   opacity: 1;
   color: var(--c-gold-soft);
 }
-.hud__essence-cell.is-awake-1 img { filter: drop-shadow(0 0 1px #fff); }
-.hud__essence-cell.is-awake-2 img { filter: drop-shadow(0 0 2px #fff); }
-.hud__essence-cell.is-awake-3 img { filter: drop-shadow(0 0 3px #fff) drop-shadow(0 0 1px #fff); }
+.hud__essence-cell.is-awake-1 img { filter: drop-shadow(0 0 1px var(--c-ink-1)); }
+.hud__essence-cell.is-awake-2 img { filter: drop-shadow(0 0 2px var(--c-ink-1)); }
+.hud__essence-cell.is-awake-3 img { filter: drop-shadow(0 0 3px var(--c-ink-1)) drop-shadow(0 0 1px var(--c-ink-1)); }
 
 /* 지역을 넘어갈 때의 암전 (E7-02) */
 .region-fade {
@@ -585,6 +585,10 @@ button.hud__slot--empty {
   border: 1px solid var(--c-line-2);
   pointer-events: none;
   z-index: 15;
+}
+/* display:flex가 hidden 속성을 덮지 않게 */
+.nameplate[hidden] {
+  display: none;
 }
 .nameplate__head {
   display: flex;

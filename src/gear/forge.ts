@@ -45,7 +45,13 @@ export function recipeFor(god: God, stage: number): Recipe {
   const boss = bossMaterial(realmBoss(god))
   const extra = stageRelics(god)
   const m: { id: string; count: number }[] = []
-  const add = (id: string | undefined, count: number) => id && count > 0 && m.push({ id, count })
+  // 같은 재료가 두 번 들면 한 줄로 합친다 (히든 신화는 공통 재료 대신 고유 재료를 더 쓴다)
+  const add = (id: string | undefined, count: number) => {
+    if (!id || count <= 0) return
+    const same = m.find((x) => x.id === id)
+    if (same) same.count += count
+    else m.push({ id, count })
+  }
   if (stage === 1) {
     add(own, 6)
     // 히든 신화는 신화권이 없어 공통 재료 대신 재료가 된 유물 둘을 쓴다

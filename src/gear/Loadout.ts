@@ -7,6 +7,8 @@ import { type GearItem, isGearUid } from './roll'
 
 /** 장비 칸 수 (E13: 무기·머리·몸·손·발·장신구 둘) */
 export const SLOT_COUNT = SLOT_PARTS.length
+/** 재료 하나를 가질 수 있는 수 (저장을 읽을 때도 이만큼에서 자른다) */
+export const MATERIAL_CAP = 9999
 
 /** 칸·가방에 들어가는 것: 유물 id 또는 일반 장비 id(`g:`로 시작) */
 export type EquipId = string
@@ -85,7 +87,7 @@ export class Loadout {
   }
 
   addMaterial(id: string, count = 1): void {
-    this.materials.set(id, (this.materials.get(id) ?? 0) + count)
+    this.materials.set(id, Math.min(MATERIAL_CAP, (this.materials.get(id) ?? 0) + count))
   }
 
   /** 재료를 쓴다. 모자라면 쓰지 않고 false */

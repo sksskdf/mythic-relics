@@ -8,6 +8,8 @@ import { EFFECT_LAYER } from '../render/PixelRenderer'
 import { enemiesWithin, type SkillContext } from './Skill'
 
 const RING_LIFE = 0.35
+/** 원천 고리 모양: 모든 고리가 같이 쓴다 (고리마다 만들면 GPU 메모리에 쌓인다) */
+const RING_GEOMETRY = new THREE.RingGeometry(0.8, 1, 36)
 const BLADE_LIFE = 0.45
 
 /**
@@ -194,7 +196,7 @@ export class SourceAwakening {
       ctx.hit(enemy, damage * this.power, dx / len, dz / len, knockback, 'normal', 'other')
     }
     const color = SOURCE_COLORS[source]![0]
-    const mesh = new THREE.Mesh(new THREE.RingGeometry(0.8, 1, 36), this.material(color).clone())
+    const mesh = new THREE.Mesh(RING_GEOMETRY, this.material(color).clone())
     mesh.rotation.x = -Math.PI / 2
     mesh.layers.set(EFFECT_LAYER)
     mesh.renderOrder = 12

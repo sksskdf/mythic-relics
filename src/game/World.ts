@@ -20,6 +20,16 @@ import type { Villagers } from './Villagers'
 
 const EXIT_RADIUS = 1.6
 const TRAVEL_FADE = 0.35
+/** 워프로 도착하는 자리: 성소 가운데에서 이만큼(m). 전설이 시작되는 거리(1.6m)보다 멀리 */
+const WARP_OFFSET = 3
+
+/** 성소 가운데에서 시작점 쪽으로 WARP_OFFSET만큼 떨어진 곳 */
+function besideSanctuary(sanctuary: { x: number; z: number }, spawn: { x: number; z: number }): { x: number; z: number } {
+  const dx = spawn.x - sanctuary.x
+  const dz = spawn.z - sanctuary.z
+  const len = Math.hypot(dx, dz)
+  return len > 1e-3 ? { x: sanctuary.x + (dx / len) * WARP_OFFSET, z: sanctuary.z + (dz / len) * WARP_OFFSET } : { x: sanctuary.x, z: sanctuary.z + WARP_OFFSET }
+}
 
 /** 지역을 다시 지을 때 함께 바꾸는 것들 */
 export interface WorldParts {
@@ -91,7 +101,8 @@ export class World {
   enter(region: RegionDef, at: { x: number; z: number } = region.spawn): void {
     const { stage, nav, encounter, legend, hero, orders, view, hud, pickups, bus } = this.parts
     if (legend.active) return
-    const moved = region.id !== this.region.id
+    // 균열은 층마다 id가 같지만 새 땅이다 (앞 층의 물건을 치우고 「균열 N층」을 띄운다)
+    const moved = region.id !== this.region.id || region.kind === 'rift'
     if (moved) pickups.clear()
     stage.load(region)
     this.dress(region)
@@ -101,7 +112,9 @@ export class World {
     legend.moveTo(region.sanctuary && (nav.nearestFree(region.sanctuary) ?? region.sanctuary), region.sanctuary?.radius)
     hero.halfExtent = region.halfExtent
     orders.clear()
-    hero.teleport(at.x, at.z)
+    // 도착 자리가 바위·나무에 걸리면 가까운 빈 곳에 선다
+    const spot = nav.nearestFree(at) ?? at
+    hero.teleport(spot.x, spot.z)
     view.jumpTo(hero.object.position)
     this.exitArmed = false
     if (moved) {
@@ -121,12 +134,15 @@ export class World {
     this.travel = { to, at: arrivalSpot(to, this.region.id), t: 0, switched: false }
   }
 
-  /** 성소 워프 (E14-05): 그 지역의 성소(마을이면 시작점)로 암전과 함께 바로 간다 */
+  /**
+   * 성소 워프 (E14-05): 그 지역의 성소(마을이면 시작점)로 암전과 함께 바로 간다.
+   * 성소 한가운데는 전설이 시작되는 자리라, 시작점 쪽으로 몇 걸음 떨어진 곳에 선다.
+   */
   warpTo(id: string): boolean {
     const to = this.regions[id]
     if (!to || this.travel || this.parts.legend.active) return false
     this.parts.orders.clear()
-    this.travel = { to, at: to.sanctuary ? { x: to.sanctuary.x, z: to.sanctuary.z } : to.spawn, t: 0, switched: false }
+    this.travel = { to, at: to.sanctuary ? besideSanctuary(to.sanctuary, to.spawn) : to.spawn, t: 0, switched: false }
     return true
   }
 
@@ -151,9 +167,12 @@ export class World {
     if (!combat.alive || legend.active || this.exitsLocked) return
     const p = hero.object.position
     let nearest = Infinity
+    // 균열의 나가는 문은 그 문으로 걸어가던 중일 때만 연다: 밀려나거나 적을 쫓다 밟아 축복을 잃지 않게
+    const goal = this.region.kind === 'rift' ? hero.goal : null
     for (const exit of this.region.exits) {
       const d = Math.hypot(exit.x - p.x, exit.z - p.z)
       nearest = Math.min(nearest, d)
+      if (this.region.kind === 'rift' && (!goal || Math.hypot(exit.x - goal.x, exit.z - goal.z) > EXIT_RADIUS * 1.5)) continue
       if (this.exitArmed && d < EXIT_RADIUS) return this.travelTo(exit.to)
     }
     if (nearest > EXIT_RADIUS * 2) this.exitArmed = true

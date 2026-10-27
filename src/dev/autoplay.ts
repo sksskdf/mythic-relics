@@ -1,5 +1,6 @@
 import type { Giant, GiantDanger } from '../enemies/Giant'
 import type { Game } from '../game/Game'
+import { clampToCircle } from '../game/HeroController'
 import { angleDiff, angleTo, inLine } from '../combat/arc'
 import type { SourceId } from '../data/schema'
 import { nextHop } from '../data/regions'
@@ -346,16 +347,19 @@ export class Autoplayer {
     return this.game.region.exits.some((e) => dist(e, point) < EXIT_CLEAR)
   }
 
-  /** 물러날 곳: 둘레 열두 방향 가운데 가까운 적에게서 가장 멀고, 거인 왕을 깨우지 않고, 맵 안인 곳 */
+  /** 물러날 곳: 둘레 열두 방향 가운데 가까운 적에게서 가장 멀고, 거인 왕을 깨우지 않고, 맵 안(결계 안)인 곳 */
   private retreatPoint(here: Point2, near: Giant[]): Point2 {
-    const { encounter, region } = this.game
+    const { encounter, region, hero } = this.game
     const boss = encounter.boss
     const half = region.halfExtent - 2
+    // 결계 밖을 누르면 가장자리에서 멈추므로, 결계 안으로 당긴 자리를 견준다
+    const inside = hero.arena ? { ...hero.arena, radius: Math.max(0, hero.arena.radius - 1) } : null
     let best = here
     let bestScore = -Infinity
     for (let i = 0; i < 12; i++) {
       const a = (i / 12) * Math.PI * 2
-      const point = { x: here.x + Math.sin(a) * 10, z: here.z + Math.cos(a) * 10 }
+      const away = { x: here.x + Math.sin(a) * 10, z: here.z + Math.cos(a) * 10 }
+      const point = inside ? clampToCircle(away, inside) : away
       if (Math.abs(point.x) > half || Math.abs(point.z) > half) continue
       // 가는 길에 출구를 밟지 않게 (균열에서는 나가는 문을 밟으면 끝난다)
       if ([0.25, 0.5, 0.75, 1].some((t) => this.nearExit({ x: here.x + (point.x - here.x) * t, z: here.z + (point.z - here.z) * t }))) continue

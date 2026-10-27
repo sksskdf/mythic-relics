@@ -1,8 +1,9 @@
 import * as THREE from 'three'
 
-import type { RegionDef } from '../../data/regions'
+import { REGIONS, type RegionDef } from '../../data/regions'
 import { type Blessing, blessingDef, RIFT_BASE_THREAT, riftScale, rollBlessings, STAR_EVERY, STARS_PER_DOOM } from '../../data/rift'
-import { threatScale } from '../../data/threat'
+import { threatElite, threatScale } from '../../data/threat'
+import { ELITE_CHANCE } from '../../enemies/elite'
 import { bossMaterial, materialName, realmMaterial } from '../../gear/materials'
 import { EFFECT_LAYER } from '../../render/PixelRenderer'
 import { heightAt } from '../../world/terrain'
@@ -11,6 +12,17 @@ import { createRng } from '../../world/rng'
 import { ENEMIES } from '../../enemies/Giant'
 import type { GameContext } from '../context'
 import type { ThreatSystem } from './Threat'
+
+const bossMaterialOf = (enemyId: string): string | undefined => {
+  const name = ENEMIES[enemyId]?.boss
+  return name ? bossMaterial(name) : undefined
+}
+
+/** 그 신화권 지역 보스의 재료 */
+function realmBossMaterial(realm: string | null | undefined): string | undefined {
+  const region = Object.values(REGIONS).find((r) => r.realm === realm && r.boss)
+  return region?.boss ? bossMaterialOf(region.boss.enemy ?? 'king') : undefined
+}
 
 /** 다음 층 문에 이만큼 다가가면 내려간다 */
 const PORTAL_RADIUS = 1.8
@@ -23,6 +35,8 @@ export interface RiftHost {
   home(): void
   /** 축복 셋을 보여 주고, 고르면 부른다 */
   offer(choices: readonly Blessing[], pick: (id: string) => void): void
+  /** 축복 고르기 창을 닫는다 (고르지 않고 나왔을 때) */
+  closeBlessings(): void
 }
 
 export interface RiftRun {
@@ -104,10 +118,11 @@ export class RiftSystem {
     run.picked = false
     run.t = 0
     this.portal.visible = false
-    // 깊이 배율: 위협 5단계 × 층 (다음에 세우는 적부터라 들어가기 전에)
+    // 깊이 배율: 위협 5단계 × 층 (다음에 세우는 적부터라 들어가기 전에). 정예 확률도 고른 단계가 아니라 위협 5단계로
     const base = threatScale(RIFT_BASE_THREAT)
     const deep = riftScale(depth)
     this.ctx.encounter.threat = { hp: base.hp * deep.hp, damage: base.damage * deep.damage }
+    this.ctx.encounter.eliteChance = threatElite(ELITE_CHANCE, RIFT_BASE_THREAT)
     this.host.enter(run.floor.region)
     this.ctx.bus.emit('riftFloor', { depth })
   }
@@ -156,15 +171,17 @@ export class RiftSystem {
       powers.loadout.addMaterial(common, n)
       lines.push(`${materialName(common)} ×${n}`)
     }
+    // 보스 층의 귀한 재료: 그 보스의 재료, 없으면(종말 보스) 그 층 신화권 보스의 재료
     const bossId = run.floor.region.boss ? (run.floor.region.boss.enemy ?? 'king') : null
-    const bossName = bossId ? ENEMIES[bossId]?.boss : undefined
-    const rare = bossName ? bossMaterial(bossName) : undefined
+    const rare = bossId ? (bossMaterialOf(bossId) ?? realmBossMaterial(run.floor.region.realm)) : undefined
     if (rare) {
       powers.loadout.addMaterial(rare, 1 + Math.floor(run.depth / 10))
       lines.push(`${materialName(rare)} ×${1 + Math.floor(run.depth / 10)}`)
     }
+    // 종말 보스의 별도 5층마다의 별처럼 처음 깬 층에서만
+    const first = run.depth > rift.best
     let stars = rift.reach(run.depth, STAR_EVERY)
-    if (run.floor.doom) {
+    if (run.floor.doom && first) {
       rift.stars += STARS_PER_DOOM
       stars += STARS_PER_DOOM
     }
@@ -179,6 +196,9 @@ export class RiftSystem {
     this.run = null
     this.portal.visible = false
     this.threat.apply()
+    // 다른 땅으로 나왔으면 그 땅은 이미 균열 배율로 적을 세웠다 (워프 등): 고른 위협 단계로 다시 세운다
+    if (reason === 'left') this.ctx.encounter.resetAll()
+    this.host.closeBlessings()
     this.ctx.hud.showToast(`균열 ${run.depth}층에서 ${reason === 'fell' ? '쓰러졌다' : '나왔다'} · 가장 깊이 ${this.ctx.rift.best}층`)
     this.ctx.bus.emit('riftEnded', { depth: run.depth, reason })
     this.ctx.bus.emit('progressChanged', {})

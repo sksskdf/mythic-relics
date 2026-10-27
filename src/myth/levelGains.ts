@@ -1,14 +1,13 @@
 import { STYLES } from '../combat/styles'
-import { DATA } from '../data'
 import { atLevel, type Leveled } from '../data/check'
 import type { ClassPassive } from '../data/classKit'
 import { type God, godDef, relicDef, RELIC_IDS } from '../relics/data'
 import { josa } from '../ui/josa'
-import { MASTERY_DAMAGE, MAX_LEVEL, PER_PROMOTION } from './ClassProgress'
+import { MAX_LEVEL, PER_PROMOTION } from './ClassProgress'
 
 /** 한 단계에서 얻는 것 하나. kind는 그림을 고를 때 쓴다. */
 export interface LevelGain {
-  kind: 'hp' | 'damage' | 'mastery' | 'power'
+  kind: 'hp' | 'damage' | 'power'
   text: string
 }
 
@@ -74,8 +73,6 @@ export function levelGains(god: God, level: number): LevelGain[] {
   } else {
     out.push({ kind: 'hp', text: `최대 생명 +${PER_PROMOTION.maxHp}` })
     out.push({ kind: 'damage', text: `모든 피해 +${Math.round(PER_PROMOTION.damage * 100)}%` })
-    const source = DATA.classes.sources.find((x) => x.id === def.source)
-    if (source) out.push({ kind: 'mastery', text: `${source.name} 숙련 +1 (${source.name} 원천 신화일 때 피해 +${Math.round(MASTERY_DAMAGE * 100)}%)` })
   }
   if (level > 1 && passive.bladeStorm?.perLevel) {
     const b = passive.bladeStorm

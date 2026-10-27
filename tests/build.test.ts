@@ -104,6 +104,9 @@ describe('상시 효과 적용 (E12-03)', () => {
     expect(alwaysStage(1, false)).toBe(1)
     expect(alwaysStage(2, true)).toBe(3)
     expect(alwaysStage(4, true)).toBe(TOP_STAGE)
+    // 성좌판의 별을 밝히면 한 단계 더 (끝은 넘지 않는다)
+    expect(alwaysStage(2, true, true)).toBe(4)
+    expect(alwaysStage(4, true, true)).toBe(TOP_STAGE)
   })
 
   it('메아리는 1단계에서 every[0], 2단계부터 every[1], 5단계는 더 자주', () => {

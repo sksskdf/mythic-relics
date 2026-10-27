@@ -27,6 +27,8 @@ const DASH_TIME = 0.16
 const RETURN_SPEED = 9
 /** 저주·불꽃 길 피해가 들어가는 간격 (초): 숫자가 매 프레임 뜨지 않게 */
 const TICK = 0.5
+/** 발자국 조각 모양 (폭 1m, 신화마다 폭은 크기로 바꾼다). 모든 조각이 같이 쓴다 */
+const TRAIL_GEOMETRY = new THREE.BoxGeometry(1, 0.06, 1)
 
 /** 하늘에서 내리치는 것의 색 (번개는 번개 연출) */
 
@@ -345,13 +347,15 @@ export class ClassPassives {
       ;(seg.mesh.material as THREE.MeshBasicMaterial).opacity = Math.max(0, seg.life / (trail?.life ?? 1)) * 0.75
       if (seg.life <= 0) {
         seg.mesh.removeFromParent()
+        ;(seg.mesh.material as THREE.Material).dispose()
         this.trail.splice(i, 1)
       }
     }
     if (!trail || level < trail.minLevel) return
     if (ctx.hero.isMoving && !(Math.hypot(hero.x - this.trailLast.x, hero.z - this.trailLast.y) < 0.6)) {
       this.trailLast.set(hero.x, hero.z)
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(trail.width, 0.06, trail.width), this.material(trail.color, 0.75).clone())
+      const mesh = new THREE.Mesh(TRAIL_GEOMETRY, this.material(trail.color, 0.75).clone())
+      mesh.scale.set(trail.width, 1, trail.width)
       mesh.position.set(hero.x, hero.y + 0.05, hero.z)
       mesh.layers.set(EFFECT_LAYER)
       this.fx.add(mesh)
@@ -453,7 +457,10 @@ export class ClassPassives {
   dispose(): void {
     while (this.companions.length > 0) this.removeCompanion()
     for (const m of this.orbs.splice(0)) m.removeFromParent()
-    for (const s of this.trail.splice(0)) s.mesh.removeFromParent()
+    for (const s of this.trail.splice(0)) {
+      s.mesh.removeFromParent()
+      ;(s.mesh.material as THREE.Material).dispose()
+    }
     this.pulseRing.removeFromParent()
     for (const m of this.materials.values()) m.dispose()
   }

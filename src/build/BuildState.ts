@@ -47,9 +47,12 @@ export const BASE_HP = 100
 /** 상시 효과 단계의 끝: 4단계 신화에 그 신화 유물을 끼면 5 */
 export const TOP_STAGE = 5
 
-/** 열린 신화 하나의 상시 효과가 작동하는 단계: 개방 단계, 그 신화 유물을 끼면 한 단계 위 (DESIGN.md 4.2.1) */
-export function alwaysStage(level: number, wearsRelic: boolean): number {
-  return level <= 0 ? 0 : Math.min(TOP_STAGE, level + (wearsRelic ? 1 : 0))
+/**
+ * 열린 신화 하나의 상시 효과가 작동하는 단계: 개방 단계, 그 신화 유물을 끼면 한 단계 위 (DESIGN.md 4.2.1),
+ * 성좌판에서 그 신의 별을 밝혔으면 또 한 단계 위 (E17-04)
+ */
+export function alwaysStage(level: number, wearsRelic: boolean, starred = false): number {
+  return level <= 0 ? 0 : Math.min(TOP_STAGE, level + (wearsRelic ? 1 : 0) + (starred ? 1 : 0))
 }
 
 /** 그 단계의 메아리 간격 (공격 수·초·확률). 1단계 every[0], 2~4단계 every[1], 5단계는 한 번 더 자주 */
@@ -129,7 +132,7 @@ export function computeBuild(inputs: BuildInputs): BuildState {
   const stats = Object.fromEntries(STAT_KINDS.map((k) => [k, 0])) as Record<StatKind, number>
   const echoes: Echo[] = []
   for (const [id, level] of inputs.open) {
-    const stage = Math.min(TOP_STAGE, alwaysStage(level, worn.has(id)) + (level > 0 && inputs.starred?.has(id) ? 1 : 0))
+    const stage = alwaysStage(level, worn.has(id), inputs.starred?.has(id) ?? false)
     if (stage <= 0) continue
     const always = godDef(id).always
     stats[always.stat.kind] += statAt(always.stat, stage)
@@ -162,7 +165,8 @@ export function computeBuild(inputs: BuildInputs): BuildState {
     level: chosen ? (inputs.open.get(chosen) ?? 0) : 0,
     damageScale,
     modifiers,
-    damageTaken: modifiers.damageTaken * (1 + stats.damageTaken),
+    // 받는 피해 줄이기를 많이 겹쳐도 0이나 음수(맞으면 회복)가 되지 않게
+    damageTaken: modifiers.damageTaken * Math.max(0.1, 1 + stats.damageTaken),
     moveSpeed: modifiers.moveSpeed * (1 + stats.moveSpeed) * rules.moveScale,
     attackSpeed: (god ? god.passive.attackSpeed : 1) * (1 + stats.attackSpeed),
     attack: god ? god.attack : 'blade',

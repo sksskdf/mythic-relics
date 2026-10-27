@@ -25,15 +25,19 @@ interface Pickup {
   z: number
   /** 주인공이 한 번 벗어나야 주울 수 있다. (방금 빼서 떨군 유물을 바로 다시 줍지 않게) */
   armed: boolean
+  /** 플레이어가 내려놓은 것: 자동 줍기(편의)로는 줍지 않고 밟아야 줍는다 */
+  placed: boolean
   phase: number
 }
+
+/** 땅 유물이 화면에 보이는 높이 (떠 있는 모델의 위 끝, 미터). 설명 카드를 띄우는 범위에 쓴다 */
+export const PICKUP_TOP = 1.8
+/** 빛기둥 모양: 모든 땅 물건이 같이 쓴다 */
+const COLUMN_GEOMETRY = new THREE.CylinderGeometry(0.28, 0.42, 6, 8, 1, true)
 
 /**
  * 땅에 놓인 유물. 빛기둥으로 위치를 알리고, 주인공이 밟고 지나가면 저절로 줍는다. (조작 최소화)
  */
-/** 땅 유물이 화면에 보이는 높이 (떠 있는 모델의 위 끝, 미터). 설명 카드를 띄우는 범위에 쓴다 */
-export const PICKUP_TOP = 1.8
-
 export class Pickups {
   readonly object = new THREE.Group()
   private readonly items: Pickup[] = []
@@ -47,7 +51,10 @@ export class Pickups {
     return this.items.find((i) => i.id === id)?.gear
   }
 
-  /** 유물(또는 일반 장비)을 놓는다. armed가 false면 주인공이 한 번 떨어졌다 와야 주울 수 있다. 빛기둥은 유물이면 신의 색, 장비면 등급 색 */
+  /**
+   * 유물(또는 일반 장비)을 놓는다. armed가 false면(플레이어가 내려놓은 것) 주인공이 한 번 떨어졌다 와야 주울 수 있고,
+   * 자동 줍기로는 다시 줍지 않는다. 빛기둥은 유물이면 신의 색, 장비면 등급 색
+   */
   drop(id: string, x: number, z: number, armed = true, gear?: GearItem): void {
     const root = new THREE.Group()
     root.position.set(x, heightAt(x, z), z)
@@ -67,31 +74,43 @@ export class Pickups {
 
     const color = new THREE.Color(gear ? GRADE_COLORS[gear.grade] : isRelicId(id) ? godDef(relicDef(id).god).color : '#ffffff')
     const beam = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.35, depthWrite: false })
-    const column = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.42, 6, 8, 1, true), beam)
+    const column = new THREE.Mesh(COLUMN_GEOMETRY, beam)
     column.position.y = 3
     column.layers.set(EFFECT_LAYER)
     column.renderOrder = 12
     root.add(column)
 
     this.object.add(root)
-    this.items.push({ id, ...(gear ? { gear } : {}), root, model, beam, x, z, armed, phase: Math.random() * 6 })
+    this.items.push({ id, ...(gear ? { gear } : {}), root, model, beam, x, z, armed, placed: !armed, phase: Math.random() * 6 })
   }
 
   /** 땅의 유물을 줍지 않고 없앤다 (점검용) */
   remove(id: string): void {
     const index = this.items.findIndex((item) => item.id === id)
     if (index < 0) return
-    this.items[index]!.root.removeFromParent()
-    this.items.splice(index, 1)
+    this.discard(index)
   }
 
-  /** 프레임마다 떠오르고 돌게 하고, 주인공이 닿은 유물을 주워 돌려준다. */
   /** 땅의 유물을 모두 치운다 (다른 지역으로 갈 때) */
   clear(): void {
-    for (const item of [...this.items]) this.remove(item.id)
+    for (let i = this.items.length - 1; i >= 0; i--) this.discard(i)
   }
 
-  /** reach: 그것을 줍는 거리 (편의 자동화의 자동 줍기·재료 자동 모음, 없으면 발밑) */
+  /** 땅에서 걷어 내고 모델과 빛기둥 재질을 GPU에서 내린다 (드랍마다 쌓이지 않게) */
+  private discard(index: number): void {
+    const [item] = this.items.splice(index, 1)
+    if (!item) return
+    item.root.removeFromParent()
+    item.model.traverse((o) => {
+      if (o instanceof THREE.Mesh) o.geometry.dispose()
+    })
+    item.beam.dispose()
+  }
+
+  /**
+   * 프레임마다 떠오르고 돌게 하고, 주인공이 닿은 유물을 주워 돌려준다.
+   * reach: 그것을 줍는 거리 (편의 자동화의 자동 줍기·재료 자동 모음, 없으면 발밑). 내려놓은 것은 늘 발밑
+   */
   update(dt: number, heroX: number, heroZ: number, canPick: (id: string) => boolean, reach?: (id: string, gear?: GearItem) => number): { id: string; gear?: GearItem }[] {
     const picked: { id: string; gear?: GearItem }[] = []
     for (let i = this.items.length - 1; i >= 0; i--) {
@@ -105,10 +124,10 @@ export class Pickups {
         if (dist > PICK_RADIUS * 1.5) item.armed = true
         continue
       }
-      if (dist <= Math.max(PICK_RADIUS, reach?.(item.id, item.gear) ?? 0) && canPick(item.id)) {
+      const far = item.placed ? 0 : (reach?.(item.id, item.gear) ?? 0)
+      if (dist <= Math.max(PICK_RADIUS, far) && canPick(item.id)) {
         picked.push({ id: item.id, ...(item.gear ? { gear: item.gear } : {}) })
-        item.root.removeFromParent()
-        this.items.splice(i, 1)
+        this.discard(i)
       }
     }
     return picked

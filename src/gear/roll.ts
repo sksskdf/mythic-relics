@@ -21,7 +21,7 @@ export interface GearItem {
 
 /** 장비 id는 이 글자로 시작한다 (유물 id와 섞여 칸에 들어가므로) */
 export const GEAR_PREFIX = 'g:'
-export const isGearUid = (id: string | null | undefined): id is string => !!id && id.startsWith(GEAR_PREFIX)
+export const isGearUid = (id: string | null | undefined): id is string => typeof id === 'string' && id.startsWith(GEAR_PREFIX)
 
 const pick = <T>(rng: () => number, list: readonly T[]): T => list[Math.floor(rng() * list.length)]!
 
@@ -74,7 +74,7 @@ export function gearName(item: GearItem, data: GearData = GEAR): string {
 export function parseGearItem(raw: unknown, data: GearData = GEAR): GearItem | null {
   if (typeof raw !== 'object' || raw === null) return null
   const o = raw as Record<string, unknown>
-  if (!isGearUid(o.uid as string) || typeof o.uid !== 'string' || o.uid.length > 20) return null
+  if (typeof o.uid !== 'string' || !isGearUid(o.uid) || o.uid.length > 20) return null
   if (!GEAR_PARTS.includes(o.part as GearPart) || !GRADES.includes(o.grade as Grade) || typeof o.base !== 'string') return null
   const part = o.part as GearPart
   const grade = o.grade as Grade
