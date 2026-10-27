@@ -41,7 +41,7 @@ describe('시련 제약 (E16-02)', () => {
         expect(build.chosen, id).toBeNull()
       }
       if (rules.slots) expect(on.sources.flame + on.sources.hunt + on.sources.wind + on.sources.stone, id).toBeLessThan(free.sources.flame + free.sources.hunt + free.sources.wind + free.sources.stone)
-      if (rules.maxHpScale !== 1) expect(on.maxHp, id).toBe(Math.round(free.maxHp * rules.maxHpScale))
+      if (rules.maxHpScale !== 1) expect(Math.abs(on.maxHp - free.maxHp * rules.maxHpScale), id).toBeLessThanOrEqual(1)
       if (rules.moveScale !== 1) expect(on.moveSpeed, id).toBeCloseTo(free.moveSpeed * rules.moveScale)
       expect(on.noHeal, id).toBe(rules.noHeal)
       expect(on.noUltimate, id).toBe(rules.noUltimate)

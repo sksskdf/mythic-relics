@@ -11,6 +11,7 @@ import { Wardrobe } from '../looks/outfit'
 import { DropTable } from '../gear/DropTable'
 import { worldToScreen } from '../render/picking'
 import { Pickups } from '../gear/Pickups'
+import { DEMO_RELIC_STAGES, RELIC_STAGES } from '../gear/mythRelic'
 import type { SaveData } from '../save/SaveData'
 import { ClassProgress } from '../myth/ClassProgress'
 import type { SkillContext } from '../skills/Skill'
@@ -58,6 +59,7 @@ import { DialogScene } from './DialogScene'
 import { DialogBox } from '../ui/DialogBox'
 import { DevTools } from '../dev/DevTools'
 import { Conveniences } from '../progress/Conveniences'
+import { Ending } from '../progress/Ending'
 import { ThreatProgress } from '../progress/Threat'
 import { ThreatSystem } from './systems/Threat'
 import { TrialSystem } from './systems/Trials'
@@ -114,7 +116,9 @@ export class Game {
   readonly hud: Hud
   readonly powers: RelicPowers
   readonly pickups = new Pickups()
-  readonly progress = new ClassProgress()
+  /** 첫 엔딩을 보았나 (E21-06): 엔딩 뒤 장치는 여기서만 연다 */
+  readonly ending = new Ending()
+  readonly progress = new ClassProgress(() => this.ending.has('mythStage4'))
   readonly drops = new DropTable()
   readonly wardrobe = new Wardrobe()
   readonly threat = new ThreatProgress()
@@ -126,7 +130,7 @@ export class Game {
   readonly threatSystem: ThreatSystem
   /** 대화 장면을 언제 여는가: 처음 보는 일, 마을 사람에게 말 걸기, 미룬 장면 (E15-06) */
   private readonly storyline: Storyline
-  readonly conveniences = new Conveniences()
+  readonly conveniences = new Conveniences(() => this.ending.has('conveniences'))
   /** 성소의 전설과 시련 결계 (E6-04) */
   readonly legend: UtgardLegend
   /** 주인공 길찾기 격자 */
@@ -239,6 +243,8 @@ export class Game {
     this.orders = new HeroOrders(this.hero, this.combat)
     this.hero.obstacles = () => this.encounter.colliders(this.orders.plowing)
     this.powers = new RelicPowers(this.fx.skills)
+    // 유물 단계는 데모 2까지, 엔딩 뒤 4까지 (E21-04)
+    this.powers.maxStage = () => (this.ending.has('relicStages') ? RELIC_STAGES : DEMO_RELIC_STAGES)
     this.legend = new UtgardLegend({ x: 0, z: 0 }, 11)
     this.legend.moveTo(region.sanctuary && (nav.nearestFree(region.sanctuary) ?? region.sanctuary), region.sanctuary?.radius)
     this.scene.add(this.legend.object, this.pickups.object)
@@ -334,6 +340,7 @@ export class Game {
       trials: this.trials,
       rift: this.rift,
       conveniences: this.conveniences,
+      ending: this.ending,
       build: new Build({ powers: this.powers, progress: this.progress, threat: this.threat, trials: this.trials, trial: () => this.trialSystem?.active?.id ?? null, rift: this.rift, blessings: () => this.riftSystem?.blessings ?? [] }),
       skills,
     }
@@ -473,6 +480,14 @@ export class Game {
   }
 
   /** 저장하고 처음 화면(슬롯 고르기)으로 돌아간다. 다시 불러와 시작 화면을 띄운다. */
+  /** 첫 엔딩을 보았다 (E21-06): 엔딩 뒤 장치를 연다. 마지막 보스가 생기기 전에는 개발 패널과 점검 스크립트만 부른다 */
+  reachEnding(): void {
+    if (this.ending.reached) return
+    this.ending.reached = true
+    this.conveniences.catchUp()
+    this.bus.emit('progressChanged', {})
+  }
+
   toTitle(): void {
     this.bus.emit('progressChanged', {})
     this.persistence.saveNow()

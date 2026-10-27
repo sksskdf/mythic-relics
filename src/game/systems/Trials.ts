@@ -37,7 +37,7 @@ export class TrialSystem {
 
   /** 시련이 열렸나 (위협 3단계) */
   get open(): boolean {
-    return this.ctx.threat.reached >= TRIAL_UNLOCK_THREAT
+    return this.ctx.ending.has('trials') && this.ctx.threat.reached >= TRIAL_UNLOCK_THREAT
   }
 
   /** 지금 시련을 열 수 없는 까닭 (열 수 있으면 null) */

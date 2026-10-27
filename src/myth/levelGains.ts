@@ -71,8 +71,9 @@ export function levelGains(god: God, level: number): LevelGain[] {
     if (passive.bladeStorm) out.push({ kind: 'power', text: `칼날 폭풍: 때릴 때마다 주변 적에게 칼 ${passive.bladeStorm.base}자루 (피해 ${passive.bladeStorm.damage})` })
     if (passive.basicLightning) out.push({ kind: 'power', text: `기본 공격에 번개 (피해 ${passive.basicLightning.damage})` })
   } else {
-    out.push({ kind: 'hp', text: `최대 생명 +${PER_PROMOTION.maxHp}` })
-    out.push({ kind: 'damage', text: `모든 피해 +${Math.round(PER_PROMOTION.damage * 100)}%` })
+    // 단계 하나가 큰 걸음 (E21-01)
+    out.push({ kind: 'hp', text: `최대 생명 +${Math.round(PER_PROMOTION.maxHpPct * 100)}%` })
+    out.push({ kind: 'damage', text: `모든 피해 ×${PER_PROMOTION.damage}` })
   }
   if (level > 1 && passive.bladeStorm?.perLevel) {
     const b = passive.bladeStorm

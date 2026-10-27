@@ -1,18 +1,12 @@
-import { DATA } from '../../data'
-import { AWAKEN_AT } from '../../data/awakening'
-import type { SourceId } from '../../data/schema'
 import { THREAT_MAX, threatElite, threatScale } from '../../data/threat'
 import { ELITE_CHANCE } from '../../enemies/elite'
 import { CONVENIENCES, type CounterId } from '../../progress/Conveniences'
-import { BATTLE } from '../../progress/Threat'
 import type { GameContext } from '../context'
 
-const sourceName = (s: SourceId) => DATA.classes.sources.find((x) => x.id === s)?.name ?? s
-
 /**
- * 위협 단계·원천 갈래·편의 자동화 (E14-03·04·05).
- * - 적을 잡으면 전투 경험이 쌓이고, 열린 가장 높은 단계에서 지역 보스를 이기면 다음 단계가 열린다
- * - 마을 촌장(정보 화면 › 원천)에서 단계를 고르고, 처음 오르는 단계는 원천 하나에 경험을 붓는다
+ * 위협 단계·편의 자동화 (E14-03·05). 둘 다 엔딩 뒤 장치다 (E21-06).
+ * - 엔딩 뒤: 열린 가장 높은 단계에서 지역 보스를 이기면 다음 단계가 열린다
+ * - 마을 촌장(정보 화면 › 원천)에서 열린 단계 안에서 고른다 (원천 갈래는 E21-05에서 없앰)
  * - 지금 단계의 배율을 새로 세우는 적에 건다
  * - 줍기·분해·제작·신화 개방·단계 오르기를 세어 편의 자동화를 연다
  */
@@ -22,9 +16,8 @@ export class ThreatSystem {
     this.apply()
     bus.on('giantKilled', ({ giant }) => {
       const boss = giant.spec.role === 'boss' && giant.spec.boss !== undefined
-      threat.gainBattle(boss ? BATTLE.boss : giant.elite ? BATTLE.elite : BATTLE.kill)
       // 균열 층의 보스는 위협 단계의 문이 아니다 (층 세기가 위협 단계와 따로라, 세면 단계를 공짜로 오른다)
-      if (!boss || ctx.legend.active || ctx.map.region.kind === 'rift') return
+      if (!boss || ctx.legend.active || ctx.map.region.kind === 'rift' || !ctx.ending.has('threat')) return
       if (threat.bossDefeated(giant.spec.realm)) this.announceOpened()
       if (!threat.limitBroken && threat.canBreak) this.breakLimit()
       bus.emit('progressChanged', {})
@@ -48,35 +41,20 @@ export class ThreatSystem {
     return this.ctx.map.region.kind === 'hub'
   }
 
-  /** 올라가 본 단계 안에서 고른다 */
+  /** 열린 단계 안에서 고른다. 처음 오르는 단계면 큰 카드로 알린다 (엔딩 뒤) */
   choose(level: number): boolean {
-    const { threat, bus, hud } = this.ctx
-    if (!this.here || level === threat.level || !threat.choose(level)) return false
+    const { threat, bus, hud, fx, hero, ending } = this.ctx
+    if (!ending.has('threat') || !this.here || level === threat.level) return false
+    const first = level > threat.reached
+    if (!threat.choose(level)) return false
     this.apply()
-    hud.showToast(`위협 ${level}단계`)
+    if (first) {
+      hud.flash('#c9a24a')
+      fx.power.burst(hero.object.position, '#c9a24a', 3)
+      hud.showGains('위협 단계', `${level}단계`, '#c9a24a', '', ['적이 세지고 정예가 늘어난다', '장비 등급과 재료가 좋아진다'])
+      this.count('threat', threat.reached, 'set')
+    } else hud.showToast(`위협 ${level}단계`)
     bus.emit('threatChanged', { level })
-    bus.emit('progressChanged', {})
-    return true
-  }
-
-  /** 다음 단계로 처음 오른다: 전투 경험을 그 원천에 붓는다 */
-  advance(source: SourceId): boolean {
-    const { threat, bus, hud, fx, hero, build } = this.ctx
-    if (!this.here) return false
-    const before = build.state.sources[source]
-    const poured = threat.advance(source)
-    if (poured <= 0) return false
-    this.apply()
-    const after = build.state.sources[source]
-    const lines = [`${sourceName(source)} 숙련 +${poured} (원천 ${before} → ${after})`, '적이 세지고 장비·재료가 좋아진다']
-    const next = AWAKEN_AT.find((at) => after < at)
-    if (next !== undefined) lines.push(`다음 각성까지 ${sourceName(source)} ${next - after}`)
-    if (threat.resonance > 0) lines.push(`공명 ${threat.resonance}: 모든 각성 +${threat.resonance * 5}%`)
-    hud.flash('#c9a24a')
-    fx.power.burst(hero.object.position, '#c9a24a', 3)
-    hud.showGains('위협 단계', `${threat.level}단계`, '#c9a24a', '', lines)
-    this.count('threat', threat.reached, 'set')
-    bus.emit('threatChanged', { level: threat.level })
     bus.emit('progressChanged', {})
     return true
   }

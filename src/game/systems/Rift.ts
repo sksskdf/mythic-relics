@@ -89,7 +89,7 @@ export class RiftSystem {
 
   /** 균열이 열렸나 (한계를 깸) */
   get open(): boolean {
-    return this.ctx.threat.limitBroken
+    return this.ctx.ending.has('rift') && this.ctx.threat.limitBroken
   }
 
   /** 지금 들어갈 수 있나: 열렸고, 마을이고, 이미 들어가 있지 않다 */

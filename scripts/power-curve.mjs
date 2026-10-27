@@ -38,7 +38,11 @@ try {
   const page = await browser.newPage({ viewport: { width: 640, height: 360 } })
   await page.goto(`${BASE}?fresh&autoplay`)
   await page.waitForFunction(() => window.__autoplay && window.__game.frame > 2, null, { timeout: 60000 })
-  if (THREAT > 0) await page.evaluate(() => Object.assign(window.__autoplay, { climb: true }))
+  if (THREAT > 0) await page.evaluate(() => {
+    // 위협 단계는 엔딩 뒤 장치 (E21-06)
+    window.__game.reachEnding()
+    Object.assign(window.__autoplay, { climb: true })
+  })
   const snaps = []
   let next = 0
   for (;;) {

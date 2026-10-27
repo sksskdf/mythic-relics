@@ -12,6 +12,8 @@ export interface HudSlot {
   charge: number
   /** 이 유물이 있는 장비 칸 번호 (빈 칸이면 null) */
   slot: number | null
+  /** 그 신화를 고르지 않아 유물의 힘이 잠들어 있다 (E21-04) */
+  asleep?: boolean
 }
 
 export interface HudState {
@@ -34,7 +36,7 @@ export interface HudState {
   portrait: { name: string; title: string; color: string; level: number } | null
   /** 원천 수치 (장비의 합 + 원천 숙련)와 각성 단계 0~3 (E14-02). 모두 0이면 감춘다 */
   sources: Readonly<Record<string, { value: number; level: number }>>
-  /** 가호로 붙은 신들 */
+  /** 잠든 유물의 신들 (가호, E21-04에서 유물의 힘은 잠든다) */
   blessings: readonly { name: string; color: string }[]
   /** 경험치가 가득 차 승급 전설에 들어갈 수 있다 */
   promote: boolean
@@ -228,7 +230,8 @@ export class Hud {
       }
       // 찬 만큼 그늘을 시계 방향으로 걷어 낸다.
       el.root.style.setProperty('--charge', slot.charge.toFixed(3))
-      el.root.classList.toggle('is-charged', slot.charge >= 1)
+      el.root.classList.toggle('is-charged', slot.charge >= 1 && !slot.asleep)
+      el.root.classList.toggle('is-asleep', !!slot.asleep)
     })
 
     this.xpBar.classList.toggle('is-visible', state.xp !== null)

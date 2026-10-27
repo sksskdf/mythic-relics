@@ -1,7 +1,7 @@
 import type { QuarterViewCamera } from '../render/QuarterViewCamera'
 import type { GearPart, Grade } from '../data/gearData'
 import type { Pickups } from '../gear/Pickups'
-import { baseCandidates, nextRecipe } from '../gear/forge'
+import { nextRecipe } from '../gear/forge'
 import { rollGear } from '../gear/roll'
 import { GODS, type RelicId } from '../relics/data'
 import { type ClassProgress, MASTERY_TO_OPEN } from '../myth/ClassProgress'
@@ -50,18 +50,18 @@ export class DevTools {
     bus.emit('progressChanged', {})
   }
 
-  /** 일반 장비 하나를 그 자리에 떨어뜨린다 (부위·등급을 정할 수 있다). 장비 id를 돌려준다 */
-  dropGear(part?: GearPart, grade?: Grade, x?: number, z?: number): string {
+  /** 일반 장비 하나를 그 자리에 떨어뜨린다 (부위·등급·단계를 정할 수 있다). 장비 id를 돌려준다 */
+  dropGear(part?: GearPart, grade?: Grade, x?: number, z?: number, tier = 1): string {
     const p = this.parts.hero.object.position
-    const item = rollGear(Math.random, { ...(part ? { part } : {}), ...(grade ? { grade } : {}) })
+    const item = rollGear(Math.random, { ...(part ? { part } : {}), ...(grade ? { grade } : {}), tier })
     this.parts.pickups.drop(item.uid, x ?? p.x + 1.5, z ?? p.z, true, item)
     return item.uid
   }
 
   /** 일반 장비 하나를 바로 낀다 (체크리스트 QA·개발 패널). 장비 id를 돌려준다 */
-  wear(part: GearPart, grade?: Grade): string {
+  wear(part: GearPart, grade?: Grade, tier = 1): string {
     const { powers, bus } = this.parts
-    const item = rollGear(Math.random, { part, ...(grade ? { grade } : {}) })
+    const item = rollGear(Math.random, { part, ...(grade ? { grade } : {}), tier })
     powers.loadout.addGear(item)
     powers.loadout.equip(item.uid)
     bus.emit('progressChanged', {})
@@ -99,18 +99,13 @@ export class DevTools {
     bus.emit('progressChanged', {})
   }
 
-  /** 그 신화(없으면 고른 신화)의 다음 제작 재료를 채우고, 바탕이 없으면 그 부위 장비를 가방에 넣는다 (대장간 시험) */
+  /** 그 신화(없으면 고른 신화)의 다음 제작 재료를 채운다 (대장간 시험) */
   fillForge(god?: string): void {
     const { powers } = this.parts
     const target = god ?? powers.manifested ?? 'thor'
-    const recipe = nextRecipe(powers.loadout, target)
+    const recipe = nextRecipe(powers.loadout, target, powers.maxStage())
     if (!recipe) return
     for (const { id, count } of recipe.materials) powers.loadout.addMaterial(id, count)
-    if (recipe.base && baseCandidates(powers.loadout, recipe.base).length === 0) {
-      const item = rollGear(Math.random, { part: recipe.base })
-      powers.loadout.addGear(item)
-      powers.loadout.bag.push(item.uid)
-    }
     this.parts.bus.emit('progressChanged', {})
   }
 
@@ -147,11 +142,12 @@ export class DevTools {
     powers.loadout.slots.forEach((id, slot) => id && relics.unequip(slot, false))
   }
 
-  /** 지금 신화의 경험치를 채우고 바로 다음 개방 단계로 올린다. */
+  /** 지금 신화의 경험치를 채우고 바로 다음 개방 단계로 올린다. 데모 끝 단계(3)도 넘긴다 */
   promote(): void {
     const { powers, progress, growth } = this.parts
     const god = powers.manifested
     if (!god) return
+    if (progress.level(god) >= progress.levelCap) progress.uncapped = true
     progress.addXp(god, 1e9)
     growth.promote(god)
   }

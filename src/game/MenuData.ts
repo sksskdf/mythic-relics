@@ -1,16 +1,14 @@
 import { alwaysStage } from '../build/BuildState'
 import { awakeningLevel } from '../data/awakening'
-import type { GearPart } from '../data/gearData'
 import { blessingDef, STARS } from '../data/rift'
 import { REALM_COLORS, worldLayout } from '../data/regions'
 import { CELL, cellOrigin } from '../data/world'
 import { SOURCE_IDS, type SourceId } from '../data/schema'
 import { LIMIT_REALMS, REALM_NAMES } from '../data/threat'
 import { TRIAL_IDS, TRIAL_MILESTONES, type TrialId, TRIALS } from '../data/trials'
-import { baseCandidates, nextRecipe } from '../gear/forge'
-import { materialName, mythMaterial } from '../gear/materials'
+import { nextRecipe } from '../gear/forge'
+import { materialName } from '../gear/materials'
 import { mythRelic, stageName } from '../gear/mythRelic'
-import { GEAR, gearName } from '../gear/roll'
 import { levelGains } from '../myth/levelGains'
 import { CONVENIENCES } from '../progress/Conveniences'
 import { godDef, GODS, relicDef, type RelicId } from '../relics/data'
@@ -56,17 +54,16 @@ export class MenuData {
         gods: () => {
           const { loadout } = powers
           const chosen = ctx.build.chosen
-          return Object.keys(GODS).filter((god) => god === chosen || game.progress.isOpen(god) || loadout.has(mythRelic(god)) || (loadout.materials.get(mythMaterial(god) ?? '') ?? 0) > 0).sort((a, b) => Number(b === chosen) - Number(a === chosen))
+          return Object.keys(GODS).filter((god) => god === chosen || game.progress.isOpen(god) || loadout.has(mythRelic(god))).sort((a, b) => Number(b === chosen) - Number(a === chosen))
         },
         next: (god) => {
           const { loadout } = powers
-          const recipe = nextRecipe(loadout, god)
+          const recipe = nextRecipe(loadout, god, powers.maxStage())
           if (!recipe) return null
           return {
             name: stageName(recipe.relic, recipe.stage),
             stage: recipe.stage,
             materials: recipe.materials.map(({ id, count }) => ({ name: materialName(id), have: loadout.materials.get(id) ?? 0, need: count })),
-            ...(recipe.base ? { base: this.forgeBase(recipe.base) } : {}),
           }
         },
         make: (god) => ctx.map.region.kind === 'hub' && relics.forge(god),
@@ -83,10 +80,11 @@ export class MenuData {
       myths: {
         canChoose: () => game.canChooseMyth,
         choose: (god) => game.chooseMyth(god),
-        stage: (god) => alwaysStage(game.progress.level(god), powers.loadout.relics.some((id) => id !== null && relicDef(id).god === god), game.rift.lit.has(god)),
+        star: (god) => (game.rift.lit.has(god) ? alwaysStage(game.progress.level(god), powers.loadout.relics.some((id) => id !== null && relicDef(id).god === god), true) : 0),
       },
       cardContext: (id, preview) => this.cardContext(id, preview),
       stats: () => this.heroStats(),
+      afterEnding: () => game.ending.reached,
       toTitle: () => game.toTitle(),
       openSettings: () => {
         game.menu.toggle(false)
@@ -97,7 +95,6 @@ export class MenuData {
         threat: this.threatView(),
         here: () => game.threatSystem.here,
         choose: (level) => game.threatSystem.choose(level),
-        advance: (source) => game.threatSystem.advance(source),
         conveniences: () => CONVENIENCES.map((c) => ({ id: c.id, name: c.name, text: c.text, open: conveniences.has(c.id), have: conveniences.counters[c.counter] ?? 0, need: c.need })),
         get autoSalvage() {
           return conveniences.autoSalvage
@@ -218,12 +215,13 @@ export class MenuData {
     }
     for (const g of blessings) {
       const god = godDef(g)
-      powers.push({ kind: 'god', name: god.name, color: god.color, label: `${god.name}의 가호`, what: '유물의 힘만 쓴다' })
+      powers.push({ kind: 'god', name: god.name, color: god.color, label: `${god.name}의 유물`, what: '잠듦: 그 신화를 고르면 유물의 힘이 깨어난다' })
     }
     for (const id of game.powers.loadout.relics) {
       if (!id) continue
       const def = relicDef(id)
-      powers.push({ kind: 'relic', name: id, color: godDef(def.god).color, label: def.name, what: def.passive.description })
+      // 잠든 유물은 기본 수치만 (E21-04)
+      if (game.powers.awake(id)) powers.push({ kind: 'relic', name: id, color: godDef(def.god).color, label: def.name, what: def.passive.description })
     }
     return {
       hp: game.combat.health.hp,
@@ -235,6 +233,7 @@ export class MenuData {
       knockbackTaken: mods.knockbackTaken,
       divine: game.combat.divine,
       promotions: game.progress.promotions,
+      collected: build.collected,
       powers,
     }
   }
@@ -252,19 +251,15 @@ export class MenuData {
       owned: new Set(loadout.ownedRelics),
       manifested,
       level: manifested ? game.progress.level(manifested) : 0,
+      stage: loadout.stage(id),
       ...(preview ? { preview } : {}),
     }
   }
 
-  /** 원천마다: 장비의 합, 원천 숙련, 합계, 각성 단계 (HUD·정보 화면) */
-  sourceRows(): { id: SourceId; gear: number; mastery: number; total: number; level: number }[] {
-    const { game, ctx } = this.parts
-    const state = ctx.build.state
-    return SOURCE_IDS.map((id) => {
-      const mastery = game.threat.mastery[id]
-      const total = state.sources[id]
-      return { id, gear: total - mastery, mastery, total, level: awakeningLevel(total) }
-    })
+  /** 원천마다: 장비의 합과 각성 단계 (HUD·정보 화면) */
+  sourceRows(): { id: SourceId; total: number; level: number }[] {
+    const state = this.parts.ctx.build.state
+    return SOURCE_IDS.map((id) => ({ id, total: state.sources[id], level: awakeningLevel(state.sources[id]) }))
   }
 
   /** 정보 화면에 보일 위협 단계 (읽을 때마다 지금 값) */
@@ -281,27 +276,9 @@ export class MenuData {
       get reached() {
         return threat.reached
       },
-      get battle() {
-        return threat.battle
-      },
-      get pour() {
-        return threat.pour
-      },
-      get resonance() {
-        return threat.resonance
-      },
       get max() {
         return threat.max
       },
     }
-  }
-
-  /** 대장간 처음 제작의 바탕: 쓰일 장비 이름 (가방 것부터). 없으면 부위만 (E13-05) */
-  private forgeBase(part: GearPart): { part: string; ok: boolean; item?: string } {
-    const { game } = this.parts
-    const { loadout } = game.powers
-    const uid = baseCandidates(loadout, part)[0]
-    const item = uid ? loadout.gear.get(uid) : undefined
-    return { part: GEAR.parts[part].name, ok: !!item, ...(item ? { item: gearName(item) } : {}) }
   }
 }

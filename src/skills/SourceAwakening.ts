@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 
 import { SOURCE_COLORS } from '../art/palette'
-import { AWAKENING, RESONANCE_PER, zeroSources } from '../data/awakening'
+import { AWAKENING, zeroSources } from '../data/awakening'
 import type { SourceId } from '../data/schema'
 import type { CombatTarget } from '../game/PlayerCombat'
 import { EFFECT_LAYER } from '../render/PixelRenderer'
@@ -23,8 +23,6 @@ const BLADE_LIFE = 0.45
 export class SourceAwakening {
   /** 원천마다 각성 단계 0~3 (빌드 상태의 awakening) */
   levels: Readonly<Record<SourceId, number>> = zeroSources()
-  /** 공명 (모든 각성 효과의 세기) */
-  resonance = 0
   /** 최대 생명 (보호막 크기) */
   maxHp = 100
   /** 점검용: 원천마다 터진 수 */
@@ -46,33 +44,29 @@ export class SourceAwakening {
 
   constructor(private readonly fx: THREE.Object3D) {}
 
-  private get power(): number {
-    return 1 + this.resonance * RESONANCE_PER
-  }
-
   /** 기본 공격에 곱하는 배율: 바람 1단계 (걸은 만큼) */
   get basicScale(): number {
-    return this.levels.wind >= 1 ? 1 + this.charge * this.power : 1
+    return this.levels.wind >= 1 ? 1 + this.charge : 1
   }
 
   /** 모든 피해에 곱하는 배율: 사냥 3단계 (이어 잡은 수) */
   get damageScale(): number {
-    return this.levels.hunt >= 3 ? 1 + this.streak * AWAKENING.hunt.streak.per * this.power : 1
+    return this.levels.hunt >= 3 ? 1 + this.streak * AWAKENING.hunt.streak.per : 1
   }
 
   /** 공격 속도·이동 속도 배율: 사냥 1단계 (처치한 뒤 잠깐) */
   get attackSpeed(): number {
-    return this.haste > 0 ? 1 + AWAKENING.hunt.haste.attackSpeed * this.power : 1
+    return this.haste > 0 ? 1 + AWAKENING.hunt.haste.attackSpeed : 1
   }
   get moveSpeed(): number {
-    return this.haste > 0 ? 1 + AWAKENING.hunt.haste.moveSpeed * this.power : 1
+    return this.haste > 0 ? 1 + AWAKENING.hunt.haste.moveSpeed : 1
   }
 
   /** 받는 피해 배율: 바위 3단계 (서 있던 시간) */
   get takenScale(): number {
     if (this.levels.stone < 3) return 1
     const b = AWAKENING.stone.brace
-    return 1 - Math.min(b.max, Math.max(0, this.standing - b.after) * b.perSecond) * Math.min(1.5, this.power)
+    return 1 - Math.min(b.max, Math.max(0, this.standing - b.after) * b.perSecond)
   }
 
   private material(color: string, opacity = 0.7): THREE.MeshBasicMaterial {
@@ -161,7 +155,7 @@ export class SourceAwakening {
 
   /** 맞기 직전: 바람 회피, 바위 보호막. 실제로 받을 피해를 돌려준다 */
   beforeHeroHit(damage: number, ctx: SkillContext): number {
-    if (this.levels.wind >= 2 && ctx.hero.isMoving && Math.random() < Math.min(0.6, AWAKENING.wind.dodge * this.power)) {
+    if (this.levels.wind >= 2 && ctx.hero.isMoving && Math.random() < AWAKENING.wind.dodge) {
       this.fired.wind++
       ctx.puffs.burst(ctx.hero.object.position, 4, 1)
       return 0
@@ -179,7 +173,7 @@ export class SourceAwakening {
       }
     }
     if (this.shield <= 0 && this.shieldCooldown <= 0) {
-      this.shield = this.maxHp * s.shield.share * this.power
+      this.shield = this.maxHp * s.shield.share
       this.shieldCooldown = s.shield.cooldown
       this.fired.stone++
     }
@@ -193,7 +187,7 @@ export class SourceAwakening {
       const dx = enemy.x - x
       const dz = enemy.z - z
       const len = Math.hypot(dx, dz) || 1
-      ctx.hit(enemy, damage * this.power, dx / len, dz / len, knockback, 'normal', 'other')
+      ctx.hit(enemy, damage, dx / len, dz / len, knockback, 'normal', 'other')
     }
     const color = SOURCE_COLORS[source]![0]
     const mesh = new THREE.Mesh(RING_GEOMETRY, this.material(color).clone())

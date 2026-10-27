@@ -22,6 +22,8 @@ export interface HeroStats {
   divine: number
   /** 총 승급 횟수 */
   promotions: number
+  /** 열린 신화 수 (수집 보너스, E21-02) */
+  collected: number
   /** 지금 걸린 힘: 발현, 가호, 낀 유물의 지속 효과 */
   powers: { kind: 'god' | 'relic'; name: string; color: string; label: string; what: string }[]
 }
@@ -77,13 +79,12 @@ export interface WorldMapHost {
 
 /** 원천 탭이 게임에서 읽고 부르는 것 */
 export interface SourcesHost {
-  /** 원천마다: 장비 합, 숙련, 합계, 각성 단계 */
-  rows(): { id: SourceId; gear: number; mastery: number; total: number; level: number }[]
-  readonly threat: { level: number; unlocked: number; reached: number; battle: number; pour: number; resonance: number; max: number }
+  /** 원천마다: 장비의 합과 각성 단계 */
+  rows(): { id: SourceId; total: number; level: number }[]
+  readonly threat: { level: number; unlocked: number; reached: number; max: number }
   /** 단계를 고를 수 있는 곳인가 (마을) */
   here(): boolean
   choose(level: number): boolean
-  advance(source: SourceId): boolean
   /** 편의: 이름, 설명, 열렸나, 진행 */
   conveniences(): { id: string; name: string; text: string; open: boolean; have: number; need: number }[]
   autoSalvage: boolean
@@ -106,10 +107,10 @@ export interface MenuHost {
   readonly forge: {
     /** 지금 벼릴 수 있는 곳인가 (마을) */
     here(): boolean
-    /** 대장간에 보일 신화들 (고른 신화, 열린 신화, 재료나 유물이 있는 신화) */
+    /** 대장간에 보일 신화들 (고른 신화, 열린 신화, 유물이 있는 신화) */
     gods(): God[]
-    /** 그 신화의 다음 제작: 만들 것의 이름, 재료(가진 수/필요한 수), 바탕 장비 부위와 있는지. 다 올렸으면 null */
-    next(god: God): { name: string; stage: number; materials: { name: string; have: number; need: number }[]; base?: { part: string; ok: boolean; item?: string } } | null
+    /** 그 신화의 다음 제작: 만들 것의 이름, 재료(가진 수/필요한 수). 다 올렸으면(데모는 2단계) null */
+    next(god: God): { name: string; stage: number; materials: { name: string; have: number; need: number }[] } | null
     make(god: God): boolean
   }
   readonly loadout: LoadoutState
@@ -121,13 +122,13 @@ export interface MenuHost {
   /** 일반 장비를 분해해 재료로 (E13-07-3) */
   salvage(id: string): void
   readonly progress: ClassProgress
-  /** 신화 탭 (E12-06): 고르기와 상시 효과 단계 */
+  /** 신화 탭 (E12-06): 고르기와 별 수치 */
   readonly myths: {
     /** 지금 고른 신화를 바꿀 수 있는 곳인가 (마을·성소) */
     canChoose(): boolean
     choose(god: God): boolean
-    /** 그 신화의 상시 효과 단계 (개방 단계, 그 신 유물을 끼면 +1) */
-    stage(god: God): number
+    /** 성좌판에서 별을 밝힌 신화의 수치 단계 (밝히지 않았으면 0, 엔딩 뒤) */
+    star(god: God): number
   }
   readonly wardrobe: WardrobeHost
   /** 설명 카드에 넣을 지금 상태 */
@@ -137,6 +138,8 @@ export interface MenuHost {
   readonly world: WorldMapHost
   readonly trials: TrialsHost
   readonly rift: RiftMenuHost
+  /** 첫 엔딩을 보았나: 엔딩 뒤 장치(위협 단계·편의·시련·균열)를 보인다 (E21-06) */
+  afterEnding(): boolean
   /** 저장하고 처음 화면(슬롯 고르기)으로 */
   toTitle(): void
   /** 설정을 연다 (일시 정지 메뉴) */

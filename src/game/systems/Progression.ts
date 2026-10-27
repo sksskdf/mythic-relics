@@ -1,10 +1,10 @@
 import { THREAT, threatGrades } from '../../data/threat'
-import { GRADES } from '../../data/gearData'
 import type { Giant } from '../../enemies/Giant'
 import { ELITE_REWARD } from '../../enemies/elite'
 import { MATERIALS, materialName, rollMaterials } from '../../gear/materials'
-import { GEAR, rollGear } from '../../gear/roll'
+import { GEAR, landChances, landTier, rollGear } from '../../gear/roll'
 import { masteryShares, PER_PROMOTION } from '../../myth/ClassProgress'
+import { collectionText } from '../../myth/alwaysText'
 import { levelGains } from '../../myth/levelGains'
 import { classIcon } from '../../ui/classIcons'
 import { realmSigil } from '../../ui/sigils'
@@ -106,8 +106,9 @@ export class ProgressionSystem {
       ...[...powers.loadout.materials.keys()].filter((id) => isRelicId(id)),
       ...pickups.list.map((p) => p.id).filter((id) => isRelicId(id)),
     ])
-    // 정예는 유물을 한 번 더 굴린다. 상시 효과(도깨비)는 그 확률만큼 한 번 더
-    const rolls = (giant.elite ? ELITE_REWARD.dropRolls : 1) + (Math.random() < this.ctx.build.state.stats.dropChance ? 1 : 0)
+    // 유물은 엔딩 뒤에만 떨어진다 (E21-04: 데모의 유물은 장 보스 재료로 벼린다)
+    // 정예는 유물을 한 번 더 굴린다. 수치(도깨비)는 그 확률만큼 한 번 더
+    const rolls = !this.ctx.ending.has('relicDrops') ? 0 : (giant.elite ? ELITE_REWARD.dropRolls : 1) + (Math.random() < this.ctx.build.state.stats.dropChance ? 1 : 0)
     for (let i = 0; i < rolls; i++) {
       const relic = drops.roll(owned, giant.spec.boss)
       if (!relic) continue
@@ -116,22 +117,27 @@ export class ProgressionSystem {
     }
     // 재료 (E13-04): 잡는 순간 주머니로. 신화 고유·보스 재료만 알린다
     const level = this.ctx.threat.level
-    for (const { id, count } of rollMaterials(Math.random, { realm: giant.spec.realm, elite: !!giant.elite, boss: giant.spec.boss }, this.ctx.build.chosen)) {
+    for (const { id, count } of rollMaterials(Math.random, { realm: giant.spec.realm, elite: !!giant.elite, boss: giant.spec.boss })) {
       // 위협 단계가 높을수록 하나 더 (E14-03)
       powers.loadout.addMaterial(id, count + (Math.random() < THREAT.material * (level - 1) ? 1 : 0))
-      if (MATERIALS[id]?.kind !== 'realm') this.ctx.hud.showToast(`${materialName(id)} · 재료`)
+      // 보스 재료만 알린다: 유물을 벼리는 열쇠
+      if (MATERIALS[id]?.kind === 'boss') this.ctx.hud.showToast(`${materialName(id)} · 대장간에서 유물을 벼린다`)
     }
-    // 일반 장비 (E13-02): 졸개 6%, 정예 25%, 지역 보스는 반드시 (희귀 이상)
+    // 일반 장비 (E13-02): 졸개 6%, 정예 25%, 지역 보스는 반드시 (희귀 이상).
+    // 땅 자리마다 드랍 표가 다르고, 단계는 그 땅의 단계 (E21-03)
     const boss = giant.spec.boss !== undefined
-    const chance = (boss ? GEAR.drop.boss : giant.elite ? GEAR.drop.elite : GEAR.drop.grunt) * THREAT.gearDrop ** (level - 1)
+    const { region } = this.ctx.map
+    const land = region.zone ? GEAR.lands[region.zone] : null
+    const chance = (boss ? GEAR.drop.boss : giant.elite ? GEAR.drop.elite : GEAR.drop.grunt) * (land?.rate ?? 1) * THREAT.gearDrop ** (level - 1)
     if (Math.random() < chance) {
-      const chances = threatGrades(gradeChances(), level)
-      const item = rollGear(Math.random, boss ? { minGrade: GEAR.drop.bossMinGrade, chances } : { chances })
+      const chances = threatGrades(landChances(region.zone), level)
+      const tier = landTier(region.realm ?? giant.spec.realm)
+      const item = rollGear(Math.random, boss ? { minGrade: GEAR.drop.bossMinGrade, chances, tier } : { chances, tier })
       pickups.drop(item.uid, giant.x + 0.7, giant.z + 0.4, true, item)
     }
   }
 
-  /** 신화 숙련을 그 신화권 신들에게 나눠 쌓는다. 문턱을 넘은 신화는 열린다. */
+  /** 신화 경험치를 쌓는다: 고른 신화만, 고른 신화가 없으면 그 신화권 신들에게 (첫 신화를 연다). 문턱을 넘은 신화는 열린다. */
   gainMastery(amount: number, realm: string | undefined): void {
     const { build, progress, bus } = this.ctx
     // 상시 효과: 신화 숙련 얻는 양 (오딘)
@@ -142,14 +148,13 @@ export class ProgressionSystem {
     bus.emit('progressChanged', {})
   }
 
-  /** 신화가 처음 열렸다 (숙련 문턱 또는 유물): 칭호 카드와 빛기둥 (고르지 않아도 상시 효과가 붙는다) */
+  /** 신화가 처음 열렸다 (경험치 문턱 또는 유물): 칭호 카드와 빛기둥 (고르지 않아도 수집 보너스가 붙는다) */
   private announceOpened(god: God): void {
     const { hud, fx, hero, progress } = this.ctx
     // 처음 연 신화를 바로 골랐으면 고른 신화 카드가 대신 알린다
     if (progress.chosen.includes(god)) return
     const def = godDef(god)
-    const echo = def.always.echo
-    hud.showGains('신화 개방', def.titles[0], def.color, classIcon(def.name), [`${def.name}의 힘이 깨어났다`, `상시 효과: ${partName(def, echo.part)} 메아리`])
+    hud.showGains('신화 개방', def.titles[0], def.color, classIcon(def.name), [`${def.name}의 힘이 깨어났다`, `수집 보너스: ${collectionText()}`])
     fx.power.burst(hero.object.position, def.color, 3)
     hud.flash(def.color)
   }
@@ -158,7 +163,7 @@ export class ProgressionSystem {
   promote(god: God): void {
     const { progress, combat, hero, hud, fx, view, feel, bus } = this.ctx
     const hpBefore = this.ctx.build.state.maxHp
-    const dmgBefore = 1 + progress.promotions * PER_PROMOTION.damage
+    const dmgBefore = PER_PROMOTION.damage ** progress.promotions
     if (!progress.promote(god)) return
     bus.emit('promoted', { god, title: progress.title(god) })
     bus.emit('progressChanged', {})
@@ -167,7 +172,7 @@ export class ProgressionSystem {
     const p = hero.object.position
     // 무엇이 얼마나 강해졌는지: 기본 능력치는 전→후, 그 단계에서 새로 생긴 힘은 한 줄씩
     const hpAfter = this.ctx.build.state.maxHp
-    const dmgAfter = 1 + progress.promotions * PER_PROMOTION.damage
+    const dmgAfter = PER_PROMOTION.damage ** progress.promotions
     const level = progress.level(god)
     const lines = [
       `최대 생명 ${hpBefore} → ${hpAfter}`,
@@ -199,16 +204,4 @@ export class ProgressionSystem {
     this.ctx.combat.health.reset()
     this.ctx.bus.emit('progressChanged', {})
   }
-}
-
-/** 메아리가 본뜬 패시브 부품의 화면 이름 (이름이 없는 부품은 신 이름) */
-function partName(def: ReturnType<typeof godDef>, part: string): string {
-  const named = (def.passive as unknown as Record<string, { name?: string } | undefined>)[part]
-  if (named?.name) return named.name
-  return part === 'basicLightning' ? '번개' : part === 'bladeStorm' ? '칼날 폭풍' : def.name
-}
-
-/** 데이터의 등급 확률 */
-function gradeChances(): Record<(typeof GRADES)[number], number> {
-  return Object.fromEntries(GRADES.map((g) => [g, GEAR.grades[g].chance])) as Record<(typeof GRADES)[number], number>
 }

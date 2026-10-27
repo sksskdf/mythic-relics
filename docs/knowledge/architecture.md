@@ -19,12 +19,12 @@
 | 곳 | 바꾼 뒤 |
 | --- | --- |
 | `src/game/Game.ts` | 957줄 → 870줄 안팎. 지역 이동은 `World`, 개발 지름길은 `src/dev/DevTools.ts`(`game.dev.*`), 시작 화면 뒤 장면은 `TitleBackdrop`. Game에는 `enterRegion`·`travelTo`·`regions`·`exitsLocked` 위임만 남김 |
-| 빌드 상태 | `src/build/BuildState.ts`의 `computeBuild(inputs)`: 열린 신화·고른 신화·장비·원천·순환 배율 → 피해 배율·지속 효과·받는 피해·이동 속도·공격 리듬·최대 생명, 상시 효과(메아리 목록 `echoes`, 수치 합 `stats`). 게임 안에서는 `ctx.build`(`Build`, 부를 때마다 계산, `chosen`·`level`은 가볍게). `tests/build.test.ts`가 1차 공식 × 상시 수치인지 지킨다 |
+| 빌드 상태 | `src/build/BuildState.ts`의 `computeBuild(inputs)`: 열린 신화(수집 보너스 `collected`)·올린 단계(×1.35^n)·고른 신화·장비(일반 장비 수치, 유물 기본 수치는 `Build`가 `relicStats`로 넣음)·원천 → 피해 배율·지속 효과(깨어난 유물만)·받는 피해·이동 속도·공격 리듬·최대 생명, 수치 합 `stats`(별을 밝힌 신화의 수치 포함). 게임 안에서는 `ctx.build`(`Build`, 부를 때마다 계산, `chosen`·`level`은 가볍게). `tests/build.test.ts`가 E21 공식을 지킨다 |
 | 세계 (E15) | 지역 16곳: `RegionDef.zone`(entrance·deep·boss)·`elite`. `nextHop`(봇·지도의 다음 이웃), `worldLayout`(지도 자리). 대화 장면은 `Game.story(id)`가 처음 보는 일에만 열고, 대화 중에는 세계가 멈춘다 |
-| `src/gear/` | `Loadout`(칸 7·가방·일반 장비 `gear`·유물 단계 `stages`·재료 `materials`·물려받은 수치 `inherited`), `roll.ts`(일반 장비 굴리기, id는 `g:`로 시작), `mythRelic.ts`(신화마다 유물 하나와 부위·단계, 나머지는 재료), `materials.ts`(재료와 드랍), `forge.ts`(규칙으로 만드는 제작법·제작·분해), `Pickups`, `DropTable`. 칸에는 유물 id와 장비 id가 섞여 들어가므로 유물만 다루는 곳은 `isRelicId`나 `loadout.relics`로 거른다 |
-| `src/skills/MythEchoes.ts` | 상시 효과 메아리 (E12-03): 고르지 않은 열린 신화마다 패시브 부품이 가끔 한 번. 빌드 상태의 `echoes`를 `Relics`가 넘겨 준다 |
-| `src/myth/` | `manifest.ts`(고른 신화·가호 판정, 옛 발현 규칙 `legacyManifest`는 옛 저장과 히든 신화만), `ClassProgress`(개방 단계 0~4·신화 숙련·원천 숙련, 숙련 나누기 `masteryShares`), `levelGains`. E12에서 영구 개방·상시·추가 효과가 들어올 자리 |
-| 원천·위협 단계 (E14) | 빌드 상태에 `sources`(장비 + 원천 숙련)·`awakening`(0~3)·`resonance`. 각성 효과는 `powers.awakening`(`SourceAwakening`)이 기본 공격·처치·걸음·피격에서 돌고, 배율(기본 공격·모든 피해·공격/이동 속도·받는 피해)은 Game이 매 프레임 전투·이동에 곱한다. 위협 단계 배율은 `encounter.threat`·`eliteChance`로 새로 세우는 적에 건다 |
+| `src/gear/` | `Loadout`(칸 7·가방·일반 장비 `gear`·유물 단계 `stages`·재료 `materials`), `roll.ts`(일반 장비 굴리기와 단계 `tier`·`landTier`·`landChances`, id는 `g:`로 시작), `mythRelic.ts`(신화마다 유물 하나와 부위·단계, 기본 수치 `relicStats`, 깨어남 `relicAwake`, 효과 배율 `effectScale`, 나머지 유물은 엔딩 뒤 재료), `materials.ts`(신화권 재료·보스 재료와 드랍), `forge.ts`(장 보스 규칙으로 만드는 제작법·제작·분해), `Pickups`, `DropTable`(엔딩 뒤 유물 드랍). 칸에는 유물 id와 장비 id가 섞여 들어가므로 유물만 다루는 곳은 `isRelicId`나 `loadout.relics`로 거른다 |
+| `src/myth/` | `manifest.ts`(고른 신화·가호 판정, 옛 발현 규칙 `legacyManifest`는 옛 저장과 히든 신화만), `ClassProgress`(개방 단계 0~4·경험치, 단계 상한 `levelCap`(데모 3, 엔딩 뒤 4), 경험치 받는 신화 `masteryShares`, 큰 걸음 `PER_PROMOTION`·수집 보너스 `PER_OPENED`), `levelGains`, `alwaysText`(수치·수집 보너스·별 글) |
+| `src/progress/Ending.ts` | 엔딩 뒤 장치를 여는 한 곳 (E21-06): 위협 단계·시련·균열·편의·신화 4단계·유물 3·4단계·유물 드랍. `game.reachEnding()`이 열고 저장에 남는다 |
+| 원천·위협 단계 (E14) | 빌드 상태에 `sources`(장비의 합, E21-05에서 원천 숙련·공명을 없앰)·`awakening`(0~3). 각성 효과는 `powers.awakening`(`SourceAwakening`)이 기본 공격·처치·걸음·피격에서 돌고, 배율(기본 공격·모든 피해·공격/이동 속도·받는 피해)은 Game이 매 프레임 전투·이동에 곱한다. 위협 단계 배율은 `encounter.threat`·`eliteChance`로 새로 세우는 적에 건다 |
 | 읽는 길 | 게임 시스템은 지금 신화·단계를 `ctx.build.chosen`·`ctx.build.level`로 읽는다. 장비 칸 자체를 다루는 곳(장착·저장·유물 화면)은 `powers.loadout`을 본다 |
 
 ## 2차 스프린트 중간 점검에서 나눈 곳 (2026-10-27)

@@ -26,10 +26,13 @@ const TABS: readonly [MenuTab, Parameters<typeof glyph>[0], string][] = [
   ['looks', 'looks', '외형'],
 ]
 
+/** 엔딩 뒤에만 보이는 탭 (E21-06) */
+const ENDING_TABS: readonly MenuTab[] = ['trials', 'rift']
+
 /** 탭에 올리면 나오는 설명 */
 const TAB_HINTS: Record<MenuTab, string> = {
   status: '상태\n지금 내 능력치와 걸려 있는 힘',
-  sources: '원천\n장비의 원천이 쌓여 각성한 힘, 세계의 위협 단계, 손이 덜 가는 편의',
+  sources: '원천\n장비의 원천이 쌓여 각성한 힘 (엔딩 뒤에는 세계의 위협 단계와 손이 덜 가는 편의도)',
   relics: '유물\n낀 유물과 가방. 눌러서 바꿔 끼고, 바꾸면 어떻게 되는지 미리 본다',
   trials: '시련\n제약을 건 전설. 깨면 그 제약과 이어진 힘이 영구히 붙는다',
   rift: '균열\n한계를 깨면 열리는 끝없는 층과, 별을 밝히는 성좌판',
@@ -199,7 +202,13 @@ export class GameMenu {
 
   private render(): void {
     this.hint.hidden = true
-    for (const [id, b] of this.tabButtons) b.classList.toggle('is-on', id === this.tab)
+    // 시련·균열은 엔딩 뒤 장치라 그 전에는 탭을 숨긴다 (E21-06)
+    const later = !this.ctx.host.afterEnding()
+    if (later && ENDING_TABS.includes(this.tab)) this.tab = 'status'
+    for (const [id, b] of this.tabButtons) {
+      b.classList.toggle('is-on', id === this.tab)
+      b.hidden = later && ENDING_TABS.includes(id)
+    }
     this.body.replaceChildren()
     const { ctx, body } = this
     if (this.tab === 'status') renderStatus(ctx, body)

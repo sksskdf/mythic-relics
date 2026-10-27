@@ -1,5 +1,4 @@
 import { type GearPart, SLOT_PARTS } from '../data/gearData'
-import type { StatKind } from '../data/mythAlways'
 import { type God, isRelicId, type RelicId } from '../relics/data'
 import { type LoadoutState, resolveLoadout } from '../myth/manifest'
 import { relicPart } from './mythRelic'
@@ -28,8 +27,6 @@ export class Loadout {
   readonly stages = new Map<RelicId, number>()
   /** 재료 개수 (재료가 된 유물, E13-04의 재료) */
   readonly materials = new Map<string, number>()
-  /** 대장간에서 만든 유물이 바탕 장비에서 물려받은 수치 (E13-05) */
-  readonly inherited = new Map<RelicId, { kind: StatKind; value: number }>()
   /** 고른 신화 (E12-04: 열린 신화 가운데 하나, 유물 수와 상관없다) */
   chosen: God | null = null
 
@@ -40,11 +37,6 @@ export class Loadout {
   /** 칸에 낀 유물들 (칸 순서, 빈 칸과 일반 장비는 null) */
   get relics(): (RelicId | null)[] {
     return this.slots.map((id) => (id && isRelicId(id) ? id : null))
-  }
-
-  /** 칸에 낀 유물이 물려받은 수치들 */
-  get wornInherited(): { kind: StatKind; value: number }[] {
-    return this.relics.flatMap((id) => (id && this.inherited.has(id) ? [this.inherited.get(id)!] : []))
   }
 
   /** 칸에 낀 일반 장비들 */

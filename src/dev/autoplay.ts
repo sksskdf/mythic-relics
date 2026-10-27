@@ -2,7 +2,6 @@ import type { Giant, GiantDanger } from '../enemies/Giant'
 import type { Game } from '../game/Game'
 import { clampToCircle } from '../game/HeroController'
 import { angleDiff, angleTo, inLine } from '../combat/arc'
-import type { SourceId } from '../data/schema'
 import { nextHop } from '../data/regions'
 import { regionLinks } from '../data/world'
 import { TRIAL_IDS, type TrialId } from '../data/trials'
@@ -30,8 +29,6 @@ export class Autoplayer {
   private patrol = 0
   /** 위협 단계를 올리는가: 열리면 마을에 가서 원천 갈래를 고르고 오른다 (scripts/playtest.mjs --threat) */
   climb = false
-  /** 원천 갈래로 고를 원천 (없으면 장비에 가장 많은 원천) */
-  source: SourceId | null = null
   /** 시련을 하는가: 위협 3단계가 되면 아직 못 깬 시련 1단계를 차례로 (scripts/playtest.mjs --trials) */
   trials = false
   /** 균열을 내려가는가: 마을에서 들어가 층마다 첫 축복을 고르고 다음 층 문으로 (scripts/playtest.mjs --rift) */
@@ -74,13 +71,11 @@ export class Autoplayer {
     return TRIAL_IDS.find((id) => !(this.game.trials.cleared[id] ?? 0)) ?? null
   }
 
-  /** 위협 단계: 마을에 있고 다음 단계가 열렸으면, 정한 원천(없으면 장비에 가장 많은 원천)에 붓고 오른다 */
+  /** 위협 단계: 마을에 있고 다음 단계가 열렸으면 오른다 (엔딩 뒤) */
   private climbUp(): void {
     const { threat, threatSystem, region } = this.game
     if (region.kind !== 'hub' || threat.unlocked <= threat.reached) return
-    const rows = this.game.sourceRows()
-    const pick = this.source ?? rows.reduce((a, b) => (b.total > a.total ? b : a)).id
-    if (threatSystem.advance(pick)) this.climbs.push(this.game.time)
+    if (threatSystem.choose(threat.unlocked)) this.climbs.push(this.game.time)
   }
 
   /** 벼리기에 실패한 신화 (재료가 늘면 다시 해 본다) */
@@ -107,7 +102,7 @@ export class Autoplayer {
     if (manifested && godDef(manifested).legend && progress.readyToPromote(manifested)) return fieldOf(manifested) ?? region.id
     // 벼릴 재료가 차면 마을 대장간으로 (E13-08)
     const hub = Object.values(regions).find((r) => r.kind === 'hub')?.id ?? region.id
-    if (this.forgeGods().some((god) => forgeReady(powers.loadout, god))) return hub
+    if (this.forgeGods().some((god) => forgeReady(powers.loadout, god, powers.maxStage()))) return hub
     // 위협 단계가 새로 열렸으면 마을 촌장에게 (E14-07)
     const threat = this.game.threat
     // 시련 (E16): 아직 못 깬 시련이 있으면 고른 신화의 입구 들판 성소로
@@ -204,7 +199,7 @@ export class Autoplayer {
     // 마을에 있으면 벼릴 수 있는 것을 모두 벼린다 (고른 신화부터)
     // 벼리기에 실패한 신화는 재료가 바뀔 때까지 건너뛴다 (마을에 갇히지 않게)
     if (this.game.region.kind === 'hub') {
-      for (const god of this.forgeGods()) if (forgeReady(powers.loadout, god) && !this.game.dev.forge(god)) this.forgeBlocked.add(god)
+      for (const god of this.forgeGods()) if (forgeReady(powers.loadout, god, powers.maxStage()) && !this.game.dev.forge(god)) this.forgeBlocked.add(god)
     }
     // 칸이 차 있어도 줍는다 (가방에 들어가고, 모이면 바꿔 낀다)
     if (!legend.active) {

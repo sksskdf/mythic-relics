@@ -46,3 +46,6 @@
 | 작업 단위 목록에 "지금 할 일" 스타일이 번짐 | `.now li` 선택자 | `.box.units`에서 덮어씀 |
 | 하위 이슈 만들기가 "label not found" | 부모를 붙여 만들면 라벨이 새로 생기지 않음 | 부모 없이 만든 뒤 `sub_issue_write` |
 | 원격 브랜치 지우기 403 | 환경의 git 프록시가 막음 | PR로 병합 + "Automatically delete head branches" ([`environment.md`](environment.md)) |
+| `checklist-qa.mjs`의 장면이 `page.goto: Timeout`으로 줄줄이 실패 (E21) | e12-1이 첫 페이지를 닫지 않은 채 미드가르드를 새로 열었고, 이어진 세계(E19)라 이웃 땅까지 짓느라 30초를 넘김. 실패한 장면의 페이지가 남아 다음 장면까지 느려짐 | 두 번째 페이지를 열기 전에 첫 페이지를 닫고, 처음 여는 시간을 90초까지 기다리며, 장면이 실패하면 열린 페이지를 모두 닫는다 |
+| 정보 화면 탭에 `hidden`을 붙였는데 그대로 보임 (E21) | `.menu__tab { display: flex }`가 `[hidden]`의 기본 `display: none`을 덮음 | `.menu__tab[hidden] { display: none }`을 더함. 스모크는 `b.hidden`만 봐서 못 잡았다 |
+

@@ -1,10 +1,10 @@
 import type { AttackStyle } from '../combat/styles'
 import { awakeningLevel } from '../data/awakening'
 import { NO_RULES, type TrialRules } from '../data/trials'
-import { type EchoTrigger, type MythAlways, STAT_KINDS, type StatKind } from '../data/mythAlways'
+import { type MythAlways, STAT_KINDS, type StatKind } from '../data/mythAlways'
 import { SOURCE_IDS, type SourceId } from '../data/schema'
-import { relicSource } from '../gear/mythRelic'
-import { PER_PROMOTION } from '../myth/ClassProgress'
+import { relicAwake, relicSource } from '../gear/mythRelic'
+import { PER_OPENED, PER_PROMOTION } from '../myth/ClassProgress'
 import { type God, godDef, relicDef, type RelicId } from '../relics/data'
 import { type Modifiers, NO_MODIFIERS } from '../skills/Skill'
 
@@ -12,8 +12,10 @@ import { type Modifiers, NO_MODIFIERS } from '../skills/Skill'
  * 빌드 상태 (E11-04, DESIGN.md 4.6).
  * 힘은 "열린 신화 + 고른 신화 + 장비 + 원천"을 모은 이 한 곳에서 계산한다.
  * - 고른 신화(지금은 발현한 신)는 추가 효과: 패시브·궁극기·공격 리듬
- * - 열린 신화는 모두 상시 효과(E12-03, DESIGN.md 4.2.1): 고르지 않은 신화의 메아리, 모든 열린 신화의 수치
- * - 장비 = 유물과 일반 장비, 원천 = 장비의 원천 수치 (E14에서 각성)
+ * - 열린 신화는 모두 수집 보너스(E21-02): 하나마다 모든 피해 +4%, 최대 생명 +5
+ * - 승급(신화 단계)은 큰 걸음(E21-01): 한 번마다 모든 피해 ×1.35, 최대 생명 +25%
+ * - 장비 = 유물과 일반 장비, 원천 = 장비의 원천 수치 (E14에서 각성, 원천 숙련은 E21-05에서 없앰)
+ * - 성좌판에서 별을 밝힌 신화는 그 신화의 수치를 낸다 (엔딩 뒤, E17)
  */
 
 /** 빌드 상태를 만드는 재료 */
@@ -28,8 +30,6 @@ export interface BuildInputs {
   gearItems?: readonly { stats: readonly { kind: StatKind; value: number }[]; source: { id: SourceId; value: number } }[]
   /** 유물 단계 (E13-03, 없으면 1) */
   stage?: (id: RelicId) => number
-  /** 영구 원천 숙련 (E14-04): 장비의 원천 수치에 더해진다 */
-  sourceMastery?: (source: SourceId) => number
   /** 올린 개방 단계의 합 */
   promotions: number
   /** 시련 보상 (E16): 수치 종류마다 더한다 */
@@ -44,24 +44,15 @@ export interface BuildInputs {
 
 /** 기본 최대 생명 */
 export const BASE_HP = 100
-/** 상시 효과 단계의 끝: 4단계 신화에 그 신화 유물을 끼면 5 */
+/** 별 수치 단계의 끝: 4단계 신화에 그 신화 유물을 끼면 5 */
 export const TOP_STAGE = 5
 
 /**
- * 열린 신화 하나의 상시 효과가 작동하는 단계: 개방 단계, 그 신화 유물을 끼면 한 단계 위 (DESIGN.md 4.2.1),
- * 성좌판에서 그 신의 별을 밝혔으면 또 한 단계 위 (E17-04)
+ * 별을 밝힌 신화의 수치가 작동하는 단계 (E17-04, E21에서 성좌판만): 개방 단계 + 별 하나,
+ * 그 신화 유물을 끼면 한 단계 위
  */
 export function alwaysStage(level: number, wearsRelic: boolean, starred = false): number {
   return level <= 0 ? 0 : Math.min(TOP_STAGE, level + (wearsRelic ? 1 : 0) + (starred ? 1 : 0))
-}
-
-/** 그 단계의 메아리 간격 (공격 수·초·확률). 1단계 every[0], 2~4단계 every[1], 5단계는 한 번 더 자주 */
-export function echoEvery(every: readonly [number, number], trigger: EchoTrigger, stage: number): number {
-  if (stage <= 1) return every[0]
-  if (stage < TOP_STAGE) return every[1]
-  if (trigger === 'hits') return Math.max(2, every[1] - 1)
-  if (trigger === 'chance') return Math.min(0.9, every[1] * 1.2)
-  return every[1] * 0.8
 }
 
 /** 그 단계의 수치 (3단계 value[0], 4단계 value[1], 5단계 ×1.5, 그 아래는 0) */
@@ -69,12 +60,6 @@ export function statAt(stat: MythAlways['stat'], stage: number): number {
   if (stage < 3) return 0
   if (stage === 3) return stat.value[0]
   return stat.value[1] * (stage >= TOP_STAGE ? 1.5 : 1)
-}
-
-/** 메아리 하나: 고르지 않은 열린 신화마다 */
-export interface Echo {
-  god: God
-  stage: number
 }
 
 /** 빌드 상태: 능력치와 걸린 힘 */
@@ -95,21 +80,19 @@ export interface BuildState {
   attackSpeed: number
   /** 기본 공격 모션 */
   attack: AttackStyle
-  /** 상시 효과: 고르지 않은 열린 신화의 메아리 */
-  echoes: readonly Echo[]
-  /** 상시 효과 수치: 모든 열린 신화의 같은 종류 수치를 더한 값 (없으면 0) */
+  /** 열린 신화 수 (수집 보너스, E21-02) */
+  collected: number
+  /** 수치: 일반 장비·시련 보상·별을 밝힌 신화의 같은 종류 수치를 더한 값 (없으면 0) */
   stats: Readonly<Record<StatKind, number>>
   /** 최대 생명 */
   maxHp: number
   /** 시련 제약: 생명이 차오르지 않는다, 궁극기를 쓸 수 없다 (E16) */
   noHeal: boolean
   noUltimate: boolean
-  /** 원천 수치: 일반 장비와 유물(단계마다 +2~+5)의 합 + 원천 숙련 (E14) */
+  /** 원천 수치: 일반 장비와 유물(단계마다 +2~+5)의 합 (E14, E21-05에서 원천 숙련을 없앰) */
   sources: Readonly<Record<SourceId, number>>
   /** 원천 각성 단계 0~3 (문턱 5/10/20, E14-02) */
   awakening: Readonly<Record<SourceId, number>>
-  /** 공명: 네 원천 숙련의 최솟값 (E14-04). 모든 각성 효과가 그만큼 세진다 */
-  resonance: number
 }
 
 /** 장비한 유물들의 지속 효과 수치를 곱한다 */
@@ -127,17 +110,15 @@ export function computeBuild(inputs: BuildInputs): BuildState {
   const rules = inputs.rules ?? NO_RULES
   const chosen = rules.noMyth ? null : (inputs.chosen[0] ?? null)
   const god = chosen ? godDef(chosen) : null
-  // 상시 효과: 같은 종류 수치는 더하고, 다른 종류끼리는 아래에서 곱한다
+  // 수치: 같은 종류는 더하고, 다른 종류끼리는 아래에서 곱한다
   const worn = new Set(inputs.gear.filter((id): id is RelicId => id !== null).map((id) => relicDef(id).god))
   const stats = Object.fromEntries(STAT_KINDS.map((k) => [k, 0])) as Record<StatKind, number>
-  const echoes: Echo[] = []
+  let collected = 0
   for (const [id, level] of inputs.open) {
-    const stage = alwaysStage(level, worn.has(id), inputs.starred?.has(id) ?? false)
-    if (stage <= 0) continue
-    const always = godDef(id).always
-    stats[always.stat.kind] += statAt(always.stat, stage)
-    // 고른 신화는 패시브 전체가 돌아 메아리를 따로 내지 않는다
-    if (id !== chosen) echoes.push({ god: id, stage })
+    if (level <= 0) continue
+    collected += 1
+    // 별을 밝힌 신화만 그 신화의 수치를 낸다 (성좌판, 엔딩 뒤)
+    if (inputs.starred?.has(id)) stats[godDef(id).always.stat.kind] += statAt(godDef(id).always.stat, alwaysStage(level, worn.has(id), true))
   }
   // 일반 장비 수치 (E13-02)와 원천 수치
   const sources = Object.fromEntries(SOURCE_IDS.map((s) => [s, 0])) as Record<SourceId, number>
@@ -150,16 +131,17 @@ export function computeBuild(inputs: BuildInputs): BuildState {
     const source = relicSource(id, inputs.stage?.(id) ?? 1)
     sources[source.id] += source.value
   }
-  for (const s of SOURCE_IDS) sources[s] += inputs.sourceMastery?.(s) ?? 0
   for (const [kind, value] of Object.entries(inputs.bonus ?? {}) as [StatKind, number][]) stats[kind] += value
   const awakening = Object.fromEntries(SOURCE_IDS.map((s) => [s, Math.min(3, awakeningLevel(sources[s]) + (inputs.awakenBonus?.[s] ?? 0))])) as Record<SourceId, number>
-  const resonance = Math.min(...SOURCE_IDS.map((s) => inputs.sourceMastery?.(s) ?? 0))
-  let damageScale = (1 + inputs.promotions * PER_PROMOTION.damage) * (1 + stats.damage)
+  // 신화 단계(큰 걸음)는 곱하고, 수집 보너스는 다른 피해 수치와 더한다
+  let damageScale = PER_PROMOTION.damage ** inputs.promotions * (1 + stats.damage + collected * PER_OPENED.damage)
   if (god) {
     // 고른 신화의 패시브 (천둥의 신: 거인 특효)
     damageScale *= god.passive.damageScale
   }
-  const modifiers = gearModifiers(inputs.gear)
+  // 유물의 지속 효과는 그 신화를 골랐을 때만 깨어난다 (E21-04). 시련으로 신화를 막아도 고른 신화는 그대로 본다
+  const picked = inputs.chosen[0] ?? null
+  const modifiers = gearModifiers(inputs.gear.map((id) => (id && relicAwake(id, picked) ? id : null)))
   return {
     chosen,
     level: chosen ? (inputs.open.get(chosen) ?? 0) : 0,
@@ -170,12 +152,11 @@ export function computeBuild(inputs: BuildInputs): BuildState {
     moveSpeed: modifiers.moveSpeed * (1 + stats.moveSpeed) * rules.moveScale,
     attackSpeed: (god ? god.passive.attackSpeed : 1) * (1 + stats.attackSpeed),
     attack: god ? god.attack : 'blade',
-    echoes,
+    collected,
     stats,
     sources,
     awakening,
-    resonance,
-    maxHp: Math.round((BASE_HP + inputs.promotions * PER_PROMOTION.maxHp + stats.maxHp) * (1 + stats.maxHpPct) * rules.maxHpScale),
+    maxHp: Math.round((BASE_HP + collected * PER_OPENED.maxHp + stats.maxHp) * (1 + inputs.promotions * PER_PROMOTION.maxHpPct + stats.maxHpPct) * rules.maxHpScale),
     noHeal: rules.noHeal,
     noUltimate: rules.noUltimate,
   }

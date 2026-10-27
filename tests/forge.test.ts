@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { allRecipes, craft, missing, nextRecipe, recipeFor, salvage, SALVAGE, stageRelics } from '../src/gear/forge'
+import { allRecipes, craft, forgeReady, missing, nextRecipe, recipeFor, salvage, SALVAGE } from '../src/gear/forge'
 import { Loadout } from '../src/gear/Loadout'
 import { MATERIALS } from '../src/gear/materials'
-import { relicPart } from '../src/gear/mythRelic'
-import { rollGear } from '../src/gear/roll'
-import { DEFAULT_DROPS, DropTable } from '../src/gear/DropTable'
+import { DEMO_RELIC_STAGES, effectScale, RELIC_STAT_COUNT, relicStats, relicTier, STAGE_DAMAGE } from '../src/gear/mythRelic'
+import { GEAR, rollGear } from '../src/gear/roll'
 import { GODS } from '../src/relics/data'
 import { createRng } from '../src/world/rng'
 
@@ -14,39 +13,23 @@ function fill(loadout: Loadout, god: string): void {
   for (const { id, count } of nextRecipe(loadout, god)!.materials) loadout.addMaterial(id, count)
 }
 
-describe('대장간 제작법 (E13-05)', () => {
-  it('21신화 × 4단계 모두 제작법이 있고, 모든 재료는 얻을 수 있다', () => {
+describe('대장간 제작법 (E13-05 → E21-04)', () => {
+  it('21신화 × 4단계 모두 제작법이 있고, 재료는 신화권 재료와 보스 재료 둘뿐이다', () => {
     const recipes = allRecipes()
     expect(recipes.length).toBe(Object.keys(GODS).length * 4)
-    // 재료가 된 유물 가운데 무작위로 나오는 것 (모든 신화권을 돌며)
-    const droppable = new Set<string>()
-    for (const realm of ['norse', 'greek', 'china', 'japan', 'korea'] as const) {
-      const drops = new DropTable(createRng(4), { ...DEFAULT_DROPS, base: 1, foreign: 1 })
-      drops.realm = realm
-      for (let i = 0; i < 3000; i++) {
-        const id = drops.roll(new Set())
-        if (id) droppable.add(id)
-      }
-    }
     for (const r of recipes) {
-      expect(r.materials.length, `${r.relic} ${r.stage}`).toBeGreaterThan(0)
-      for (const { id } of r.materials) expect(MATERIALS[id] !== undefined || droppable.has(id), `${r.relic} ${r.stage}단계 ${id}`).toBe(true)
-      if (r.stage === 1) expect(r.base).toBe(relicPart(r.relic))
-      // 같은 재료가 두 줄로 들지 않는다 (두 줄이면 모자란지 셀 때 한 줄씩만 본다)
-      const ids = r.materials.map((m) => m.id)
-      expect(new Set(ids).size, `${r.relic} ${r.stage}단계`).toBe(ids.length)
+      const kinds = r.materials.map((m) => MATERIALS[m.id]?.kind)
+      expect(kinds.sort(), `${r.relic} ${r.stage}단계`).toEqual(['boss', 'realm'])
     }
   })
 
-  it('2·3단계에는 그 신의 재료가 된 유물을 하나씩 쓴다 (묠니르: 메긴교르드 → 야른그레이프르)', () => {
-    expect(stageRelics('thor')).toEqual(['megingjord', 'jarngreipr'])
-    expect(recipeFor('thor', 2).materials.map((m) => m.id)).toContain('megingjord')
-    expect(recipeFor('thor', 3).materials.map((m) => m.id)).toContain('jarngreipr')
-    // 모든 신화가 2·3단계에 쓸 재료 유물을 갖는다
-    for (const god of Object.keys(GODS)) expect(stageRelics(god).length, god).toBeGreaterThanOrEqual(1)
+  it('유물 단계는 장 보스가 연다: 토르는 1단계 거인 왕, 2단계 키마이라, 제우스는 1단계 키마이라', () => {
+    expect(recipeFor('thor', 1).materials).toEqual([{ id: 'giantHeart', count: 1 }, { id: 'frostShard', count: 10 }])
+    expect(recipeFor('thor', 2).materials).toEqual([{ id: 'chimeraFlame', count: 1 }, { id: 'olympusMarble', count: 15 }])
+    expect(recipeFor('zeus', 1).materials.map((m) => m.id)).toContain('chimeraFlame')
   })
 
-  it('처음 제작: 재료가 모자라면 아무것도 쓰지 않고, 채우면 바탕 장비를 써서 유물을 만들고 첫 수치를 물려받는다', () => {
+  it('처음 제작: 재료가 모자라면 아무것도 쓰지 않고, 채우면 유물을 그 부위 칸에 낀다 (바탕 장비는 쓰지 않는다)', () => {
     const loadout = new Loadout()
     const hammer = rollGear(createRng(1), { part: 'weapon', grade: 'rare' })
     loadout.addGear(hammer)
@@ -55,11 +38,21 @@ describe('대장간 제작법 (E13-05)', () => {
     expect(missing(loadout, nextRecipe(loadout, 'thor')!).length).toBeGreaterThan(0)
     fill(loadout, 'thor')
     const made = craft(loadout, 'thor')!
-    expect(made).toMatchObject({ relic: 'mjolnir', stage: 1, slot: 0 })
-    expect(loadout.slots[0]).toBe('mjolnir')
-    expect(loadout.gear.has(hammer.uid)).toBe(false)
-    expect(loadout.inherited.get('mjolnir')).toEqual(hammer.stats[0])
+    expect(made).toMatchObject({ relic: 'mjolnir', stage: 1 })
+    expect(loadout.gear.has(hammer.uid)).toBe(true)
+    expect(loadout.has('mjolnir')).toBe(true)
     expect(loadout.materials.size).toBe(0)
+  })
+
+  it('데모는 유물 2단계까지: 그 위는 엔딩 뒤', () => {
+    const loadout = new Loadout()
+    loadout.equip('mjolnir')
+    fill(loadout, 'thor')
+    expect(craft(loadout, 'thor', DEMO_RELIC_STAGES)?.stage).toBe(2)
+    expect(nextRecipe(loadout, 'thor', DEMO_RELIC_STAGES)).toBeNull()
+    for (const { id, count } of recipeFor('thor', 3).materials) loadout.addMaterial(id, count)
+    expect(forgeReady(loadout, 'thor', DEMO_RELIC_STAGES)).toBe(false)
+    expect(forgeReady(loadout, 'thor')).toBe(true)
   })
 
   it('단계 올리기: 2 → 3 → 4, 4단계면 더 없다', () => {
@@ -86,3 +79,28 @@ describe('대장간 제작법 (E13-05)', () => {
   })
 })
 
+
+describe('유물 역할 (E21-04)', () => {
+  it('기본 수치는 수치 셋, 같은 단계 영웅 장비의 가운데 값이다 (단계가 오르면 ×1.4)', () => {
+    const one = relicStats('mjolnir', 1)
+    expect(one.length).toBe(RELIC_STAT_COUNT)
+    expect(relicStats('mjolnir', 1)).toEqual(one)
+    expect(relicTier('mjolnir', 1)).toBe(1)
+    expect(relicTier('mjolnir', 2)).toBe(2)
+    expect(relicTier('keraunos', 1)).toBe(2)
+    const two = relicStats('mjolnir', 2)
+    for (let i = 0; i < one.length; i++) {
+      expect(two[i]!.kind).toBe(one[i]!.kind)
+      const [lo, hi] = GEAR.ranges[one[i]!.kind]
+      expect(one[i]!.value).toBeCloseTo(((lo + hi) / 2) * GEAR.grades.hero.scale, 1)
+      expect(two[i]!.value / one[i]!.value).toBeCloseTo(GEAR.tiers.scale, 1)
+    }
+  })
+
+  it('그 신화를 고르면 유물 효과가 한 단계 위로 돈다 (다른 신화면 그대로)', () => {
+    expect(effectScale('mjolnir', 1, null)).toBe(STAGE_DAMAGE[0])
+    expect(effectScale('mjolnir', 1, 'loki')).toBe(STAGE_DAMAGE[0])
+    expect(effectScale('mjolnir', 1, 'thor')).toBe(STAGE_DAMAGE[1])
+    expect(effectScale('mjolnir', 4, 'thor')).toBe(STAGE_DAMAGE[4])
+  })
+})

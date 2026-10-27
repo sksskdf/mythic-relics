@@ -1,6 +1,5 @@
 import { DATA } from '../../data'
-import { MAX_LEVEL } from '../../myth/ClassProgress'
-import { alwaysLines } from '../../myth/alwaysText'
+import { collectionText, starText } from '../../myth/alwaysText'
 import { allLevelGains, levelGains } from '../../myth/levelGains'
 import { type God, godDef } from '../../relics/data'
 import { classIcon } from '../classIcons'
@@ -28,12 +27,12 @@ export class MythTab {
     const box = el('section', 'menu-promo')
     box.style.setProperty('--god', def.color)
 
-    if (level < MAX_LEVEL) {
+    if (level < progress.levelCap) {
       const steps = el('div', 'menu-promo__steps')
       const ratio = progress.xpRatio(god)
       const ready = progress.readyToPromote(god)
       const step1 = el('div', `menu-promo__step${ready ? ' is-done' : ' is-now'}`)
-      step1.append(el('span', 'menu-promo__no', '1'), el('span', '', def.hidden ? `${def.name}의 신화를 고른 채 싸워 숙련을 채운다` : `${REALM_NAME[def.realm] ?? '그'} 몬스터를 잡아 숙련을 채운다 (고르면 더 빨리)`))
+      step1.append(el('span', 'menu-promo__no', '1'), el('span', '', '이 신화를 고른 채 싸워 경험치를 채운다'))
       const bar = el('div', 'ui-bar ui-bar--thin')
       bar.style.setProperty('--fill', def.color)
       bar.style.setProperty('--pct', ratio.toFixed(3))
@@ -50,9 +49,12 @@ export class MythTab {
     const ladder = el('div', 'menu-promo__ladder')
     allLevelGains(god).forEach((gains, i) => {
       const lv = i + 1
-      const row = el('div', `menu-promo__level${lv <= level ? ' is-have' : ''}${lv === level + 1 ? ' is-next' : ''}`)
+      // 데모 끝 단계 위는 엔딩 뒤에 열린다 (E21-01)
+      const later = lv > progress.levelCap
+      const row = el('div', `menu-promo__level${lv <= level ? ' is-have' : ''}${lv === level + 1 && !later ? ' is-next' : ''}${later ? ' is-later' : ''}`)
       const head = el('div', 'menu-promo__lv')
       head.append(el('span', 'ui-tag' + (lv <= level ? ' ui-tag--solid' : ' ui-tag--plain'), `${lv}단계`), el('span', '', def.titles[i]!))
+      if (later && lv > level) head.append(el('small', '', '엔딩 뒤'))
       const list = el('ul', '')
       for (const g of gains) list.append(el('li', `is-${g.kind}`, g.text))
       if (gains.length === 0) list.append(el('li', '', '신화 개방'))
@@ -64,13 +66,13 @@ export class MythTab {
   }
 
   /**
-   * 한 신화 카드 (E12-06): 단계·칭호, 상시 효과(열려 있으면 늘), 추가 효과(고르면), 다음 단계 조건, 고르기 단추.
+   * 한 신화 카드 (E12-06): 단계·칭호, 수집 보너스(열려 있으면 늘), 추가 효과(고르면), 다음 단계 조건, 고르기 단추.
    */
   private mythCard(god: God): HTMLElement {
     const { progress, myths, loadout } = this.ctx.host
     const def = godDef(god)
     const level = progress.level(god)
-    const stage = myths.stage(god)
+    const star = myths.star(god)
     const chosen = loadout.manifested === god
     const card = el('section', `menu-myth${level === 0 ? ' is-closed' : ''}`)
     card.style.setProperty('--god', def.color)
@@ -85,13 +87,12 @@ export class MythTab {
     if (chosen) head.append(el('span', 'ui-tag ui-tag--solid menu-myth__chosen', '고른 신화'))
     card.append(head)
 
-    // 상시 효과: 열린 신화면 고르지 않아도 늘 붙는다
+    // 수집 보너스 (E21-02): 열린 신화면 고르지 않아도 늘 붙는다. 별을 밝힌 신화는 그 신화의 수치도 (엔딩 뒤)
     const always = el('div', 'menu-myth__part')
-    always.append(el('b', '', '상시 효과'), el('small', '', stage > level ? '열려 있으면 늘 · 유물로 한 단계 위' : '열려 있으면 늘'))
+    always.append(el('b', '', '수집 보너스'), el('small', '', '열려 있으면 늘'))
     const alwaysList = el('ul', '')
-    for (const line of alwaysLines(god, stage)) {
-      alwaysList.append(el('li', line.active ? 'is-on' : '', line.active ? line.text : `${line.text} (${line.from}단계부터)`))
-    }
+    alwaysList.append(el('li', level > 0 ? 'is-on' : '', collectionText()))
+    if (star > 0) alwaysList.append(el('li', star >= 3 ? 'is-on' : '', `별: ${starText(god, star)}${star >= 3 ? '' : ' (3단계부터)'}`))
     always.append(alwaysList)
     card.append(always)
 
@@ -115,11 +116,11 @@ export class MythTab {
       card.append(button)
     }
 
-    // 다음 단계: 못 연 신화는 여는 법, 연 신화는 숙련과 전설
+    // 다음 단계: 못 연 신화는 여는 법, 연 신화는 경험치와 전설
     if (level === 0) {
       const open = el('div', 'menu-myth__part')
       open.append(el('b', '', '여는 법'))
-      const how = def.hidden ? '숨겨진 신화. 이 신의 유물을 모두 모으면 열린다.' : `${def.name}의 유물을 손에 넣거나, 그 신화권 몬스터를 잡아 숙련을 채운다.`
+      const how = def.hidden ? '숨겨진 신화. 이 신의 유물을 모두 모으면 열린다.' : `${def.name}의 유물을 손에 넣으면 열린다. 고른 신화가 없을 때는 ${REALM_NAME[def.realm] ?? '그 신화권'} 몬스터를 잡아도 경험치가 찬다.`
       open.append(el('p', '', how))
       if (!def.hidden) {
         const bar = el('div', 'ui-bar ui-bar--thin')
@@ -158,14 +159,14 @@ export class MythTab {
       const title = el('div', 'menu-classes__title', progress.title(current))
       title.append(pips(level))
       info.append(title)
-      if (level < MAX_LEVEL) {
+      if (level < progress.levelCap) {
         const bar = el('div', 'ui-bar ui-bar--thin menu-classes__xp')
         bar.style.setProperty('--fill', god.color)
         bar.style.setProperty('--pct', progress.xpRatio(current).toFixed(3))
         info.append(bar)
       }
       now.append(info)
-      if (level < MAX_LEVEL) {
+      if (level < progress.levelCap) {
         const ready = progress.readyToPromote(current)
         const scroll = el('span', `menu-classes__legend${ready ? ' is-ready' : ''}`)
         scroll.append(img(glyph('scroll', ready ? '#ffd27a' : '#5d6876', ready ? '#6b5622' : '#222a36')))
@@ -186,7 +187,7 @@ export class MythTab {
       const info = el('div', 'menu-classes__info')
       info.append(el('div', 'menu-classes__title', '이름 없는 모험가'))
       // 처음 여는 사람도 무엇을 하면 되는지 바로 알게 (체크리스트 QA, 2026-10-27)
-      info.append(el('p', 'menu-classes__how', '몬스터를 잡아 그 신화권의 숙련을 채우거나, 보스가 떨어뜨린 신의 유물을 주우면 신화가 열린다.'))
+      info.append(el('p', 'menu-classes__how', '몬스터를 잡아 그 신화권의 경험치를 채우거나, 보스가 떨어뜨린 신의 유물을 주우면 신화가 열린다.'))
       now.append(info)
       this.ctx.hintOn(now, '한 신의 유물을 손에 넣으면 그 신의 힘이 깨어난다.')
     }
@@ -196,11 +197,11 @@ export class MythTab {
     const focus = this.selected ?? current
     if (focus) wrap.append(this.mythCard(focus))
 
-    // 원천 넷: 이름, 차오르는 때, 원천 숙련(위협 단계를 올릴 때 부은 것)은 보석 점으로
+    // 원천 넷: 이름, 차오르는 때, 지금 각성 단계는 보석 점으로
     const sigils = el('div', 'menu-classes__sources')
     const rows = this.ctx.host.sources.rows()
     for (const x of tree.sources) {
-      const value = rows.find((r) => r.id === x.id)?.mastery ?? 0
+      const value = rows.find((r) => r.id === x.id)?.level ?? 0
       const known = tree.mythologies.some((m) => m.classes.some((c) => c.source === x.id && levelOf(c.god) > 0))
       const cell = el('span', `menu-classes__source${known ? ' is-known' : ''}`)
       cell.style.setProperty('--god', SOURCE_COLORS[x.id]![0])
@@ -208,8 +209,8 @@ export class MythTab {
       const words = el('span', 'menu-classes__source-words')
       words.append(el('b', '', x.name), el('small', '', x.gain))
       cell.append(words)
-      if (value > 0) cell.append(pips(Math.min(value, 4), 4))
-      this.ctx.hintOn(cell, `${x.name}\n${x.gain} 차오르는 힘. 위협 단계를 올릴 때 전투 경험을 부어 숙련을 쌓으면 각성에 닿기 쉬워진다.${value > 0 ? `\n원천 숙련 ${value}` : ''}`)
+      if (value > 0) cell.append(pips(value, 3))
+      this.ctx.hintOn(cell, `${x.name}\n${x.gain} 차오르는 힘. 장비에 붙은 ${x.name} 수치가 5·10·20을 넘으면 깨어난다.${value > 0 ? `\n각성 ${value}단계` : ''}`)
       sigils.append(cell)
     }
     wrap.append(sigils)

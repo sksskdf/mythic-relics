@@ -214,7 +214,7 @@
   "talkSmith": {
     "region": "village",
     "lines": [
-      { "who": "대장장이", "text": "같은 부위 장비와 재료를 가져오게.", "pose": "turn" },
+      { "who": "대장장이", "text": "땅의 주인을 쓰러뜨리고 그 증표를 가져오게.", "pose": "turn" },
       { "who": "대장장이", "text": "정보 화면 장비 탭에서 대장간을 열 수 있지.", "pose": "nod" }
     ]
   },

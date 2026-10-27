@@ -3,7 +3,7 @@
 // --gate 를 붙이면 승급하지 못했거나 오류가 난 판이 있을 때 실패로 끝난다. (CI)
 // --god=loki 를 붙이면 그 신 유물만 끼고 승급까지 간다.
 // --threat=N 을 붙이면 2단계 뒤에도 이어서 보스를 잡고 위협 단계를 올리며, N단계에 오를 때까지 단계마다 시간·쓰러짐·피격을 잰다 (E14-07).
-// --source=flame 을 붙이면 원천 갈래를 그 원천에만 붓는다 (없으면 장비에 가장 많은 원천).
+// --threat·--trials·--rift는 엔딩 뒤 장치라, 시작할 때 엔딩 뒤로 넘긴다 (E21-06).
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { chromium } from 'playwright-core'
@@ -13,8 +13,7 @@ const GATE = process.argv.includes('--gate')
 const RUNS = Number(args[0] ?? 3)
 const LIMIT_MIN = Number(args[1] ?? 45)
 const THREAT = Number(process.argv.find((a) => a.startsWith('--threat='))?.slice(9) ?? 0)
-const SOURCE = process.argv.find((a) => a.startsWith('--source='))?.slice(9) ?? null
-/** --stack=stone 처럼 붙이면 그 원천 +3짜리 영웅 장비 여섯과 원천 숙련 +2를 끼고(원천 20, 각성 3단계) 시작한다 (원천 빌드 비교, scripts/source-trial.mjs) */
+/** --stack=stone 처럼 붙이면 그 원천 +4짜리 영웅 장비 여섯을 끼고(원천 24, 각성 3단계) 시작한다 (원천 빌드 비교, scripts/source-trial.mjs) */
 const STACK = process.argv.find((a) => a.startsWith('--stack='))?.slice(8) ?? null
 /** --trials 를 붙이면 위협 3단계·토르 2단계(묠니르)로 시작해 시련 1단계 여덟을 차례로 깬다 (E16-05). --relics=mjolnir --region=midgard 와 함께 쓴다 */
 const TRIALS = process.argv.includes('--trials')
@@ -65,7 +64,8 @@ try {
     page.on('pageerror', (e) => errors.push(e.message))
     await page.goto(URL)
     await page.waitForFunction(() => window.__autoplay && window.__game.frame > 2, null, { timeout: 30000 })
-    if (THREAT > 0) await page.evaluate((source) => Object.assign(window.__autoplay, { climb: true, source }), SOURCE)
+    if (THREAT > 0 || TRIALS || RIFT) await page.evaluate(() => window.__game.reachEnding())
+    if (THREAT > 0) await page.evaluate(() => Object.assign(window.__autoplay, { climb: true }))
     if (GOD) await page.evaluate((god) => (window.__autoplay.god = god), GOD)
     if (TRIALS)
       await page.evaluate(() => {
@@ -84,9 +84,8 @@ try {
         g.threat.level = 10
         g.threatSystem.apply()
         g.dev.endgame()
-        // 한계를 깬 무렵이면 시련 여덟을 2단계쯤 깼고 원천 숙련도 넷 모두 2쯤이다
+        // 한계를 깬 무렵이면 시련 여덟을 2단계쯤 깼다
         for (const id of ['noMyth', 'fewSlots', 'noHeal', 'crowd', 'timed', 'glass', 'slow', 'noUltimate']) g.trials.win(id, 2, 90)
-        for (const s of ['flame', 'hunt', 'wind', 'stone']) g.threat.mastery[s] = 2
         g.bus.emit('progressChanged', {})
         window.__autoplay.rift = true
       })
@@ -95,11 +94,10 @@ try {
         const g = window.__game
         const parts = ['head', 'body', 'hands', 'feet', 'trinket', 'trinket']
         parts.forEach((part, i) => {
-          const item = { uid: `g:stack00${i}`, part, base: '시험', grade: 'hero', stats: [], source: { id: source, value: 3 } }
+          const item = { uid: `g:stack00${i}`, part, base: '시험', grade: 'hero', tier: 1, stats: [], source: { id: source, value: 4 } }
           g.powers.loadout.addGear(item)
           g.powers.loadout.equip(item.uid)
         })
-        g.threat.mastery[source] = 2
       }, STACK)
     if (REGION) await page.evaluate(() => (window.__autoplay.stay = true))
     let done = false

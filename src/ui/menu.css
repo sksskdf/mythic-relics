@@ -87,6 +87,9 @@
 .menu__tabs::-webkit-scrollbar {
   display: none;
 }
+.menu__tab[hidden] {
+  display: none;
+}
 .menu__tab {
   flex: none;
   display: flex;
@@ -753,27 +756,6 @@
 .rc__bonus .rc__num {
   color: inherit;
 }
-.rc__set-list {
-  margin: 4px 0 0;
-  padding: 0;
-  list-style: none;
-}
-.rc__set-item {
-  color: var(--c-ink-4);
-  font: var(--t-small);
-}
-.rc__set-item::before {
-  content: '◇ ';
-}
-.rc__set-item.is-owned {
-  color: var(--c-ink-2);
-}
-.rc__set-item.is-on {
-  color: var(--god);
-}
-.rc__set-item.is-on::before {
-  content: '◆ ';
-}
 .rc__preview {
   display: flex;
   flex-wrap: wrap;
@@ -1100,6 +1082,14 @@
 .menu-promo__level.is-next {
   opacity: 1;
   box-shadow: inset 0 0 0 1px var(--c-gilt), 0 0 8px rgba(201, 162, 74, 0.35);
+}
+.menu-promo__level.is-later {
+  opacity: 0.45;
+}
+.menu-promo__lv small {
+  margin-left: auto;
+  font: var(--t-small);
+  color: var(--c-ink-4);
 }
 .menu-promo__lv {
   display: flex;
@@ -1461,18 +1451,15 @@
   flex-wrap: wrap;
   gap: var(--sp-2);
 }
-.menu-src__level,
-.menu-src__card {
+.menu-src__level {
+  min-width: 36px;
+  padding: var(--sp-2) var(--sp-3);
   font: var(--t-body);
   color: var(--c-ink-1);
   border: 0;
   background: var(--c-stone-hi);
   box-shadow: var(--stone-raised);
   cursor: pointer;
-}
-.menu-src__level {
-  min-width: 36px;
-  padding: var(--sp-2) var(--sp-3);
 }
 .menu-src__level.is-on {
   color: var(--c-bg-0);
@@ -1485,52 +1472,11 @@
   color: var(--c-ink-4);
   background: var(--c-stone);
 }
-.menu-src__level:disabled,
-.menu-src__card:disabled {
+.menu-src__level:disabled {
   cursor: default;
 }
-.menu-src__level:not(:disabled):hover,
-.menu-src__card:not(:disabled):hover {
+.menu-src__level:not(:disabled):hover {
   background: var(--c-stone-hover);
-}
-.menu-src__branch {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-3);
-  padding-top: var(--sp-3);
-  border-top: 1px solid var(--c-line-1);
-}
-.menu-src__cards {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--sp-3);
-}
-.menu-src__card {
-  --god: var(--c-moon);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--sp-2);
-  padding: var(--sp-4) var(--sp-3);
-  box-shadow: var(--stone-raised), inset 0 0 0 1px color-mix(in srgb, var(--god) 45%, transparent);
-}
-.menu-src__card img {
-  width: 24px;
-  height: 24px;
-  image-rendering: pixelated;
-}
-.menu-src__card b {
-  color: var(--god);
-  font-weight: normal;
-}
-.menu-src__card small {
-  font: var(--t-small);
-  color: var(--c-ink-3);
-}
-.menu-src__lower {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
-  gap: var(--sp-4);
 }
 .menu-src__conv {
   display: flex;
@@ -1574,9 +1520,7 @@
 }
 @media (max-width: 700px) {
   .menu-src__sources,
-  .menu-trials,
-  .menu-src__cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .menu-src__lower { grid-template-columns: minmax(0, 1fr); }
+  .menu-trials { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 /* 설정 단추 (일시 정지 메뉴의 설정을 연다) */

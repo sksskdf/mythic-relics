@@ -1,5 +1,7 @@
 import { GRADE_COLORS } from '../art/palette'
 import { DATA } from '../data'
+import { AWAKEN_AT } from '../data/awakening'
+import type { SourceId } from '../data/schema'
 import { type GearItem, GEAR, gearName } from '../gear/roll'
 import { statText } from '../myth/alwaysText'
 
@@ -20,16 +22,18 @@ function delta(kind: string, value: number, other: number): { text: string; good
 }
 
 /**
- * 일반 장비 설명 카드 (E13-07): 등급·부위, 수치(지금 그 부위에 낀 것과 비교), 원천, 영웅 고유 효과.
- * worn은 같은 부위에 지금 낀 일반 장비 (없으면 비교하지 않는다)
+ * 일반 장비 설명 카드 (E13-07): 단계·등급·부위, 수치(지금 그 부위에 낀 것과 비교), 원천, 영웅 고유 효과.
+ * worn은 같은 부위에 지금 낀 일반 장비 (없으면 비교하지 않는다).
+ * sources는 지금 원천마다의 합: 있으면 원천 줄에 다음 각성까지 남은 수를 붙인다 (E21-05)
  */
-export function gearCard(item: GearItem, worn?: GearItem | null): HTMLElement {
+export function gearCard(item: GearItem, worn?: GearItem | null, sources?: Readonly<Record<SourceId, number>>): HTMLElement {
   const card = el('div', 'rc gc')
   card.style.setProperty('--god', GRADE_COLORS[item.grade])
   const head = el('div', 'rc__head')
   const swatch = el('div', 'rc__icon gc__swatch')
   const names = el('div', 'rc__names')
-  names.append(el('div', 'rc__name', gearName(item)), el('div', 'rc__type', `${GEAR.grades[item.grade].name} 장비 · ${GEAR.parts[item.part].name}`))
+  // 장비 단계 (E21-03): 나온 땅의 단계. 같은 등급이어도 단계가 높으면 수치가 크다
+  names.append(el('div', 'rc__name', gearName(item)), el('div', 'rc__type', `${item.tier}단계 · ${GEAR.grades[item.grade].name} 장비 · ${GEAR.parts[item.part].name}`))
   head.append(swatch, names)
   card.append(head)
 
@@ -47,7 +51,11 @@ export function gearCard(item: GearItem, worn?: GearItem | null): HTMLElement {
   }
   if (worn && worn.uid !== item.uid) for (const w of worn.stats) if (!item.stats.some((s) => s.kind === w.kind)) list.append(el('li', 'rc__warn', `${statText(w.kind, w.value)} 없어짐`))
   const source = DATA.classes.sources.find((x) => x.id === item.source.id)
-  list.append(el('li', 'gc__source', `원천 ${source?.name ?? item.source.id} +${item.source.value}`))
+  const name = source?.name ?? item.source.id
+  const total = sources?.[item.source.id]
+  const next = total === undefined ? undefined : AWAKEN_AT.find((at) => total < at)
+  const until = total === undefined ? '' : next === undefined ? ' · 모두 깨어남' : ` · ${name} 각성까지 ${next - total}`
+  list.append(el('li', 'gc__source', `원천 ${name} +${item.source.value}${until}`))
   section.append(list)
   card.append(section)
 

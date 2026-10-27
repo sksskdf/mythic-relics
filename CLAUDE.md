@@ -1,6 +1,6 @@
 # 프로젝트 안내 (Claude용)
 
-신화 몬스터를 사냥해 장비와 유물을 모으고, 신화를 개방해 그 신의 힘을 쌓아 가는 쿼터뷰 핵앤슬래시 액션 RPG. 1차 스프린트(E1~E9)를 끝내고 2차 스프린트(E11~E18: 신화 개방·장비·위협 단계·균열)의 작업을 마쳤다. 지금은 E19(하나로 이어진 세계)를 만든다. 직접 플레이 체크리스트는 사람 대신 Claude가 사람 눈으로 확인한다(2026-10-27 결정).
+신화 몬스터를 사냥해 장비와 유물을 모으고, 신화를 개방해 그 신의 힘을 쌓아 가는 쿼터뷰 핵앤슬래시 액션 RPG. 1차 스프린트(E1~E9)와 2차 스프린트(E11~E18: 신화 개방·장비·위협 단계·균열)를 끝냈다. 3차 스프린트는 첫 엔딩까지 90분 데모를 만든다: E19 하나로 이어진 세계, E21 세 축 정리(신화 단계·장비 단계·유물, 엔딩 뒤 장치 숨김)를 마쳤고 지금은 E22(장과 목표 안내)다. 직접 플레이 체크리스트는 사람 대신 Claude가 사람 눈으로 확인한다(2026-10-27 결정).
 
 **용어 (2차 스프린트):** 클래스 → 신화, 발현 → 신화 개방, 클래스 레벨 → 개방 단계, 승급 전설 → 전설, 유물 칸 → 장비 칸. 화면 글·문서는 새 이름을 쓰고, 코드 이름(`class`, `manifested`, `Loadout`, `promote`)은 E11-05·E12~E13에서 `myth/`·`gear/`로 옮기며 바꾼다. 자세한 것은 `docs/knowledge/glossary.md`.
 
@@ -45,7 +45,7 @@
 - 사용자는 pnpm을 쓴다. `pnpm dev` = Vite 개발 서버 + Electron 창(`scripts/dev-electron.mjs`, `electron/main.cjs`), `pnpm dev:web` = 브라우저.
 - 이 환경에서 Electron 확인: `ELECTRON_ARGS="--use-angle=swiftshader --enable-unsafe-swiftshader" ELECTRON_SHOT=test-results/electron.png xvfb-run -a node scripts/dev-electron.mjs` (8초 뒤 창을 찍고 닫힘)
 - `npm run check`: 타입 검사 + 빌드(데이터 검사 포함) + 단위 테스트 + 스모크. **커밋 전에 반드시 통과시킨다.** 같은 검사와 봇 1판이 GitHub Actions(`.github/workflows/ci.yml`)에서도 돈다.
-- `npm run build && npm run playtest [횟수] [제한 분]`: 이동만 쓰는 봇이 처음부터 2단계까지 플레이하고 첫 신화·신화 둘·2단계 시간과 피격 등을 기록한다 (`test-results/playtest.json`). 수치를 바꾸면 돌려 본다. `--threat=N`을 붙이면 2단계 뒤에도 지역 보스를 잡고 위협 단계를 올리며 N단계까지 단계마다 시간·쓰러짐·피격을 잰다 (`--source=stone`이면 원천 갈래를 그 원천에만). `--trials --relics=mjolnir --god=thor --region=midgard`이면 위협 3단계·토르 2단계로 시작해 시련 1단계 여덟을 차례로 깬다 (E16). `--rift --relics=mjolnir`이면 한계를 깬 채 엔드게임 빌드(`game.dev.endgame()`)로 마을에서 균열에 들어가 10층까지 층마다 시간을 잰다 (E17).
+- `npm run build && npm run playtest [횟수] [제한 분]`: 이동만 쓰는 봇이 처음부터 2단계까지 플레이하고 첫 신화·신화 둘·2단계 시간과 피격 등을 기록한다 (`test-results/playtest.json`). 수치를 바꾸면 돌려 본다. `--threat=N`을 붙이면 2단계 뒤에도 지역 보스를 잡고 위협 단계를 올리며 N단계까지 단계마다 시간·쓰러짐·피격을 잰다. `--threat`·`--trials`·`--rift`는 엔딩 뒤 장치라 시작할 때 엔딩 뒤로 넘긴다(`game.reachEnding()`). `--trials --relics=mjolnir --god=thor --region=midgard`이면 위협 3단계·토르 2단계로 시작해 시련 1단계 여덟을 차례로 깬다 (E16). `--rift --relics=mjolnir`이면 한계를 깬 채 엔드게임 빌드(`game.dev.endgame()`)로 마을에서 균열에 들어가 10층까지 층마다 시간을 잰다 (E17).
 - `npm run build && node scripts/source-trial.mjs [판 수=2] [분=3]`: 토르(묠니르)를 고른 채 원천 하나를 각성 3단계로 몰고 미드가르드에서 1분당 처치·피격을 재, 원천 넷이 평균 ±25% 안인지 본다 (`test-results/source-trial.json`). 각성 수치를 바꾸면 돌려 본다. playtest와 같은 포트라 동시에 돌리지 않는다.
 - `npm run build && node scripts/myth-trial.mjs [판 수=2] [분=3] [신 id,...]`: 신화마다 자기 유물을 끼고 그 신화를 고른 채 1분당 처치 수를 재고 중앙값 ±20%를 본다 (`test-results/myth-trial.json`, 21신화에 40분쯤). 신화·유물 수치를 바꾸면 돌려 본다. `npm run playtest`와 같은 포트를 쓰니 동시에 돌리지 않는다.
 - `npm run build && node scripts/feel-qa.mjs [신 id,...] [적 id,...]`: 손맛 점검. 봇 대신 플레이어처럼 적을 눌러(공격 지시) 싸우며, 사람이 보면 어색한 것(시작하자마자 끊긴 휘두르기, 걷기·멈춤 깜박임, 헛휘두르기, 붙잡힘, 못 끝냄)을 잡는다 (`test-results/feel-qa.json`, 기본 신화 21 × 역할별 적 7, 30분쯤). 이동·공격 지시·전투를 바꾸면 돌려 본다. `--strict`면 잡힌 것이 있을 때 실패.
@@ -71,15 +71,15 @@
 | --- | --- |
 | `src/data/` | **게임 데이터**: `relics.json`(유물), `gods.json`(신·클래스), `enemies.json`(적), `classes.json`(클래스 트리, `CLASSES.md`와 같아야 함), `schema.ts`(형식과 검사), `classKit.ts`(클래스 부품: 패시브·궁극기·전설 종류), `regions.json`·`regions.ts`(지역 16곳: 자리(입구·깊은 땅·보스)·세계 칸·시작점·성소·무리·보스·출구·소품, 검사와 저장 모양, 다음 이웃 `nextHop`·세계 지도 자리 `worldLayout`), `world.ts`(하나로 이어진 세계: 벽돌 칸·세계 좌표·이웃 통로·갈 수 있는 곳, E19), `scenes.json`(대화 장면). 숫자는 여기서 고친다 |
 | `src/game/` | `Game.ts`(조립과 메인 루프), `MenuData`(정보 화면에 보일 값·할 일, 능력치, 설명 카드 상태), `Storyline`(대화 장면을 여는 때·미루기·말 걸기), `AttackFx`(휘두른 궤적·원거리 공격 모습), `HoverCards`(커서 아래 카드·몬스터 이름표), `World`(지역 들어가기 `enter`·출구 이동 `travelTo`·암전, Game에도 같은 이름의 위임이 있음), `TitleBackdrop`(시작 화면 뒤 장면), `Villagers`(마을 사람과 말풍선), `events.ts`(이벤트 버스), `context.ts`(시스템 공용 상태), `Stage`(빛·맵), `HeroController`(이동), `HeroOrders`(클릭 → 지시), `PlayerCombat`(자동 공격), `Encounter`(적 무리·보스), `Legend`(승급 전설), `RelicPowers`(장착한 유물 효과) |
-| `src/game/systems/` | 규칙: `Damage`(피해), `Relics`(줍기·장착·발현), `Progression`(경험치·드랍·승급), `HeroLife`(쓰러짐·부활), `Persistence`(저장), `PlayerInput`(클릭), `Effects`(연출), `Sound`(소리), `Threat`(위협 단계·원천 갈래·편의 자동화 세기·한계를 깸), `Trials`(시련 진행: 제약·난이도·기록), `Rift`(균열: 층·축복·다음 층 문·끝). 시스템끼리는 버스로만 주고받는다 |
+| `src/game/systems/` | 규칙: `Damage`(피해), `Relics`(줍기·장착·발현), `Progression`(경험치·드랍·승급), `HeroLife`(쓰러짐·부활), `Persistence`(저장), `PlayerInput`(클릭), `Effects`(연출), `Sound`(소리), `Threat`(위협 단계·편의 자동화 세기·한계를 깸, 엔딩 뒤), `Trials`(시련 진행: 제약·난이도·기록), `Rift`(균열: 층·축복·다음 층 문·끝). 시스템끼리는 버스로만 주고받는다 |
 | `src/enemies/` | 적 AI(`Giant.ts`: 상태, 공격 예고, 돌진·던지기·막기·부르기·거리 유지·둘러싸기), 날아가는 것(`Projectile.ts`), 정예(`elite.ts`), 모델 생성기(`enemyModel.ts`: 몸 종류 여섯, 거인은 `giantModel.ts`) |
 | `src/skills/` | 유물 효과(`index.ts`: 데이터 → 효과), 행동·오라 종류(`actions.ts`), 행동의 모습(`actionLooks.ts`: 던지는 것·땅 울림 연출, E18), 궁극기(`Ultimate.ts`, 종류+모양) |
 | `src/looks/` | 외형: 칸과 외형 목록(`catalog.ts`, 1차 클래스는 `classLooks.ts`), 장착 → 모습·보관함(`outfit.ts`), 일반 장비 외형(`gearLooks.ts`, 모델은 `src/voxel/models/gearLooks.ts`). 모델은 `src/voxel/models/looks.ts`(손으로 찍은 것)·`classLooks.ts`(생성기 `gen.ts`로 만든 것)·`mythWeapons.ts`(손으로 찍은 신화 무기), 적용은 `systems/Appearance.ts` |
 | `src/relics/` | 유물·신 데이터(`data.ts`), 유물 모델·아이콘, 커서 아래 유물 고르기 |
-| `src/gear/` | 장비(E13): 칸 7과 가방(`Loadout`), 일반 장비 굴리기(`roll`), 신화의 유물과 단계(`mythRelic`), 재료(`materials`), 대장간 제작법·분해(`forge`), 땅에 떨어진 것(`Pickups`), 드랍 규칙(`DropTable`) |
-| `src/myth/` | 신화(E11-05): 신화 판정(`manifest.ts`, 지금은 유물 수로 발현·가호), 개방 단계·경험치·원천 숙련(`ClassProgress`), 단계별로 얻는 것(`levelGains`). E12에서 영구 개방·상시·추가 효과가 여기 들어온다 |
+| `src/gear/` | 장비(E13, E21): 칸 7과 가방(`Loadout`), 일반 장비 굴리기와 장비 단계(`roll`), 신화의 유물·기본 수치·깨어남(`mythRelic`), 재료 둘(`materials`), 대장간 제작법·분해(`forge`), 땅에 떨어진 것(`Pickups`), 엔딩 뒤 유물 드랍(`DropTable`) |
+| `src/myth/` | 신화: 고른 신화·가호 판정(`manifest.ts`), 개방 단계·경험치·단계 상한·큰 걸음·수집 보너스(`ClassProgress`), 단계별로 얻는 것(`levelGains`), 수치·수집 보너스 글(`alwaysText`) |
 | `src/build/` | 빌드 상태(E11-04): 열린 신화·고른 신화·장비·원천 → 피해 배율·지속 효과·공격 리듬(`BuildState.ts`의 `computeBuild`, 게임 안에서는 `ctx.build`) |
-| `src/progress/` | 바깥 성장(E14): 위협 단계·원천 숙련·전투 경험(`Threat`), 편의 자동화(`Conveniences`), 시련 기록·보상(`Trials`, 규칙은 `src/data/trials.ts`), 균열 기록·성좌판(`Rift`, 수치 `src/data/rift.ts`, 층 생성 `src/world/riftFloor.ts`). 수치는 `src/data/threat.ts`, 원천 각성은 `src/data/awakening.ts`(적용은 `src/skills/SourceAwakening.ts`) |
+| `src/progress/` | 바깥 성장(E14, 엔딩 뒤): 엔딩 뒤 장치를 여는 한 곳(`Ending`, E21-06), 위협 단계(`Threat`), 편의 자동화(`Conveniences`, 자동 줍기는 처음부터), 시련 기록·보상(`Trials`, 규칙은 `src/data/trials.ts`), 균열 기록·성좌판(`Rift`, 수치 `src/data/rift.ts`, 층 생성 `src/world/riftFloor.ts`). 수치는 `src/data/threat.ts`, 원천 각성은 `src/data/awakening.ts`(적용은 `src/skills/SourceAwakening.ts`) |
 | `src/save/` | 저장 형식과 검사 |
 | `src/render/` | 픽셀 렌더러, 쿼터뷰 카메라, 화면 ↔ 월드 좌표, 실루엣 |
 | `src/world/` | 지역 맵(`regionMap.ts`: 지역 데이터 → 땅·길·소품·테두리 숲·출구 문, 다시 짓기), 지형 테마(`themes.ts`: 땅·물·빛·날림·소품 색 바꾸기), 땅 높이·연못(`terrain.ts`), 길찾기(`navGrid.ts`), 흩뿌리기(`layout.ts`). 그 땅의 소품 모델은 `src/voxel/models/landmarks.ts` |

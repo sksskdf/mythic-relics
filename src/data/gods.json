@@ -40,14 +40,6 @@
       }
     },
     "always": {
-      "echo": {
-        "part": "basicLightning",
-        "every": [
-          5,
-          3
-        ],
-        "damage": 3
-      },
       "stat": {
         "kind": "bossDamage",
         "value": [
@@ -116,14 +108,6 @@
       }
     },
     "always": {
-      "echo": {
-        "part": "companions",
-        "every": [
-          12,
-          8
-        ],
-        "damage": 5
-      },
       "stat": {
         "kind": "attackSpeed",
         "value": [
@@ -182,14 +166,6 @@
       }
     },
     "always": {
-      "echo": {
-        "part": "bladeStorm",
-        "every": [
-          0.2,
-          0.35
-        ],
-        "damage": 4
-      },
       "stat": {
         "kind": "damage",
         "value": [
@@ -261,14 +237,6 @@
       }
     },
     "always": {
-      "echo": {
-        "part": "companions",
-        "every": [
-          10,
-          7
-        ],
-        "damage": 4
-      },
       "stat": {
         "kind": "masteryGain",
         "value": [
@@ -353,14 +321,6 @@
       }
     },
     "always": {
-      "echo": {
-        "part": "companions",
-        "every": [
-          12,
-          8
-        ],
-        "damage": 6
-      },
       "stat": {
         "kind": "maxHp",
         "value": [
@@ -437,14 +397,6 @@
       }
     },
     "always": {
-      "echo": {
-        "part": "skyStrike",
-        "every": [
-          8,
-          6
-        ],
-        "damage": 6
-      },
       "stat": {
         "kind": "skyDamage",
         "value": [
@@ -519,14 +471,6 @@
       }
     },
     "always": {
-      "echo": {
-        "part": "pulse",
-        "every": [
-          9,
-          6
-        ],
-        "damage": 6
-      },
       "stat": {
         "kind": "areaSize",
         "value": [
@@ -590,14 +534,6 @@
       }
     },
     "always": {
-      "echo": {
-        "part": "curse",
-        "every": [
-          4,
-          3
-        ],
-        "damage": 2
-      },
       "stat": {
         "kind": "healOnKill",
         "value": [
@@ -687,14 +623,6 @@
       }
     },
     "always": {
-      "echo": {
-        "part": "volley",
-        "every": [
-          4,
-          3
-        ],
-        "damage": 3
-      },
       "stat": {
         "kind": "basicDamage",
         "value": [
@@ -768,14 +696,6 @@
       }
     },
     "always": {
-      "echo": {
-        "part": "companions",
-        "every": [
-          12,
-          8
-        ],
-        "damage": 4
-      },
       "stat": {
         "kind": "companionDamage",
         "value": [
@@ -845,14 +765,6 @@
       }
     },
     "always": {
-      "echo": {
-        "part": "orbit",
-        "every": [
-          10,
-          7
-        ],
-        "damage": 4
-      },
       "stat": {
         "kind": "ultCharge",
         "value": [
@@ -928,14 +840,6 @@
       }
     },
     "always": {
-      "echo": {
-        "part": "skyStrike",
-        "every": [
-          9,
-          6
-        ],
-        "damage": 4
-      },
       "stat": {
         "kind": "regen",
         "value": [
@@ -1020,14 +924,6 @@
       }
     },
     "always": {
-      "echo": {
-        "part": "trail",
-        "every": [
-          3,
-          2
-        ],
-        "damage": 3
-      },
       "stat": {
         "kind": "dotDamage",
         "value": [
@@ -1114,14 +1010,6 @@
       }
     },
     "always": {
-      "echo": {
-        "part": "skyStrike",
-        "every": [
-          9,
-          6
-        ],
-        "damage": 6
-      },
       "stat": {
         "kind": "healingTaken",
         "value": [
@@ -1192,14 +1080,6 @@
       }
     },
     "always": {
-      "echo": {
-        "part": "orbit",
-        "every": [
-          10,
-          7
-        ],
-        "damage": 3
-      },
       "stat": {
         "kind": "orbitDamage",
         "value": [
@@ -1275,14 +1155,6 @@
       }
     },
     "always": {
-      "echo": {
-        "part": "pulse",
-        "every": [
-          9,
-          6
-        ],
-        "damage": 5
-      },
       "stat": {
         "kind": "pulseDamage",
         "value": [
@@ -1342,14 +1214,6 @@
       }
     },
     "always": {
-      "echo": {
-        "part": "bladeStorm",
-        "every": [
-          0.2,
-          0.35
-        ],
-        "damage": 4
-      },
       "stat": {
         "kind": "damageTaken",
         "value": [
@@ -1431,14 +1295,6 @@
       }
     },
     "always": {
-      "echo": {
-        "part": "volley",
-        "every": [
-          4,
-          3
-        ],
-        "damage": 4
-      },
       "stat": {
         "kind": "moveSpeed",
         "value": [
@@ -1522,14 +1378,6 @@
       }
     },
     "always": {
-      "echo": {
-        "part": "companions",
-        "every": [
-          15,
-          10
-        ],
-        "damage": 4
-      },
       "stat": {
         "kind": "lowHpGuard",
         "value": [
@@ -1603,14 +1451,6 @@
       }
     },
     "always": {
-      "echo": {
-        "part": "orbit",
-        "every": [
-          10,
-          7
-        ],
-        "damage": 4
-      },
       "stat": {
         "kind": "dropChance",
         "value": [
@@ -1685,14 +1525,6 @@
       }
     },
     "always": {
-      "echo": {
-        "part": "skyStrike",
-        "every": [
-          10,
-          7
-        ],
-        "damage": 7
-      },
       "stat": {
         "kind": "maxHpPct",
         "value": [

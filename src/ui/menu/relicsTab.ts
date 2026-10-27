@@ -1,5 +1,6 @@
 import { GRADE_COLORS } from '../../art/palette'
 import { SLOT_PARTS } from '../../data/gearData'
+import type { SourceId } from '../../data/schema'
 import { materialName } from '../../gear/materials'
 import { GEAR, gearName } from '../../gear/roll'
 import { godDef, relicDef, type RelicId } from '../../relics/data'
@@ -25,7 +26,7 @@ export class RelicsTab {
     const left = el('div', 'menu-relics__left')
     const detail = el('div', 'menu-relics__detail')
 
-    // 지금 상태: 발현한 신은 크게, 가호는 작게. 신의 색 문장으로만 보여 준다.
+    // 지금 상태: 고른 신화는 크게, 잠든 유물(다른 신화의 것)은 작게. 신의 색 문장으로만 보여 준다.
     const state = el('div', 'menu-relics__state')
     const { manifested, blessings } = host.loadout
     if (manifested) {
@@ -41,7 +42,7 @@ export class RelicsTab {
       const chip = el('span', 'menu-relics__blessing')
       chip.style.setProperty('--god', god.color)
       chip.append(img(classIcon(god.name)))
-      this.ctx.hintOn(chip, `${god.name}의 가호`)
+      this.ctx.hintOn(chip, `잠든 ${god.name}의 유물\n${god.name}의 신화를 고르면 유물의 힘이 깨어난다. 지금은 기본 수치만 낸다.`)
       state.append(chip)
     }
     left.append(state)
@@ -133,11 +134,12 @@ export class RelicsTab {
     if (gear) {
       // 같은 부위에 지금 낀 일반 장비와 비교한다
       const wornId = host.slotsFor(id).map((i) => host.slots[i]).find((x) => x && x !== id && host.gearOf(x))
-      detail.append(gearCard(gear, wornId ? host.gearOf(wornId) : null))
+      const totals = Object.fromEntries(host.sources.rows().map((r) => [r.id, r.total])) as Record<SourceId, number>
+      detail.append(gearCard(gear, wornId ? host.gearOf(wornId) : null, totals))
       const b = el('button', 'menu-relics__salvage')
       b.type = 'button'
       b.append(img(glyph('salvage')), '분해')
-      this.ctx.hintOn(b, '분해하면 그 땅의 공통 재료가 나온다 (보통 1 · 좋음 2 · 희귀 4 · 영웅 8)')
+      this.ctx.hintOn(b, '분해하면 그 땅의 신화권 재료가 나온다 (보통 1 · 좋음 2 · 희귀 4 · 영웅 8)')
       b.addEventListener('click', () => {
         this.hovered = null
         host.salvage(id)
@@ -162,7 +164,7 @@ export class RelicsTab {
     const { forge } = this.ctx.host
     const box = el('section', 'menu-forge')
     const here = forge.here()
-    box.append(el('b', '', '대장간'), el('small', '', here ? '같은 부위 장비와 재료로 신화의 유물을 벼린다' : '마을 대장장이에게 가면 벼릴 수 있다'))
+    box.append(el('b', '', '대장간'), el('small', '', here ? '장 보스의 재료와 신화권 재료로 신화의 유물을 벼린다' : '마을 대장장이에게 가면 벼릴 수 있다'))
     const gods = forge.gods()
     if (gods.length === 0) box.append(el('p', 'menu-forge__empty', '신화를 열거나 재료를 모으면 여기에 제작법이 보인다'))
     for (const god of gods) {
@@ -175,12 +177,10 @@ export class RelicsTab {
         box.append(row)
         continue
       }
-      const ready = next.materials.every((m) => m.have >= m.need) && (next.base?.ok ?? true)
+      const ready = next.materials.every((m) => m.have >= m.need)
       row.append(el('span', 'menu-forge__name', next.stage === 1 ? `${next.name} 만들기` : `${josa(next.name, '으로')} 올리기`))
       const needs = el('span', 'menu-forge__needs')
       for (const m of next.materials) needs.append(el('span', m.have >= m.need ? 'is-ok' : 'is-short', `${m.name} ${Math.min(m.have, m.need)}/${m.need}`))
-      // 바탕은 사라지므로 어느 장비가 쓰이는지 이름으로 보인다 (가방 것부터)
-      if (next.base) needs.append(el('span', next.base.ok ? 'is-ok' : 'is-short', `바탕: ${next.base.item ?? `${next.base.part} 장비`}`))
       row.append(needs)
       const b = el('button', 'menu-forge__make', '벼리기')
       b.type = 'button'

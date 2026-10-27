@@ -1,6 +1,8 @@
 import type { ChargeDef, RelicDef } from '../data/schema'
 import { lookDef, SLOT_NAMES } from '../looks/catalog'
-import { type God, godDef, RELIC_IDS, relicDef, type RelicId } from '../relics/data'
+import { effectScale, relicMyth, relicStats, relicTier } from '../gear/mythRelic'
+import { statText } from '../myth/alwaysText'
+import { type God, godDef, type RelicId } from '../relics/data'
 import type { LoadoutState } from '../myth/manifest'
 import { relicIconRows } from '../relics/model'
 import { pixelIcon } from './pixelIcon'
@@ -18,6 +20,8 @@ export interface RelicCardContext {
   /** 지금 발현한 신과 그 레벨 (강화 조건 표시) */
   manifested: God | null
   level: number
+  /** 유물 단계 (없으면 1) */
+  stage?: number
   /** 끼면(또는 빼면) 발현·가호가 어떻게 되는지 */
   preview?: { before: LoadoutState; after: LoadoutState }
 }
@@ -102,7 +106,7 @@ function stateLine(state: LoadoutState): string {
 
 /**
  * 유물 설명 카드. (E4-03, 실제 게임의 아이템 툴팁을 참고)
- * 위에서부터: 머리(그림·이름·종류) → 자리 → 지속 효과 → 행동 연동 효과(충전·수치·강화) → 같은 신의 유물(세트) → 바꿔 끼면 → 전해지는 이야기
+ * 위에서부터: 머리(그림·이름·종류) → 자리 → 지속 효과 → 행동 연동 효과(충전·수치·강화) → 기본 수치와 고른 신화 → 바꿔 끼면 → 전해지는 이야기
  * - 이름은 신의 색, 수치는 밝게, 이야기는 맨 아래에 흐리게 둔다.
  * - 끼고 있으면 지금 충전 정도를, 아니면 끼었을 때 발현이 어떻게 되는지 보여 준다.
  */
@@ -169,27 +173,25 @@ export function relicCard(def: RelicDef, ctx?: RelicCardContext): HTMLElement {
   }
   card.append(trigger)
 
-  // 같은 신의 유물 (디아블로의 세트 아이템처럼)
-  if (ctx) {
-    const set = RELIC_IDS.filter((id) => relicDef(id).god === def.god)
-    const wearing = set.filter((id) => ctx.equipped.includes(id)).length
-    const section = el('section', 'rc__section rc__set')
-    const need = 3
+  // 신화의 유물 (E21-04): 기본 수치(같은 단계 영웅 장비보다 조금 못하다)와, 그 신화를 고르면 한 단계 위로 도는 효과
+  const owner = relicMyth(def.id)
+  if (owner) {
+    const stage = ctx?.stage ?? 1
+    const myth = godDef(owner)
+    const section = el('section', 'rc__section')
+    section.append(el('div', 'rc__label', `기본 수치 · ${relicTier(def.id, stage)}단계 장비만큼`))
+    const list = el('ul', 'gc__stats')
+    for (const s of relicStats(def.id, stage)) list.append(el('li', '', statText(s.kind, s.value)))
+    section.append(list)
+    // 유물의 힘(지속·행동 효과)은 그 신화를 골랐을 때만 깨어나고, 한 단계 위로 돈다
+    const active = ctx?.manifested === owner
+    const boosted = effectScale(def.id, stage, owner)
     section.append(
-      el(
-        'div',
-        'rc__label',
-        wearing >= need
-          ? `${god.name}의 유물 ${wearing}/${need} · ${god.name}의 신화 개방 중`
-          : `${god.name}의 유물 ${wearing}/${need} · ${need}개를 끼면 ${god.name}의 신화가 열린다`,
+      withNumbers(
+        el('div', `rc__bonus${active ? ' is-active' : ''}`),
+        active ? `${myth.name}의 신화로 깨어남: 유물 효과 피해 ×${boosted}` : `${myth.name}의 신화를 고르면 깨어난다 (유물 효과 피해 ×${boosted}). 지금은 기본 수치만`,
       ),
     )
-    const list = el('ul', 'rc__set-list')
-    for (const id of set) {
-      const state = ctx.equipped.includes(id) ? 'is-on' : ctx.owned.has(id) ? 'is-owned' : ''
-      list.append(el('li', `rc__set-item ${state}`, relicDef(id).name))
-    }
-    section.append(list)
     card.append(section)
   }
 

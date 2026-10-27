@@ -1,7 +1,7 @@
 import type * as THREE from 'three'
 
 import { type God, godDef, isRelicId, relicDef, type RelicId } from '../relics/data'
-import { STAGE_DAMAGE } from '../gear/mythRelic'
+import { effectScale, RELIC_STAGES, relicAwake } from '../gear/mythRelic'
 import { craft, salvage } from '../gear/forge'
 import { Loadout } from '../gear/Loadout'
 import type { LoadoutState } from '../myth/manifest'
@@ -9,7 +9,6 @@ import { createEffect } from '../skills'
 import type { BasicHit, RelicEffect, SkillContext } from '../skills/Skill'
 import type { CombatTarget } from './PlayerCombat'
 import { ClassPassives } from '../skills/ClassPassives'
-import { MythEchoes } from '../skills/MythEchoes'
 import { SourceAwakening } from '../skills/SourceAwakening'
 import { createUltimate, type Ultimate } from '../skills/Ultimate'
 import { type HudSlot, SKILL_SLOTS } from '../ui/Hud'
@@ -24,7 +23,7 @@ export interface LoadoutChange {
 
 /**
  * 장착한 유물이 주는 힘을 모아 관리한다.
- * - 유물 1개 = 지속 효과 + 행동 연동 효과 (가호 상태에서도 붙는다, DESIGN.md 8.3)
+ * - 유물 1개 = 지속 효과 + 행동 연동 효과 (DESIGN.md 8.3). 그 신화를 골랐을 때만 깨어나고, 아니면 기본 수치만 낸다 (E21-04)
  * - 같은 신 유물 3개 이상이면 발현: 궁극기와 패시브가 붙는다
  */
 export class RelicPowers {
@@ -36,15 +35,20 @@ export class RelicPowers {
   readonly classPassives: ClassPassives
   /** 시련 「세 칸의 짐」(E16): 효과가 도는 칸. null이면 모두 */
   allowSlots: readonly number[] | null = null
+  /** 대장간에서 올릴 수 있는 유물 단계 (데모 2, 엔딩 뒤 4. 게임이 정한다) */
+  maxStage: () => number = () => RELIC_STAGES
 
-  /** 지금 도는 유물 효과 (시련으로 막힌 칸은 뺀다) */
-  private get live(): (RelicEffect | null)[] {
-    const allow = this.allowSlots
-    return allow ? this.effects.filter((_, i) => allow.includes(i)) : this.effects
+  /** 유물의 힘(지속·행동 효과)은 그 신화를 골랐을 때만 깨어난다 (E21-04). 고르지 않은 신화의 유물은 기본 수치만 낸다 */
+  awake(id: string | null): boolean {
+    return !!id && isRelicId(id) && relicAwake(id, this.loadout.chosen)
   }
 
-  /** 상시 효과의 메아리: 고르지 않은 열린 신화들 (src/skills/MythEchoes.ts) */
-  readonly echoes: MythEchoes
+  /** 지금 도는 유물 효과 (잠든 유물과 시련으로 막힌 칸은 뺀다) */
+  private get live(): (RelicEffect | null)[] {
+    const allow = this.allowSlots
+    return this.effects.map((effect, i) => (effect && (!allow || allow.includes(i)) && this.awake(this.loadout.slots[i] ?? null) ? effect : null))
+  }
+
   /** 원천 각성 (src/skills/SourceAwakening.ts, E14-02) */
   readonly awakening: SourceAwakening
   state: LoadoutState
@@ -54,7 +58,6 @@ export class RelicPowers {
     this.effects = this.loadout.slots.map(() => null)
     this.state = this.loadout.state
     this.classPassives = new ClassPassives(fx)
-    this.echoes = new MythEchoes(fx)
     this.awakening = new SourceAwakening(fx)
   }
 
@@ -83,6 +86,8 @@ export class RelicPowers {
   choose(god: God | null): LoadoutChange | null {
     if (this.loadout.chosen === god) return null
     this.loadout.chosen = god
+    // 고른 신화의 유물은 효과가 한 단계 위로 돈다 (E21-04)
+    this.refreshStages()
     return this.refresh()
   }
 
@@ -103,13 +108,13 @@ export class RelicPowers {
   private effectFor(id: string): RelicEffect | null {
     if (!isRelicId(id)) return null
     const effect = createEffect(relicDef(id), this.fx)
-    effect.stageScale = STAGE_DAMAGE[this.loadout.stage(id) - 1] ?? 1
+    effect.stageScale = effectScale(id, this.loadout.stage(id), this.loadout.chosen)
     return effect
   }
 
   /** 대장간에서 만든다(올린다) (E13-05). 칸이 바뀌면 효과를 다시 만들고, 단계가 오르면 피해 배율을 맞춘다 */
-  forge(god: God, baseId?: string): (NonNullable<ReturnType<typeof craft>> & { change: LoadoutChange }) | null {
-    const made = craft(this.loadout, god, baseId)
+  forge(god: God): (NonNullable<ReturnType<typeof craft>> & { change: LoadoutChange }) | null {
+    const made = craft(this.loadout, god, this.maxStage())
     if (!made) return null
     if (made.stage === 1 && made.slot >= 0) {
       this.effects[made.slot]?.dispose()
@@ -129,11 +134,11 @@ export class RelicPowers {
     return { ...done, change: this.refresh() }
   }
 
-  /** 유물 단계가 바뀌었다 (대장간): 낀 유물 효과의 피해 배율을 다시 맞춘다 */
+  /** 유물 단계나 고른 신화가 바뀌었다: 낀 유물 효과의 피해 배율을 다시 맞춘다 */
   refreshStages(): void {
     this.loadout.slots.forEach((id, slot) => {
       const effect = this.effects[slot]
-      if (effect && id && isRelicId(id)) effect.stageScale = STAGE_DAMAGE[this.loadout.stage(id) - 1] ?? 1
+      if (effect && id && isRelicId(id)) effect.stageScale = effectScale(id, this.loadout.stage(id), this.loadout.chosen)
     })
   }
 
@@ -166,7 +171,6 @@ export class RelicPowers {
     for (const effect of this.live) effect?.update(dt, ctx)
     for (const u of this.ultimates.values()) u.update(dt, ctx)
     this.classPassives.update(dt, ctx)
-    this.echoes.update(dt, ctx)
     this.awakening.update(dt, ctx)
   }
 
@@ -202,7 +206,7 @@ export class RelicPowers {
     this.loadout.slots.forEach((id, i) => {
       if (!id || !isRelicId(id) || out.length >= SKILL_SLOTS) return
       const effect = this.effects[i]
-      out.push({ icon: this.icon(id), charge: effect ? Math.max(0, Math.min(1, effect.charge)) : 0, slot: i })
+      out.push({ icon: this.icon(id), charge: effect ? Math.max(0, Math.min(1, effect.charge)) : 0, slot: i, asleep: !this.awake(id) })
     })
     while (out.length < SKILL_SLOTS) out.push({ icon: null, charge: 0, slot: null })
     return out
