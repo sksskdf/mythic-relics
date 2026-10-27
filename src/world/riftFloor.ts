@@ -114,6 +114,7 @@ export function riftFloor(depth: number, runSeed: number): RiftFloor {
     elite: Math.min(0.4, 0.04 * depth),
     realm: template.realm,
     theme: template.theme,
+    cell: null,
     halfExtent: H,
     seed: runSeed + depth,
     spawn,
