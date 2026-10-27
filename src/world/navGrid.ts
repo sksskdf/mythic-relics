@@ -1,4 +1,4 @@
-import { type CircleCollider, inArea, type Point2, squareArea, type WalkArea } from './colliders'
+import { type CircleCollider, type Point2, squareArea, type WalkArea } from './colliders'
 
 /**
  * 길찾기용 격자. 충돌체를 캐릭터 반지름만큼 부풀려서 막힌 칸으로 표시하고,
@@ -31,11 +31,15 @@ export class NavGrid {
     this.blocked = new Uint8Array(this.size * this.size)
     // 움직일 수 있는 곳 밖(통로 사이의 숲 띠)은 막는다. 네모 하나뿐이면 격자 끝이 곧 경계다
     if (area.rects.length > 1) {
-      for (let cz = 0; cz < this.size; cz++) {
-        for (let cx = 0; cx < this.size; cx++) {
-          const center = this.toWorld(cx, cz)
-          if (!inArea(area, center.x, center.z)) this.blocked[cz * this.size + cx] = 1
-        }
+      // 모두 막은 뒤 네모마다 가운데가 그 안에 드는 칸을 연다 (칸마다 재는 것보다 빠르다: 넘어갈 때마다 다시 짠다)
+      this.blocked.fill(1)
+      const first = (v: number) => Math.max(0, Math.ceil((v + halfExtent) / this.cellSize - 0.5))
+      const last = (v: number) => Math.min(this.size - 1, Math.floor((v + halfExtent) / this.cellSize - 0.5))
+      for (const r of area.rects) {
+        const x0 = first(r.minX)
+        const x1 = last(r.maxX)
+        if (x1 < x0) continue
+        for (let cz = first(r.minZ); cz <= last(r.maxZ); cz++) this.blocked.fill(0, cz * this.size + x0, cz * this.size + x1 + 1)
       }
     }
     for (const c of colliders) {

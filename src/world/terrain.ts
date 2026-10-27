@@ -187,6 +187,15 @@ export type GroundBlend = (x: number, z: number) => { theme: ThemeDef; depth: nu
  * blend가 있으면 경계 둘레를 물결 선(edgeWave) 너머는 이웃 땅의 색으로 칠한다 (E19-03: 경계 이음매 섞기).
  */
 export function buildGround(halfExtent: number, theme: ThemeDef, paths: readonly GroundPath[], seed = 11, blend?: GroundBlend): THREE.Group {
+  const steps = groundSteps(halfExtent, theme, paths, seed, blend)
+  for (;;) {
+    const step = steps.next()
+    if (step.done) return step.value
+  }
+}
+
+/** 땅을 색 칠하기·네모 줄마다 나눠 짓는다 (이웃 조각을 프레임마다 조금씩 지을 때) */
+export function* groundSteps(halfExtent: number, theme: ThemeDef, paths: readonly GroundPath[], seed = 11, blend?: GroundBlend): Generator<void, THREE.Group> {
   const colors = groundColors(theme.ground)
   const others = new Map<ThemeDef, GroundColors>()
   const boxes = pathBoxes(paths)
@@ -224,6 +233,7 @@ export function buildGround(halfExtent: number, theme: ThemeDef, paths: readonly
 
   const material = toonMaterial(0xffffff)
   material.map = texture
+  yield
   // 땅을 GROUND_TILE 네모로 나눠, 화면 밖 네모는 그리지 않게 한다 (이웃 땅 바닥이 통째로 그려지지 않게, E19)
   const group = new THREE.Group()
   const tiles = Math.max(1, Math.round(size / GROUND_TILE))
@@ -240,16 +250,23 @@ export function buildGround(halfExtent: number, theme: ThemeDef, paths: readonly
       const position = geometry.attributes.position!
       const normal = geometry.attributes.normal!
       const uv = geometry.attributes.uv!
+      // 높이를 한 줄 넓게 재 두고 이웃 높이 차로 법선을 구한다: 네모·조각 경계에서도 빛이 끊기지 않는다
+      const step = tile / segments
+      const span = segments + 3
+      const x0 = cx - tile / 2 - step
+      const z0 = cz - tile / 2 - step
+      const heights = new Float32Array(span * span)
+      for (let j = 0; j < span; j++) for (let k = 0; k < span; k++) heights[j * span + k] = heightAt(x0 + k * step, z0 + j * step)
       for (let i = 0; i < position.count; i++) {
         const x = position.getX(i)
         const z = position.getZ(i)
-        position.setY(i, heightAt(x, z))
-        // 기울기로 법선을 구한다: 네모·조각 경계에서도 빛이 끊기지 않는다
-        const e = 0.25
-        const nx = heightAt(x - e, z) - heightAt(x + e, z)
-        const nz = heightAt(x, z - e) - heightAt(x, z + e)
-        const len = Math.hypot(nx, 2 * e, nz)
-        normal.setXYZ(i, nx / len, (2 * e) / len, nz / len)
+        const k = Math.round((x - x0) / step)
+        const j = Math.round((z - z0) / step)
+        position.setY(i, heights[j * span + k]!)
+        const nx = heights[j * span + k - 1]! - heights[j * span + k + 1]!
+        const nz = heights[(j - 1) * span + k]! - heights[(j + 1) * span + k]!
+        const len = Math.hypot(nx, 2 * step, nz)
+        normal.setXYZ(i, nx / len, (2 * step) / len, nz / len)
         // 텍스처는 땅 전체에 한 장 (평면의 v는 z와 반대 방향)
         uv.setXY(i, (x + size / 2) / size, (size / 2 - z) / size)
       }
@@ -257,6 +274,7 @@ export function buildGround(halfExtent: number, theme: ThemeDef, paths: readonly
       mesh.receiveShadow = true
       group.add(mesh)
     }
+    if (tz < tiles - 1) yield
   }
   return group
 }

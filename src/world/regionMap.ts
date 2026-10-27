@@ -40,7 +40,7 @@ import type { CircleCollider } from './colliders'
 import { exitColor, type PropKind, type PropPlacement, type RegionDef } from '../data/regions'
 import { CELL, type Cell, cellOrigin, inRect, type Rect, rectDistance, type RegionLink } from '../data/world'
 import { createRng } from './rng'
-import { buildGround, buildScatter, EDGE_BLEND, edgeWave, type GroundBlend, heightAt, type Pond, pondLevel, setPonds } from './terrain'
+import { buildGround, buildScatter, EDGE_BLEND, edgeWave, type GroundBlend, groundSteps, heightAt, type Pond, pondLevel, setPonds } from './terrain'
 import { THEMES, type ThemeDef, type ThemeId } from './themes'
 
 type Animator = (elapsed: number) => void
@@ -493,6 +493,8 @@ export class Chunk {
   readonly group = new THREE.Group()
   readonly colliders: CircleCollider[] = []
   readonly animators: Animator[] = []
+  /** 성소 자리 표시 (룬스톤 고리). 지금 땅이면 숨기고 전설(UtgardLegend)이 그 자리에 그린다 */
+  sanctuary: THREE.Object3D | null = null
 
   constructor(
     readonly region: RegionDef | null,
@@ -549,7 +551,7 @@ export function* chunkSteps(region: RegionDef, links: readonly RegionLink[] = []
   if (region.cell) {
     // 땅은 칸 전체를 덮어 이웃 칸의 땅과 맞닿는다. 움직일 수 있는 네모와 통로 밖은 빽빽한 숲. 가장자리는 이웃 얼굴과 섞는다
     const mix = themeAt ? edgeMixer(region.cell, region.theme, themeAt) : null
-    chunk.group.add(own(buildGround(CELL / 2 - 4, theme, region.paths, undefined, groundMix(mix))))
+    chunk.group.add(own(yield* groundSteps(CELL / 2 - 4, theme, region.paths, undefined, groundMix(mix))))
     yield
     chunk.group.add(buildForest(region.seed, region.theme, openDepth(openRects(half, links)), mix))
     yield
@@ -568,6 +570,11 @@ export function* chunkSteps(region: RegionDef, links: readonly RegionLink[] = []
   })
   // 마을 사람은 비켜 간다
   for (const npc of region.npcs) chunk.colliders.push({ x: npc.x, z: npc.z, radius: 0.45 })
+  // 이웃 땅으로 그릴 때 성소가 보이도록 같은 모양의 표시를 둔다 (지금 땅이 되면 숨긴다)
+  if (region.cell && region.sanctuary) {
+    chunk.sanctuary = sanctuaryMark(region.sanctuary)
+    chunk.group.add(chunk.sanctuary)
+  }
   // 출구: 통로 입구의 문과 갈 곳의 빛기둥 (글 없이 색으로 어디로 가는지 알린다)
   for (const exit of region.exits) {
     const gate = buildGate(exitColor(exit.to))
@@ -605,7 +612,7 @@ export function* fillerSteps(cell: Cell, theme: ThemeId, open: readonly Rect[] =
   const chunk = new Chunk(null, cell)
   setPonds([])
   const mix = themeAt ? edgeMixer(cell, theme, themeAt) : null
-  chunk.group.add(own(buildGround(CELL / 2 - 4, THEMES[theme], [], undefined, groundMix(mix))))
+  chunk.group.add(own(yield* groundSteps(CELL / 2 - 4, THEMES[theme], [], undefined, groundMix(mix))))
   yield
   const seed = Math.round(cell.col * 2 + 1000) * 131 + Math.round(cell.row + 1000)
   chunk.group.add(buildForest(seed, theme, open.length ? openDepth(open) : () => Infinity, mix))
@@ -639,12 +646,15 @@ export class RegionMap {
   adopt(chunk: Chunk): Chunk {
     const previous = this.chunk
     previous.group.removeFromParent()
+    if (previous.sanctuary) previous.sanctuary.visible = true
     this.take(chunk)
     return previous
   }
 
   private take(chunk: Chunk): void {
     this.chunk = chunk
+    // 지금 땅의 성소는 전설이 그린다
+    if (chunk.sanctuary) chunk.sanctuary.visible = false
     this.region = chunk.region!
     chunk.group.position.set(0, 0, 0)
     this.group.add(chunk.group)
@@ -670,6 +680,32 @@ function own<T extends THREE.Object3D>(object: T): T {
     if (o instanceof THREE.Mesh) o.userData.ownGeometry = true
   })
   return object
+}
+
+let markStone: THREE.BufferGeometry | null = null
+const markRing = new THREE.RingGeometry(1.2, 1.6, 6, 1).rotateX(-Math.PI / 2)
+const markGlow = new THREE.MeshBasicMaterial({ color: 0x7fd4ff, transparent: true, opacity: 0.35, depthWrite: false })
+
+/** 성소 자리: 둥글게 선 룬스톤 여섯과 바닥의 룬 고리 (전설의 성소와 같은 모양, 모양·재질은 조각끼리 함께 쓴다) */
+function sanctuaryMark(center: { x: number; z: number }): THREE.Group {
+  markStone ??= buildVoxelGeometry(runestone(41), { voxelSize: 0.12 })
+  const group = new THREE.Group()
+  const y = heightAt(center.x, center.z)
+  group.position.set(center.x, y, center.z)
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2
+    const stone = new THREE.Mesh(markStone, voxelMaterial())
+    stone.position.set(Math.sin(a) * 3.4, heightAt(center.x + Math.sin(a) * 3.4, center.z + Math.cos(a) * 3.4) - y, Math.cos(a) * 3.4)
+    stone.rotation.y = a + Math.PI
+    stone.castShadow = true
+    group.add(stone)
+  }
+  const ring = new THREE.Mesh(markRing, markGlow)
+  ring.position.y = 0.06
+  ring.layers.set(EFFECT_LAYER)
+  ring.renderOrder = 12
+  group.add(ring)
+  return group
 }
 
 /** 출구 문: 나무 기둥 둘과 가로대, 갈 곳의 색 빛기둥과 바닥 고리 */

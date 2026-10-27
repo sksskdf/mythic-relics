@@ -26,7 +26,7 @@ import {
 } from '../src/data/world'
 import { clampToArea, inArea, walkArea } from '../src/world/colliders'
 import { NavGrid } from '../src/world/navGrid'
-import { cellTheme } from '../src/world/regionMap'
+import { buildChunk, cellTheme, RegionMap } from '../src/world/regionMap'
 import { EDGE_BLEND, edgeWave, heightAt, withTerrainFrame } from '../src/world/terrain'
 
 /**
@@ -266,8 +266,32 @@ describe('통로가 있는 땅의 길찾기 (E19-02)', () => {
     for (const p of path) expect(inArea(area, p.x, p.z)).toBe(true)
   })
 
+  it('격자에서 막힌 칸은 가운데가 땅·통로 밖인 칸과 같다', () => {
+    const nav = new NavGrid(area, 0.5, [], 0.4)
+    for (let cz = 0; cz < nav.size; cz++) {
+      for (let cx = 0; cx < nav.size; cx++) {
+        const c = nav.toWorld(cx, cz)
+        expect(nav.isBlockedCell(cx, cz)).toBe(!inArea(area, c.x, c.z))
+      }
+    }
+  })
+
   it('숲 띠의 점은 땅이나 통로 가장자리로 당긴다', () => {
     const at = clampToArea({ x: 6, z: -14 }, area)
     expect(inArea(area, at.x, at.z, -1e-6)).toBe(true)
+  })
+})
+
+describe('이웃 땅의 성소 (E19-04)', () => {
+  it('이웃 조각에는 성소 자리가 보이고, 지금 땅이 되면 숨는다 (전설이 그 자리에 그린다)', () => {
+    const map = new RegionMap(REGIONS.midgard!, regionLinks(REGIONS, 'midgard'))
+    expect(map.chunk.sanctuary?.visible).toBe(false)
+    const next = buildChunk(REGIONS.jotunheim!, regionLinks(REGIONS, 'jotunheim'))
+    expect(next.sanctuary?.visible).toBe(true)
+    const previous = map.adopt(next)
+    expect(next.sanctuary!.visible).toBe(false)
+    expect(previous.sanctuary!.visible).toBe(true)
+    // 마을처럼 성소가 없는 땅은 표시도 없다
+    expect(buildChunk(REGIONS.village!, regionLinks(REGIONS, 'village')).sanctuary).toBeNull()
   })
 })

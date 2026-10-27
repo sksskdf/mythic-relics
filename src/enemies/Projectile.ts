@@ -66,6 +66,20 @@ export class Projectile {
     this.mesh.position.set(x, y, z)
   }
 
+  /** 원점이 옮겨졌다 (E19): 던진 곳·떨어질 곳과 그 예고를 같은 만큼 옮긴다 */
+  shift(dx: number, dz: number): void {
+    this.from.x += dx
+    this.from.z += dz
+    this.to.x += dx
+    this.to.z += dz
+    if (this.telegraph) {
+      this.telegraph.object.position.x += dx
+      this.telegraph.object.position.z += dz
+      this.telegraph.object.updateMatrixWorld()
+    }
+    this.place()
+  }
+
   dispose(): void {
     this.object.removeFromParent()
     this.mesh.geometry.dispose()

@@ -1,6 +1,7 @@
 import { arrivalSpot, REGIONS, type RegionDef } from '../data/regions'
-import { CELL, crossingAt, type RegionLink, regionLinks, walkRects } from '../data/world'
+import { CELL, cellKey, cellOrigin, crossingAt, neighborCells, type RegionLink, regionLinks, walkRects } from '../data/world'
 import { walkArea, type WalkArea } from '../world/colliders'
+import { collidersFor } from '../world/regionMap'
 import { realmInk } from '../art/palette'
 import type { DropTable } from '../gear/DropTable'
 import type { Pickups } from '../gear/Pickups'
@@ -10,7 +11,7 @@ import type { Minimap } from '../ui/Minimap'
 import { realmSigil } from '../ui/sigils'
 import type { NavGrid } from '../world/navGrid'
 import { THEMES } from '../world/themes'
-import type { Encounter } from './Encounter'
+import type { Encounter, NeighborLayout } from './Encounter'
 import type { EventBus, GameEvents } from './events'
 import type { HeroController } from './HeroController'
 import type { HeroOrders } from './HeroOrders'
@@ -88,6 +89,22 @@ export class World {
     return walkArea(walkRects(region.halfExtent, regionLinks(this.regions, region.id)))
   }
 
+  /** 지금 땅 둘레에 그려지는 땅들의 적 배치와, 지금 땅 좌표로 옮길 만큼 (E19). 세계 칸이 없는 균열이면 없음 */
+  neighborLayouts(region: RegionDef): NeighborLayout[] {
+    if (!region.cell) return []
+    const here = cellOrigin(region.cell)
+    const near = new Set(neighborCells(region.cell).map(cellKey))
+    return Object.values(this.regions)
+      .filter((r) => r.cell && near.has(cellKey(r.cell)))
+      .map((r) => {
+        const o = cellOrigin(r.cell!)
+        const offset = { x: o.x - here.x, z: o.z - here.z }
+        // 그 땅의 바위·나무·마을 사람 (무리를 세울 때 그 안에 서지 않게)
+        const colliders = [...r.props.flatMap(collidersFor), ...r.npcs.map((n) => ({ x: n.x, z: n.z, radius: 0.45 }))].map((c) => ({ ...c, x: c.x + offset.x, z: c.z + offset.z }))
+        return { id: r.id, layout: { ...r, respawn: true }, offset, colliders }
+      })
+  }
+
   /** 다른 지역으로 넘어가는 중인가 (그동안은 입력을 받지 않는다) */
   get traveling(): boolean {
     return this.travel !== null
@@ -120,6 +137,7 @@ export class World {
     const area = this.areaOf(region)
     nav.rebuild(area, colliders)
     encounter.reset({ ...region, respawn: region.kind !== 'rift' }, colliders, area)
+    encounter.setNeighbors(this.neighborLayouts(region))
     legend.moveTo(region.sanctuary && (nav.nearestFree(region.sanctuary) ?? region.sanctuary), region.sanctuary?.radius)
     hero.area = area
     orders.clear()
@@ -157,7 +175,9 @@ export class World {
     const colliders = stage.map.colliders
     const area = this.areaOf(to)
     nav.rebuild(area, colliders)
-    encounter.reset({ ...to, respawn: true }, colliders, area)
+    // 적: 앞 땅의 무리는 그 자리에 남기고, 넘어간 땅에 미리 세워 둔 무리를 깨운다. 쫓아오던 적은 그대로 쫓는다
+    encounter.cross({ ...to, respawn: true }, link.shift, colliders, area)
+    encounter.setNeighbors(this.neighborLayouts(to))
     legend.moveTo(to.sanctuary && (nav.nearestFree(to.sanctuary) ?? to.sanctuary), to.sanctuary?.radius)
     hero.area = area
     // 길찾기를 넘어간 땅 것으로 바꾼 뒤에 가던 곳까지 다시 길을 찾는다

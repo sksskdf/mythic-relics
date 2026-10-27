@@ -264,6 +264,8 @@ export class Game {
       container,
     )
     this.world.dress(region)
+    // 이웃 땅의 무리도 미리 세워 둔다 (E19-04, 프레임마다 무리 하나씩)
+    this.encounter.setNeighbors(this.world.neighborLayouts(region))
     this.backdrop = new TitleBackdrop({ hero: this.hero, fx: this.fx, stage: this.stage, view: this.view, hud: this.hud })
     this.dialog = new DialogBox(container)
     const scenesSeen = new Set<string>()
@@ -760,7 +762,8 @@ export class Game {
       this.bus.emit('progressChanged', {})
     }
     this.minimap.update(dt, { hero: position, relics: this.pickups.list, sanctuaryReady: this.legend.present && this.growth.sanctuaryOpen })
-    this.stage.update(this.elapsed)
+    // 이웃 땅 조각과 이웃 무리는 한 프레임에 하나씩만 짓는다 (조각이 먼저)
+    if (!this.stage.update(this.elapsed)) this.encounter.buildStep()
     this.stage.follow(position)
   }
 

@@ -267,10 +267,12 @@ export class Stage {
     shadowCamera.updateProjectionMatrix()
   }
 
-  /** 불꽃 일렁임 등 맵의 움직이는 것. 이웃 조각을 하나씩 짓는다 */
-  update(elapsed: number): void {
-    if (this.queue.length > 0 || this.building) this.buildNext()
+  /** 불꽃 일렁임 등 맵의 움직이는 것. 이웃 조각을 한 단계 짓는다 (지었으면 true: 이 프레임에 다른 무거운 일은 미룬다) */
+  update(elapsed: number): boolean {
+    const busy = this.queue.length > 0 || this.building !== null
+    if (busy) this.buildNext()
     this.map.update(elapsed)
     for (const chunk of this.others.values()) chunk.update(elapsed)
+    return busy
   }
 }
