@@ -5,6 +5,7 @@ import { ELITE_REWARD } from '../../enemies/elite'
 import { MATERIALS, materialName, rollMaterials } from '../../gear/materials'
 import { GEAR, rollGear } from '../../gear/roll'
 import { masteryShares, PER_PROMOTION } from '../../myth/ClassProgress'
+import { collectionText } from '../../myth/alwaysText'
 import { levelGains } from '../../myth/levelGains'
 import { classIcon } from '../../ui/classIcons'
 import { realmSigil } from '../../ui/sigils'
@@ -131,7 +132,7 @@ export class ProgressionSystem {
     }
   }
 
-  /** 신화 숙련을 그 신화권 신들에게 나눠 쌓는다. 문턱을 넘은 신화는 열린다. */
+  /** 신화 경험치를 쌓는다: 고른 신화만, 고른 신화가 없으면 그 신화권 신들에게 (첫 신화를 연다). 문턱을 넘은 신화는 열린다. */
   gainMastery(amount: number, realm: string | undefined): void {
     const { build, progress, bus } = this.ctx
     // 상시 효과: 신화 숙련 얻는 양 (오딘)
@@ -142,14 +143,13 @@ export class ProgressionSystem {
     bus.emit('progressChanged', {})
   }
 
-  /** 신화가 처음 열렸다 (숙련 문턱 또는 유물): 칭호 카드와 빛기둥 (고르지 않아도 상시 효과가 붙는다) */
+  /** 신화가 처음 열렸다 (경험치 문턱 또는 유물): 칭호 카드와 빛기둥 (고르지 않아도 수집 보너스가 붙는다) */
   private announceOpened(god: God): void {
     const { hud, fx, hero, progress } = this.ctx
     // 처음 연 신화를 바로 골랐으면 고른 신화 카드가 대신 알린다
     if (progress.chosen.includes(god)) return
     const def = godDef(god)
-    const echo = def.always.echo
-    hud.showGains('신화 개방', def.titles[0], def.color, classIcon(def.name), [`${def.name}의 힘이 깨어났다`, `상시 효과: ${partName(def, echo.part)} 메아리`])
+    hud.showGains('신화 개방', def.titles[0], def.color, classIcon(def.name), [`${def.name}의 힘이 깨어났다`, `수집 보너스: ${collectionText()}`])
     fx.power.burst(hero.object.position, def.color, 3)
     hud.flash(def.color)
   }
@@ -158,7 +158,7 @@ export class ProgressionSystem {
   promote(god: God): void {
     const { progress, combat, hero, hud, fx, view, feel, bus } = this.ctx
     const hpBefore = this.ctx.build.state.maxHp
-    const dmgBefore = 1 + progress.promotions * PER_PROMOTION.damage
+    const dmgBefore = PER_PROMOTION.damage ** progress.promotions
     if (!progress.promote(god)) return
     bus.emit('promoted', { god, title: progress.title(god) })
     bus.emit('progressChanged', {})
@@ -167,7 +167,7 @@ export class ProgressionSystem {
     const p = hero.object.position
     // 무엇이 얼마나 강해졌는지: 기본 능력치는 전→후, 그 단계에서 새로 생긴 힘은 한 줄씩
     const hpAfter = this.ctx.build.state.maxHp
-    const dmgAfter = 1 + progress.promotions * PER_PROMOTION.damage
+    const dmgAfter = PER_PROMOTION.damage ** progress.promotions
     const level = progress.level(god)
     const lines = [
       `최대 생명 ${hpBefore} → ${hpAfter}`,
@@ -199,13 +199,6 @@ export class ProgressionSystem {
     this.ctx.combat.health.reset()
     this.ctx.bus.emit('progressChanged', {})
   }
-}
-
-/** 메아리가 본뜬 패시브 부품의 화면 이름 (이름이 없는 부품은 신 이름) */
-function partName(def: ReturnType<typeof godDef>, part: string): string {
-  const named = (def.passive as unknown as Record<string, { name?: string } | undefined>)[part]
-  if (named?.name) return named.name
-  return part === 'basicLightning' ? '번개' : part === 'bladeStorm' ? '칼날 폭풍' : def.name
 }
 
 /** 데이터의 등급 확률 */

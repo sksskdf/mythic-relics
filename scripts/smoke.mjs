@@ -271,9 +271,9 @@ try {
   if ((await page.evaluate(() => window.__game.powers.loadout.stage('mjolnir'))) !== 2) throw new Error('대장간: 벼렸는데 묠니르가 2단계가 아닙니다.')
   await page.click('.menu__tab:nth-child(4)')
   if (!(await page.locator('.menu-classes__now').textContent()).includes('천둥의 신')) throw new Error('정보 화면: 신화 탭에 지금 신화가 없습니다.')
-  // 신화 카드 (E12-06): 상시·추가 효과와 고른 신화 표시
+  // 신화 카드 (E12-06, E21-02): 수집 보너스·추가 효과와 고른 신화 표시
   const myth = await page.locator('.menu-myth').textContent()
-  if (!myth.includes('상시 효과') || !myth.includes('추가 효과') || !myth.includes('고른 신화')) throw new Error(`정보 화면: 신화 카드가 모자랍니다 (${myth.slice(0, 60)})`)
+  if (!myth.includes('수집 보너스') || !myth.includes('추가 효과') || !myth.includes('고른 신화')) throw new Error(`정보 화면: 신화 카드가 모자랍니다 (${myth.slice(0, 60)})`)
   await page.keyboard.press('Escape')
   if (await page.evaluate(() => window.__game.paused)) throw new Error('정보 화면: 닫았는데 게임이 멈춰 있습니다.')
   // 원천 탭 (E14): 각성 카드 넷, 다음 위협 단계가 열리면 마을에서 원천 갈래를 골라 오른다

@@ -198,7 +198,6 @@ export class RelicSystem {
     combat.lowHpTakenScale = 1 + stats.lowHpGuard
     combat.divineScale = 1 + stats.ultCharge
     skills.area = 1 + stats.areaSize
-    this.ctx.powers.echoes.list = build.echoes
     const awakening = this.ctx.powers.awakening
     awakening.levels = build.awakening
     awakening.resonance = build.resonance

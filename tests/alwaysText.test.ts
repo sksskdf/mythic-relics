@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import { alwaysLines, echoText, statText } from '../src/myth/alwaysText'
+import { collectionText, starText, statText } from '../src/myth/alwaysText'
 import { GODS } from '../src/relics/data'
 
-describe('상시 효과 글 (E12-06)', () => {
+describe('신화 수치 글 (E12-06, E21)', () => {
   it('수치는 비율이면 %, 생명 같은 수는 그대로, 줄어드는 수치는 −', () => {
     expect(statText('bossDamage', 0.1)).toBe('정예·보스에게 피해 +10%')
     expect(statText('maxHp', 20)).toBe('최대 생명 +20')
@@ -11,21 +11,16 @@ describe('상시 효과 글 (E12-06)', () => {
     expect(statText('damageTaken', -0.06)).toBe('받는 피해 −6%')
   })
 
-  it('메아리는 터지는 때에 맞는 말로', () => {
-    expect(echoText('thor', 1)).toBe('기본 공격 5번에 1번 작은 번개')
-    expect(echoText('thor', 2)).toBe('기본 공격 3번에 1번 작은 번개')
-    expect(echoText('zeus', 1)).toBe('8초마다 벼락 한 번')
-    expect(echoText('susanoo', 1)).toBe('때릴 때 20% 확률로 칼 한 자루')
-    expect(echoText('nezha', 1)).toBe('걷는 동안 3초마다 풍화륜 불길')
+  it('수집 보너스는 열린 신화 하나마다 같은 한 줄', () => {
+    expect(collectionText()).toBe('모든 피해 +4%, 최대 생명 +5')
   })
 
-  it('모든 신화가 두 줄: 메아리는 1단계부터, 수치는 3단계부터 작동', () => {
+  it('별 수치는 단계가 오를수록 크고, 작동 전에는 앞 단계 값을 보인다', () => {
     for (const god of Object.keys(GODS)) {
-      const [echo, stat] = alwaysLines(god, 2)
-      expect(echo!.active, god).toBe(true)
-      expect(stat!.active, god).toBe(false)
-      expect(alwaysLines(god, 4)[1]!.active, god).toBe(true)
-      expect(echo!.text, god).not.toContain('undefined')
+      const [low, mid, high] = [starText(god, 2), starText(god, 3), starText(god, 5)]
+      expect(low, god).toBe(mid)
+      expect(high, god).not.toBe(mid)
+      expect(mid, god).not.toContain('undefined')
     }
   })
 })

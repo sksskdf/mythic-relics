@@ -147,11 +147,12 @@ export class DevTools {
     powers.loadout.slots.forEach((id, slot) => id && relics.unequip(slot, false))
   }
 
-  /** 지금 신화의 경험치를 채우고 바로 다음 개방 단계로 올린다. */
+  /** 지금 신화의 경험치를 채우고 바로 다음 개방 단계로 올린다. 데모 끝 단계(3)도 넘긴다 */
   promote(): void {
     const { powers, progress, growth } = this.parts
     const god = powers.manifested
     if (!god) return
+    if (progress.level(god) >= progress.levelCap) progress.uncapped = true
     progress.addXp(god, 1e9)
     growth.promote(god)
   }

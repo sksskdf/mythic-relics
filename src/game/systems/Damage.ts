@@ -82,10 +82,6 @@ export class DamageSystem {
       hits.map((h) => h.target),
       skills,
     )
-    powers.echoes.onBasicHit(
-      hits.map((h) => h.target),
-      skills,
-    )
     powers.awakening.onBasicHit(
       hits.map((h) => h.target),
       skills,

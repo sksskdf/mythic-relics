@@ -97,7 +97,7 @@ export function parseGods(raw: unknown, path = 'gods.json'): Record<string, GodD
       color: color(o, 'color', p),
       tree: { column: num(tree, 'column', `${p}.tree`), row: num(tree, 'row', `${p}.tree`) },
       passive,
-      always: parseAlways(o.always, passive, `${p}.always`),
+      always: parseAlways(o.always, `${p}.always`),
       looks: parseLooks(o.looks ?? {}, `${p}.looks`),
       ...(o.legend === undefined ? {} : { legend: parseLegend(o.legend, `${p}.legend`)! }),
       realm: oneOf(o, 'realm', p, REALMS),

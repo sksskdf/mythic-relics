@@ -9,7 +9,6 @@ import { createEffect } from '../skills'
 import type { BasicHit, RelicEffect, SkillContext } from '../skills/Skill'
 import type { CombatTarget } from './PlayerCombat'
 import { ClassPassives } from '../skills/ClassPassives'
-import { MythEchoes } from '../skills/MythEchoes'
 import { SourceAwakening } from '../skills/SourceAwakening'
 import { createUltimate, type Ultimate } from '../skills/Ultimate'
 import { type HudSlot, SKILL_SLOTS } from '../ui/Hud'
@@ -43,8 +42,6 @@ export class RelicPowers {
     return allow ? this.effects.filter((_, i) => allow.includes(i)) : this.effects
   }
 
-  /** 상시 효과의 메아리: 고르지 않은 열린 신화들 (src/skills/MythEchoes.ts) */
-  readonly echoes: MythEchoes
   /** 원천 각성 (src/skills/SourceAwakening.ts, E14-02) */
   readonly awakening: SourceAwakening
   state: LoadoutState
@@ -54,7 +51,6 @@ export class RelicPowers {
     this.effects = this.loadout.slots.map(() => null)
     this.state = this.loadout.state
     this.classPassives = new ClassPassives(fx)
-    this.echoes = new MythEchoes(fx)
     this.awakening = new SourceAwakening(fx)
   }
 
@@ -166,7 +162,6 @@ export class RelicPowers {
     for (const effect of this.live) effect?.update(dt, ctx)
     for (const u of this.ultimates.values()) u.update(dt, ctx)
     this.classPassives.update(dt, ctx)
-    this.echoes.update(dt, ctx)
     this.awakening.update(dt, ctx)
   }
 

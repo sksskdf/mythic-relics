@@ -22,6 +22,8 @@ export interface HeroStats {
   divine: number
   /** 총 승급 횟수 */
   promotions: number
+  /** 열린 신화 수 (수집 보너스, E21-02) */
+  collected: number
   /** 지금 걸린 힘: 발현, 가호, 낀 유물의 지속 효과 */
   powers: { kind: 'god' | 'relic'; name: string; color: string; label: string; what: string }[]
 }
@@ -121,13 +123,13 @@ export interface MenuHost {
   /** 일반 장비를 분해해 재료로 (E13-07-3) */
   salvage(id: string): void
   readonly progress: ClassProgress
-  /** 신화 탭 (E12-06): 고르기와 상시 효과 단계 */
+  /** 신화 탭 (E12-06): 고르기와 별 수치 */
   readonly myths: {
     /** 지금 고른 신화를 바꿀 수 있는 곳인가 (마을·성소) */
     canChoose(): boolean
     choose(god: God): boolean
-    /** 그 신화의 상시 효과 단계 (개방 단계, 그 신 유물을 끼면 +1) */
-    stage(god: God): number
+    /** 성좌판에서 별을 밝힌 신화의 수치 단계 (밝히지 않았으면 0, 엔딩 뒤) */
+    star(god: God): number
   }
   readonly wardrobe: WardrobeHost
   /** 설명 카드에 넣을 지금 상태 */

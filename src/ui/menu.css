@@ -1101,6 +1101,14 @@
   opacity: 1;
   box-shadow: inset 0 0 0 1px var(--c-gilt), 0 0 8px rgba(201, 162, 74, 0.35);
 }
+.menu-promo__level.is-later {
+  opacity: 0.45;
+}
+.menu-promo__lv small {
+  margin-left: auto;
+  font: var(--t-small);
+  color: var(--c-ink-4);
+}
 .menu-promo__lv {
   display: flex;
   align-items: center;

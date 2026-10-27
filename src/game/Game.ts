@@ -114,7 +114,7 @@ export class Game {
   readonly hud: Hud
   readonly powers: RelicPowers
   readonly pickups = new Pickups()
-  readonly progress = new ClassProgress()
+  readonly progress = new ClassProgress(() => this.threat.limitBroken)
   readonly drops = new DropTable()
   readonly wardrobe = new Wardrobe()
   readonly threat = new ThreatProgress()

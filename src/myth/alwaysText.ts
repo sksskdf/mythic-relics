@@ -1,6 +1,7 @@
-import { echoEvery, statAt } from '../build/BuildState'
+import { statAt } from '../build/BuildState'
 import type { StatKind } from '../data/mythAlways'
 import { type God, godDef } from '../relics/data'
+import { PER_OPENED } from './ClassProgress'
 
 /** 수치 종류의 화면 이름 */
 const STAT_LABELS: Record<StatKind, string> = {
@@ -39,38 +40,13 @@ export function statText(kind: StatKind, value: number): string {
   return `${STAT_LABELS[kind]} ${sign}${amount}`
 }
 
-/** 메아리가 본뜬 패시브 부품의 이름 */
-function partName(god: God): string {
-  const def = godDef(god)
-  const { part } = def.always.echo
-  const named = (def.passive as unknown as Record<string, { name?: string } | undefined>)[part]
-  if (named?.name) return named.name
-  return part === 'basicLightning' ? '작은 번개' : part === 'bladeStorm' ? '칼 한 자루' : def.name
+/** 수집 보너스 한 줄 (E21-02): 열린 신화 하나마다 같은 덧셈 */
+export function collectionText(): string {
+  return `모든 피해 +${Math.round(PER_OPENED.damage * 100)}%, 최대 생명 +${PER_OPENED.maxHp}`
 }
 
-/** 메아리 한 줄: 「8초마다 벼락 한 번」 (그 단계의 간격, 단계 0이면 1단계 기준) */
-export function echoText(god: God, stage: number): string {
-  const { echo } = godDef(god).always
-  const every = echoEvery(echo.every, echo.trigger, Math.max(1, stage))
-  const name = partName(god)
-  switch (echo.trigger) {
-    case 'hits':
-      return `기본 공격 ${every}번에 1번 ${name}`
-    case 'chance':
-      return `때릴 때 ${Math.round(every * 100)}% 확률로 ${name}`
-    case 'walking':
-      return `걷는 동안 ${num(every)}초마다 ${name}`
-    default:
-      return `${num(every)}초마다 ${name} 한 번`
-  }
-}
-
-/** 상시 효과 줄들: 메아리와 수치. active는 지금 작동하는가 (수치는 3단계부터) */
-export function alwaysLines(god: God, stage: number): { text: string; active: boolean; from: number }[] {
+/** 성좌판에서 별을 밝힌 신화의 수치 한 줄 (엔딩 뒤, E17-04). stage는 별 수치 단계 (3부터 작동) */
+export function starText(god: God, stage: number): string {
   const { stat } = godDef(god).always
-  const value = stage >= 3 ? statAt(stat, stage) : stat.value[0]
-  return [
-    { text: `메아리: ${echoText(god, stage)}`, active: stage >= 1, from: 1 },
-    { text: statText(stat.kind, value), active: stage >= 3, from: 3 },
-  ]
+  return statText(stat.kind, stage >= 3 ? statAt(stat, stage) : stat.value[0])
 }

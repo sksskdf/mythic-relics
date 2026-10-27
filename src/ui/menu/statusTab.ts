@@ -1,4 +1,4 @@
-import { MAX_LEVEL } from '../../myth/ClassProgress'
+import { PER_OPENED, PER_PROMOTION } from '../../myth/ClassProgress'
 import { godDef, relicDef, type RelicId } from '../../relics/data'
 import { classIcon } from '../classIcons'
 import { relicIcon } from '../relicCard'
@@ -36,7 +36,7 @@ export function renderStatus(ctx: TabContext, body: HTMLElement): void {
     const gems = pips(level)
     gems.classList.remove('ui-gems--small')
     who.append(gems)
-    if (level < MAX_LEVEL) {
+    if (level < host.progress.levelCap) {
       const bar = el('div', 'ui-bar ui-bar--thin menu-status__xp')
       bar.style.setProperty('--fill', god.color)
       bar.style.setProperty('--pct', host.progress.xpRatio(current).toFixed(3))
@@ -81,11 +81,21 @@ export function renderStatus(ctx: TabContext, body: HTMLElement): void {
   row('push', '밀쳐 내기', `×${stats.knockbackDealt.toFixed(2)}`, '내 공격이 적을 미는 힘', changed(stats.knockbackDealt, true))
   row('stand', '버티기', `×${stats.knockbackTaken.toFixed(2)}`, '내가 밀려나는 정도. 낮을수록 잘 버틴다.', changed(stats.knockbackTaken, false))
   row('divine', '궁극기 충전', `${Math.round(stats.divine * 100)}%`, '궁극기 충전\n스킬로 맞히고 적을 쓰러뜨릴수록 차오른다. 가득 차면 지금 신화의 궁극기가 저절로 나간다.')
-  row('promote', '올린 단계', `${stats.promotions}`, '올린 단계\n어느 신화든 개방 단계를 하나 올릴 때마다 생명 +15, 모든 피해 +5%. 모든 신화에 함께 적용된다.')
+  row('promote', '올린 단계', `${stats.promotions}`, `올린 단계\n어느 신화든 개방 단계를 하나 올릴 때마다 최대 생명 +${Math.round(PER_PROMOTION.maxHpPct * 100)}%, 모든 피해 ×${PER_PROMOTION.damage}. 다른 신화로 바꿔도 남는다.`)
   right.append(grid)
 
-  if (stats.powers.length > 0) {
+  // 수집 보너스 (E21-02): 열린 신화 하나마다 같은 덧셈
+  if (stats.collected > 0 || stats.powers.length > 0) {
     const list = el('div', 'menu-status__powers')
+    if (stats.collected > 0) {
+      const n = stats.collected
+      const line = el('div', 'menu-status__power')
+      const chip = el('span', 'ui-chip')
+      chip.style.setProperty('--glow', 'var(--c-gilt)')
+      chip.append(img(glyph('star', '#ffd27a', '#a8862e')))
+      line.append(chip, el('span', '', '수집 보너스'), el('em', '', `열린 신화 ${n} · 모든 피해 +${Math.round(n * PER_OPENED.damage * 100)}%, 최대 생명 +${n * PER_OPENED.maxHp}`))
+      list.append(line)
+    }
     for (const p of stats.powers) {
       const line = el('div', 'menu-status__power')
       const chip = el('span', 'ui-chip')

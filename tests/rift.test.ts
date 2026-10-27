@@ -7,7 +7,7 @@ import { DOOM_BOSS, RIFT_HALF, riftFloor } from '../src/world/riftFloor'
 import { computeBuild } from '../src/build/BuildState'
 import { BLESSINGS, rollBlessings, STAR_EVERY, STARS } from '../src/data/rift'
 import { RiftProgress } from '../src/progress/Rift'
-import { GODS } from '../src/relics/data'
+import { godDef, GODS } from '../src/relics/data'
 
 describe('균열 층 생성 (E17-02)', () => {
   it('시드 100개 × 층: 시작점에서 무리·보스·다음 층 문·나가는 문까지 길이 막히지 않는다', () => {
@@ -87,12 +87,16 @@ describe('성좌판 (E17-05)', () => {
     expect(r).toMatchObject({ best: 15, stars: 3 })
   })
 
-  it('밝힌 별은 그 신화의 상시 효과를 한 단계 올리고, 축복은 수치와 각성 단계를 더한다', () => {
+  it('밝힌 별만 그 신화의 수치를 내고, 축복은 수치와 각성 단계를 더한다', () => {
     const base = { open: new Map([['thor', 2], ['odin', 4]]), chosen: [], gear: [], promotions: 0 }
     const plain = computeBuild(base)
     const starred = computeBuild({ ...base, starred: new Set(['thor', 'odin']) })
-    expect(starred.echoes.find((e) => e.god === 'thor')!.stage).toBe(plain.echoes.find((e) => e.god === 'thor')!.stage + 1)
-    expect(starred.echoes.find((e) => e.god === 'odin')!.stage).toBe(5)
+    const odin = godDef('odin').always.stat
+    const thor = godDef('thor').always.stat
+    // 별이 없으면 신화 수치는 0, 별을 밝히면 개방 단계 + 1 (오딘 4단계 → 5단계 ×1.5, 토르 2단계 → 3단계)
+    expect(plain.stats[odin.kind]).toBe(0)
+    expect(starred.stats[odin.kind] - (odin.kind === thor.kind ? thor.value[0] : 0)).toBeCloseTo(odin.value[1] * 1.5)
+    expect(starred.stats[thor.kind] - (odin.kind === thor.kind ? odin.value[1] * 1.5 : 0)).toBeCloseTo(thor.value[0])
     const blessed = computeBuild({ ...base, bonus: { damage: 0.12 }, awakenBonus: { stone: 2 } })
     expect(blessed.stats.damage).toBeCloseTo(plain.stats.damage + 0.12)
     expect(blessed.awakening.stone).toBe(2)
