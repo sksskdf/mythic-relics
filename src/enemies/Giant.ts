@@ -4,7 +4,7 @@ import { angleDiff, angleTo, inArc, inCircle, inLine, inRing } from '../combat/a
 import { Health } from '../combat/Health'
 import { DATA } from '../data'
 import { Telegraph } from '../fx/Telegraphs'
-import { type CircleCollider, clampToBounds, type Point2, pushOut } from '../world/colliders'
+import { type CircleCollider, clampToArea, type Point2, pushOut, type WalkArea } from '../world/colliders'
 import type { NavGrid } from '../world/navGrid'
 import { heightAt } from '../world/terrain'
 import { ELITES, type EliteKind } from './elite'
@@ -33,7 +33,8 @@ export interface GiantWorld {
   /** 로키의 환영 분신. 가까이 있으면 거인은 주인공 대신 이것을 쫓고 때린다. */
   decoy?: { x: number; z: number; radius: number } | null
   nav: NavGrid
-  halfExtent: number
+  /** 움직일 수 있는 곳 (땅의 네모와 이웃 통로) */
+  area: WalkArea
   /** 움직이지 않는 충돌체 */
   staticColliders: readonly CircleCollider[]
   /** 다른 거인들 (자기 자신 포함 가능) */
@@ -664,7 +665,7 @@ export class Giant {
       next = pushOut(next, this.radius, [other.collider])
     }
     if (world.hero.alive) next = pushOut(next, this.radius, [{ x: world.hero.x, z: world.hero.z, radius: world.hero.radius }])
-    next = clampToBounds(next, world.halfExtent)
+    next = clampToArea(next, world.area)
     position.set(next.x, heightAt(next.x, next.z), next.z)
   }
 

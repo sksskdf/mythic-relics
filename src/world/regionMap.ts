@@ -33,13 +33,14 @@ import {
   torii,
   well,
 } from '../voxel/models/landmarks'
-import type { VoxelGrid } from '../voxel/VoxelGrid'
+import { VoxelGrid } from '../voxel/VoxelGrid'
 import { EFFECT_LAYER } from '../render/PixelRenderer'
 import { toonMaterial } from '../render/toon'
 import type { CircleCollider } from './colliders'
 import { exitColor, type PropKind, type PropPlacement, type RegionDef } from '../data/regions'
+import { CELL, type Cell, cellOrigin, inRect, type Rect, rectDistance, type RegionLink } from '../data/world'
 import { createRng } from './rng'
-import { buildGround, buildScatter, heightAt, type Pond, pondLevel, setPonds } from './terrain'
+import { buildGround, buildScatter, EDGE_BLEND, edgeWave, type GroundBlend, heightAt, type Pond, pondLevel, setPonds } from './terrain'
 import { THEMES, type ThemeDef, type ThemeId } from './themes'
 
 type Animator = (elapsed: number) => void
@@ -52,7 +53,8 @@ export interface Built {
 /** 소품마다 모양이 조금씩 다른 변형을 몇 개 만들어 두고 돌려 쓴다. */
 const VARIANTS = 3
 
-type VariantFactory = (variant: number, theme: ThemeId) => () => Built
+/** plain: 깊은 숲에 쓰는 단순한 모양 (칸을 두 배로, 비슷한 색을 하나로 모아 삼각형을 줄임). 복셀 모델만 따른다 */
+type VariantFactory = (variant: number, theme: ThemeId, plain?: boolean) => () => Built
 
 /** 같은 모델을 테마 색으로 바꿔 칠한다 (팔레트만 바꾼다) */
 function recolored(grid: VoxelGrid, theme: ThemeDef): VoxelGrid {
@@ -60,13 +62,63 @@ function recolored(grid: VoxelGrid, theme: ThemeDef): VoxelGrid {
   return grid
 }
 
+/** 비슷한 색(sRGB 거리 PLAIN_NEAR 안)을 가장 많이 쓴 색 하나로 모은다. 모양은 그대로, 같은 색 면이 크게 합쳐진다 */
+const PLAIN_NEAR = 0.17
+
+function plainGrid(grid: VoxelGrid): VoxelGrid {
+  const counts = new Map<number, number>()
+  for (const c of grid.cells) if (c) counts.set(c, (counts.get(c) ?? 0) + 1)
+  const order = [...counts.keys()].sort((a, b) => counts.get(b)! - counts.get(a)!)
+  const rgb = (i: number) => new THREE.Color(grid.palette[i]!)
+  const lead: number[] = []
+  const to = new Map<number, number>()
+  for (const i of order) {
+    const c = rgb(i)
+    const near = lead.find((j) => {
+      const d = rgb(j)
+      return Math.hypot(c.r - d.r, c.g - d.g, c.b - d.b) < PLAIN_NEAR
+    })
+    if (near === undefined) lead.push(i)
+    to.set(i, near ?? i)
+  }
+  for (let k = 0; k < grid.cells.length; k++) if (grid.cells[k]) grid.cells[k] = to.get(grid.cells[k]!)!
+  return grid
+}
+
+/** 칸 2×2×2를 하나로 (반이 넘게 차 있으면 가장 많은 색으로). 멀리서 보는 나무는 칸이 커도 모양이 같아 보인다 */
+function halfGrid(grid: VoxelGrid): VoxelGrid {
+  const out = new VoxelGrid(Math.ceil(grid.sizeX / 2), Math.ceil(grid.sizeY / 2), Math.ceil(grid.sizeZ / 2))
+  const votes = new Map<number, number>()
+  for (let y = 0; y < out.sizeY; y++) {
+    for (let z = 0; z < out.sizeZ; z++) {
+      for (let x = 0; x < out.sizeX; x++) {
+        votes.clear()
+        let filled = 0
+        for (let k = 0; k < 8; k++) {
+          const c = grid.get(x * 2 + (k & 1), y * 2 + ((k >> 1) & 1), z * 2 + ((k >> 2) & 1))
+          if (!c) continue
+          filled++
+          votes.set(c, (votes.get(c) ?? 0) + 1)
+        }
+        if (filled < 3) continue
+        let best = 0
+        let most = 0
+        for (const [c, n] of votes) if (n > most) [best, most] = [c, n]
+        out.set(x, y, z, grid.palette[best]!)
+      }
+    }
+  }
+  return out
+}
+
 function cachedVoxel(make: (seed: number) => VoxelGrid, voxelSize: number): VariantFactory {
   const geometries = new Map<string, THREE.BufferGeometry>()
-  return (variant, theme) => () => {
-    const key = `${variant}|${theme}`
+  return (variant, theme, plain = false) => () => {
+    const key = `${variant}|${theme}|${plain}`
     let geometry = geometries.get(key)
     if (!geometry) {
-      geometry = buildVoxelGeometry(recolored(make(variant * 101 + 17), THEMES[theme]), { voxelSize })
+      const grid = recolored(make(variant * 101 + 17), THEMES[theme])
+      geometry = plain ? buildVoxelGeometry(plainGrid(halfGrid(grid)), { voxelSize: voxelSize * 2 }) : buildVoxelGeometry(grid, { voxelSize })
       geometries.set(key, geometry)
     }
     const mesh = new THREE.Mesh(geometry, voxelMaterial())
@@ -296,6 +348,133 @@ function buildBorder(seed: number, halfExtent: number, theme: ThemeId): THREE.Gr
   return group
 }
 
+/** 숲 칸의 간격 (m). 칸마다 조금 흔들어 놓아 줄이 보이지 않게 한다 */
+const FOREST_STEP = 2.1
+/** 숲을 이만한 네모(m)로 나눠 그린다. 화면 밖 네모는 그리지 않는다 (시야 거르기) */
+const FOREST_TILE = 6
+/** 트인 땅에서 이 거리(m) 안의 숲 가장자리는 빽빽하게 심는다. 그 안쪽 깊은 숲은 성기게, 크게, 단순한 모양으로 */
+const FOREST_EDGE = 6
+/** 그림자는 트인 땅에 닿는 맨 앞줄(이 거리 m 안)만 드리운다. 숲 안쪽 그림자는 우듬지에 가려 보이지 않는다 */
+const FOREST_SHADE = 3
+
+/**
+ * 하나로 이어진 세계의 숲 (E19): 칸(한 변 CELL) 안에서 트인 땅 밖(depth > 0)을 나무로 채운다.
+ * depth(x, z)는 트인 땅(움직일 수 있는 곳과 그 둘레)까지의 거리다. 칸마다 수천 그루라, 숲 네모(FOREST_TILE)와
+ * 모양(종류·변형)마다 InstancedMesh 하나로 그린다. 충돌체는 없다 (움직일 수 있는 곳 밖이라).
+ */
+function buildForest(seed: number, theme: ThemeId, depth: (x: number, z: number) => number, mix: EdgeMix | null = null): THREE.Group {
+  const group = new THREE.Group()
+  const rng = createRng(seed * 31 + 5)
+  const spots = new Map<string, THREE.Matrix4[]>()
+  const dummy = new THREE.Object3D()
+  const half = CELL / 2
+  for (let x = -half + FOREST_STEP / 2; x < half; x += FOREST_STEP) {
+    for (let z = -half + FOREST_STEP / 2; z < half; z += FOREST_STEP) {
+      const px = x + (rng() - 0.5) * FOREST_STEP * 0.8
+      const pz = z + (rng() - 0.5) * FOREST_STEP * 0.8
+      // 칸 가장자리에서는 이웃 땅의 나무가 섞여 든다
+      const edgeMix = mix?.(px, pz)
+      const face = edgeMix && edgeWave(px, pz) + (rng() - 0.5) * 2 > edgeMix.depth ? edgeMix.theme : theme
+      const kinds = THEMES[face].border as readonly PropKind[]
+      const kind = kinds[Math.floor(rng() * kinds.length)]!
+      const variant = Math.floor(rng() * VARIANTS)
+      const skip = rng()
+      const grow = rng()
+      const d = depth(px, pz)
+      if (d <= 0) continue
+      const edge = d < FOREST_EDGE
+      // 깊은 숲은 위에서 내려다보면 우듬지만 보이므로, 덜 심고 크게 키워 틈을 메운다
+      if (skip < (edge ? 0.1 : 0.5)) continue
+      dummy.position.set(px, heightAt(px, pz), pz)
+      dummy.rotation.set(0, rng() * Math.PI * 2, 0)
+      dummy.scale.setScalar(edge ? 0.9 + grow * 0.6 : 1.2 + grow * 0.5)
+      dummy.updateMatrix()
+      const key = `${face}|${kind}|${variant}|${d < FOREST_SHADE ? 1 : 0}|${edge ? 0 : 1}|${Math.floor((px + half) / FOREST_TILE)}|${Math.floor((pz + half) / FOREST_TILE)}`
+      const list = spots.get(key) ?? []
+      list.push(dummy.matrix.clone())
+      spots.set(key, list)
+    }
+  }
+  for (const [key, matrices] of spots) {
+    const [face, kind, variant, shade, plain] = key.split('|') as [ThemeId, PropKind, string, string, string]
+    const mesh = BUILDERS[kind](Number(variant), face, plain === '1')().object
+    if (!(mesh instanceof THREE.Mesh)) continue
+    const trees = new THREE.InstancedMesh(mesh.geometry, mesh.material, matrices.length)
+    matrices.forEach((m, i) => trees.setMatrixAt(i, m))
+    trees.instanceMatrix.needsUpdate = true
+    trees.computeBoundingSphere()
+    trees.castShadow = shade === '1'
+    trees.receiveShadow = true
+    trees.userData.instanced = true
+    group.add(trees)
+  }
+  return group
+}
+
+/** 칸 가장자리의 한 점: 가장 가까운 변 너머 이웃 땅 얼굴과, 그 변에서 들어온 거리 (m). 섞지 않으면 null */
+type EdgeMix = (x: number, z: number) => { theme: ThemeId; depth: number } | null
+
+/** 칸 자리마다의 땅 얼굴: 지역이 있으면 그 지역, 빈 칸이면 가장 가까운 지역 (어느 땅에서 보든 같은 얼굴) */
+export function cellTheme(regions: Readonly<Record<string, RegionDef>>, cell: Cell): ThemeId {
+  const o = cellOrigin(cell)
+  let best: RegionDef | null = null
+  let bestD = Infinity
+  for (const r of Object.values(regions)) {
+    if (!r.cell) continue
+    const p = cellOrigin(r.cell)
+    const d = Math.hypot(p.x - o.x, p.z - o.z)
+    if (d < bestD - 1e-6 || (Math.abs(d - bestD) < 1e-6 && best && r.id < best.id)) {
+      best = r
+      bestD = d
+    }
+  }
+  return best?.theme ?? 'snow'
+}
+
+/**
+ * 칸 가장자리 섞기 (E19-03): 가장 가까운 변 너머 이웃 칸의 땅 얼굴. 경계를 물결 선(edgeWave)으로 흔들어,
+ * 양쪽 칸이 같은 선을 경계로 삼으므로 일직선으로 끊기지 않고 덩어리져 넘어간다.
+ */
+function edgeMixer(cell: Cell, own: ThemeId, themeAt: (cell: Cell) => ThemeId): EdgeMix {
+  const half = CELL / 2
+  const cache = new Map<string, ThemeId>()
+  const at = (c: Cell) => {
+    const key = `${c.col},${c.row}`
+    let t = cache.get(key)
+    if (t === undefined) cache.set(key, (t = themeAt(c)))
+    return t
+  }
+  return (x, z) => {
+    const dx = half - Math.abs(x)
+    const dz = half - Math.abs(z)
+    const d = Math.min(dx, dz)
+    if (d >= EDGE_BLEND) return null
+    // 옆 칸은 같은 줄, 위아래 칸은 반 칸 어긋난 줄 (북쪽 = −z = 다음 줄)
+    const next = dx <= dz ? { col: cell.col + Math.sign(x), row: cell.row } : { col: cell.col + (x < 0 ? -0.5 : 0.5), row: cell.row + (z < 0 ? 1 : -1) }
+    const theme = at(next)
+    if (theme === own) return null
+    return { theme, depth: Math.max(0, d) }
+  }
+}
+
+/** 땅 텍스처에 쓰는 모양으로 */
+function groundMix(mix: EdgeMix | null): GroundBlend | undefined {
+  if (!mix) return undefined
+  return (x, z) => {
+    const m = mix(x, z)
+    return m && { theme: THEMES[m.theme], depth: m.depth }
+  }
+}
+
+/** 숲까지의 거리: 트인 땅 네모들 가운데 가장 가까운 것까지 (안이면 0 이하) */
+function openDepth(open: readonly Rect[]): (x: number, z: number) => number {
+  return (x, z) => {
+    let d = Infinity
+    for (const r of open) d = Math.min(d, inRect(r, x, z) ? 0 : rectDistance(r, x, z))
+    return d
+  }
+}
+
 /** 소품 하나를 장면에 놓는다. (지도 편집기도 같은 것을 쓴다) */
 export function placeProp(placement: PropPlacement, variant: number, theme: ThemeId = 'snow'): Built {
   const built = BUILDERS[placement.kind](variant % VARIANTS, theme)()
@@ -307,64 +486,175 @@ export function placeProp(placement: PropPlacement, variant: number, theme: Them
 }
 
 /**
- * 지금 지역의 맵 (E7-01). 지역을 바꾸거나 편집기로 고치면 load로 다시 짓는다.
+ * 땅 조각 하나 (E19): 지역 하나의 땅·숲·소품·문, 또는 지역이 없는 빈 칸의 숲.
+ * 지역 조각은 그 지역의 지역 안 좌표로 짓고, 무대(Stage)가 칸 자리에 맞춰 옮겨 놓는다.
+ */
+export class Chunk {
+  readonly group = new THREE.Group()
+  readonly colliders: CircleCollider[] = []
+  readonly animators: Animator[] = []
+
+  constructor(
+    readonly region: RegionDef | null,
+    readonly cell: Cell | null,
+  ) {}
+
+  /** 불꽃, 룬 빛처럼 움직이는 것들을 갱신한다. */
+  update(elapsed: number): void {
+    for (const animate of this.animators) animate(elapsed)
+  }
+
+  /** 이 조각만 쓰던 것(땅·흩뿌림·연못·문·숲 인스턴스)을 GPU에서 내린다. 소품 모델은 조각끼리 함께 써서 남긴다 */
+  dispose(): void {
+    this.group.traverse((o) => {
+      if (o instanceof THREE.InstancedMesh && o.userData.instanced) {
+        o.dispose()
+        return
+      }
+      if (!(o instanceof THREE.Mesh) || !o.userData.ownGeometry) return
+      // 재질은 소품과 함께 쓰는 것이 있어 남기고, 땅 색 텍스처만 내린다
+      o.geometry.dispose()
+      for (const m of Array.isArray(o.material) ? o.material : [o.material]) (m as THREE.MeshBasicMaterial).map?.dispose()
+    })
+    this.group.removeFromParent()
+  }
+}
+
+/**
+ * 지역 하나의 조각을 짓는다. 땅 높이는 지금 땅 원점(`setTerrainOrigin`) 기준이므로, 이웃 조각은 `withTerrainFrame` 안에서 짓는다.
+ * links: 이 지역에서 이웃으로 가는 통로 (숲을 이 자리만 비운다). 세계 칸이 없는 균열 층은 예전처럼 네모 둘레를 숲으로 두른다.
+ */
+export function buildChunk(region: RegionDef, links: readonly RegionLink[] = [], themeAt?: (cell: Cell) => ThemeId): Chunk {
+  return finish(chunkSteps(region, links, themeAt))
+}
+
+/** 조각 짓기를 끝까지 돌린다 */
+function finish(steps: Generator<void, Chunk>): Chunk {
+  for (;;) {
+    const step = steps.next()
+    if (step.done) return step.value
+  }
+}
+
+/**
+ * 조각을 땅·숲·소품 단계로 나눠 짓는다 (E19: 이웃 조각을 프레임마다 한 단계씩 지어 멈칫하지 않게).
+ * 단계마다 땅 높이 원점이 이 조각의 것이어야 한다 (`withTerrainFrame` 안에서 next를 부른다).
+ */
+export function* chunkSteps(region: RegionDef, links: readonly RegionLink[] = [], themeAt?: (cell: Cell) => ThemeId): Generator<void, Chunk> {
+  const chunk = new Chunk(region, region.cell)
+  const theme = THEMES[region.theme]
+  // 땅 높이가 이 지역의 연못을 따르게 한 뒤 땅과 소품을 놓는다
+  setPonds(region.ponds)
+  const half = region.halfExtent
+  if (region.cell) {
+    // 땅은 칸 전체를 덮어 이웃 칸의 땅과 맞닿는다. 움직일 수 있는 네모와 통로 밖은 빽빽한 숲. 가장자리는 이웃 얼굴과 섞는다
+    const mix = themeAt ? edgeMixer(region.cell, region.theme, themeAt) : null
+    chunk.group.add(own(buildGround(CELL / 2 - 4, theme, region.paths, undefined, groundMix(mix))))
+    yield
+    chunk.group.add(buildForest(region.seed, region.theme, openDepth(openRects(half, links)), mix))
+    yield
+  } else {
+    // 땅은 움직일 수 있는 범위보다 넓게 깔아서, 멀리 축소해도 맵 끝이 허공으로 보이지 않게 한다.
+    chunk.group.add(own(buildGround(half + BORDER_DEPTH, theme, region.paths)))
+    chunk.group.add(buildBorder(region.seed, half, region.theme))
+  }
+  chunk.group.add(own(buildScatter(half, theme)))
+  for (const pond of region.ponds) chunk.group.add(own(pondMesh(pond, theme)))
+  region.props.forEach((placement, index) => {
+    const built = placeProp(placement, index, region.theme)
+    chunk.group.add(built.object)
+    chunk.colliders.push(...collidersFor(placement))
+    if (built.animate) chunk.animators.push(built.animate)
+  })
+  // 마을 사람은 비켜 간다
+  for (const npc of region.npcs) chunk.colliders.push({ x: npc.x, z: npc.z, radius: 0.45 })
+  // 출구: 통로 입구의 문과 갈 곳의 빛기둥 (글 없이 색으로 어디로 가는지 알린다)
+  for (const exit of region.exits) {
+    const gate = buildGate(exitColor(exit.to))
+    own(gate.object)
+    gate.object.position.set(exit.x, heightAt(exit.x, exit.z), exit.z)
+    // 문은 지역 가운데를 바라본다
+    gate.object.rotation.y = Math.atan2(-exit.x, -exit.z)
+    chunk.group.add(gate.object)
+    chunk.animators.push(gate.animate!)
+  }
+  return chunk
+}
+
+/**
+ * 그 땅의 트인 땅 (지역 안 좌표): 움직일 수 있는 네모를 조금 넓힌 것과, 통로를 양옆으로 조금 넓힌 것.
+ * 이 밖이 숲이다. 빈 칸의 숲도 이웃 땅의 이것을 옮겨 받아 가장자리를 맞춘다.
+ */
+export function openRects(halfExtent: number, links: readonly RegionLink[]): Rect[] {
+  const h = halfExtent + 1.2
+  return [
+    { minX: -h, maxX: h, minZ: -h, maxZ: h },
+    ...links.map(({ rect: r, axis }) =>
+      axis === 'x' ? { ...r, minZ: r.minZ - 1.5, maxZ: r.maxZ + 1.5 } : { ...r, minX: r.minX - 1.5, maxX: r.maxX + 1.5 },
+    ),
+  ]
+}
+
+/** 지역이 없는 빈 칸: 그 칸 전체를 숲으로 채운다 (이웃 칸 사이를 메우고, 세계 끝을 가린다). open은 이웃 땅의 트인 땅 (이 칸 좌표) */
+export function buildFillerChunk(cell: Cell, theme: ThemeId, open: readonly Rect[] = [], themeAt?: (cell: Cell) => ThemeId): Chunk {
+  return finish(fillerSteps(cell, theme, open, themeAt))
+}
+
+/** 빈 칸 조각을 땅·숲 단계로 나눠 짓는다 */
+export function* fillerSteps(cell: Cell, theme: ThemeId, open: readonly Rect[] = [], themeAt?: (cell: Cell) => ThemeId): Generator<void, Chunk> {
+  const chunk = new Chunk(null, cell)
+  setPonds([])
+  const mix = themeAt ? edgeMixer(cell, theme, themeAt) : null
+  chunk.group.add(own(buildGround(CELL / 2 - 4, THEMES[theme], [], undefined, groundMix(mix))))
+  yield
+  const seed = Math.round(cell.col * 2 + 1000) * 131 + Math.round(cell.row + 1000)
+  chunk.group.add(buildForest(seed, theme, open.length ? openDepth(open) : () => Infinity, mix))
+  return chunk
+}
+
+/**
+ * 지금 땅의 맵 (E7-01, E19에서 조각을 받아 쓰게 바뀜). 지역을 바꾸거나 편집기로 고치면 load로 다시 짓고,
+ * 걸어서 이웃 땅으로 넘어가면 이미 지어 둔 이웃 조각을 adopt로 넘겨받는다.
  * 같은 객체(group·colliders 배열)를 그대로 두고 속만 바꾸므로, 이것을 쥔 쪽은 다시 받아 갈 필요가 없다.
  */
 export class RegionMap {
   readonly group = new THREE.Group()
   readonly colliders: CircleCollider[] = []
   region: RegionDef
-  private animators: Animator[] = []
+  chunk: Chunk
 
-  constructor(region: RegionDef) {
+  constructor(region: RegionDef, links: readonly RegionLink[] = [], themeAt?: (cell: Cell) => ThemeId) {
     this.region = region
-    this.load(region)
+    this.chunk = buildChunk(region, links, themeAt)
+    this.take(this.chunk)
   }
 
-  load(region: RegionDef): void {
-    this.region = region
-    const theme = THEMES[region.theme]
-    // 땅 높이가 이 지역의 연못을 따르게 한 뒤 땅과 소품을 놓는다
-    setPonds(region.ponds)
-    // 이 지역만 쓰던 것(땅·흩뿌림·연못·문)은 GPU에서도 내린다. 소품 모델은 지역끼리 함께 써서 남긴다
-    this.group.traverse((o) => {
-      if (!(o instanceof THREE.Mesh) || !o.userData.ownGeometry) return
-      // 재질은 소품과 함께 쓰는 것이 있어 남기고, 땅 색 텍스처만 내린다
-      o.geometry.dispose()
-      for (const m of Array.isArray(o.material) ? o.material : [o.material]) (m as THREE.MeshBasicMaterial).map?.dispose()
-    })
-    for (const child of [...this.group.children]) this.group.remove(child)
+  /** 그 지역의 조각을 새로 지어 지금 땅으로 삼는다 (앞 조각은 GPU에서 내린다) */
+  load(region: RegionDef, links: readonly RegionLink[] = [], themeAt?: (cell: Cell) => ThemeId): void {
+    this.chunk.dispose()
+    this.take(buildChunk(region, links, themeAt))
+  }
+
+  /** 이미 지어 둔 조각(걸어 넘어간 이웃)을 지금 땅으로 삼는다. 앞 조각은 돌려준다 (무대가 이웃으로 둔다) */
+  adopt(chunk: Chunk): Chunk {
+    const previous = this.chunk
+    previous.group.removeFromParent()
+    this.take(chunk)
+    return previous
+  }
+
+  private take(chunk: Chunk): void {
+    this.chunk = chunk
+    this.region = chunk.region!
+    chunk.group.position.set(0, 0, 0)
+    this.group.add(chunk.group)
     this.colliders.length = 0
-    this.animators = []
-    const half = region.halfExtent
-    // 땅은 움직일 수 있는 범위보다 넓게 깔아서, 멀리 축소해도 맵 끝이 허공으로 보이지 않게 한다.
-    this.group.add(own(buildGround(half + BORDER_DEPTH, theme, region.paths)))
-    this.group.add(buildBorder(region.seed, half, region.theme))
-    this.group.add(own(buildScatter(half, theme)))
-    for (const pond of region.ponds) this.group.add(own(pondMesh(pond, theme)))
-    region.props.forEach((placement, index) => {
-      const built = placeProp(placement, index, region.theme)
-      this.group.add(built.object)
-      this.colliders.push(...collidersFor(placement))
-      if (built.animate) this.animators.push(built.animate)
-    })
-    // 마을 사람은 비켜 간다
-    for (const npc of region.npcs) this.colliders.push({ x: npc.x, z: npc.z, radius: 0.45 })
-    // 출구: 길 끝의 문과 갈 곳의 빛기둥 (글 없이 색으로 어디로 가는지 알린다)
-    for (const exit of region.exits) {
-      const gate = buildGate(exitColor(exit.to))
-      own(gate.object)
-      gate.object.position.set(exit.x, heightAt(exit.x, exit.z), exit.z)
-      // 문은 지역 가운데를 바라본다
-      gate.object.rotation.y = Math.atan2(-exit.x, -exit.z)
-      this.group.add(gate.object)
-      this.animators.push(gate.animate!)
-    }
+    this.colliders.push(...chunk.colliders)
   }
 
   /** 불꽃, 룬 빛처럼 움직이는 것들을 갱신한다. */
   update(elapsed: number): void {
-    for (const animate of this.animators) animate(elapsed)
+    this.chunk.update(elapsed)
   }
 }
 

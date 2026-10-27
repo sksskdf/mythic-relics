@@ -77,6 +77,13 @@ export class QuarterViewCamera {
     this.apply()
   }
 
+  /** 원점이 옮겨졌다 (E19): 화면이 그대로 보이게 바라보는 곳을 같은 만큼 옮긴다 */
+  shift(dx: number, dz: number): void {
+    this.focus.x += dx
+    this.focus.z += dz
+    this.apply()
+  }
+
   /** 대상을 부드럽게 따라간다. */
   follow(target: THREE.Vector3, dt: number): void {
     const t = 1 - Math.exp(-this.followSpeed * dt)

@@ -1,3 +1,5 @@
+import { clampToRects, inRect, type Rect } from '../data/world'
+
 /** 땅 위의 원형 충돌체 (x, z 평면) */
 export interface CircleCollider {
   x: number
@@ -43,4 +45,35 @@ export function clampToBounds(point: Point2, halfExtent: number): Point2 {
     x: Math.max(-halfExtent, Math.min(halfExtent, point.x)),
     z: Math.max(-halfExtent, Math.min(halfExtent, point.z)),
   }
+}
+
+/**
+ * 움직일 수 있는 곳 (E19): 땅의 네모와 이웃으로 가는 통로 네모들의 합. 지금 땅의 지역 안 좌표.
+ * reach는 원점에서 가장 먼 가장자리까지의 거리로, 길찾기 격자가 덮어야 하는 반 폭이다.
+ */
+export interface WalkArea {
+  readonly rects: readonly Rect[]
+  readonly reach: number
+}
+
+/** 네모들로 움직일 수 있는 곳을 만든다 */
+export function walkArea(rects: readonly Rect[]): WalkArea {
+  let reach = 0
+  for (const r of rects) reach = Math.max(reach, Math.abs(r.minX), Math.abs(r.maxX), Math.abs(r.minZ), Math.abs(r.maxZ))
+  return { rects, reach }
+}
+
+/** 가운데가 원점인 네모 하나 (균열 층·점검용) */
+export function squareArea(halfExtent: number): WalkArea {
+  return walkArea([{ minX: -halfExtent, maxX: halfExtent, minZ: -halfExtent, maxZ: halfExtent }])
+}
+
+/** 점을 움직일 수 있는 곳 안으로 넣는다 (가장자리에서 inset만큼 안쪽) */
+export function clampToArea(point: Point2, area: WalkArea, inset = 0): Point2 {
+  return clampToRects(area.rects, point.x, point.z, inset)
+}
+
+/** 점이 움직일 수 있는 곳 안인가 (가장자리에서 inset만큼 안쪽) */
+export function inArea(area: WalkArea, x: number, z: number, inset = 0): boolean {
+  return area.rects.some((r) => inRect(r, x, z, -inset))
 }

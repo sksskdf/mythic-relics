@@ -1,4 +1,6 @@
 import { arrivalSpot, REGIONS, type RegionDef } from '../data/regions'
+import { CELL, crossingAt, type RegionLink, regionLinks, walkRects } from '../data/world'
+import { walkArea, type WalkArea } from '../world/colliders'
 import { realmInk } from '../art/palette'
 import type { DropTable } from '../gear/DropTable'
 import type { Pickups } from '../gear/Pickups'
@@ -64,6 +66,8 @@ export class World {
   /** 지역을 넘어가는 중 (암전 → 다시 짓기 → 밝아짐) */
   private travel: { to: RegionDef; at: { x: number; z: number }; t: number; switched: boolean } | null = null
   private readonly fade: HTMLElement
+  /** 지금 땅에서 이웃으로 가는 통로 (지금 땅의 지역 안 좌표) */
+  private links: readonly RegionLink[] = []
 
   constructor(
     private readonly parts: WorldParts,
@@ -79,6 +83,11 @@ export class World {
     return this.parts.stage.map.region
   }
 
+  /** 그 땅에서 움직일 수 있는 곳: 땅의 네모와 이웃으로 가는 통로 (E19) */
+  areaOf(region: RegionDef): WalkArea {
+    return walkArea(walkRects(region.halfExtent, regionLinks(this.regions, region.id)))
+  }
+
   /** 다른 지역으로 넘어가는 중인가 (그동안은 입력을 받지 않는다) */
   get traveling(): boolean {
     return this.travel !== null
@@ -87,6 +96,7 @@ export class World {
   /** 땅의 날림(눈·꽃잎·낙엽)과 길찾기 밖의 것들을 그 지역 것으로 맞춘다. 처음 지역에도 쓴다 */
   dress(region: RegionDef): void {
     const { villagers, minimap, fx, drops } = this.parts
+    this.links = regionLinks(this.regions, region.id)
     villagers.load(region.npcs)
     minimap.setRegion(region)
     const particles = THEMES[region.theme].particles
@@ -99,31 +109,61 @@ export class World {
    * 지도 편집기가 고친 지역을 바로 보여 줄 때도 쓴다. 다른 지역으로 가면 땅에 떨어진 유물은 사라진다.
    */
   enter(region: RegionDef, at: { x: number; z: number } = region.spawn): void {
-    const { stage, nav, encounter, legend, hero, orders, view, hud, pickups, bus } = this.parts
+    const { stage, nav, encounter, legend, hero, orders, view, pickups, bus } = this.parts
     if (legend.active) return
     // 균열은 층마다 id가 같지만 새 땅이다 (앞 층의 물건을 치우고 「균열 N층」을 띄운다)
     const moved = region.id !== this.region.id || region.kind === 'rift'
     if (moved) pickups.clear()
-    stage.load(region)
+    stage.load(region, this.regions)
     this.dress(region)
     const colliders = stage.map.colliders
-    nav.rebuild(region.halfExtent, colliders)
-    encounter.reset({ ...region, respawn: region.kind !== 'rift' }, colliders, region.halfExtent)
+    const area = this.areaOf(region)
+    nav.rebuild(area, colliders)
+    encounter.reset({ ...region, respawn: region.kind !== 'rift' }, colliders, area)
     legend.moveTo(region.sanctuary && (nav.nearestFree(region.sanctuary) ?? region.sanctuary), region.sanctuary?.radius)
-    hero.halfExtent = region.halfExtent
+    hero.area = area
     orders.clear()
     // 도착 자리가 바위·나무에 걸리면 가까운 빈 곳에 선다
     const spot = nav.nearestFree(at) ?? at
     hero.teleport(spot.x, spot.z)
     view.jumpTo(hero.object.position)
     this.exitArmed = false
-    if (moved) {
-      // 그 땅의 문장과 색 띠로 이름을 알린다 (E9-05)
-      const realm = region.realm ?? 'hub'
-      const ink = realmInk(realm)
-      hud.showTitleCard(region.name, `var(--c-realm-${realm})`, realmSigil(realm, ink.light, ink.dark))
-    }
+    if (moved) this.announce(region)
     bus.emit('regionEntered', { id: region.id })
+  }
+
+  /** 그 땅의 문장과 색 띠로 이름을 알린다 (E9-05) */
+  private announce(region: RegionDef): void {
+    const realm = region.realm ?? 'hub'
+    const ink = realmInk(realm)
+    this.parts.hud.showTitleCard(region.name, `var(--c-realm-${realm})`, realmSigil(realm, ink.light, ink.dark))
+  }
+
+  /**
+   * 통로를 반 넘게 걸어 이웃 땅으로 넘어간다 (E19, 암전 없음). 원점을 이웃 땅으로 옮기고 주인공·카메라·가던 곳을
+   * 같은 만큼 옮겨 화면에서는 아무것도 움직이지 않은 것처럼 보이게 한다. 길찾기·적·성소·마을 사람은 넘어간 땅 것으로.
+   */
+  private cross(link: RegionLink): void {
+    const to = this.regions[link.to]
+    if (!to) return
+    const { stage, nav, encounter, legend, hero, orders, view, pickups, bus } = this.parts
+    const { x: dx, z: dz } = link.shift
+    hero.shift(dx, dz)
+    view.shift(dx, dz)
+    // 떨어진 것은 제자리에 남는다 (되돌아가면 주울 수 있다). 이웃 칸보다 먼 것만 치운다
+    pickups.shift(dx, dz, CELL)
+    stage.cross(to)
+    this.dress(to)
+    const colliders = stage.map.colliders
+    const area = this.areaOf(to)
+    nav.rebuild(area, colliders)
+    encounter.reset({ ...to, respawn: true }, colliders, area)
+    legend.moveTo(to.sanctuary && (nav.nearestFree(to.sanctuary) ?? to.sanctuary), to.sanctuary?.radius)
+    hero.area = area
+    // 길찾기를 넘어간 땅 것으로 바꾼 뒤에 가던 곳까지 다시 길을 찾는다
+    orders.shift(dx, dz)
+    this.announce(to)
+    bus.emit('regionEntered', { id: to.id })
   }
 
   /** 출구로 다른 지역에 간다: 잠깐 어두워졌다가 그 지역의 돌아오는 출구 앞에서 밝아진다 (E7-02) */
@@ -166,6 +206,12 @@ export class World {
     const { combat, legend, hero, orders } = this.parts
     if (!combat.alive || legend.active || this.exitsLocked) return
     const p = hero.object.position
+    // 하나로 이어진 세계 (E19): 통로를 반 넘게 지나면 이웃 땅으로 넘어간다. 문은 통로 입구의 표시일 뿐이다
+    if (this.region.cell) {
+      const link = crossingAt(this.links, p.x, p.z)
+      if (link) this.cross(link)
+      return
+    }
     let nearest = Infinity
     // 균열의 나가는 문은 땅을 눌러 그 문으로 걸어가던 중일 때만 연다:
     // 밀려나거나, 문 곁의 적을 눌러 다가가다 밟아 축복을 잃지 않게

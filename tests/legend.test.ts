@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { Encounter } from '../src/game/Encounter'
 import { BET, type LegendHost, type LegendKind, UtgardLegend } from '../src/game/Legend'
+import { squareArea } from '../src/world/colliders'
 
 function setup(ready = true) {
   const encounter = new Encounter({ camps: [], boss: { x: 30, z: 30 } }, [], 38)
@@ -25,7 +26,7 @@ function setup(ready = true) {
   }
   const world = {
     hero: { x: 0, z: 0, radius: 0.4, alive: true },
-    halfExtent: 38,
+    area: squareArea(38),
     staticColliders: [],
     hitHero: () => {},
     impact: () => {},

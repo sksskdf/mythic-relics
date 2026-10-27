@@ -80,6 +80,19 @@ export class HeroOrders {
     this.combat.focus = null
   }
 
+  /**
+   * 원점이 옮겨졌다 (E19: 걸어서 이웃 땅으로 넘어감). 가던 곳을 같은 만큼 옮겨 이어 걷는다.
+   * 앞 땅의 적은 사라지므로 공격 지시는 거둔다.
+   */
+  shift(dx: number, dz: number): void {
+    const move = (p: Point2 | null) => (p ? { x: p.x + dx, z: p.z + dz } : null)
+    this.destination = move(this.destination)
+    this.lastMoveTarget = move(this.lastMoveTarget)
+    if (this.order?.kind === 'attack') this.clear()
+    // 앞 땅에서는 통로 끝까지만 갈 수 있었으니, 넘어간 땅에서 누른 곳까지 다시 길을 찾는다
+    else if (this.order?.kind === 'move' && this.hero.isMoving && this.destination) this.hero.moveTo(this.destination)
+  }
+
   update(_enemies: readonly CombatTarget[]): void {
     const order = this.order
     if (!order) return

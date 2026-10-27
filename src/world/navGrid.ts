@@ -1,4 +1,4 @@
-import type { CircleCollider, Point2 } from './colliders'
+import { type CircleCollider, inArea, type Point2, squareArea, type WalkArea } from './colliders'
 
 /**
  * 길찾기용 격자. 충돌체를 캐릭터 반지름만큼 부풀려서 막힌 칸으로 표시하고,
@@ -6,22 +6,38 @@ import type { CircleCollider, Point2 } from './colliders'
  */
 export class NavGrid {
   size = 0
+  /** 격자가 덮는 반 폭 (움직일 수 있는 곳의 reach) */
+  halfExtent = 0
+  /** 움직일 수 있는 곳 (E19: 땅의 네모 + 이웃 통로). 이 밖의 칸은 막힌다 */
+  area: WalkArea = squareArea(0)
   private blocked = new Uint8Array(0)
 
   constructor(
-    public halfExtent: number,
+    bounds: number | WalkArea,
     readonly cellSize: number,
     colliders: readonly CircleCollider[],
     private readonly agentRadius: number,
   ) {
-    this.rebuild(halfExtent, colliders)
+    this.rebuild(bounds, colliders)
   }
 
-  /** 다른 지역(또는 편집한 지역)의 충돌체로 다시 짠다. 같은 격자 객체를 쓰는 쪽은 그대로 둔다. */
-  rebuild(halfExtent: number, colliders: readonly CircleCollider[]): void {
+  /** 다른 지역(또는 편집한 지역)의 충돌체로 다시 짠다. 같은 격자 객체를 쓰는 쪽은 그대로 둔다. 수 하나면 가운데가 원점인 네모 */
+  rebuild(bounds: number | WalkArea, colliders: readonly CircleCollider[]): void {
+    const area = typeof bounds === 'number' ? squareArea(bounds) : bounds
+    this.area = area
+    const halfExtent = area.reach
     this.halfExtent = halfExtent
     this.size = Math.ceil((halfExtent * 2) / this.cellSize)
     this.blocked = new Uint8Array(this.size * this.size)
+    // 움직일 수 있는 곳 밖(통로 사이의 숲 띠)은 막는다. 네모 하나뿐이면 격자 끝이 곧 경계다
+    if (area.rects.length > 1) {
+      for (let cz = 0; cz < this.size; cz++) {
+        for (let cx = 0; cx < this.size; cx++) {
+          const center = this.toWorld(cx, cz)
+          if (!inArea(area, center.x, center.z)) this.blocked[cz * this.size + cx] = 1
+        }
+      }
+    }
     for (const c of colliders) {
       const r = c.radius + this.agentRadius
       const min = this.toCell({ x: c.x - r, z: c.z - r })
