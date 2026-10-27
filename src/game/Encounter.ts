@@ -2,7 +2,7 @@ import * as THREE from 'three'
 
 import { ELITE_CHANCE, ELITE_KINDS } from '../enemies/elite'
 import { ENEMIES, Giant, GRUNT, type GiantSpec, type GiantWorld, KING } from '../enemies/Giant'
-import type { CircleCollider, Point2, WalkArea } from '../world/colliders'
+import { type CircleCollider, inArea, type Point2, type WalkArea } from '../world/colliders'
 import { NavGrid } from '../world/navGrid'
 
 /** 졸개 무리가 모여 있는 곳 */
@@ -24,6 +24,8 @@ const BOSS_RESPAWN = 45
 const SUMMON_CAP = 24
 
 export interface EncounterLayout {
+  /** 어느 땅의 배치인가 (E19: 이웃 땅에 남겨 둔 무리를 알아보려고). 없으면 이름 없는 땅 */
+  id?: string
   /** members: 무리를 이루는 적 id (E8, 없으면 졸개) */
   camps: { x: number; z: number; count: number; members?: readonly string[] }[]
   /** 보스 자리와 보스 (마을처럼 보스가 없는 지역은 null, enemy가 없으면 거인 왕) */
@@ -35,6 +37,30 @@ export interface EncounterLayout {
 }
 
 type WorldBase = Omit<GiantWorld, 'nav' | 'giants' | 'summon'>
+
+/** 한 땅의 무리와 보스 (E19: 지금 땅이 아니면 이웃 땅에 남겨 둔다) */
+interface Herd {
+  camps: Camp[]
+  bossHome: Point2 | null
+  bossSpec: GiantSpec
+  boss: Giant | null
+  bossRespawn: number
+  elite: number
+  respawns: boolean
+}
+
+/** 이웃 땅에 남겨 둔 무리: 그 땅의 적들은 그 자리에 서서 숨쉬기만 한다 */
+interface Parked {
+  herd: Herd
+  giants: Giant[]
+}
+
+/** 이웃 땅 하나: 그 땅의 배치와, 지금 땅 좌표로 옮길 만큼 (그 칸 자리 − 지금 칸 자리) */
+export interface NeighborLayout {
+  id: string
+  layout: EncounterLayout
+  offset: Point2
+}
 
 /**
  * 전투 맵의 적들을 관리한다. 무리 배치, 거인 왕, 포효로 불려 온 졸개, 다시 나타나기까지.
@@ -64,38 +90,191 @@ export class Encounter {
   arenaThreat: { hp: number; damage: number } | null = null
   /** 정예를 고를 때 쓰는 난수 (점검할 때 바꿔 끼운다) */
   rng: () => number = Math.random
+  /** 지금 땅 (E19) */
+  private region: string | null = null
+  /** 이웃 땅에 남겨 둔 무리 (E19) */
+  private readonly parked = new Map<string, Parked>()
+  /** 아직 세우지 않은 이웃 무리와, 지금 세우고 있는 것 (한 프레임에 무리 하나씩) */
+  private queue: NeighborLayout[] = []
+  private building: { id: string; steps: Generator<void, Parked> } | null = null
+  /** 마지막으로 받은 이웃 땅들 (무리를 처음처럼 다시 세울 때) */
+  private neighbors: readonly NeighborLayout[] = []
 
   constructor(layout: EncounterLayout, staticColliders: readonly CircleCollider[], bounds: number | WalkArea) {
     for (const spec of [GRUNT, KING]) {
       this.navs.set(spec, new NavGrid(bounds, 0.5, staticColliders, spec.radius))
     }
+    this.region = layout.id ?? null
     this.place(layout)
   }
 
-  /** 지역을 바꿨다(또는 편집했다): 거인을 모두 지우고 새 배치로 다시 세운다. */
+  /** 지역을 바꿨다(또는 편집했다): 거인을 모두 지우고 새 배치로 다시 세운다. 이웃 땅에 남겨 둔 무리도 지운다 */
   reset(layout: EncounterLayout, staticColliders: readonly CircleCollider[], bounds: number | WalkArea): void {
     for (const giant of [...this.giants]) this.remove(giant)
     this.pendingSummons.length = 0
+    this.setNeighbors([])
     for (const nav of this.navs.values()) nav.rebuild(bounds, staticColliders)
+    this.region = layout.id ?? null
     this.place(layout)
   }
 
   private place(layout: EncounterLayout): void {
-    this.regionElite = layout.elite ?? 0
-    this.respawns = layout.respawn ?? true
     const gruntNav = this.navs.get(GRUNT)!
-    this.camps = layout.camps.map((c) => ({
-      center: gruntNav.nearestFree(c) ?? c,
-      count: c.count,
-      members: (c.members ?? []).map((id) => ENEMIES[id] ?? GRUNT),
-      giants: [],
-      respawn: CAMP_RESPAWN,
-    }))
-    this.bossSpec = (layout.boss?.enemy && ENEMIES[layout.boss.enemy]) || KING
-    this.bossHome = layout.boss ? (this.navFor(this.bossSpec).nearestFree(layout.boss) ?? layout.boss) : null
-    this.bossRespawn = 0
+    this.load(this.newHerd(layout, (p) => gruntNav.nearestFree(p) ?? p, { x: 0, z: 0 }))
     for (const camp of this.camps) this.fillCamp(camp)
     this.spawnBoss()
+  }
+
+  /** 배치로 새 무리 상태를 만든다 (적은 아직 세우지 않음). snap: 바위·나무에 걸린 자리를 빈 곳으로 */
+  private newHerd(layout: EncounterLayout, snap: (p: Point2) => Point2, offset: Point2): Herd {
+    const at = (p: Point2) => snap({ x: p.x + offset.x, z: p.z + offset.z })
+    const bossSpec = (layout.boss?.enemy && ENEMIES[layout.boss.enemy]) || KING
+    return {
+      camps: layout.camps.map((c) => ({
+        center: at(c),
+        count: c.count,
+        members: (c.members ?? []).map((id) => ENEMIES[id] ?? GRUNT),
+        giants: [],
+        respawn: CAMP_RESPAWN,
+      })),
+      bossHome: layout.boss ? at(layout.boss) : null,
+      bossSpec,
+      boss: null,
+      bossRespawn: 0,
+      elite: layout.elite ?? 0,
+      respawns: layout.respawn ?? true,
+    }
+  }
+
+  /** 무리 상태를 지금 땅의 것으로 삼는다 */
+  private load(herd: Herd): void {
+    this.camps = herd.camps
+    this.bossHome = herd.bossHome
+    this.bossSpec = herd.bossSpec
+    this.boss = herd.boss
+    this.bossRespawn = herd.bossRespawn
+    this.regionElite = herd.elite
+    this.respawns = herd.respawns
+  }
+
+  /** 지금 땅의 무리 상태 */
+  private herd(): Herd {
+    return { camps: this.camps, bossHome: this.bossHome, bossSpec: this.bossSpec, boss: this.boss, bossRespawn: this.bossRespawn, elite: this.regionElite, respawns: this.respawns }
+  }
+
+  /**
+   * 이웃 땅들 (E19): 지금 땅 둘레에 그려지는 땅의 무리를 미리 세워 그 자리에 둔다(넘어갔을 때 갑자기 나타나지 않게).
+   * 이웃이 아니게 된 땅의 무리는 지운다. 새로 세울 무리는 buildStep으로 한 프레임에 무리 하나씩.
+   */
+  setNeighbors(list: readonly NeighborLayout[]): void {
+    this.neighbors = list
+    const keep = new Set(list.map((n) => n.id))
+    for (const [id, parked] of this.parked) {
+      if (keep.has(id)) continue
+      for (const giant of parked.giants) giant.dispose()
+      this.parked.delete(id)
+    }
+    if (this.building && !keep.has(this.building.id)) {
+      this.building.steps.return(null as never)
+      this.building = null
+    }
+    this.queue = list.filter((n) => !this.parked.has(n.id) && n.id !== this.region && n.id !== this.building?.id)
+  }
+
+  /** 이웃 무리를 하나 세운다 (땅 조각을 짓지 않는 프레임에 부른다). 세웠으면 true */
+  buildStep(): boolean {
+    if (this.queue.length === 0 && !this.building) return false
+    this.buildNext()
+    return true
+  }
+
+  /** 이웃 무리를 모두 바로 세운다 (점검용) */
+  flushNeighbors(): void {
+    while (this.queue.length > 0 || this.building) this.buildNext()
+  }
+
+  /** 이웃 땅에 남겨 둔 적들 (점검용) */
+  get parkedGiants(): Giant[] {
+    return [...this.parked.values()].flatMap((p) => p.giants)
+  }
+
+  private buildNext(): void {
+    if (!this.building) {
+      const next = this.queue.shift()
+      if (!next) return
+      this.building = { id: next.id, steps: this.neighborSteps(next) }
+    }
+    const step = this.building.steps.next()
+    if (!step.done) return
+    this.parked.set(this.building.id, step.value)
+    this.building = null
+  }
+
+  /** 이웃 땅의 무리를 무리 하나씩 세운다. 길찾기 격자가 없는 땅이라 자리는 배치 그대로 */
+  private *neighborSteps(n: NeighborLayout): Generator<void, Parked> {
+    const herd = this.newHerd(n.layout, (p) => p, n.offset)
+    const giants: Giant[] = []
+    for (const camp of herd.camps) {
+      this.fillCamp(camp, herd.elite, null, giants)
+      yield
+    }
+    if (herd.bossHome) {
+      herd.boss = this.makeGiant(herd.bossSpec, herd.bossHome)
+      giants.push(herd.boss)
+    }
+    for (const giant of giants) giant.park()
+    return { herd, giants }
+  }
+
+  /**
+   * 걸어서 이웃 땅으로 넘어갔다 (E19). 모든 적을 shift만큼 옮기고, 앞 땅의 무리는 이웃 땅에 남겨 둔다.
+   * 넘어간 땅에 남겨 둔 무리가 있으면 그대로 깨우고, 없으면 새로 세운다.
+   * 주인공을 쫓던 적(과 쓰러지는 중인 적) 가운데 넘어간 땅 안에 있는 것은 그대로 남아 쫓는다.
+   */
+  cross(to: EncounterLayout, shift: Point2, staticColliders: readonly CircleCollider[], area: WalkArea): void {
+    // 짓던 이웃 무리는 마저 지어 함께 옮긴다
+    while (this.building) this.buildNext()
+    const { x: dx, z: dz } = shift
+    const move = (p: Point2 | null) => {
+      if (!p) return
+      p.x += dx
+      p.z += dz
+    }
+    for (const giant of this.giants) giant.shift(dx, dz)
+    for (const { herd, giants } of this.parked.values()) {
+      for (const giant of giants) giant.shift(dx, dz)
+      for (const camp of herd.camps) move(camp.center)
+      move(herd.bossHome)
+    }
+    for (const camp of this.camps) move(camp.center)
+    move(this.bossHome)
+    for (const summon of this.pendingSummons) move(summon.point)
+    for (const nav of this.navs.values()) nav.rebuild(area, staticColliders)
+
+    const follow = (g: Giant) => !g.alive || (g.state !== 'idle' && inArea(area, g.x, g.z))
+    const stay = this.giants.filter(follow)
+    const leave = this.giants.filter((g) => !follow(g))
+    // 앞 땅의 무리: 따라온 적은 무리에서 빼고(그 무리는 비면 나중에 다시 채워진다) 나머지는 그 자리에 세워 둔다
+    const herd = this.herd()
+    for (const camp of herd.camps) camp.giants = camp.giants.filter((g) => !stay.includes(g))
+    if (herd.boss && stay.includes(herd.boss)) herd.boss = null
+    for (const giant of leave) giant.park()
+    if (this.region) this.parked.set(this.region, { herd, giants: leave })
+    else for (const giant of leave) giant.dispose()
+
+    this.giants.length = 0
+    this.giants.push(...stay)
+    this.region = to.id ?? null
+    const waiting = to.id ? this.parked.get(to.id) : undefined
+    if (waiting) {
+      this.parked.delete(to.id!)
+      const gruntNav = this.navs.get(GRUNT)!
+      for (const camp of waiting.herd.camps) camp.center = gruntNav.nearestFree(camp.center) ?? camp.center
+      this.load(waiting.herd)
+      this.giants.push(...waiting.giants.filter((g) => !g.gone))
+    } else {
+      this.place(to)
+    }
   }
 
   /** 살아 있는 적들 (주인공의 공격 대상) */
@@ -123,6 +302,7 @@ export class Encounter {
   }
 
   update(dt: number, base: WorldBase): Giant[] {
+    for (const parked of this.parked.values()) for (const giant of parked.giants) giant.rest(dt)
     const shattered: Giant[] = []
     for (const giant of this.giants) {
       const nav = this.navFor(giant.spec)
@@ -149,7 +329,7 @@ export class Encounter {
     return { camps: this.camps.map((c) => c.center), boss: this.bossHome }
   }
 
-  /** 개발 패널: 모든 거인을 지우고 무리와 거인 왕을 처음처럼 다시 세운다. */
+  /** 모든 거인을 지우고 무리와 거인 왕을 처음처럼 다시 세운다 (위협 단계가 바뀌었을 때·개발 패널). 이웃 땅의 무리도 다시 세운다 */
   resetAll(): void {
     for (const giant of [...this.giants]) this.remove(giant)
     for (const camp of this.camps) {
@@ -157,6 +337,9 @@ export class Encounter {
       this.fillCamp(camp)
     }
     this.spawnBoss()
+    const neighbors = this.neighbors
+    this.setNeighbors([])
+    this.setNeighbors(neighbors)
   }
 
   /** 개발 패널: 살아 있는 거인을 모두 지운다. (무리는 정해진 시간 뒤 다시 나타난다) */
@@ -211,23 +394,35 @@ export class Encounter {
   }
 
   private addGiant(spec: GiantSpec, home: Point2, threat = this.threat): Giant {
-    const giant = new Giant(spec, home, this.seed++)
-    if (threat.hp !== 1 || threat.damage !== 1) giant.applyThreat(threat)
+    const giant = this.makeGiant(spec, home, threat)
     this.giants.push(giant)
+    return giant
+  }
+
+  /** 거인을 만들어 장면에 놓는다 (지금 땅의 적 목록에는 넣지 않음) */
+  private makeGiant(spec: GiantSpec, home: Point2, threat = this.threat): Giant {
+    // 집 자리는 거인마다 따로 (넘어갈 때 거인이 제 집을 옮기므로, 지역 데이터나 무리 자리를 같이 쥐면 함께 움직인다)
+    const giant = new Giant(spec, { x: home.x, z: home.z }, this.seed++)
+    if (threat.hp !== 1 || threat.damage !== 1) giant.applyThreat(threat)
     this.object.add(giant.object)
     return giant
   }
 
-  private fillCamp(camp: Camp): void {
-    const nav = this.navs.get(GRUNT)!
+  /**
+   * 무리를 채운다. 지금 땅이면 길찾기 격자로 빈 자리를 찾아 지금 땅의 적으로, 이웃 땅이면(nav 없음) 배치 자리 그대로 into에 넣는다
+   */
+  private fillCamp(camp: Camp, elite = this.regionElite, nav: NavGrid | null = this.navs.get(GRUNT)!, into: Giant[] | null = null): void {
     for (let i = 0; i < camp.count; i++) {
       const angle = (i / camp.count) * Math.PI * 2
-      const spot = nav.nearestFree({ x: camp.center.x + Math.sin(angle) * 2.2, z: camp.center.z + Math.cos(angle) * 2.2 })
+      const around = { x: camp.center.x + Math.sin(angle) * 2.2, z: camp.center.z + Math.cos(angle) * 2.2 }
+      const spot = nav ? nav.nearestFree(around) : around
       const spec = camp.members.length > 0 ? camp.members[i % camp.members.length]! : GRUNT
-      camp.giants.push(this.addGiant(spec, spot ?? camp.center))
+      const giant = into ? this.makeGiant(spec, spot ?? camp.center) : this.addGiant(spec, spot ?? camp.center)
+      into?.push(giant)
+      camp.giants.push(giant)
     }
     // 가끔 한 마리가 정예로 나온다 (부르는 적은 빼고: 정예 졸개가 끝없이 불어나지 않게)
-    if (this.rng() < this.eliteChance + this.regionElite) {
+    if (this.rng() < this.eliteChance + elite) {
       const candidates = camp.giants.filter((g) => g.spec.role !== 'summoner')
       const pick = candidates[Math.floor(this.rng() * candidates.length)]
       pick?.makeElite(ELITE_KINDS[Math.floor(this.rng() * ELITE_KINDS.length)]!)

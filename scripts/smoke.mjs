@@ -332,6 +332,9 @@ try {
     const g = window.__game
     const exit = g.region.exits.find((e) => e.to === 'midgard')
     g.dev.teleport(exit.x, exit.z + 3)
+    // 이웃 땅의 무리는 미리 세워 둔다 (E19-04): 넘어간 뒤의 미드가르드 적은 이 거인들이어야 한다
+    g.encounter.flushNeighbors()
+    const waiting = g.encounter.parkedGiants
     // 통로 너머(미드가르드 안쪽)를 누른다. 마을에서는 통로 끝까지만 갈 수 있다
     g.orders.press({ x: exit.x, z: exit.z - 60 }, null)
     let fade = 0
@@ -341,11 +344,14 @@ try {
     }
     g.advance(1, 1 / 30)
     const p = g.hero.object.position
-    return { region: g.region.id, fade, moving: g.hero.isMoving, x: p.x, z: p.z, half: g.region.halfExtent }
+    const woke = g.encounter.giants.filter((x) => waiting.includes(x)).length
+    const fresh = g.encounter.giants.filter((x) => !waiting.includes(x)).length
+    return { region: g.region.id, fade, moving: g.hero.isMoving, x: p.x, z: p.z, half: g.region.halfExtent, woke, fresh }
   })
   if (walked.region !== 'midgard') throw new Error(`이어진 세계: 통로를 걸었는데 미드가르드로 넘어가지 않습니다 ${JSON.stringify(walked)}`)
   if (walked.fade > 0.01) throw new Error(`이어진 세계: 걸어서 넘어가는데 화면이 어두워집니다 ${JSON.stringify(walked)}`)
   if (!walked.moving) throw new Error(`이어진 세계: 넘어간 뒤 누른 곳까지 이어 걷지 않습니다 ${JSON.stringify(walked)}`)
+  if (walked.woke === 0 || walked.fresh > 0) throw new Error(`이어진 세계: 넘어간 땅의 적이 미리 세워 둔 무리가 아니라 새로 생깁니다 ${JSON.stringify(walked)}`)
   // 지역을 여러 번 오가도 GPU 자원(형상·텍스처)이 늘지 않는다 (E7 자동 검증: 지역 전환 반복)
   const memoryAfter = async (times) =>
     page.evaluate(async (n) => {
@@ -359,6 +365,9 @@ try {
         await new Promise((r) => requestAnimationFrame(r))
       }
       g.enterRegion(g.regions.midgard)
+      // 이웃 조각과 이웃 무리는 프레임마다 나눠 지으므로, 모두 지은 뒤에 잰다
+      g.stage.flush()
+      g.encounter.flushNeighbors()
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
       const m = g.pixel.renderer.info.memory
       return { geometries: m.geometries, textures: m.textures, ms: Math.round(build / n) }
@@ -370,7 +379,7 @@ try {
   if (memB.geometries > memA.geometries + 8 || memB.textures > memA.textures + 2) throw new Error(`지역: 오갈수록 GPU 자원이 늘어납니다 ${JSON.stringify({ memA, memB })}`)
   if (memB.ms > 3000) throw new Error(`지역: 지역을 짓는 데 3초가 넘게 걸립니다 (${memB.ms}ms)`)
   console.log(`지역 전환 반복 확인: ${regionCount}곳을 한 바퀴 돈 뒤 형상 ${memA.geometries}·텍스처 ${memA.textures}, 두 바퀴 더 돈 뒤 ${memB.geometries}·${memB.textures}, 한 번 짓는 데 평균 ${memB.ms}ms (소프트웨어 렌더링)`)
-  console.log(`지역 확인: 마을에서 시작, 말풍선 「${bubble}」, 작은 지도, 통로를 걸어 암전 없이 미드가르드로`)
+  console.log(`지역 확인: 마을에서 시작, 말풍선 「${bubble}」, 작은 지도, 통로를 걸어 암전 없이 미드가르드로(미리 세워 둔 적 ${walked.woke}마리를 깨움)`)
 
   // 세계 지도와 성소 워프 (E15-04): 지도 탭에 열여섯 곳, 찾은 성소를 누르면 그 땅으로
   await page.evaluate(() => {

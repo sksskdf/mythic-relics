@@ -6,6 +6,7 @@ import { arrivalSpot, exitColor, formatRegions, nextHop, worldLayout, parseRegio
 import { GRUNT, KING } from '../src/enemies/Giant'
 import { Encounter } from '../src/game/Encounter'
 import { UtgardLegend } from '../src/game/Legend'
+import { walkArea } from '../src/world/colliders'
 import { collidersFor } from '../src/world/regionMap'
 import { heightAt, setPonds } from '../src/world/terrain'
 import { NavGrid } from '../src/world/navGrid'
@@ -266,5 +267,75 @@ describe('지역을 바꿔 다시 짓기', () => {
     expect(legend.center).toEqual({ x: 5, z: -5 })
     expect(legend.radius).toBe(8)
     expect(legend.object.position.x).toBe(5)
+  })
+})
+
+describe('이어진 세계의 적 (E19-04)', () => {
+  // 지금 땅 A(±30)와 북쪽 이웃 B(칸 자리 차이 z −100). 통로는 A의 z −28에서 B의 남쪽 끝(−70)까지
+  const square = (h: number, oz = 0) => ({ minX: -h, maxX: h, minZ: oz - h, maxZ: oz + h })
+  const passage = { minX: -3, maxX: 3, minZ: -72, maxZ: -28 }
+  const areaA = walkArea([square(30), passage])
+  const areaB = walkArea([square(30), { ...passage, minZ: passage.minZ + 100, maxZ: passage.maxZ + 100 }])
+  const layoutA = { id: 'a', camps: [{ x: 10, z: 10, count: 2 }], boss: null }
+  const layoutB = { id: 'b', camps: [{ x: -8, z: 5, count: 3 }], boss: { x: 0, z: -20 } }
+  const neighborB = { id: 'b', layout: layoutB, offset: { x: 0, z: -100 } }
+  const neighborA = { id: 'a', layout: layoutA, offset: { x: 0, z: 100 } }
+
+  function setup() {
+    const encounter = new Encounter({ camps: [], boss: null }, [], areaA)
+    encounter.eliteChance = 0
+    encounter.reset(layoutA, [], areaA)
+    encounter.setNeighbors([neighborB])
+    encounter.flushNeighbors()
+    return encounter
+  }
+
+  it('이웃 땅의 무리를 미리 그 자리에 세워 두되, 지금 땅의 적(공격 대상)에는 넣지 않는다', () => {
+    const encounter = setup()
+    expect(encounter.giants).toHaveLength(2)
+    const parked = encounter.parkedGiants
+    expect(parked).toHaveLength(4)
+    expect(parked.every((g) => g.z < -60)).toBe(true)
+    expect(encounter.object.children).toHaveLength(6)
+  })
+
+  it('넘어가면 미리 세워 둔 무리를 그대로 깨우고, 앞 땅의 무리는 그 자리에 남겨 둔다', () => {
+    const encounter = setup()
+    const waiting = encounter.parkedGiants
+    const before = encounter.giants.map((g) => ({ g, z: g.z }))
+    encounter.cross(layoutB, { x: 0, z: 100 }, [], areaB)
+    // B의 적은 같은 거인이 B 좌표로 (갑자기 새로 생기지 않는다)
+    expect(encounter.giants).toHaveLength(4)
+    expect(encounter.giants.every((g) => waiting.includes(g))).toBe(true)
+    expect(encounter.boss?.z).toBeCloseTo(-20, 0)
+    // A의 적은 이웃 땅(남쪽)에 서 있다
+    for (const { g, z } of before) {
+      expect(encounter.parkedGiants).toContain(g)
+      expect(g.z).toBeCloseTo(z + 100)
+    }
+    // 되돌아가면 A의 같은 무리를 깨운다
+    encounter.setNeighbors([neighborA])
+    encounter.cross(layoutA, { x: 0, z: -100 }, [], areaA)
+    expect(encounter.giants.map((g) => g)).toEqual(before.map((b) => b.g))
+    expect(encounter.giants[0]!.z).toBeCloseTo(before[0]!.z)
+  })
+
+  it('쫓아오던 적은 통로를 넘어서도 계속 쫓는다', () => {
+    const encounter = setup()
+    const chaser = encounter.giants[0]!
+    chaser.shift(-10, -55) // 통로 안 (z ≈ −45)
+    chaser.alert()
+    encounter.cross(layoutB, { x: 0, z: 100 }, [], areaB)
+    expect(encounter.giants).toContain(chaser)
+    expect(chaser.state).toBe('chase')
+    expect(encounter.parkedGiants).not.toContain(chaser)
+  })
+
+  it('이웃이 아니게 된 땅의 무리는 지운다', () => {
+    const encounter = setup()
+    const parked = encounter.parkedGiants
+    encounter.setNeighbors([])
+    expect(encounter.parkedGiants).toHaveLength(0)
+    expect(parked.every((g) => !g.alive && !g.object.parent)).toBe(true)
   })
 })

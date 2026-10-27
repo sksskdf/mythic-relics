@@ -357,6 +357,53 @@ export class Giant {
     this.animate(dt)
   }
 
+  /**
+   * 원점이 옮겨졌다 (E19: 걸어서 이웃 땅으로 넘어감). 자리·집·가던 길·예고·던진 것을 같은 만큼 옮겨
+   * 화면에서는 그대로 있게 한다.
+   */
+  shift(dx: number, dz: number): void {
+    const p = this.rig.root.position
+    p.x += dx
+    p.z += dz
+    this.home.x += dx
+    this.home.z += dz
+    this.collider.x = p.x
+    this.collider.z = p.z
+    this.target.x += dx
+    this.target.y += dz
+    this.path = this.path.map((q) => ({ x: q.x + dx, z: q.z + dz }))
+    if (this.telegraph) shiftObject(this.telegraph.object, dx, dz)
+    for (const wave of this.waves) {
+      wave.x += dx
+      wave.z += dz
+      shiftObject(wave.telegraph.object, dx, dz)
+    }
+    for (const shot of this.projectiles) shot.shift(dx, dz)
+  }
+
+  /**
+   * 이웃 땅에 남겨 둔다 (E19): 하던 공격과 날아가던 것을 거두고 그 자리에 선다. 그 땅에 다시 오면 이어서 움직인다.
+   * 그동안은 update 대신 rest로 숨쉬기만 한다.
+   */
+  park(): void {
+    if (!this.alive) return
+    this.clearTelegraph()
+    for (const wave of this.waves) wave.telegraph.dispose()
+    this.waves.length = 0
+    for (const shot of this.projectiles) shot.dispose()
+    this.projectiles.length = 0
+    this.dash = null
+    this.knock.set(0, 0)
+    if (this.state !== 'idle') this.setState('idle')
+  }
+
+  /** 이웃 땅에 남겨 둔 동안: 서서 숨쉬기만 한다 */
+  rest(dt: number): void {
+    this.stateTime += dt
+    this.updateFlash(dt)
+    if (this.alive) this.animate(dt)
+  }
+
   /** 지운다. 예고 표시도 함께 지운다. */
   dispose(): void {
     // 지역을 옮기거나 전설에 실패해 지운 거인도 쓰러진 것으로 둔다.
@@ -786,4 +833,11 @@ export class Giant {
         break
     }
   }
+}
+
+/** 장면에 따로 놓인 것(예고 등)을 땅 위에서 옮긴다 */
+function shiftObject(object: THREE.Object3D, dx: number, dz: number): void {
+  object.position.x += dx
+  object.position.z += dz
+  object.updateMatrixWorld()
 }
