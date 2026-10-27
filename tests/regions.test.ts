@@ -6,6 +6,7 @@ import { arrivalSpot, exitColor, formatRegions, nextHop, worldLayout, parseRegio
 import { GRUNT, KING } from '../src/enemies/Giant'
 import { Encounter } from '../src/game/Encounter'
 import { UtgardLegend } from '../src/game/Legend'
+import { CROSS_MARGIN, crossingAt, regionLinks, walkRects } from '../src/data/world'
 import { walkArea } from '../src/world/colliders'
 import { collidersFor } from '../src/world/regionMap'
 import { heightAt, setPonds } from '../src/world/terrain'
@@ -41,6 +42,22 @@ describe.each(regions.map((r) => [r.id, r] as const))('지역 %s', (_id, region)
       expect(path.length, `${name}까지 길이 없다`).toBeGreaterThan(0)
       const end = path[path.length - 1]!
       expect(Math.hypot(end.x - goal.x, end.z - goal.z), `${name} 가까이 가지 못한다`).toBeLessThan(3)
+    }
+  })
+
+  it('시작점에서 이웃으로 가는 통로마다 걸어서 가운데를 넘을 수 있다 (E19-07: 16곳 걷기)', () => {
+    const links = regionLinks(REGIONS, region.id)
+    expect(links.length).toBe(region.exits.length)
+    const walkNav = new NavGrid(walkArea(walkRects(region.halfExtent, links)), 0.5, colliders, 0.4)
+    for (const link of links) {
+      const r = link.rect
+      const along = link.mid + link.dir * (CROSS_MARGIN + 1)
+      const goal = link.axis === 'x' ? { x: along, z: (r.minZ + r.maxZ) / 2 } : { x: (r.minX + r.maxX) / 2, z: along }
+      expect(crossingAt(links, goal.x, goal.z)?.to, `${link.to} 통로의 넘는 자리`).toBe(link.to)
+      const path = walkNav.findPath(region.spawn, goal)
+      expect(path.length, `${link.to} 통로까지 길이 없다`).toBeGreaterThan(0)
+      const end = path[path.length - 1]!
+      expect(Math.hypot(end.x - goal.x, end.z - goal.z), `${link.to} 통로 가운데를 넘지 못한다`).toBeLessThan(1)
     }
   })
 

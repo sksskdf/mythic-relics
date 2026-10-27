@@ -408,7 +408,11 @@ try {
   console.log('전설 확인: 성소에서 시작')
 
   // 저장 점검: 새로 고침해도 주운 유물을 그대로 끼고 이어 한다.
-  await page.evaluate(() => window.__game.saveNow())
+  const savedAt = await page.evaluate(() => {
+    window.__game.saveNow()
+    const p = window.__game.hero.object.position
+    return { x: p.x, z: p.z }
+  })
   await page.reload()
   await page.waitForFunction(() => (window.__game?.frame ?? 0) > 2, null, { timeout: 15000 })
   // 저장이 있으면 단추 없이 로딩 화면이 걷히고 바로 이어서 플레이한다.
@@ -422,7 +426,10 @@ try {
   if (!restored.relic || !restored.gear || !restored.material) throw new Error(`이어서 플레이 실패: 저장한 장비가 없습니다 ${JSON.stringify(restored)}`)
   if ((await page.evaluate(() => window.__game.hero.rig.outfit.weapon)) !== 'shortSword') throw new Error('이어서 플레이 실패: 고른 외형이 없습니다.')
   if ((await page.evaluate(() => window.__game.region.id)) !== 'midgard') throw new Error('이어서 플레이 실패: 있던 지역(미드가르드)이 아닙니다.')
-  console.log('저장 확인: 새로 고침하면 단추 없이 바로 이어서, 유물·일반 장비·재료와 고른 외형, 있던 지역 유지')
+  // 세계 자리 (E19-05): 지역 id + 지역 안 좌표가 곧 이어진 세계의 자리다
+  const back = await page.evaluate(() => ({ x: window.__game.hero.object.position.x, z: window.__game.hero.object.position.z }))
+  if (Math.hypot(back.x - savedAt.x, back.z - savedAt.z) > 1) throw new Error(`이어서 플레이 실패: 저장한 자리가 아닙니다 ${JSON.stringify({ savedAt, back })}`)
+  console.log('저장 확인: 새로 고침하면 단추 없이 바로 이어서, 유물·일반 장비·재료와 고른 외형, 있던 지역과 자리 유지')
 
   // 처음 화면으로: 정보 화면의 단추를 두 번 누르면 저장하고 슬롯 고르기로 돌아가고, 그 슬롯을 누르면 이어 간다.
   await page.click('.menu-button')
@@ -490,9 +497,13 @@ try {
     const p = g.riftSystem.run.floor.portal
     g.hero.teleport(p.x, p.z)
     g.riftSystem.update(0.1)
-    return { depth: g.riftSystem.run?.depth, blessings: g.riftSystem.run?.blessings.length, region: g.region.id }
+    g.stage.flush()
+    g.encounter.flushNeighbors()
+    // 균열은 세계 밖 따로 된 공간 (E19-06): 이웃 땅 조각·무리·통로가 없다
+    return { depth: g.riftSystem.run?.depth, blessings: g.riftSystem.run?.blessings.length, region: g.region.id, chunks: g.stage.others.size, parked: g.encounter.parkedGiants.length, links: g.world.links.length }
   })
   if (floor2.depth !== 2 || floor2.blessings !== 1) throw new Error(`균열: 축복을 고르고 문에 닿았는데 2층이 아닙니다 ${JSON.stringify(floor2)}`)
+  if (floor2.chunks || floor2.parked || floor2.links) throw new Error(`균열: 세계 밖인데 이웃 땅이 붙어 있습니다 ${JSON.stringify(floor2)}`)
   // 나가는 문: 밀려서(걸어가던 곳이 아닌데) 밟으면 그대로, 문으로 걸어가면 나간다
   const pushed = await page.evaluate(() => {
     const g = window.__game

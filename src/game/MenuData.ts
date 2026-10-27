@@ -3,6 +3,7 @@ import { awakeningLevel } from '../data/awakening'
 import type { GearPart } from '../data/gearData'
 import { blessingDef, STARS } from '../data/rift'
 import { REALM_COLORS, worldLayout } from '../data/regions'
+import { CELL, cellOrigin } from '../data/world'
 import { SOURCE_IDS, type SourceId } from '../data/schema'
 import { LIMIT_REALMS, REALM_NAMES } from '../data/threat'
 import { TRIAL_IDS, TRIAL_MILESTONES, type TrialId, TRIALS } from '../data/trials'
@@ -162,18 +163,27 @@ export class MenuData {
       world: {
         nodes: () => {
           const layout = worldLayout(game.regions)
+          // 세계 칸 자리 그대로 (E19-05): 칸 한 변이 1, 북쪽(다음 줄)이 위
           return Object.values(game.regions).map((r) => ({
             id: r.id,
             name: r.name,
             color: `#${(r.realm ? REALM_COLORS[r.realm] : REALM_COLORS.hub).toString(16).padStart(6, '0')}`,
             zone: r.zone,
-            x: layout[r.id]?.x ?? 0,
-            y: layout[r.id]?.y ?? 0,
+            x: r.cell ? cellOrigin(r.cell).x / CELL : (layout[r.id]?.x ?? 0),
+            y: r.cell ? cellOrigin(r.cell).z / CELL : (layout[r.id]?.y ?? 0),
+            size: (r.halfExtent * 2) / CELL,
             links: r.exits.map((e) => e.to),
             here: r.id === ctx.map.region.id,
             found: r.kind === 'hub' || conveniences.visited.has(r.id),
             cleared: r.realm ? (game.threat.cleared[r.realm] ?? 0) : 0,
           }))
+        },
+        me: () => {
+          const cell = ctx.map.region.cell
+          if (!cell) return null
+          const o = cellOrigin(cell)
+          const p = ctx.hero.object.position
+          return { x: (o.x + p.x) / CELL, y: (o.z + p.z) / CELL }
         },
         canWarp: () => conveniences.has('warp'),
         warp: (id) => game.warpTo(id),

@@ -1264,9 +1264,19 @@
   width: 100%;
   height: 100%;
 }
+.menu-map__land {
+  --realm: var(--c-moon);
+  fill: var(--realm);
+  opacity: 0.18;
+}
 .menu-map__road {
   stroke: var(--c-line-2);
   stroke-width: 0.06;
+}
+.menu-map__me {
+  fill: var(--c-ink-1);
+  stroke: var(--c-bg-1);
+  stroke-width: 0.04;
 }
 .menu-map__node {
   --realm: var(--c-moon);
@@ -1304,9 +1314,37 @@
   background: none;
   cursor: help;
 }
+.menu-map__label.is-quiet {
+  /* 이름 없이 누를 자리만 (좁은 화면) */
+  width: 24px;
+  height: 24px;
+  transform: translate(-50%, -50%);
+}
+.menu-map__label.is-quiet span,
+.menu-map__label.is-quiet small {
+  display: none;
+}
+.menu-map__label.is-above {
+  flex-direction: column-reverse;
+  transform: translate(-50%, calc(-100% - 18px));
+}
+.menu-map__label.is-left {
+  align-items: flex-end;
+  transform: translate(calc(-100% - 14px), -50%);
+}
+.menu-map__label.is-right {
+  align-items: flex-start;
+  transform: translate(14px, -50%);
+}
 .menu-map__label small {
   font: var(--t-small);
   color: var(--c-gold-soft);
+}
+/* 좁은 화면: 이긴 단계는 이름 힌트로만 (이름끼리 겹치지 않게) */
+@media (max-width: 600px) {
+  .menu-map__label small {
+    display: none;
+  }
 }
 .menu-map__label.is-here {
   color: var(--c-ink-1);

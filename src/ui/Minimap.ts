@@ -1,10 +1,20 @@
 import { exitColor, type RegionDef } from '../data/regions'
+import { CELL, type Rect } from '../data/world'
 import { THEMES } from '../world/themes'
 
 /** 지도 한 변의 픽셀 수 (저해상도로 그려 두 배로 키운다) */
 const SIZE = 64
 
 const hex = (v: number) => `#${v.toString(16).padStart(6, '0')}`
+
+/** 하나로 이어진 세계 (E19-05): 지금 땅 둘레에 함께 그릴 이웃 땅과 통로 (지금 땅 좌표) */
+export interface MinimapWorld {
+  neighbors: readonly { region: RegionDef; offset: { x: number; z: number } }[]
+  passages: readonly Rect[]
+}
+
+/** 이어진 세계에서 작은 지도가 보여 주는 반 폭 (m): 지금 땅과 통로, 이웃 땅의 가장자리까지 */
+const WORLD_VIEW = CELL * 0.7
 
 /** 지도 위에 그릴 움직이는 것들 */
 export interface MinimapState {
@@ -18,12 +28,15 @@ export interface MinimapState {
 /**
  * 화면 구석의 작은 지도 (E7-08). 글 없이 점과 색으로만: 길, 연못, 출구(갈 곳의 신화권 색), 성소, 떨어진 유물, 나.
  * 화면과 같은 방향으로 돌려 그린다(쿼터뷰라 마름모꼴). 위가 화면의 먼 쪽이다.
+ * 이어진 세계(E19-05)에서는 지금 땅 둘레의 통로와 이웃 땅도 흐리게 함께 그린다.
  */
 export class Minimap {
   readonly canvas = document.createElement('canvas')
   private readonly ctx: CanvasRenderingContext2D
   private readonly base = document.createElement('canvas')
   private region: RegionDef | null = null
+  /** 지도가 보여 주는 반 폭 (m) */
+  private view = 40
   private time = 0
   /** 표시 색은 디자인 토큰에서 (나·떨어진 유물·성소) */
   private readonly ink: { me: string; relic: string; sanctuary: string; ready: string }
@@ -45,7 +58,7 @@ export class Minimap {
 
   /** 월드 좌표 → 지도 픽셀. 화면 오른쪽·아래가 지도 오른쪽·아래 */
   project(x: number, z: number): { u: number; v: number } {
-    const half = this.region?.halfExtent ?? 40
+    const half = this.view
     const yaw = (this.yawDegrees * Math.PI) / 180
     // 화면 오른쪽 = (cos, -sin), 화면 아래(카메라 쪽) = (sin, cos)
     const right = x * Math.cos(yaw) - z * Math.sin(yaw)
@@ -56,32 +69,21 @@ export class Minimap {
   }
 
   /** 지역에 들어갔다: 땅·길·연못·출구 같은 바뀌지 않는 것을 미리 그려 둔다 */
-  setRegion(region: RegionDef): void {
+  setRegion(region: RegionDef, world: MinimapWorld | null = null): void {
     this.region = region
+    this.view = world ? WORLD_VIEW : region.halfExtent
     const g = this.base.getContext('2d')!
     const theme = THEMES[region.theme]
     g.clearRect(0, 0, SIZE, SIZE)
-    const h = region.halfExtent
-    // 땅: 마름모
-    g.fillStyle = hex(theme.ground.shade)
-    g.beginPath()
-    for (const [x, z] of [[-h, -h], [h, -h], [h, h], [-h, h]] as const) {
-      const p = this.project(x, z)
-      g.lineTo(p.u, p.v)
+    // 이웃 땅과 통로는 흐리게 (지금 땅보다 먼저 그린다)
+    if (world) {
+      g.globalAlpha = 0.45
+      for (const { region: near, offset } of world.neighbors) this.drawLand(g, near, offset)
+      g.globalAlpha = 1
+      g.fillStyle = hex(theme.ground.path)
+      for (const r of world.passages) this.fillRect(g, r)
     }
-    g.closePath()
-    g.fill()
-    // 길
-    g.strokeStyle = hex(theme.ground.path)
-    g.lineWidth = 2
-    for (const path of region.paths) {
-      g.beginPath()
-      for (const pt of path.points) {
-        const p = this.project(Math.max(-h, Math.min(h, pt.x)), Math.max(-h, Math.min(h, pt.z)))
-        g.lineTo(p.u, p.v)
-      }
-      g.stroke()
-    }
+    this.drawLand(g, region, { x: 0, z: 0 })
     // 연못
     g.fillStyle = hex(theme.water.surface)
     for (const pond of region.ponds) {
@@ -95,6 +97,35 @@ export class Minimap {
       g.fillStyle = hex(exitColor(exit.to))
       g.fillRect(Math.round(p.u) - 2, Math.round(p.v) - 2, 4, 4)
     }
+  }
+
+  /** 땅 하나: 마름모(움직일 수 있는 네모)와 길. offset은 그 땅을 지금 땅 좌표로 옮길 만큼 */
+  private drawLand(g: CanvasRenderingContext2D, region: RegionDef, offset: { x: number; z: number }): void {
+    const theme = THEMES[region.theme]
+    const h = region.halfExtent
+    g.fillStyle = hex(theme.ground.shade)
+    this.fillRect(g, { minX: offset.x - h, maxX: offset.x + h, minZ: offset.z - h, maxZ: offset.z + h })
+    g.strokeStyle = hex(theme.ground.path)
+    g.lineWidth = 2
+    for (const path of region.paths) {
+      g.beginPath()
+      for (const pt of path.points) {
+        const p = this.project(offset.x + Math.max(-h, Math.min(h, pt.x)), offset.z + Math.max(-h, Math.min(h, pt.z)))
+        g.lineTo(p.u, p.v)
+      }
+      g.stroke()
+    }
+  }
+
+  /** 땅 위의 네모 하나 (돌려 그리면 마름모) */
+  private fillRect(g: CanvasRenderingContext2D, r: Rect): void {
+    g.beginPath()
+    for (const [x, z] of [[r.minX, r.minZ], [r.maxX, r.minZ], [r.maxX, r.maxZ], [r.minX, r.maxZ]] as const) {
+      const p = this.project(x, z)
+      g.lineTo(p.u, p.v)
+    }
+    g.closePath()
+    g.fill()
   }
 
   update(dt: number, state: MinimapState): void {

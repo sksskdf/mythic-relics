@@ -63,8 +63,13 @@ export interface RiftMenuHost {
 
 /** 지도 탭이 게임에서 읽고 부르는 것 (E15-04) */
 export interface WorldMapHost {
-  /** 지역마다: 이름, 신화권 색, 자리(입구·깊은 땅·보스), 지도 위 자리, 이웃, 지금 여기인가, 성소를 찾았나, 그 신화권 보스를 이긴 가장 높은 위협 단계 */
-  nodes(): { id: string; name: string; color: string; zone: string | null; x: number; y: number; links: string[]; here: boolean; found: boolean; cleared: number }[]
+  /**
+   * 지역마다: 이름, 신화권 색, 자리(입구·깊은 땅·보스), 지도 위 자리(세계 칸, 북쪽이 위), 땅의 너비(칸 한 변 = 1),
+   * 이웃, 지금 여기인가, 성소를 찾았나, 그 신화권 보스를 이긴 가장 높은 위협 단계
+   */
+  nodes(): { id: string; name: string; color: string; zone: string | null; x: number; y: number; size: number; links: string[]; here: boolean; found: boolean; cleared: number }[]
+  /** 지도 위 내 자리 (세계 칸 단위). 세계 밖(균열)이면 null */
+  me(): { x: number; y: number } | null
   /** 성소 워프가 열렸나 */
   canWarp(): boolean
   warp(id: string): boolean
