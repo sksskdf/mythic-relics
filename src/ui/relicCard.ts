@@ -183,10 +183,15 @@ export function relicCard(def: RelicDef, ctx?: RelicCardContext): HTMLElement {
     const list = el('ul', 'gc__stats')
     for (const s of relicStats(def.id, stage)) list.append(el('li', '', statText(s.kind, s.value)))
     section.append(list)
+    // 유물의 힘(지속·행동 효과)은 그 신화를 골랐을 때만 깨어나고, 한 단계 위로 돈다
     const active = ctx?.manifested === owner
-    const plain = effectScale(def.id, stage, null)
     const boosted = effectScale(def.id, stage, owner)
-    section.append(withNumbers(el('div', `rc__bonus${active ? ' is-active' : ''}`), `${myth.name}의 신화를 고르면 유물 효과 피해 ×${plain} → ×${boosted}`))
+    section.append(
+      withNumbers(
+        el('div', `rc__bonus${active ? ' is-active' : ''}`),
+        active ? `${myth.name}의 신화로 깨어남: 유물 효과 피해 ×${boosted}` : `${myth.name}의 신화를 고르면 깨어난다 (유물 효과 피해 ×${boosted}). 지금은 기본 수치만`,
+      ),
+    )
     card.append(section)
   }
 

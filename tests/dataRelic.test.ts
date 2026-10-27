@@ -81,13 +81,16 @@ describe('데이터에만 넣은 시험용 유물', () => {
     expect(pickups.list.map(({ id, x, z }) => ({ id, x, z }))).toEqual([{ id: 'testRelic', x: 5, z: -70 }])
   })
 
-  it('장착하면 그 신의 유물로 세고(가호), 지속 효과와 행동 연동 효과가 붙는다', () => {
+  it('장착하면 그 신의 유물로 세고, 그 신화를 고르면 깨어나 지속 효과와 행동 연동 효과가 붙는다 (E21-04)', () => {
     const fx = new THREE.Group()
     const powers = new RelicPowers(fx)
     powers.equip('testRelic')
     powers.equip('mjolnir')
     const change = powers.equip('megingjord')
     expect(change?.after.blessings).toEqual(['thor'])
+    expect(powers.awake('testRelic')).toBe(false)
+    powers.choose('thor')
+    expect(powers.awake('testRelic')).toBe(true)
     expect(gearModifiers(powers.loadout.relics).damageTaken).toBeCloseTo(0.8)
     // 유물은 외형 칸으로 정한 부위 칸에 들어간다 (시험용 뿔잔은 얼굴 → 머리)
     const slot = powers.loadout.slots.indexOf('testRelic')

@@ -31,8 +31,9 @@ async function fresh(browser, query = '?fresh&relics=&region=village&noscenes', 
       return ((t ^ (t >>> 14)) >>> 0) / 4294967296
     }
   }, seed)
-  await page.goto(URL + query)
-  await page.waitForFunction(() => (window.__game?.frame ?? 0) > 3, null, { timeout: 60000 })
+  // 이어진 세계(E19)는 이웃 땅까지 지어 처음 여는 데 오래 걸린다
+  await page.goto(URL + query, { timeout: 90000 })
+  await page.waitForFunction(() => (window.__game?.frame ?? 0) > 3, null, { timeout: 90000 })
   return page
 }
 
@@ -76,7 +77,8 @@ const sections = {
     })
     const base = rows[0].damage
     for (const r of rows) r.vsOne = `${Math.round((r.damage / base - 1) * 100)}%`
-    // 새로 여는 순간: 숙련으로 로키가 열릴 때 화면
+    await page.close()
+    // 새로 여는 순간: 경험치로 로키가 열릴 때 화면
     const page2 = await fresh(browser, '?fresh&relics=&region=midgard')
     await page2.evaluate(() => {
       const g = window.__game
@@ -87,7 +89,6 @@ const sections = {
     const opened = await page2.evaluate(() => ({ opened: window.__game.progress.opened, scene: window.__game.scenes.current }))
     await shot(page2, 'e12-1-open')
     await page2.close()
-    await page.close()
     return { rows, opened }
   },
 
@@ -456,10 +457,119 @@ const sections = {
     await page.close()
     return {}
   },
+
+  /** E21-1 신화 단계를 올리면 확실히 강해진 게 느껴진다: 단계마다 20초 피해·최대 생명, 올리는 순간의 카드 */
+  async 'e21-1'(browser) {
+    const page = await fresh(browser)
+    const rows = await page.evaluate(() => {
+      const g = window.__game
+      const measure = () => {
+        g.encounter.clearAll()
+        g.combat.health.reset()
+        g.combat.godMode = true
+        g.orders.clear()
+        g.dev.teleport(0, 4)
+        g.encounter.threat = { hp: 60, damage: 1 }
+        const p = g.hero.object.position
+        const t = g.encounter.spawnById('grunt', { x: p.x + 1.8, z: p.z }, true)
+        t.update = () => {}
+        const start = t.health.hp
+        g.orders.press(null, t)
+        g.advance(20, 1 / 30)
+        g.encounter.threat = { hp: 1, damage: 1 }
+        return Math.round(start - t.health.hp)
+      }
+      g.dev.choose('thor')
+      const out = [{ level: 1, damage: measure(), hp: g.combat.health.max }]
+      for (const level of [2, 3]) {
+        g.dev.promote()
+        out.push({ level, damage: measure(), hp: g.combat.health.max })
+      }
+      return out
+    })
+    // 2단계로 올리는 순간의 카드
+    await page.evaluate(() => {
+      const g = window.__game
+      g.encounter.clearAll()
+      g.progress.records.clear()
+      g.dev.choose('thor')
+      g.advance(3, 1 / 30)
+      g.dev.promote()
+    })
+    await page.waitForTimeout(900)
+    await shot(page, 'e21-1-promote')
+    await page.close()
+    return rows
+  },
+
+  /** E21-2 같은 칸에서 유물과 영웅 장비 사이에 고민이 된다: 무기 칸에 영웅 장비 / 묠니르를 끼고 토르·로키로 20초 피해 */
+  async 'e21-2'(browser) {
+    const page = await fresh(browser)
+    const rows = await page.evaluate(() => {
+      const g = window.__game
+      const measure = () => {
+        g.encounter.clearAll()
+        g.combat.health.reset()
+        g.combat.godMode = true
+        g.orders.clear()
+        g.dev.teleport(0, 4)
+        g.encounter.threat = { hp: 60, damage: 1 }
+        const p = g.hero.object.position
+        const t = g.encounter.spawnById('grunt', { x: p.x + 1.8, z: p.z }, true)
+        t.update = () => {}
+        const start = t.health.hp
+        g.orders.press(null, t)
+        g.advance(20, 1 / 30)
+        g.encounter.threat = { hp: 1, damage: 1 }
+        return Math.round(start - t.health.hp)
+      }
+      const out = []
+      for (const god of ['thor', 'loki']) {
+        g.dev.choose(god)
+        g.dev.unequipAll()
+        out.push({ god, what: '빈 칸', damage: measure() })
+        g.dev.wear('weapon', 'hero')
+        out.push({ god, what: '영웅 무기 (1단계)', damage: measure() })
+        g.dev.unequipAll()
+        g.dev.equip('mjolnir')
+        out.push({ god, what: '묠니르 1단계', damage: measure() })
+      }
+      return out
+    })
+    await page.evaluate(() => {
+      const g = window.__game
+      g.dev.choose('thor')
+      g.menu.show('relics')
+    })
+    await page.waitForTimeout(600)
+    await shot(page, 'e21-2-relic-card')
+    await page.close()
+    return rows
+  },
+
+  /** E21-3 정보 화면에 잡다한 장치가 보이지 않는다: 엔딩 전 탭 줄과 원천·신화 탭 */
+  async 'e21-3'(browser) {
+    const page = await fresh(browser)
+    await page.evaluate(() => {
+      const g = window.__game
+      g.dev.equip('mjolnir')
+      g.dev.choose('thor')
+      g.menu.show('sources')
+    })
+    await page.waitForTimeout(600)
+    await shot(page, 'e21-3-sources')
+    await page.evaluate(() => window.__game.menu.show('classes'))
+    await page.waitForTimeout(600)
+    await shot(page, 'e21-3-myth')
+    const tabs = await page.evaluate(() => [...document.querySelectorAll('.menu__tab')].filter((b) => getComputedStyle(b).display !== 'none').map((b) => b.textContent.trim()))
+    await page.close()
+    return { tabs }
+  },
 }
 
 try {
-  for (let i = 0; i < 50; i++) {
+  // 미리보기 서버가 설정을 읽는 데 10초 넘게 걸릴 때가 있다 (60초까지 기다림)
+  for (let i = 0; i < 300; i++) {
     try {
       if ((await fetch(URL)).ok) break
     } catch {}
@@ -479,6 +589,8 @@ try {
       results[id] = await run(browser)
     } catch (e) {
       results[id] = { error: String(e?.message ?? e).split('\n')[0] }
+      // 실패한 항목이 열어 둔 페이지가 다음 항목을 느리게 하지 않게 닫는다
+      for (const ctx of browser.contexts()) await ctx.close()
     }
     console.log(`${id} (${Math.round((Date.now() - t0) / 1000)}초)`, JSON.stringify(results[id]).slice(0, 600))
   }

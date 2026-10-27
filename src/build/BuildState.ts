@@ -3,7 +3,7 @@ import { awakeningLevel } from '../data/awakening'
 import { NO_RULES, type TrialRules } from '../data/trials'
 import { type MythAlways, STAT_KINDS, type StatKind } from '../data/mythAlways'
 import { SOURCE_IDS, type SourceId } from '../data/schema'
-import { relicSource } from '../gear/mythRelic'
+import { relicAwake, relicSource } from '../gear/mythRelic'
 import { PER_OPENED, PER_PROMOTION } from '../myth/ClassProgress'
 import { type God, godDef, relicDef, type RelicId } from '../relics/data'
 import { type Modifiers, NO_MODIFIERS } from '../skills/Skill'
@@ -139,7 +139,9 @@ export function computeBuild(inputs: BuildInputs): BuildState {
     // 고른 신화의 패시브 (천둥의 신: 거인 특효)
     damageScale *= god.passive.damageScale
   }
-  const modifiers = gearModifiers(inputs.gear)
+  // 유물의 지속 효과는 그 신화를 골랐을 때만 깨어난다 (E21-04). 시련으로 신화를 막아도 고른 신화는 그대로 본다
+  const picked = inputs.chosen[0] ?? null
+  const modifiers = gearModifiers(inputs.gear.map((id) => (id && relicAwake(id, picked) ? id : null)))
   return {
     chosen,
     level: chosen ? (inputs.open.get(chosen) ?? 0) : 0,

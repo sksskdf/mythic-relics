@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { Build } from '../src/build/Build'
 import { alwaysStage, computeBuild, gearModifiers, statAt, TOP_STAGE } from '../src/build/BuildState'
 import { RelicPowers } from '../src/game/RelicPowers'
+import { relicAwake } from '../src/gear/mythRelic'
 import { ClassProgress, PER_OPENED, PER_PROMOTION } from '../src/myth/ClassProgress'
 import { ThreatProgress } from '../src/progress/Threat'
 import { GODS, godDef, RELIC_IDS, relicDef } from '../src/relics/data'
@@ -55,7 +56,8 @@ describe('빌드 상태 (E11-04)', () => {
       expect(state.level, god).toBe(progress.level(god))
       const st = state.stats
       expect(state.damageScale, god).toBeCloseTo(legacyDamage(progress, god) * (1 + st.damage + state.collected * PER_OPENED.damage), 10)
-      const mods = gearModifiers(powers.loadout.slots)
+      // 유물의 지속 효과는 고른 신화의 것만 깨어 있다 (E21-04)
+      const mods = gearModifiers(powers.loadout.relics.map((id) => (id && relicAwake(id, god) ? id : null)))
       expect(state.modifiers, god).toEqual(mods)
       expect(state.damageTaken, god).toBeCloseTo(mods.damageTaken * (1 + st.damageTaken), 10)
       expect(state.moveSpeed, god).toBeCloseTo(mods.moveSpeed * (1 + st.moveSpeed), 10)

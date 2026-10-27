@@ -52,7 +52,7 @@ export function renderStatus(ctx: TabContext, body: HTMLElement): void {
   const tags = el('div', 'menu-status__tags')
   if (current) tags.append(el('span', 'ui-tag ui-tag--solid', '신화 개방'))
   for (const g of host.loadout.blessings) {
-    const tag = el('span', 'ui-tag', `${godDef(g).name}의 가호`)
+    const tag = el('span', 'ui-tag', `잠든 ${godDef(g).name}의 유물`)
     tag.style.setProperty('--tag', godDef(g).color)
     tags.append(tag)
   }

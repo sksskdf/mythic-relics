@@ -1,7 +1,7 @@
 import type * as THREE from 'three'
 
 import { type God, godDef, isRelicId, relicDef, type RelicId } from '../relics/data'
-import { effectScale, RELIC_STAGES } from '../gear/mythRelic'
+import { effectScale, RELIC_STAGES, relicAwake } from '../gear/mythRelic'
 import { craft, salvage } from '../gear/forge'
 import { Loadout } from '../gear/Loadout'
 import type { LoadoutState } from '../myth/manifest'
@@ -23,7 +23,7 @@ export interface LoadoutChange {
 
 /**
  * 장착한 유물이 주는 힘을 모아 관리한다.
- * - 유물 1개 = 지속 효과 + 행동 연동 효과 (가호 상태에서도 붙는다, DESIGN.md 8.3)
+ * - 유물 1개 = 지속 효과 + 행동 연동 효과 (DESIGN.md 8.3). 그 신화를 골랐을 때만 깨어나고, 아니면 기본 수치만 낸다 (E21-04)
  * - 같은 신 유물 3개 이상이면 발현: 궁극기와 패시브가 붙는다
  */
 export class RelicPowers {
@@ -38,10 +38,15 @@ export class RelicPowers {
   /** 대장간에서 올릴 수 있는 유물 단계 (데모 2, 엔딩 뒤 4. 게임이 정한다) */
   maxStage: () => number = () => RELIC_STAGES
 
-  /** 지금 도는 유물 효과 (시련으로 막힌 칸은 뺀다) */
+  /** 유물의 힘(지속·행동 효과)은 그 신화를 골랐을 때만 깨어난다 (E21-04). 고르지 않은 신화의 유물은 기본 수치만 낸다 */
+  awake(id: string | null): boolean {
+    return !!id && isRelicId(id) && relicAwake(id, this.loadout.chosen)
+  }
+
+  /** 지금 도는 유물 효과 (잠든 유물과 시련으로 막힌 칸은 뺀다) */
   private get live(): (RelicEffect | null)[] {
     const allow = this.allowSlots
-    return allow ? this.effects.filter((_, i) => allow.includes(i)) : this.effects
+    return this.effects.map((effect, i) => (effect && (!allow || allow.includes(i)) && this.awake(this.loadout.slots[i] ?? null) ? effect : null))
   }
 
   /** 원천 각성 (src/skills/SourceAwakening.ts, E14-02) */
@@ -201,7 +206,7 @@ export class RelicPowers {
     this.loadout.slots.forEach((id, i) => {
       if (!id || !isRelicId(id) || out.length >= SKILL_SLOTS) return
       const effect = this.effects[i]
-      out.push({ icon: this.icon(id), charge: effect ? Math.max(0, Math.min(1, effect.charge)) : 0, slot: i })
+      out.push({ icon: this.icon(id), charge: effect ? Math.max(0, Math.min(1, effect.charge)) : 0, slot: i, asleep: !this.awake(id) })
     })
     while (out.length < SKILL_SLOTS) out.push({ icon: null, charge: 0, slot: null })
     return out

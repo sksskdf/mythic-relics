@@ -115,6 +115,11 @@ button.hud__slot--empty {
 .hud__slot--empty .hud__sweep {
   display: none;
 }
+/* 잠든 유물 (고르지 않은 신화의 것): 흐리게 */
+.hud__slot.is-asleep {
+  opacity: 0.45;
+  filter: grayscale(1);
+}
 
 /* 궁극기: 마름모. 신위가 차는 만큼 둘레의 금빛 고리가 채워진다 */
 .hud__ult {

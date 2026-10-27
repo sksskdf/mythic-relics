@@ -215,12 +215,13 @@ export class MenuData {
     }
     for (const g of blessings) {
       const god = godDef(g)
-      powers.push({ kind: 'god', name: god.name, color: god.color, label: `${god.name}의 가호`, what: '유물의 힘만 쓴다' })
+      powers.push({ kind: 'god', name: god.name, color: god.color, label: `${god.name}의 유물`, what: '잠듦: 그 신화를 고르면 유물의 힘이 깨어난다' })
     }
     for (const id of game.powers.loadout.relics) {
       if (!id) continue
       const def = relicDef(id)
-      powers.push({ kind: 'relic', name: id, color: godDef(def.god).color, label: def.name, what: def.passive.description })
+      // 잠든 유물은 기본 수치만 (E21-04)
+      if (game.powers.awake(id)) powers.push({ kind: 'relic', name: id, color: godDef(def.god).color, label: def.name, what: def.passive.description })
     }
     return {
       hp: game.combat.health.hp,

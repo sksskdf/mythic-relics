@@ -62,6 +62,16 @@ export function relicSource(id: RelicId, stage: number): { id: SourceId; value: 
   return { id: godDef(god).source, value: STAGE_SOURCE[Math.max(1, Math.min(RELIC_STAGES, stage)) - 1]! }
 }
 
+/** 그 유물을 깨우는 신화: 신화의 유물이면 그 신화, 재료가 된 유물이면 그 신 */
+export function relicOwner(id: RelicId): God {
+  return relicMyth(id) ?? relicDef(id).god
+}
+
+/** 유물의 힘(지속·행동 효과)은 그 신화를 골랐을 때만 깨어난다 (E21-04). 아니면 기본 수치만 */
+export function relicAwake(id: RelicId, chosen: God | null): boolean {
+  return chosen !== null && relicOwner(id) === chosen
+}
+
 /** 유물 효과가 도는 단계: 그 신화를 골랐으면 한 단계 위 (E21-04) */
 export function effectStage(id: RelicId, stage: number, chosen: God | null): number {
   return Math.min(STAGE_DAMAGE.length, Math.max(1, stage) + (chosen !== null && relicMyth(id) === chosen ? 1 : 0))
