@@ -124,14 +124,14 @@ export class ProgressionSystem {
       if (MATERIALS[id]?.kind === 'boss') this.ctx.hud.showToast(`${materialName(id)} · 대장간에서 유물을 벼린다`)
     }
     // 일반 장비 (E13-02): 졸개 6%, 정예 25%, 지역 보스는 반드시 (희귀 이상).
-    // 땅 자리마다 드랍 표가 다르고, 단계는 그 땅의 단계 (E21-03)
+    // 땅 자리마다 드랍 표가 다르고, 단계는 그 땅의 단계 (E21-03): 장 흐름의 땅은 장의 단계, 그 밖은 신화권 단계 (E22)
     const boss = giant.spec.boss !== undefined
     const { region } = this.ctx.map
     const land = region.zone ? GEAR.lands[region.zone] : null
     const chance = (boss ? GEAR.drop.boss : giant.elite ? GEAR.drop.elite : GEAR.drop.grunt) * (land?.rate ?? 1) * THREAT.gearDrop ** (level - 1)
     if (Math.random() < chance) {
       const chances = threatGrades(landChances(region.zone), level)
-      const tier = landTier(region.realm ?? giant.spec.realm)
+      const tier = this.ctx.chapters.tier(region.id) ?? landTier(region.realm ?? giant.spec.realm)
       const item = rollGear(Math.random, boss ? { minGrade: GEAR.drop.bossMinGrade, chances, tier } : { chances, tier })
       pickups.drop(item.uid, giant.x + 0.7, giant.z + 0.4, true, item)
     }

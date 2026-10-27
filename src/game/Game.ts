@@ -11,7 +11,7 @@ import { Wardrobe } from '../looks/outfit'
 import { DropTable } from '../gear/DropTable'
 import { worldToScreen } from '../render/picking'
 import { Pickups } from '../gear/Pickups'
-import { DEMO_RELIC_STAGES, RELIC_STAGES } from '../gear/mythRelic'
+import { DEMO_RELIC_STAGES, isMythRelic, RELIC_STAGES } from '../gear/mythRelic'
 import type { SaveData } from '../save/SaveData'
 import { ClassProgress } from '../myth/ClassProgress'
 import type { SkillContext } from '../skills/Skill'
@@ -45,6 +45,7 @@ import { type CombatTarget, PlayerCombat } from './PlayerCombat'
 import { RelicPowers } from './RelicPowers'
 import { Stage } from './Stage'
 import { AppearanceSystem } from './systems/Appearance'
+import { ChapterSystem } from './systems/Chapters'
 import { DamageSystem } from './systems/Damage'
 import { Effects } from './systems/Effects'
 import { HeroLife } from './systems/HeroLife'
@@ -58,6 +59,8 @@ import { TitleBackdrop } from './TitleBackdrop'
 import { DialogScene } from './DialogScene'
 import { DialogBox } from '../ui/DialogBox'
 import { DevTools } from '../dev/DevTools'
+import { ChapterProgress } from '../progress/Chapters'
+import { Barriers } from '../world/Barriers'
 import { Conveniences } from '../progress/Conveniences'
 import { Ending } from '../progress/Ending'
 import { ThreatProgress } from '../progress/Threat'
@@ -131,6 +134,18 @@ export class Game {
   /** 대화 장면을 언제 여는가: 처음 보는 일, 마을 사람에게 말 걸기, 미룬 장면 (E15-06) */
   private readonly storyline: Storyline
   readonly conveniences = new Conveniences(() => this.ending.has('conveniences'))
+  /** 장 진행 (E22): 지금 장·목표·열린 땅 */
+  readonly chapters = new ChapterProgress(
+    {
+      chose: (realm) => this.progress.opened.some((god) => godDef(god).realm === realm),
+      level: () => Math.max(0, ...this.progress.opened.map((god) => this.progress.level(god))),
+      forged: () => Math.max(0, ...this.powers.loadout.ownedRelics.filter(isMythRelic).map((id) => this.powers.loadout.stage(id))),
+    },
+    () => this.ending.reached,
+  )
+  readonly chapterSystem: ChapterSystem
+  /** 막힌 땅으로 가는 통로의 결계 (E22-02) */
+  private readonly barriers = new Barriers()
   /** 성소의 전설과 시련 결계 (E6-04) */
   readonly legend: UtgardLegend
   /** 주인공 길찾기 격자 */
@@ -222,10 +237,12 @@ export class Game {
     this.stage = new Stage(this.scene, region, REGIONS)
     const map = this.stage.map
     // 움직일 수 있는 곳: 땅의 네모와 이웃으로 가는 통로 (E19)
-    const area = walkArea(walkRects(region.halfExtent, regionLinks(REGIONS, region.id)))
+    // 막힌 땅으로 가는 통로는 빼고 (E22-02, 불러온 뒤에 World.refreshLinks로 다시 맞춘다)
+    const area = walkArea(walkRects(region.halfExtent, regionLinks(REGIONS, region.id).filter((l) => this.chapters.isOpen(l.to))))
     const nav = new NavGrid(area, 0.5, map.colliders, HERO_RADIUS)
     this.nav = nav
-    this.encounter = new Encounter(region, map.colliders, area)
+    // 땅마다 적의 세기 (E22-02): 장 데이터의 적 지수
+    this.encounter = new Encounter(region, map.colliders, area, (id) => (id ? this.chapters.power(id) : 1))
     this.scene.add(this.encounter.object)
 
     const rig = buildHeroModel()
@@ -266,9 +283,12 @@ export class Game {
         hud: this.hud,
         pickups: this.pickups,
         drops: this.drops,
+        barriers: this.barriers,
+        isOpen: (id) => this.chapters.isOpen(id),
       },
       container,
     )
+    this.scene.add(this.barriers.object)
     this.world.dress(region)
     // 이웃 땅의 무리도 미리 세워 둔다 (E19-04, 프레임마다 무리 하나씩)
     this.encounter.setNeighbors(this.world.neighborLayouts(region))
@@ -341,6 +361,7 @@ export class Game {
       rift: this.rift,
       conveniences: this.conveniences,
       ending: this.ending,
+      chapters: this.chapters,
       build: new Build({ powers: this.powers, progress: this.progress, threat: this.threat, trials: this.trials, trial: () => this.trialSystem?.active?.id ?? null, rift: this.rift, blessings: () => this.riftSystem?.blessings ?? [] }),
       skills,
     }
@@ -391,6 +412,9 @@ export class Game {
     this.growth = new ProgressionSystem(this.ctx)
     this.life = new HeroLife(this.ctx)
     this.threatSystem = new ThreatSystem(this.ctx)
+    this.chapterSystem = new ChapterSystem(this.ctx)
+    // 다음 장이 열리면 그 땅으로 가는 결계가 풀린다 (E22-02)
+    this.bus.on('chapterChanged', () => this.world.refreshLinks())
     this.trialSystem = new TrialSystem(this.ctx, this.growth, this.threatSystem)
     this.blessingPicker = new BlessingPicker(this.hud.root)
     this.riftSystem = new RiftSystem(
@@ -444,8 +468,15 @@ export class Game {
       // 위협 단계 배율은 불러온 단계로 (이미 세운 적도 다시 세운다)
       this.threatSystem.apply()
       if (this.threat.level > 1) this.encounter.resetAll()
+      this.chapterSystem.sync()
+      this.world.refreshLinks(false)
     }
     for (const id of options.startRelics ?? []) this.relics.equip(id, false)
+    // 처음 선 땅도 들어선 땅이다 (점검 주소로 막힌 땅에서 시작해도 거기는 열려 있게)
+    if (this.chapters.enter(this.ctx.map.region.id)) {
+      this.chapterSystem.sync()
+      this.world.refreshLinks(false)
+    }
 
     this.view.jumpTo(rig.root.position)
     this.resize()
@@ -479,15 +510,17 @@ export class Game {
     return this.persistence.snapshot()
   }
 
-  /** 저장하고 처음 화면(슬롯 고르기)으로 돌아간다. 다시 불러와 시작 화면을 띄운다. */
   /** 첫 엔딩을 보았다 (E21-06): 엔딩 뒤 장치를 연다. 마지막 보스가 생기기 전에는 개발 패널과 점검 스크립트만 부른다 */
   reachEnding(): void {
     if (this.ending.reached) return
     this.ending.reached = true
     this.conveniences.catchUp()
-    this.bus.emit('progressChanged', {})
+    this.chapterSystem.check()
+    // 모든 땅이 열린다
+    this.world.refreshLinks()
   }
 
+  /** 저장하고 처음 화면(슬롯 고르기)으로 돌아간다. 다시 불러와 시작 화면을 띄운다. */
   toTitle(): void {
     this.bus.emit('progressChanged', {})
     this.persistence.saveNow()
@@ -766,6 +799,7 @@ export class Game {
 
     const position = this.hero.object.position
     this.fx.update(dt, this.hero, this.elapsed)
+    this.barriers.update(dt)
     this.villagers.update(dt, position, (x, y, z) => this.screenPoint(x, y, z))
     // 말 걸기와 보스 등장 장면 (E15-06)
     this.storyline.update(position)

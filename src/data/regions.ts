@@ -64,6 +64,8 @@ export interface RegionDef {
   zone: RegionZone | null
   /** 무리에 정예가 섞일 확률에 더하는 값 (깊은 땅) */
   elite: number
+  /** 마지막 무대 (E22-05): 신화권 셋씩의 줄 밖에 있고, 두 신화권의 적이 섞인다 */
+  finale: boolean
   /** 이 지역에서 주로 떨어지는 유물의 신화권 (마을은 없음) */
   realm: FieldRealm | null
   theme: RegionTheme
@@ -112,7 +114,7 @@ export function parseRegions(rawRegions: unknown, path = 'regions.json'): Record
   const out: Record<string, RegionDef> = {}
   for (const [id, o] of table(rawRegions, path)) {
     const p = `${path}.${id}`
-    onlyKeys(o, p, ['name', 'kind', 'zone', 'elite', 'realm', 'theme', 'cell', 'halfExtent', 'seed', 'spawn', 'sanctuary', 'ponds', 'paths', 'camps', 'boss', 'exits', 'npcs', 'props'])
+    onlyKeys(o, p, ['name', 'kind', 'zone', 'elite', 'finale', 'realm', 'theme', 'cell', 'halfExtent', 'seed', 'spawn', 'sanctuary', 'ponds', 'paths', 'camps', 'boss', 'exits', 'npcs', 'props'])
     const half = num(o, 'halfExtent', p, { min: 10, max: CELL / 2 - 4 })
     const c = obj(o.cell, `${p}.cell`)
     onlyKeys(c, `${p}.cell`, ['col', 'row'])
@@ -136,6 +138,7 @@ export function parseRegions(rawRegions: unknown, path = 'regions.json'): Record
       kind,
       zone: o.zone === undefined ? null : oneOf(o, 'zone', p, REGION_ZONES),
       elite: optNum(o, 'elite', p) ?? 0,
+      finale: o.finale === true,
       realm,
       theme: oneOf(o, 'theme', p, REGION_THEMES),
       cell,
@@ -209,6 +212,7 @@ export function parseRegions(rawRegions: unknown, path = 'regions.json'): Record
       if ((region.zone === 'boss') !== (region.boss !== null)) throw new DataError(`${p}.boss`, '보스 자리는 보스의 땅에만 있어야 합니다')
       if (!region.sanctuary) throw new DataError(`${p}.sanctuary`, '필드는 성소가 있어야 합니다 (워프)')
       if (region.elite < 0 || region.elite > 0.5) throw new DataError(`${p}.elite`, '정예 확률은 0~0.5입니다')
+      if (region.finale && !region.boss) throw new DataError(`${p}.boss`, '마지막 무대에는 보스가 있어야 합니다')
     } else if (region.camps.length > 0 || region.boss || region.zone) throw new DataError(`${p}.camps`, '마을에는 적과 자리를 두지 않습니다')
     out[id] = region
   }

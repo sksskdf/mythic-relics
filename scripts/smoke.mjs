@@ -384,7 +384,7 @@ try {
   console.log(`지역 전환 반복 확인: ${regionCount}곳을 한 바퀴 돈 뒤 형상 ${memA.geometries}·텍스처 ${memA.textures}, 두 바퀴 더 돈 뒤 ${memB.geometries}·${memB.textures}, 한 번 짓는 데 평균 ${memB.ms}ms (소프트웨어 렌더링)`)
   console.log(`지역 확인: 마을에서 시작, 말풍선 「${bubble}」, 작은 지도, 통로를 걸어 암전 없이 미드가르드로(미리 세워 둔 적 ${walked.woke}마리를 깨움)`)
 
-  // 세계 지도와 성소 워프 (E15-04): 지도 탭에 열여섯 곳, 찾은 성소를 누르면 그 땅으로
+  // 세계 지도와 성소 워프 (E15-04): 지도 탭에 모든 땅 (E22: 마지막 무대까지 열일곱 곳), 찾은 성소를 누르면 그 땅으로
   await page.evaluate(() => {
     const g = window.__game
     g.conveniences.open.add('warp')
@@ -392,12 +392,12 @@ try {
   })
   await page.click('.minimap')
   const mapLabels = await page.locator('.menu-map__label').count()
-  if (mapLabels !== 16) throw new Error(`지도: 지역이 ${mapLabels}곳입니다.`)
+  if (mapLabels !== regionCount) throw new Error(`지도: 지역이 ${mapLabels}곳입니다 (${regionCount}곳이어야 함).`)
   await page.locator('.menu-map__label', { hasText: '요툰헤임 빙하' }).click()
   await page.waitForFunction(() => window.__game.region.id === 'jotunheim', null, { timeout: 15000 }).catch(() => {
     throw new Error('지도: 찾은 성소를 눌렀는데 워프하지 않습니다.')
   })
-  console.log('지도 확인: 작은 지도를 누르면 세계 지도(16곳), 찾은 성소를 눌러 요툰헤임 빙하로 워프')
+  console.log(`지도 확인: 작은 지도를 누르면 세계 지도(${mapLabels}곳), 찾은 성소를 눌러 요툰헤임 빙하로 워프`)
   await page.waitForFunction(() => getComputedStyle(document.querySelector('.region-fade')).opacity === '0', null, { timeout: 15000 })
   await page.evaluate(() => window.__game.enterRegion(window.__game.regions.midgard))
 

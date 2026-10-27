@@ -1,4 +1,5 @@
 import type { SoundCue } from '../audio/sounds'
+import type { ChapterDef, ChapterStep } from '../data/chapters'
 import type { GearItem } from '../gear/roll'
 import type { Giant } from '../enemies/Giant'
 import type { God, RelicId } from '../relics/data'
@@ -49,6 +50,10 @@ export interface GameEvents {
   heroRevived: Record<string, never>
   /** 지역에 들어갔다 (E7) */
   regionEntered: { id: string }
+  /** 다음 장이 열렸다 (E22): 그 장의 땅이 열린다. 마지막 장을 끝냈으면 chapter가 null */
+  chapterChanged: { chapter: ChapterDef | null; index: number }
+  /** 지금 목표가 바뀌었다 (E22): HUD 한 줄과 지도 표시. 엔딩 뒤이거나 다 했으면 null */
+  goalChanged: { goal: ChapterStep | null }
   /** 승급 전설이 시작됐다 / 실패했다. */
   legendStarted: Record<string, never>
   legendFailed: Record<string, never>

@@ -217,13 +217,14 @@ describe('적 데이터 규칙 (E8-01)', () => {
     }
   })
 
-  it('지역의 무리와 보스는 그 땅의 적이다', () => {
+  it('지역의 무리와 보스는 그 땅의 적이다 (마지막 무대는 여러 신화권이 섞인다)', () => {
     for (const region of Object.values(REGIONS)) {
       if (region.kind !== 'field') continue
       for (const camp of region.camps) {
         for (const id of camp.members ?? []) {
           expect(ENEMIES[id], `${region.id}: ${id}`).toBeDefined()
-          expect(ENEMIES[id]!.realm, `${region.id}: ${id}`).toBe(region.realm)
+          if (region.finale) expect(ENEMIES[id]!.role, `${region.id}: ${id}`).not.toBe('boss')
+          else expect(ENEMIES[id]!.realm, `${region.id}: ${id}`).toBe(region.realm)
         }
       }
       if (!region.boss) continue

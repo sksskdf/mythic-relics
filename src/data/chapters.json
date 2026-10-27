@@ -1,0 +1,53 @@
+{
+  "prologue": {
+    "title": "서장",
+    "name": "깨어난 마을",
+    "tier": 1,
+    "lands": { "midgard": 1 },
+    "steps": [{ "kind": "enter", "region": "midgard", "goal": "미드가르드 설원으로" }]
+  },
+  "north": {
+    "title": "제1장",
+    "name": "서리 거인의 땅",
+    "tier": 1,
+    "lands": { "jotunheim": 1.6, "utgard": 2.4 },
+    "steps": [
+      { "kind": "choose", "region": "midgard", "realm": "norse", "goal": "미드가르드 성소에서 신화를 고른다" },
+      { "kind": "enter", "region": "jotunheim", "goal": "요툰헤임 빙하로" },
+      { "kind": "level", "region": "jotunheim", "n": 2, "goal": "요툰헤임 성소의 전설을 깬다" },
+      { "kind": "enter", "region": "utgard", "goal": "우트가르드로" },
+      { "kind": "boss", "region": "utgard", "goal": "거인 왕을 쓰러뜨린다" }
+    ]
+  },
+  "interlude": {
+    "title": "막간",
+    "name": "대장간의 불",
+    "tier": 2,
+    "lands": {},
+    "steps": [{ "kind": "forge", "region": "village", "n": 1, "goal": "마을 대장간에서 유물을 벼린다" }]
+  },
+  "greek": {
+    "title": "제2장",
+    "name": "신들의 산",
+    "tier": 2,
+    "lands": { "olympus": 3.6, "delphi": 5, "lycia": 7 },
+    "steps": [
+      { "kind": "enter", "region": "olympus", "goal": "올림포스 기슭으로" },
+      { "kind": "enter", "region": "delphi", "goal": "델포이 골짜기로" },
+      { "kind": "level", "region": "delphi", "n": 3, "goal": "델포이 성소의 전설을 깬다" },
+      { "kind": "enter", "region": "lycia", "goal": "리키아 화산으로" },
+      { "kind": "boss", "region": "lycia", "goal": "키마이라를 쓰러뜨린다" }
+    ]
+  },
+  "finale": {
+    "title": "종장",
+    "name": "갈라진 하늘",
+    "tier": 3,
+    "lands": { "sky": 8 },
+    "steps": [
+      { "kind": "forge", "region": "village", "n": 2, "goal": "마을 대장간에서 유물을 한 단계 더 벼린다" },
+      { "kind": "enter", "region": "sky", "goal": "갈라진 하늘로" },
+      { "kind": "boss", "region": "sky", "goal": "우트가르드의 왕을 쓰러뜨린다" }
+    ]
+  }
+}

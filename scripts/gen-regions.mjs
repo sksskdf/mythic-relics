@@ -179,7 +179,7 @@ const sorted = Object.fromEntries([...order.filter((id) => out[id]), ...Object.k
 writeFileSync(FILE, JSON.stringify(sorted, null, 2) + '\n')
 
 // 검사와 편집기 모양으로 다시 쓰기
-const vite = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' })
+const vite = await createServer({ configFile: false, server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' })
 try {
   const { formatRegions, parseRegions } = await vite.ssrLoadModule('/src/data/regions.ts')
   parseRegions(sorted)

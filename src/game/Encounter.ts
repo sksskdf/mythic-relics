@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 
+import { landScale } from '../data/chapters'
 import { ELITE_CHANCE, ELITE_KINDS } from '../enemies/elite'
 import { ENEMIES, Giant, GRUNT, type GiantSpec, type GiantWorld, KING } from '../enemies/Giant'
 import { type CircleCollider, inArea, type Point2, pushOut, type WalkArea } from '../world/colliders'
@@ -46,6 +47,8 @@ interface Herd {
   boss: Giant | null
   bossRespawn: number
   elite: number
+  /** 그 땅 적의 세기 (E22-02, 처음 땅 = 1) */
+  power: number
   respawns: boolean
 }
 
@@ -85,6 +88,10 @@ export class Encounter {
   private respawns = true
   /** 지금 지역이 더하는 정예 확률 (깊은 땅) */
   private regionElite = 0
+  /** 지금 땅 적의 세기 (E22-02) */
+  private regionPower = 1
+  /** 땅 id → 그 땅 적의 세기 (장 데이터의 적 지수, E22-02). 생명은 그만큼, 피해는 landScale을 따른다 */
+  landPower: (id: string | undefined) => number = () => 1
   /** 위협 단계 배율 (E14-03): 새로 세우는 적에 건다 */
   threat = { hp: 1, damage: 1 }
   /** 결계 안(전설·시련)에 따로 세우는 적의 배율. 없으면 threat (시련 난이도가 결계 밖 무리·보스에 번지지 않게) */
@@ -101,12 +108,18 @@ export class Encounter {
   /** 마지막으로 받은 이웃 땅들 (무리를 처음처럼 다시 세울 때) */
   private neighbors: readonly NeighborLayout[] = []
 
-  constructor(layout: EncounterLayout, staticColliders: readonly CircleCollider[], bounds: number | WalkArea) {
+  constructor(layout: EncounterLayout, staticColliders: readonly CircleCollider[], bounds: number | WalkArea, landPower?: (id: string | undefined) => number) {
+    if (landPower) this.landPower = landPower
     for (const spec of [GRUNT, KING]) {
       this.navs.set(spec, new NavGrid(bounds, 0.5, staticColliders, spec.radius))
     }
     this.region = layout.id ?? null
     this.place(layout)
+  }
+
+  /** 걸을 수 있는 곳이 바뀌었다 (결계가 풀림, E22-02): 길찾기 격자만 다시 짓는다 */
+  setArea(bounds: number | WalkArea, staticColliders: readonly CircleCollider[]): void {
+    for (const nav of this.navs.values()) nav.rebuild(bounds, staticColliders)
   }
 
   /** 지역을 바꿨다(또는 편집했다): 거인을 모두 지우고 새 배치로 다시 세운다. 이웃 땅에 남겨 둔 무리도 지운다 */
@@ -143,6 +156,7 @@ export class Encounter {
       boss: null,
       bossRespawn: 0,
       elite: layout.elite ?? 0,
+      power: this.landPower(layout.id),
       respawns: layout.respawn ?? true,
     }
   }
@@ -155,12 +169,13 @@ export class Encounter {
     this.boss = herd.boss
     this.bossRespawn = herd.bossRespawn
     this.regionElite = herd.elite
+    this.regionPower = herd.power
     this.respawns = herd.respawns
   }
 
   /** 지금 땅의 무리 상태 */
   private herd(): Herd {
-    return { camps: this.camps, bossHome: this.bossHome, bossSpec: this.bossSpec, boss: this.boss, bossRespawn: this.bossRespawn, elite: this.regionElite, respawns: this.respawns }
+    return { camps: this.camps, bossHome: this.bossHome, bossSpec: this.bossSpec, boss: this.boss, bossRespawn: this.bossRespawn, elite: this.regionElite, power: this.regionPower, respawns: this.respawns }
   }
 
   /**
@@ -218,11 +233,11 @@ export class Encounter {
     const herd = this.newHerd(n.layout, clear, n.offset)
     const giants: Giant[] = []
     for (const camp of herd.camps) {
-      this.fillCamp(camp, herd.elite, clear, giants)
+      this.fillCamp(camp, herd.elite, clear, giants, herd.power)
       yield
     }
     if (herd.bossHome) {
-      herd.boss = this.makeGiant(herd.bossSpec, herd.bossHome)
+      herd.boss = this.makeGiant(herd.bossSpec, herd.bossHome, this.scaled(herd.power))
       giants.push(herd.boss)
     }
     for (const giant of giants) giant.park()
@@ -357,10 +372,10 @@ export class Encounter {
     this.boss = null
   }
 
-  /** 승급 전설 등에서 거인을 따로 세운다. alert면 바로 주인공을 쫓는다. */
+  /** 승급 전설 등에서 거인을 따로 세운다. alert면 바로 주인공을 쫓는다. 시련 배율이 없으면 그 땅의 세기를 건다 */
   spawn(spec: GiantSpec, home: Point2, alert: boolean): Giant {
     const nav = this.navFor(spec)
-    const giant = this.addGiant(spec, nav.nearestFree(home) ?? home, this.arenaThreat ?? this.threat)
+    const giant = this.addGiant(spec, nav.nearestFree(home) ?? home, this.arenaThreat ?? this.scaled(this.regionPower))
     if (alert) giant.alert()
     return giant
   }
@@ -401,14 +416,20 @@ export class Encounter {
     }
   }
 
-  private addGiant(spec: GiantSpec, home: Point2, threat = this.threat): Giant {
+  /** 위협 단계 배율에 그 땅의 세기를 곱한다 (E22-02) */
+  private scaled(power: number): { hp: number; damage: number } {
+    const land = landScale(power)
+    return { hp: this.threat.hp * land.hp, damage: this.threat.damage * land.damage }
+  }
+
+  private addGiant(spec: GiantSpec, home: Point2, threat = this.scaled(this.regionPower)): Giant {
     const giant = this.makeGiant(spec, home, threat)
     this.giants.push(giant)
     return giant
   }
 
   /** 거인을 만들어 장면에 놓는다 (지금 땅의 적 목록에는 넣지 않음) */
-  private makeGiant(spec: GiantSpec, home: Point2, threat = this.threat): Giant {
+  private makeGiant(spec: GiantSpec, home: Point2, threat = this.scaled(this.regionPower)): Giant {
     // 집 자리는 거인마다 따로 (넘어갈 때 거인이 제 집을 옮기므로, 지역 데이터나 무리 자리를 같이 쥐면 함께 움직인다)
     const giant = new Giant(spec, { x: home.x, z: home.z }, this.seed++)
     if (threat.hp !== 1 || threat.damage !== 1) giant.applyThreat(threat)
@@ -419,13 +440,14 @@ export class Encounter {
   /**
    * 무리를 채운다. free로 빈 자리를 찾고(지금 땅은 길찾기 격자), into가 있으면 지금 땅의 적 대신 거기에 넣는다 (이웃 땅)
    */
-  private fillCamp(camp: Camp, elite = this.regionElite, free: (p: Point2) => Point2 | null = (p) => this.navs.get(GRUNT)!.nearestFree(p), into: Giant[] | null = null): void {
+  private fillCamp(camp: Camp, elite = this.regionElite, free: (p: Point2) => Point2 | null = (p) => this.navs.get(GRUNT)!.nearestFree(p), into: Giant[] | null = null, power = this.regionPower): void {
+    const threat = this.scaled(power)
     for (let i = 0; i < camp.count; i++) {
       const angle = (i / camp.count) * Math.PI * 2
       const around = { x: camp.center.x + Math.sin(angle) * 2.2, z: camp.center.z + Math.cos(angle) * 2.2 }
       const spot = free(around)
       const spec = camp.members.length > 0 ? camp.members[i % camp.members.length]! : GRUNT
-      const giant = into ? this.makeGiant(spec, spot ?? camp.center) : this.addGiant(spec, spot ?? camp.center)
+      const giant = into ? this.makeGiant(spec, spot ?? camp.center, threat) : this.addGiant(spec, spot ?? camp.center, threat)
       into?.push(giant)
       camp.giants.push(giant)
     }

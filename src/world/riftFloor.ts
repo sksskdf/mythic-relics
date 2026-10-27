@@ -111,6 +111,7 @@ export function riftFloor(depth: number, runSeed: number): RiftFloor {
     name: `균열 ${depth}층`,
     kind: 'rift',
     zone: null,
+    finale: false,
     elite: Math.min(0.4, 0.04 * depth),
     realm: template.realm,
     theme: template.theme,
