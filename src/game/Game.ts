@@ -11,6 +11,7 @@ import { Wardrobe } from '../looks/outfit'
 import { DropTable } from '../gear/DropTable'
 import { worldToScreen } from '../render/picking'
 import { Pickups } from '../gear/Pickups'
+import { DEMO_RELIC_STAGES, RELIC_STAGES } from '../gear/mythRelic'
 import type { SaveData } from '../save/SaveData'
 import { ClassProgress } from '../myth/ClassProgress'
 import type { SkillContext } from '../skills/Skill'
@@ -239,6 +240,8 @@ export class Game {
     this.orders = new HeroOrders(this.hero, this.combat)
     this.hero.obstacles = () => this.encounter.colliders(this.orders.plowing)
     this.powers = new RelicPowers(this.fx.skills)
+    // 유물 단계는 데모 2까지, 한계를 깬 뒤(엔딩 뒤) 4까지 (E21-04)
+    this.powers.maxStage = () => (this.threat.limitBroken ? RELIC_STAGES : DEMO_RELIC_STAGES)
     this.legend = new UtgardLegend({ x: 0, z: 0 }, 11)
     this.legend.moveTo(region.sanctuary && (nav.nearestFree(region.sanctuary) ?? region.sanctuary), region.sanctuary?.radius)
     this.scene.add(this.legend.object, this.pickups.object)

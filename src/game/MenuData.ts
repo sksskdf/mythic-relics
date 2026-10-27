@@ -1,16 +1,14 @@
 import { alwaysStage } from '../build/BuildState'
 import { awakeningLevel } from '../data/awakening'
-import type { GearPart } from '../data/gearData'
 import { blessingDef, STARS } from '../data/rift'
 import { REALM_COLORS, worldLayout } from '../data/regions'
 import { CELL, cellOrigin } from '../data/world'
 import { SOURCE_IDS, type SourceId } from '../data/schema'
 import { LIMIT_REALMS, REALM_NAMES } from '../data/threat'
 import { TRIAL_IDS, TRIAL_MILESTONES, type TrialId, TRIALS } from '../data/trials'
-import { baseCandidates, nextRecipe } from '../gear/forge'
-import { materialName, mythMaterial } from '../gear/materials'
+import { nextRecipe } from '../gear/forge'
+import { materialName } from '../gear/materials'
 import { mythRelic, stageName } from '../gear/mythRelic'
-import { GEAR, gearName } from '../gear/roll'
 import { levelGains } from '../myth/levelGains'
 import { CONVENIENCES } from '../progress/Conveniences'
 import { godDef, GODS, relicDef, type RelicId } from '../relics/data'
@@ -56,17 +54,16 @@ export class MenuData {
         gods: () => {
           const { loadout } = powers
           const chosen = ctx.build.chosen
-          return Object.keys(GODS).filter((god) => god === chosen || game.progress.isOpen(god) || loadout.has(mythRelic(god)) || (loadout.materials.get(mythMaterial(god) ?? '') ?? 0) > 0).sort((a, b) => Number(b === chosen) - Number(a === chosen))
+          return Object.keys(GODS).filter((god) => god === chosen || game.progress.isOpen(god) || loadout.has(mythRelic(god))).sort((a, b) => Number(b === chosen) - Number(a === chosen))
         },
         next: (god) => {
           const { loadout } = powers
-          const recipe = nextRecipe(loadout, god)
+          const recipe = nextRecipe(loadout, god, powers.maxStage())
           if (!recipe) return null
           return {
             name: stageName(recipe.relic, recipe.stage),
             stage: recipe.stage,
             materials: recipe.materials.map(({ id, count }) => ({ name: materialName(id), have: loadout.materials.get(id) ?? 0, need: count })),
-            ...(recipe.base ? { base: this.forgeBase(recipe.base) } : {}),
           }
         },
         make: (god) => ctx.map.region.kind === 'hub' && relics.forge(god),
@@ -253,6 +250,7 @@ export class MenuData {
       owned: new Set(loadout.ownedRelics),
       manifested,
       level: manifested ? game.progress.level(manifested) : 0,
+      stage: loadout.stage(id),
       ...(preview ? { preview } : {}),
     }
   }
@@ -295,14 +293,5 @@ export class MenuData {
         return threat.max
       },
     }
-  }
-
-  /** 대장간 처음 제작의 바탕: 쓰일 장비 이름 (가방 것부터). 없으면 부위만 (E13-05) */
-  private forgeBase(part: GearPart): { part: string; ok: boolean; item?: string } {
-    const { game } = this.parts
-    const { loadout } = game.powers
-    const uid = baseCandidates(loadout, part)[0]
-    const item = uid ? loadout.gear.get(uid) : undefined
-    return { part: GEAR.parts[part].name, ok: !!item, ...(item ? { item: gearName(item) } : {}) }
   }
 }

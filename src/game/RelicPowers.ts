@@ -1,7 +1,7 @@
 import type * as THREE from 'three'
 
 import { type God, godDef, isRelicId, relicDef, type RelicId } from '../relics/data'
-import { STAGE_DAMAGE } from '../gear/mythRelic'
+import { effectScale, RELIC_STAGES } from '../gear/mythRelic'
 import { craft, salvage } from '../gear/forge'
 import { Loadout } from '../gear/Loadout'
 import type { LoadoutState } from '../myth/manifest'
@@ -35,6 +35,8 @@ export class RelicPowers {
   readonly classPassives: ClassPassives
   /** 시련 「세 칸의 짐」(E16): 효과가 도는 칸. null이면 모두 */
   allowSlots: readonly number[] | null = null
+  /** 대장간에서 올릴 수 있는 유물 단계 (데모 2, 엔딩 뒤 4. 게임이 정한다) */
+  maxStage: () => number = () => RELIC_STAGES
 
   /** 지금 도는 유물 효과 (시련으로 막힌 칸은 뺀다) */
   private get live(): (RelicEffect | null)[] {
@@ -79,6 +81,8 @@ export class RelicPowers {
   choose(god: God | null): LoadoutChange | null {
     if (this.loadout.chosen === god) return null
     this.loadout.chosen = god
+    // 고른 신화의 유물은 효과가 한 단계 위로 돈다 (E21-04)
+    this.refreshStages()
     return this.refresh()
   }
 
@@ -99,13 +103,13 @@ export class RelicPowers {
   private effectFor(id: string): RelicEffect | null {
     if (!isRelicId(id)) return null
     const effect = createEffect(relicDef(id), this.fx)
-    effect.stageScale = STAGE_DAMAGE[this.loadout.stage(id) - 1] ?? 1
+    effect.stageScale = effectScale(id, this.loadout.stage(id), this.loadout.chosen)
     return effect
   }
 
   /** 대장간에서 만든다(올린다) (E13-05). 칸이 바뀌면 효과를 다시 만들고, 단계가 오르면 피해 배율을 맞춘다 */
-  forge(god: God, baseId?: string): (NonNullable<ReturnType<typeof craft>> & { change: LoadoutChange }) | null {
-    const made = craft(this.loadout, god, baseId)
+  forge(god: God): (NonNullable<ReturnType<typeof craft>> & { change: LoadoutChange }) | null {
+    const made = craft(this.loadout, god, this.maxStage())
     if (!made) return null
     if (made.stage === 1 && made.slot >= 0) {
       this.effects[made.slot]?.dispose()
@@ -125,11 +129,11 @@ export class RelicPowers {
     return { ...done, change: this.refresh() }
   }
 
-  /** 유물 단계가 바뀌었다 (대장간): 낀 유물 효과의 피해 배율을 다시 맞춘다 */
+  /** 유물 단계나 고른 신화가 바뀌었다: 낀 유물 효과의 피해 배율을 다시 맞춘다 */
   refreshStages(): void {
     this.loadout.slots.forEach((id, slot) => {
       const effect = this.effects[slot]
-      if (effect && id && isRelicId(id)) effect.stageScale = STAGE_DAMAGE[this.loadout.stage(id) - 1] ?? 1
+      if (effect && id && isRelicId(id)) effect.stageScale = effectScale(id, this.loadout.stage(id), this.loadout.chosen)
     })
   }
 

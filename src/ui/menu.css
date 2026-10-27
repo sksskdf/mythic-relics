@@ -753,27 +753,6 @@
 .rc__bonus .rc__num {
   color: inherit;
 }
-.rc__set-list {
-  margin: 4px 0 0;
-  padding: 0;
-  list-style: none;
-}
-.rc__set-item {
-  color: var(--c-ink-4);
-  font: var(--t-small);
-}
-.rc__set-item::before {
-  content: '◇ ';
-}
-.rc__set-item.is-owned {
-  color: var(--c-ink-2);
-}
-.rc__set-item.is-on {
-  color: var(--god);
-}
-.rc__set-item.is-on::before {
-  content: '◆ ';
-}
 .rc__preview {
   display: flex;
   flex-wrap: wrap;

@@ -7,6 +7,7 @@ import type { ClassProgress } from '../myth/ClassProgress'
 import { type TrialId, trialRules } from '../data/trials'
 import type { ThreatProgress } from '../progress/Threat'
 import type { TrialProgress } from '../progress/Trials'
+import { isMythRelic, relicStats } from '../gear/mythRelic'
 import { isGearUid } from '../gear/roll'
 import { isRelicId } from '../relics/data'
 import { type BuildInputs, type BuildState, computeBuild } from './BuildState'
@@ -29,13 +30,13 @@ export class Build {
     const slots = loadout.slots.map((id, i) => (rules.slots && !rules.slots.includes(i) ? null : id))
     const relics = slots.map((id) => (id && isRelicId(id) ? id : null))
     const gearItems = slots.flatMap((id) => (isGearUid(id) && loadout.gear.has(id) ? [loadout.gear.get(id)!] : []))
-    const inherited = relics.flatMap((id) => (id && loadout.inherited.has(id) ? [loadout.inherited.get(id)!] : []))
+    // 신화의 유물은 기본 수치를 낸다 (같은 단계 영웅 장비보다 조금 못하다, E21-04). 원천은 computeBuild가 유물 단계로 따로 더한다
+    const relicItems = relics.flatMap((id) => (id && isMythRelic(id) ? [{ stats: relicStats(id, loadout.stage(id)), source: { id: 'flame' as const, value: 0 } }] : []))
     return {
       open,
       chosen: powers.manifested ? [powers.manifested] : [],
       gear: relics,
-      // 일반 장비와, 대장간 유물이 바탕 장비에서 물려받은 수치 (원천 없음)
-      gearItems: [...gearItems, ...inherited.map((s) => ({ stats: [s], source: { id: 'flame' as const, value: 0 } }))],
+      gearItems: [...gearItems, ...relicItems],
       ...this.blessed(),
       starred: this.from.rift?.lit,
       rules,

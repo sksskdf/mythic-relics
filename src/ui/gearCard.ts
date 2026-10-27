@@ -20,7 +20,7 @@ function delta(kind: string, value: number, other: number): { text: string; good
 }
 
 /**
- * 일반 장비 설명 카드 (E13-07): 등급·부위, 수치(지금 그 부위에 낀 것과 비교), 원천, 영웅 고유 효과.
+ * 일반 장비 설명 카드 (E13-07): 단계·등급·부위, 수치(지금 그 부위에 낀 것과 비교), 원천, 영웅 고유 효과.
  * worn은 같은 부위에 지금 낀 일반 장비 (없으면 비교하지 않는다)
  */
 export function gearCard(item: GearItem, worn?: GearItem | null): HTMLElement {
@@ -29,7 +29,8 @@ export function gearCard(item: GearItem, worn?: GearItem | null): HTMLElement {
   const head = el('div', 'rc__head')
   const swatch = el('div', 'rc__icon gc__swatch')
   const names = el('div', 'rc__names')
-  names.append(el('div', 'rc__name', gearName(item)), el('div', 'rc__type', `${GEAR.grades[item.grade].name} 장비 · ${GEAR.parts[item.part].name}`))
+  // 장비 단계 (E21-03): 나온 땅의 단계. 같은 등급이어도 단계가 높으면 수치가 크다
+  names.append(el('div', 'rc__name', gearName(item)), el('div', 'rc__type', `${item.tier}단계 · ${GEAR.grades[item.grade].name} 장비 · ${GEAR.parts[item.part].name}`))
   head.append(swatch, names)
   card.append(head)
 

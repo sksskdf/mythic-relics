@@ -1,5 +1,6 @@
 /**
  * 일반 장비 (E13-01·02, DESIGN.md 4.3.1): 부위·등급·수치 범위·드랍 확률·영웅 고유 효과.
+ * 장비 단계(E21-03): 땅 단계와 같고, 단계마다 수치 ×tiers.scale. 땅 자리(입구·깊은 땅·보스의 땅)마다 드랍 표가 다르다.
  * 수치 종류는 상시 효과와 같은 21종(src/data/mythAlways.ts의 STAT_KINDS)을 쓴다.
  * 이 파일은 three.js 등 다른 모듈에 기대지 않는다.
  */
@@ -14,13 +15,32 @@ export const SLOT_PARTS: readonly GearPart[] = ['weapon', 'head', 'body', 'hands
 export const GRADES = ['common', 'good', 'rare', 'hero'] as const
 export type Grade = (typeof GRADES)[number]
 
+/** 땅 자리 (regions.ts의 REGION_ZONES와 같다) */
+export const LAND_ZONES = ['entrance', 'deep', 'boss'] as const
+export type LandZone = (typeof LAND_ZONES)[number]
+
 export interface GearData {
   parts: Record<GearPart, { name: string; bases: string[]; stats: StatKind[] }>
   grades: Record<Grade, { name: string; stats: number; scale: number; source: [number, number]; chance: number }>
   /** 보통 등급의 수치 범위 [작은 쪽, 큰 쪽] (줄어드는 수치는 음수) */
   ranges: Record<StatKind, [number, number]>
   drop: { grunt: number; elite: number; boss: number; bossMinGrade: Grade }
+  /** 장비 단계: 단계마다 수치 배율, 신화권 → 땅 단계 (장 순서) */
+  tiers: { scale: number; realms: Record<string, number> }
+  /** 땅 자리마다 드랍 표: 장비가 나올 확률 배율과 등급 확률 */
+  lands: Record<LandZone, { rate: number; chances: Record<Grade, number> }>
   uniques: Record<string, { name: string; text: string }>
+}
+
+/** 등급 확률 표를 읽는다 (합이 1) */
+function chanceTable(raw: unknown, path: string): Record<Grade, number> {
+  const o = obj(raw, path)
+  onlyKeys(o, path, GRADES)
+  const out = {} as Record<Grade, number>
+  for (const g of GRADES) out[g] = num(o, g, path, { min: 0, max: 1 })
+  const total = GRADES.reduce((a, g) => a + out[g], 0)
+  if (Math.abs(total - 1) > 1e-6) throw new DataError(path, `등급 확률의 합이 1이어야 합니다 (${total})`)
+  return out
 }
 
 function pair(o: Obj, key: string, path: string): [number, number] {
@@ -34,7 +54,7 @@ function pair(o: Obj, key: string, path: string): [number, number] {
 
 export function parseGear(raw: unknown, path = 'gear.json'): GearData {
   const o = obj(raw, path)
-  onlyKeys(o, path, ['slots', 'grades', 'ranges', 'drop', 'uniques'])
+  onlyKeys(o, path, ['slots', 'grades', 'tiers', 'lands', 'ranges', 'drop', 'uniques'])
 
   const sp = `${path}.slots`
   const slots = obj(o.slots, sp)
@@ -87,11 +107,33 @@ export function parseGear(raw: unknown, path = 'gear.json'): GearData {
   if (!GRADES.includes(bossMinGrade)) throw new DataError(`${dp}.bossMinGrade`, `없는 등급입니다 ("${bossMinGrade}")`)
   const drop = { grunt: num(d, 'grunt', dp, { min: 0, max: 1 }), elite: num(d, 'elite', dp, { min: 0, max: 1 }), boss: num(d, 'boss', dp, { min: 0, max: 1 }), bossMinGrade }
 
+  const tp = `${path}.tiers`
+  const t = obj(o.tiers, tp)
+  onlyKeys(t, tp, ['scale', 'realms'])
+  const realmsRaw = obj(t.realms, `${tp}.realms`)
+  const realms: Record<string, number> = {}
+  for (const realm of Object.keys(realmsRaw)) {
+    realms[realm] = num(realmsRaw, realm, `${tp}.realms`, { min: 1, max: 9 })
+    if (!Number.isInteger(realms[realm])) throw new DataError(`${tp}.realms.${realm}`, '단계는 정수여야 합니다')
+  }
+  const tiers = { scale: num(t, 'scale', tp, { min: 1 }), realms }
+
+  const lp = `${path}.lands`
+  const landsRaw = obj(o.lands, lp)
+  onlyKeys(landsRaw, lp, LAND_ZONES)
+  const lands = {} as GearData['lands']
+  for (const zone of LAND_ZONES) {
+    const p = `${lp}.${zone}`
+    const l = obj(landsRaw[zone], p)
+    onlyKeys(l, p, ['rate', 'chances'])
+    lands[zone] = { rate: num(l, 'rate', p, { min: 0 }), chances: chanceTable(l.chances, `${p}.chances`) }
+  }
+
   const uniques: GearData['uniques'] = {}
   for (const [id, u] of table(o.uniques, `${path}.uniques`)) {
     onlyKeys(u, `${path}.uniques.${id}`, ['name', 'text'])
     uniques[id] = { name: str(u, 'name', `${path}.uniques.${id}`), text: str(u, 'text', `${path}.uniques.${id}`) }
   }
   if (Object.keys(uniques).length === 0) throw new DataError(`${path}.uniques`, '영웅 고유 효과가 하나도 없습니다')
-  return { parts, grades, ranges, drop, uniques }
+  return { parts, grades, tiers, lands, ranges, drop, uniques }
 }

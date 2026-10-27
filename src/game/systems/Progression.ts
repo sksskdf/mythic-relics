@@ -1,9 +1,8 @@
 import { THREAT, threatGrades } from '../../data/threat'
-import { GRADES } from '../../data/gearData'
 import type { Giant } from '../../enemies/Giant'
 import { ELITE_REWARD } from '../../enemies/elite'
 import { MATERIALS, materialName, rollMaterials } from '../../gear/materials'
-import { GEAR, rollGear } from '../../gear/roll'
+import { GEAR, landChances, landTier, rollGear } from '../../gear/roll'
 import { masteryShares, PER_PROMOTION } from '../../myth/ClassProgress'
 import { collectionText } from '../../myth/alwaysText'
 import { levelGains } from '../../myth/levelGains'
@@ -107,8 +106,9 @@ export class ProgressionSystem {
       ...[...powers.loadout.materials.keys()].filter((id) => isRelicId(id)),
       ...pickups.list.map((p) => p.id).filter((id) => isRelicId(id)),
     ])
-    // 정예는 유물을 한 번 더 굴린다. 상시 효과(도깨비)는 그 확률만큼 한 번 더
-    const rolls = (giant.elite ? ELITE_REWARD.dropRolls : 1) + (Math.random() < this.ctx.build.state.stats.dropChance ? 1 : 0)
+    // 유물은 엔딩 뒤(한계를 깸)에만 떨어진다 (E21-04: 데모의 유물은 장 보스 재료로 벼린다)
+    // 정예는 유물을 한 번 더 굴린다. 수치(도깨비)는 그 확률만큼 한 번 더
+    const rolls = !this.ctx.threat.limitBroken ? 0 : (giant.elite ? ELITE_REWARD.dropRolls : 1) + (Math.random() < this.ctx.build.state.stats.dropChance ? 1 : 0)
     for (let i = 0; i < rolls; i++) {
       const relic = drops.roll(owned, giant.spec.boss)
       if (!relic) continue
@@ -117,17 +117,22 @@ export class ProgressionSystem {
     }
     // 재료 (E13-04): 잡는 순간 주머니로. 신화 고유·보스 재료만 알린다
     const level = this.ctx.threat.level
-    for (const { id, count } of rollMaterials(Math.random, { realm: giant.spec.realm, elite: !!giant.elite, boss: giant.spec.boss }, this.ctx.build.chosen)) {
+    for (const { id, count } of rollMaterials(Math.random, { realm: giant.spec.realm, elite: !!giant.elite, boss: giant.spec.boss })) {
       // 위협 단계가 높을수록 하나 더 (E14-03)
       powers.loadout.addMaterial(id, count + (Math.random() < THREAT.material * (level - 1) ? 1 : 0))
-      if (MATERIALS[id]?.kind !== 'realm') this.ctx.hud.showToast(`${materialName(id)} · 재료`)
+      // 보스 재료만 알린다: 유물을 벼리는 열쇠
+      if (MATERIALS[id]?.kind === 'boss') this.ctx.hud.showToast(`${materialName(id)} · 대장간에서 유물을 벼린다`)
     }
-    // 일반 장비 (E13-02): 졸개 6%, 정예 25%, 지역 보스는 반드시 (희귀 이상)
+    // 일반 장비 (E13-02): 졸개 6%, 정예 25%, 지역 보스는 반드시 (희귀 이상).
+    // 땅 자리마다 드랍 표가 다르고, 단계는 그 땅의 단계 (E21-03)
     const boss = giant.spec.boss !== undefined
-    const chance = (boss ? GEAR.drop.boss : giant.elite ? GEAR.drop.elite : GEAR.drop.grunt) * THREAT.gearDrop ** (level - 1)
+    const { region } = this.ctx.map
+    const land = region.zone ? GEAR.lands[region.zone] : null
+    const chance = (boss ? GEAR.drop.boss : giant.elite ? GEAR.drop.elite : GEAR.drop.grunt) * (land?.rate ?? 1) * THREAT.gearDrop ** (level - 1)
     if (Math.random() < chance) {
-      const chances = threatGrades(gradeChances(), level)
-      const item = rollGear(Math.random, boss ? { minGrade: GEAR.drop.bossMinGrade, chances } : { chances })
+      const chances = threatGrades(landChances(region.zone), level)
+      const tier = landTier(region.realm ?? giant.spec.realm)
+      const item = rollGear(Math.random, boss ? { minGrade: GEAR.drop.bossMinGrade, chances, tier } : { chances, tier })
       pickups.drop(item.uid, giant.x + 0.7, giant.z + 0.4, true, item)
     }
   }
@@ -199,9 +204,4 @@ export class ProgressionSystem {
     this.ctx.combat.health.reset()
     this.ctx.bus.emit('progressChanged', {})
   }
-}
-
-/** 데이터의 등급 확률 */
-function gradeChances(): Record<(typeof GRADES)[number], number> {
-  return Object.fromEntries(GRADES.map((g) => [g, GEAR.grades[g].chance])) as Record<(typeof GRADES)[number], number>
 }

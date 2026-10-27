@@ -95,7 +95,7 @@ try {
         const g = window.__game
         const parts = ['head', 'body', 'hands', 'feet', 'trinket', 'trinket']
         parts.forEach((part, i) => {
-          const item = { uid: `g:stack00${i}`, part, base: '시험', grade: 'hero', stats: [], source: { id: source, value: 3 } }
+          const item = { uid: `g:stack00${i}`, part, base: '시험', grade: 'hero', tier: 1, stats: [], source: { id: source, value: 3 } }
           g.powers.loadout.addGear(item)
           g.powers.loadout.equip(item.uid)
         })

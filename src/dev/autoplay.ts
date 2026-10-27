@@ -107,7 +107,7 @@ export class Autoplayer {
     if (manifested && godDef(manifested).legend && progress.readyToPromote(manifested)) return fieldOf(manifested) ?? region.id
     // 벼릴 재료가 차면 마을 대장간으로 (E13-08)
     const hub = Object.values(regions).find((r) => r.kind === 'hub')?.id ?? region.id
-    if (this.forgeGods().some((god) => forgeReady(powers.loadout, god))) return hub
+    if (this.forgeGods().some((god) => forgeReady(powers.loadout, god, powers.maxStage()))) return hub
     // 위협 단계가 새로 열렸으면 마을 촌장에게 (E14-07)
     const threat = this.game.threat
     // 시련 (E16): 아직 못 깬 시련이 있으면 고른 신화의 입구 들판 성소로
@@ -204,7 +204,7 @@ export class Autoplayer {
     // 마을에 있으면 벼릴 수 있는 것을 모두 벼린다 (고른 신화부터)
     // 벼리기에 실패한 신화는 재료가 바뀔 때까지 건너뛴다 (마을에 갇히지 않게)
     if (this.game.region.kind === 'hub') {
-      for (const god of this.forgeGods()) if (forgeReady(powers.loadout, god) && !this.game.dev.forge(god)) this.forgeBlocked.add(god)
+      for (const god of this.forgeGods()) if (forgeReady(powers.loadout, god, powers.maxStage()) && !this.game.dev.forge(god)) this.forgeBlocked.add(god)
     }
     // 칸이 차 있어도 줍는다 (가방에 들어가고, 모이면 바꿔 낀다)
     if (!legend.active) {

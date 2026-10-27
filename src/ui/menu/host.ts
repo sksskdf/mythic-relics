@@ -108,10 +108,10 @@ export interface MenuHost {
   readonly forge: {
     /** 지금 벼릴 수 있는 곳인가 (마을) */
     here(): boolean
-    /** 대장간에 보일 신화들 (고른 신화, 열린 신화, 재료나 유물이 있는 신화) */
+    /** 대장간에 보일 신화들 (고른 신화, 열린 신화, 유물이 있는 신화) */
     gods(): God[]
-    /** 그 신화의 다음 제작: 만들 것의 이름, 재료(가진 수/필요한 수), 바탕 장비 부위와 있는지. 다 올렸으면 null */
-    next(god: God): { name: string; stage: number; materials: { name: string; have: number; need: number }[]; base?: { part: string; ok: boolean; item?: string } } | null
+    /** 그 신화의 다음 제작: 만들 것의 이름, 재료(가진 수/필요한 수). 다 올렸으면(데모는 2단계) null */
+    next(god: God): { name: string; stage: number; materials: { name: string; have: number; need: number }[] } | null
     make(god: God): boolean
   }
   readonly loadout: LoadoutState
