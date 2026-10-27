@@ -56,8 +56,9 @@ try {
       for (const part of ['head', 'body', 'hands', 'feet', 'trinket']) g.dev.dropGear(part, part === 'trinket' ? 'hero' : 'rare', g.hero.object.position.x, g.hero.object.position.z)
       g.advance(1.5, 1 / 30)
       g.dev.fillForge('thor')
+      // 위협 단계·시련·균열은 엔딩 뒤 장치라 엔딩 뒤로 넘겨 모든 탭을 찍는다 (E21-06)
+      g.reachEnding()
       Object.assign(g.threat, { unlocked: 3, reached: 3, level: 3 })
-      g.threat.battle = 340
       for (const id of ['noMyth', 'glass', 'crowd']) g.trials.win(id, 2, 95)
       for (const realm of ['norse', 'greek', 'china', 'japan', 'korea']) g.threat.cleared[realm] = 10
       Object.assign(g.threat, { unlocked: 10, reached: 10 })

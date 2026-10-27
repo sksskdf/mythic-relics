@@ -84,6 +84,7 @@ export class MenuData {
       },
       cardContext: (id, preview) => this.cardContext(id, preview),
       stats: () => this.heroStats(),
+      afterEnding: () => game.ending.reached,
       toTitle: () => game.toTitle(),
       openSettings: () => {
         game.menu.toggle(false)
@@ -94,7 +95,6 @@ export class MenuData {
         threat: this.threatView(),
         here: () => game.threatSystem.here,
         choose: (level) => game.threatSystem.choose(level),
-        advance: (source) => game.threatSystem.advance(source),
         conveniences: () => CONVENIENCES.map((c) => ({ id: c.id, name: c.name, text: c.text, open: conveniences.has(c.id), have: conveniences.counters[c.counter] ?? 0, need: c.need })),
         get autoSalvage() {
           return conveniences.autoSalvage
@@ -255,15 +255,10 @@ export class MenuData {
     }
   }
 
-  /** 원천마다: 장비의 합, 원천 숙련, 합계, 각성 단계 (HUD·정보 화면) */
-  sourceRows(): { id: SourceId; gear: number; mastery: number; total: number; level: number }[] {
-    const { game, ctx } = this.parts
-    const state = ctx.build.state
-    return SOURCE_IDS.map((id) => {
-      const mastery = game.threat.mastery[id]
-      const total = state.sources[id]
-      return { id, gear: total - mastery, mastery, total, level: awakeningLevel(total) }
-    })
+  /** 원천마다: 장비의 합과 각성 단계 (HUD·정보 화면) */
+  sourceRows(): { id: SourceId; total: number; level: number }[] {
+    const state = this.parts.ctx.build.state
+    return SOURCE_IDS.map((id) => ({ id, total: state.sources[id], level: awakeningLevel(state.sources[id]) }))
   }
 
   /** 정보 화면에 보일 위협 단계 (읽을 때마다 지금 값) */
@@ -279,15 +274,6 @@ export class MenuData {
       },
       get reached() {
         return threat.reached
-      },
-      get battle() {
-        return threat.battle
-      },
-      get pour() {
-        return threat.pour
-      },
-      get resonance() {
-        return threat.resonance
       },
       get max() {
         return threat.max

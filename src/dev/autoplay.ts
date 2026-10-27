@@ -2,7 +2,6 @@ import type { Giant, GiantDanger } from '../enemies/Giant'
 import type { Game } from '../game/Game'
 import { clampToCircle } from '../game/HeroController'
 import { angleDiff, angleTo, inLine } from '../combat/arc'
-import type { SourceId } from '../data/schema'
 import { nextHop } from '../data/regions'
 import { regionLinks } from '../data/world'
 import { TRIAL_IDS, type TrialId } from '../data/trials'
@@ -30,8 +29,6 @@ export class Autoplayer {
   private patrol = 0
   /** 위협 단계를 올리는가: 열리면 마을에 가서 원천 갈래를 고르고 오른다 (scripts/playtest.mjs --threat) */
   climb = false
-  /** 원천 갈래로 고를 원천 (없으면 장비에 가장 많은 원천) */
-  source: SourceId | null = null
   /** 시련을 하는가: 위협 3단계가 되면 아직 못 깬 시련 1단계를 차례로 (scripts/playtest.mjs --trials) */
   trials = false
   /** 균열을 내려가는가: 마을에서 들어가 층마다 첫 축복을 고르고 다음 층 문으로 (scripts/playtest.mjs --rift) */
@@ -74,13 +71,11 @@ export class Autoplayer {
     return TRIAL_IDS.find((id) => !(this.game.trials.cleared[id] ?? 0)) ?? null
   }
 
-  /** 위협 단계: 마을에 있고 다음 단계가 열렸으면, 정한 원천(없으면 장비에 가장 많은 원천)에 붓고 오른다 */
+  /** 위협 단계: 마을에 있고 다음 단계가 열렸으면 오른다 (엔딩 뒤) */
   private climbUp(): void {
     const { threat, threatSystem, region } = this.game
     if (region.kind !== 'hub' || threat.unlocked <= threat.reached) return
-    const rows = this.game.sourceRows()
-    const pick = this.source ?? rows.reduce((a, b) => (b.total > a.total ? b : a)).id
-    if (threatSystem.advance(pick)) this.climbs.push(this.game.time)
+    if (threatSystem.choose(threat.unlocked)) this.climbs.push(this.game.time)
   }
 
   /** 벼리기에 실패한 신화 (재료가 늘면 다시 해 본다) */

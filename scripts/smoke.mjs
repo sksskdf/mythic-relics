@@ -276,19 +276,22 @@ try {
   if (!myth.includes('수집 보너스') || !myth.includes('추가 효과') || !myth.includes('고른 신화')) throw new Error(`정보 화면: 신화 카드가 모자랍니다 (${myth.slice(0, 60)})`)
   await page.keyboard.press('Escape')
   if (await page.evaluate(() => window.__game.paused)) throw new Error('정보 화면: 닫았는데 게임이 멈춰 있습니다.')
-  // 원천 탭 (E14): 각성 카드 넷, 다음 위협 단계가 열리면 마을에서 원천 갈래를 골라 오른다
-  await page.evaluate(() => {
-    window.__game.threat.unlocked = 2
-    window.__game.threat.gainBattle(250)
-  })
+  // 원천 탭 (E14, E21-06): 엔딩 전에는 각성 카드 넷만, 시련·균열 탭은 숨김. 엔딩 뒤에는 위협 단계를 골라 오른다
+  await page.evaluate(() => (window.__game.threat.unlocked = 2))
   await page.click('.menu-button')
   await page.locator('.menu__tab').nth(1).click()
   if ((await page.locator('.menu-src__source').count()) !== 4) throw new Error('원천 탭: 각성 카드가 넷이 아닙니다.')
-  await page.locator('.menu-src__card').first().click()
-  const climbed = await page.evaluate(() => ({ level: window.__game.threat.level, flame: window.__game.threat.mastery.flame }))
-  if (climbed.level !== 2 || climbed.flame !== 2) throw new Error(`원천 탭: 2단계로 오르며 불꽃 숙련 +2가 아닙니다 (${JSON.stringify(climbed)})`)
+  const demo = await page.evaluate(() => ({ levels: document.querySelectorAll('.menu-src__level').length, tabs: [...document.querySelectorAll('.menu__tab')].filter((b) => !b.hidden).length }))
+  if (demo.levels !== 0 || demo.tabs !== 6) throw new Error(`엔딩 전: 위협 단계나 시련·균열 탭이 보입니다 (${JSON.stringify(demo)})`)
+  await page.evaluate(() => {
+    window.__game.reachEnding()
+    window.__game.menu.refresh()
+  })
+  await page.locator('.menu-src__level', { hasText: '2' }).first().click()
+  const climbed = await page.evaluate(() => ({ level: window.__game.threat.level, reached: window.__game.threat.reached, tabs: [...document.querySelectorAll('.menu__tab')].filter((b) => !b.hidden).length }))
+  if (climbed.level !== 2 || climbed.reached !== 2 || climbed.tabs !== 8) throw new Error(`엔딩 뒤: 위협 2단계로 오르지 못했거나 탭이 여덟이 아닙니다 (${JSON.stringify(climbed)})`)
   await page.keyboard.press('Escape')
-  console.log('원천 확인: 각성 카드 넷, 경험 250을 불꽃에 부어 위협 2단계')
+  console.log('원천 확인: 엔딩 전에는 각성 카드 넷과 탭 여섯, 엔딩 뒤에는 탭 여덟과 위협 2단계 고르기')
   console.log('정보 화면 확인: 상태 탭 능력치 8줄, 열면 멈춤, 가방에 넣기·다시 끼기와 미리 보기, 신화 탭, Esc로 닫기')
 
   // 일시 정지(E5): 창이 없을 때 Esc를 누르면 멈추고, 멈춘 동안 게임 시간이 흐르지 않는다.
@@ -444,6 +447,7 @@ try {
   // 시련 (E16): 위협 3단계가 되면 필드 성소 결계 안에서 시련 탭의 난이도를 눌러 바로 연다. 제약은 시련 중에만 걸린다
   await page.evaluate(() => {
     const g = window.__game
+    g.reachEnding()
     Object.assign(g.threat, { unlocked: 3, reached: 3 })
     // 진행 중인 전설이 있으면 그만두고(지역을 다시 지을 수 있게), 둘레 적이 밀어내거나 쓰러뜨리지 않게 치우고 성소 가운데 곁에 선다
     if (g.legend.active) g.legend.abort(g.encounter, g.growth.legendHost())
@@ -472,6 +476,7 @@ try {
   await page.evaluate(() => {
     const g = window.__game
     if (g.legend.active) g.legend.abort(g.encounter, g.growth.legendHost())
+    g.reachEnding()
     for (const realm of ['norse', 'greek', 'china', 'japan', 'korea']) g.threat.cleared[realm] = 10
     Object.assign(g.threat, { unlocked: 10, reached: 10 })
     // 새로 고친 뒤라 대화 장면이 다시 켜져 있다 (한계를 깸 장면이 메뉴를 가리지 않게)

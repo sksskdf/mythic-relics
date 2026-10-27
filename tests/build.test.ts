@@ -82,17 +82,16 @@ describe('빌드 상태 (E11-04)', () => {
     expect(thor.damageScale).toBeCloseTo(PER_PROMOTION.damage ** 2 * (1 + PER_OPENED.damage) * godDef('thor').passive.damageScale)
   })
 
-  it('원천 수치는 장비 합 + 원천 숙련, 각성은 5/10/20, 공명은 숙련의 최솟값 (E14)', () => {
+  it('원천 수치는 장비의 합, 각성은 5/10/20 (E14, 원천 숙련·공명은 E21-05에서 없앰)', () => {
     const gearItems = [
       { stats: [], source: { id: 'stone' as const, value: 3 } },
       { stats: [], source: { id: 'stone' as const, value: 3 } },
     ]
-    const mastery = { flame: 1, hunt: 2, wind: 3, stone: 4 }
-    const state = computeBuild({ open: new Map(), chosen: [], gear: ['mjolnir'], gearItems, stage: () => 4, promotions: 0, sourceMastery: (s) => mastery[s] })
+    const state = computeBuild({ open: new Map(), chosen: [], gear: ['mjolnir'], gearItems, stage: () => 4, promotions: 0 })
     // 묠니르 4단계: 불꽃 +5
-    expect(state.sources).toEqual({ flame: 6, hunt: 2, wind: 3, stone: 10 })
-    expect(state.awakening).toEqual({ flame: 1, hunt: 0, wind: 0, stone: 2 })
-    expect(state.resonance).toBe(1)
+    expect(state.sources).toEqual({ flame: 5, hunt: 0, wind: 0, stone: 6 })
+    expect(state.awakening).toEqual({ flame: 1, hunt: 0, wind: 0, stone: 1 })
+    expect('resonance' in state).toBe(false)
   })
 })
 

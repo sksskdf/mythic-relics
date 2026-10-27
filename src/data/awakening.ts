@@ -17,8 +17,6 @@ export function awakeningLevel(total: number): number {
   return level
 }
 
-/** 공명 1마다 모든 각성 효과의 세기 +5% (E14-04, 네 원천 숙련의 최솟값) */
-export const RESONANCE_PER = 0.05
 
 export const AWAKENING = {
   /** 불꽃 (때릴수록): 연타 끝에 폭발 → 커짐 → 번진다 */

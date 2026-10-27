@@ -2,6 +2,7 @@
  * 편의 자동화 (E14-05, DESIGN.md 9.4).
  * 같은 일을 여러 번 하면 손이 덜 가게 하나씩 열린다. 싸움 자체는 자동으로 만들지 않는다.
  * 자동 줍기 → 낮은 등급 장비 자동 분해 → 재료 자동 모음 → 고른 신화 빠르게 바꾸기 → 성소 워프
+ * E21-06: 자동 줍기는 처음부터 켜 있고, 나머지는 엔딩 뒤에만 열린다 (그 전에도 세기는 쌓인다).
  */
 export type ConvenienceId = 'autoPickup' | 'autoSalvage' | 'autoMaterials' | 'quickChoose' | 'warp'
 export type CounterId = 'pickups' | 'salvaged' | 'forged' | 'opened' | 'threat'
@@ -26,28 +27,42 @@ export interface ConvenienceData {
   visited: string[]
 }
 
+/** 처음부터 켜 있는 편의 (E21-06) */
+export const ALWAYS_ON: readonly ConvenienceId[] = ['autoPickup']
+
 export class Conveniences {
   readonly counters: Partial<Record<CounterId, number>> = {}
   readonly open = new Set<ConvenienceId>()
   autoSalvage = true
   readonly visited = new Set<string>()
 
+  /** afterEnding: 엔딩을 보았나 (그 전에는 자동 줍기만) */
+  constructor(private readonly afterEnding: () => boolean = () => true) {}
+
   has(id: ConvenienceId): boolean {
-    return this.open.has(id)
+    return ALWAYS_ON.includes(id) || (this.afterEnding() && this.open.has(id))
   }
 
-  /** 세기를 더하거나(add) 맞춘다(set). 새로 열린 것을 돌려준다 */
+  /** 세기를 더하거나(add) 맞춘다(set). 새로 열린 것을 돌려준다 (엔딩 전에는 세기만 하고 열지 않는다) */
   count(counter: CounterId, value: number, mode: 'add' | 'set' = 'add'): (typeof CONVENIENCES)[number][] {
     const now = mode === 'add' ? (this.counters[counter] ?? 0) + value : Math.max(this.counters[counter] ?? 0, value)
     this.counters[counter] = now
-    const opened = CONVENIENCES.filter((c) => c.counter === counter && !this.open.has(c.id) && now >= c.need)
+    if (!this.afterEnding()) return []
+    const opened = CONVENIENCES.filter((c) => c.counter === counter && !ALWAYS_ON.includes(c.id) && !this.open.has(c.id) && now >= c.need)
     for (const c of opened) this.open.add(c.id)
     return opened
   }
 
   /** 자동 분해가 돌고 있는가 */
   get salvaging(): boolean {
-    return this.open.has('autoSalvage') && this.autoSalvage
+    return this.has('autoSalvage') && this.autoSalvage
+  }
+
+  /** 엔딩을 보았을 때: 그동안 센 것으로 열 수 있는 것을 모두 연다 */
+  catchUp(): (typeof CONVENIENCES)[number][] {
+    const opened = CONVENIENCES.filter((c) => !ALWAYS_ON.includes(c.id) && !this.open.has(c.id) && (this.counters[c.counter] ?? 0) >= c.need)
+    for (const c of opened) this.open.add(c.id)
+    return opened
   }
 
   toData(): ConvenienceData {

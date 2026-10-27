@@ -21,7 +21,7 @@ export class Build {
 
   /** 지금의 재료 */
   inputs(): BuildInputs {
-    const { powers, progress, threat } = this.from
+    const { powers, progress } = this.from
     const open = new Map<string, number>()
     for (const [god, record] of progress.records) if (record.level >= 1) open.set(god, record.level)
     const rules = trialRules(this.from.trial?.() ?? null)
@@ -41,7 +41,6 @@ export class Build {
       starred: this.from.rift?.lit,
       rules,
       stage: (id) => powers.loadout.stage(id),
-      sourceMastery: (s) => threat.mastery[s],
       promotions: progress.promotions,
     }
   }

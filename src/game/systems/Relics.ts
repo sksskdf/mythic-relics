@@ -204,7 +204,6 @@ export class RelicSystem {
     skills.area = 1 + stats.areaSize
     const awakening = this.ctx.powers.awakening
     awakening.levels = build.awakening
-    awakening.resonance = build.resonance
     awakening.maxHp = build.maxHp
   }
 

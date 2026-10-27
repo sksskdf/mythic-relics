@@ -54,7 +54,6 @@ export class Persistence {
       gear: [...powers.loadout.gear.values(), ...pickups.list.flatMap((p) => (p.gear ? [p.gear] : []))],
       stages: Object.fromEntries([...powers.loadout.stages].filter(([, n]) => n >= 2)),
       materials: Object.fromEntries(powers.loadout.materials),
-      inherited: Object.fromEntries(powers.loadout.inherited),
       ground: pickups.list.map((p) => ({ id: p.id, x: p.x, z: p.z })),
       classes,
       chosen: [...progress.chosen],
@@ -66,6 +65,7 @@ export class Persistence {
       conveniences: this.ctx.conveniences.toData(),
       trials: this.ctx.trials.toData(),
       rift: this.ctx.rift.toData(),
+      ending: this.ctx.ending.reached,
       region: { id: this.ctx.map.region.id, x: this.ctx.hero.object.position.x, z: this.ctx.hero.object.position.z },
       scenes: [...this.ctx.scenesSeen],
     }
@@ -76,6 +76,7 @@ export class Persistence {
     const { progress, combat, powers, pickups, drops, wardrobe } = this.ctx
     wardrobe.unlock(data.looks.unlocked)
     wardrobe.body = { ...data.body }
+    this.ctx.ending.reached = data.ending
     this.ctx.threat.load(data.threat)
     this.ctx.conveniences.load(data.conveniences)
     this.ctx.trials.load(data.trials)
@@ -94,7 +95,6 @@ export class Persistence {
     for (const id of [...data.slots, ...data.bag]) if (id && gear.has(id)) powers.loadout.addGear(gear.get(id)!)
     for (const [id, n] of Object.entries(data.stages)) if (n) powers.loadout.stages.set(id, n)
     for (const [id, n] of Object.entries(data.materials)) powers.loadout.addMaterial(id, n)
-    for (const [id, s] of Object.entries(data.inherited)) if (s) powers.loadout.inherited.set(id, s)
     data.slots.forEach((id) => id && host.equip(id))
     powers.loadout.bag.push(...data.bag)
     for (const item of data.ground) pickups.drop(item.id, item.x, item.z, true, gear.get(item.id))

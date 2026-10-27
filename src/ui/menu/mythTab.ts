@@ -197,11 +197,11 @@ export class MythTab {
     const focus = this.selected ?? current
     if (focus) wrap.append(this.mythCard(focus))
 
-    // 원천 넷: 이름, 차오르는 때, 원천 숙련(위협 단계를 올릴 때 부은 것)은 보석 점으로
+    // 원천 넷: 이름, 차오르는 때, 지금 각성 단계는 보석 점으로
     const sigils = el('div', 'menu-classes__sources')
     const rows = this.ctx.host.sources.rows()
     for (const x of tree.sources) {
-      const value = rows.find((r) => r.id === x.id)?.mastery ?? 0
+      const value = rows.find((r) => r.id === x.id)?.level ?? 0
       const known = tree.mythologies.some((m) => m.classes.some((c) => c.source === x.id && levelOf(c.god) > 0))
       const cell = el('span', `menu-classes__source${known ? ' is-known' : ''}`)
       cell.style.setProperty('--god', SOURCE_COLORS[x.id]![0])
@@ -209,8 +209,8 @@ export class MythTab {
       const words = el('span', 'menu-classes__source-words')
       words.append(el('b', '', x.name), el('small', '', x.gain))
       cell.append(words)
-      if (value > 0) cell.append(pips(Math.min(value, 4), 4))
-      this.ctx.hintOn(cell, `${x.name}\n${x.gain} 차오르는 힘. 위협 단계를 올릴 때 전투 경험을 부어 숙련을 쌓으면 각성에 닿기 쉬워진다.${value > 0 ? `\n원천 숙련 ${value}` : ''}`)
+      if (value > 0) cell.append(pips(value, 3))
+      this.ctx.hintOn(cell, `${x.name}\n${x.gain} 차오르는 힘. 장비에 붙은 ${x.name} 수치가 5·10·20을 넘으면 깨어난다.${value > 0 ? `\n각성 ${value}단계` : ''}`)
       sigils.append(cell)
     }
     wrap.append(sigils)

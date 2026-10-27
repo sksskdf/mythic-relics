@@ -1,5 +1,6 @@
 import { GRADE_COLORS } from '../../art/palette'
 import { SLOT_PARTS } from '../../data/gearData'
+import type { SourceId } from '../../data/schema'
 import { materialName } from '../../gear/materials'
 import { GEAR, gearName } from '../../gear/roll'
 import { godDef, relicDef, type RelicId } from '../../relics/data'
@@ -133,7 +134,8 @@ export class RelicsTab {
     if (gear) {
       // 같은 부위에 지금 낀 일반 장비와 비교한다
       const wornId = host.slotsFor(id).map((i) => host.slots[i]).find((x) => x && x !== id && host.gearOf(x))
-      detail.append(gearCard(gear, wornId ? host.gearOf(wornId) : null))
+      const totals = Object.fromEntries(host.sources.rows().map((r) => [r.id, r.total])) as Record<SourceId, number>
+      detail.append(gearCard(gear, wornId ? host.gearOf(wornId) : null, totals))
       const b = el('button', 'menu-relics__salvage')
       b.type = 'button'
       b.append(img(glyph('salvage')), '분해')

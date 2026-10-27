@@ -14,7 +14,7 @@ import { type Modifiers, NO_MODIFIERS } from '../skills/Skill'
  * - 고른 신화(지금은 발현한 신)는 추가 효과: 패시브·궁극기·공격 리듬
  * - 열린 신화는 모두 수집 보너스(E21-02): 하나마다 모든 피해 +4%, 최대 생명 +5
  * - 승급(신화 단계)은 큰 걸음(E21-01): 한 번마다 모든 피해 ×1.35, 최대 생명 +25%
- * - 장비 = 유물과 일반 장비, 원천 = 장비의 원천 수치 (E14에서 각성)
+ * - 장비 = 유물과 일반 장비, 원천 = 장비의 원천 수치 (E14에서 각성, 원천 숙련은 E21-05에서 없앰)
  * - 성좌판에서 별을 밝힌 신화는 그 신화의 수치를 낸다 (엔딩 뒤, E17)
  */
 
@@ -30,8 +30,6 @@ export interface BuildInputs {
   gearItems?: readonly { stats: readonly { kind: StatKind; value: number }[]; source: { id: SourceId; value: number } }[]
   /** 유물 단계 (E13-03, 없으면 1) */
   stage?: (id: RelicId) => number
-  /** 영구 원천 숙련 (E14-04): 장비의 원천 수치에 더해진다 */
-  sourceMastery?: (source: SourceId) => number
   /** 올린 개방 단계의 합 */
   promotions: number
   /** 시련 보상 (E16): 수치 종류마다 더한다 */
@@ -91,12 +89,10 @@ export interface BuildState {
   /** 시련 제약: 생명이 차오르지 않는다, 궁극기를 쓸 수 없다 (E16) */
   noHeal: boolean
   noUltimate: boolean
-  /** 원천 수치: 일반 장비와 유물(단계마다 +2~+5)의 합 + 원천 숙련 (E14) */
+  /** 원천 수치: 일반 장비와 유물(단계마다 +2~+5)의 합 (E14, E21-05에서 원천 숙련을 없앰) */
   sources: Readonly<Record<SourceId, number>>
   /** 원천 각성 단계 0~3 (문턱 5/10/20, E14-02) */
   awakening: Readonly<Record<SourceId, number>>
-  /** 공명: 네 원천 숙련의 최솟값 (E14-04). 모든 각성 효과가 그만큼 세진다 */
-  resonance: number
 }
 
 /** 장비한 유물들의 지속 효과 수치를 곱한다 */
@@ -135,10 +131,8 @@ export function computeBuild(inputs: BuildInputs): BuildState {
     const source = relicSource(id, inputs.stage?.(id) ?? 1)
     sources[source.id] += source.value
   }
-  for (const s of SOURCE_IDS) sources[s] += inputs.sourceMastery?.(s) ?? 0
   for (const [kind, value] of Object.entries(inputs.bonus ?? {}) as [StatKind, number][]) stats[kind] += value
   const awakening = Object.fromEntries(SOURCE_IDS.map((s) => [s, Math.min(3, awakeningLevel(sources[s]) + (inputs.awakenBonus?.[s] ?? 0))])) as Record<SourceId, number>
-  const resonance = Math.min(...SOURCE_IDS.map((s) => inputs.sourceMastery?.(s) ?? 0))
   // 신화 단계(큰 걸음)는 곱하고, 수집 보너스는 다른 피해 수치와 더한다
   let damageScale = PER_PROMOTION.damage ** inputs.promotions * (1 + stats.damage + collected * PER_OPENED.damage)
   if (god) {
@@ -160,7 +154,6 @@ export function computeBuild(inputs: BuildInputs): BuildState {
     stats,
     sources,
     awakening,
-    resonance,
     maxHp: Math.round((BASE_HP + collected * PER_OPENED.maxHp + stats.maxHp) * (1 + inputs.promotions * PER_PROMOTION.maxHpPct + stats.maxHpPct) * rules.maxHpScale),
     noHeal: rules.noHeal,
     noUltimate: rules.noUltimate,

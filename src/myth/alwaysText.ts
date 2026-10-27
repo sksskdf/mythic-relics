@@ -24,7 +24,7 @@ const STAT_LABELS: Record<StatKind, string> = {
   damageTaken: '받는 피해',
   lowHpGuard: '생명이 35% 아래일 때 받는 피해',
   ultCharge: '궁극기 충전',
-  masteryGain: '신화 숙련 얻는 양',
+  masteryGain: '신화 경험치 얻는 양',
   dropChance: '유물이 떨어질 확률',
 }
 

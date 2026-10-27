@@ -198,7 +198,7 @@ export class DevPanel {
         }),
         button('단계 올리기', () => g.dev.promote()),
         button('레벨 초기화', () => g.dev.resetMyths()),
-        button('이 신화권 숙련', () => g.dev.gainMastery()),
+        button('이 신화권 경험치', () => g.dev.gainMastery()),
         button('장비 떨구기', () => g.dev.dropGear()),
         button('영웅 장비', () => g.dev.dropGear(undefined, 'hero')),
         button('2단계 장비', () => g.dev.dropGear(undefined, undefined, undefined, undefined, 2)),
@@ -216,18 +216,14 @@ export class DevPanel {
         }),
       ),
       row(button('전설 시작', () => this.startLegend())),
-      // 원천 각성·위협 단계·편의 (E14)
+      // 엔딩 뒤 장치 (E21-06)·위협 단계·편의 (E14)
       row(
+        button('엔딩 뒤로', () => {
+          g.reachEnding()
+          g.menu.refresh()
+        }),
         button('위협 단계 열기', () => {
           g.threat.unlocked = Math.min(10, g.threat.unlocked + 1)
-          g.menu.refresh()
-        }),
-        button('경험 +500', () => {
-          g.threat.gainBattle(500)
-          g.menu.refresh()
-        }),
-        button('숙련 +5', () => {
-          for (const k of ['flame', 'hunt', 'wind', 'stone'] as const) g.threat.mastery[k] += 5
           g.menu.refresh()
         }),
         button('시련 열기', () => {

@@ -360,10 +360,11 @@ const sections = {
         g.threatSystem.apply()
         scale.push({ level: lv, ...g.encounter.threat, elite: Math.round(g.encounter.eliteChance * 100) / 100 })
       }
+      // 위협 단계는 엔딩 뒤 장치 (E21-06): 처음 오르는 단계를 고르면 큰 카드
+      g.reachEnding()
       Object.assign(g.threat, { unlocked: 2, reached: 1, level: 1 })
       g.threatSystem.apply()
-      g.threat.gainBattle(400)
-      const ok = g.threatSystem.advance('flame')
+      const ok = g.threatSystem.choose(2)
       return { scale, ok }
     })
     await page.waitForTimeout(700)
@@ -378,8 +379,10 @@ const sections = {
     const r = await page.evaluate(() => {
       const g = window.__game
       g.dev.teleport(2, -3)
+      // 자동 줍기는 처음부터, 나머지 편의는 엔딩 뒤 (E21-06): 자동 분해가 열리는 순간
+      g.reachEnding()
       const before = [...g.conveniences.open]
-      g.threatSystem.count('pickups', 400)
+      g.threatSystem.count('salvaged', 400)
       return { before, after: [...g.conveniences.open] }
     })
     await page.waitForTimeout(600)
@@ -404,6 +407,7 @@ const sections = {
     const text = await page.evaluate(() => {
       const g = window.__game
       g.dev.choose('thor')
+      g.reachEnding()
       Object.assign(g.threat, { unlocked: 3, reached: 3 })
       const s = g.region.sanctuary
       g.dev.teleport(s.x, s.z)
@@ -423,6 +427,7 @@ const sections = {
       const g = window.__game
       g.dev.choose('thor')
       g.dev.teleport(2, -3)
+      g.reachEnding()
       for (const realm of ['norse', 'greek', 'china', 'japan', 'korea']) g.threat.cleared[realm] = 10
       Object.assign(g.threat, { unlocked: 10, reached: 10, level: 10 })
       g.threatSystem.breakLimit()
@@ -439,6 +444,7 @@ const sections = {
     await page.evaluate(() => {
       const g = window.__game
       g.dev.choose('thor')
+      g.reachEnding()
       for (const realm of ['norse', 'greek', 'china', 'japan', 'korea']) g.threat.cleared[realm] = 10
       Object.assign(g.threat, { unlocked: 10, reached: 10, level: 10 })
       g.threatSystem.breakLimit()

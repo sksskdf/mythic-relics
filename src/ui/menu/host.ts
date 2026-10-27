@@ -79,13 +79,12 @@ export interface WorldMapHost {
 
 /** 원천 탭이 게임에서 읽고 부르는 것 */
 export interface SourcesHost {
-  /** 원천마다: 장비 합, 숙련, 합계, 각성 단계 */
-  rows(): { id: SourceId; gear: number; mastery: number; total: number; level: number }[]
-  readonly threat: { level: number; unlocked: number; reached: number; battle: number; pour: number; resonance: number; max: number }
+  /** 원천마다: 장비의 합과 각성 단계 */
+  rows(): { id: SourceId; total: number; level: number }[]
+  readonly threat: { level: number; unlocked: number; reached: number; max: number }
   /** 단계를 고를 수 있는 곳인가 (마을) */
   here(): boolean
   choose(level: number): boolean
-  advance(source: SourceId): boolean
   /** 편의: 이름, 설명, 열렸나, 진행 */
   conveniences(): { id: string; name: string; text: string; open: boolean; have: number; need: number }[]
   autoSalvage: boolean
@@ -139,6 +138,8 @@ export interface MenuHost {
   readonly world: WorldMapHost
   readonly trials: TrialsHost
   readonly rift: RiftMenuHost
+  /** 첫 엔딩을 보았나: 엔딩 뒤 장치(위협 단계·편의·시련·균열)를 보인다 (E21-06) */
+  afterEnding(): boolean
   /** 저장하고 처음 화면(슬롯 고르기)으로 */
   toTitle(): void
   /** 설정을 연다 (일시 정지 메뉴) */

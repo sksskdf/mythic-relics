@@ -12,8 +12,8 @@ import { MYTH_RELICS, STAGE_SOURCE } from '../src/gear/mythRelic'
 import { GEAR } from '../src/gear/roll'
 import { HeroController } from '../src/game/HeroController'
 import type { CombatTarget } from '../src/game/PlayerCombat'
-import { Conveniences, CONVENIENCES } from '../src/progress/Conveniences'
-import { BATTLE_PER_MASTERY, POUR_MAX, ThreatProgress } from '../src/progress/Threat'
+import { ALWAYS_ON, Conveniences, CONVENIENCES } from '../src/progress/Conveniences'
+import { parseThreat, ThreatProgress } from '../src/progress/Threat'
 import { godDef, relicDef } from '../src/relics/data'
 import type { SkillContext } from '../src/skills/Skill'
 import { SourceAwakening } from '../src/skills/SourceAwakening'
@@ -84,9 +84,8 @@ describe('원천 각성 규칙 (E14-01)', () => {
       open: new Map(),
       chosen: [],
       gear: [],
-      gearItems: [...Array.from({ length: 3 }, () => ({ stats: [], source: { id: 'flame' as const, value: 3 } })), ...Array.from({ length: 3 }, () => ({ stats: [], source: { id: 'stone' as const, value: 3 } }))],
+      gearItems: [...Array.from({ length: 3 }, () => ({ stats: [], source: { id: 'flame' as const, value: 4 } })), ...Array.from({ length: 3 }, () => ({ stats: [], source: { id: 'stone' as const, value: 4 } }))],
       promotions: 0,
-      sourceMastery: () => 2,
     })
     expect(split.awakening.flame).toBe(2)
     expect(split.awakening.stone).toBe(2)
@@ -147,16 +146,6 @@ describe('원천 각성 적용 (E14-02)', () => {
     expect(a.beforeHeroHit(5, ctx)).toBe(2)
     expect(hits).toEqual([AWAKENING.stone.burst.damage])
   })
-
-  it('공명은 모든 각성 효과를 1마다 5% 세게 한다', () => {
-    const enemies = [dummy(1, 0)]
-    const { ctx, hits } = setup(enemies)
-    const a = new SourceAwakening(ctx.fx)
-    a.levels = { ...zeroSources(), flame: 1 }
-    a.resonance = 2
-    for (let i = 0; i < 6; i++) a.onBasicHit(enemies, ctx)
-    expect(hits[0]).toBeCloseTo(AWAKENING.flame.damage[0] * 1.1)
-  })
 })
 
 describe('위협 단계 (E14-03)', () => {
@@ -181,41 +170,33 @@ describe('위협 단계 (E14-03)', () => {
     expect(threatScale(THREAT_MAX).damage).toBeLessThan(2.5)
   })
 
-  it('열린 가장 높은 단계에서 보스를 이겨야 다음 단계가 열리고, 처음 오를 때 경험을 원천 하나에 붓는다', () => {
+  it('열린 가장 높은 단계에서 보스를 이겨야 다음 단계가 열리고, 열린 단계 안에서 고른다 (원천 갈래 없음, E21-05)', () => {
     const t = new ThreatProgress()
     expect(t.bossDefeated('norse')).toBe(true)
     expect(t.unlocked).toBe(2)
     // 아직 오르지 않았으니 같은 단계 보스를 또 이겨도 3단계는 열리지 않는다
     expect(t.bossDefeated('greek')).toBe(false)
     expect(t.cleared).toEqual({ norse: 1, greek: 1 })
-    expect(t.choose(2)).toBe(false)
-    t.gainBattle(BATTLE_PER_MASTERY * 2 + 10)
-    expect(t.advance('stone')).toBe(2)
-    expect(t).toMatchObject({ level: 2, reached: 2, battle: 0 })
-    expect(t.mastery.stone).toBe(2)
-    // 더 열린 단계가 없으면 오르지 못한다
-    expect(t.advance('flame')).toBe(0)
+    expect(t.choose(3)).toBe(false)
+    expect(t.choose(2)).toBe(true)
+    expect(t).toMatchObject({ level: 2, reached: 2 })
     // 내려갔다가 지난 단계 보스를 이겨도 열리지 않는다
     expect(t.choose(1)).toBe(true)
+    expect(t.reached).toBe(2)
     expect(t.bossDefeated('norse')).toBe(false)
-    // 경험이 아무리 많아도 붓는 숙련은 POUR_MAX까지, 적어도 1
-    t.gainBattle(1e5)
-    expect(t.pour).toBe(POUR_MAX)
-    t.battle = 0
-    expect(t.pour).toBe(1)
   })
 
-  it('공명은 네 원천 숙련의 최솟값', () => {
-    const t = new ThreatProgress()
-    Object.assign(t.mastery, { flame: 3, hunt: 1, wind: 2, stone: 5 })
-    expect(t.resonance).toBe(1)
+  it('옛 저장의 원천 숙련과 전투 경험은 버린다', () => {
+    const data = parseThreat({ level: 2, unlocked: 3, reached: 2, mastery: { flame: 3 }, battle: 500 })
+    expect(data).toEqual({ level: 2, unlocked: 3, reached: 2, cleared: {}, limitBroken: false })
   })
 })
 
-describe('편의 자동화 (E14-05)', () => {
-  it('세기가 차면 차례대로 하나씩 열린다', () => {
+describe('편의 자동화 (E14-05, E21-06)', () => {
+  it('엔딩 뒤: 세기가 차면 차례대로 하나씩 열린다 (자동 줍기는 처음부터)', () => {
     const c = new Conveniences()
-    for (const def of CONVENIENCES) {
+    expect(c.has('autoPickup')).toBe(true)
+    for (const def of CONVENIENCES.filter((d) => !ALWAYS_ON.includes(d.id))) {
       expect(c.has(def.id)).toBe(false)
       const opened = c.count(def.counter, def.need, 'set')
       expect(opened.map((o) => o.id)).toContain(def.id)
@@ -225,5 +206,16 @@ describe('편의 자동화 (E14-05)', () => {
     expect(c.count('pickups', 100)).toEqual([])
     c.autoSalvage = false
     expect(c.salvaging).toBe(false)
+  })
+
+  it('엔딩 전에는 세기만 쌓이고 열리지 않다가, 엔딩을 보면 한꺼번에 열린다', () => {
+    let ended = false
+    const c = new Conveniences(() => ended)
+    expect(c.count('salvaged', 50)).toEqual([])
+    expect(c.has('autoSalvage')).toBe(false)
+    expect(c.has('autoPickup')).toBe(true)
+    ended = true
+    expect(c.catchUp().map((o) => o.id)).toEqual(['autoSalvage'])
+    expect(c.has('autoSalvage')).toBe(true)
   })
 })

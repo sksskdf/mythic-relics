@@ -1,10 +1,10 @@
 import { REGIONS } from '../data/regions'
 import { CHOSEN_SLOTS } from '../myth/ClassProgress'
 import { SLOT_PARTS } from '../data/gearData'
-import { STAT_KINDS, type StatKind } from '../data/mythAlways'
 import { isMythRelic } from '../gear/mythRelic'
 import { type GearItem, parseGearItem } from '../gear/roll'
 import { MATERIAL_CAP } from '../gear/Loadout'
+import { realmMaterial } from '../gear/materials'
 import { hiddenUnlocked, legacyManifest } from '../myth/manifest'
 import { relicGods } from '../relics/model'
 import { type ConvenienceData, parseConveniences } from '../progress/Conveniences'
@@ -29,8 +29,36 @@ import { GODS, godDef, type God, isRelicId, relicDef, type RelicId } from '../re
  *   옛 저장의 원천 결정은 100개마다 서리 조각 하나, 윤회의 재는 셋마다 거인 왕의 심장 하나로 바꿔 준다 (E14-06)
  * - v7: 시련 기록 (E16). 옛 저장에는 없어서 깬 시련 없음
  * - v8: 균열 기록과 성좌판 (E17). 1차 스프린트 별자리에서 밝힌 별은 그 수만큼 성좌판의 별로 돌려준다
+ *   (E19의 세계 자리는 지역 id와 그 지역 기준 자리라 형식을 바꾸지 않았다)
+ * - v9: 세 축 정리 (E21). 엔딩을 보았나(ending). 신화 고유 재료는 그 신의 신화권 재료로 바꾸고,
+ *   물려받은 수치·원천 숙련·전투 경험은 버린다. 위협 단계·시련·균열을 해 본 옛 저장은 엔딩 뒤로 친다 (그 장치를 숨기지 않게)
  */
-export const SAVE_VERSION = 8
+export const SAVE_VERSION = 9
+
+/** v8 이하의 신화 고유 재료 → 그 신 (E21-04에서 없앰. 그 신의 신화권 재료로 하나씩 바꿔 준다, 히든은 북유럽) */
+export const OLD_MYTH_MATERIALS: Readonly<Record<string, God>> = {
+  thunderShard: 'thor',
+  shadowThread: 'loki',
+  runeChip: 'odin',
+  goldenBristle: 'freyr',
+  boltChip: 'zeus',
+  seaSalt: 'poseidon',
+  underworldAsh: 'hades',
+  silverFeather: 'artemis',
+  monkeyHair: 'wukong',
+  osmanthusLeaf: 'change',
+  pearlDust: 'longwang',
+  lotusPetal: 'nezha',
+  sunBead: 'amaterasu',
+  moonDew: 'tsukuyomi',
+  thunderCloud: 'raijin',
+  stormSand: 'susanoo',
+  crowFeather: 'haemosu',
+  flowerSeed: 'bari',
+  goblinEmber: 'dokkaebi',
+  mountainStone: 'mago',
+  bladeShard: 'asura',
+}
 
 /** 옛 순환 성장 → 재료 (E14-06) */
 export const CYCLE_REFUND = { essencePer: 100, essenceTo: 'frostShard', essenceMax: 300, ashPer: 3, ashTo: 'giantHeart', ashMax: 20 } as const
@@ -47,8 +75,6 @@ export interface SaveData {
   stages: Partial<Record<RelicId, number>>
   /** 재료 개수 */
   materials: Record<string, number>
-  /** 대장간 유물이 바탕 장비에서 물려받은 수치 (E13-05) */
-  inherited: Partial<Record<RelicId, { kind: StatKind; value: number }>>
   /** 땅에 떨어져 있던 유물·장비 */
   ground: { id: string; x: number; z: number }[]
   /** 신화별 개방 단계(0~4)와 신화 숙련 */
@@ -71,6 +97,8 @@ export interface SaveData {
   trials: TrialData
   /** 균열 기록과 성좌판 (E17) */
   rift: RiftData
+  /** 첫 엔딩을 보았나 (E21-06): 엔딩 뒤 장치를 연다 */
+  ending: boolean
   /** 지금 있는 지역과 자리 (E7). 옛 저장이거나 모르는 지역이면 null (마을에서 시작) */
   region: { id: string; x: number; z: number } | null
   /** 본 대화 장면 (E12-10). 옛 저장에는 없어서 빈 목록 */
@@ -96,7 +124,7 @@ export function parseSave(text: string | null): SaveData | null {
   }
   if (typeof raw !== 'object' || raw === null) return null
   const data = raw as Record<string, unknown>
-  if (data.version !== SAVE_VERSION && ![1, 2, 3, 4, 5, 6, 7].includes(data.version as number)) return null
+  if (data.version !== SAVE_VERSION && ![1, 2, 3, 4, 5, 6, 7, 8].includes(data.version as number)) return null
   const old = (data.version as number) < 5
 
   // 일반 장비 (v5)
@@ -113,6 +141,7 @@ export function parseSave(text: string | null): SaveData | null {
     }
   }
   if ((data.version as number) < 6) refundCycle(data.cycle, materials)
+  if ((data.version as number) < 9) refundMythMaterials(materials)
 
   const seen = new Set<string>()
   /** 칸·가방·땅에 들어갈 수 있는 것: 신화의 유물이나 가진 일반 장비, 한 번씩만 */
@@ -160,6 +189,11 @@ export function parseSave(text: string | null): SaveData | null {
     }
   }
   const keep = new Set([...slots, ...bag, ...ground.map((g) => g.id)])
+  const threat = parseThreat(data.threat)
+  const trials = parseTrials(data.trials)
+  const rift = parseRift(data.rift, (data.version as number) < 6 ? oldStars(data.cycle) : 0)
+  // 엔딩 뒤 장치를 해 본 옛 저장은 엔딩 뒤로 친다 (E21-06)
+  const tried = threat.limitBroken || threat.unlocked > 1 || Object.values(trials.cleared).some((n) => (n ?? 0) > 0) || rift.best > 0
   return {
     version: SAVE_VERSION,
     slots: slots.slice(0, SLOT_PARTS.length),
@@ -167,7 +201,6 @@ export function parseSave(text: string | null): SaveData | null {
     gear: [...gearById.values()].filter((g) => keep.has(g.uid)),
     stages,
     materials,
-    inherited: parseInherited(data.inherited),
     ground,
     classes: myths,
     chosen: parseChosen(data.chosen, legacySlots(data.slots), myths),
@@ -175,10 +208,11 @@ export function parseSave(text: string | null): SaveData | null {
     divine: num(data.divine, 0, 1, 0),
     looks: data.version === 1 ? migrateLooks(legacySlots(data.slots), legacySlots(data.bag) as RelicId[], classes) : parseLooks(data.looks),
     body: parseBody(data.body),
-    threat: parseThreat(data.threat),
+    threat,
     conveniences: parseConveniences(data.conveniences),
-    trials: parseTrials(data.trials),
-    rift: parseRift(data.rift, (data.version as number) < 6 ? oldStars(data.cycle) : 0),
+    trials,
+    rift,
+    ending: data.ending === true || ((data.version as number) < 9 && tried),
     region: parseRegion(data.region),
     scenes: Array.isArray(data.scenes) ? [...new Set(data.scenes.filter((s): s is string => typeof s === 'string' && s.length < 40))] : [],
   }
@@ -205,16 +239,15 @@ function oldStars(raw: unknown): number {
   return Object.values(stars as Record<string, unknown>).reduce<number>((s, v) => s + (typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.min(10, Math.round(v)) : 0), 0)
 }
 
-/** 물려받은 수치: 신화의 유물에, 아는 수치 종류만 */
-function parseInherited(raw: unknown): SaveData['inherited'] {
-  const out: SaveData['inherited'] = {}
-  if (typeof raw !== 'object' || raw === null) return out
-  for (const [id, v] of Object.entries(raw as Record<string, unknown>)) {
-    const s = v as Record<string, unknown> | null
-    if (!isRelic(id) || !isMythRelic(id) || !s || !STAT_KINDS.includes(s.kind as StatKind) || typeof s.value !== 'number' || !Number.isFinite(s.value)) continue
-    out[id] = { kind: s.kind as StatKind, value: s.value }
+/** v8 이하 → v9: 신화 고유 재료를 그 신의 신화권 재료로 하나씩 바꿔 준다 (E21-04) */
+function refundMythMaterials(materials: Record<string, number>): void {
+  for (const [id, god] of Object.entries(OLD_MYTH_MATERIALS)) {
+    const n = materials[id]
+    if (!n) continue
+    delete materials[id]
+    const to = realmMaterial(godDef(god).realm) ?? 'frostShard'
+    materials[to] = Math.min(MATERIAL_CAP, (materials[to] ?? 0) + n)
   }
-  return out
 }
 
 /** 옛 저장의 칸 그대로 (1차 발현 규칙으로 고른 신화를 정할 때) */

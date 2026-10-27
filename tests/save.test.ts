@@ -16,7 +16,6 @@ const sample: SaveData = {
   gear: [],
   stages: {},
   materials: {},
-  inherited: {},
   dropMisses: 3,
   divine: 0.5,
   looks: {
@@ -28,6 +27,7 @@ const sample: SaveData = {
   conveniences: parseConveniences({ counters: { pickups: 5 }, open: ['autoPickup'] }),
   trials: parseTrials({ cleared: { glass: 2, slow: 9 }, best: { 'glass:2': 71.3, 'nope:1': 5 } }),
   rift: parseRift({ best: 12, stars: 3, lit: ['thor', 'odin', 'nobody'] }),
+  ending: true,
   region: { id: 'olympus', x: 3.5, z: -12 },
   scenes: ['opening'],
 }
@@ -128,7 +128,7 @@ describe('저장 데이터', () => {
     expect(data?.version).toBe(SAVE_VERSION)
     // 결정 400.5 → 서리 조각 4, 재 7 → 거인 왕의 심장 2
     expect(data?.materials).toEqual({ frostShard: 6, giantHeart: 2 })
-    expect(data?.threat).toEqual({ level: 1, unlocked: 1, reached: 1, cleared: {}, mastery: { flame: 0, hunt: 0, wind: 0, stone: 0 }, battle: 0, limitBroken: false })
+    expect(data?.threat).toEqual({ level: 1, unlocked: 1, reached: 1, cleared: {}, limitBroken: false })
     expect(data?.conveniences.open).toEqual([])
     // 옛 별자리는 v5 저장에 없으면 0
     // 위협 단계는 열린 단계를 넘지 않는다
@@ -140,5 +140,36 @@ describe('저장 데이터', () => {
     expect(odd?.body).toEqual({ skin: 0, hair: 0, cloth: 0 })
     const { body: _body, ...old } = sample
     expect(parseSave(JSON.stringify(old))?.body).toEqual({ skin: 0, hair: 0, cloth: 0 })
+  })
+})
+
+describe('저장 v9: 세 축 정리 (E21-07)', () => {
+  const v8 = (extra: Record<string, unknown>) => JSON.stringify({ ...sample, version: 8, ending: undefined, ...extra })
+
+  it('신화 고유 재료는 그 신의 신화권 재료로 바꿔 준다 (히든 신화는 북유럽)', () => {
+    const data = parseSave(v8({ materials: { thunderShard: 6, boltChip: 3, bladeShard: 2, frostShard: 4, giantHeart: 1 } }))
+    expect(data?.materials).toEqual({ frostShard: 12, olympusMarble: 3, giantHeart: 1 })
+  })
+
+  it('물려받은 수치·원천 숙련·전투 경험은 버린다', () => {
+    const data = parseSave(v8({ inherited: { mjolnir: { kind: 'damage', value: 0.05 } }, threat: { level: 1, unlocked: 1, reached: 1, mastery: { flame: 3 }, battle: 200 } }))
+    expect(data && 'inherited' in data).toBe(false)
+    expect(data?.threat).toEqual({ level: 1, unlocked: 1, reached: 1, cleared: {}, limitBroken: false })
+  })
+
+  it('위협 단계·시련·균열을 해 본 옛 저장은 엔딩 뒤로, 처음 땅만 걸은 저장은 엔딩 전으로', () => {
+    const fresh = { threat: { level: 1, unlocked: 1, reached: 1 }, trials: { cleared: {}, best: {} }, rift: { best: 0, stars: 0, lit: [] } }
+    expect(parseSave(v8(fresh))?.ending).toBe(false)
+    expect(parseSave(v8({ ...fresh, threat: { level: 1, unlocked: 2, reached: 1 } }))?.ending).toBe(true)
+    expect(parseSave(v8({ ...fresh, trials: { cleared: { glass: 1 }, best: {} } }))?.ending).toBe(true)
+    expect(parseSave(v8({ ...fresh, rift: { best: 3, stars: 0, lit: [] } }))?.ending).toBe(true)
+    // v9는 적힌 그대로
+    expect(parseSave(JSON.stringify({ ...sample, ending: false }))?.ending).toBe(false)
+  })
+
+  it('단계가 없던 일반 장비는 1단계로 읽는다', () => {
+    const item = { uid: 'g:abc12345', part: 'head', base: '철 투구', grade: 'rare', stats: [{ kind: 'maxHp', value: 12 }], source: { id: 'flame', value: 2 } }
+    const data = parseSave(v8({ gear: [item], bag: ['g:abc12345'] }))
+    expect(data?.gear[0]?.tier).toBe(1)
   })
 })

@@ -106,9 +106,9 @@ export class ProgressionSystem {
       ...[...powers.loadout.materials.keys()].filter((id) => isRelicId(id)),
       ...pickups.list.map((p) => p.id).filter((id) => isRelicId(id)),
     ])
-    // 유물은 엔딩 뒤(한계를 깸)에만 떨어진다 (E21-04: 데모의 유물은 장 보스 재료로 벼린다)
+    // 유물은 엔딩 뒤에만 떨어진다 (E21-04: 데모의 유물은 장 보스 재료로 벼린다)
     // 정예는 유물을 한 번 더 굴린다. 수치(도깨비)는 그 확률만큼 한 번 더
-    const rolls = !this.ctx.threat.limitBroken ? 0 : (giant.elite ? ELITE_REWARD.dropRolls : 1) + (Math.random() < this.ctx.build.state.stats.dropChance ? 1 : 0)
+    const rolls = !this.ctx.ending.has('relicDrops') ? 0 : (giant.elite ? ELITE_REWARD.dropRolls : 1) + (Math.random() < this.ctx.build.state.stats.dropChance ? 1 : 0)
     for (let i = 0; i < rolls; i++) {
       const relic = drops.roll(owned, giant.spec.boss)
       if (!relic) continue
