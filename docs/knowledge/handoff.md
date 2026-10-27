@@ -10,7 +10,7 @@
 
 | 항목 | 상태 |
 | --- | --- |
-| 브랜치 | `fix/sprint2-qa` (중간 점검 고침, PR로 main에 병합) |
+| 브랜치 | main (중간 점검·기술 부채 정리까지 병합). 다음 일은 main에서 새 브랜치 |
 | 로드맵 | E11 완료. E12~E18 작업 ✅, 자동 검증 ✅, 직접 플레이 체크리스트 E12 6·E13 3·E14 3·E15 3·E16 2·E17 3·E18 3개 남음 |
 | 신화 개성 (E18) | `ART.md` 9장 개성 표. 무기 동작 21개 모두 다름(`combat/styles.ts`, 새 아홉), 유물 행동 모습(`relics.json`의 `action.look`, 그림은 `skills/actionLooks.ts`), 궁극기 모양(`ultimate.style`, 물결·칼춤 모양 새로), 무기 실루엣. `tests/identity.test.ts`가 겹침을 막는다. 확인은 `scripts/motion-sheet.mjs`. 렌더 해상도 428(1.5배). 일반 장비 외형(`voxel/models/gearLooks.ts`)도 이때 만듦 |
 | 균열 (E17) | 한계를 깸 = 신화권 다섯 보스를 위협 10단계에서 이김(`ThreatSystem.breakLimit`, 위협 99까지). `src/world/riftFloor.ts`(층 생성, 시드), `src/data/rift.ts`(배율·축복 20·성좌판), `src/progress/Rift.ts`(깊이·별·밝힌 별), `src/game/systems/Rift.ts`(들어가기·층 깨기·축복·다음 층 문·끝), `ui/BlessingPicker.ts`, 정보 화면 균열 탭(성좌판). 균열 무리는 다시 나타나지 않음. 저장 v8. 봇은 `--rift`(엔드게임 빌드 `game.dev.endgame()`) |
@@ -20,8 +20,8 @@
 | 로드맵 아티팩트 | https://claude.ai/artifact/VLnz4HHR5F7VMGG496TmqK |
 | 기획 원본 | `DESIGN.md` v2.0. 지역 16곳 9.2, 대화 장면 9.5, 원천 6장, 위협 단계·편의 9.4 |
 | 세계 (E15) | 마을 → 입구 들판 → 깊은 땅(정예 +20%p) → 보스의 땅. 지역 데이터의 `zone`·`elite`, 이웃은 서로 오감(검사), `nextHop`(다음 이웃)·`worldLayout`(지도 자리). 깊은 땅·보스의 땅은 `scripts/gen-regions.mjs`가 만들고(다시 돌리면 덮어씀), 땅 얼굴은 `themes.ts`의 `DEEP_THEMES` |
-| 지도·워프 | 정보 화면 지도 탭(`GameMenu.renderMap`), 작은 지도를 누르면 열림. 성소 결계에 들어서면 "찾은 성소"(`conveniences.visited`), 성소 워프(위협 2단계에 열림)로 그 성소에 감 |
-| 대화 | `scenes.json`: 마을 사람 셋(`talkChief` 등, 누르면 걸어가 말 걸기), 신화 개방 21(`mythThor`…), 보스 다섯(`bossKing`…), `threatUp`, `forgeFirst`. 처음 보는 일은 한 번만(`Game.story`), 대화 중 세계 멈춤, 봇·`?relics`·`?noscenes`는 끔 |
+| 지도·워프 | 정보 화면 지도 탭(`src/ui/menu/mapTab.ts`), 작은 지도를 누르면 열림. 성소 결계에 들어서면 "찾은 성소"(`conveniences.visited`), 성소 워프(위협 2단계에 열림)로 그 성소에 감 |
+| 대화 | `scenes.json`: 마을 사람 셋(`talkChief` 등, 누르면 걸어가 말 걸기), 신화 개방 21(`mythThor`…), 보스 다섯(`bossKing`…), `threatUp`, `forgeFirst`. 처음 보는 일은 한 번만(`Storyline`), 창이 열려 있거나 다른 장면 중이면 미룸, 신화 여럿이 함께 열리면 고른 신화 장면만(나머지는 그 신화를 처음 고를 때), 대화 중 세계 멈춤, 봇·`?relics`·`?noscenes`는 끔 |
 | 중간 점검 (2026-10-27) | 리뷰 셋(전투·스킬, 장비·저장·진행, 세계·조작·UI)과 봇·스크린숏 QA. 고친 것은 `troubleshooting.md` 맨 아래 네 줄과 `PLAYTEST.md` 중간 점검 줄. 쓰러져 있는 동안 날아가던 유물 연출이 멈추던 것은 기술 부채 정리 때 고침(적을 비운 채 마저 움직임, 쓰러진 동안 회복으로 되살아나지 않게). 남긴 것: 지역을 여러 바퀴 돌면 형상이 1개 늘어남(394 → 395), 「타는 모래시계」 등 시련은 봇 기준만 있음. UI 점검은 `scripts/ui-sheet.mjs` |
 | 봇 기준 | 처음부터 2단계 10~12분(전설 실패 판은 23분), 마을 → 우트가르드 12:38~16:01, 위협 2단계 13:36~17:36, 쓰러짐 0. 원천 빌드 넷은 `scripts/source-trial.mjs` |
 | 이슈 체크 도구 | `node scripts/roadmap-issues/tick.mjs <스크래치>/tick.json <작업 단위 ID ...>` (넘긴 ID는 모두 체크되므로, 새로 더한 칸은 본문에서 되돌린다) |
@@ -33,7 +33,7 @@
 3. 모바일 플레이·시험 방향, 역할 나누기(작성자·리뷰어·QA)와 하네스: 사용자 결정 대기. 390px 화면에서 정보 화면은 이제 잘리지 않고 탭 줄만 옆으로 밀리지만, 터치 조작(누르고 있기·커서 올리기 설명)은 아직 따로 맞추지 않았다
 4. 기술 부채 정리(2026-10-27): `GameMenu.ts` 1279 → 225줄(탭은 `src/ui/menu/`), `Game.ts` 1278 → 861줄(`MenuData`·`Storyline`·`AttackFx`·`HoverCards`). 나누기 전후 정보 화면 DOM이 같음(`ui-sheet.mjs`의 `UI_DOM=1`)
 5. 사용자 플레이 뒤 의견을 `PLAYTEST.md` 6장과 로드맵에 반영, 2차 스프린트 마무리(완료 기준 확인 후 마일스톤 닫기)
-6. 남은 균형 문제: 균열 10층(종말 보스)에서 봇이 자주 쓰러짐(두 판에 셋), 로키·도깨비 처치 속도 +20% 3~4% 넘음, 아무 신화도 고르지 않으면 북유럽 넷이 한꺼번에 열림, 보스가 두 땅 깊이 있어 위협 2단계가 E14보다 늦음(13~18분)
+6. 남은 균형 문제: 균열 10층(종말 보스)에서 봇이 자주 쓰러짐(두 판에 셋), 아무 신화도 고르지 않으면 북유럽 넷이 한꺼번에 열림, 보스가 두 땅 깊이 있어 위협 2단계가 E14보다 늦음(13~18분)
 
 ## 사용자에게 받아야 할 것
 

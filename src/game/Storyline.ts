@@ -29,7 +29,10 @@ export class Storyline {
 
   constructor(private readonly parts: StorylineParts) {
     const { bus, threat } = parts.ctx
-    bus.on('mythOpened', ({ god }) => this.play(`myth${capital(god)}`))
+    // 신화 개방: 숙련으로 여럿이 함께 열리면(아직 고른 신화가 없을 때 그 신화권 신 넷) 장면이 줄줄이 서지 않게,
+    // 이미 다른 신화의 장면이 떠 있거나 기다리면 미루고 그 신화를 처음 고를 때 연다
+    bus.on('mythOpened', ({ god }) => !this.mythBusy() && this.play(`myth${capital(god)}`))
+    bus.on('manifested', ({ god }) => this.play(`myth${capital(god)}`))
     bus.on('forged', ({ stage }) => stage === 1 && this.play('forgeFirst'))
     bus.on('limitBroken', () => this.play('limitBreak'))
     bus.on('threatChanged', () => threat.level === threat.reached && threat.reached >= 2 && this.play('threatUp'))
@@ -45,11 +48,18 @@ export class Storyline {
     const scene = SCENES[id]
     if (!this.enabled || !scene || ctx.scenesSeen.has(id)) return false
     if (scene.region && scene.region !== ctx.map.region.id) return false
+    if (scenes.current === id || this.pending.includes(id)) return true
     if (paused() || scenes.active) {
       if (!this.pending.includes(id)) this.pending.push(id)
       return true
     }
     return scenes.play(id)
+  }
+
+  /** 신화 개방 장면이 떠 있거나 기다리는가 */
+  private mythBusy(): boolean {
+    const current = this.parts.scenes.current
+    return (current?.startsWith('myth') ?? false) || this.pending.some((id) => id.startsWith('myth'))
   }
 
   /** 게임이 멈추지 않은 프레임마다: 다른 장면이 없으면 미룬 장면을 하나 연다 */
