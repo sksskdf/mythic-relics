@@ -90,6 +90,11 @@ export class World {
 
   /** 지금 땅 둘레에 그려지는 땅들의 적 배치와, 지금 땅 좌표로 옮길 만큼 (E19). 세계 칸이 없는 균열이면 없음 */
   neighborLayouts(region: RegionDef): NeighborLayout[] {
+    return this.neighborLands(region).map(({ region: r, offset }) => ({ id: r.id, layout: { ...r, respawn: true }, offset }))
+  }
+
+  /** 지금 땅 둘레(이웃 칸)의 땅들과, 그 땅을 지금 땅 좌표로 옮길 만큼 */
+  private neighborLands(region: RegionDef): { region: RegionDef; offset: { x: number; z: number } }[] {
     if (!region.cell) return []
     const here = cellOrigin(region.cell)
     const near = new Set(neighborCells(region.cell).map(cellKey))
@@ -97,7 +102,7 @@ export class World {
       .filter((r) => r.cell && near.has(cellKey(r.cell)))
       .map((r) => {
         const o = cellOrigin(r.cell!)
-        return { id: r.id, layout: { ...r, respawn: true }, offset: { x: o.x - here.x, z: o.z - here.z } }
+        return { region: r, offset: { x: o.x - here.x, z: o.z - here.z } }
       })
   }
 
@@ -111,7 +116,8 @@ export class World {
     const { villagers, minimap, fx, drops } = this.parts
     this.links = regionLinks(this.regions, region.id)
     villagers.load(region.npcs)
-    minimap.setRegion(region)
+    // 작은 지도: 이어진 세계면 통로와 이웃 땅까지 (E19-05)
+    minimap.setRegion(region, region.cell ? { neighbors: this.neighborLands(region), passages: this.links.map((l) => l.rect) } : null)
     const particles = THEMES[region.theme].particles
     fx.snow.setStyle(particles.kind, particles.color)
     if (region.realm) drops.realm = region.realm

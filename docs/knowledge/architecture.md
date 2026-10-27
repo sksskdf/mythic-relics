@@ -48,6 +48,7 @@ E12~E14에서 새 규칙을 넣을 때는 `BuildInputs`에 재료를 더하고 `
 | `src/world/regionMap.ts` | `Chunk`(땅 하나 또는 빈 칸 숲), `chunkSteps`·`fillerSteps`(단계로 나눠 짓기), 숲 `buildForest`(가장자리·깊은 숲, 6m 네모마다 InstancedMesh, 깊은 숲은 `plain` 단순한 나무), 경계 섞기 `edgeMixer`·`cellTheme`. `RegionMap`은 지금 땅 조각을 쥐고 `adopt`로 이웃 조각을 넘겨받는다 |
 | `src/game/Stage.ts` | 지금 땅 + 이웃 여섯을 그린다(`planNeighbors`, 프레임마다 한 단계 `buildNext`, 점검은 `flush`). `cross(to)`로 지금 땅을 바꾸고, `follow`에서 통로 안 하늘빛을 섞는다 |
 | `src/game/Encounter.ts` | 지금 땅의 무리(`camps`·`boss`)와 이웃 땅에 남겨 둔 무리(`parked`, 땅 id별). `setNeighbors`(이웃 땅 배치와 칸 자리 차이)로 이웃 무리를 줄 세우고 `buildStep`으로 프레임마다 무리 하나(땅 조각을 짓지 않는 프레임에만, Game이 부름). `cross`는 모두 옮긴 뒤 앞 땅 무리를 남겨 두고 넘어간 땅 무리를 깨운다(쫓던 적·쓰러지는 적은 지금 땅 적으로 남음). 남겨 둔 거인은 `Giant.park`·`rest`(숨쉬기만), 옮길 때 `Giant.shift`(집·길·예고·던진 것까지) |
+| 지도 (E19-05) | `Minimap.setRegion(region, { neighbors, passages })`: 이어진 세계면 반 폭 70m로 통로와 이웃 땅까지 흐리게. 세계 지도(`menu/mapTab.ts`)는 `world.nodes()`의 칸 자리(칸 한 변 = 1, 북쪽이 위)·땅 너비와 `world.me()`(내 자리)로 그린다 |
 | `src/game/World.ts` | `update`에서 `crossingAt`이면 `cross(link)`: 주인공·카메라·떨어진 것을 `shift`만큼 옮기고, 무대·길찾기·적을 새 땅으로, 그다음 가던 길을 다시 찾는다(`orders.shift`). 출구 밟기·암전은 균열에만 남았다 |
 
 ## E14에서 걷어낼 것
