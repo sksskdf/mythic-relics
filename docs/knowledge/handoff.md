@@ -15,7 +15,7 @@
 | 신화 개성 (E18) | `ART.md` 9장 개성 표. 무기 동작 21개 모두 다름(`combat/styles.ts`, 새 아홉), 유물 행동 모습(`relics.json`의 `action.look`, 그림은 `skills/actionLooks.ts`), 궁극기 모양(`ultimate.style`, 물결·칼춤 모양 새로), 무기 실루엣. `tests/identity.test.ts`가 겹침을 막는다. 확인은 `scripts/motion-sheet.mjs`. 렌더 해상도 428(1.5배). 일반 장비 외형(`voxel/models/gearLooks.ts`)도 이때 만듦 |
 | 균열 (E17) | 한계를 깸 = 신화권 다섯 보스를 위협 10단계에서 이김(`ThreatSystem.breakLimit`, 위협 99까지). `src/world/riftFloor.ts`(층 생성, 시드), `src/data/rift.ts`(배율·축복 20·성좌판), `src/progress/Rift.ts`(깊이·별·밝힌 별), `src/game/systems/Rift.ts`(들어가기·층 깨기·축복·다음 층 문·끝), `ui/BlessingPicker.ts`, 정보 화면 균열 탭(성좌판). 균열 무리는 다시 나타나지 않음. 저장 v8. 봇은 `--rift`(엔드게임 빌드 `game.dev.endgame()`) |
 | 시련 (E16) | `src/data/trials.ts`(여덟·난이도·마일스톤·규칙), `src/progress/Trials.ts`(기록·보상·균열 배율), `src/game/systems/Trials.ts`(필드 성소에서 고른 신화 전설을 바로 엶, `legend.begin`), 정보 화면 시련 탭, 제약은 `Build`의 trial로 덮어씀. 저장 v7 |
-| GitHub 이슈 | E12 #3~E18 #9 닫음. E19 #83, 하위 #84(E19-01, 닫음)~#90 |
+| GitHub 이슈 | E12 #3~E18 #9·E20 #93~#96 닫음. E19 #83(하위 #84 닫음, #85~#90 열림). E21 #98·E22 #107·E23 #114·E24 #119·E25 #125와 하위 이슈 (`scripts/roadmap-issues/issues.json`) |
 | 로드맵 패널 | MCP `roadmap` #29~#36(E11~E18) 완료, #37 E19 진행 중 |
 | 로드맵 아티팩트 | https://claude.ai/artifact/VLnz4HHR5F7VMGG496TmqK |
 | 기획 원본 | `DESIGN.md` v2.0. 지역 16곳 9.2, 대화 장면 9.5, 원천 6장, 위협 단계·편의 9.4 |
