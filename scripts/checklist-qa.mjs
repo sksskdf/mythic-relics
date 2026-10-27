@@ -1,0 +1,484 @@
+// 직접 플레이 체크리스트를 Claude가 사람 눈으로 확인하기 위한 장면·수치 모음 (2026-10-27 결정: 체크리스트는 사람 대신 Claude가 본다).
+// 항목마다 그 상태를 만들어 스크린숏(test-results/checklist/*.png)과 수치(test-results/checklist.json)를 남긴다. 판정은 사람이 보듯 스크린숏을 보고 한다.
+// 사용법: npm run build && node scripts/checklist-qa.mjs [항목 id 앞부분 ...]   예: node scripts/checklist-qa.mjs e12 e13-1
+import { spawn } from 'node:child_process'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { chromium } from 'playwright-core'
+
+const want = process.argv.slice(2)
+const PORT = 4197
+const OUT = 'test-results/checklist'
+const BROWSER = process.env.CHROMIUM_PATH ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'
+const URL = `http://localhost:${PORT}/`
+const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'ignore', detached: true })
+const stop = () => {
+  try {
+    process.kill(-server.pid)
+  } catch {}
+}
+
+/** 새로 시작한 게임 (저장 지움, 무작위 고정). 반환: page */
+async function fresh(browser, query = '?fresh&relics=&region=village&noscenes', seed = 7) {
+  const page = await browser.newPage({ viewport: { width: 1280, height: 720 } })
+  page.on('pageerror', (e) => errors.push(e.message))
+  await page.addInitScript((s) => {
+    let a = s >>> 0
+    Math.random = () => {
+      a = (a + 0x6d2b79f5) >>> 0
+      let t = a
+      t = Math.imul(t ^ (t >>> 15), t | 1)
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+    }
+  }, seed)
+  await page.goto(URL + query)
+  await page.waitForFunction(() => (window.__game?.frame ?? 0) > 3, null, { timeout: 60000 })
+  return page
+}
+
+/** 몇 프레임 그린 뒤 찍는다 */
+async function shot(page, name, clip) {
+  const f = await page.evaluate(() => window.__game.frame)
+  await page.waitForFunction((n) => window.__game.frame > n + 2, f, { timeout: 60000 })
+  await page.screenshot({ path: `${OUT}/${name}.png`, ...(clip ? { clip } : {}) })
+  return `${OUT}/${name}.png`
+}
+
+const errors = []
+const results = {}
+const sections = {
+  /** E12-1 신화를 하나 더 열 때마다 강해진 게 느껴진다: 연 신화 수마다 같은 시간에 준 피해, 여는 순간의 화면 */
+  async 'e12-1'(browser) {
+    const page = await fresh(browser)
+    const rows = await page.evaluate(() => {
+      const g = window.__game
+      const order = ['thor', 'loki', 'odin', 'freyr', 'artemis', 'zeus']
+      const out = []
+      g.dev.choose('thor')
+      for (let n = 1; n <= order.length; n++) {
+        if (n > 1) g.progress.open(order[n - 1])
+        g.encounter.clearAll()
+        g.combat.health.reset()
+        g.combat.godMode = true
+        g.orders.clear()
+        g.dev.teleport(0, 4)
+        g.encounter.threat = { hp: 60, damage: 1 }
+        const p = g.hero.object.position
+        const t = g.encounter.spawnById('grunt', { x: p.x + 1.8, z: p.z }, true)
+        t.update = () => {}
+        const start = t.health.hp
+        g.orders.press(null, t)
+        g.advance(20, 1 / 30)
+        out.push({ open: n, damage: Math.round(start - t.health.hp), alive: t.alive })
+      }
+      g.encounter.threat = { hp: 1, damage: 1 }
+      return out
+    })
+    const base = rows[0].damage
+    for (const r of rows) r.vsOne = `${Math.round((r.damage / base - 1) * 100)}%`
+    // 새로 여는 순간: 숙련으로 로키가 열릴 때 화면
+    const page2 = await fresh(browser, '?fresh&relics=&region=midgard')
+    await page2.evaluate(() => {
+      const g = window.__game
+      g.dev.choose('thor')
+      g.storyScenes = true
+      g.dev.gainMastery()
+    })
+    const opened = await page2.evaluate(() => ({ opened: window.__game.progress.opened, scene: window.__game.scenes.current }))
+    await shot(page2, 'e12-1-open')
+    await page2.close()
+    await page.close()
+    return { rows, opened }
+  },
+
+  /** E12-2 고른 신화를 바꾸면 싸우는 모습이 바로 달라진다: 바꾼 뒤 첫 휘두르기까지 시간과 휘두르는 모습 */
+  async 'e12-2'(browser) {
+    const page = await fresh(browser)
+    const out = []
+    for (const god of ['thor', 'artemis', 'amaterasu']) {
+      const r = await page.evaluate((god) => {
+        const g = window.__game
+        g.encounter.clearAll()
+        g.combat.godMode = true
+        g.orders.clear()
+        g.dev.teleport(0, 4)
+        g.encounter.threat = { hp: 60, damage: 1 }
+        const p = g.hero.object.position
+        const t = g.encounter.spawnById('grunt', { x: p.x + 1.8, z: p.z }, true)
+        t.update = () => {}
+        g.orders.press(null, t)
+        g.advance(2, 1 / 30)
+        // 싸우는 중에 고른 신화를 바꾼다
+        const t0 = g.time
+        g.dev.choose(god)
+        let first = null
+        let was = g.combat.combo.swinging
+        let style = g.combat.style
+        for (let i = 0; i < 90 && first === null; i++) {
+          g.advance(1 / 30, 1 / 30)
+          style = g.combat.style
+          // 바꾼 뒤 새로 시작한 첫 휘두르기
+          if (g.combat.combo.swinging && !was) first = g.time - t0
+          was = g.combat.combo.swinging
+        }
+        // 휘두르는 중간쯤에서 멈춰 찍는다
+        g.advance(0.12, 1 / 30)
+        g.timeScale = 0
+        return { god, style, firstSwing: first === null ? null : Math.round(first * 100) / 100 }
+      }, god)
+      const clip = { x: 640 - 200, y: 360 - 170, width: 400, height: 300 }
+      r.shot = await shot(page, `e12-2-${god}`, clip)
+      await page.evaluate(() => (window.__game.timeScale = 1))
+      out.push(r)
+    }
+    await page.close()
+    return out
+  },
+
+  /** E12-3 신화 탭만 보고 다음에 무엇을 해야 하는지 안다: 막 시작했을 때, 신화 하나 연 뒤, 단계를 올릴 수 있을 때 */
+  async 'e12-3'(browser) {
+    const page = await fresh(browser)
+    const tab = async (name) => {
+      await page.evaluate(() => window.__game.menu.show('classes'))
+      await page.waitForTimeout(300)
+      const text = await page.evaluate(() => document.querySelector('.menu')?.innerText ?? '')
+      await shot(page, name)
+      await page.evaluate(() => window.__game.menu.toggle(false))
+      return text.slice(0, 1200)
+    }
+    const empty = await tab('e12-3-none')
+    await page.evaluate(() => window.__game.dev.choose('thor'))
+    const one = await tab('e12-3-thor')
+    await page.evaluate(() => {
+      const g = window.__game
+      g.progress.addXp('thor', 1e9)
+    })
+    const ready = await tab('e12-3-ready')
+    await page.close()
+    return { empty, one, ready }
+  },
+
+  /** E12-4 싸우다가 땅을 한 번 누르면 바로 빠져나간다: 졸개 여섯에 둘러싸여 싸우다 8m 밖을 화면에서 누른다 */
+  async 'e12-4'(browser) {
+    const page = await fresh(browser)
+    const at = await page.evaluate(() => {
+      const g = window.__game
+      g.dev.choose('thor')
+      g.combat.godMode = true
+      g.dev.teleport(0, 4)
+      g.encounter.threat = { hp: 20, damage: 1 }
+      const p = g.hero.object.position
+      const ring = []
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2
+        ring.push(g.encounter.spawnById('grunt', { x: p.x + Math.sin(a) * 1.6, z: p.z + Math.cos(a) * 1.6 }, true))
+      }
+      g.orders.press(null, ring[0])
+      g.advance(2, 1 / 30)
+      window.__ring = ring
+      const goal = { x: p.x + 8, z: p.z + 1 }
+      window.__goal = goal
+      return g.screenPoint(goal.x, g.hero.object.position.y, goal.z)
+    })
+    await shot(page, 'e12-4-before')
+    const t0 = await page.evaluate(() => window.__game.time)
+    await page.mouse.click(at.x, at.y)
+    // 누른 것은 다음 화면 갱신에서 지시가 된다
+    await page.waitForFunction(() => window.__game.orders.order?.kind === 'move', null, { timeout: 10000 }).catch(() => {})
+    const r = await page.evaluate(async (t0) => {
+      const g = window.__game
+      const goal = g.hero.goal ? { x: g.hero.goal.x, z: g.hero.goal.z } : window.__goal
+      let left = null
+      let swingsAfter = 0
+      let wasSwinging = g.combat.combo.swinging
+      const startAt = { ...g.hero.object.position }
+      for (let i = 0; i < 150 && left === null; i++) {
+        g.advance(1 / 30, 1 / 30)
+        if (g.combat.combo.swinging && !wasSwinging) swingsAfter++
+        wasSwinging = g.combat.combo.swinging
+        const p = g.hero.object.position
+        if (Math.hypot(p.x - goal.x, p.z - goal.z) < 0.6) left = g.time - t0
+      }
+      const near = g.encounter.giants.filter((e) => e.alive && Math.hypot(e.x - g.hero.object.position.x, e.z - g.hero.object.position.z) < 2.5).length
+      return { order: g.orders.order?.kind ?? null, distance: Math.round(Math.hypot(goal.x - startAt.x, goal.z - startAt.z) * 10) / 10, arrive: left === null ? null : Math.round(left * 100) / 100, swingsAfterClick: swingsAfter, enemiesWithin2_5m: near }
+    }, t0)
+    await shot(page, 'e12-4-after')
+    await page.close()
+    return r
+  },
+
+  /** E12-5 몬스터 이름과 등급을 바로 안다: 보통·정예·보스에 커서를 올린 모습 */
+  async 'e12-5'(browser) {
+    const page = await fresh(browser, '?fresh&relics=&region=utgard&noscenes')
+    const out = []
+    for (const name of ['normal', 'elite', 'boss']) {
+      const at = await page.evaluate((name) => {
+        const g = window.__game
+        g.orders.clear()
+        let target
+        if (name === 'boss') {
+          target = g.encounter.boss
+          g.dev.teleport(target.x - 7, target.z + 2)
+        } else {
+          g.encounter.clearAll()
+          g.dev.teleport(0, 0)
+          const p = g.hero.object.position
+          target = g.encounter.spawnById(name === 'normal' ? 'grunt' : 'wolf', { x: p.x + 4, z: p.z }, false)
+          if (name === 'elite') target.makeElite('swift')
+        }
+        target.update = () => {}
+        return g.screenPoint(target.x, g.hero.object.position.y + 1.0, target.z)
+      }, name)
+      await page.mouse.move(at.x, at.y)
+      await page.waitForTimeout(400)
+      const plates = await page.evaluate(() => window.__game.nameplates.visible)
+      await shot(page, `e12-5-${name}`, { x: Math.max(0, at.x - 220), y: Math.max(0, at.y - 200), width: 440, height: 300 })
+      out.push({ name, plates })
+    }
+    await page.close()
+    return out
+  },
+
+  /** E12-6 첫 장면이 짧고 자연스럽다: 줄 수·글자 수·사람이 읽는 시간, 첫 줄과 마지막 줄 화면 */
+  async 'e12-6'(browser) {
+    const scenes = JSON.parse(readFileSync('src/data/scenes.json', 'utf8'))
+    const opening = scenes.opening ?? Object.values(scenes)[0]
+    const lines = (opening.lines ?? opening.steps ?? []).map((l) => (typeof l === 'string' ? l : `${l.who ?? l.speaker ?? ''}: ${l.text ?? l.line ?? ''}`))
+    const page = await browser.newPage({ viewport: { width: 1280, height: 720 } })
+    await page.goto(URL)
+    await page.waitForSelector('.title-slot', { timeout: 60000 })
+    await page.locator('.title-slot').first().click()
+    await page.click('.title__button--primary')
+    await page.waitForFunction(() => window.__game.scenes.current === 'opening' && !document.querySelector('.dialog')?.hidden, null, { timeout: 10000 })
+    await page.waitForTimeout(1500)
+    await shot(page, 'e12-6-first')
+    let clicks = 0
+    for (; clicks < 40 && (await page.evaluate(() => !document.querySelector('.dialog').hidden)); clicks++) {
+      if (clicks === 6) await shot(page, 'e12-6-mid')
+      await page.mouse.click(640, 300)
+      await page.waitForTimeout(150)
+    }
+    await page.waitForTimeout(800)
+    await shot(page, 'e12-6-after')
+    await page.close()
+    const chars = lines.reduce((n, l) => n + l.length, 0)
+    return { lines, count: lines.length, chars, readSeconds: Math.round(chars / 8), clicksToFinish: clicks }
+  },
+
+  /** E13-1 장비를 주울 때 "이게 더 좋은가"가 바로 보인다: 손 칸에 보통 장비를 낀 채, 땅의 영웅 장갑에 커서를 올린 카드 */
+  async 'e13-1'(browser) {
+    const page = await fresh(browser)
+    const at = await page.evaluate(() => {
+      const g = window.__game
+      g.dev.choose('thor')
+      g.dev.teleport(2, -3)
+      g.dev.wear('hands', 'common')
+      const p = g.hero.object.position
+      g.dev.dropGear('hands', 'hero', p.x + 4, p.z + 1)
+      return g.screenPoint(p.x + 4, p.y + 0.4, p.z + 1)
+    })
+    await page.mouse.move(at.x, at.y)
+    await page.waitForTimeout(500)
+    const card = await page.evaluate(() => [...document.querySelectorAll('.relic-tooltip, .gear-card, .hover-card')].filter((e) => !e.hidden && e.offsetParent).map((e) => e.innerText).join('\n---\n'))
+    await shot(page, 'e13-1-card')
+    await page.close()
+    return { card }
+  },
+
+  /** E13-2 유물을 처음 만들 때와 단계를 올릴 때 신난다: 대장간에서 벼린 직후 화면 둘 */
+  async 'e13-2'(browser) {
+    const page = await fresh(browser)
+    const out = []
+    for (const step of [1, 2]) {
+      await page.evaluate(() => {
+        const g = window.__game
+        if (!g.powers.manifested) g.dev.choose('thor')
+        g.dev.teleport(2, -3)
+        g.dev.fillForge('thor')
+      })
+      const ok = await page.evaluate(() => window.__game.dev.forge('thor'))
+      await page.waitForTimeout(700)
+      await shot(page, `e13-2-forge${step}`)
+      out.push({ step, ok, stage: await page.evaluate(() => window.__game.powers.loadout.stage('mjolnir')) })
+      await page.waitForTimeout(5000)
+    }
+    await page.close()
+    return out
+  },
+
+  /** E13-3 그 칸에 유물을 낄지 수치 좋은 장비를 낄지 고민된다: 같은 칸에 묠니르(1·2단계) / 영웅 장비를 낀 채 20초 피해 */
+  async 'e13-3'(browser) {
+    const page = await fresh(browser)
+    const rows = await page.evaluate(() => {
+      const g = window.__game
+      const measure = () => {
+        g.encounter.clearAll()
+        g.combat.health.reset()
+        g.combat.godMode = true
+        g.orders.clear()
+        g.dev.teleport(0, 4)
+        g.encounter.threat = { hp: 60, damage: 1 }
+        const p = g.hero.object.position
+        const t = g.encounter.spawnById('grunt', { x: p.x + 1.8, z: p.z }, true)
+        t.update = () => {}
+        const start = t.health.hp
+        g.orders.press(null, t)
+        g.advance(20, 1 / 30)
+        g.encounter.threat = { hp: 1, damage: 1 }
+        return Math.round(start - t.health.hp)
+      }
+      g.dev.choose('thor')
+      const part = g.powers.loadout.partOf('mjolnir')
+      const out = []
+      g.dev.unequipAll()
+      out.push({ what: '빈 칸', damage: measure(), hp: g.combat.health.max })
+      for (const grade of ['common', 'rare', 'hero']) {
+        g.dev.unequipAll()
+        g.dev.wear(part, grade)
+        out.push({ what: `${grade} 장비`, damage: measure(), hp: g.combat.health.max })
+      }
+      g.dev.unequipAll()
+      g.dev.equip('mjolnir')
+      out.push({ what: '묠니르 1단계', damage: measure(), hp: g.combat.health.max })
+      return { part, out }
+    })
+    await page.close()
+    return rows
+  },
+
+  /** E14-2 위협 단계를 올리면 확실히 어려워지고, 보상이 좋아진 게 보인다: 올리는 순간 화면, 단계별 적 배율 */
+  async 'e14-2'(browser) {
+    const page = await fresh(browser)
+    const r = await page.evaluate(() => {
+      const g = window.__game
+      g.dev.choose('thor')
+      g.dev.teleport(2, -3)
+      const scale = []
+      for (let lv = 1; lv <= 10; lv++) {
+        Object.assign(g.threat, { unlocked: 10, reached: 10 })
+        g.threat.level = lv
+        g.threatSystem.apply()
+        scale.push({ level: lv, ...g.encounter.threat, elite: Math.round(g.encounter.eliteChance * 100) / 100 })
+      }
+      Object.assign(g.threat, { unlocked: 2, reached: 1, level: 1 })
+      g.threatSystem.apply()
+      g.threat.gainBattle(400)
+      const ok = g.threatSystem.advance('flame')
+      return { scale, ok }
+    })
+    await page.waitForTimeout(700)
+    await shot(page, 'e14-2-advance')
+    await page.close()
+    return r
+  },
+
+  /** E14-3 반복하던 손일(줍기·분해)이 자동이 될 때 반갑다: 자동 줍기가 열리는 순간 */
+  async 'e14-3'(browser) {
+    const page = await fresh(browser)
+    const r = await page.evaluate(() => {
+      const g = window.__game
+      g.dev.teleport(2, -3)
+      const before = [...g.conveniences.open]
+      g.threatSystem.count('pickups', 400)
+      return { before, after: [...g.conveniences.open] }
+    })
+    await page.waitForTimeout(600)
+    await shot(page, 'e14-3-open')
+    await page.close()
+    return r
+  },
+
+  /** E15-3 지도만 보고 어디로 가야 할지 안다: 미드가르드에서 연 세계 지도 */
+  async 'e15-3'(browser) {
+    const page = await fresh(browser, '?fresh&relics=&region=midgard&noscenes')
+    await page.evaluate(() => window.__game.menu.show('map'))
+    await page.waitForTimeout(400)
+    await shot(page, 'e15-3-map')
+    await page.close()
+    return {}
+  },
+
+  /** E16 시련 탭 (제약·보상이 이어지는지) */
+  async 'e16'(browser) {
+    const page = await fresh(browser, '?fresh&relics=&region=midgard&noscenes')
+    const text = await page.evaluate(() => {
+      const g = window.__game
+      g.dev.choose('thor')
+      Object.assign(g.threat, { unlocked: 3, reached: 3 })
+      const s = g.region.sanctuary
+      g.dev.teleport(s.x, s.z)
+      g.menu.show('trials')
+      return document.querySelector('.menu')?.innerText ?? ''
+    })
+    await page.waitForTimeout(400)
+    await shot(page, 'e16-trials')
+    await page.close()
+    return { text: text.slice(0, 2000) }
+  },
+
+  /** E17-1 한계를 깨는 순간 */
+  async 'e17-1'(browser) {
+    const page = await fresh(browser)
+    await page.evaluate(() => {
+      const g = window.__game
+      g.dev.choose('thor')
+      g.dev.teleport(2, -3)
+      for (const realm of ['norse', 'greek', 'china', 'japan', 'korea']) g.threat.cleared[realm] = 10
+      Object.assign(g.threat, { unlocked: 10, reached: 10, level: 10 })
+      g.threatSystem.breakLimit()
+    })
+    await page.waitForTimeout(500)
+    await shot(page, 'e17-1-break')
+    await page.close()
+    return {}
+  },
+
+  /** E17-3 성좌판 */
+  async 'e17-3'(browser) {
+    const page = await fresh(browser)
+    await page.evaluate(() => {
+      const g = window.__game
+      g.dev.choose('thor')
+      for (const realm of ['norse', 'greek', 'china', 'japan', 'korea']) g.threat.cleared[realm] = 10
+      Object.assign(g.threat, { unlocked: 10, reached: 10, level: 10 })
+      g.threatSystem.breakLimit()
+      g.rift.stars += 6
+      g.menu.show('rift')
+    })
+    await page.waitForTimeout(5500)
+    await shot(page, 'e17-3-board')
+    await page.close()
+    return {}
+  },
+}
+
+try {
+  for (let i = 0; i < 50; i++) {
+    try {
+      if ((await fetch(URL)).ok) break
+    } catch {}
+    await new Promise((r) => setTimeout(r, 200))
+  }
+  mkdirSync(OUT, { recursive: true })
+  const browser = await chromium.launch({
+    executablePath: existsSync(BROWSER) ? BROWSER : undefined,
+    args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
+  })
+  const path = 'test-results/checklist.json'
+  const old = existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : {}
+  for (const [id, run] of Object.entries(sections)) {
+    if (want.length > 0 && !want.some((w) => id.startsWith(w))) continue
+    const t0 = Date.now()
+    try {
+      results[id] = await run(browser)
+    } catch (e) {
+      results[id] = { error: String(e?.message ?? e).split('\n')[0] }
+    }
+    console.log(`${id} (${Math.round((Date.now() - t0) / 1000)}초)`, JSON.stringify(results[id]).slice(0, 600))
+  }
+  await browser.close()
+  writeFileSync(path, JSON.stringify({ ...old, ...results, errors }, null, 2))
+  if (errors.length) console.log('페이지 오류:', errors.slice(0, 5).join(' / '))
+} finally {
+  stop()
+}
