@@ -55,8 +55,9 @@ function consumeTitleRequest(): boolean {
 function summary(slot: number): SlotSummary | null {
   const data = saveStorage.load(slot)
   if (!data) return null
-  const relics = [...data.slots.filter(Boolean), ...data.bag].length
-  const best = (Object.entries(data.classes) as [God, { level: number }][]).sort((a, b) => b[1].level - a[1].level)[0]
+  // 유물만 센다 (일반 장비는 빼고), 신화는 연 것(개방 단계 1 이상)만
+  const relics = [...data.slots, ...data.bag].filter((id) => id && isRelicId(id)).length
+  const best = (Object.entries(data.classes) as [God, { level: number }][]).filter(([, r]) => r.level >= 1).sort((a, b) => b[1].level - a[1].level)[0]
   if (!best) return { className: '모험가', title: '이름 없는 모험가', level: 1, color: '#d8dde6', relics }
   const god = godDef(best[0])
   return { className: god.name, title: god.titles[best[1].level - 1]!, level: best[1].level, color: god.color, relics }

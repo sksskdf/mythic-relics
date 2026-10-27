@@ -61,6 +61,14 @@ describe('저장 데이터', () => {
     const two = parseSave(JSON.stringify({ ...v3, slots: ['mjolnir', 'megingjord', null, null], classes: {} }))!
     expect(two.classes.thor).toEqual({ level: 1, xp: 0 })
     expect(two.chosen).toEqual([])
+    // 옛 순환 기록이 있어도(서리 조각·심장으로 돌려받음) 그 재료를 유물로 세다 멈추지 않는다
+    const cycled = parseSave(JSON.stringify({ ...v3, cycle: { essence: { flame: 250 }, ash: 7 } }))!
+    expect(cycled.classes.thor).toEqual({ level: 2, xp: 40 })
+    expect(cycled.materials).toMatchObject({ frostShard: 2, giantHeart: 2 })
+  })
+
+  it('읽지 못하는 저장(장비 id가 숫자 등)은 게임을 멈추지 않는다', () => {
+    expect(() => parseSave(JSON.stringify({ ...sample, gear: [{ uid: 5, part: 'head', grade: 'rare', base: '철 투구' }] }))).not.toThrow()
   })
 
   it('고른 신화는 열린 신화만, 칸 수만큼만 남긴다', () => {

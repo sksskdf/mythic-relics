@@ -60,6 +60,8 @@ export class Encounter {
   private regionElite = 0
   /** 위협 단계 배율 (E14-03): 새로 세우는 적에 건다 */
   threat = { hp: 1, damage: 1 }
+  /** 결계 안(전설·시련)에 따로 세우는 적의 배율. 없으면 threat (시련 난이도가 결계 밖 무리·보스에 번지지 않게) */
+  arenaThreat: { hp: number; damage: number } | null = null
   /** 정예를 고를 때 쓰는 난수 (점검할 때 바꿔 끼운다) */
   rng: () => number = Math.random
 
@@ -167,7 +169,7 @@ export class Encounter {
   /** 승급 전설 등에서 거인을 따로 세운다. alert면 바로 주인공을 쫓는다. */
   spawn(spec: GiantSpec, home: Point2, alert: boolean): Giant {
     const nav = this.navFor(spec)
-    const giant = this.addGiant(spec, nav.nearestFree(home) ?? home)
+    const giant = this.addGiant(spec, nav.nearestFree(home) ?? home, this.arenaThreat ?? this.threat)
     if (alert) giant.alert()
     return giant
   }
@@ -208,9 +210,9 @@ export class Encounter {
     }
   }
 
-  private addGiant(spec: GiantSpec, home: Point2): Giant {
+  private addGiant(spec: GiantSpec, home: Point2, threat = this.threat): Giant {
     const giant = new Giant(spec, home, this.seed++)
-    if (this.threat.hp !== 1 || this.threat.damage !== 1) giant.applyThreat(this.threat)
+    if (threat.hp !== 1 || threat.damage !== 1) giant.applyThreat(threat)
     this.giants.push(giant)
     this.object.add(giant.object)
     return giant

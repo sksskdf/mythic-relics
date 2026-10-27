@@ -123,6 +123,13 @@ export function createAura(def: AuraDef): Aura {
 
 // ───────────────────────────── 행동 ─────────────────────────────
 
+/** 떼어 낸 모습의 모양(geometry)을 GPU에서 내린다. 유물을 뺐다 낄 때마다 쌓이지 않게 (재질은 공용이라 두고) */
+function disposeGeometries(root: THREE.Object3D): void {
+  root.traverse((o) => {
+    if (o instanceof THREE.Mesh) o.geometry.dispose()
+  })
+}
+
 /** 망치 투척: 대상 쪽으로 날아가며 닿는 적을 모두 때리고, 손으로 돌아오며 한 번 더 때린다. (모습: 도는 망치, 곧게 나는 창) */
 class HammerThrow implements Action {
   private readonly missile: Missile
@@ -204,6 +211,7 @@ class HammerThrow implements Action {
 
   dispose(): void {
     this.mesh.removeFromParent()
+    disposeGeometries(this.mesh)
   }
 }
 
@@ -261,6 +269,7 @@ class Quake implements Action {
 
   dispose(): void {
     this.ring.removeFromParent()
+    this.ring.geometry.dispose()
     this.material.dispose()
     this.look.dispose()
   }
@@ -327,9 +336,7 @@ class IngotThrow implements Action {
     const [ingot] = this.ingots.splice(index, 1)
     if (!ingot) return
     ingot.missile.holder.removeFromParent()
-    ingot.missile.holder.traverse((o) => {
-      if (o instanceof THREE.Mesh) o.geometry.dispose()
-    })
+    disposeGeometries(ingot.missile.holder)
   }
 
   dispose(): void {
@@ -346,6 +353,8 @@ class Decoy implements Action {
   private readonly decoy: { root: THREE.Object3D }
   private life = 0
   private boost = NO_BOOST
+  /** 분신을 세운 곳 (유물을 빼면 적이 더는 분신을 쫓지 않게 치운다) */
+  private ctx: SkillContext | null = null
 
   tint(hex: number): void {
     this.material.color.setHex(hex)
@@ -380,6 +389,7 @@ class Decoy implements Action {
     this.decoy.root.rotation.y = ctx.hero.facing
     this.decoy.root.visible = true
     ctx.setDecoy({ x: hero.x, z: hero.z, radius: 0.4 })
+    this.ctx = ctx
     ctx.puffs.burst(hero, 10, 1.5)
     if (this.look === 'shade') ctx.chips(hero, [0x2a1a3a, 0x8a5fd0], 14, 0.5, 0.12)
   }
@@ -408,6 +418,8 @@ class Decoy implements Action {
   }
 
   dispose(): void {
+    // 분신이 떠 있는 채로 유물을 빼면(가방에 넣기·바꿔 끼기·제작) 적이 보이지 않는 분신을 쫓지 않게
+    if (this.life > 0) this.ctx?.setDecoy(null)
     this.decoy.root.removeFromParent()
     this.material.dispose()
   }
@@ -594,7 +606,9 @@ class Pierce implements Action {
   }
 
   dispose(): void {
-    ;(this.missile?.holder ?? this.stretch?.holder)?.removeFromParent()
+    const holder = this.missile?.holder ?? this.stretch?.holder
+    holder?.removeFromParent()
+    if (holder) disposeGeometries(holder)
     this.stretch?.material?.dispose()
   }
 }

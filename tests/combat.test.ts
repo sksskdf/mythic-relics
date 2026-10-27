@@ -38,6 +38,18 @@ describe('Health', () => {
     expect(h.dead).toBe(true)
     expect(h.damage(5)).toBe(0)
   })
+
+  it('최대 생명이 바뀌면 비율을 지킨다: 장비를 뺐다 끼어도 차오르지 않고, 쓰러진 채면 그대로다', () => {
+    const h = new Health(200)
+    h.damage(50)
+    h.setMax(184)
+    h.setMax(200)
+    expect(h.hp).toBeCloseTo(150)
+    const dead = new Health(100)
+    dead.damage(100)
+    dead.setMax(200)
+    expect(dead.dead).toBe(true)
+  })
 })
 
 describe('ComboState', () => {

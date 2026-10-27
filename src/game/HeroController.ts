@@ -9,6 +9,8 @@ import { heightAt } from '../world/terrain'
 export const HERO_RADIUS = 0.4
 /** 돌아서는 빠르기 (클수록 빨리 돈다) */
 const TURN_SPEED = 28
+/** 막혀서 거의 못 나아가는 채로 이만큼(초) 지나면 길을 버린다 (벽에 붙어 제자리걸음하지 않게) */
+const STUCK_SECONDS = 0.5
 
 export interface HeroTuning {
   /** 걷는 속도 (m/s) */
@@ -57,6 +59,8 @@ export class HeroController {
   readonly object: THREE.Object3D
   private readonly knock = new THREE.Vector2()
   private repathTimer = 0
+  /** 걸으려 했는데 막혀 있던 시간 (초) */
+  private stuck = 0
   private walkCycle = 0
   /** 바라보려는 방향. 몸은 이쪽으로 짧게 돌아선다. (판정은 바로 이 방향을 쓴다) */
   private targetFacing = 0
@@ -84,6 +88,11 @@ export class HeroController {
     return { x: next.x - p.x, z: next.z - p.z }
   }
 
+  /** 걸어가는 곳 (길의 끝). 서 있으면 null */
+  get goal(): Point2 | null {
+    return this.path[this.path.length - 1] ?? null
+  }
+
   get facing(): number {
     return this.targetFacing
   }
@@ -105,10 +114,15 @@ export class HeroController {
     this.animate(dt)
   }
 
-  /** 지정한 지점으로 길을 찾아 걷기 시작한다. */
+  /**
+   * 지정한 지점으로 길을 찾아 걷기 시작한다.
+   * 맵 밖이나 결계 밖을 누르면 갈 수 있는 가장자리까지만 간다.
+   */
   moveTo(target: Point2): void {
     const position = this.object.position
-    this.path = this.nav.findPath({ x: position.x, z: position.z }, target)
+    let goal = clampToBounds(target, this.halfExtent - HERO_RADIUS)
+    if (this.arena) goal = clampToCircle(goal, { ...this.arena, radius: Math.max(0, this.arena.radius - HERO_RADIUS) })
+    this.path = this.nav.findPath({ x: position.x, z: position.z }, goal)
     this.repathTimer = this.tuning.repathInterval
   }
 
@@ -134,8 +148,11 @@ export class HeroController {
   }
 
   private stepPath(dt: number): void {
-    let remaining = this.tuning.moveSpeed * this.speedScale * this.boostScale * dt
+    const wanted = this.tuning.moveSpeed * this.speedScale * this.boostScale * dt
+    let remaining = wanted
     const position = this.object.position
+    const fromX = position.x
+    const fromZ = position.z
     while (remaining > 0 && this.path.length > 0) {
       const next = this.path[0]!
       const dx = next.x - position.x
@@ -152,6 +169,12 @@ export class HeroController {
       remaining -= step
       if (step >= dist) this.path.shift()
     }
+    // 바위·거인 무리·경계에 막혀 걸음의 1/4도 못 나아가면 잠깐 뒤 멈춘다 (멈추면 둘레 적과 싸운다)
+    const moved = Math.hypot(position.x - fromX, position.z - fromZ)
+    if (this.path.length > 0 && moved < (wanted - remaining) * 0.25) {
+      this.stuck += dt
+      if (this.stuck >= STUCK_SECONDS) this.path = []
+    } else this.stuck = 0
   }
 
   /**

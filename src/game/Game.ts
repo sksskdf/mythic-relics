@@ -77,10 +77,11 @@ import { awakeningLevel } from '../data/awakening'
 import { SOURCE_IDS, type SourceId } from '../data/schema'
 import { Build } from '../build/Build'
 import { gearCard } from '../ui/gearCard'
+import type { GearPart } from '../data/gearData'
 import { baseCandidates, nextRecipe } from '../gear/forge'
 import { materialName, mythMaterial } from '../gear/materials'
 import { mythRelic, stageName } from '../gear/mythRelic'
-import { GEAR } from '../gear/roll'
+import { GEAR, gearName } from '../gear/roll'
 import { alwaysStage } from '../build/BuildState'
 
 export interface GameOptions {
@@ -144,6 +145,8 @@ export class Game {
   readonly threatSystem: ThreatSystem
   /** 처음 보는 일의 대화 장면을 띄우는가 (봇·점검 스크립트는 끈다) */
   storyScenes = true
+  /** 창이 열려 있거나 다른 장면 중이라 미룬 장면. 창을 닫으면 차례로 연다 */
+  private pendingScenes: string[] = []
   /** 걸어가 말을 걸 마을 사람 */
   private talkTo: string | null = null
   readonly conveniences = new Conveniences()
@@ -361,6 +364,7 @@ export class Game {
     const relics = this.relics
     const powers = this.powers
     const conveniences = this.conveniences
+    const bus = this.bus
     this.menu = new GameMenu(this.hud.root, {
       get slots() {
         return powers.loadout.slots
@@ -388,7 +392,7 @@ export class Game {
             name: stageName(recipe.relic, recipe.stage),
             stage: recipe.stage,
             materials: recipe.materials.map(({ id, count }) => ({ name: materialName(id), have: loadout.materials.get(id) ?? 0, need: count })),
-            ...(recipe.base ? { base: { part: GEAR.parts[recipe.base].name, ok: baseCandidates(loadout, recipe.base).length > 0 } } : {}),
+            ...(recipe.base ? { base: this.forgeBase(recipe.base) } : {}),
           }
         },
         make: (god) => this.ctx.map.region.kind === 'hub' && relics.forge(god),
@@ -405,7 +409,7 @@ export class Game {
       myths: {
         canChoose: () => this.canChooseMyth,
         choose: (god) => this.chooseMyth(god),
-        stage: (god) => alwaysStage(this.progress.level(god), powers.loadout.relics.some((id) => id !== null && relicDef(id).god === god)),
+        stage: (god) => alwaysStage(this.progress.level(god), powers.loadout.relics.some((id) => id !== null && relicDef(id).god === god), this.rift.lit.has(god)),
       },
       cardContext: (id, preview) => this.cardContext(id, preview),
       stats: () => this.heroStats(),
@@ -426,6 +430,8 @@ export class Game {
         },
         set autoSalvage(on: boolean) {
           conveniences.autoSalvage = on
+          // 바꾼 설정도 저장한다
+          bus.emit('progressChanged', {})
         },
         warps: () => {
           if (!this.conveniences.has('warp')) return []
@@ -560,6 +566,7 @@ export class Game {
         enter: (region) => this.world.enter(region),
         home: () => this.world.travelTo(START_REGION),
         offer: (choices, pick) => this.blessingPicker.show(choices, pick),
+        closeBlessings: () => this.blessingPicker.hide(),
       },
       this.scene,
     )
@@ -637,7 +644,6 @@ export class Game {
     return this.persistence.snapshot()
   }
 
-  /** 바뀐 것이 있으면 저장한다. */
   /** 저장하고 처음 화면(슬롯 고르기)으로 돌아간다. 다시 불러와 시작 화면을 띄운다. */
   toTitle(): void {
     this.bus.emit('progressChanged', {})
@@ -655,6 +661,7 @@ export class Game {
     this.appearance.setBody(body)
   }
 
+  /** 바뀐 것이 있으면 저장한다. */
   saveNow(): void {
     this.persistence.saveNow()
   }
@@ -728,11 +735,27 @@ export class Game {
     this.blessingPicker.hide()
   }
 
-  /** 처음 보는 일의 짧은 대화 장면 (E15-06). 본 장면·꺼 둔 때(봇·점검)·다른 지역의 장면은 열지 않는다 */
+  /** 대장간 처음 제작의 바탕: 쓰일 장비 이름 (가방 것부터). 없으면 부위만 (E13-05) */
+  private forgeBase(part: GearPart): { part: string; ok: boolean; item?: string } {
+    const { loadout } = this.powers
+    const uid = baseCandidates(loadout, part)[0]
+    const item = uid ? loadout.gear.get(uid) : undefined
+    return { part: GEAR.parts[part].name, ok: !!item, ...(item ? { item: gearName(item) } : {}) }
+  }
+
+  /**
+   * 처음 보는 일의 짧은 대화 장면 (E15-06). 본 장면·꺼 둔 때(봇·점검)·다른 지역의 장면은 열지 않는다.
+   * 창이 열려 있거나(대장간에서 처음 제작 등) 다른 장면 중이면 미뤘다가 연다:
+   * 장면은 HUD를 숨기는데 창은 HUD 안에 있어, 창이 열린 채 장면이 서면 둘 다 멈춘다.
+   */
   story(id: string): boolean {
     const scene = SCENES[id]
     if (!this.storyScenes || !scene || this.ctx.scenesSeen.has(id)) return false
     if (scene.region && scene.region !== this.ctx.map.region.id) return false
+    if (this.paused || this.scenes.active) {
+      if (!this.pendingScenes.includes(id)) this.pendingScenes.push(id)
+      return true
+    }
     return this.scenes.play(id)
   }
 
@@ -792,6 +815,7 @@ export class Game {
     }
     // 정보 화면이 열려 있으면 게임은 멈추고 화면만 그린다. (E4-07)
     if (!this.paused) {
+      if (!this.scenes.active && this.pendingScenes.length > 0) this.story(this.pendingScenes.shift()!)
       // 대화 중에는 이동 입력을 받지 않고, 카메라는 주인공과 말하는 사람 사이를 본다 (E12-10)
       // 대화 중에는 세계가 멈춘다 (싸우다 신화가 열리거나 보스가 말해도 맞지 않게, E15-06)
       const talking = this.scenes.active
@@ -826,7 +850,8 @@ export class Game {
       if (e.key !== 'Escape' || !this.playing) return
       if (this.pauseMenu.open) this.pauseMenu.hide()
       else if (this.menu.open) this.menu.toggle(false)
-      else this.pauseMenu.show()
+      // 대화 중에는 세계가 이미 멈춰 있고, 일시 정지 창은 숨은 HUD 안이라 보이지 않는다
+      else if (!this.scenes.active) this.pauseMenu.show()
     })
     // 단추를 누르면 짧게 딸깍
     addEventListener('click', (e) => {
@@ -841,9 +866,9 @@ export class Game {
     addEventListener('blur', () => this.autoPause())
   }
 
-  /** 창 밖으로 나가면 멈춘다. 이미 창이 열려 있으면 그대로 둔다 */
+  /** 창 밖으로 나가면 멈춘다. 이미 창이 열려 있거나 대화 중(세계가 멈춤)이면 그대로 둔다 */
   private autoPause(): void {
-    if (this.playing && !this.paused) this.pauseMenu.show()
+    if (this.playing && !this.paused && !this.scenes.active) this.pauseMenu.show()
   }
 
   /** 설정을 적용한다: 음량, 흔들림, 번쩍임, 렌더 해상도 */
@@ -873,7 +898,7 @@ export class Game {
       // 지금 레벨까지 열린 힘 (승급 카드와 같은 문구에서 고른다)
       const level = this.progress.level(manifested)
       const what = levelGains(manifested, 1)
-        .filter((g) => g.kind !== 'hp' && g.kind !== 'mastery')
+        .filter((g) => g.kind !== 'hp')
         .map((g) => g.text)
       for (let lv = 2; lv <= level; lv++) for (const g of levelGains(manifested, lv)) if (g.kind === 'power') what.push(g.text)
       what.push(`궁극기 「${god.ultimate.name}」`)
@@ -930,7 +955,8 @@ export class Game {
     if (near && nearGear) {
       // 땅의 일반 장비: 같은 부위에 지금 낀 장비와 비교한 카드
       const { loadout } = this.powers
-      const wornId = loadout.slots.find((id, i) => id && loadout.fits(nearGear.uid, i) && loadout.gear.has(id))
+      // 아직 줍지 않은 장비는 가방에 없어 fits로는 알 수 없으니 부위로 고른다
+      const wornId = loadout.slots.find((id) => id && loadout.gear.has(id) && loadout.partOf(id) === nearGear.part)
       const worn = wornId ? loadout.gear.get(wornId) : null
       this.tooltip.showCard(near.id, `${near.id}|${wornId ?? ''}`, () => gearCard(nearGear, worn), pointer.x, pointer.y)
       this.groundTooltip = true
@@ -946,11 +972,11 @@ export class Game {
     }
   }
 
-  /** 월드 좌표가 화면 어디에 보이는가 (CSS 픽셀, 자동 점검용) */
-  /** 고른 신화를 바꿀 수 있는 곳인가: 마을, 또는 지역 성소 곁 (E12-04, DESIGN.md 4.2) */
+  /** 고른 신화를 바꿀 수 있는 곳인가: 마을, 또는 지역 성소 곁 (E12-04, DESIGN.md 4.2). 전설·시련 중에는 못 바꾼다 (도전한 신화가 승급하도록) */
   get canChooseMyth(): boolean {
+    if (this.legend.active) return false
     if (this.ctx.map.region.kind === 'hub' || this.conveniences.has('quickChoose')) return true
-    if (!this.legend.present || this.legend.active) return false
+    if (!this.legend.present) return false
     const p = this.hero.object.position
     return Math.hypot(p.x - this.legend.center.x, p.z - this.legend.center.z) <= CHOOSE_NEAR_SANCTUARY
   }
@@ -963,6 +989,7 @@ export class Game {
   /** 기본 공격의 대상별 배율 (정예·보스에게 피해) */
   private readonly targetScale = (target: CombatTarget): number => this.damage.targetScale(target)
 
+  /** 월드 좌표가 화면 어디에 보이는가 (CSS 픽셀, 자동 점검용) */
   screenPoint(x: number, y: number, z: number): { x: number; y: number } {
     return worldToScreen(new THREE.Vector3(x, y, z), this.container.clientHeight, this.pixel.size, this.view.camera, this.view.subpixel)
   }
@@ -1166,7 +1193,8 @@ export class Game {
       const top = heightAt(target.x, target.z) + Math.max(1.6, target.radius * 3.6) + 0.6
       plates.push({ key: target, name: target.spec.name, grade: gradeOf(target), life: target.health.ratio, screen: this.screenPoint(target.x, top, target.z) })
     }
-    if (this.playing) {
+    // 창이 열렸거나 대화 중이면 띄우지 않는다 (창 위에 이름표가 그려지지 않게)
+    if (this.playing && !this.paused && !this.scenes.active) {
       add(this.playerInput.hovered)
       add(this.orders.attackTarget ?? this.combat.target)
     }

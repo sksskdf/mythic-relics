@@ -66,7 +66,8 @@ export class ProgressionSystem {
       ready: () => {
         const god = build.chosen
         const kind = this.readyKind()
-        if (god && kind) this.challenger = god
+        // 도전하는 신화는 전설이 쉬는 동안에만 정한다 (진행 중에 바뀌어도 시작한 신화가 승급한다)
+        if (god && kind && !this.ctx.legend.active) this.challenger = god
         return kind
       },
       heroAlive: () => combat.alive,

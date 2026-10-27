@@ -4,6 +4,7 @@ import { SLOT_PARTS } from '../data/gearData'
 import { STAT_KINDS, type StatKind } from '../data/mythAlways'
 import { isMythRelic } from '../gear/mythRelic'
 import { type GearItem, parseGearItem } from '../gear/roll'
+import { MATERIAL_CAP } from '../gear/Loadout'
 import { hiddenUnlocked, legacyManifest } from '../myth/manifest'
 import { relicGods } from '../relics/model'
 import { type ConvenienceData, parseConveniences } from '../progress/Conveniences'
@@ -108,7 +109,7 @@ export function parseSave(text: string | null): SaveData | null {
   const materials: Record<string, number> = {}
   if (!old && typeof data.materials === 'object' && data.materials !== null) {
     for (const [id, n] of Object.entries(data.materials as Record<string, unknown>)) {
-      if (id.length <= 40 && typeof n === 'number' && n >= 1) materials[id] = Math.min(9999, Math.round(n))
+      if (id.length <= 40 && typeof n === 'number' && n >= 1) materials[id] = Math.min(MATERIAL_CAP, Math.round(n))
     }
   }
   if ((data.version as number) < 6) refundCycle(data.cycle, materials)
@@ -149,7 +150,8 @@ export function parseSave(text: string | null): SaveData | null {
   }
 
   const relicsOwned = [...slots, ...bag].filter((id): id is RelicId => !!id && isRelic(id))
-  const myths = (data.version as number) < 4 ? openOwned(classes, [...relicsOwned, ...Object.keys(materials)]) : classes
+  // 옛 순환에서 돌려받은 재료(서리 조각 등)는 유물이 아니라 신화를 여는 데 세지 않는다
+  const myths = (data.version as number) < 4 ? openOwned(classes, [...relicsOwned, ...Object.keys(materials).filter(isRelic)]) : classes
   // 유물 단계: 가진 신화의 유물만, 2~4
   const stages: SaveData['stages'] = {}
   if (!old && typeof data.stages === 'object' && data.stages !== null) {
@@ -318,7 +320,18 @@ export const saveStorage = {
     }
   },
   load(slot?: number): SaveData | null {
-    return parseSave(read(slotKey(slot ?? saveStorage.slot)))
+    const key = slotKey(slot ?? saveStorage.slot)
+    const text = read(key)
+    try {
+      return parseSave(text)
+    } catch (e) {
+      // 읽지 못하는 저장 때문에 게임이 뜨지 않으면 안 된다: 빈 슬롯처럼 다루고, 원본은 옆에 남겨 둔다 (새 게임이 덮어써도 되살릴 수 있게)
+      console.warn('저장을 읽지 못했습니다', e)
+      try {
+        if (text) localStorage.setItem(`${key}:broken`, text)
+      } catch {}
+      return null
+    }
   },
   save(data: SaveData): boolean {
     if (saveStorage.slot < 0) return false

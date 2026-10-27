@@ -15,6 +15,8 @@ import { godMoment } from './godMoments'
 /** 클래스가 발현되는 순간 주변 적을 밀어내는 범위와 피해 */
 const MANIFEST_RADIUS = 4
 const MANIFEST_DAMAGE = 20
+/** 신화를 고를 때 터지는 충격의 대기 시간 (초): 번갈아 골라 공짜 피해를 쌓지 못하게 */
+const MANIFEST_BURST_COOLDOWN = 10
 
 /**
  * 유물: 땅의 유물 줍기, 장착·해제와 발현 연출, 유물 효과와 궁극기, 지속 효과 수치 적용.
@@ -23,6 +25,8 @@ export class RelicSystem {
   /** 로키의 환영 분신. 거인은 가까이 있으면 주인공 대신 이것을 쫓는다. */
   decoy: { x: number; z: number; radius: number } | null = null
   private readonly lastWalk = new THREE.Vector2()
+  /** 신화를 고를 때 터지는 충격을 다시 쓸 수 있을 때까지 (초) */
+  private burstCooldown = 0
 
   constructor(private readonly ctx: GameContext) {
     ctx.bus.on('targetKilled', ({ target }) => {
@@ -136,6 +140,7 @@ export class RelicSystem {
   }
 
   update(dt: number): void {
+    this.burstCooldown = Math.max(0, this.burstCooldown - dt)
     const { hero, combat, powers, pickups, encounter, skills, feel } = this.ctx
     const position = hero.object.position
     skills.enemies = encounter.alive
@@ -278,11 +283,13 @@ export class RelicSystem {
     }
     lines.push(`궁극기 「${god.ultimate.name}」`)
     hud.showGains('고른 신화', progress.title(god.id), god.color, classIcon(god.name), lines)
-    // 주변 적을 밀어낸다.
+    // 주변 적을 밀어낸다 (피해는 대기 시간마다 한 번, 멈춘 화면에서 번갈아 골라도 한 번)
     const p = hero.object.position
     fx.puffs.burst(p, 30, 4)
     view.shake(0.5)
     feel.stop(0.15)
+    if (this.burstCooldown > 0) return
+    this.burstCooldown = MANIFEST_BURST_COOLDOWN
     for (const enemy of encounter.alive) {
       const dx = enemy.x - p.x
       const dz = enemy.z - p.z

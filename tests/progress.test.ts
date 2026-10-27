@@ -43,13 +43,11 @@ describe('신화 성장 (E12-02)', () => {
     expect(progress.readyToPromote('loki')).toBe(true)
   })
 
-  it('승급하면 그 원천 숙련과 총 승급 횟수가 오른다. 못 연 신화는 세지 않는다', () => {
+  it('승급하면 총 승급 횟수가 오른다. 못 연 신화는 세지 않는다', () => {
     const progress = new ClassProgress()
     progress.addXp('zeus', 10)
     progress.addXp('thor', 1e9)
     progress.promote('thor')
-    expect(progress.mastery('flame')).toBe(1)
-    expect(progress.mastery('wind')).toBe(0)
     expect(progress.promotions).toBe(1)
   })
 

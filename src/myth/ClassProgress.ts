@@ -1,4 +1,4 @@
-import { type God, godDef, type Source } from '../relics/data'
+import { type God, godDef } from '../relics/data'
 
 export const MAX_LEVEL = 4
 /** 1단계(신화 개방)에 필요한 신화 숙련 */
@@ -23,8 +23,6 @@ export type MasteryResult = 'opened' | null
 
 /** 승급 한 번마다 오르는 기본 능력치 (DESIGN.md 6.2: 총 승급 횟수에서 나온다) */
 export const PER_PROMOTION = { maxHp: 15, damage: 0.05 }
-/** 원천 숙련 1마다, 그 원천의 신으로 발현해 있을 때 모든 피해가 늘어나는 비율 */
-export const MASTERY_DAMAGE = 0.1
 
 /**
  * 신화 성장 기록. (DESIGN.md 5.2, E12-02)
@@ -128,14 +126,6 @@ export class ClassProgress {
     return total
   }
 
-  /** 원천 숙련: 그 원천에 속한 신화들의 승급 횟수 합 */
-  mastery(source: Source): number {
-    let total = 0
-    for (const [god, record] of this.records) {
-      if (godDef(god).source === source) total += Math.max(0, record.level - 1)
-    }
-    return total
-  }
 }
 
 /**

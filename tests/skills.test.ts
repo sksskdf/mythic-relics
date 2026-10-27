@@ -160,6 +160,16 @@ describe('변신의 가면 환영 분신', () => {
     expect(skill.modifiers).toEqual({ moveSpeed: 1.1 })
   })
 
+  it('분신이 떠 있는 채로 유물을 빼면 분신을 치운다 (적이 보이지 않는 분신을 쫓지 않게)', () => {
+    const { ctx, fx, decoys } = setup([dummy(4, 0, [])])
+    const skill = effect('lokiMask', fx)
+    skill.onWalk(12)
+    run(skill, ctx, 0.2)
+    expect(decoys.at(-1)).not.toBeNull()
+    skill.dispose()
+    expect(decoys.at(-1)).toBeNull()
+  })
+
   it('거인은 가까운 환영을 주인공 대신 쫓는다', () => {
     const giant = new Giant(GRUNT, { x: 0, z: 0 })
     const world: GiantWorld = {

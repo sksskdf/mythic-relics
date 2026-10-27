@@ -17,12 +17,14 @@ export interface TrialDef {
   reward: { kind: StatKind; per: number; text: string }
   /** 결계 안 적의 피해에 더 곱하는 값 (회복이 막힌 시련은 적을 조금 약하게) */
   enemyDamage?: number
+  /** 결계 안 적의 생명력에 더 곱하는 값 (신화·궁극기가 빠지는 시련은 적을 조금 약하게) */
+  enemyHp?: number
 }
 
 export const TRIALS: Readonly<Record<TrialId, TrialDef>> = {
-  noMyth: { id: 'noMyth', name: '신 없는 싸움', rule: '고른 신화 없이 싸운다', reward: { kind: 'basicDamage', per: 0.04, text: '기본 공격 피해' } },
+  noMyth: { id: 'noMyth', name: '신 없는 싸움', rule: '고른 신화 없이 싸운다', reward: { kind: 'basicDamage', per: 0.04, text: '기본 공격 피해' }, enemyHp: 0.7, enemyDamage: 0.55 },
   fewSlots: { id: 'fewSlots', name: '세 칸의 짐', rule: '장비는 무기·몸·장신구 하나만', reward: { kind: 'damage', per: 0.02, text: '모든 피해' } },
-  noHeal: { id: 'noHeal', name: '마른 샘', rule: '생명이 차오르지 않는다', reward: { kind: 'healOnKill', per: 1, text: '처치할 때 생명' }, enemyDamage: 0.65 },
+  noHeal: { id: 'noHeal', name: '마른 샘', rule: '생명이 차오르지 않는다', reward: { kind: 'healOnKill', per: 1, text: '처치할 때 생명' }, enemyDamage: 0.5 },
   crowd: { id: 'crowd', name: '두 배의 무리', rule: '결계에 적이 두 배로 몰려온다', reward: { kind: 'areaSize', per: 0.03, text: '범위' } },
   timed: { id: 'timed', name: '타는 모래시계', rule: '정한 시간 안에 끝내야 한다', reward: { kind: 'attackSpeed', per: 0.02, text: '공격 속도' } },
   glass: { id: 'glass', name: '유리 몸', rule: '최대 생명이 절반이다', reward: { kind: 'maxHp', per: 10, text: '최대 생명' } },
@@ -70,7 +72,8 @@ export const NO_RULES: TrialRules = { noMyth: false, slots: null, noHeal: false,
 export function trialRules(id: TrialId | null): TrialRules {
   switch (id) {
     case 'noMyth':
-      return { ...NO_RULES, noMyth: true }
+      // 고른 신화가 없으면 그 신화의 궁극기도 없다
+      return { ...NO_RULES, noMyth: true, noUltimate: true }
     case 'fewSlots':
       // 무기(0)·몸(2)·장신구 하나(5)
       return { ...NO_RULES, slots: [0, 2, 5] }

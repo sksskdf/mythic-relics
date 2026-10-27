@@ -6,11 +6,14 @@ export class Health {
     this.hp = max
   }
 
-  /** 최대 생명력을 바꾼다. 늘어난 만큼 지금 생명력도 함께 는다. */
+  /**
+   * 최대 생명력을 바꾼다. 지금 생명력은 비율을 지킨다:
+   * 장비를 뺐다 꼈다 해서 생명이 차오르지 않고, 쓰러진 채(0)면 그대로 쓰러져 있다.
+   */
   setMax(max: number): void {
-    const gained = max - this.max
+    const ratio = this.max > 0 ? this.hp / this.max : 1
     this.max = max
-    this.hp = Math.min(max, Math.max(0, this.hp + Math.max(0, gained)))
+    this.hp = Math.min(max, Math.max(0, ratio * max))
   }
 
   get dead(): boolean {

@@ -55,6 +55,11 @@
   --c-groove: #0d0e11;
   --c-stone-glow: #23252c;
   --c-stone-ink: #c9ced7;
+  /* 돌 단추를 올렸을 때, 돌에 판 칸(원천·시련 카드)의 바닥과 테두리, 막 위의 어두운 바탕 */
+  --c-stone-hover: #4a4e58;
+  --c-well: #121317;
+  --c-well-line: #1d1f25;
+  --c-veil: rgba(7, 8, 11, 0.8);
   --stone-raised: inset 2px 2px 0 #50545f, inset -2px -2px 0 var(--c-stone-lo), 0 0 0 2px var(--c-groove);
   /* 공통 빛: 달빛과 뼈빛, 중요한 단추 하나에만 금 테두리 */
   --c-moon: #d8dde6;
@@ -181,6 +186,11 @@ button {
 .ui-pill.is-on {
   border-color: var(--c-gold);
   background: #3a3220;
+}
+/* 다 채운 것 (균열의 신화권 10/10 등) */
+.ui-pill.is-done {
+  color: var(--c-good);
+  border-color: var(--c-good);
 }
 .ui-btn:focus-visible,
 .ui-pill:focus-visible {
