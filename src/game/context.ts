@@ -88,7 +88,7 @@ export interface GameContext {
   readonly ending: Ending
   /** 장 진행: 지금 장·목표·열린 땅 (E22) */
   readonly chapters: ChapterProgress
-  /** 수련: 경험치로 얻은 깨달음과 찍은 마디 (E236) */
+  /** 수련: 경험치로 얻은 깨달음과 익힌 마디 (E236) */
   readonly training: TrainingProgress
   /** 차례로 연 정보 화면 탭 (E236-05) */
   readonly tabs: TabUnlocks

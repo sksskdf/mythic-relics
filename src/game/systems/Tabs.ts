@@ -12,8 +12,8 @@ const CARD_COLOR = `#${VFX.guide.toString(16).padStart(6, '0')}`
  * 무엇을 하는 곳인지 한 줄짜리 카드를 띄운다. 연 탭은 저장한다 (`progress/Tabs`).
  */
 export class TabSystem {
-  /** 탭이 새로 열렸을 때 (메뉴 단추에 표시하고 다시 그린다). 한 번에 여럿이 열리면 정한 차례의 첫 탭으로 한 번 */
-  onOpened: (tab: StepTab) => void = () => {}
+  /** 탭이 새로 열렸을 때 (메뉴 단추에 표시하고 다시 그린다). 한 번에 여럿이 열리면 정한 차례의 첫 탭으로 한 번. quiet면 카드 없이 연 것 */
+  onOpened: (tab: StepTab, quiet: boolean) => void = () => {}
   /** 게임을 다 세우고 저장을 불러온 뒤에 켠다 (불러오는 동안 끼우는 장비로 카드가 뜨지 않게) */
   ready = false
   private checking = false
@@ -47,7 +47,7 @@ export class TabSystem {
     try {
       due = tabsDue(this.facts(), tabs.opened)
       for (const tab of due) this.unlock(tab, quiet)
-      if (due[0]) this.onOpened(due[0])
+      if (due[0]) this.onOpened(due[0], quiet)
     } finally {
       this.checking = false
     }
@@ -57,7 +57,7 @@ export class TabSystem {
   /** 탭 하나를 바로 연다 (작은 지도를 누르면 지도 탭: 지금 보고 있으니 카드 없이 quiet) */
   open(tab: StepTab, quiet = false): void {
     if (!this.unlock(tab, quiet)) return
-    this.onOpened(tab)
+    this.onOpened(tab, quiet)
     this.ctx.bus.emit('progressChanged', {})
   }
 

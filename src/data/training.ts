@@ -4,8 +4,8 @@ import type { StatKind } from './mythAlways'
  * 수련 (E236-02, 사용자 결정 2026-10-28): 신화를 고르기 전부터 몇 분마다 강해지는 공용 빌드 트리.
  * - 적을 잡아 모은 경험치가 문턱을 넘을 때마다 깨달음 한 점. 처음 10분에 다섯쯤, 엔딩까지 스물쯤
  * - 뿌리에서 갈래 셋(힘·몸·손)이 뻗고, 갈래 중간에 고르는 가지, 끝에 그 갈래의 큰 마디
- * - 깨달음 한 점으로 마디 하나. 이웃한 앞 마디(가지는 그중 하나)를 찍어야 찍을 수 있다
- * - 찍은 마디는 언제든 무료로 모두 되돌린다
+ * - 깨달음 한 점으로 마디 하나. 이웃한 앞 마디(가지는 그중 하나)를 익혀야 익힐 수 있다
+ * - 익힌 마디는 언제든 무료로 모두 되돌린다
  * 수련은 신화(캐릭터) 축에 든다: 신화가 어느 신의 힘인지를, 수련은 어떻게 싸우는지를 정한다.
  */
 
@@ -34,7 +34,7 @@ export interface TrainingNode {
   /** 트리 위 자리: 열(갈래 안 가지는 ±0.5)과 깊이(뿌리 0) */
   col: number
   row: number
-  /** 이 가운데 하나를 찍어야 찍을 수 있다 (뿌리는 없음) */
+  /** 이 가운데 하나를 익혀야 익힐 수 있다 (뿌리는 없음) */
   after: readonly string[]
   /** 더하는 수치 (같은 종류끼리 더해 빌드 상태로) */
   stats: readonly { kind: StatKind; value: number }[]
@@ -97,7 +97,7 @@ export const TRAINING_NODES: readonly TrainingNode[] = [
 const BY_ID = new Map(TRAINING_NODES.map((n) => [n.id, n]))
 export const trainingNode = (id: string): TrainingNode | undefined => BY_ID.get(id)
 
-/** 봇과 엔딩 무렵 빌드(`dev.endgame`)가 찍는 차례: 힘 → 몸 → 손. 찍을 수 없는 것(앞 마디가 아직)은 건너뛴다 */
+/** 봇과 엔딩 무렵 빌드(`dev.endgame`)가 익히는 차례: 힘 → 몸 → 손. 익힐 수 없는 것(앞 마디가 아직)은 건너뛴다 */
 export const SAMPLE_ORDER: readonly string[] = ['awaken', 'edge', 'fury', 'cleave', 'storm', 'boil', 'slayer', 'sturdy', 'spring', 'shield', 'feast', 'stone', 'unbroken', 'quick', 'stride', 'reach', 'study', 'flurry', 'whirl']
 
 /**

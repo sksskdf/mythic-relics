@@ -135,7 +135,8 @@ export class MomentSystem {
         hud.showToast(m.text ?? m.card?.title ?? '')
         break
       case 2:
-        if (m.card) this.card(m.card, 'card')
+        // 새 탭은 가운데 떴다가 메뉴 단추로 날아 들어가 어디에 생겼는지 보인다 (사용자 의견 2026-10-28)
+        if (m.card) this.card(m.card, m.id === 'tabOpened' ? 'tab' : 'card')
         break
       case 3:
         if (m.card) this.big(m.card)
@@ -166,7 +167,7 @@ export class MomentSystem {
     }
   }
 
-  private card(card: MomentCard, size: 'card' | 'big'): void {
+  private card(card: MomentCard, size: keyof typeof CARD_HOLD): void {
     this.ctx.hud.showGains(card.kind, card.title, card.color, card.icon ?? '', card.lines, size)
     this.cardWait = Math.max(this.cardWait, CARD_HOLD[size])
   }

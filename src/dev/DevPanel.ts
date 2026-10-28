@@ -58,15 +58,17 @@ export class DevPanel {
     head.append(this.status, fold)
     const body = el('div', 'devpanel__body')
     this.root.append(head, body)
-    fold.addEventListener('click', () => {
-      const open = body.hidden
+    const setOpen = (open: boolean) => {
       body.hidden = !open
-      // 접으면 오른쪽 위에 작은 꼬리표만 남긴다.
+      // 접으면 오른쪽 아래에 작은 꼬리표만 남긴다.
       this.root.classList.toggle('is-folded', !open)
       fold.textContent = open ? '–' : '+'
       fold.setAttribute('aria-label', open ? '접기' : '펴기')
       fold.setAttribute('aria-expanded', String(open))
-    })
+    }
+    fold.addEventListener('click', () => setOpen(body.hidden === true))
+    // 처음에는 접어 둔다: 개발 모드도 평소와 같은 화면으로 플레이한다 (사용자 의견 2026-10-28)
+    setOpen(false)
     // 패널 위의 휠이 게임 확대·축소로 가지 않게 한다.
     this.root.addEventListener('wheel', (e) => e.stopPropagation())
 
@@ -247,6 +249,7 @@ export class DevPanel {
             ['알림', { id: 'gearPicked', text: '낡은 장화 · 가방' }],
             ['카드', { id: 'gearWorn', card: { kind: '장비', title: '서리 늑대 가죽 장화', color: '#5aa8ff', lines: ['이동 속도 +6%', '최대 생명 +12'] } }],
             ['큰 카드', { id: 'forged', card: { kind: '대장간', title: '묠니르 2단계', color: '#ffd75e', lines: ['모든 피해 +18', '유물 효과 피해 ×1.4'] } }],
+            ['새 탭', { id: 'tabOpened', card: { kind: '새 탭', title: '수련', color: '#e3b341', lines: ['깨달음으로 마디를 익히면 바로 강해진다'] } }],
             ['장면', { id: 'chapterBoss', scene: 'downKing', slow: true, card: { kind: '장 보스', title: '거인 왕', color: '#9fe3ff', lines: ['우트가르드가 무너졌다'] } }],
           ] as const
         ).map(([label, m]) =>

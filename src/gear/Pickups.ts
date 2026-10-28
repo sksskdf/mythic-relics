@@ -12,6 +12,8 @@ import { GEAR, type GearItem } from './roll'
 
 /** 주울 수 있는 거리 (m) */
 const PICK_RADIUS = 1.1
+/** 주운 것이 주인공 품으로 날아드는 시간 (초) */
+const FLY_SECONDS = 0.35
 
 interface Pickup {
   /** 유물 id 또는 일반 장비 id */
@@ -36,11 +38,13 @@ export const PICKUP_TOP = 1.8
 const COLUMN_GEOMETRY = new THREE.CylinderGeometry(0.28, 0.42, 6, 8, 1, true)
 
 /**
- * 땅에 놓인 유물. 빛기둥으로 위치를 알리고, 주인공이 밟고 지나가면 저절로 줍는다. (조작 최소화)
+ * 땅에 놓인 유물과 장비. 빛기둥으로 위치를 알리고, 주인공이 밟고 지나가면 줍는다 (누르면 그리로 걸어간다, 조작 최소화)
  */
 export class Pickups {
   readonly object = new THREE.Group()
   private readonly items: Pickup[] = []
+  /** 주워서 주인공에게 날아드는 중인 것 (모습만, 이미 주운 것) */
+  private readonly flying: { item: Pickup; t: number }[] = []
 
   get list(): readonly { id: string; x: number; z: number; gear?: GearItem }[] {
     return this.items
@@ -94,6 +98,7 @@ export class Pickups {
   /** 땅의 유물을 모두 치운다 (다른 지역으로 갈 때) */
   clear(): void {
     for (let i = this.items.length - 1; i >= 0; i--) this.discard(i)
+    for (const f of this.flying.splice(0)) this.dispose(f.item)
   }
 
   /**
@@ -109,12 +114,16 @@ export class Pickups {
       item.root.position.z += dz
       if (Math.max(Math.abs(item.x), Math.abs(item.z)) > far) this.discard(i)
     }
+    for (const f of this.flying) f.item.root.position.set(f.item.root.position.x + dx, f.item.root.position.y, f.item.root.position.z + dz)
   }
 
   /** 땅에서 걷어 내고 모델과 빛기둥 재질을 GPU에서 내린다 (드랍마다 쌓이지 않게) */
   private discard(index: number): void {
     const [item] = this.items.splice(index, 1)
-    if (!item) return
+    if (item) this.dispose(item)
+  }
+
+  private dispose(item: Pickup): void {
     item.root.removeFromParent()
     item.model.traverse((o) => {
       if (o instanceof THREE.Mesh) o.geometry.dispose()
@@ -124,10 +133,29 @@ export class Pickups {
 
   /**
    * 프레임마다 떠오르고 돌게 하고, 주인공이 닿은 유물을 주워 돌려준다.
-   * reach: 그것을 줍는 거리 (편의 자동화의 자동 줍기·재료 자동 모음, 없으면 발밑). 내려놓은 것은 늘 발밑
+   * reach: 그것을 줍는 거리 (엔딩 뒤 편의 자동화의 자동 줍기·재료 자동 모음, 없으면 발밑). 내려놓은 것은 늘 발밑.
+   * 주운 것은 빛기둥이 꺼지며 주인공 품으로 날아들어 사라진다 (사용자 의견 2026-10-28: 얻는 표현이 모자라다)
    */
   update(dt: number, heroX: number, heroZ: number, canPick: (id: string) => boolean, reach?: (id: string, gear?: GearItem) => number): { id: string; gear?: GearItem }[] {
     const picked: { id: string; gear?: GearItem }[] = []
+    for (let i = this.flying.length - 1; i >= 0; i--) {
+      const f = this.flying[i]!
+      f.t += dt / FLY_SECONDS
+      const k = Math.min(1, f.t)
+      const ease = k * k
+      const root = f.item.root.position
+      root.x += (heroX - root.x) * Math.min(1, ease * 1.6)
+      root.z += (heroZ - root.z) * Math.min(1, ease * 1.6)
+      root.y += (heightAt(heroX, heroZ) + 0.2 - root.y) * Math.min(1, ease)
+      f.item.model.position.y = 0.9 + k * 0.3
+      f.item.model.scale.setScalar(1 - k * 0.75)
+      f.item.model.rotation.y += dt * 12
+      f.item.beam.opacity = 0.3 * (1 - k)
+      if (k >= 1) {
+        this.flying.splice(i, 1)
+        this.dispose(f.item)
+      }
+    }
     for (let i = this.items.length - 1; i >= 0; i--) {
       const item = this.items[i]!
       item.phase += dt
@@ -142,7 +170,8 @@ export class Pickups {
       const far = item.placed ? 0 : (reach?.(item.id, item.gear) ?? 0)
       if (dist <= Math.max(PICK_RADIUS, far) && canPick(item.id)) {
         picked.push({ id: item.id, ...(item.gear ? { gear: item.gear } : {}) })
-        this.discard(i)
+        this.items.splice(i, 1)
+        this.flying.push({ item, t: 0 })
       }
     }
     return picked

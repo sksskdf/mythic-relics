@@ -36,6 +36,8 @@ export class PlayerInput {
   talkAt: (x: number, z: number) => string | null = () => null
   /** 말 걸 사람을 정했다 (null이면 그만둠) */
   onTalk: (name: string | null) => void = () => {}
+  /** 화면 자리(px) 아래 땅에 떨어진 장비·유물의 자리. 누르면 그 위로 걸어가 줍는다 (떠 있는 모델을 눌러도 뒤쪽 땅으로 가지 않게) */
+  pickupAt: (x: number, y: number) => Point2 | null = () => null
   /** 휴대폰 조작 (E235). 없으면 마우스만 */
   touch: TouchControls | null = null
   /** 두 손가락으로 시야 높이를 바꾼다. end면 손을 뗐다 (설정에 저장) */
@@ -59,8 +61,9 @@ export class PlayerInput {
     const ground = cursor ? { x: cursor.x, z: cursor.z } : null
     this.hovered = this.enemyUnderCursor()
     if (this.input.wasPressed('move')) {
-      this.onTalk(ground && !this.hovered ? this.talkAt(ground.x, ground.z) : null)
-      orders.press(ground, this.hovered)
+      const item = this.hovered ? null : this.pickupAt(this.input.pointer.x, this.input.pointer.y)
+      this.onTalk(ground && !this.hovered && !item ? this.talkAt(ground.x, ground.z) : null)
+      orders.press(item ?? ground, this.hovered)
     } else if (this.input.isDown('move')) orders.hold(ground)
     else orders.release()
   }
@@ -92,8 +95,9 @@ export class PlayerInput {
       const y = tap.y - rect.top
       this.hovered = this.enemyAt(x, y) ?? this.enemyNear(x, y, TAP_ENEMY_PX)
       const cursor = this.groundAt(x, y, this.cursor)
-      const ground = cursor ? { x: cursor.x, z: cursor.z } : null
-      this.onTalk(ground && !this.hovered ? this.talkAt(ground.x, ground.z) : null)
+      const item = this.hovered ? null : this.pickupAt(x, y)
+      const ground = item ?? (cursor ? { x: cursor.x, z: cursor.z } : null)
+      this.onTalk(ground && !this.hovered && !item ? this.talkAt(ground.x, ground.z) : null)
       orders.press(ground, this.hovered)
       orders.release()
       this.walking = false

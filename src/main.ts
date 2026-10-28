@@ -30,9 +30,10 @@ const startRelics = relicParam === 'all' ? RELIC_IDS : (relicParam?.split(',').f
 // 처음 실행이거나 게임에서 「처음 화면으로」를 눌렀으면 저장 슬롯을 고른다. (빈 슬롯은 캐릭터 만들기)
 // ?fresh 를 붙이면 마지막 슬롯을 지우고 시작 화면 없이 바로 처음부터 시작한다. (새로 고침해도 다시 지우지 않게 주소에서 뺀다)
 // 유물을 지정한 점검용 실행은 저장을 읽지도 쓰지도 않고, 시작 화면도 건너뛴다.
-// 개발 모드: ?dev 를 붙이면(또는 pnpm dev --dev) 개발 패널이 뜬다. 저장을 읽지도 쓰지도 않고 시작 화면도 건너뛴다.
+// 개발 모드: ?dev 를 붙이면(또는 pnpm dev --dev) 오른쪽 아래에 개발 패널만 더 뜨고, 나머지(저장·시작 화면·탭 차례·대화 장면)는 평소와 똑같다.
+// 저장 없이 점검하려면 ?relics= 처럼 점검용 실행과 함께 쓴다.
 const devMode = params.has('dev')
-const testRun = relicParam !== null || devMode
+const testRun = relicParam !== null
 const fresh = params.has('fresh')
 const lastSlot = testRun ? null : saveStorage.lastSlot()
 if (fresh) {

@@ -45,7 +45,9 @@ export interface HudState {
 /** 유물 스킬 칸 수 */
 export const SKILL_SLOTS = 4
 /** 얻은 것 카드 하나가 다음 카드에 자리를 내주기 전에 보이는 시간 (ms). 카드 자체는 5초 뒤 사라진다. 큰 카드는 거의 다 보인다 */
-const GAINS_MIN_MS = { card: 3000, big: 4500 }
+const GAINS_MIN_MS = { card: 3000, big: 4500, tab: 3600 }
+/** 카드 크기: 오른쪽 위 작은 카드, 가운데 큰 카드, 새 탭 (가운데 떴다가 메뉴 단추로 날아 들어간다) */
+export type GainsSize = keyof typeof GAINS_MIN_MS
 /** 장면이 HUD를 숨기기 이만큼(ms) 안에 띄운 제목 카드는 장면 뒤에 다시 띄운다 */
 const TITLE_REPLAY_MS = 3000
 
@@ -88,6 +90,8 @@ export class Hud {
   /** 지역·전설 제목 띠 (E9-05): 문장과 양옆 띠, 이름 */
   private readonly card: HTMLElement
   private readonly toast: HTMLElement
+  /** 조작 안내 한 줄: 해 볼 때까지 남는다 (시작 장면 뒤) */
+  private readonly coach: HTMLElement
   private readonly gains: HTMLElement
   /** 카드를 띄운 때(ms)와 기다리는 카드: 같은 때 열린 것(위협 단계 + 편의 등)이 서로 덮지 않게 차례로 보인다 */
   private gainsShownAt = -Infinity
@@ -148,6 +152,7 @@ export class Hud {
     this.banner = this.el('div', 'hud__banner', this.root)
     this.card = this.el('div', 'hud__card', this.root)
     this.toast = this.el('div', 'hud__toast', this.root)
+    this.coach = this.el('div', 'hud__coach', this.root)
     this.flashEl = this.el('div', 'hud__flash', this.root)
     this.gains = this.el('div', 'hud__gains', this.root)
 
@@ -305,7 +310,7 @@ export class Hud {
    * - big: 가운데 위에 크게 (신화 단계·유물 벼리기·장면 뒤)
    * lines의 각 줄은 얻은 것 하나. "→"가 있으면 앞은 흐리게, 뒤는 밝게 보인다.
    */
-  showGains(kind: string, title: string, color: string, icon: string, lines: readonly string[], size: 'card' | 'big' = 'big'): void {
+  showGains(kind: string, title: string, color: string, icon: string, lines: readonly string[], size: GainsSize = 'big'): void {
     this.gainsQueue.push(() => this.renderGains(kind, title, color, icon, lines, size))
     this.nextGains()
   }
@@ -331,9 +336,9 @@ export class Hud {
   }
 
   /** 지금 떠 있는 카드의 크기 (점검용). 없으면 null */
-  get gainsShowing(): 'card' | 'big' | null {
+  get gainsShowing(): GainsSize | null {
     if (!this.gains.classList.contains('is-showing') || performance.now() - this.gainsShownAt > 5000) return null
-    return this.gains.classList.contains('is-side') ? 'card' : 'big'
+    return this.gains.classList.contains('is-side') ? 'card' : this.gains.classList.contains('is-fly') ? 'tab' : 'big'
   }
 
   /** 앞 카드가 GAINS_MIN_MS 넘게 보였으면 다음 카드를 띄운다 */
@@ -352,10 +357,11 @@ export class Hud {
     this.nextGains()
   }
 
-  private renderGains(kind: string, title: string, color: string, icon: string, lines: readonly string[], size: 'card' | 'big'): void {
+  private renderGains(kind: string, title: string, color: string, icon: string, lines: readonly string[], size: GainsSize): void {
     const card = this.gains
     card.replaceChildren()
     card.classList.toggle('is-side', size === 'card')
+    card.classList.toggle('is-fly', size === 'tab')
     this.gainsHold = GAINS_MIN_MS[size]
     card.style.setProperty('--glow', color)
     const head = document.createElement('div')
@@ -407,6 +413,12 @@ export class Hud {
   }
 
   /** 유물을 주웠을 때처럼 가벼운 알림을 작게 띄운다. */
+  /** 조작 안내 한 줄 (null이면 감춘다) */
+  setCoach(text: string | null): void {
+    if (text !== null && this.coach.textContent !== text) this.coach.textContent = text
+    this.coach.classList.toggle('is-on', text !== null)
+  }
+
   showToast(text: string): void {
     this.toast.textContent = text
     this.restartAnimation(this.toast)

@@ -67,11 +67,11 @@ export interface RiftMenuHost {
 export interface TrainingHost {
   /** 모은 깨달음, 쓰지 않은 깨달음, 다음 깨달음까지 (이번 점에서 모은 경험치 / 드는 경험치) */
   insights(): { total: number; unspent: number; have: number; need: number }
-  /** 마디마다: 이름·갈래·자리·앞 마디·수치 글·찍었나·지금 찍을 수 있나 */
+  /** 마디마다: 이름·갈래·자리·앞 마디·수치 글·익혔나·지금 익힐 수 있나 */
   nodes(): { id: string; name: string; branch: string; color: string; col: number; row: number; after: readonly string[]; lines: string[]; big: boolean; taken: boolean; can: boolean }[]
   /** 갈래마다 이름과 한 줄 */
   branches(): { id: string; name: string; text: string; color: string }[]
-  /** 찍은 마디 수치의 합 (글 몇 줄) */
+  /** 익힌 마디 수치의 합 (글 몇 줄) */
   totals(): string[]
   take(id: string): boolean
   /** 모두 되돌린다 (무료) */

@@ -4,6 +4,9 @@ import { AWAKEN_AT } from '../data/awakening'
 import type { SourceId } from '../data/schema'
 import { type GearItem, GEAR, gearName } from '../gear/roll'
 import { statText } from '../myth/alwaysText'
+import { iconFromGrid } from '../voxel/iconFromGrid'
+import { gearGrid } from '../voxel/models/gearLooks'
+import { pixelIcon } from './pixelIcon'
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, text?: string): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag)
@@ -12,8 +15,23 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, te
   return e
 }
 
+const icons = new Map<string, string>()
+
+/** 일반 장비의 12×12 그림 (사용자 의견 2026-10-28 「장비창에서 모양이 없다」): 땅에 떨어진 모델과 같은 격자를 옆에서 본 모습 */
+export function gearIcon(item: GearItem): string {
+  const key = `${item.part}:${item.base}:${item.grade}`
+  let icon = icons.get(key)
+  if (!icon) {
+    const base = Math.max(0, GEAR.parts[item.part].bases.indexOf(item.base))
+    const { rows, colors } = iconFromGrid(gearGrid(item.part, base, GRADE_COLORS[item.grade], item.grade === 'hero', false))
+    icon = pixelIcon(rows, colors)
+    icons.set(key, icon)
+  }
+  return icon
+}
+
 /** 같은 종류 수치를 비교한 줄: 지금 낀 것보다 크면 ▲, 작으면 ▼ (줄어드는 수치는 반대) */
-function delta(kind: string, value: number, other: number): { text: string; good: boolean } | null {
+export function delta(kind: string, value: number, other: number): { text: string; good: boolean } | null {
   const diff = value - other
   if (Math.abs(diff) < 1e-6) return null
   const lower = kind === 'damageTaken' || kind === 'lowHpGuard'
@@ -31,6 +49,10 @@ export function gearCard(item: GearItem, worn?: GearItem | null, sources?: Reado
   card.style.setProperty('--god', GRADE_COLORS[item.grade])
   const head = el('div', 'rc__head')
   const swatch = el('div', 'rc__icon gc__swatch')
+  const icon = el('img', '')
+  icon.src = gearIcon(item)
+  icon.alt = ''
+  swatch.append(icon)
   const names = el('div', 'rc__names')
   // 장비 단계 (E21-03): 나온 땅의 단계. 같은 등급이어도 단계가 높으면 수치가 크다
   names.append(el('div', 'rc__name', gearName(item)), el('div', 'rc__type', `${item.tier}단계 · ${GEAR.grades[item.grade].name} 장비 · ${GEAR.parts[item.part].name}`))

@@ -642,17 +642,18 @@ try {
   if (left.run || left.best < 1 || left.region !== 'village') throw new Error(`균열: 나가는 문으로 걸어갔는데 끝나지 않았습니다 ${JSON.stringify(left)}`)
   console.log('균열 확인: 한계를 깨고 마을에서 들어가, 1층을 깨 축복을 고르고 2층으로, 밀려 밟거나 적을 쫓다 밟은 나가는 문은 닫혀 있고 땅을 눌러 걸어가면 나와 끝')
 
-  // 개발 패널: ?dev 로 열고 단추로 유물·적·전설을 바로 바꿔 본다.
-  await page.goto(`${URL}?dev&region=midgard`)
+  // 개발 패널: ?dev 는 평소 플레이에 오른쪽 아래 패널만 더한다 (저장 없이 보려고 점검용 실행 ?relics= 와 함께). 단추로 유물·적·전설을 바로 바꿔 본다.
+  await page.goto(`${URL}?dev&relics=&region=midgard`)
   await page.waitForSelector('.devpanel button', { timeout: 15000 })
   const devTab = (name) => page.locator('.devpanel__tab', { hasText: name }).click()
   const devButton = (label) => page.locator('.devpanel__page:not([hidden])').getByRole('button', { name: label, exact: true })
-  // 접기·펴기: 접으면 단추들이 보이지 않아야 한다.
-  await page.click('.devpanel__fold')
-  if (await page.locator('.devpanel__body').isVisible()) throw new Error('개발 패널: 접기가 동작하지 않습니다.')
+  // 처음에는 접혀 오른쪽 아래 작은 꼬리표만: 화면 오른쪽 아래 구석에 있고, 펴면 단추가 보인다
+  if (await page.locator('.devpanel__body').isVisible()) throw new Error('개발 패널: 처음부터 펴져 있습니다.')
   const folded = await page.locator('.devpanel').boundingBox()
-  if (!folded || folded.width > 160 || folded.height > 40) throw new Error(`개발 패널: 접었는데 너무 큽니다 ${JSON.stringify(folded)}`)
+  const viewport = page.viewportSize()
+  if (!folded || folded.width > 160 || folded.height > 40 || folded.y + folded.height < viewport.height - 60 || folded.x + folded.width < viewport.width - 60) throw new Error(`개발 패널: 접힌 꼬리표가 오른쪽 아래 구석이 아닙니다 ${JSON.stringify(folded)}`)
   await page.click('.devpanel__fold')
+  if (!(await page.locator('.devpanel__body').isVisible())) throw new Error('개발 패널: 펴기가 동작하지 않습니다.')
   await devTab('유물')
   // 유물은 신화권 → 클래스로 묶여 있고, 클래스 이름을 누르면 그 묶음을 낀다 (닫힌 신화권은 열어서)
   await devButton('토르').click()
@@ -692,7 +693,7 @@ try {
   await devButton('전설 시작').click()
   await page.waitForFunction(() => window.__game.legend.phase === 'wave', null, { timeout: 15000 })
   await page.screenshot({ path: 'test-results/devpanel.png' }).catch(() => {})
-  console.log('개발 패널 확인: 접기·펴기, 신화권·신화별 유물 묶음, 적 소환·제거, 충돌·길찾기 보기, 전설 바로 시작')
+  console.log('개발 패널 확인: 오른쪽 아래에 접힌 채 시작·펴기, 신화권·신화별 유물 묶음, 적 소환·제거, 충돌·길찾기 보기, 전설 바로 시작')
 
   mkdirSync('test-results', { recursive: true })
   await page.screenshot({ path: 'test-results/smoke.png' })
