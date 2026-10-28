@@ -196,7 +196,7 @@ export class UtgardLegend {
       if (this.wave < WAVES.length) this.spawnWave(encounter)
       else this.spawnBoss(encounter)
     } else {
-      this.finish(host)
+      this.finish(encounter, host)
       host.onWin()
     }
   }
@@ -232,6 +232,8 @@ export class UtgardLegend {
     this.timeLeft = this.rules.timeLimit
     this.barrier.visible = true
     host.setArena({ x: this.center.x, z: this.center.z, radius: this.radius - 0.6 })
+    // 결계가 닫히면 성소 둘레 무리는 안의 주인공을 보지 못한다: 전설은 결계 안에 세운 적과만 싸운다
+    encounter.ward = { members: new Set() }
     host.onStart()
     if (kind === 'tally' || kind === 'survive') {
       this.phase = kind === 'tally' ? 'bet' : 'survive'
@@ -253,7 +255,7 @@ export class UtgardLegend {
     if (survive ? this.betLeft <= 0 : this.kills >= BET.kills) {
       for (const giant of this.giants) encounter.remove(giant)
       this.giants.length = 0
-      this.finish(host)
+      this.finish(encounter, host)
       host.onWin()
       return
     }
@@ -266,7 +268,7 @@ export class UtgardLegend {
     this.spawnTimer = rule.every / this.rules.crowd
     const a = Math.random() * Math.PI * 2
     const r = this.radius * 0.8
-    this.giants.push(encounter.spawn(GRUNT, { x: this.center.x + Math.sin(a) * r, z: this.center.z + Math.cos(a) * r }, true))
+    this.enlist(encounter, encounter.spawn(GRUNT, { x: this.center.x + Math.sin(a) * r, z: this.center.z + Math.cos(a) * r }, true))
   }
 
   private spawnWave(encounter: Encounter): void {
@@ -275,9 +277,7 @@ export class UtgardLegend {
     for (let i = 0; i < count; i++) {
       const a = offset + (i / count) * Math.PI * 2
       const r = this.radius * 0.75
-      this.giants.push(
-        encounter.spawn(GRUNT, { x: this.center.x + Math.sin(a) * r, z: this.center.z + Math.cos(a) * r }, true),
-      )
+      this.enlist(encounter, encounter.spawn(GRUNT, { x: this.center.x + Math.sin(a) * r, z: this.center.z + Math.cos(a) * r }, true))
     }
   }
 
@@ -285,7 +285,13 @@ export class UtgardLegend {
     this.phase = 'boss'
     const r = this.radius * 0.6
     this.boss = encounter.spawn(UTGARD_KING, { x: this.center.x, z: this.center.z - r }, true)
-    this.giants.push(this.boss)
+    this.enlist(encounter, this.boss)
+  }
+
+  /** 결계 안에 세운 적: 전설이 셈하고, 닫힌 결계 안에서 주인공을 본다 */
+  private enlist(encounter: Encounter, giant: Giant): void {
+    this.giants.push(giant)
+    encounter.ward?.members.add(giant)
   }
 
   /** 진행 중인 전설을 그만둔다 (진 것으로 친다, 개발 지름길) */
@@ -296,11 +302,12 @@ export class UtgardLegend {
   private fail(encounter: Encounter, host: LegendHost): void {
     for (const giant of this.giants) encounter.remove(giant)
     this.giants.length = 0
-    this.finish(host)
+    this.finish(encounter, host)
     host.onFail()
   }
 
-  private finish(host: LegendHost): void {
+  private finish(encounter: Encounter, host: LegendHost): void {
+    encounter.ward = null
     this.phase = 'idle'
     this.timeLeft = null
     this.rules = { crowd: 1, timeLimit: null }

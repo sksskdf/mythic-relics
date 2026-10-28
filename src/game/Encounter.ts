@@ -79,7 +79,12 @@ export class Encounter {
   private bossRespawn = 0
   private readonly navs = new Map<GiantSpec, NavGrid>()
   private seed = 1
-  private readonly pendingSummons: { point: Point2; spec: GiantSpec }[] = []
+  private readonly pendingSummons: { point: Point2; spec: GiantSpec; ward: boolean }[] = []
+  /**
+   * 닫힌 결계 (승급 전설·시련): 결계 안에 세운 적(members)과 그 적이 부른 졸개만 주인공을 본다. 나머지 적은 결계 안의
+   * 주인공을 알아채지 못하고, 쫓던 적은 제자리로 돌아간다 (성소 둘레 무리가 몰려와 전설이 들쭉날쭉하지 않게)
+   */
+  ward: { members: Set<Giant> } | null = null
   /** 이 지역의 보스 */
   private bossSpec: GiantSpec = KING
   /** 무리 하나에 정예가 섞일 확률 (점검할 때 0이나 1로 바꾼다) */
@@ -327,13 +332,17 @@ export class Encounter {
   update(dt: number, base: WorldBase): Giant[] {
     for (const parked of this.parked.values()) for (const giant of parked.giants) giant.rest(dt)
     const shattered: Giant[] = []
+    const ward = this.ward
+    // 결계 밖의 적에게는 주인공(과 분신)이 없는 것처럼 보인다
+    const unseen = ward ? { ...base, hero: { ...base.hero, alive: false }, decoy: null } : base
     for (const giant of this.giants) {
       const nav = this.navFor(giant.spec)
+      const member = ward?.members.has(giant) ?? false
       giant.update(dt, {
-        ...base,
+        ...(ward && !member ? unseen : base),
         nav,
         giants: this.giants,
-        summon: (x, z, count, enemy) => this.queueSummon(x, z, count, enemy),
+        summon: (x, z, count, enemy) => this.queueSummon(x, z, count, enemy, member),
       })
       if (giant.justShattered) shattered.push(giant)
     }
@@ -399,20 +408,23 @@ export class Encounter {
     return this.navs.get(spec) ?? this.navs.get(spec.radius >= 1.2 ? KING : GRUNT)!
   }
 
-  private queueSummon(x: number, z: number, count: number, enemy?: string): void {
+  /** ward: 결계 안의 적이 부른 졸개 (그 졸개도 결계 안에서 싸운다) */
+  private queueSummon(x: number, z: number, count: number, enemy?: string, ward = false): void {
     const spec = (enemy && ENEMIES[enemy]) || GRUNT
     const room = SUMMON_CAP - this.giants.filter((g) => g.alive).length - this.pendingSummons.length
     count = Math.min(count, room)
     for (let i = 0; i < count; i++) {
       const angle = (i / count) * Math.PI * 2 + Math.random()
-      this.pendingSummons.push({ point: { x: x + Math.sin(angle) * 4, z: z + Math.cos(angle) * 4 }, spec })
+      this.pendingSummons.push({ point: { x: x + Math.sin(angle) * 4, z: z + Math.cos(angle) * 4 }, spec, ward })
     }
   }
 
   private flushSummons(): void {
-    for (const { point, spec } of this.pendingSummons.splice(0)) {
+    for (const { point, spec, ward } of this.pendingSummons.splice(0)) {
       const spot = this.navFor(spec).nearestFree(point) ?? point
-      this.addGiant(spec, spot).alert()
+      const giant = this.addGiant(spec, spot)
+      giant.alert()
+      if (ward) this.ward?.members.add(giant)
     }
   }
 
