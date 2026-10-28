@@ -121,6 +121,7 @@ export function riftFloor(depth: number, runSeed: number): RiftFloor {
     spawn,
     sanctuary: null,
     ponds: [],
+    streams: [],
     terraces: [],
     paths,
     camps,

@@ -60,7 +60,7 @@
 - `npm run build && node scripts/ui-sheet.mjs [폴더] [크기,...]`: 중반쯤 상태를 꾸며 정보 화면 탭 여덟과 HUD를 화면 크기마다 찍는다(기본 1280×720·960×540·390×844, 세로 크기는 터치 기기로 연다). UI를 바꾸면 찍어 보고, 좁은 화면에서 잘리는지 본다. 화면 밖이나 잘라 내는 상자 밖으로 나간 요소를 세어 `cut.json`에 남긴다(E235, 0이 기준). 무작위는 씨앗 고정이라, `UI_DOM=1`을 붙이면 탭마다 DOM(`.html`)도 남겨 코드를 나누기 전후를 diff로 견줄 수 있다.
 - `npm run build && node scripts/shot.mjs <파일.png> "<주소 뒤 값>" "<게임 안 코드>" [프레임]`: 원하는 상태의 스크린숏. 화면이 바뀌는 작업은 스크린숏을 직접 보고 확인한다. 휴대폰으로 찍으려면 앞에 `SHOT_SIZE=390x844 SHOT_TOUCH=1`.
 - `node scripts/gen-regions.mjs`: 신화권마다 깊은 땅·보스의 땅을 규칙으로 다시 만든다(E15). 이미 있는 그 땅을 덮어쓰니 규칙을 바꿀 때만 돌린다. 돌린 뒤에는 `node scripts/place-world.mjs`로 출구·길을 세계 통로 자리로 옮긴다(E19-01, 두 번 돌려도 같음).
-- `node scripts/gen-village.mjs`: 모닥불 마을을 규칙으로 다시 짓는다(E24-07: 언덕 위 광장·족장의 터·계단·길·사람 자리). 마을을 덮어쓰니 규칙을 바꿀 때만 돌린다.
+- `node scripts/gen-village.mjs`: 모닥불 마을을 규칙으로 다시 짓는다(E24-07: 언덕 위 광장·족장의 터·계단·길, 개울과 다리, 건물·목책·망루, 사람 자리). 마을을 덮어쓰니 규칙을 바꿀 때만 돌린다.
 - 지도는 개발 패널 「지도」 탭에서 고친다: 편집을 켜고 땅을 누르면 고른 도구가 동작하고, 「저장」은 개발 서버(`pnpm dev`)가 `src/data/regions.json`에 쓴다 (`vite.config.ts`의 saveRegions).
 - 개발 모드: `pnpm dev --dev`(또는 `pnpm dev:tools`), 브라우저는 `?dev`. 오른쪽 개발 패널(`src/dev/DevPanel.ts`)에서 유물·신화·이동·적·전설·시간을 바꾼다. 새 시스템을 만들면 패널에도 시험 단추를 더한다.
 - 점검용 주소: `?relics=all` / `?relics=mjolnir,megingjord` (유물 끼고 시작, 저장 안 함), `?fresh` (저장 지우고 시작), `?region=olympus` (그 지역에서 시작, 새로 시작하면 마을), `?quality=low` (화질, 저장 안 함), `?view=` (시야 높이), `?autoplay` (봇), `?touch` (컴퓨터에서 휴대폰 조작 켜기, E235).
