@@ -76,7 +76,7 @@ export const TRAINING_NODES: readonly TrainingNode[] = [
   node('shield', '방패', 'body', 2, 3, ['spring'], [{ kind: 'damageTaken', value: -0.08 }]),
   node('feast', '사냥의 잔치', 'body', 1.5, 4, ['shield'], [{ kind: 'healOnKill', value: 3 }]),
   node('grace', '신의 가호', 'body', 2.5, 4, ['shield'], [{ kind: 'healingTaken', value: 0.25 }]),
-  node('stone', '바위 같은 몸', 'body', 2, 5, ['feast', 'grace'], [{ kind: 'maxHpPct', value: 0.1 }]),
+  node('stone', '반석', 'body', 2, 5, ['feast', 'grace'], [{ kind: 'maxHpPct', value: 0.1 }]),
   node('unbroken', '불굴', 'body', 2, 6, ['stone'], [
     { kind: 'lowHpGuard', value: -0.3 },
     { kind: 'damageTaken', value: -0.05 },

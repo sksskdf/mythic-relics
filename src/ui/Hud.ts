@@ -143,7 +143,7 @@ export class Hud {
       count.textContent = '0'
       this.essenceEls.set(id, { cell, count, shown: '0', level: 0 })
     }
-    this.tipOn(essence, '원천\n장비에 붙은 원천 수치의 합. 5·10·20을 넘을 때마다 그 원천이 한 단계씩 각성한다. 자세한 것은 정보 화면 › 원천.')
+    this.tipOn(essence, '원천\n장비에 붙은 원천 수치의 합. 5·10·20을 넘을 때마다 그 원천이 한 단계씩 각성한다. 처음 각성하면 정보 화면에 원천 탭이 열린다.')
 
     this.banner = this.el('div', 'hud__banner', this.root)
     this.card = this.el('div', 'hud__card', this.root)

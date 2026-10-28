@@ -201,6 +201,16 @@ export class DevPanel {
         button('레벨 초기화', () => g.dev.resetMyths()),
         button('이 신화권 경험치', () => g.dev.gainMastery()),
         button('깨달음 하나', () => g.dev.insight()),
+        // 정보 화면 탭 차례 (E236-05): 처음으로 되돌리면 지금 상태에 맞는 탭이 카드와 함께 다시 열린다
+        button('탭 처음으로', () => {
+          g.tabs.load([])
+          g.menu.refresh()
+          g.tabSystem.check()
+        }),
+        button('탭 모두 열기', () => {
+          g.tabs.openAll()
+          g.menu.refresh()
+        }),
         button('장비 떨구기', () => g.dev.dropGear()),
         button('영웅 장비', () => g.dev.dropGear(undefined, 'hero')),
         button('2단계 장비', () => g.dev.dropGear(undefined, undefined, undefined, undefined, 2)),

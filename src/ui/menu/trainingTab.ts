@@ -13,7 +13,7 @@ const COL_SPAN = 5
 
 /**
  * 수련 탭 (E236-03): 깨달음과 다음 깨달음까지, 공용 트리(뿌리에서 힘·몸·손 세 갈래), 찍은 마디 수치의 합, 모두 되돌리기.
- * 마디에 올리면(손가락은 누르면) 이름과 수치. 마우스는 누르면 찍고, 손가락은 처음 누르면 설명·한 번 더 누르면 찍는다.
+ * 마디에 올리면(휴대폰은 누르면) 이름과 수치. 마우스는 누르면 찍고, 휴대폰 조작(`touchUi`)은 처음 누르면 설명·한 번 더 누르면 찍는다.
  */
 export class TrainingTab {
   /** 손가락으로 한 번 누른 마디 (한 번 더 누르면 찍는다) */
@@ -114,12 +114,10 @@ export class TrainingTab {
       const state = n.taken ? '찍었다' : n.can ? `${finger ? '한 번 더 누르면' : '누르면'} 찍는다 (깨달음 하나)` : insight.unspent > 0 ? '앞 마디를 먼저 찍어야 한다' : '깨달음이 모자란다'
       // 힌트를 먼저 걸어 둔다 (찍으면 다시 그려 힌트가 닫힌다)
       this.ctx.hintOn(b, `${n.name}\n${n.lines.join('\n')}\n${state}`)
-      let touched = false
-      b.addEventListener('pointerdown', (e) => (touched = e.pointerType === 'touch'))
       b.addEventListener('click', () => {
         if (!n.can) return
-        // 손가락에는 커서가 없다: 처음 누르면 설명만, 같은 마디를 한 번 더 누르면 찍는다
-        if (touched && this.picked !== n.id) {
+        // 휴대폰 조작에는 커서가 없다: 처음 누르면 설명만, 같은 마디를 한 번 더 누르면 찍는다 (힌트 글과 같은 기준)
+        if (finger && this.picked !== n.id) {
           this.picked = n.id
           return
         }

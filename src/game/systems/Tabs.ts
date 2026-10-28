@@ -12,7 +12,7 @@ const CARD_COLOR = `#${VFX.guide.toString(16).padStart(6, '0')}`
  * 무엇을 하는 곳인지 한 줄짜리 카드를 띄운다. 연 탭은 저장한다 (`progress/Tabs`).
  */
 export class TabSystem {
-  /** 탭이 새로 열렸을 때 (메뉴 단추에 표시하고 다시 그린다) */
+  /** 탭이 새로 열렸을 때 (메뉴 단추에 표시하고 다시 그린다). 한 번에 여럿이 열리면 정한 차례의 첫 탭으로 한 번 */
   onOpened: (tab: StepTab) => void = () => {}
   /** 게임을 다 세우고 저장을 불러온 뒤에 켠다 (불러오는 동안 끼우는 장비로 카드가 뜨지 않게) */
   ready = false
@@ -43,19 +43,33 @@ export class TabSystem {
     const { tabs, bus } = this.ctx
     if (!this.ready || this.checking || STEP_TABS.every((tab) => tabs.has(tab))) return
     this.checking = true
-    const due = tabsDue(this.facts(), tabs.opened)
-    for (const tab of due) this.open(tab, quiet)
-    this.checking = false
+    let due: StepTab[] = []
+    try {
+      due = tabsDue(this.facts(), tabs.opened)
+      for (const tab of due) this.unlock(tab, quiet)
+      if (due[0]) this.onOpened(due[0])
+    } finally {
+      this.checking = false
+    }
     if (due.length > 0) bus.emit('progressChanged', {})
   }
 
-  /** 탭 하나를 연다 (작은 지도를 누르면 지도 탭). 처음 열었으면 카드 */
+  /** 탭 하나를 바로 연다 (작은 지도를 누르면 지도 탭: 지금 보고 있으니 카드 없이 quiet) */
   open(tab: StepTab, quiet = false): void {
-    if (!this.ctx.tabs.open(tab)) return
-    const def = STEP_TAB_DEFS[tab]
-    if (!quiet) this.ctx.bus.emit('moment', { id: 'tabOpened', card: { kind: '새 탭', title: def.name, color: CARD_COLOR, icon: glyph(def.icon as Parameters<typeof glyph>[0]), lines: [def.text] } })
+    if (!this.unlock(tab, quiet)) return
     this.onOpened(tab)
-    // 하나만 열었으면 (작은 지도) 여기서 저장할 것이 생겼다고 알린다. 여럿은 check가 한 번에
-    if (!this.checking) this.ctx.bus.emit('progressChanged', {})
+    this.ctx.bus.emit('progressChanged', {})
+  }
+
+  /** 열고, quiet가 아니면 카드. 처음 열었으면 true */
+  private unlock(tab: StepTab, quiet: boolean): boolean {
+    if (!this.ctx.tabs.open(tab)) return false
+    if (quiet) return true
+    const def = STEP_TAB_DEFS[tab]
+    const card = { kind: '새 탭', title: def.name, color: CARD_COLOR, icon: glyph(def.icon as Parameters<typeof glyph>[0]), lines: [def.text] }
+    // 같은 사건에서 나오는 더 큰 순간(첫 신화 장면·벼린 큰 카드·장 넘어가기) 뒤에 줄 서게 한 박자 늦게 보낸다.
+    // 탭을 연 원인이 먼저 보이고, 장면이 탭 카드를 기다리지 않는다
+    queueMicrotask(() => this.ctx.bus.emit('moment', { id: 'tabOpened', card }))
+    return true
   }
 }

@@ -435,9 +435,9 @@ export class Game {
     })
     this.pauseMenu.onToggle = onToggle
     this.hud.onPortraitClick = () => this.menu.show('status')
-    // 작은 지도를 누르면 지도 탭이 열린다 (성소를 찾기 전이어도)
+    // 작은 지도를 누르면 지도 탭이 열린다 (성소를 찾기 전이어도. 지금 보고 있으니 카드는 없이)
     this.minimap.canvas.addEventListener('click', () => {
-      this.tabSystem.open('map')
+      this.tabSystem.open('map', true)
       this.menu.show('map')
     })
     // 대화 장면 (E15-06): 마을 사람을 누르면 걸어가 말을 걸고, 처음 보는 일에는 짧은 장면
@@ -576,8 +576,8 @@ export class Game {
       // 마지막 보스를 이긴 뒤 엔딩이 끝나기 전에 저장된 판: 엔딩을 다시 보인다 (안 그러면 엔딩 뒤 장치가 영영 닫힌다)
       if (this.chapters.finished && !this.ending.reached) this.endingMoment(false)
     }
-    // 점검용 실행은 정보 화면 탭을 모두 연 채로 (E236-05)
-    if (options.allTabs) this.tabs.openAll()
+    // 점검용 실행과 엔딩 뒤 판은 정보 화면 탭을 모두 연 채로 (E236-05)
+    if (options.allTabs || this.ending.reached) this.tabs.openAll()
     for (const id of options.startRelics ?? []) this.relics.equip(id, false)
     // 탭 열기는 불러온 뒤에 켠다: 저장에서 빠진 탭이 있으면 카드 없이 연다
     this.tabSystem.ready = true
