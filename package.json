@@ -11,7 +11,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "smoke": "node scripts/smoke.mjs",
-    "check": "npm run build && npm test && npm run smoke",
+    "check": "node scripts/harness/check-stamp.mjs begin && npm run build && npm test && npm run smoke && node scripts/harness/check-stamp.mjs pass",
     "playtest": "node scripts/playtest.mjs",
     "app": "vite build && electron ."
   },

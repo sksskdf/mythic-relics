@@ -13,7 +13,7 @@
 
 ## 이어받기
 
-- **세션을 시작하면 `docs/knowledge/handoff.md`부터 읽는다.** 지금 상태·다음 할 일·사용자에게 받아야 할 것이 있다. 지식 저장소 목록은 `docs/knowledge/README.md`.
+- **세션을 시작하면 `docs/knowledge/handoff.md`부터 읽는다.** 지금 상태·다음 할 일·사용자에게 받아야 할 것이 있다(그 요약은 세션 시작 훅이 넣어 준다. 자세한 상태 표는 파일에서). 지식 저장소 목록은 `docs/knowledge/README.md`.
 - 일을 한 덩어리 끝낼 때마다 `handoff.md`를 고치고, 사용자와 새로 정한 것은 `decisions.md`, 막혔다 풀린 것은 `troubleshooting.md`·`environment.md`에 더한다.
 
 ## 문서 (작업 전에 관련 문서를 먼저 읽는다)
@@ -101,6 +101,23 @@
 - 수치는 `src/data/*.json`에서 바꾸고, 바꾸면 `BALANCE.md`와 봇 결과(`PLAYTEST.md`)를 함께 고친다.
 - 새 유물은 `relics.json`에 기존 종류(충전·터지는 때·하는 일)를 조합해 넣는다. 새로운 "하는 일"이 필요할 때만 `actions.ts`와 `schema.ts`의 ACTION_PARAMS에 더한다.
 - 사람이 한 플레이 의견은 `PLAYTEST.md` 6장과 로드맵 해당 마일스톤에 반영한다.
+
+## 하네스 (`.claude/`, `scripts/harness/`)
+
+규칙을 기억에 맡기지 않고 훅·서브에이전트·스킬로 지킨다. 훅은 `.claude/settings.json`에 있고, 무언가 막히면 까닭이 `[하네스]`로 돌아온다.
+
+| 무엇 | 하는 일 |
+| --- | --- |
+| 커밋 훅 | `npm run check`가 통과한 코드에 도장을 찍고(`check-stamp.mjs`, `.git/harness/`), 도장 뒤 코드가 바뀌었으면 `git commit`을 막는다. 문서(*.md·`docs/`·`.claude/`)만 바뀐 커밋은 둔다. 사용자가 검사 없이 커밋하라고 했을 때만 `HARNESS_SKIP_CHECK=1 git commit …` |
+| 명령 훅 | main으로 바로 푸시·강제 푸시, 빌드(`dist`)가 `src`보다 낡았는데 점검 스크립트 돌리기(`npm run build &&`를 앞에), 같은 포트를 쓰는 점검이 이미 돌 때, `playwright install`을 막는다 |
+| PR 훅 | main으로 가는 PR은 커밋을 다 올렸고 `handoff.md`를 고쳤고 한국어일 때만, 병합은 merge 방식만 |
+| 고친 뒤 알림 | 파일을 고치면 맞는 점검·함께 고칠 문서를 한 번 알리고(규칙은 `scripts/harness/rules.mjs`), 새로 쓴 글의 글자 그대로 쓴 색·흐려지는 글꼴 크기·"(으)로" 표기·영어 주석·모델 이름을 짚는다 |
+| 세션 시작 | `handoff.md` 요약, 브랜치·커밋하지 않은 파일, 검사 도장 상태를 넣는다 (대화를 줄인 뒤에도) |
+| `node scripts/harness/what-to-run.mjs` | main과 견줘 바뀐 파일에 맞는 점검·아직 안 고친 문서를 모아 보인다 (PR 전, 마일스톤 끝) |
+| 서브에이전트 (`.claude/agents/`) | `game-reviewer`: PR 전 리뷰(읽기만). `playtest-qa`: 봇·스크린숏을 돌려 사람 눈으로 판정. `balance-analyst`: 목표 띠를 벗어난 원인과 바꿀 수치 제안 |
+| 스킬 (`.claude/skills/`) | `/roadmap-sync`(로드맵 네 곳 맞추기), `/balance-pass`(수치 한 바퀴), `/qa-pass`(QA 한 바퀴), `steward`(PR을 만들고 병합까지) |
+
+규칙을 바꾸면 `tests/harness.test.mjs`도 고친다. 개인 설정은 `.claude/settings.local.json`(git에 안 올라감).
 
 ## Git
 
