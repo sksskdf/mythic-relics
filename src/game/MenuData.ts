@@ -88,6 +88,7 @@ export class MenuData {
       cardContext: (id, preview) => this.cardContext(id, preview),
       stats: () => this.heroStats(),
       afterEnding: () => game.ending.reached,
+      tabOpen: (tab) => game.tabs.has(tab),
       toTitle: () => game.toTitle(),
       openSettings: () => {
         game.menu.toggle(false)

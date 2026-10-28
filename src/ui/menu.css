@@ -1332,7 +1332,8 @@
   border: var(--bw) solid var(--branch);
   border-radius: 50%;
   background: var(--c-bg-1);
-  opacity: 0.55;
+  /* 아직 못 찍는 마디는 어둡게 (반투명이면 이은 줄이 마디 위로 비친다) */
+  filter: brightness(0.6) saturate(0.6);
   cursor: help;
 }
 .menu-train__spot.is-big .menu-train__node {
@@ -1340,10 +1341,10 @@
 }
 .menu-train__node.is-taken {
   background: var(--branch);
-  opacity: 1;
+  filter: none;
 }
 .menu-train__node.can-take {
-  opacity: 1;
+  filter: none;
   border-color: var(--c-gold);
   cursor: pointer;
   animation: menu-train-can 1.4s ease-in-out infinite;

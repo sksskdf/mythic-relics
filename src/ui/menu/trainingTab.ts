@@ -1,7 +1,12 @@
+import { touchUi } from '../../input/device'
 import { el, type TabContext } from './dom'
 
-/** 트리 한 줄(깊이 하나)의 높이 (px): 마디와 두 줄 이름이 들어간다 */
-const ROW = 72
+/** 트리 한 줄(깊이 하나)의 높이 (px): 마디와 두 줄 이름이 들어간다. 손가락은 누를 자리를 넉넉히 */
+const ROW = { mouse: 64, finger: 72 } as const
+/** 마지막 줄 이름이 판 밑으로 삐져나가지 않게 더하는 높이 (px) */
+const BOARD_FOOT = 12
+/** 「모두 되돌리기」를 한 번 누른 뒤 확인을 기다리는 시간 (ms) */
+const CONFIRM_MS = 2500
 /** 열의 범위: 가지가 갈래 열 ±0.5라 −0.5 ~ 4.5 */
 const COL_MIN = -0.5
 const COL_SPAN = 5
@@ -37,17 +42,22 @@ export class TrainingTab {
     const reset = el('button', 'ui-btn menu-train__reset', '모두 되돌리기')
     reset.type = 'button'
     reset.disabled = training.nodes().every((n) => !n.taken)
+    // 힌트를 먼저 걸어 둔다 (누르면 힌트가 뜨고 나서 글이 바뀐다)
+    this.ctx.hintOn(reset, '모두 되돌리기\n찍은 마디를 모두 깨달음으로 돌려받는다. 언제든 무료')
     reset.addEventListener('click', () => {
-      // 잘못 누르지 않게 한 번 더 눌러야 한다 (되돌리기는 무료)
+      // 잘못 누르지 않게 한 번 더 눌러야 한다 (되돌리기는 무료). 잠시 뒤에는 처음으로
       if (!reset.classList.contains('is-confirm')) {
         reset.classList.add('is-confirm')
         reset.textContent = '한 번 더 누르면 되돌린다'
+        setTimeout(() => {
+          reset.classList.remove('is-confirm')
+          reset.textContent = '모두 되돌리기'
+        }, CONFIRM_MS)
         return
       }
       training.reset()
       this.ctx.render()
     })
-    this.ctx.hintOn(reset, '모두 되돌리기\n찍은 마디를 모두 깨달음으로 돌려받는다. 언제든 무료')
     info.append(reset)
     wrap.append(info)
 
@@ -63,15 +73,17 @@ export class TrainingTab {
       legend.append(tag)
     }
     tree.append(legend)
+    const finger = touchUi()
+    const row = finger ? ROW.finger : ROW.mouse
     const board = el('div', 'menu-train__board')
-    board.style.height = `${rows * ROW}px`
+    board.style.height = `${rows * row + BOARD_FOOT}px`
     const x = (col: number) => ((col - COL_MIN + 0.5) / (COL_SPAN + 1)) * 100
-    const y = (row: number) => row * ROW + ROW / 2 - 8
+    const y = (r: number) => r * row + row / 2 - 8
     // 이은 줄 (가로는 %, 세로는 px라 SVG는 늘여 그린다)
     const NS = 'http://www.w3.org/2000/svg'
     const svg = document.createElementNS(NS, 'svg')
     svg.setAttribute('class', 'menu-train__links')
-    svg.setAttribute('viewBox', `0 0 100 ${rows * ROW}`)
+    svg.setAttribute('viewBox', `0 0 100 ${rows * row + BOARD_FOOT}`)
     svg.setAttribute('preserveAspectRatio', 'none')
     const at = new Map(nodes.map((n) => [n.id, n]))
     for (const n of nodes) {
@@ -99,15 +111,15 @@ export class TrainingTab {
       b.type = 'button'
       b.dataset.node = n.id
       b.setAttribute('aria-label', n.name)
-      const state = n.taken ? '찍었다' : n.can ? '눌러서 찍는다 (깨달음 하나)' : insight.unspent > 0 ? '앞 마디를 먼저 찍어야 한다' : '깨달음이 모자란다'
+      const state = n.taken ? '찍었다' : n.can ? `${finger ? '한 번 더 누르면' : '누르면'} 찍는다 (깨달음 하나)` : insight.unspent > 0 ? '앞 마디를 먼저 찍어야 한다' : '깨달음이 모자란다'
       // 힌트를 먼저 걸어 둔다 (찍으면 다시 그려 힌트가 닫힌다)
       this.ctx.hintOn(b, `${n.name}\n${n.lines.join('\n')}\n${state}`)
-      let finger = false
-      b.addEventListener('pointerdown', (e) => (finger = e.pointerType === 'touch'))
+      let touched = false
+      b.addEventListener('pointerdown', (e) => (touched = e.pointerType === 'touch'))
       b.addEventListener('click', () => {
         if (!n.can) return
         // 손가락에는 커서가 없다: 처음 누르면 설명만, 같은 마디를 한 번 더 누르면 찍는다
-        if (finger && this.picked !== n.id) {
+        if (touched && this.picked !== n.id) {
           this.picked = n.id
           return
         }

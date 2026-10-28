@@ -94,7 +94,11 @@ export const TRAINING_NODES: readonly TrainingNode[] = [
   ], true),
 ]
 
-export const trainingNode = (id: string): TrainingNode | undefined => TRAINING_NODES.find((n) => n.id === id)
+const BY_ID = new Map(TRAINING_NODES.map((n) => [n.id, n]))
+export const trainingNode = (id: string): TrainingNode | undefined => BY_ID.get(id)
+
+/** 봇과 엔딩 무렵 빌드(`dev.endgame`)가 찍는 차례: 힘 → 몸 → 손. 찍을 수 없는 것(앞 마디가 아직)은 건너뛴다 */
+export const SAMPLE_ORDER: readonly string[] = ['awaken', 'edge', 'fury', 'cleave', 'storm', 'boil', 'slayer', 'sturdy', 'spring', 'shield', 'feast', 'stone', 'unbroken', 'quick', 'stride', 'reach', 'study', 'flurry', 'whirl']
 
 /**
  * 깨달음 문턱: k번째 점(1부터)을 얻는 데 드는 경험치는 FIRST + STEP × (k − 1).
@@ -123,7 +127,7 @@ export function insightProgress(xp: number): { have: number; need: number } {
   return { have: xp - before, need: first + step * n }
 }
 
-/** 데이터 검사: 이름·자리가 겹치지 않고, 앞 마디가 있고 더 얕으며, 갈래 끝에만 큰 마디 (테스트·빌드에서 부른다) */
+/** 데이터 검사: 이름·자리가 겹치지 않고, 앞 마디가 있고 더 얕으며 목록에서 먼저 오고, 갈래 끝에만 큰 마디 (tests/training.test.ts) */
 export function checkTraining(nodes: readonly TrainingNode[] = TRAINING_NODES): string[] {
   const problems: string[] = []
   const ids = new Set<string>()
@@ -140,6 +144,7 @@ export function checkTraining(nodes: readonly TrainingNode[] = TRAINING_NODES): 
       const before = nodes.find((m) => m.id === a)
       if (!before) problems.push(`${n.id}: 앞 마디 ${a}가 없습니다`)
       else if (before.row >= n.row) problems.push(`${n.id}: 앞 마디 ${a}가 더 얕아야 합니다`)
+      else if (nodes.indexOf(before) > nodes.indexOf(n)) problems.push(`${n.id}: 앞 마디 ${a}가 목록에서 먼저 와야 합니다`)
     }
   }
   for (const branch of ['might', 'body', 'hand'] as const) {

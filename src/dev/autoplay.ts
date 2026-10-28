@@ -1,3 +1,4 @@
+import { SAMPLE_ORDER } from '../data/training'
 import type { Giant, GiantDanger } from '../enemies/Giant'
 import type { Game } from '../game/Game'
 import { clampToCircle } from '../game/HeroController'
@@ -19,9 +20,6 @@ const MARGIN = 0.7
 /** 피하거나 물러날 때 출구에서 이만큼은 떨어진다 */
 const EXIT_CLEAR = 3.5
 /** 싸울 상대가 없을 때 돌아다니는 길 (사람이 적을 찾아 맵을 둘러보는 것처럼) */
-
-/** 봇이 수련 마디를 찍는 차례 (E236): 힘 갈래 → 몸 → 손. 찍을 수 없는 것(앞 마디가 아직)은 건너뛴다 */
-const TRAIN_ORDER = ['awaken', 'edge', 'fury', 'cleave', 'storm', 'boil', 'slayer', 'sturdy', 'spring', 'shield', 'feast', 'stone', 'unbroken', 'quick', 'stride', 'reach', 'study', 'flurry', 'whirl']
 
 /**
  * 자동 플레이 검증용 봇.
@@ -219,7 +217,7 @@ export class Autoplayer {
       if (target !== undefined) this.game.dev.wield(own, target)
     }
     // 깨달음이 있으면 수련 마디를 찍는다 (E236): 힘 갈래를 먼저 끝까지, 그다음 몸·손
-    for (const id of TRAIN_ORDER) if (this.game.training.unspent > 0) this.game.dev.train(id)
+    for (const id of SAMPLE_ORDER) if (this.game.training.unspent > 0) this.game.dev.train(id)
     // 가방의 일반 장비가 더 좋으면 바꿔 낀다 (빈 칸이면 그냥 낀다, 유물은 빼지 않는다) (E13-08)
     for (const id of [...powers.loadout.bag]) {
       const item = powers.loadout.gear.get(id)

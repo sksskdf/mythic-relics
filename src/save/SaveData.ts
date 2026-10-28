@@ -14,6 +14,7 @@ import { parseThreat, type ThreatData } from '../progress/Threat'
 import { parseTrials, type TrialData } from '../progress/Trials'
 import { parseRift, type RiftData } from '../progress/Rift'
 import { parseTraining, type TrainingData } from '../progress/Training'
+import { parseTabs } from '../progress/Tabs'
 import { type BodyLook, parseBody } from '../looks/body'
 import { isLookId, lookDef, type LookSlot, STARTING_LOOKS, WARDROBE_SLOTS } from '../looks/catalog'
 import type { LookChoice } from '../looks/outfit'
@@ -37,7 +38,8 @@ import { GODS, godDef, type God, isRelicId, relicDef, type RelicId } from '../re
  *   물려받은 수치·원천 숙련·전투 경험은 버린다. 위협 단계·시련·균열을 해 본 옛 저장은 엔딩 뒤로 친다 (그 장치를 숨기지 않게)
  * - v10: 장 진행 (E22). 들어서 본 땅과 보스를 이긴 땅. 옛 저장은 있던 땅·찾은 성소를 들어서 본 땅으로,
  *   위협 단계에서 이겼거나 보스 재료·그 신화권 유물을 가진 신화권의 보스를 이긴 것으로 친다 (지나온 장에 다시 막히지 않게)
- * - v11: 수련 (E236). 모은 경험치와 찍은 마디. 옛 저장은 신화 경험치에서 모은 경험치를 짐작하고 마디는 비워 둔다 (깨달음은 그대로 쓸 수 있다)
+ * - v11: 수련 (E236). 모은 경험치와 찍은 마디. 옛 저장은 신화 경험치에서 모은 경험치를 짐작하고 마디는 비워 둔다 (깨달음은 그대로 쓸 수 있다).
+ *   차례로 연 정보 화면 탭(E236-05). 옛 저장은 탭을 모두 연 것으로 친다
  */
 export const SAVE_VERSION = 11
 
@@ -109,6 +111,8 @@ export interface SaveData {
   chapters: ChapterData
   /** 수련 (E236): 모은 경험치와 찍은 마디 */
   training: TrainingData
+  /** 차례로 연 정보 화면 탭 (E236-05) */
+  tabs: string[]
   /** 지금 있는 지역과 자리 (E7). 옛 저장이거나 모르는 지역이면 null (마을에서 시작) */
   region: { id: string; x: number; z: number } | null
   /** 본 대화 장면 (E12-10). 옛 저장에는 없어서 빈 목록 */
@@ -228,6 +232,7 @@ export function parseSave(text: string | null): SaveData | null {
     ending: data.ending === true || ((data.version as number) < 9 && tried),
     chapters,
     training: parseTraining(data.training, (data.version as number) < 11 ? oldTrainingXp(myths) : 0),
+    tabs: parseTabs(data.tabs, (data.version as number) < 11),
     region,
     scenes: Array.isArray(data.scenes) ? [...new Set(data.scenes.filter((s): s is string => typeof s === 'string' && s.length < 40))] : [],
   }

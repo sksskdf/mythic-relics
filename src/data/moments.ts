@@ -33,7 +33,7 @@ export const MOMENTS = {
   threatUp: 2,
   trialCleared: 2,
   riftCleared: 2,
-  trainingOpened: 2,
+  tabOpened: 2,
   // 3 큰 카드: 신화 단계, 유물 벼리기 (엔딩 뒤에는 한계를 깸도)
   mythLevel: 3,
   forged: 3,

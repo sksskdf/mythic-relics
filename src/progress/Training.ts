@@ -16,6 +16,8 @@ export interface TrainingData {
 export class TrainingProgress {
   xp = 0
   readonly taken = new Set<string>()
+  /** 찍은 마디 수치의 합 (빌드 상태가 피해마다 읽어서, 찍고 되돌릴 때만 다시 센다) */
+  private totals: Partial<Record<StatKind, number>> = {}
 
   /** 모은 깨달음 */
   get insights(): number {
@@ -45,6 +47,7 @@ export class TrainingProgress {
   take(id: string): boolean {
     if (!this.canTake(id)) return false
     this.taken.add(id)
+    this.recount()
     return true
   }
 
@@ -52,25 +55,47 @@ export class TrainingProgress {
   reset(): number {
     const n = this.taken.size
     this.taken.clear()
+    this.recount()
     return n
   }
 
-  /** 찍은 마디 수치의 합 (같은 종류끼리 더한다) */
-  stats(): Partial<Record<StatKind, number>> {
+  /** 마디를 모두 찍었나 (더 얻는 깨달음은 쓸 곳이 없다) */
+  get complete(): boolean {
+    return this.taken.size >= TRAINING_NODES.length
+  }
+
+  /** 찍은 마디 수치의 합 (같은 종류끼리 더한다). 읽기만 한다 */
+  stats(): Readonly<Partial<Record<StatKind, number>>> {
+    return this.totals
+  }
+
+  private recount(): void {
     const out: Partial<Record<StatKind, number>> = {}
     for (const id of this.taken) for (const s of trainingNode(id)?.stats ?? []) out[s.kind] = (out[s.kind] ?? 0) + s.value
-    return out
+    this.totals = out
   }
 
   toData(): TrainingData {
     return { xp: this.xp, taken: [...this.taken] }
   }
 
-  /** 불러온다. 찍을 수 없는 마디(앞 마디가 빠짐·깨달음보다 많음)는 버린다 */
+  /**
+   * 불러온다. 찍을 수 없는 마디(앞 마디가 빠짐·깨달음보다 많음)는 버린다.
+   * 찍은 차례대로 다시 찍되, 앞 마디가 뒤에 적혀 있어도 찍힐 때까지 되풀이한다 (깨달음이 모자라면 나중에 찍은 것부터 빠진다)
+   */
   load(data: TrainingData): void {
     this.xp = data.xp
     this.taken.clear()
-    for (const node of TRAINING_NODES) if (data.taken.includes(node.id) && this.canTake(node.id)) this.taken.add(node.id)
+    let added = true
+    while (added) {
+      added = false
+      for (const id of data.taken) {
+        if (this.taken.has(id) || !this.canTake(id)) continue
+        this.taken.add(id)
+        added = true
+      }
+    }
+    this.recount()
   }
 }
 

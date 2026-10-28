@@ -206,14 +206,21 @@ export class GameMenu {
     target.addEventListener('click', show)
   }
 
+  /** 탭 줄에 보이는 탭인가 */
+  private tabShown(tab: MenuTab): boolean {
+    const { host } = this.ctx
+    if (tab === 'status') return true
+    if (ENDING_TABS.includes(tab)) return host.afterEnding()
+    return host.tabOpen(tab)
+  }
+
   private render(): void {
     this.hint.hidden = true
-    // 시련·균열은 엔딩 뒤 장치라 그 전에는 탭을 숨긴다 (E21-06)
-    const later = !this.ctx.host.afterEnding()
-    if (later && ENDING_TABS.includes(this.tab)) this.tab = 'status'
+    // 아직 열리지 않은 탭은 숨긴다: 시련·균열은 엔딩 뒤(E21-06), 나머지는 쓸 일이 생길 때 하나씩(E236-05)
+    if (!this.tabShown(this.tab)) this.tab = 'status'
     for (const [id, b] of this.tabButtons) {
       b.classList.toggle('is-on', id === this.tab)
-      b.hidden = later && ENDING_TABS.includes(id)
+      b.hidden = !this.tabShown(id)
     }
     this.body.replaceChildren()
     const { ctx, body } = this

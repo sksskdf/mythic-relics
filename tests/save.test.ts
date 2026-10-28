@@ -4,6 +4,7 @@ import { parseConveniences } from '../src/progress/Conveniences'
 import { parseThreat } from '../src/progress/Threat'
 import { parseTrials } from '../src/progress/Trials'
 import { parseRift } from '../src/progress/Rift'
+import { STEP_TABS } from '../src/progress/Tabs'
 import { parseSave, SAVE_VERSION, type SaveData } from '../src/save/SaveData'
 
 const sample: SaveData = {
@@ -30,6 +31,7 @@ const sample: SaveData = {
   ending: true,
   chapters: { entered: ['village', 'midgard', 'olympus'], bosses: ['utgard'] },
   training: { xp: 1500, taken: ['awaken', 'edge'] },
+  tabs: ['relics', 'training'],
   region: { id: 'olympus', x: 3.5, z: -12 },
   scenes: ['opening'],
 }
@@ -214,5 +216,17 @@ describe('저장 v11: 수련 (E236-02)', () => {
     expect(data?.training).toEqual({ xp: 2140, taken: [] })
     const fresh = parseSave(JSON.stringify({ ...sample, version: 10, training: undefined, classes: { thor: { level: 0, xp: 120 } } }))
     expect(fresh?.training.xp).toBe(120)
+  })
+})
+
+describe('저장 v11: 연 탭 (E236-05)', () => {
+  it('연 탭은 그대로, 모르는 탭은 버리고, 깨진 기록은 상태 탭만', () => {
+    expect(parseSave(JSON.stringify(sample))?.tabs).toEqual(['relics', 'training'])
+    expect(parseSave(JSON.stringify({ ...sample, tabs: ['map', 'nowhere', 7] }))?.tabs).toEqual(['map'])
+    expect(parseSave(JSON.stringify({ ...sample, tabs: 'broken' }))?.tabs).toEqual([])
+  })
+
+  it('옛 저장(탭 기록이 없던 때)은 탭을 모두 연 것으로 친다', () => {
+    expect(parseSave(JSON.stringify({ ...sample, version: 10, tabs: undefined }))?.tabs).toEqual([...STEP_TABS])
   })
 })

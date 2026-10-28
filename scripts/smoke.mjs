@@ -265,6 +265,15 @@ try {
   await page.evaluate(() => window.__game.pickups.remove('lokiMask'))
   console.log('땅 유물 설명 확인: 모델 위·빛기둥·발밑에서 카드가 뜨고, 벗어나면 사라짐')
 
+  // 정보 화면 탭은 쓸 일이 생길 때 하나씩 열린다 (E236-05): 새 판에서는 상태 탭만
+  const firstTabs = await page.evaluate(() => {
+    const g = window.__game
+    g.menu.toggle(true)
+    const shown = [...document.querySelectorAll('.menu__tab')].filter((b) => !b.hidden).length
+    g.menu.toggle(false)
+    return { shown, opened: [...g.tabs.opened] }
+  })
+  if (firstTabs.shown !== 1 || firstTabs.opened.length !== 0) throw new Error(`탭 차례: 새 판인데 상태 탭 말고도 열려 있습니다 ${JSON.stringify(firstTabs)}`)
   // 장비 점검 (E13-02): 떨어진 일반 장비 위에 서면 저절로 줍고 그 부위 칸(발)에 낀다.
   const bootsUid = await page.evaluate(() => {
     const g = window.__game
@@ -274,6 +283,13 @@ try {
   await page.waitForFunction((uid) => window.__game.powers.loadout.slots[4] === uid, bootsUid, { timeout: 15000 }).catch(() => {
     throw new Error('장비: 발밑의 장화를 주워 발 칸에 끼지 못했습니다.')
   })
+  // 장비를 처음 주우면 장비 탭이 열리고 무엇을 하는 곳인지 카드가 뜬다
+  await page.waitForFunction(() => window.__game.moments.shown.some((m) => m.id === 'tabOpened'), null, { timeout: 15000 }).catch(() => {
+    throw new Error('탭 차례: 장비를 주웠는데 장비 탭이 열렸다는 카드가 뜨지 않습니다.')
+  })
+  const gearTabs = await page.evaluate(() => [...window.__game.tabs.opened])
+  if (gearTabs.join() !== 'relics') throw new Error(`탭 차례: 장비를 주운 뒤 열린 탭이 장비 하나가 아닙니다 (${gearTabs.join()})`)
+  console.log('탭 차례 확인: 새 판에는 상태 탭만, 장비를 주우면 장비 탭과 카드')
   await lookShot('2-gear')
   // 유물 점검: 신화의 유물(묠니르) 위에 서면 줍고, 그 신화가 열려 바로 고른 신화가 된다 (E12-04, E13-03).
   await page.evaluate(() => {
@@ -302,9 +318,16 @@ try {
   await lookShot('4-manifest', 12)
   // 왼쪽 위 상태: 발현한 클래스 초상과 레벨 보석
   if ((await page.locator('.hud__portrait.is-empty').count()) !== 0) throw new Error('상태: 발현했는데 초상이 비어 있습니다.')
-  // 정보 화면(E4): 문장 단추로 열면 게임이 멈추고 상태 탭부터 보인다.
+  // 신화의 유물(묠니르)을 주워 신화가 열리면 신화·외형 탭도 열린다. 아래 점검은 탭을 모두 연 채로 한다
+  const mythTabs = await page.evaluate(() => [...window.__game.tabs.opened])
+  if (!['relics', 'classes', 'looks'].every((t) => mythTabs.includes(t))) throw new Error(`탭 차례: 묠니르로 신화를 열었는데 신화·외형 탭이 닫혀 있습니다 (${mythTabs.join()})`)
+  await page.evaluate(() => window.__game.tabs.openAll())
+  // 정보 화면(E4): 문장 단추로 열면 게임이 멈춘다. 새로 열린 탭이 있으면 그 탭부터 보이니(E236-05) 상태 탭을 누른다
   await page.click('.menu-button')
   if (!(await page.evaluate(() => window.__game.paused))) throw new Error('정보 화면: 열었는데 게임이 멈추지 않습니다.')
+  const firstShown = await page.evaluate(() => window.__game.menu.currentTab)
+  if (firstShown === 'status') throw new Error('정보 화면: 새로 열린 탭이 있는데 상태 탭부터 보입니다.')
+  await page.locator('.menu__tab').first().click()
   const statRows = await page.locator('.menu-status__stat').count()
   if (statRows !== 8) throw new Error(`상태 탭: 능력치 줄이 ${statRows}개입니다.`)
   await page.screenshot({ path: 'test-results/menu-status.png' })

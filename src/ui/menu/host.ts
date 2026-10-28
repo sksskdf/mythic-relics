@@ -158,6 +158,8 @@ export interface MenuHost {
   readonly training: TrainingHost
   /** 첫 엔딩을 보았나: 엔딩 뒤 장치(위협 단계·편의·시련·균열)를 보인다 (E21-06) */
   afterEnding(): boolean
+  /** 연 탭인가 (E236-05: 상태 탭 말고는 쓸 일이 생길 때 하나씩 열린다) */
+  tabOpen(tab: string): boolean
   /** 저장하고 처음 화면(슬롯 고르기)으로 */
   toTitle(): void
   /** 설정을 연다 (일시 정지 메뉴) */
