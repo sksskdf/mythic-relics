@@ -21,8 +21,8 @@
 ## 작업 단위 하나를 끝낼 때
 
 1. 코드 + 테스트 (규칙·수치는 단위 테스트, 화면·입력은 스모크, 흐름·밸런스는 봇, 데이터로 늘어나는 것은 범용 테스트)
-2. 화면이 바뀌면 `scripts/shot.mjs`로 찍어 직접 본다
-3. `set -o pipefail && npm run check` 통과
+2. 파일을 고치면 훅이 돌려 볼 점검을 알린다. 모아 보려면 `node scripts/harness/what-to-run.mjs`. 화면이 바뀌면 `scripts/shot.mjs`로 찍어 직접 본다
+3. `set -o pipefail && npm run check` 통과 (통과하면 검사 도장이 찍히고, 도장 없이 코드를 커밋하면 훅이 막는다)
 4. `ROADMAP.md`에서 `- [ ]` → `- [x]`
 5. 그 GitHub 하위 이슈 본문의 같은 줄도 체크: `node scripts/roadmap-issues/tick.mjs <스크래치>/tick.json E11-01-1`이 4번(ROADMAP 체크)까지 하고 이슈 번호와 새 본문을 파일에 쓴다 → `issue_write` update로 그 본문을 보냄
 6. 커밋 (한국어, 끝에 세션이 알려 주는 Co-Authored-By·Claude-Session 줄) → 푸시
@@ -38,17 +38,19 @@
 ## 마일스톤을 끝낼 때
 
 1. 자동 검증을 돌리고 통과한 줄에 ✅ (마일스톤 이슈 본문의 자동 검증 체크 상자도)
-2. 봇 결과를 `PLAYTEST.md` 7장에, 수치를 바꿨으면 `BALANCE.md`에
-3. 직접 플레이 체크리스트는 사용자에게 부탁하고, 확인해 준 것만 `[x]` (로드맵과 마일스톤 이슈 둘 다)
-4. 완료 기준을 넘으면: 마일스톤 이슈 닫기, MCP `roadmap` 완료, `ROADMAP.md` 0.2 갱신
-5. PR을 만들고 CI가 통과하면 `merge_pull_request`(merge 방식)로 병합 → `git checkout main && git pull` (원격 브랜치는 병합하면 저절로 지워짐)
+2. 봇 결과를 `PLAYTEST.md` 7장에, 수치를 바꿨으면 `BALANCE.md`에 (`/balance-pass`)
+3. 직접 플레이 체크리스트는 Claude가 사람 눈으로 확인한다(2026-10-27 결정): `/qa-pass`, 길면 `playtest-qa` 서브에이전트. 판정은 `PLAYTEST.md` 6.2, 확인한 것은 `[x]` (로드맵과 마일스톤 이슈 둘 다)
+4. `game-reviewer` 서브에이전트로 브랜치 전체를 리뷰하고, "막음"·"고쳐야 함"을 고친다
+5. 완료 기준을 넘으면: 마일스톤 이슈 닫기, MCP `roadmap` 완료, `ROADMAP.md` 0.2 갱신 (`/roadmap-sync`)
 6. `docs/knowledge/history.md`에 한 줄, `baselines.md`에 새 기준 수치, `handoff.md` 갱신
+7. PR을 만들고 CI가 통과하면 `merge_pull_request`(merge 방식)로 병합 → `git checkout main && git pull` (원격 브랜치는 병합하면 저절로 지워짐). 순서와 CI가 실패했을 때는 `steward` 스킬
 
 ## PR과 CI
 
 - PR은 main에 병합할 때만 만든다. 본문은 한국어로 짧게: 바꾼 것, 확인한 것. 끝에 세션이 알려 주는 PR 꼬리말.
 - 만든 뒤 `subscribe_pr_activity`로 지켜보고, CI 결과는 알림으로 온다. `sleep`으로 기다리지 않는다.
-- CI(`.github/workflows/ci.yml`)는 `npm run check` + 봇 1판(25분 안 승급, `--gate`). 봇은 운에 따라 느릴 수 있다. 실패하면 `test-results` 아티팩트에서 원인을 본다.
+- CI(`.github/workflows/ci.yml`)는 `npm run check` + 봇 1판(장 흐름을 따라 35분 안에 2단계, `--gate`). 봇은 운에 따라 느릴 수 있다. 실패하면 `test-results` 아티팩트에서 원인을 본다.
+- PR 훅이 main으로 가는 PR을 막는 때: 올리지 않은 커밋이 있음, 이 브랜치에서 `handoff.md`를 고치지 않음, 제목·본문이 한국어가 아님. 병합은 merge 방식만 통과한다.
 - 병합 뒤 안전용 예약(`send_later`)을 걸어 뒀으면 지운다.
 
 ## 로드맵에 이슈를 새로 더할 때
@@ -57,6 +59,19 @@
 2. `node scripts/roadmap-issues/plan.mjs <스크래치>/plan.json`: `issues.json`에 없는 것만 계획에 나온다
 3. **부모 없이** `issue_write` create (부모를 붙여 만들면 새 라벨이 생기지 않아 거절된다) → `sub_issue_write` add (`sub_issue_id`는 이슈 번호가 아니라 create 응답의 `id`)
 4. `issues.json`에 번호를 적고 커밋
+
+## 역할 나누기 (하네스)
+
+한 세션이 만들고, 따로 읽는 눈은 서브에이전트가 맡는다. 서브에이전트는 파일을 고치지 않고 보고만 하며, 고치는 것은 메인 세션이다.
+
+| 역할 | 누가 | 언제 |
+| --- | --- | --- |
+| 만들기 | 메인 세션 | 늘 |
+| 리뷰 | `game-reviewer` | PR 전, 큰 작업 단위 뒤 |
+| QA | `playtest-qa` (`/qa-pass`) | 마일스톤 끝, 화면·조작·전투를 바꿨을 때 |
+| 밸런스 분석 | `balance-analyst` (`/balance-pass`) | 봇 결과가 목표 띠를 벗어났을 때, 수치를 바꾸기 전 |
+
+점검 스크립트는 포트가 겹치는 것이 있어 서브에이전트를 여럿 띄워도 봇은 하나씩 돈다 (겹치면 훅이 막는다).
 
 ## 사용자와 일하는 방식
 

@@ -1,6 +1,6 @@
 # 인수인계: 지금 상태와 다음 할 일
 
-> 마지막으로 고친 날: 2026-10-27. 일을 한 덩어리 끝낼 때마다 고친다.
+> 마지막으로 고친 날: 2026-10-28. 일을 한 덩어리 끝낼 때마다 고친다.
 
 ## 한 줄 요약
 
@@ -10,7 +10,8 @@
 
 | 항목 | 상태 |
 | --- | --- |
-| 브랜치 | `feature/e22-chapters` (E22-01~06, PR로 병합). E21은 PR #132 |
+| 브랜치 | `feature/harness` (게임 개발 하네스, PR로 병합). E22는 PR #133 |
+| 하네스 | `.claude/settings.json`의 훅 넷(세션 시작 요약, Bash 명령 막기, PR 만들기·병합 규칙, 고친 뒤 알림), 스크립트는 `scripts/harness/`(규칙 `rules.mjs`, 명령 읽기 `shell.mjs`, 검사 도장 `check-stamp.mjs`, 모아 보기 `what-to-run.mjs`). 서브에이전트 셋(`game-reviewer`·`playtest-qa`·`balance-analyst`), 스킬 넷(`roadmap-sync`·`balance-pass`·`qa-pass`·`steward`). 설명은 `CLAUDE.md` 하네스, 역할은 `workflow.md`. 시험은 `tests/harness.test.mjs` |
 | 로드맵 | E11~E22 완료. 다음은 E23. E23~E25 할 일 (`ROADMAP.md` 2장) |
 | 장 흐름 (E22) | 장 데이터 `chapters.json`·`chapters.ts`, 진행 `progress/Chapters.ts`(들어선 땅·이긴 보스, 저장 v10), 알림 `systems/Chapters.ts`(`chapterChanged`·`goalChanged`·`goalView`), 신화 고르기 `systems/MythChoice.ts`·`ui/MythPicker.ts`(데모에서는 `ClassProgress`의 `openByXp`가 꺼짐), 결계 `world/Barriers.ts`·`World.openLinks`·`refreshLinks`, 땅 세기 `Encounter.landPower`·`landScale`, 목표 한 줄·장 제목 띠 `ui/ChapterHud.ts`, 작은 지도 `Game.goalSpot`, 세계 지도 `world.goal()`·`nodes().locked`. 엔딩은 `Game.showEnding`. 개발 패널 「목표 건너뛰기」「장 건너뛰기」(`Game.skipGoal`). 데모에서는 어느 성소든 고른 신화의 전설을 연다. 마지막 무대 땅은 `scripts/gen-finale.mjs` |
 | 세 축 (E21) | 신화: 경험치는 고른 신화만(`masteryShares`), 단계 ×1.35·생명 +25%(`PER_PROMOTION`), 수집 보너스 하나마다 피해 +4%·생명 +5(`PER_OPENED`), 데모 3단계(`levelCap`, 엔딩 뒤 4). 장비: `GearItem.tier`(땅 단계, `gear.json`의 `tiers`), 등급 배율, 땅 자리마다 드랍 표(`lands`). 유물: 기본 수치 셋(`relicStats`), 그 신화를 골랐을 때만 깨어남(`relicAwake`, 잠든 유물은 HUD 칸이 흐림), 효과 한 단계 위(`effectScale`), 데모 2단계(`DEMO_RELIC_STAGES`), 데모에서는 유물이 안 떨어짐. 재료: 신화권 재료·보스 재료 둘, 제작법은 장 보스 규칙(`forge.ts`). 원천: 장비 속성만, 카드에 「각성까지 N」. 엔딩 뒤 장치는 `Ending`(`game.reachEnding()`, 개발 패널 「엔딩 뒤로」). 저장 v9 |
@@ -36,7 +37,7 @@
 1. **E23 순간의 크기** (작은 알림·카드·큰 카드·장면 네 등급, 첫 신화 고르기·장 보스·장 넘어가기·엔딩 장면을 키움) → E24 에셋 v2(갈라진 하늘 땅 모습 포함) → E25 데모 다듬기(E22에서 넘어온 떠날 때의 시원함·종장 시간) (`ROADMAP.md` 2장, `TIMELINE.md`)
 2. 영웅 장비 고유 효과 열둘은 카드의 글뿐이고 돌지 않는다 (따로 할 일)
 3. 기본안 확인(`decisions.md` 맨 아래, E21·E22 기본안): 사용자가 보면 고친다
-4. 모바일 플레이·시험 방향, 역할 나누기(작성자·리뷰어·QA)와 하네스: 사용자 결정 대기
+4. 모바일 플레이·시험 방향: 사용자 결정 대기 (역할 나누기와 하네스는 2026-10-28에 만듦)
 
 ## 사용자에게 받아야 할 것
 
