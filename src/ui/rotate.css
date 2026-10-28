@@ -1,0 +1,39 @@
+/* 휴대폰을 가로로 들었을 때: 세로로 돌려 달라는 안내 (E235) */
+.rotate-hint {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-6);
+  background: var(--c-page);
+  color: var(--c-ink-1);
+  font: var(--t-title);
+  pointer-events: auto;
+}
+.rotate-hint[hidden] {
+  display: none;
+}
+.rotate-hint__text {
+  margin: 0;
+}
+/* 가로로 누운 휴대폰이 세로로 일어선다 */
+.rotate-hint__phone {
+  width: 36px;
+  height: 60px;
+  border: var(--bw) solid var(--c-ink-2);
+  border-radius: var(--sp-3);
+  animation: rotate-hint-turn 1.8s ease-in-out infinite;
+}
+@keyframes rotate-hint-turn {
+  0%,
+  20% {
+    transform: rotate(-90deg);
+  }
+  60%,
+  100% {
+    transform: rotate(0deg);
+  }
+}

@@ -20,6 +20,23 @@ export function renderHeightFor(viewHeight: number, baseHeight = BASE_RENDER_HEI
   return Math.round(baseHeight * Math.pow(viewHeight / BASE_VIEW_HEIGHT, ZOOM_DETAIL))
 }
 
+/** 세로 화면(휴대폰, E235)에서 가로로 보이는 범위 = 시야 높이 × 이 값. 세로 화면은 좁은 가로를 기준으로 본다 */
+export const PORTRAIT_SPAN = 0.8
+
+/**
+ * 화면 세로에 보이는 월드 크기(m). 가로 화면은 시야 높이 그대로이고, 가로·세로 비가 PORTRAIT_SPAN보다 좁은 세로 화면은
+ * 가로에 시야 높이 × PORTRAIT_SPAN이 보이도록 세로를 늘린다 (그대로 두면 휴대폰을 세로로 들 때 가로가 9m밖에 안 보인다)
+ */
+export function visibleHeight(viewHeight: number, screenWidth: number, screenHeight: number): number {
+  const aspect = Math.max(1, screenWidth) / Math.max(1, screenHeight)
+  return aspect >= PORTRAIT_SPAN ? viewHeight : (viewHeight * PORTRAIT_SPAN) / aspect
+}
+
+/** 화면 크기까지 따진 렌더 세로 픽셀 수: 세로 화면은 늘어난 세로만큼 픽셀도 늘려, 1m에 드는 픽셀 수를 가로 화면과 같게 둔다 */
+export function renderHeightForScreen(viewHeight: number, screenWidth: number, screenHeight: number, baseHeight = BASE_RENDER_HEIGHT): number {
+  return Math.round((renderHeightFor(viewHeight, baseHeight) * visibleHeight(viewHeight, screenWidth, screenHeight)) / viewHeight)
+}
+
 export interface RenderSize {
   /** 저해상도 렌더 타깃의 가로 픽셀 수 */
   width: number

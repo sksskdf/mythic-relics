@@ -1,0 +1,27 @@
+/* 휴대폰의 떠다니는 조이스틱 (E235): 누른 자리의 원과 손잡이. 손가락 밑에 깔리므로 누르기는 받지 않는다 */
+.stick {
+  position: fixed;
+  z-index: 5;
+  width: 96px;
+  height: 96px;
+  margin: -48px 0 0 -48px;
+  border: var(--bw) solid var(--c-ink-3);
+  border-radius: 50%;
+  background: var(--c-bg-0);
+  opacity: 0.7;
+  pointer-events: none;
+}
+.stick[hidden] {
+  display: none;
+}
+.stick__knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 40px;
+  height: 40px;
+  margin: -20px 0 0 -20px;
+  border: var(--bw) solid var(--c-ink-1);
+  border-radius: 50%;
+  background: var(--c-bg-3);
+}

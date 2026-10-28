@@ -16,14 +16,18 @@ export class Input {
   constructor(
     private readonly element: HTMLElement,
     private readonly bindings: Bindings = DEFAULT_BINDINGS,
+    /** 손가락은 받지 않는다 (휴대폰은 TouchControls가 몸짓으로 읽는다, E235) */
+    private readonly ignoreTouch = false,
   ) {
+    const mine = (e: PointerEvent) => !(this.ignoreTouch && e.pointerType === 'touch')
     element.addEventListener('contextmenu', (e) => e.preventDefault())
     element.addEventListener('pointerdown', (e) => {
+      if (!mine(e)) return
       this.updatePointer(e)
       this.press(mouseCode(e.button))
     })
-    window.addEventListener('pointerup', (e) => this.release(mouseCode(e.button)))
-    window.addEventListener('pointermove', (e) => this.updatePointer(e))
+    window.addEventListener('pointerup', (e) => mine(e) && this.release(mouseCode(e.button)))
+    window.addEventListener('pointermove', (e) => mine(e) && this.updatePointer(e))
     // 커서가 게임 화면이나 창 밖으로 나가면 마지막 위치를 가리키지 않는다
     element.addEventListener('pointerleave', () => (this.pointer.inside = false))
     window.addEventListener('blur', () => (this.pointer.inside = false))
@@ -47,8 +51,12 @@ export class Input {
     return this.pressed.has(action)
   }
 
+  /** 프레임 끝에 함께 비울 것 (휴대폰의 톡, E235) */
+  readonly frameEnd: (() => void)[] = []
+
   endFrame(): void {
     this.pressed.clear()
+    for (const end of this.frameEnd) end()
   }
 
   private press(code: string): void {

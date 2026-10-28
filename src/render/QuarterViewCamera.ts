@@ -1,5 +1,7 @@
 import * as THREE from 'three'
 
+import { visibleHeight } from './resolution'
+
 /** 값을 가장 가까운 격자 칸에 맞춘다. */
 export function snapToGrid(value: number, step: number): number {
   if (step <= 0) return value
@@ -15,7 +17,7 @@ export function snapToGrid(value: number, step: number): number {
 export class QuarterViewCamera {
   readonly camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 200)
 
-  /** 화면 세로 방향에 보이는 월드 크기 (미터) */
+  /** 화면 세로 방향에 보이는 월드 크기 (미터). 세로 화면은 가로를 기준으로 늘린다 (`visibleHeight`) */
   viewHeight = 16
   /** 따라가는 부드러움. 클수록 빨리 따라간다. */
   followSpeed = 8
@@ -55,7 +57,7 @@ export class QuarterViewCamera {
   setRenderSize(width: number, height: number): void {
     this.renderHeight = height
     this.renderWidth = width
-    const halfHeight = this.viewHeight / 2
+    const halfHeight = visibleHeight(this.viewHeight, width, height) / 2
     const halfWidth = (halfHeight * width) / height
     this.camera.left = -halfWidth
     this.camera.right = halfWidth

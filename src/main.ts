@@ -1,9 +1,11 @@
 import './ui/theme.css'
 import './ui/parts.css'
 import { Game } from './game/Game'
+import { coarsePointer, detectTouch } from './input/device'
 import { type God, godDef, isRelicId, RELIC_IDS } from './relics/data'
 import { SLOT_COUNT, saveStorage, TITLE_REQUEST } from './save/SaveData'
 import { RENDER_QUALITIES } from './save/settings'
+import { RotateHint } from './ui/RotateHint'
 import { type SlotSummary, type TitleHandlers, TitleScreen } from './ui/TitleScreen'
 
 const container = document.getElementById('app')
@@ -12,6 +14,11 @@ if (!container) throw new Error('#app 요소가 없습니다.')
 // 해상도 비교용: 주소 뒤에 ?res=360 처럼 붙이면 저해상도 기준 높이를 바꿀 수 있다.
 // 확대해서 보기: ?view=6 처럼 붙이면 화면에 보이는 세로 범위(미터)를 바꾼다.
 const params = new URLSearchParams(location.search)
+// 휴대폰 (E235): 터치 기기면 html에 is-touch를 달아 화면 배치와 조작을 바꾸고, 가로로 들면 돌려 달라고 안내한다.
+// 컴퓨터에서는 ?touch 로 켜 본다
+const touch = detectTouch(location.search, coarsePointer())
+document.documentElement.classList.toggle('is-touch', touch)
+const rotateHint = new RotateHint(document.body, touch)
 const resParam = Number(params.get('res'))
 const viewParam = Number(params.get('view'))
 // 유물 점검: ?relics=all 또는 ?relics=mjolnir,megingjord 처럼 붙이면 그 유물을 끼고 시작한다.
@@ -79,6 +86,8 @@ async function boot(): Promise<Game> {
     viewHeight: viewParam > 0 ? viewParam : undefined,
     region: params.get('region') ?? undefined,
     quality: RENDER_QUALITIES.find((q) => q === params.get('quality')),
+    touch,
+    suspended: () => rotateHint.shown,
   })
   game.start()
   ;(window as unknown as { __game: Game }).__game = game
