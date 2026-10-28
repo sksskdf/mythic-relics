@@ -6,13 +6,14 @@ import { renderRift } from './menu/riftTab'
 import { renderSources } from './menu/sourcesTab'
 import { renderStatus } from './menu/statusTab'
 import { renderTrials } from './menu/trialsTab'
+import { TrainingTab } from './menu/trainingTab'
 import { el, img, type TabContext } from './menu/dom'
 import type { MenuHost } from './menu/host'
 import { glyph } from './sigils'
 import { WardrobePane } from './WardrobePane'
 import './menu.css'
 
-export type MenuTab = 'status' | 'sources' | 'relics' | 'classes' | 'trials' | 'rift' | 'map' | 'looks'
+export type MenuTab = 'status' | 'sources' | 'relics' | 'classes' | 'training' | 'trials' | 'rift' | 'map' | 'looks'
 
 /** 탭: 그림과 이름 (좁은 화면에서는 고른 탭만 이름), 올리면 힌트 */
 const TABS: readonly [MenuTab, Parameters<typeof glyph>[0], string][] = [
@@ -20,6 +21,7 @@ const TABS: readonly [MenuTab, Parameters<typeof glyph>[0], string][] = [
   ['sources', 'cycle', '원천'],
   ['relics', 'relics', '장비'],
   ['classes', 'classes', '신화'],
+  ['training', 'tree', '수련'],
   ['trials', 'scroll', '시련'],
   ['rift', 'star', '균열'],
   ['map', 'map', '지도'],
@@ -38,6 +40,7 @@ const TAB_HINTS: Record<MenuTab, string> = {
   rift: '균열\n한계를 깨면 열리는 끝없는 층과, 별을 밝히는 성좌판',
   map: '지도\n마을에서 신화권마다 뻗은 땅 열다섯. 찾은 성소는 빛나고, 워프가 열리면 눌러서 간다',
   classes: '신화\n지금 신화의 개방 단계와 다음 단계로 가는 법, 만난 신들',
+  training: '수련\n적을 잡아 얻은 깨달음으로 힘·몸·손 갈래의 마디를 찍는다. 언제든 무료로 되돌린다',
   looks: '외형\n부위마다 보이는 모습을 고른다',
 }
 
@@ -59,6 +62,8 @@ export class GameMenu {
   private readonly relics: RelicsTab
   /** 신화 탭 (눌러 본 신화를 기억한다) */
   private readonly myths: MythTab
+  /** 수련 탭 (손가락으로 한 번 누른 마디를 기억한다) */
+  private readonly training: TrainingTab
   /** 힌트 말풍선 */
   private readonly hint: HTMLElement
   /** 열고 닫을 때 (게임 멈춤) */
@@ -68,6 +73,7 @@ export class GameMenu {
     this.ctx = { host, hintOn: (target, text) => this.hintOn(target, text), render: () => this.render(), close: () => this.toggle(false) }
     this.relics = new RelicsTab(this.ctx)
     this.myths = new MythTab(this.ctx)
+    this.training = new TrainingTab(this.ctx)
     this.button = el('button', 'menu-button')
     this.button.type = 'button'
     this.button.setAttribute('aria-label', '정보 화면')
@@ -215,6 +221,7 @@ export class GameMenu {
     else if (this.tab === 'sources') renderSources(ctx, body)
     else if (this.tab === 'relics') this.relics.render(body)
     else if (this.tab === 'classes') this.myths.render(body)
+    else if (this.tab === 'training') this.training.render(body)
     else if (this.tab === 'map') renderMap(ctx, body)
     else if (this.tab === 'trials') renderTrials(ctx, body)
     else if (this.tab === 'rift') renderRift(ctx, body)

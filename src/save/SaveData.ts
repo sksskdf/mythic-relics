@@ -1,6 +1,6 @@
 import { DATA } from '../data'
 import { REGIONS } from '../data/regions'
-import { CHOSEN_SLOTS } from '../myth/ClassProgress'
+import { CHOSEN_SLOTS, MASTERY_TO_OPEN, XP_TO_PROMOTE } from '../myth/ClassProgress'
 import { SLOT_PARTS } from '../data/gearData'
 import { isMythRelic } from '../gear/mythRelic'
 import { type GearItem, parseGearItem } from '../gear/roll'
@@ -13,6 +13,7 @@ import { type ConvenienceData, parseConveniences } from '../progress/Convenience
 import { parseThreat, type ThreatData } from '../progress/Threat'
 import { parseTrials, type TrialData } from '../progress/Trials'
 import { parseRift, type RiftData } from '../progress/Rift'
+import { parseTraining, type TrainingData } from '../progress/Training'
 import { type BodyLook, parseBody } from '../looks/body'
 import { isLookId, lookDef, type LookSlot, STARTING_LOOKS, WARDROBE_SLOTS } from '../looks/catalog'
 import type { LookChoice } from '../looks/outfit'
@@ -36,8 +37,9 @@ import { GODS, godDef, type God, isRelicId, relicDef, type RelicId } from '../re
  *   물려받은 수치·원천 숙련·전투 경험은 버린다. 위협 단계·시련·균열을 해 본 옛 저장은 엔딩 뒤로 친다 (그 장치를 숨기지 않게)
  * - v10: 장 진행 (E22). 들어서 본 땅과 보스를 이긴 땅. 옛 저장은 있던 땅·찾은 성소를 들어서 본 땅으로,
  *   위협 단계에서 이겼거나 보스 재료·그 신화권 유물을 가진 신화권의 보스를 이긴 것으로 친다 (지나온 장에 다시 막히지 않게)
+ * - v11: 수련 (E236). 모은 경험치와 찍은 마디. 옛 저장은 신화 경험치에서 모은 경험치를 짐작하고 마디는 비워 둔다 (깨달음은 그대로 쓸 수 있다)
  */
-export const SAVE_VERSION = 10
+export const SAVE_VERSION = 11
 
 /** v8 이하의 신화 고유 재료 → 그 신 (E21-04에서 없앰. 그 신의 신화권 재료로 하나씩 바꿔 준다, 히든은 북유럽) */
 export const OLD_MYTH_MATERIALS: Readonly<Record<string, God>> = {
@@ -105,6 +107,8 @@ export interface SaveData {
   ending: boolean
   /** 장 진행 (E22): 들어서 본 땅, 보스를 이긴 땅 */
   chapters: ChapterData
+  /** 수련 (E236): 모은 경험치와 찍은 마디 */
+  training: TrainingData
   /** 지금 있는 지역과 자리 (E7). 옛 저장이거나 모르는 지역이면 null (마을에서 시작) */
   region: { id: string; x: number; z: number } | null
   /** 본 대화 장면 (E12-10). 옛 저장에는 없어서 빈 목록 */
@@ -130,7 +134,7 @@ export function parseSave(text: string | null): SaveData | null {
   }
   if (typeof raw !== 'object' || raw === null) return null
   const data = raw as Record<string, unknown>
-  if (data.version !== SAVE_VERSION && ![1, 2, 3, 4, 5, 6, 7, 8, 9].includes(data.version as number)) return null
+  if (data.version !== SAVE_VERSION && ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10].includes(data.version as number)) return null
   const old = (data.version as number) < 5
 
   // 일반 장비 (v5)
@@ -223,9 +227,21 @@ export function parseSave(text: string | null): SaveData | null {
     rift,
     ending: data.ending === true || ((data.version as number) < 9 && tried),
     chapters,
+    training: parseTraining(data.training, (data.version as number) < 11 ? oldTrainingXp(myths) : 0),
     region,
     scenes: Array.isArray(data.scenes) ? [...new Set(data.scenes.filter((s): s is string => typeof s === 'string' && s.length < 40))] : [],
   }
+}
+
+/** v10 이하 → v11: 모은 경험치를 신화 경험치로 짐작한다 (E236). 신화마다 연 문턱·단계 문턱·지금 경험치의 합 가운데 가장 큰 것 */
+function oldTrainingXp(classes: SaveData['classes']): number {
+  let best = 0
+  for (const record of Object.values(classes)) {
+    if (!record) continue
+    const spent = record.level >= 1 ? MASTERY_TO_OPEN + XP_TO_PROMOTE.slice(0, record.level - 1).reduce((a, b) => a + b, 0) : 0
+    best = Math.max(best, spent + record.xp)
+  }
+  return best
 }
 
 /** v5 이하 → v6: 원천 결정과 윤회의 재를 재료로 바꿔 준다 */

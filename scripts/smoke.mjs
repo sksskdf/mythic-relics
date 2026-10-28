@@ -335,6 +335,17 @@ try {
   // 신화 카드 (E12-06, E21-02): 수집 보너스·추가 효과와 고른 신화 표시
   const myth = await page.locator('.menu-myth').textContent()
   if (!myth.includes('수집 보너스') || !myth.includes('추가 효과') || !myth.includes('고른 신화')) throw new Error(`정보 화면: 신화 카드가 모자랍니다 (${myth.slice(0, 60)})`)
+  // 수련 탭 (E236): 깨달음을 얻으면 메뉴 단추에 표시, 뿌리 마디를 누르면 찍히고 피해가 오른다
+  const trainBefore = await page.evaluate(() => {
+    const g = window.__game
+    g.dev.insight(1)
+    return { damage: g.ctx.build.state.damageScale, marked: g.menu.button.classList.contains('has-new'), unspent: g.training.unspent }
+  })
+  await page.click('.menu__tab:nth-child(5)')
+  await page.click('.menu-train__node[data-node="awaken"]')
+  const trained = await page.evaluate(() => ({ taken: [...window.__game.training.taken], unspent: window.__game.training.unspent, damage: window.__game.ctx.build.state.damageScale, on: document.querySelector('.menu-train__node[data-node="awaken"]')?.classList.contains('is-taken') }))
+  if (!trainBefore.marked || trained.taken.join() !== 'awaken' || trained.unspent !== trainBefore.unspent - 1 || !trained.on || !(trained.damage > trainBefore.damage)) throw new Error(`수련: 깨달음으로 뿌리 마디를 찍지 못했습니다 ${JSON.stringify({ trainBefore, trained })}`)
+  console.log(`수련 확인: 깨달음을 얻으면 메뉴 단추 표시, 뿌리 마디를 찍으면 피해 ×${(trained.damage / trainBefore.damage).toFixed(2)}`)
   await page.keyboard.press('Escape')
   if (await page.evaluate(() => window.__game.paused)) throw new Error('정보 화면: 닫았는데 게임이 멈춰 있습니다.')
   // 원천 탭 (E14, E21-06): 엔딩 전에는 각성 카드 넷만, 시련·균열 탭은 숨김. 엔딩 뒤에는 위협 단계를 골라 오른다
@@ -343,16 +354,16 @@ try {
   await page.locator('.menu__tab').nth(1).click()
   if ((await page.locator('.menu-src__source').count()) !== 4) throw new Error('원천 탭: 각성 카드가 넷이 아닙니다.')
   const demo = await page.evaluate(() => ({ levels: document.querySelectorAll('.menu-src__level').length, tabs: [...document.querySelectorAll('.menu__tab')].filter((b) => !b.hidden).length }))
-  if (demo.levels !== 0 || demo.tabs !== 6) throw new Error(`엔딩 전: 위협 단계나 시련·균열 탭이 보입니다 (${JSON.stringify(demo)})`)
+  if (demo.levels !== 0 || demo.tabs !== 7) throw new Error(`엔딩 전: 위협 단계나 시련·균열 탭이 보입니다 (${JSON.stringify(demo)})`)
   await page.evaluate(() => {
     window.__game.reachEnding()
     window.__game.menu.refresh()
   })
   await page.locator('.menu-src__level', { hasText: '2' }).first().click()
   const climbed = await page.evaluate(() => ({ level: window.__game.threat.level, reached: window.__game.threat.reached, tabs: [...document.querySelectorAll('.menu__tab')].filter((b) => !b.hidden).length }))
-  if (climbed.level !== 2 || climbed.reached !== 2 || climbed.tabs !== 8) throw new Error(`엔딩 뒤: 위협 2단계로 오르지 못했거나 탭이 여덟이 아닙니다 (${JSON.stringify(climbed)})`)
+  if (climbed.level !== 2 || climbed.reached !== 2 || climbed.tabs !== 9) throw new Error(`엔딩 뒤: 위협 2단계로 오르지 못했거나 탭이 아홉이 아닙니다 (${JSON.stringify(climbed)})`)
   await page.keyboard.press('Escape')
-  console.log('원천 확인: 엔딩 전에는 각성 카드 넷과 탭 여섯, 엔딩 뒤에는 탭 여덟과 위협 2단계 고르기')
+  console.log('원천 확인: 엔딩 전에는 각성 카드 넷과 탭 일곱, 엔딩 뒤에는 탭 아홉과 위협 2단계 고르기')
   console.log('정보 화면 확인: 상태 탭 능력치 8줄, 열면 멈춤, 가방에 넣기·다시 끼기와 미리 보기, 신화 탭, Esc로 닫기')
 
   // 일시 정지(E5): 창이 없을 때 Esc를 누르면 멈추고, 멈춘 동안 게임 시간이 흐르지 않는다.
@@ -672,21 +683,25 @@ try {
   const ending = await end.evaluate(() => {
     const g = window.__game
     const chapters = []
+    // 땅 차례 (E236-01): 제1장에서 신화를 고르기 전에는 요툰헤임·우트가르드가 막혀 있다
+    let early = null
     for (let i = 0; i < 30 && g.chapters.goal; i++) {
+      if (!early && g.chapters.chapter?.id === 'north' && g.chapters.goal?.kind === 'choose') early = { jotunheim: g.chapters.isOpen('jotunheim'), utgard: g.chapters.isOpen('utgard') }
       const id = g.chapters.chapter?.id
       if (chapters.at(-1) !== id) chapters.push(id)
       g.skipGoal()
       g.advance(2, 1 / 30)
     }
     g.advance(1, 1 / 30)
-    return { chapters, ending: g.ending.reached, region: g.region.id, barriers: g.barrierSpots.length, log: g.log.filter((e) => e.type === 'ending').length, frame: g.frame }
+    return { chapters, early, ending: g.ending.reached, region: g.region.id, barriers: g.barrierSpots.length, log: g.log.filter((e) => e.type === 'ending').length, frame: g.frame }
   })
   // 목표 한 줄은 화면을 그릴 때 바뀐다
   await end.waitForFunction((f) => window.__game.frame > f + 2, ending.frame, { timeout: 60000 })
   ending.goal = await end.evaluate(() => !document.querySelector('.chapter-goal').hidden)
   await end.close()
   if (!ending.ending || ending.log !== 1 || ending.barriers > 0 || ending.goal) throw new Error(`장 흐름: 끝까지 가도 엔딩이 아닙니다 ${JSON.stringify(ending)}`)
-  console.log(`엔딩 확인: ${ending.chapters.join(' → ')} → 갈라진 하늘의 왕을 이기면 엔딩, 결계가 모두 풀리고 목표 한 줄이 사라짐`)
+  if (!ending.early || ending.early.jotunheim || ending.early.utgard) throw new Error(`땅 차례: 신화를 고르기 전에 요툰헤임·우트가르드가 열려 있습니다 ${JSON.stringify(ending.early)}`)
+  console.log(`엔딩 확인: ${ending.chapters.join(' → ')} → 갈라진 하늘의 왕을 이기면 엔딩, 결계가 모두 풀리고 목표 한 줄이 사라짐 (신화를 고르기 전에는 요툰헤임·우트가르드가 막힘)`)
 
   // 휴대폰 (E235): 세로로 든 터치 기기에서 끌기 = 떠다니는 조이스틱으로 걷기, 떼면 멈춤, 톡 = 그곳까지, 두 손가락 = 확대,
   // 가로로 들면 돌려 달라는 안내와 멈춤. 손가락은 캔버스에 포인터 사건을 보내 흉내 낸다

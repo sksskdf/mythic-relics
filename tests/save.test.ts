@@ -29,6 +29,7 @@ const sample: SaveData = {
   rift: parseRift({ best: 12, stars: 3, lit: ['thor', 'odin', 'nobody'] }),
   ending: true,
   chapters: { entered: ['village', 'midgard', 'olympus'], bosses: ['utgard'] },
+  training: { xp: 1500, taken: ['awaken', 'edge'] },
   region: { id: 'olympus', x: 3.5, z: -12 },
   scenes: ['opening'],
 }
@@ -197,5 +198,21 @@ describe('저장 v10: 장 진행 (E22-01)', () => {
     const relic = parseSave(v9({ ...none, slots: ['mjolnir', null, null, null, null, null, null] }))?.chapters
     expect(relic?.bosses).toEqual(['utgard'])
     expect(relic?.entered).toContain('utgard')
+  })
+})
+
+describe('저장 v11: 수련 (E236-02)', () => {
+  it('모르는 마디는 버리고, 깨진 기록은 처음부터', () => {
+    const data = parseSave(JSON.stringify({ ...sample, training: { xp: 900, taken: ['awaken', 'nowhere', 'awaken', 3] } }))
+    expect(data?.training).toEqual({ xp: 900, taken: ['awaken'] })
+    expect(parseSave(JSON.stringify({ ...sample, training: 'broken' }))?.training).toEqual({ xp: 0, taken: [] })
+  })
+
+  it('옛 저장: 모은 경험치를 신화 경험치로 짐작하고(연 문턱 + 단계 문턱 + 지금), 마디는 비워 둔다', () => {
+    const data = parseSave(JSON.stringify({ ...sample, version: 10, training: undefined }))
+    // 토르 2단계, 경험치 40: 450 + 1000 + 40
+    expect(data?.training).toEqual({ xp: 1490, taken: [] })
+    const fresh = parseSave(JSON.stringify({ ...sample, version: 10, training: undefined, classes: { thor: { level: 0, xp: 120 } } }))
+    expect(fresh?.training.xp).toBe(120)
   })
 })

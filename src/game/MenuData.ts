@@ -11,6 +11,9 @@ import { materialName } from '../gear/materials'
 import { mythRelic, stageName } from '../gear/mythRelic'
 import { levelGains } from '../myth/levelGains'
 import { CONVENIENCES } from '../progress/Conveniences'
+import { BRANCHES, insightProgress, TRAINING_NODES } from '../data/training'
+import { statText } from '../myth/alwaysText'
+import type { StatKind } from '../data/mythAlways'
 import { godDef, GODS, relicDef, type RelicId } from '../relics/data'
 import type { HeroStats, MenuHost, SourcesHost } from '../ui/menu/host'
 import type { RelicCardContext } from '../ui/relicCard'
@@ -125,6 +128,27 @@ export class MenuData {
         milestones: () => [...TRIAL_MILESTONES],
         riftScale: () => game.trials.riftScale(),
         start: (id, level) => game.trialSystem.start(id as TrialId, level),
+      },
+      training: {
+        insights: () => ({ total: ctx.training.insights, unspent: ctx.training.unspent, ...insightProgress(ctx.training.xp) }),
+        nodes: () =>
+          TRAINING_NODES.map((n) => ({
+            id: n.id,
+            name: n.name,
+            branch: n.branch,
+            color: BRANCHES[n.branch].color,
+            col: n.col,
+            row: n.row,
+            after: n.after,
+            lines: n.stats.map((s) => statText(s.kind, s.value)),
+            big: !!n.big,
+            taken: ctx.training.taken.has(n.id),
+            can: ctx.training.canTake(n.id),
+          })),
+        branches: () => Object.values(BRANCHES).map((b) => ({ id: b.id, name: b.name, text: b.text, color: b.color })),
+        totals: () => (Object.entries(ctx.training.stats()) as [StatKind, number][]).map(([kind, value]) => statText(kind, value)),
+        take: (id) => game.growth.train(id),
+        reset: () => game.growth.untrain(),
       },
       rift: {
         open: () => game.riftSystem.open,

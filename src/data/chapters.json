@@ -10,7 +10,7 @@
     "title": "제1장",
     "name": "서리 거인의 땅",
     "tier": 1,
-    "lands": { "jotunheim": 1.6, "utgard": 2.6 },
+    "lands": { "jotunheim": 2.5, "utgard": 4.2 },
     "steps": [
       { "kind": "choose", "region": "midgard", "realm": "norse", "goal": "미드가르드 성소에서 신화를 고른다" },
       { "kind": "enter", "region": "jotunheim", "goal": "요툰헤임 빙하로" },
@@ -30,7 +30,7 @@
     "title": "제2장",
     "name": "신들의 산",
     "tier": 2,
-    "lands": { "olympus": 4.4, "delphi": 5.2, "lycia": 9 },
+    "lands": { "olympus": 5.6, "delphi": 6.5, "lycia": 11.5 },
     "steps": [
       { "kind": "enter", "region": "olympus", "goal": "올림포스 기슭으로" },
       { "kind": "choose", "region": "olympus", "realm": "greek", "goal": "올림포스 성소에서 그리스 신화를 연다" },
@@ -44,7 +44,7 @@
     "title": "종장",
     "name": "갈라진 하늘",
     "tier": 3,
-    "lands": { "sky": 10 },
+    "lands": { "sky": 14 },
     "steps": [
       { "kind": "forge", "region": "village", "n": 2, "goal": "마을 대장간에서 유물을 한 단계 더 벼린다" },
       { "kind": "enter", "region": "sky", "goal": "갈라진 하늘로" },

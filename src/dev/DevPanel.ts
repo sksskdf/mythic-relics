@@ -200,6 +200,7 @@ export class DevPanel {
         button('단계 올리기', () => g.dev.promote()),
         button('레벨 초기화', () => g.dev.resetMyths()),
         button('이 신화권 경험치', () => g.dev.gainMastery()),
+        button('깨달음 하나', () => g.dev.insight()),
         button('장비 떨구기', () => g.dev.dropGear()),
         button('영웅 장비', () => g.dev.dropGear(undefined, 'hero')),
         button('2단계 장비', () => g.dev.dropGear(undefined, undefined, undefined, undefined, 2)),

@@ -7,6 +7,7 @@ import type { ClassProgress } from '../myth/ClassProgress'
 import { type TrialId, trialRules } from '../data/trials'
 import type { ThreatProgress } from '../progress/Threat'
 import type { TrialProgress } from '../progress/Trials'
+import type { TrainingProgress } from '../progress/Training'
 import { isMythRelic, relicStats } from '../gear/mythRelic'
 import { isGearUid } from '../gear/roll'
 import { isRelicId } from '../relics/data'
@@ -17,7 +18,7 @@ import { type BuildInputs, type BuildState, computeBuild } from './BuildState'
  * 피해·능력치를 쓰는 곳(Damage, Relics, 정보 화면)은 여기서 값을 읽는다.
  */
 export class Build {
-  constructor(private readonly from: { powers: RelicPowers; progress: ClassProgress; threat: ThreatProgress; trials?: TrialProgress; trial?: () => TrialId | null; rift?: RiftProgress; blessings?: () => readonly string[] }) {}
+  constructor(private readonly from: { powers: RelicPowers; progress: ClassProgress; threat: ThreatProgress; trials?: TrialProgress; trial?: () => TrialId | null; rift?: RiftProgress; blessings?: () => readonly string[]; training?: TrainingProgress }) {}
 
   /** 지금의 재료 */
   inputs(): BuildInputs {
@@ -45,9 +46,10 @@ export class Build {
     }
   }
 
-  /** 시련 보상(E16)과 균열의 축복(E17): 더할 수치와 각성 단계 */
+  /** 시련 보상(E16)·균열의 축복(E17)·수련의 마디(E236): 더할 수치와 각성 단계 */
   private blessed(): { bonus: Partial<Record<StatKind, number>>; awakenBonus: Partial<Record<SourceId, number>> } {
     const bonus: Partial<Record<StatKind, number>> = { ...this.from.trials?.rewards() }
+    for (const [kind, value] of Object.entries(this.from.training?.stats() ?? {}) as [StatKind, number][]) bonus[kind] = (bonus[kind] ?? 0) + value
     const awakenBonus: Partial<Record<SourceId, number>> = {}
     for (const id of this.from.blessings?.() ?? []) {
       const b = blessingDef(id)

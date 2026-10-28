@@ -49,6 +49,7 @@ import { RelicPowers } from './RelicPowers'
 import { Stage } from './Stage'
 import { AppearanceSystem } from './systems/Appearance'
 import { chapterColor, ChapterSystem } from './systems/Chapters'
+import { VFX } from '../art/palette'
 import { MythChoiceSystem, realmGods } from './systems/MythChoice'
 import { DamageSystem } from './systems/Damage'
 import { Effects } from './systems/Effects'
@@ -64,6 +65,7 @@ import { DialogScene } from './DialogScene'
 import { DialogBox } from '../ui/DialogBox'
 import { DevTools } from '../dev/DevTools'
 import { ChapterProgress } from '../progress/Chapters'
+import { TrainingProgress } from '../progress/Training'
 import { Barriers } from '../world/Barriers'
 import { MythPicker } from '../ui/MythPicker'
 import { ChapterHud } from '../ui/ChapterHud'
@@ -166,6 +168,8 @@ export class Game {
     () => this.ending.reached,
   )
   readonly chapterSystem: ChapterSystem
+  /** 수련 (E236): 경험치로 얻은 깨달음과 찍은 마디 */
+  readonly training = new TrainingProgress()
   /** 막힌 땅으로 가는 통로의 결계 (E22-02) */
   private readonly barriers = new Barriers()
   /** 성소에서 신화 고르기 (E22-03) */
@@ -228,7 +232,7 @@ export class Game {
   /** 커서 아래의 설명 카드와 몬스터 이름표 */
   private readonly hover: HoverCards
   private readonly relics: RelicSystem
-  private readonly growth: ProgressionSystem
+  readonly growth: ProgressionSystem
   private readonly life: HeroLife
   private readonly persistence: Persistence
   private readonly playerInput: PlayerInput
@@ -399,7 +403,8 @@ export class Game {
       conveniences: this.conveniences,
       ending: this.ending,
       chapters: this.chapters,
-      build: new Build({ powers: this.powers, progress: this.progress, threat: this.threat, trials: this.trials, trial: () => this.trialSystem?.active?.id ?? null, rift: this.rift, blessings: () => this.riftSystem?.blessings ?? [] }),
+      training: this.training,
+      build: new Build({ powers: this.powers, progress: this.progress, threat: this.threat, trials: this.trials, trial: () => this.trialSystem?.active?.id ?? null, rift: this.rift, blessings: () => this.riftSystem?.blessings ?? [], training: this.training }),
       skills,
     }
     this.damage = new DamageSystem(this.ctx)
@@ -448,6 +453,14 @@ export class Game {
     })
     // 새 외형은 메뉴 단추의 점으로만 알린다. (유물 이름 알림과 겹치지 않게)
     this.bus.on('looksUnlocked', () => this.menu.markNew())
+    // 수련 (E236): 깨달음을 얻으면 메뉴 단추에 표시하고 알린다. 처음 얻을 때는 수련이 열렸다는 카드
+    this.bus.on('insightGained', ({ count, unspent }) => {
+      this.menu.markTab('training')
+      if (this.training.insights === count) {
+        const lines = ['적을 잡아 깨달음을 얻었다', '정보 화면 › 수련에서 마디를 찍으면 바로 강해진다']
+        this.bus.emit('moment', { id: 'trainingOpened', card: { kind: '수련', title: '첫 깨달음', color: `#${VFX.guide.toString(16).padStart(6, '0')}`, lines } })
+      } else this.bus.emit('moment', { id: 'insight', text: `깨달음 +${count} · 수련에서 찍는다 (남은 깨달음 ${unspent})` })
+    })
     this.bus.on('outfitChanged', () => this.menu.refresh())
     this.bus.on('loadoutChanged', () => this.menu.refresh())
     // HUD 유물 칸: 커서를 올리면 설명 카드, 누르면 유물 화면
@@ -470,6 +483,8 @@ export class Game {
         this.bus.emit('moment', { id: 'chapterChanged', scene: sceneId('chapter', chapter.id), after: () => this.chapterHud.showChapter(chapter.title, chapter.name, chapterColor(chapter)) })
       } else if (!this.ending.reached) this.endingMoment(true)
     })
+    // 지금 장의 땅은 할 일 차례로 열린다 (E236-01): 할 일을 하나 마치면 다음 땅의 결계가 풀린다
+    this.bus.on('goalChanged', () => this.world.refreshLinks())
     this.trialSystem = new TrialSystem(this.ctx, this.growth, this.threatSystem)
     this.blessingPicker = new BlessingPicker(this.hud.root)
     this.riftSystem = new RiftSystem(
@@ -511,6 +526,7 @@ export class Game {
       region: () => this.ctx.map.region.realm ?? undefined,
       skills: this.ctx.skills,
       encounter: this.encounter,
+      training: this.training,
     })
     this.audio = new AudioEngine(this.settings.volume)
     this.attackFx = new AttackFx({ fx: this.fx, hero: this.hero, combat: this.combat, build: this.ctx.build, audio: this.audio })

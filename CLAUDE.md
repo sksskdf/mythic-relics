@@ -1,6 +1,6 @@
 # 프로젝트 안내 (Claude용)
 
-신화 몬스터를 사냥해 장비와 유물을 모으고, 신화를 개방해 그 신의 힘을 쌓아 가는 쿼터뷰 핵앤슬래시 액션 RPG. 1차 스프린트(E1~E9)와 2차 스프린트(E11~E18: 신화 개방·장비·위협 단계·균열)를 끝냈다. 3차 스프린트는 첫 엔딩까지 90분 데모를 만든다: E19 하나로 이어진 세계, E21 세 축 정리(신화 단계·장비 단계·유물, 엔딩 뒤 장치 숨김), E22 장과 목표 안내(장 다섯·땅 세기·결계·첫 신화 고르기·목표 한 줄·마지막 무대와 엔딩), E23 순간의 크기(작은 알림·카드·큰 카드·장면, 장·보스·엔딩 곡)를 마쳤다. 사용자가 휴대폰으로 해 보기 시작해 E24 앞에 E235 휴대폰 대응(세로 화면만, 떠다니는 조이스틱, 두 손가락 확대·축소)을 넣었고, 다음은 E24(에셋 v2)이다. 직접 플레이 체크리스트는 사람 대신 Claude가 사람 눈으로 확인한다(2026-10-27 결정).
+신화 몬스터를 사냥해 장비와 유물을 모으고, 신화를 개방해 그 신의 힘을 쌓아 가는 쿼터뷰 핵앤슬래시 액션 RPG. 1차 스프린트(E1~E9)와 2차 스프린트(E11~E18: 신화 개방·장비·위협 단계·균열)를 끝냈다. 3차 스프린트는 첫 엔딩까지 90분 데모를 만든다: E19 하나로 이어진 세계, E21 세 축 정리(신화 단계·장비 단계·유물, 엔딩 뒤 장치 숨김), E22 장과 목표 안내(장 다섯·땅 세기·결계·첫 신화 고르기·목표 한 줄·마지막 무대와 엔딩), E23 순간의 크기(작은 알림·카드·큰 카드·장면, 장·보스·엔딩 곡)를 마쳤다. 사용자가 휴대폰으로 해 보기 시작해 E24 앞에 E235 휴대폰 대응(세로 화면만, 떠다니는 조이스틱, 두 손가락 확대·축소)을 넣었고, 해 본 의견으로 E236 수련 트리와 땅 차례(신화를 고르기 전에도 경험치로 깨달음을 얻어 힘·몸·손 트리를 찍는다)를 넣었다. 다음은 E24(에셋 v2)이다. 직접 플레이 체크리스트는 사람 대신 Claude가 사람 눈으로 확인한다(2026-10-27 결정).
 
 **용어 (2차 스프린트):** 클래스 → 신화, 발현 → 신화 개방, 클래스 레벨 → 개방 단계, 승급 전설 → 전설, 유물 칸 → 장비 칸. 화면 글·문서는 새 이름을 쓰고, 코드 이름(`class`, `manifested`, `Loadout`, `promote`)은 E11-05·E12~E13에서 `myth/`·`gear/`로 옮기며 바꾼다. 자세한 것은 `docs/knowledge/glossary.md`.
 
@@ -80,7 +80,7 @@
 | `src/gear/` | 장비(E13, E21): 칸 7과 가방(`Loadout`), 일반 장비 굴리기와 장비 단계(`roll`), 신화의 유물·기본 수치·깨어남(`mythRelic`), 재료 둘(`materials`), 대장간 제작법·분해(`forge`), 땅에 떨어진 것(`Pickups`), 엔딩 뒤 유물 드랍(`DropTable`) |
 | `src/myth/` | 신화: 고른 신화·가호 판정(`manifest.ts`), 개방 단계·경험치·단계 상한·큰 걸음·수집 보너스(`ClassProgress`), 단계별로 얻는 것(`levelGains`), 수치·수집 보너스 글(`alwaysText`) |
 | `src/build/` | 빌드 상태(E11-04): 열린 신화·고른 신화·장비·원천 → 피해 배율·지속 효과·공격 리듬(`BuildState.ts`의 `computeBuild`, 게임 안에서는 `ctx.build`) |
-| `src/progress/` | 장 진행(`Chapters`, E22: 들어선 땅·이긴 보스, 지금 장·목표·열린 땅). 바깥 성장(E14, 엔딩 뒤): 엔딩 뒤 장치를 여는 한 곳(`Ending`, E21-06), 위협 단계(`Threat`), 편의 자동화(`Conveniences`, 자동 줍기는 처음부터), 시련 기록·보상(`Trials`, 규칙은 `src/data/trials.ts`), 균열 기록·성좌판(`Rift`, 수치 `src/data/rift.ts`, 층 생성 `src/world/riftFloor.ts`). 수치는 `src/data/threat.ts`, 원천 각성은 `src/data/awakening.ts`(적용은 `src/skills/SourceAwakening.ts`) |
+| `src/progress/` | 장 진행(`Chapters`, E22: 들어선 땅·이긴 보스, 지금 장·목표·열린 땅, 지금 장의 땅은 할 일 차례로 열림 E236). 수련(`Training`, E236: 모은 경험치·찍은 마디, 마디와 깨달음 문턱은 `src/data/training.ts`). 바깥 성장(E14, 엔딩 뒤): 엔딩 뒤 장치를 여는 한 곳(`Ending`, E21-06), 위협 단계(`Threat`), 편의 자동화(`Conveniences`, 자동 줍기는 처음부터), 시련 기록·보상(`Trials`, 규칙은 `src/data/trials.ts`), 균열 기록·성좌판(`Rift`, 수치 `src/data/rift.ts`, 층 생성 `src/world/riftFloor.ts`). 수치는 `src/data/threat.ts`, 원천 각성은 `src/data/awakening.ts`(적용은 `src/skills/SourceAwakening.ts`) |
 | `src/input/` | 입력: 마우스·키(`Input`, 동작 단위), 휴대폰(E235): 터치 기기 알아보기·돌려 달라는 안내 판정(`device`), 손가락 몸짓(`touch.ts`: 톡·끌기·두 손가락), 캔버스 손가락 → 몸짓·조이스틱 그림(`TouchControls`) |
 | `src/save/` | 저장 형식과 검사 |
 | `src/render/` | 픽셀 렌더러, 쿼터뷰 카메라, 화면 ↔ 월드 좌표, 실루엣, 렌더 해상도와 세로 화면 시야(`resolution.ts`: 세로 화면은 가로에 시야 높이 × 0.8) |
@@ -88,7 +88,7 @@
 | `src/voxel/` | 복셀 격자, 메시 생성, 모델(`models/`) |
 | `src/audio/` | 소리(E5): 믹서·동시 재생 제한·거리 감쇠(`AudioEngine`, `limits`), 코드로 합성한 효과음(`sounds.ts`), 신화권별 합성 곡(`music.ts`, 방향은 `ART.md` 8장). 게임 사건 → 소리는 `systems/Sound.ts` |
 | `src/art/` | 팔레트(`palette.ts`): 연출 언어 색(위험·회복·안내), 신화권·원천·하늘 공격 색, 위험색 규칙 `readsAsDanger` |
-| `src/fx/`, `src/ui/` | 연출, 디자인 시스템(`theme.css`, `fonts/`), HUD·시작 화면·피해 숫자, 작은 지도(`Minimap`), 정보 화면(`GameMenu`는 틀, 탭은 `menu/`의 `statusTab`·`sourcesTab`·`relicsTab`·`mythTab`·`trialsTab`·`riftTab`·`mapTab`, 외형은 `WardrobePane`·`HeroPreview`, 게임에서 읽는 형식은 `menu/host.ts`), 균열 축복 고르기(`BlessingPicker`), 성소의 신화 고르기(`MythPicker`, E22), 목표 한 줄·장 제목 띠(`ChapterHud`, E22), 유물 설명 카드(`relicCard`, `RelicTooltip`), 일시 정지·설정(`PauseMenu`), 조사 붙이기(`josa`), 휴대폰을 가로로 들 때 안내(`RotateHint`), 세로 화면 덮어쓰기(`portrait.css`, 비 4:5보다 좁을 때) |
+| `src/fx/`, `src/ui/` | 연출, 디자인 시스템(`theme.css`, `fonts/`), HUD·시작 화면·피해 숫자, 작은 지도(`Minimap`), 정보 화면(`GameMenu`는 틀, 탭은 `menu/`의 `statusTab`·`sourcesTab`·`relicsTab`·`mythTab`·`trainingTab`(수련, E236)·`trialsTab`·`riftTab`·`mapTab`, 외형은 `WardrobePane`·`HeroPreview`, 게임에서 읽는 형식은 `menu/host.ts`), 균열 축복 고르기(`BlessingPicker`), 성소의 신화 고르기(`MythPicker`, E22), 목표 한 줄·장 제목 띠(`ChapterHud`, E22), 유물 설명 카드(`relicCard`, `RelicTooltip`), 일시 정지·설정(`PauseMenu`), 조사 붙이기(`josa`), 휴대폰을 가로로 들 때 안내(`RotateHint`), 세로 화면 덮어쓰기(`portrait.css`, 비 4:5보다 좁을 때) |
 | `tools/claude-mods/roadmap/` | 로드맵 패널 모드의 원본 (컨테이너가 바뀌면 다시 올림, 그 폴더 README) |
 | `src/dev/` | 검증용 봇(`autoplay.ts`), 개발 패널(`DevPanel.ts`), 개발 지름길(`DevTools.ts`: `game.dev.equip('mjolnir')`·`dev.teleport`·`dev.promote` 등, 점검 스크립트도 이것을 쓴다), 충돌·길찾기 보기(`DebugOverlay.ts`), 지도 편집기(`RegionEditor.ts`, 편집 동작은 `regionEdit.ts`) |
 

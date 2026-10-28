@@ -1,6 +1,6 @@
 // 정보 화면·HUD 모음 (QA): 중반쯤의 상태를 꾸민 뒤 정보 화면 탭마다, 화면 크기마다 찍는다.
 // 사용법: npm run build && node scripts/ui-sheet.mjs [저장 폴더=test-results/ui] [크기=1280x720,960x540,390x844]
-// 결과: <폴더>/<크기>-<탭>.png, <크기>-hud.png. 글이 넘치거나 잘리는지, 좁은 화면에서 깨지는지 직접 본다.
+// 결과: <폴더>/<크기>-<탭>.png, <크기>-hud.png (탭 아홉). 글이 넘치거나 잘리는지, 좁은 화면에서 깨지는지 직접 본다.
 // UI_DOM=1 이면 탭마다 정보 화면의 DOM도 <크기>-<탭>.html로 남긴다 (코드를 나눈 뒤 화면이 그대로인지 diff로 견줄 때)
 // 세로 크기(가로 < 세로)는 터치 기기로 연다. 화면마다 잘린 요소(화면 밖이나 잘라 내는 상자 밖으로 가로·세로가 나간 것)를 세어
 // <폴더>/cut.json에 남긴다 (E235: 휴대폰에서 어느 화면도 잘리지 않는다)
@@ -11,7 +11,7 @@ import { chromium } from 'playwright-core'
 const [dir = 'test-results/ui', sizesArg = '1280x720,960x540,390x844'] = process.argv.slice(2)
 const PORT = 4194
 const BROWSER = process.env.CHROMIUM_PATH ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'
-const TABS = ['status', 'sources', 'relics', 'classes', 'trials', 'rift', 'map', 'looks']
+const TABS = ['status', 'sources', 'relics', 'classes', 'training', 'trials', 'rift', 'map', 'looks']
 const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'ignore', detached: true })
 const stop = () => {
   try {
@@ -90,6 +90,9 @@ try {
       for (const part of ['head', 'body', 'hands', 'feet', 'trinket']) g.dev.dropGear(part, part === 'trinket' ? 'hero' : 'rare', g.hero.object.position.x, g.hero.object.position.z)
       g.advance(1.5, 1 / 30)
       g.dev.fillForge('thor')
+      // 수련 (E236): 깨달음 여덟, 힘 갈래 넷과 손 갈래 둘을 찍고 둘은 남긴다
+      g.dev.insight(8)
+      for (const id of ['awaken', 'edge', 'fury', 'cleave', 'quick', 'stride']) g.dev.train(id)
       // 위협 단계·시련·균열은 엔딩 뒤 장치라 엔딩 뒤로 넘겨 모든 탭을 찍는다 (E21-06)
       g.reachEnding()
       Object.assign(g.threat, { unlocked: 3, reached: 3, level: 3 })
