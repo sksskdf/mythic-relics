@@ -1,0 +1,45 @@
+# main에 올라온 게임을 GitHub Pages에 올린다: 휴대폰·다른 컴퓨터에서 브라우저로 바로 해 볼 수 있게.
+# 주소: https://<사용자>.github.io/<저장소>/ (vite의 base가 './'라 저장소 이름이 바뀌어도 그대로 돈다)
+# 처음 한 번은 저장소 Settings › Pages › Build and deployment › Source를 "GitHub Actions"로 둔다.
+name: Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 새로 올리면 앞의 배포는 그만둔다
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    env:
+      # 빌드에는 Electron 실행 파일이 필요 없다.
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: 타입 검사 + 빌드 (데이터 검사 포함)
+        run: npm run build
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+      - id: deployment
+        uses: actions/deploy-pages@v4
