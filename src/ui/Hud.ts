@@ -46,6 +46,8 @@ export interface HudState {
 export const SKILL_SLOTS = 4
 /** 얻은 것 카드 하나가 다음 카드에 자리를 내주기 전에 보이는 시간 (ms). 카드 자체는 5초 뒤 사라진다. 큰 카드는 거의 다 보인다 */
 const GAINS_MIN_MS = { card: 3000, big: 4500 }
+/** 장면이 HUD를 숨기기 이만큼(ms) 안에 띄운 제목 카드는 장면 뒤에 다시 띄운다 */
+const TITLE_REPLAY_MS = 3000
 
 /**
  * HUD: 왼쪽 위에 지금의 나, 아래 가운데에 떠 있는 묶음 하나. (DESIGN.md 10.5)
@@ -90,6 +92,9 @@ export class Hud {
   /** 카드를 띄운 때(ms)와 기다리는 카드: 같은 때 열린 것(위협 단계 + 편의 등)이 서로 덮지 않게 차례로 보인다 */
   private gainsShownAt = -Infinity
   private gainsHold = 0
+  /** 마지막 제목 카드와 띄운 때, HUD를 숨긴 때 (장면 뒤 다시 띄우기) */
+  private lastTitle: { args: [string, string, string, string]; at: number } | null = null
+  private hiddenAt = 0
   private readonly gainsQueue: (() => void)[] = []
   private gainsTimer: ReturnType<typeof setTimeout> | null = null
   private readonly flashEl: HTMLElement
@@ -305,6 +310,26 @@ export class Hud {
     this.nextGains()
   }
 
+  /** 줄에 선 카드가 있거나, 지금 카드가 아직 자리를 지키는 중인가 (그동안 장면이 HUD를 숨기면 카드가 가려진다) */
+  get gainsBusy(): boolean {
+    return this.gainsQueue.length > 0 || performance.now() - this.gainsShownAt < this.gainsHold
+  }
+
+  /**
+   * 대화 장면 동안 HUD를 숨긴다 (투명하게만: 움직임은 그대로 흐른다).
+   * 숨기기 직전 3초 안에 띄운 지역·전설 제목 카드는 장면 뒤에 다시 띄운다 (장면 밑에서 지나가 버리지 않게)
+   */
+  setHidden(hidden: boolean): void {
+    if (this.root.classList.contains('is-hidden') === hidden) return
+    this.root.classList.toggle('is-hidden', hidden)
+    if (hidden) this.hiddenAt = performance.now()
+    else if (this.lastTitle && this.hiddenAt - this.lastTitle.at < TITLE_REPLAY_MS) {
+      const { args } = this.lastTitle
+      this.lastTitle = null
+      this.showTitleCard(...args)
+    }
+  }
+
   /** 지금 떠 있는 카드의 크기 (점검용). 없으면 null */
   get gainsShowing(): 'card' | 'big' | null {
     if (!this.gains.classList.contains('is-showing') || performance.now() - this.gainsShownAt > 5000) return null
@@ -368,6 +393,7 @@ export class Hud {
    * color는 CSS 색 (토큰이면 var(--c-realm-…))
    */
   showTitleCard(name: string, color: string, emblem: string, sub = ''): void {
+    this.lastTitle = { args: [name, color, emblem, sub], at: performance.now() }
     const card = this.card
     card.replaceChildren()
     card.style.setProperty('--glow', color)

@@ -49,5 +49,7 @@ export const tierOf = (id: MomentId): MomentTier => MOMENTS[id]
 
 /** 장면 앞 느린 동작: 이만큼(실제 초) 게임이 이 빠르기로 흐른다 */
 export const SLOW_MOTION = { seconds: 1.2, scale: 0.25 }
-/** 카드를 띄운 뒤 다음 장면이 이만큼(실제 초) 기다린다 (장면이 HUD를 숨겨 카드가 가려지지 않게) */
-export const CARD_HOLD = 2.6
+/** 카드를 띄운 뒤 다음 장면·짧은 대화가 이만큼(실제 초) 기다린다 (장면이 HUD를 숨겨 카드가 가려지지 않게). HUD가 다음 카드에 자리를 내주는 시간과 같다 */
+export const CARD_HOLD = { card: 3, big: 4.5 } as const
+/** 장면 뒤 할 일(장 제목 띠 등)이 지나가는 동안 다음 장면·짧은 대화가 기다리는 시간 (실제 초) */
+export const AFTER_HOLD = 5

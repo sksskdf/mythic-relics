@@ -1,5 +1,5 @@
 // 빌드 결과를 실제 브라우저로 열어, 화면이 그려지고 오류가 없는지 확인한다.
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync } from 'node:fs'
 import { chromium } from 'playwright-core'
 
@@ -7,11 +7,13 @@ const PORT = 4173
 const URL = `http://localhost:${PORT}/`
 const BROWSER = process.env.CHROMIUM_PATH ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'
 
-// 따로 묶어 띄우고 묶음째 끈다: npx만 끄면 그 아래 vite가 남아 다음 검사의 포트를 막는다
-const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'pipe', detached: true })
+// 따로 묶어 띄우고 묶음째 끈다: npx만 끄면 그 아래 vite가 남아 다음 검사의 포트를 막는다 (윈도우는 taskkill /T)
+const windows = process.platform === 'win32'
+const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'pipe', detached: !windows, shell: windows, windowsHide: true })
 const stop = () => {
   try {
-    process.kill(-server.pid, 'SIGTERM')
+    if (windows) spawnSync('taskkill', ['/pid', String(server.pid), '/T', '/F'], { stdio: 'ignore' })
+    else process.kill(-server.pid, 'SIGTERM')
   } catch {}
 }
 

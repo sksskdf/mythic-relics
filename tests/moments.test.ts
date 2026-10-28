@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { CHAPTERS } from '../src/data/chapters'
-import { CARD_HOLD, MOMENTS, type MomentId, SLOW_MOTION, tierOf } from '../src/data/moments'
+import { AFTER_HOLD, CARD_HOLD, MOMENTS, type MomentId, SLOW_MOTION, tierOf } from '../src/data/moments'
 import { REGIONS } from '../src/data/regions'
 import { SCENES, sceneId } from '../src/data/scenes'
 import { Feel } from '../src/game/context'
@@ -9,7 +9,7 @@ import { EventBus, type GameEvents } from '../src/game/events'
 import { type MomentShow, MomentSystem } from '../src/game/systems/Moments'
 
 /** 순간 시스템에 필요한 것만 채운 게임: HUD·연출·장면은 부른 것을 적기만 한다 */
-function setup(options: { scenes?: boolean; slow?: boolean } = {}) {
+function setup(options: { scenes?: boolean; slow?: boolean; cardBusy?: () => boolean } = {}) {
   const bus = new EventBus<GameEvents>()
   const calls: string[] = []
   const feel = new Feel()
@@ -36,6 +36,7 @@ function setup(options: { scenes?: boolean; slow?: boolean } = {}) {
     },
     sceneActive: () => scene !== null,
     slowMotion: () => options.slow ?? true,
+    ...(options.cardBusy ? { cardBusy: options.cardBusy } : {}),
   })
   const emit = (m: MomentShow) => bus.emit('moment', m)
   const card = (title: string) => ({ kind: '시험', title, color: '#fff', lines: ['한 줄'] })
@@ -123,19 +124,61 @@ describe('순간의 크기 (E23-01)', () => {
     emit({ id: 'chapterChanged', scene: 'chapterGreek' })
     run(0.1)
     expect(calls).toEqual(['번쩍', '빛기둥', '소리:drum', '큰 카드:묠니르'])
-    run(CARD_HOLD)
+    run(CARD_HOLD.big)
     expect(calls.at(-1)).toBe('장면:chapterGreek')
   })
 
-  it('카드를 띄운 뒤 다음 장면은 잠깐 기다린다 (장면이 HUD를 숨겨 카드가 가려지지 않게)', () => {
+  it('카드를 띄운 뒤 다음 장면은 카드가 자리를 지키는 동안 기다린다 (큰 카드 4.5초, 카드 3초)', () => {
     const { calls, emit, card, run } = setup({ slow: false })
     emit({ id: 'forged', card: card('묠니르') })
     run(0.1)
     emit({ id: 'chapterChanged', scene: 'chapterGreek' })
-    run(CARD_HOLD - 0.3)
+    run(CARD_HOLD.big - 0.3)
     expect(calls).not.toContain('장면:chapterGreek')
     run(0.5)
     expect(calls).toContain('장면:chapterGreek')
+  })
+
+  it('HUD 줄에 보일 카드가 남아 있으면 장면이 기다린다 (카드 둘이 연달아 올 때)', () => {
+    let busy = true
+    const { calls, emit, run } = setup({ slow: false, cardBusy: () => busy })
+    emit({ id: 'chapterChanged', scene: 'chapterGreek' })
+    run(CARD_HOLD.big + 1)
+    expect(calls).toEqual([])
+    busy = false
+    run(0.1)
+    expect(calls).toEqual(['장면:chapterGreek'])
+  })
+
+  it('감기(봇·점검) 중에는 HUD 카드의 실제 시계를 보지 않는다', () => {
+    const { calls, emit, moments } = setup({ slow: false, cardBusy: () => true })
+    emit({ id: 'chapterChanged', scene: 'chapterGreek' })
+    moments.update(0.1, false)
+    expect(calls).toEqual(['장면:chapterGreek'])
+  })
+
+  it('장면 뒤 장 제목 띠가 지나가는 동안 다음 장면은 기다린다', () => {
+    const { calls, emit, run, endScene } = setup({ slow: false })
+    emit({ id: 'chapterChanged', scene: 'chapterGreek', after: () => calls.push('장 제목 띠') })
+    emit({ id: 'chapterBoss', scene: 'downChimera' })
+    run(0.1)
+    endScene()
+    run(0.1)
+    expect(calls).toEqual(['장면:chapterGreek', '장 제목 띠'])
+    run(AFTER_HOLD - 0.3)
+    expect(calls).not.toContain('장면:downChimera')
+    run(0.5)
+    expect(calls).toContain('장면:downChimera')
+  })
+
+  it('느린 동작은 앞의 카드를 기다리는 동안에도 쓰러진 순간에 건다', () => {
+    const { calls, feel, emit, card, run } = setup()
+    emit({ id: 'gearWorn', card: card('장화') })
+    run(0.1)
+    emit({ id: 'chapterBoss', scene: 'downKing', slow: true })
+    expect(feel.timeScale).toBe(SLOW_MOTION.scale)
+    run(CARD_HOLD.card + 0.2)
+    expect(calls).toContain('장면:downKing')
   })
 
   it('장면을 띄우지 않으면(봇) 느린 동작 없이 카드와 할 일을 바로', () => {

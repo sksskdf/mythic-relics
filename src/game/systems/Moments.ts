@@ -1,5 +1,5 @@
 import type { ThemeId } from '../../audio/music'
-import { CARD_HOLD, type MomentId, type MomentTier, SLOW_MOTION, tierOf } from '../../data/moments'
+import { AFTER_HOLD, CARD_HOLD, type MomentId, type MomentTier, SLOW_MOTION, tierOf } from '../../data/moments'
 import type { GameContext } from '../context'
 
 /** 얻은 것 카드: 무엇(kind)·이름·색·그림, 한 줄에 얻은 것 하나 */
@@ -36,6 +36,8 @@ export interface MomentHost {
   sceneActive(): boolean
   /** 장면 앞 느린 동작을 쓰는가 (봇·점검은 끈다) */
   slowMotion(): boolean
+  /** HUD에 아직 보일 카드가 남았나 (줄에 선 카드, 지금 카드가 자리를 지키는 동안). 없으면 순간이 잰 시간만 본다 */
+  cardBusy?(): boolean
 }
 
 /** 보인 순간 하나 (점검·시험용 기록) */
@@ -58,6 +60,8 @@ export class MomentSystem {
   /** 장면을 열기 전 느린 동작이 끝나기를 기다리는 장면 */
   private slowing: MomentShow | null = null
   private cardWait = 0
+  /** 화면을 그리며 도는 중인가 (감기 중이면 false) */
+  private live = true
 
   constructor(
     private readonly ctx: GameContext,
@@ -73,16 +77,24 @@ export class MomentSystem {
 
   /** 순간을 보이는 중인가 (처음 보는 일의 짧은 대화는 이것이 끝난 뒤에 연다) */
   get holding(): boolean {
-    return this.busy || this.cardWait > 0
+    return this.busy || this.cardShowing
+  }
+
+  /** 카드나 장면 뒤 할 일(띠)이 아직 보이는 중인가: 이 동안 다음 장면은 기다린다. 감기(봇·점검) 중에는 HUD의 실제 시계를 보지 않는다 */
+  private get cardShowing(): boolean {
+    return this.cardWait > 0 || (this.live && (this.host.cardBusy?.() ?? false))
   }
 
   private receive(m: MomentShow): void {
-    if (tierOf(m.id) === 1) this.present(m)
-    else this.queue.push(m)
+    if (tierOf(m.id) === 1) return this.present(m)
+    // 느린 동작은 쓰러진 바로 그 순간에 건다 (앞의 카드를 기다리는 동안에도)
+    if (m.slow && this.host.slowMotion()) this.ctx.feel.slow(SLOW_MOTION.seconds, SLOW_MOTION.scale)
+    this.queue.push(m)
   }
 
-  /** 정보 화면이 열리지 않은 프레임마다 (realDt: 실제 흐른 초) */
-  update(realDt: number): void {
+  /** 정보 화면이 열리지 않은 프레임마다 (realDt: 실제 흐른 초). live가 false면 화면 없이 감는 중(Game.advance) */
+  update(realDt: number, live = true): void {
+    this.live = live
     this.cardWait = Math.max(0, this.cardWait - realDt)
     if (this.host.sceneActive()) return
     // 장면이 끝났다: 그 장면이 얻게 한 것을 보인다
@@ -101,7 +113,7 @@ export class MomentSystem {
     while (this.queue.length > 0) {
       const head = this.queue[0]!
       if (tierOf(head.id) === 4) {
-        if (this.cardWait > 0) return
+        if (this.cardShowing) return
         this.queue.shift()
         this.present(head)
         // 장면이나 느린 동작이 시작됐으면 그것이 끝나길 기다린다
@@ -129,10 +141,9 @@ export class MomentSystem {
         if (m.card) this.big(m.card)
         break
       case 4:
-        if (m.slow && this.host.slowMotion()) {
-          this.ctx.feel.slow(SLOW_MOTION.seconds, SLOW_MOTION.scale)
-          this.slowing = m
-        } else this.openScene(m)
+        // 받을 때 건 느린 동작이 아직 흐르면 끝난 뒤에 장면을 연다
+        if (m.slow && this.ctx.feel.slowLeft > 0) this.slowing = m
+        else this.openScene(m)
         break
     }
   }
@@ -148,12 +159,16 @@ export class MomentSystem {
   private finish(m: MomentShow): void {
     if (m.music) this.ctx.bus.emit('music', { theme: null })
     if (m.card) this.card(m.card, m.id === 'ending' || m.id === 'mythChosen' ? 'big' : 'card')
-    m.after?.()
+    if (m.after) {
+      m.after()
+      // 장 제목 띠 같은 것이 지나가는 동안 다음 장면·짧은 대화가 HUD를 숨기지 않게
+      this.cardWait = Math.max(this.cardWait, AFTER_HOLD)
+    }
   }
 
   private card(card: MomentCard, size: 'card' | 'big'): void {
     this.ctx.hud.showGains(card.kind, card.title, card.color, card.icon ?? '', card.lines, size)
-    this.cardWait = CARD_HOLD
+    this.cardWait = Math.max(this.cardWait, CARD_HOLD[size])
   }
 
   /** 큰 카드: 그 색으로 번쩍, 주인공 둘레 빛기둥, 가운데 큰 카드, 북소리 */

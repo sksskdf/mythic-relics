@@ -90,4 +90,16 @@ describe('대화 장면 순서 (E15-06)', () => {
     expect(other.story.play('downKing', true)).toBe(true)
     expect(other.played).toEqual(['downKing'])
   })
+
+  it('미뤄 둔 장면을 순간이 열면(now) 미룬 줄에서 꺼내 바로 연다 (첫 신화: 장면 뒤에 큰 카드)', () => {
+    const { bus, story, played, setHolding } = setup()
+    setHolding(true)
+    bus.emit('manifested', { god: 'thor' })
+    expect(played).toEqual([])
+    expect(story.play('mythThor', true)).toBe(true)
+    expect(played).toEqual(['mythThor'])
+    setHolding(false)
+    story.next()
+    expect(played).toEqual(['mythThor'])
+  })
 })

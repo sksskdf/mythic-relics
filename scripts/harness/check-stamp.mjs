@@ -8,24 +8,26 @@ import { dirname } from 'node:path'
 import { checkState, pendingFile, workTree, writeStamp } from './repo.mjs'
 
 const [mode = 'status'] = process.argv.slice(2)
+// npm은 package.json이 있는 폴더에서 부른다: 다른 worktree에서 돌린 검사는 그 worktree에 도장을 찍는다
+const dir = process.cwd()
 try {
   if (mode === 'begin') {
-    const file = pendingFile()
+    const file = pendingFile(dir)
     mkdirSync(dirname(file), { recursive: true })
-    writeFileSync(file, JSON.stringify({ tree: workTree(), at: new Date().toISOString() }))
+    writeFileSync(file, JSON.stringify({ tree: workTree(dir), at: new Date().toISOString() }))
   } else if (mode === 'pass') {
-    const file = pendingFile()
+    const file = pendingFile(dir)
     const pending = JSON.parse(readFileSync(file, 'utf8'))
     rmSync(file, { force: true })
-    const now = workTree()
+    const now = workTree(dir)
     if (now === pending.tree) {
-      writeStamp({ tree: now, at: new Date().toISOString() })
+      writeStamp({ tree: now, at: new Date().toISOString() }, dir)
       console.log('[하네스] 검사 통과 도장을 찍었다. 이 코드 그대로 커밋할 수 있다.')
     } else {
       console.log('[하네스] 검사하는 동안 코드가 바뀌어 도장을 찍지 않았다. 커밋하려면 다시 검사한다.')
     }
   } else {
-    const s = checkState()
+    const s = checkState(dir)
     console.log(s.sameAsHead ? '코드가 HEAD와 같다 (문서만 바뀜).' : s.checked ? `검사 통과한 코드 (${s.stamp.at}).` : '마지막 검사 뒤 코드가 바뀌었다.')
   }
 } catch (e) {

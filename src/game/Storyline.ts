@@ -51,7 +51,10 @@ export class Storyline {
     const scene = SCENES[id]
     if (!this.enabled || !scene || ctx.scenesSeen.has(id)) return false
     if (scene.region && scene.region !== ctx.map.region.id) return false
-    if (scenes.current === id || this.pending.includes(id)) return true
+    if (scenes.current === id) return true
+    // 순간이 여는 장면(now)은 미뤄 둔 같은 장면을 꺼내 바로 연다 (첫 신화 고르기: 큰 카드보다 장면이 먼저)
+    if (now && this.pending.includes(id)) this.pending.splice(this.pending.indexOf(id), 1)
+    else if (this.pending.includes(id)) return true
     if (paused() || scenes.active || (!now && this.parts.holding?.())) {
       if (!this.pending.includes(id)) this.pending.push(id)
       return true

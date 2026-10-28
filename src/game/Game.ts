@@ -326,7 +326,7 @@ export class Game {
       villagers: this.villagers,
       box: this.dialog,
       setHudHidden: (hidden) => {
-        this.hud.root.classList.toggle('is-hidden', hidden)
+        this.hud.setHidden(hidden)
         this.villagers.quiet = hidden
       },
       viewHeight: () => this.view.viewHeight,
@@ -422,6 +422,7 @@ export class Game {
       // 땅을 옮겨 가는 암전 중에도 기다린다 (장면이 어두운 화면 위에 서지 않게)
       sceneActive: () => this.scenes.active || this.world.traveling,
       slowMotion: () => this.storyline.enabled,
+      cardBusy: () => this.hud.gainsBusy,
     })
     this.hover = new HoverCards({
       ctx: this.ctx,
@@ -456,10 +457,7 @@ export class Game {
       this.world.refreshLinks()
       if (chapter) {
         this.bus.emit('moment', { id: 'chapterChanged', scene: sceneId('chapter', chapter.id), after: () => this.chapterHud.showChapter(chapter.title, chapter.name, chapterColor(chapter)) })
-      } else if (!this.ending.reached) {
-        // 마지막 장을 끝냈다 (E22-05): 느린 동작 → 엔딩 장면(엔딩 곡) → 엔딩 뒤 장치가 열리고 큰 카드
-        this.bus.emit('moment', { id: 'ending', scene: 'ending', slow: true, music: 'ending', card: ENDING_CARD, after: () => this.showEnding() })
-      }
+      } else if (!this.ending.reached) this.endingMoment(true)
     })
     this.trialSystem = new TrialSystem(this.ctx, this.growth, this.threatSystem)
     this.blessingPicker = new BlessingPicker(this.hud.root)
@@ -516,6 +514,8 @@ export class Game {
       if (this.threat.level > 1) this.encounter.resetAll()
       this.chapterSystem.sync()
       this.world.refreshLinks(false)
+      // 마지막 보스를 이긴 뒤 엔딩이 끝나기 전에 저장된 판: 엔딩을 다시 보인다 (안 그러면 엔딩 뒤 장치가 영영 닫힌다)
+      if (this.chapters.finished && !this.ending.reached) this.endingMoment(false)
     }
     for (const id of options.startRelics ?? []) this.relics.equip(id, false)
     // 처음 선 땅도 들어선 땅이다 (점검 주소로 막힌 땅에서 시작해도 거기는 열려 있게)
@@ -555,6 +555,11 @@ export class Game {
   /** 지금 상태를 저장 데이터로 만든다. */
   snapshot(): SaveData {
     return this.persistence.snapshot()
+  }
+
+  /** 마지막 장을 끝냈다 (E22-05): 느린 동작 → 엔딩 장면(엔딩 곡) → 엔딩 뒤 장치가 열리고 큰 카드. slow면 쓰러진 순간의 느린 동작 */
+  private endingMoment(slow: boolean): void {
+    this.bus.emit('moment', { id: 'ending', scene: 'ending', slow, music: 'ending', card: ENDING_CARD, after: () => this.showEnding() })
   }
 
   /** 첫 엔딩 (E22-05): 엔딩 장면 뒤에 엔딩 뒤 장치를 열고 「첫 엔딩」 띠 (무엇이 열렸는지는 ENDING_CARD) */
@@ -608,8 +613,8 @@ export class Game {
   advance(seconds: number, step = 1 / 30): void {
     for (let t = 0; t < seconds; t += step) {
       this.update(step, false)
-      // 기다리는 순간(장면 뒤 카드·엔딩 등)도 함께 흘린다 (E23-01)
-      this.moments.update(step)
+      // 기다리는 순간(장면 뒤 카드·엔딩 등)도 함께 흘린다 (E23-01). 실제 시간이 흐르지 않으니 HUD 카드의 시계는 보지 않는다
+      this.moments.update(step, false)
     }
   }
 
@@ -709,6 +714,8 @@ export class Game {
       this.updateBackdrop(realDt)
       return
     }
+    // 창이 열린 동안은 곡을 줄인다 (고르기 창을 닫을 때도 맞도록 프레임마다)
+    this.audio.setDucked(this.paused)
     // 정보 화면이 열려 있으면 게임은 멈추고 화면만 그린다. (E4-07)
     if (!this.paused) {
       this.storyline.next()
