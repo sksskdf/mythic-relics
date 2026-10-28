@@ -17,6 +17,8 @@ export interface Villager {
   line: number
   timer: number
   phase: number
+  /** 말풍선 반폭 (px). 글을 바꿀 때만 다시 잰다 (0이면 아직 안 잼) */
+  half: number
 }
 
 /**
@@ -63,7 +65,7 @@ export class Villagers {
       bubble.className = 'npc-bubble'
       bubble.hidden = true
       this.overlay.append(bubble)
-      return { def, rig, bubble, line: 0, timer: 0, phase: i * 1.7 }
+      return { def, rig, bubble, line: 0, timer: 0, phase: i * 1.7, half: 0 }
     })
   }
 
@@ -79,6 +81,8 @@ export class Villagers {
 
   update(dt: number, hero: THREE.Vector3, project: (x: number, y: number, z: number) => { x: number; y: number }): void {
     this.time += dt
+    // 화면 폭은 말풍선을 띄울 때만 한 번 잰다 (프레임마다 레이아웃을 여러 번 다시 계산하지 않게)
+    let width: number | undefined
     for (const v of this.villagers) {
       const { def, rig } = v
       // 숨 쉬듯 조금 들썩인다
@@ -99,16 +103,20 @@ export class Villagers {
         v.timer = LINE_SECONDS
         v.bubble.textContent = def.lines[0]!
         v.bubble.hidden = false
+        v.half = 0
       }
       v.timer -= dt
       if (v.timer <= 0 && def.lines.length > 1) {
         v.line = (v.line + 1) % def.lines.length
         v.timer = LINE_SECONDS
         v.bubble.textContent = def.lines[v.line]!
+        v.half = 0
       }
       const p = project(def.x, rig.root.position.y + 2.3, def.z)
       // 화면 가장자리에서 잘리지 않게 가로를 안으로 당긴다 (휴대폰 세로 화면에서 왼쪽으로 잘리던 것, E235)
-      const x = keepInside(p.x, v.bubble.offsetWidth / 2, this.overlay.clientWidth)
+      if (v.half === 0) v.half = v.bubble.offsetWidth / 2
+      width ??= this.overlay.clientWidth
+      const x = keepInside(p.x, v.half, width)
       v.bubble.style.transform = `translate(${Math.round(x)}px, ${Math.round(p.y)}px) translate(-50%, -100%)`
     }
   }

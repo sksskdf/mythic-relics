@@ -25,8 +25,18 @@ export class TouchControls {
     element.addEventListener('pointerdown', (e) => {
       if (e.pointerType !== 'touch') return
       e.preventDefault()
-      this.gestures.down(e.pointerId, e.clientX, e.clientY, this.now())
+      this.gestures.down(e.pointerId, e.clientX, e.clientY, this.now(), e.isPrimary)
       this.draw()
+    })
+    // 앱을 바꾸거나 시스템 몸짓으로 창이 가려지면 뗀 것을 못 받을 수 있다: 손가락을 모두 잊어 혼자 걷거나 몸짓이 꼬이지 않게
+    const forget = () => {
+      this.gestures.reset()
+      this.draw()
+    }
+    addEventListener('blur', forget)
+    addEventListener('pagehide', forget)
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') forget()
     })
     addEventListener('pointermove', (e) => {
       if (e.pointerType !== 'touch') return

@@ -55,6 +55,24 @@ describe('클릭 지시', () => {
     expect(hero.object.position.z).toBeGreaterThan(11)
   })
 
+  it('조이스틱: 이동 지시가 끊겨도(막힘·쓰러짐·장면) 쥔 채로 다시 걷는다 (E235)', () => {
+    const { hero, orders, step } = setup([])
+    orders.steer({ x: 0, z: 3 })
+    expect(orders.order).toEqual({ kind: 'move' })
+    step(0.2)
+    // 지시가 지워진 뒤에도 손을 떼지 않고 계속 민다
+    orders.clear()
+    hero.stop()
+    step(0.2)
+    orders.steer({ x: 3, z: 0 })
+    expect(orders.order).toEqual({ kind: 'move' })
+    expect(hero.isMoving).toBe(true)
+    // 이어지는 동안은 목적지만 바꾼다
+    step(0.2)
+    orders.steer({ x: 5, z: 0 })
+    expect(orders.destination).toEqual({ x: 5, z: 0 })
+  })
+
   it('도착해 멈추면 사거리 안의 적을 자동으로 친다', () => {
     const { target, hits } = dummy(0, 7.5)
     const { orders, step } = setup([target])

@@ -494,7 +494,7 @@ export class Game {
       this.input.frameEnd.push(() => touch.gestures.endFrame())
     }
     this.playerInput.onZoom = (viewHeight, end) => {
-      this.setViewHeight(viewHeight)
+      if (viewHeight !== this.view.viewHeight) this.setViewHeight(viewHeight)
       if (end) this.settings = settingsStorage.update({ viewHeight: this.view.viewHeight })
     }
     this.dev = new DevTools({
@@ -731,6 +731,11 @@ export class Game {
   private tick(now: number): void {
     const realDt = frameDelta(this.lastTime, now)
     this.lastTime = now
+    // 휴대폰을 가로로 들어 안내가 화면을 덮은 동안은 그리지 않는다 (배터리, E235)
+    if (this.suspended()) {
+      this.input.endFrame()
+      return
+    }
     if (!this.playing) {
       this.updateBackdrop(realDt)
       return
@@ -845,6 +850,9 @@ export class Game {
     const unlock = () => this.audio.unlock()
     addEventListener('pointerdown', unlock)
     addEventListener('keydown', unlock)
+    // 휴대폰(iOS Safari)은 손가락을 뗄 때만 소리를 켜 준다: 누를 때 만든 소리가 잠들어 있으면 뗄 때 깨운다 (E235)
+    addEventListener('pointerup', unlock)
+    addEventListener('touchend', unlock)
     addEventListener('keydown', (e) => {
       if (e.key !== 'Escape' || !this.playing) return
       if (this.pauseMenu.open) this.pauseMenu.hide()

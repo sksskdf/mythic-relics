@@ -46,7 +46,9 @@ export class TouchGestures {
   private spent = false
   private tapped: Point | null = null
 
-  down(id: number, x: number, y: number, t: number): void {
+  /** primary: 다른 손가락이 하나도 닿지 않은 채 처음 댄 손가락 (브라우저의 isPrimary). 남은 손가락이 있으면 뗀 것을 놓친 것이라 버린다 */
+  down(id: number, x: number, y: number, t: number, primary = false): void {
+    if (primary) this.reset()
     this.fingers.set(id, { x, y, startX: x, startY: y, start: t })
     if (this.fingers.size >= 2) {
       this.stickId = null
@@ -112,6 +114,15 @@ export class TouchGestures {
 
   /** 프레임이 끝났다: 이 프레임에 읽지 않은 톡은 버린다 (멈춘 동안·장면 중에 누른 것이 나중에 지시가 되지 않게) */
   endFrame(): void {
+    this.tapped = null
+  }
+
+  /** 손가락을 모두 잊는다 (창이 가려지거나 포커스를 잃어 뗀 것을 못 받을 수 있을 때) */
+  reset(): void {
+    this.fingers.clear()
+    this.stickId = null
+    this.pinchFrom = 0
+    this.spent = false
     this.tapped = null
   }
 

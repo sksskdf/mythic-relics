@@ -66,4 +66,23 @@ describe('휴대폰 손가락 몸짓 (E235)', () => {
     g.up(3, 1.05)
     expect(g.takeTap()).toEqual({ x: 100, y: 100 })
   })
+
+  it('뗀 것을 놓쳐도 처음 대는 손가락(primary)이나 창이 가려지면 남은 손가락을 버린다', () => {
+    const g = new TouchGestures()
+    // 조이스틱 손가락의 pointerup을 놓쳤다
+    g.down(1, 100, 400, 0, true)
+    g.move(1, 160, 400)
+    expect(g.stick).not.toBeNull()
+    // 새로 대는 손가락이 두 번째 손가락(확대·축소)이 되지 않고 톡이 된다
+    g.down(2, 50, 50, 1, true)
+    expect(g.pinch).toBeNull()
+    expect(g.stick).toBeNull()
+    g.up(2, 1.1)
+    expect(g.takeTap()).toEqual({ x: 50, y: 50 })
+    // 창이 가려지면 쥐고 있던 조이스틱도 사라진다
+    g.down(3, 100, 400, 2, true)
+    g.move(3, 160, 400)
+    g.reset()
+    expect(g.stick).toBeNull()
+  })
 })

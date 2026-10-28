@@ -730,6 +730,34 @@ try {
   await phoneFrames(2)
   const p3 = await phoneState()
   if (p3.order !== 'move' || !p3.moving) throw new Error(`휴대폰: 땅을 톡 눌러도 걷지 않습니다 ${JSON.stringify(p3)}`)
+  // 적을 톡하면 그 적을 공격하라는 지시 (멈춰 세우고 카메라가 따라온 뒤, 몸통을 조금 비켜 누른다)
+  await phone.evaluate(() => {
+    const g = window.__game
+    g.ctx.orders.clear()
+    g.hero.stop()
+  })
+  await phoneFrames(20)
+  const foe = await phone.evaluate(() => {
+    const g = window.__game
+    const p = g.hero.object.position
+    window.__tapTarget = g.encounter.spawnGrunt(p.x + 3, p.z - 3)
+    window.__tapTarget.update = () => {}
+    const point = window.__tapTarget.object.position.clone()
+    point.y += 1.2
+    point.project(g.view.camera)
+    const size = g.renderSize
+    const height = document.getElementById('app').clientHeight
+    return { x: ((point.x + 1) / 2) * size.width * size.scale + 10, y: height - ((point.y + 1) / 2) * size.height * size.scale }
+  })
+  await finger('pointerdown', 1, foe.x, foe.y)
+  await finger('pointerup', 1, foe.x, foe.y)
+  await phoneFrames(2)
+  if (!(await phone.evaluate(() => window.__game.ctx.orders.attackTarget === window.__tapTarget))) throw new Error(`휴대폰: 적을 톡 눌러도 공격 지시가 되지 않습니다 ${JSON.stringify(await phoneState())}`)
+  await phone.evaluate(() => {
+    const g = window.__game
+    g.ctx.orders.clear()
+    g.encounter.clearAll()
+  })
   await finger('pointerdown', 1, 150, 420)
   await finger('pointerdown', 2, 240, 420)
   for (const d of [10, 25, 40]) {
@@ -751,7 +779,7 @@ try {
     throw new Error('휴대폰: 다시 세로로 들어도 안내가 남아 있습니다.')
   })
   await phone.close()
-  console.log(`휴대폰 확인: 세로 화면 가로 ${p0.across.toFixed(1)}m, 끌기 → 조이스틱으로 걷기, 떼면 멈춤, 톡 → 그곳까지, 두 손가락 ${p3.view.toFixed(0)}m → ${p4.view.toFixed(0)}m, 가로로 들면 안내와 멈춤`)
+  console.log(`휴대폰 확인: 세로 화면 가로 ${p0.across.toFixed(1)}m, 끌기 → 조이스틱으로 걷기, 떼면 멈춤, 톡 → 그곳까지·적이면 공격, 두 손가락 ${p3.view.toFixed(0)}m → ${p4.view.toFixed(0)}m, 가로로 들면 안내와 멈춤`)
   await browser.close()
 
   if (errors.length) {

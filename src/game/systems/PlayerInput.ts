@@ -5,12 +5,15 @@ import type { Input } from '../../input/Input'
 import type { TouchControls } from '../../input/TouchControls'
 import { screenRay, screenToGround, worldToScreen } from '../../render/picking'
 import type { PixelRenderer } from '../../render/PixelRenderer'
+import { clampViewHeight, VIEW_HEIGHT } from '../../save/settings'
 import type { Point2 } from '../../world/colliders'
 import { heightAt } from '../../world/terrain'
 import type { GameContext } from '../context'
 
 /** 조이스틱으로 걸을 때 주인공 앞 이만큼(m)을 목적지로 잡는다 (길을 다시 찾는 0.12초 동안 다 걷지 못할 만큼) */
 const STICK_AHEAD = 2.5
+/** 톡: 적 몸통에서 화면으로 이만큼(px) 안이면 그 적을 누른 것으로 본다 (손가락은 커서보다 굵다) */
+const TAP_ENEMY_PX = 28
 /** 두 손가락 확대·축소: 시야 높이가 이만큼(비율) 넘게 바뀔 때만 화면을 다시 맞춘다 (렌더 버퍼를 프레임마다 새로 만들지 않게) */
 const ZOOM_STEP = 0.02
 
@@ -69,18 +72,21 @@ export class PlayerInput {
     const pinch = touch.gestures.pinch
     if (pinch !== null) {
       this.pinchView ??= view.viewHeight
-      const next = this.pinchView / pinch
-      if (Math.abs(next - view.viewHeight) / view.viewHeight > ZOOM_STEP) this.onZoom(next, false)
+      // 한계 안 값으로 견준다 (한계 밖까지 벌린 채 쥐고 있어도 프레임마다 다시 맞추지 않게). 한계에는 딱 닿게 한다
+      const next = clampViewHeight(this.pinchView / pinch)
+      const edge = next === VIEW_HEIGHT.min || next === VIEW_HEIGHT.max
+      if (next !== view.viewHeight && (edge || Math.abs(next - view.viewHeight) / view.viewHeight > ZOOM_STEP)) this.onZoom(next, false)
     } else if (this.pinchView !== null) {
+      // 바뀐 것이 있을 때만 설정에 저장한다
+      if (this.pinchView !== view.viewHeight) this.onZoom(view.viewHeight, true)
       this.pinchView = null
-      this.onZoom(view.viewHeight, true)
     }
     const tap = touch.takeTap()
     if (tap) {
       const rect = this.container.getBoundingClientRect()
       const x = tap.x - rect.left
       const y = tap.y - rect.top
-      this.hovered = this.enemyAt(x, y)
+      this.hovered = this.enemyAt(x, y) ?? this.enemyNear(x, y, TAP_ENEMY_PX)
       const cursor = this.groundAt(x, y, this.cursor)
       const ground = cursor ? { x: cursor.x, z: cursor.z } : null
       this.onTalk(ground && !this.hovered ? this.talkAt(ground.x, ground.z) : null)
@@ -92,10 +98,10 @@ export class PlayerInput {
     const direction = touch.direction
     if (direction) {
       const target = this.stickTarget(direction.dx, direction.dy)
-      if (target && !this.walking) {
-        this.onTalk(null)
-        orders.press(target, null)
-      } else if (target) orders.hold(target)
+      if (target) {
+        if (!this.walking) this.onTalk(null)
+        orders.steer(target)
+      }
       this.walking = target !== null
       return true
     }
@@ -144,6 +150,23 @@ export class PlayerInput {
       // 정확히 지나가면 부동소수 오차로 아주 작은 음수가 나올 수 있어 0으로 막는다.
       const dist = Math.sqrt(Math.max(0, ray.distanceSqToSegment(bottom, top)))
       if (dist < giant.radius * 1.15 && dist < bestDist) {
+        best = giant
+        bestDist = dist
+      }
+    }
+    return best
+  }
+
+  /** 화면 한 점에서 px 안에 몸통 가운데가 보이는 가장 가까운 적 (톡이 몸을 살짝 빗나갔을 때) */
+  private enemyNear(x: number, y: number, px: number): Giant | null {
+    const { view } = this.ctx
+    let best: Giant | null = null
+    let bestDist = px
+    for (const giant of this.ctx.encounter.alive) {
+      this.from.set(giant.x, heightAt(giant.x, giant.z) + giant.radius * 1.8, giant.z)
+      const at = worldToScreen(this.from, this.container.clientHeight, this.pixel.size, view.camera, view.subpixel)
+      const dist = Math.hypot(at.x - x, at.y - y)
+      if (dist < bestDist) {
         best = giant
         bestDist = dist
       }

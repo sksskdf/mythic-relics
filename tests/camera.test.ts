@@ -36,4 +36,36 @@ describe('QuarterViewCamera', () => {
     expect(projected.z).toBeGreaterThan(-1)
     expect(projected.z).toBeLessThan(1)
   })
+
+  it('세로 화면에서도 카메라를 실제 한 픽셀 간격에 맞춘다 (따라갈 때 외곽선이 기어다니지 않게, E235)', () => {
+    const view = new QuarterViewCamera()
+    view.viewHeight = 19
+    view.setRenderSize(180, 390)
+    const fixed = new THREE.Vector3(0, 0, 0)
+    for (const target of [new THREE.Vector3(3.17, 0, -2.4), new THREE.Vector3(-7.9, 0, 11.03), new THREE.Vector3(0.41, 0, 0.77)]) {
+      view.jumpTo(target)
+      // 가만히 있는 점은 늘 픽셀 격자 위에 온다 (나머지는 subpixel이 메운다)
+      const x = (fixed.clone().project(view.camera).x * 180) / 2
+      const y = (fixed.clone().project(view.camera).y * 390) / 2
+      expect(Math.abs(x - Math.round(x))).toBeLessThan(1e-4)
+      expect(Math.abs(y - Math.round(y))).toBeLessThan(1e-4)
+    }
+  })
+
+  it('세로 화면을 가장 넓게 봐도 화면 네 귀퉁이의 땅이 near·far 안에 있다 (E235)', () => {
+    const view = new QuarterViewCamera()
+    view.viewHeight = 34
+    view.setRenderSize(180, 390)
+    view.jumpTo(new THREE.Vector3(5, 0, 5))
+    const ray = new THREE.Raycaster()
+    const ground = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)
+    for (const [x, y] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const) {
+      ray.setFromCamera(new THREE.Vector2(x, y), view.camera)
+      const hit = ray.ray.intersectPlane(ground, new THREE.Vector3())
+      expect(hit).not.toBeNull()
+      const z = hit!.project(view.camera).z
+      expect(z).toBeGreaterThan(-1)
+      expect(z).toBeLessThan(1)
+    }
+  })
 })

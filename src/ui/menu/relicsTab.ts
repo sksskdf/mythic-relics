@@ -3,7 +3,6 @@ import { SLOT_PARTS } from '../../data/gearData'
 import type { SourceId } from '../../data/schema'
 import { materialName } from '../../gear/materials'
 import { GEAR, gearName } from '../../gear/roll'
-import { touchUi } from '../../input/device'
 import { godDef, relicDef, type RelicId } from '../../relics/data'
 import { classIcon } from '../classIcons'
 import { gearCard } from '../gearCard'
@@ -25,6 +24,8 @@ export class RelicsTab {
 
   render(body: HTMLElement): void {
     const { host } = this.ctx
+    // 창을 다시 열거나 탭을 옮기면 한 번 누른 것은 잊는다 (한 번만 눌러 끼지 않게)
+    this.picked = null
     const layout = el('div', 'menu-relics')
     const left = el('div', 'menu-relics__left')
     const detail = el('div', 'menu-relics__detail')
@@ -97,9 +98,11 @@ export class RelicsTab {
         this.hovered = id
         this.renderDetail(detail)
       })
+      let finger = false
+      b.addEventListener('pointerdown', (e) => (finger = e.pointerType === 'touch'))
       b.addEventListener('click', () => {
-        // 휴대폰에는 커서가 없다: 처음 누르면 설명 카드만 보이고, 같은 것을 한 번 더 누르면 낀다 (E235)
-        if (touchUi() && this.picked !== id) {
+        // 손가락에는 커서가 없다: 처음 누르면 설명 카드만 보이고, 같은 것을 한 번 더 누르면 낀다 (E235). 마우스는 한 번에 낀다
+        if (finger && this.picked !== id) {
           this.picked = id
           this.hovered = id
           this.renderDetail(detail)

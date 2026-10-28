@@ -8,14 +8,17 @@
   /* 노치·둥근 모서리: 오른쪽 위 메뉴 단추·작은 지도·카드도 안전 영역 안으로 (왼쪽 위·아래는 원래 들어가 있다) */
   :root .menu-button {
     top: calc(var(--unit) * 2 + env(safe-area-inset-top, 0px));
-    right: calc(var(--unit) * 2 + env(safe-area-inset-right, 0px));
   }
   :root .minimap {
     top: calc(var(--unit) * 10 + env(safe-area-inset-top, 0px));
-    right: calc(var(--unit) * 2 + env(safe-area-inset-right, 0px));
   }
   :root .hud__gains.is-side {
     top: calc(var(--unit) * 12 + 128px + env(safe-area-inset-top, 0px));
+  }
+  /* 개발 패널이 오른쪽을 차지하면(?dev) 그 옆 자리를 그대로 둔다 */
+  :root body:not(.devmode) .menu-button,
+  :root body:not(.devmode) .minimap,
+  :root body:not(.devmode) .hud__gains.is-side {
     right: calc(var(--unit) * 2 + env(safe-area-inset-right, 0px));
   }
   /* 목표 한 줄: 가운데 위가 아니라 원천 칩 아래 왼쪽, 작은 지도 옆 폭 안에서 줄바꿈 */
@@ -36,7 +39,7 @@
   }
   /* 마을 사람 말풍선: 좁은 화면에서는 줄을 바꾼다 (가로 자리는 Villagers가 화면 안으로 당긴다) */
   :root .npc-bubble {
-    max-width: min(220px, calc(100vw - 16px));
+    max-width: min(220px, calc(100vw - var(--sp-6)));
     white-space: normal;
   }
   /* 정보 화면: 세로 화면을 거의 다 쓴다 (가로 화면은 높이 560px) */

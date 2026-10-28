@@ -37,7 +37,11 @@ export class QuarterViewCamera {
   /** 픽셀에 맞추며 버린 나머지 (저해상도 픽셀 단위, -0.5~0.5). 키워 그릴 때 이만큼 밀어 그린다. */
   readonly subpixel = new THREE.Vector2()
 
-  constructor(yawDegrees = 45, pitchDegrees = 35, distance = 40) {
+  /**
+   * distance: 바라보는 곳에서 카메라까지 (직교 투영이라 그림 크기와는 상관없다). 세로 화면을 가장 넓게 보면
+   * 화면 아래 땅이 바라보는 곳보다 42m쯤 카메라 쪽에 있어, 그보다 멀리 둬야 near 면에 잘리지 않는다 (E235)
+   */
+  constructor(yawDegrees = 45, pitchDegrees = 35, distance = 80) {
     const yaw = THREE.MathUtils.degToRad(yawDegrees)
     const pitch = THREE.MathUtils.degToRad(pitchDegrees)
     this.offset = new THREE.Vector3(
@@ -110,8 +114,8 @@ export class QuarterViewCamera {
   }
 
   private apply(): void {
-    // 화면의 가로·세로 방향 성분을 픽셀 크기에 맞춰 반올림한다.
-    const pixel = this.viewHeight / this.renderHeight
+    // 화면의 가로·세로 방향 성분을 픽셀 크기에 맞춰 반올림한다. (세로 화면은 보이는 세로가 viewHeight보다 길다)
+    const pixel = (this.camera.top - this.camera.bottom) / this.renderHeight
     // 흔들림도 픽셀 단위로 움직여야 화면이 뭉개지지 않는다.
     const wantX = this.focus.dot(this.right) + this.shakeOffset.x
     const wantY = this.focus.dot(this.up) + this.shakeOffset.y

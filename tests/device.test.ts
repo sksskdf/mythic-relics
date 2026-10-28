@@ -10,10 +10,13 @@ describe('휴대폰 알아보기 (E235)', () => {
     expect(detectTouch('?dev&touch', false)).toBe(true)
   })
 
-  it('터치 기기를 가로로 들 때만 세로로 돌려 달라고 한다 (컴퓨터는 그대로)', () => {
+  it('휴대폰을 가로로 들 때만 세로로 돌려 달라고 한다 (컴퓨터·태블릿은 그대로)', () => {
     expect(wantsPortrait(true, 844, 390)).toBe(true)
     expect(wantsPortrait(true, 390, 844)).toBe(false)
     expect(wantsPortrait(false, 1280, 720)).toBe(false)
+    // 태블릿 가로(짧은 변 600 이상)는 막지 않는다
+    expect(wantsPortrait(true, 1180, 820)).toBe(false)
+    expect(wantsPortrait(true, 1024, 768)).toBe(false)
   })
 })
 

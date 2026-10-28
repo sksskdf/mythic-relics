@@ -43,9 +43,16 @@ describe('computeRenderSize', () => {
     expect(renderHeightForScreen(19, 390, 844) / tall).toBeCloseTo(renderHeightFor(19) / 19, 0)
   })
 
+  it('렌더 픽셀을 화면 픽셀보다 작게 하지 않는다 (줄여 그려 흐려지지 않게, E235)', () => {
+    const tall = computeRenderSize(390, 844, renderHeightForScreen(34, 390, 844))
+    expect(tall.height).toBe(844)
+    expect(tall.scale).toBe(1)
+    expect(computeRenderSize(960, 540, 585).scale).toBe(1)
+  })
+
   it('크기가 0인 화면에서도 깨지지 않는다', () => {
     const size = computeRenderSize(0, 0, 270)
-    expect(size.height).toBe(270)
+    expect(size.height).toBeGreaterThanOrEqual(1)
     expect(Number.isFinite(size.scale) && size.scale > 0).toBe(true)
     expect(size.width).toBeGreaterThanOrEqual(1)
   })
