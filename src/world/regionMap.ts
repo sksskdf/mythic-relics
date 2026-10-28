@@ -33,12 +33,13 @@ import {
   torii,
   well,
 } from '../voxel/models/landmarks'
+import { chinaMark, greekMark, japanMark, koreaMark, norseMark, riftMark, villageMark } from '../voxel/models/roadMarks'
 import { bridge, forge, forgeGlow, house2, longhouse, palisade, stall, watchtower } from '../voxel/models/village'
 import { VoxelGrid } from '../voxel/VoxelGrid'
 import { EFFECT_LAYER } from '../render/PixelRenderer'
 import { toonMaterial } from '../render/toon'
 import type { CircleCollider } from './colliders'
-import { exitColor, type PropKind, type PropPlacement, type RegionDef } from '../data/regions'
+import { exitColor, type PropKind, type PropPlacement, type RegionDef, REGIONS } from '../data/regions'
 import { CELL, type Cell, cellOrigin, inRect, type Rect, rectDistance, type RegionLink } from '../data/world'
 import { createRng } from './rng'
 import { baseHeightAt, buildGround, buildScatter, buildTerraces, cliffColliders, EDGE_BLEND, edgeWave, FLAT_LAND, type GroundBlend, groundSteps, heightAt, type Pond, pondLevel, setLand } from './terrain'
@@ -714,13 +715,13 @@ export function* chunkSteps(region: RegionDef, links: readonly RegionLink[] = []
     chunk.sanctuary = sanctuaryMark(region.sanctuary)
     chunk.group.add(chunk.sanctuary)
   }
-  // 출구: 통로 입구의 문과 갈 곳의 빛기둥 (글 없이 색으로 어디로 가는지 알린다)
+  // 출구: 통로 입구의 길목(가는 땅의 모습)과 갈 곳의 빛기둥 (글 없이 모습과 색으로 어디로 가는지 알린다)
   for (const exit of region.exits) {
-    const gate = buildGate(exitColor(exit.to))
-    own(gate.object)
+    const gate = buildGate(exit.to, exitColor(exit.to))
     gate.object.position.set(exit.x, heightAt(exit.x, exit.z), exit.z)
-    // 문은 지역 가운데를 바라본다
-    gate.object.rotation.y = Math.atan2(-exit.x, -exit.z)
+    // 길목은 통로를 가로지른다: 통로가 난 땅 끝(가까운 변)에 나란히 서서 땅 안쪽을 본다.
+    // 세계 축에 맞춰 두면 쿼터뷰에서 어느 길목이든 비스듬한 정면이 보인다 (가운데를 보게 하면 북동·남서 길목은 옆모습뿐)
+    gate.object.rotation.y = Math.abs(exit.z) >= Math.abs(exit.x) ? (exit.z < 0 ? 0 : Math.PI) : exit.x < 0 ? Math.PI / 2 : -Math.PI / 2
     chunk.group.add(gate.object)
     chunk.animators.push(gate.animate!)
   }
@@ -847,23 +848,34 @@ function sanctuaryMark(center: { x: number; z: number }): THREE.Group {
   return group
 }
 
-/** 출구 문: 나무 기둥 둘과 가로대, 갈 곳의 색 빛기둥과 바닥 고리 */
-function buildGate(color: number): Built {
-  const group = new THREE.Group()
-  const wood = toonMaterial(0x6a4e34)
-  for (const x of [-1.3, 1.3]) {
-    const post = new THREE.Mesh(new THREE.BoxGeometry(0.3, 2.6, 0.3), wood)
-    post.position.set(x, 1.3, 0)
-    post.castShadow = true
-    group.add(post)
+/** 길목 모양 (E24-07): 그 길이 가는 땅의 모습. 모양은 조각끼리 함께 쓴다 */
+const roadMarkGeometries = new Map<string, THREE.BufferGeometry>()
+function roadMarkGeometry(to: string): THREE.BufferGeometry {
+  const region = REGIONS[to]
+  const kind = !region ? 'hub' : region.kind === 'hub' ? 'hub' : region.finale ? 'finale' : (region.realm ?? 'hub')
+  let geometry = roadMarkGeometries.get(kind)
+  if (!geometry) {
+    const grid =
+      kind === 'norse' ? norseMark(7)
+      : kind === 'greek' ? greekMark()
+      : kind === 'china' ? chinaMark()
+      : kind === 'japan' ? japanMark()
+      : kind === 'korea' ? koreaMark()
+      : kind === 'finale' ? riftMark(11)
+      : villageMark(5)
+    geometry = buildVoxelGeometry(grid, { voxelSize: 0.15 })
+    roadMarkGeometries.set(kind, geometry)
   }
-  const beam = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.3, 0.35), wood)
-  beam.position.y = 2.6
-  beam.castShadow = true
-  group.add(beam)
-  const banner = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.8, 0.06), toonMaterial(color))
-  banner.position.set(0, 2.05, 0.05)
-  group.add(banner)
+  return geometry
+}
+
+/** 출구의 길목: 가는 땅의 모습으로 선 문(신화권마다 다르다)과, 갈 곳의 색 빛기둥과 바닥 고리 */
+function buildGate(to: string, color: number): Built {
+  const group = new THREE.Group()
+  const mark = new THREE.Mesh(roadMarkGeometry(to), voxelMaterial())
+  mark.castShadow = true
+  mark.receiveShadow = true
+  group.add(mark)
   const lightMaterial = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.25, depthWrite: false, side: THREE.DoubleSide })
   const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 1.2, 7, 8, 1, true), lightMaterial)
   pillar.position.y = 3.5
@@ -873,7 +885,8 @@ function buildGate(color: number): Built {
   for (const mesh of [pillar, ring]) {
     mesh.layers.set(EFFECT_LAYER)
     mesh.renderOrder = 12
-    group.add(mesh)
+    // 빛기둥과 고리는 이 문만 쓴다 (길목 모양은 조각끼리 함께 써서 내리지 않는다)
+    group.add(own(mesh))
   }
   const animate: Animator = (t) => {
     lightMaterial.opacity = 0.2 + Math.sin(t * 2.4) * 0.08
