@@ -30,9 +30,24 @@ export class Feel {
   /** 남은 멈춤 시간 (초) */
   hitstop = 0
 
+  /** 느린 동작 (E23): 남은 실제 시간(초)과 그동안의 빠르기 */
+  slowLeft = 0
+  slowScale = 1
+
   /** seconds초 멈춘다. 이미 더 길게 멈춰 있으면 그대로 둔다. */
   stop(seconds: number): void {
     this.hitstop = Math.max(this.hitstop, seconds)
+  }
+
+  /** 실제 시간 seconds초 동안 게임이 scale 빠르기로 흐른다 (장 보스를 쓰러뜨린 순간 등) */
+  slow(seconds: number, scale: number): void {
+    this.slowLeft = Math.max(this.slowLeft, seconds)
+    this.slowScale = scale
+  }
+
+  /** 지금 게임 시간의 빠르기 */
+  get timeScale(): number {
+    return this.slowLeft > 0 ? this.slowScale : 1
   }
 }
 

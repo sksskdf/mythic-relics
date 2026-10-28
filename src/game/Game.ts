@@ -20,6 +20,8 @@ import { Hud } from '../ui/Hud'
 import { GameMenu } from '../ui/GameMenu'
 import { MenuData } from './MenuData'
 import { Storyline } from './Storyline'
+import { type MomentCard, MomentSystem } from './systems/Moments'
+import { sceneId } from '../data/scenes'
 import { AttackFx } from './AttackFx'
 import { HoverCards } from './HoverCards'
 import { PauseMenu } from '../ui/PauseMenu'
@@ -97,6 +99,14 @@ export interface GameOptions {
 /** 성소에서 이만큼 가까우면 고른 신화를 바꿀 수 있다 */
 const CHOOSE_NEAR_SANCTUARY = 6
 
+/** 첫 엔딩의 큰 카드 (E22-05): 엔딩 장면 뒤에 무엇이 열렸는지 */
+const ENDING_CARD: MomentCard = {
+  kind: '첫 엔딩',
+  title: '엔딩 뒤가 열렸다',
+  color: '#ffd27a',
+  lines: ['남은 신화권의 결계가 풀렸다', '위협 단계: 같은 땅을 더 세게 다시 걷는다 (마을 촌장)', '시련·균열·성좌판이 열렸다 (정보 화면)', '신화 4단계·유물 3·4단계, 땅에 떨어지는 유물'],
+}
+
 /** 플레이 기록: 검증과 수치 조정에 쓴다. */
 export interface PlayEvent {
   /** 게임 시간 (초) */
@@ -158,8 +168,10 @@ export class Game {
   private readonly mythPicker: MythPicker
   /** 목표 한 줄과 장 제목 띠 (E22-04) */
   readonly chapterHud: ChapterHud
-  /** 마지막 보스를 이겼다: 엔딩 장면이 끝나면(scene) 또는 바로(now) 엔딩 뒤로 (E22-05) */
-  private endingDue: 'scene' | 'now' | null = null
+  /** 순간의 크기 (E23-01): 사건을 등급에 맞는 크기(작은 알림·카드·큰 카드·장면)로 보인다 */
+  readonly moments: MomentSystem
+  /** 장면의 위아래 검은 띠 (E23-02) */
+  private readonly letterbox = document.createElement('div')
   /** 성소의 전설과 시련 결계 (E6-04) */
   readonly legend: UtgardLegend
   /** 주인공 길찾기 격자 */
@@ -402,7 +414,15 @@ export class Game {
     this.hud.onPortraitClick = () => this.menu.show('status')
     this.minimap.canvas.addEventListener('click', () => this.menu.show('map'))
     // 대화 장면 (E15-06): 마을 사람을 누르면 걸어가 말을 걸고, 처음 보는 일에는 짧은 장면
-    this.storyline = new Storyline({ ctx: this.ctx, scenes: this.scenes, villagers: this.villagers, paused: () => this.paused })
+    this.storyline = new Storyline({ ctx: this.ctx, scenes: this.scenes, villagers: this.villagers, paused: () => this.paused, holding: () => this.moments.holding })
+    this.letterbox.className = 'letterbox'
+    container.append(this.letterbox)
+    this.moments = new MomentSystem(this.ctx, {
+      playScene: (id) => this.storyline.play(id, true),
+      // 땅을 옮겨 가는 암전 중에도 기다린다 (장면이 어두운 화면 위에 서지 않게)
+      sceneActive: () => this.scenes.active || this.world.traveling,
+      slowMotion: () => this.storyline.enabled,
+    })
     this.hover = new HoverCards({
       ctx: this.ctx,
       container,
@@ -431,11 +451,15 @@ export class Game {
     this.mythChoice = new MythChoiceSystem(this.ctx, this.mythPicker)
     // 다음 장이 열리면 그 땅으로 가는 결계가 풀리고(E22-02) 장 제목 띠가 지나간다 (E22-04)
     this.chapterHud = new ChapterHud(this.hud.root)
+    // 장 넘어가기는 장면 (E23-02): 그 장의 한마디 뒤에 장 제목 띠
     this.bus.on('chapterChanged', ({ chapter }) => {
       this.world.refreshLinks()
-      if (chapter) this.chapterHud.showChapter(chapter.title, chapter.name, chapterColor(chapter))
-      // 마지막 장을 끝냈다 (E22-05): 엔딩 장면 뒤에 엔딩 뒤 장치가 열린다. 장면을 띄우지 않으면(봇) 바로
-      else if (!this.ending.reached) this.endingDue = this.storyline.play('ending') ? 'scene' : 'now'
+      if (chapter) {
+        this.bus.emit('moment', { id: 'chapterChanged', scene: sceneId('chapter', chapter.id), after: () => this.chapterHud.showChapter(chapter.title, chapter.name, chapterColor(chapter)) })
+      } else if (!this.ending.reached) {
+        // 마지막 장을 끝냈다 (E22-05): 느린 동작 → 엔딩 장면(엔딩 곡) → 엔딩 뒤 장치가 열리고 큰 카드
+        this.bus.emit('moment', { id: 'ending', scene: 'ending', slow: true, music: 'ending', card: ENDING_CARD, after: () => this.showEnding() })
+      }
     })
     this.trialSystem = new TrialSystem(this.ctx, this.growth, this.threatSystem)
     this.blessingPicker = new BlessingPicker(this.hud.root)
@@ -533,21 +557,14 @@ export class Game {
     return this.persistence.snapshot()
   }
 
-  /** 첫 엔딩 (E22-05): 엔딩 뒤 장치를 열고 「첫 엔딩」 띠와 무엇이 열렸는지 큰 카드로 알린다 */
+  /** 첫 엔딩 (E22-05): 엔딩 장면 뒤에 엔딩 뒤 장치를 열고 「첫 엔딩」 띠 (무엇이 열렸는지는 ENDING_CARD) */
   private showEnding(): void {
-    this.endingDue = null
     this.reachEnding()
-    const gold = '#ffd27a'
+    const gold = ENDING_CARD.color
     this.hud.flash(gold)
-    this.fx.power.burst(this.hero.object.position, gold, 5)
+    this.fx.power.column(this.hero.object.position, gold)
     this.view.shake(0.4)
     this.chapterHud.showChapter('첫 엔딩', '갈라진 하늘이 닫혔다', gold)
-    this.hud.showGains('첫 엔딩', '갈라진 하늘이 닫혔다', gold, '', [
-      '남은 신화권의 결계가 풀렸다',
-      '위협 단계: 같은 땅을 더 세게 다시 걷는다 (마을 촌장)',
-      '시련·균열·성좌판이 열렸다 (정보 화면)',
-      '신화 4단계·유물 3·4단계, 땅에 떨어지는 유물',
-    ])
     this.bus.emit('sound', { cue: 'promote' })
     this.log.push({ t: Math.round(this.time * 10) / 10, type: 'ending' })
   }
@@ -589,7 +606,11 @@ export class Game {
    * 입력은 읽지 않으므로 주인공은 hero.moveTo로만 움직인다.
    */
   advance(seconds: number, step = 1 / 30): void {
-    for (let t = 0; t < seconds; t += step) this.update(step, false)
+    for (let t = 0; t < seconds; t += step) {
+      this.update(step, false)
+      // 기다리는 순간(장면 뒤 카드·엔딩 등)도 함께 흘린다 (E23-01)
+      this.moments.update(step)
+    }
   }
 
   /** 지금 지역 (E7) */
@@ -691,6 +712,7 @@ export class Game {
     // 정보 화면이 열려 있으면 게임은 멈추고 화면만 그린다. (E4-07)
     if (!this.paused) {
       this.storyline.next()
+      this.moments.update(realDt)
       // 대화 중에는 이동 입력을 받지 않고, 카메라는 주인공과 말하는 사람 사이를 본다 (E12-10)
       // 대화 중에는 세계가 멈춘다 (싸우다 신화가 열리거나 보스가 말해도 맞지 않게, E15-06)
       const talking = this.scenes.active
@@ -760,6 +782,16 @@ export class Game {
       }
     }
     this.chapterSystem.check()
+  }
+
+  /** 지금 게임 시간의 빠르기 (점검용: 장면 앞 느린 동작이면 1보다 작다) */
+  get gameSpeed(): number {
+    return this.feel.timeScale
+  }
+
+  /** 본 장면 기록에서 지운다 (개발 패널·점검: 장면을 다시 띄워 본다) */
+  forgetScene(id: string): void {
+    this.ctx.scenesSeen.delete(id)
   }
 
   /** 지금 땅에 서 있는 결계 (점검용) */
@@ -860,8 +892,10 @@ export class Game {
   private update(realDt: number, live: boolean): void {
     // 타격 순간에는 게임 시간이 잠깐 멈춘다. 카메라 흔들림과 숫자는 계속 움직인다.
     realDt *= this.timeScale
-    const dt = this.feel.hitstop > 0 ? 0 : realDt
+    // 장면 앞 느린 동작 (E23-02): 게임만 느려지고 카메라·HUD는 제 빠르기로
+    const dt = this.feel.hitstop > 0 ? 0 : realDt * this.feel.timeScale
     this.feel.hitstop = Math.max(0, this.feel.hitstop - realDt)
+    this.feel.slowLeft = Math.max(0, this.feel.slowLeft - realDt)
     this.elapsed += dt
     this.time += dt
 
@@ -898,7 +932,6 @@ export class Game {
     this.updateEnemies(dt)
     this.growth.update(dt)
     this.mythChoice.update()
-    if (this.endingDue && !this.scenes.active && (this.endingDue === 'now' || this.ctx.scenesSeen.has('ending'))) this.showEnding()
     this.trialSystem.update(dt)
     this.riftSystem.update(dt)
     this.life.update(dt)
@@ -915,7 +948,7 @@ export class Game {
     const sanctuary = this.ctx.map.region.sanctuary
     if (sanctuary && !this.conveniences.visited.has(this.ctx.map.region.id) && Math.hypot(position.x - sanctuary.x, position.z - sanctuary.z) < sanctuary.radius) {
       this.conveniences.visited.add(this.ctx.map.region.id)
-      this.hud.showToast('성소를 찾았다 · 지도')
+      this.bus.emit('moment', { id: 'shrineFound', text: '성소를 찾았다 · 지도' })
       this.bus.emit('progressChanged', {})
     }
     this.minimap.update(dt, { hero: position, relics: this.pickups.list, sanctuaryReady: this.legend.present && (this.growth.sanctuaryOpen || this.mythChoice.here !== null), goal: this.goalSpot() })
@@ -986,6 +1019,8 @@ export class Game {
       },
       realDt,
     )
+    // 장면과 신화 고르기에는 위아래 검은 띠 (E23-02)
+    this.letterbox.classList.toggle('is-on', this.scenes.active || this.mythPicker.open)
     // 목표 한 줄 (E22-04): 보스 막대가 서거나 전설·대화 중이면 잠깐 감춘다
     const fighting = this.legend.active || (boss !== null && this.encounter.bossEngaged)
     this.chapterHud.setGoal(this.chapterSystem.goalView(), fighting || this.scenes.active || this.world.traveling)

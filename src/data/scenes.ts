@@ -56,3 +56,6 @@ export function parseScenes(rawScenes: unknown, path = 'scenes.json'): Record<st
 }
 
 export const SCENES: Readonly<Record<string, SceneDef>> = parseScenes(raw)
+
+/** 사건의 장면 id: 앞말 + 첫 글자를 대문자로 한 이름 (myth + thor → mythThor, chapter + north → chapterNorth) */
+export const sceneId = (prefix: string, id: string): string => prefix + id.charAt(0).toUpperCase() + id.slice(1)

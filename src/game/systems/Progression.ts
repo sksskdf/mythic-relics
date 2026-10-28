@@ -122,7 +122,7 @@ export class ProgressionSystem {
       // 위협 단계가 높을수록 하나 더 (E14-03)
       powers.loadout.addMaterial(id, count + (Math.random() < THREAT.material * (level - 1) ? 1 : 0))
       // 보스 재료만 알린다: 유물을 벼리는 열쇠
-      if (MATERIALS[id]?.kind === 'boss') this.ctx.hud.showToast(`${materialName(id)} · 대장간에서 유물을 벼린다`)
+      if (MATERIALS[id]?.kind === 'boss') this.ctx.bus.emit('moment', { id: 'bossMaterial', text: `${materialName(id)} · 대장간에서 유물을 벼린다` })
     }
     // 일반 장비 (E13-02): 졸개 6%, 정예 25%, 지역 보스는 반드시 (희귀 이상).
     // 땅 자리마다 드랍 표가 다르고, 단계는 그 땅의 단계 (E21-03): 장 흐름의 땅은 장의 단계, 그 밖은 신화권 단계 (E22)
@@ -149,20 +149,19 @@ export class ProgressionSystem {
     bus.emit('progressChanged', {})
   }
 
-  /** 신화가 처음 열렸다 (경험치 문턱 또는 유물): 칭호 카드와 빛기둥 (고르지 않아도 수집 보너스가 붙는다) */
+  /** 신화가 처음 열렸다 (경험치 문턱 또는 유물): 칭호 카드 (고르지 않아도 수집 보너스가 붙는다) */
   private announceOpened(god: God): void {
-    const { hud, fx, hero, progress } = this.ctx
-    // 처음 연 신화를 바로 골랐으면 고른 신화 카드가 대신 알린다
+    const { bus, progress } = this.ctx
+    // 처음 연 신화를 바로 골랐으면 고른 신화 장면이 대신 알린다
     if (progress.chosen.includes(god)) return
     const def = godDef(god)
-    hud.showGains('신화 개방', def.titles[0], def.color, classIcon(def.name), [`${def.name}의 힘이 깨어났다`, `수집 보너스: ${collectionText()}`])
-    fx.power.burst(hero.object.position, def.color, 3)
-    hud.flash(def.color)
+    const lines = [`${def.name}의 힘이 깨어났다`, `수집 보너스: ${collectionText()}`]
+    bus.emit('moment', { id: 'mythOpened', card: { kind: '신화 개방', title: def.titles[0], color: def.color, icon: classIcon(def.name), lines } })
   }
 
   /** 승급: 칭호가 바뀌고, 스킬이 강해지고, 원천 숙련과 기본 능력치가 오른다. */
   promote(god: God): void {
-    const { progress, combat, hero, hud, fx, view, feel, bus } = this.ctx
+    const { progress, combat, hero, fx, view, feel, bus } = this.ctx
     const hpBefore = this.ctx.build.state.maxHp
     const dmgBefore = PER_PROMOTION.damage ** progress.promotions
     if (!progress.promote(god)) return
@@ -180,13 +179,12 @@ export class ProgressionSystem {
       `모든 피해 ×${dmgBefore.toFixed(2)} → ×${dmgAfter.toFixed(2)}`,
       ...levelGains(god, level).filter((g) => g.kind !== 'hp' && g.kind !== 'damage').map((g) => g.text),
     ]
-    hud.showGains(`개방 단계 · ${level}단계`, progress.title(god), godDef(god).color, classIcon(godDef(god).name), lines)
+    // 큰 카드 (E23-03): 그 신의 색으로 번쩍임·하늘 기둥·북소리
+    const def = godDef(god)
+    bus.emit('moment', { id: 'mythLevel', card: { kind: `개방 단계 · ${level}단계`, title: progress.title(god), color: def.color, icon: classIcon(def.name), lines } })
     // 신마다 다른 승급 순간: 레벨이 오를수록 크고 많다
     godMoment(this.ctx, god, level)
     fx.puffs.burst(p, 40, 5)
-    // 승급: 그 신의 색으로 가장 큰 빛기둥과 번쩍임. 레벨이 오를수록 크다.
-    fx.power.burst(p, godDef(god).color, 3 + progress.level(god))
-    hud.flash(godDef(god).color)
     view.shake(0.6)
     feel.stop(0.2)
   }

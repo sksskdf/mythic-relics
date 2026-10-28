@@ -87,6 +87,8 @@ export class MythChoiceSystem {
     const p = hero.object.position
     if (Math.hypot(p.x - legend.center.x, p.z - legend.center.z) > CHOOSE_RADIUS) return
     hero.stop()
+    // 고르는 동안은 성소의 곡 (E23-04)
+    this.ctx.bus.emit('music', { theme: 'shrine' })
     this.picker.show(offer.gods, offer.first, this.restText(offer.realm), (god) => this.pick(god))
   }
 
@@ -103,6 +105,7 @@ export class MythChoiceSystem {
     const offer = this.offer()
     if (!offer || !offer.gods.includes(god)) return false
     this.picker.hide()
+    this.ctx.bus.emit('music', { theme: null })
     if (!this.ctx.progress.open(god)) return false
     this.ctx.bus.emit('mythOpened', { god })
     this.ctx.bus.emit('progressChanged', {})
@@ -111,19 +114,22 @@ export class MythChoiceSystem {
 
   /** 장 보스를 이겼다: 그 신화권의 닫힌 신화를 모두 열고 한 장으로 알린다 */
   openRealm(realm: string): God[] {
-    const { progress, bus, hud, fx, hero } = this.ctx
+    const { progress, bus } = this.ctx
     const opened = realmGods(realm).filter((g) => progress.open(g))
     if (opened.length === 0) return opened
     for (const god of opened) bus.emit('mythOpened', { god, quiet: true })
     const names = opened.map((g) => godDef(g).name)
-    const color = realmInk(realm).light
-    fx.power.burst(hero.object.position, color, 3)
-    hud.flash(color)
-    hud.showGains('신화 개방', `${REALM_NAMES[realm] ?? realm} 신화 ${opened.length}`, color, this.iconOf(opened[0]!), [
-      `${josa(names.join('·'), '이')} 열렸다`,
-      '마을이나 성소에서 바꿔 쓸 수 있다',
-      `수집 보너스: ${collectionText()}`,
-    ])
+    // 카드 (E23-01): 장 보스 장면이 끝난 뒤에 뜬다
+    bus.emit('moment', {
+      id: 'realmOpened',
+      card: {
+        kind: '신화 개방',
+        title: `${REALM_NAMES[realm] ?? realm} 신화 ${opened.length}`,
+        color: realmInk(realm).light,
+        icon: this.iconOf(opened[0]!),
+        lines: [`${josa(names.join('·'), '이')} 열렸다`, '마을이나 성소에서 바꿔 쓸 수 있다', `수집 보너스: ${collectionText()}`],
+      },
+    })
     bus.emit('progressChanged', {})
     return opened
   }

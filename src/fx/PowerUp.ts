@@ -8,6 +8,9 @@ interface Mote {
   age: number
 }
 
+/** 큰 카드의 하늘 기둥이 서 있는 시간 (초) */
+const COLUMN_SECONDS = 2.6
+
 interface Burst {
   pillar: THREE.Mesh
   ring: THREE.Mesh
@@ -26,6 +29,8 @@ export class PowerUp {
   private readonly bursts: Burst[] = []
   private readonly motes: Mote[] = []
   private readonly rising: { mesh: THREE.Mesh; age: number }[] = []
+  /** 큰 카드의 하늘 기둥 (E23-03) */
+  private readonly columns: { beam: THREE.Mesh; age: number }[] = []
   private readonly glow: THREE.Mesh
   private readonly glowMaterial: THREE.MeshBasicMaterial
   private glowLevel = 0
@@ -97,6 +102,20 @@ export class PowerUp {
     this.bursts.push({ pillar, ring, motes, age: 0, life: 0.7 + strength * 0.25, strength })
   }
 
+  /**
+   * 큰 카드의 빛기둥 (E23-03): 큰 빛기둥 한 번 위에, 하늘까지 닿는 가는 기둥이 주인공을 따라 잠깐 서 있다가 옅어진다.
+   * 신화 단계·유물 벼리기처럼 큰 걸음에만 쓴다
+   */
+  column(at: THREE.Vector3, color: string | number): void {
+    this.burst(at, color, 5)
+    const material = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide })
+    const beam = new THREE.Mesh(this.pillarGeometry, material)
+    beam.layers.set(EFFECT_LAYER)
+    beam.position.copy(at)
+    this.object.add(beam)
+    this.columns.push({ beam, age: 0 })
+  }
+
   /** 원천 결정 한 조각: 그 자리에서 튀어 올랐다가 주인공에게 빨려 든다. 너무 많으면 건너뛴다. */
   essence(from: THREE.Vector3, color: string | number): void {
     if (this.motes.length > 60) return
@@ -143,6 +162,23 @@ export class PowerUp {
           ;(o.material as THREE.Material).dispose()
         }
         this.bursts.splice(i, 1)
+      }
+    }
+    // 하늘 기둥: 0.3초 동안 솟고, 2초 서 있다가 옅어진다. 주인공을 따라간다
+    for (let i = this.columns.length - 1; i >= 0; i--) {
+      const c = this.columns[i]!
+      c.age += dt
+      const rise = Math.min(1, c.age / 0.3)
+      const fade = c.age < COLUMN_SECONDS - 0.8 ? 1 : Math.max(0, (COLUMN_SECONDS - c.age) / 0.8)
+      const height = 24 * rise
+      const width = 0.55 + Math.sin(this.time * 9) * 0.05
+      c.beam.scale.set(width, height, width)
+      c.beam.position.set(center.x, center.y + height / 2, center.z)
+      ;(c.beam.material as THREE.MeshBasicMaterial).opacity = 0.55 * fade
+      if (c.age >= COLUMN_SECONDS) {
+        this.object.remove(c.beam)
+        ;(c.beam.material as THREE.Material).dispose()
+        this.columns.splice(i, 1)
       }
     }
     // 발현 레벨: 몸에서 빛 조각이 피어오르고, 머리 위 고리가 돈다

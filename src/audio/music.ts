@@ -1,7 +1,7 @@
 import { Synth } from './sounds'
 
-/** 곡: 지역(신화권)마다 하나와 승급 전설 (E9-09) */
-export const THEME_IDS = ['village', 'norse', 'greek', 'china', 'japan', 'korea', 'legend'] as const
+/** 곡: 지역(신화권)마다 하나와 승급 전설 (E9-09), 마지막 무대·보스·엔딩·성소의 고르기 (E23-04) */
+export const THEME_IDS = ['village', 'norse', 'greek', 'china', 'japan', 'korea', 'legend', 'sky', 'boss', 'ending', 'shrine'] as const
 export type ThemeId = (typeof THEME_IDS)[number]
 
 /** 지역의 곡: 신화권이 없으면(마을) 마을 곡 */
@@ -19,6 +19,10 @@ export function themeForRealm(realm: string | null | undefined): ThemeId {
  * - 일본: 미야코부시 음계, 드문 고토 소리와 길게 부는 피리
  * - 한국: 세마치 장단(3박이 셋)의 장구, 가야금처럼 꺾어 내리는 소리
  * - 승급 전설: 빠른 라단조. 북과 되풀이하는 낮은 음, 뿔피리 선율
+ * - 갈라진 하늘(마지막 무대): 리디아 선법의 넓은 5도 화음, 높이 떠는 소리와 바람
+ * - 보스: 마단조 빠르기 132. 박마다 큰북, 8분음표로 밀어붙이는 낮은 음, 트라이톤이 섞인 화음과 금관 찌르기
+ * - 엔딩: 라장조 느린 화음(I-V-vi-IV)이 차오르고, 종소리 선율이 내려앉는다
+ * - 성소의 고르기: 아주 느린 긴 화음과 드문 종소리. 시간이 멈춘 듯
  */
 interface Theme {
   /** 한 칸의 길이 (초) */
@@ -181,6 +185,75 @@ const THEMES: Record<ThemeId, () => Theme> = {
           s.tone(t, { type: 'triangle', from: f, duration: this.step * 3.6, gain: 0.14, attack: 0.06 })
           s.tone(t, { type: 'square', from: f, duration: this.step * 3.2, gain: 0.025, attack: 0.06 })
         }
+      },
+    }
+  },
+  sky: () => {
+    // 라 리디아 (라 시 도# 레# 미 파# 솔#)
+    const scale = [0, 2, 4, 6, 7, 9, 11, 12, 14].map(note)
+    const roots = [-24, -22, -19, -24].map(note)
+    const next = walker(scale)
+    return {
+      step: 60 / 56,
+      play(s, t, i) {
+        if (i % 8 === 0) {
+          const root = roots[Math.floor(i / 8) % roots.length]!
+          pad(s, t, [root, root * 1.5, root * 2, root * 3], this.step * 8.5, 0.05)
+          s.noise(t, { filter: 'bandpass', from: 300, to: 1800, q: 0.7, duration: this.step * 6, gain: 0.05, attack: this.step * 3 })
+        }
+        // 높이 떠는 소리: 두 음이 살짝 어긋나 맥놀이
+        if (Math.random() < 0.45) {
+          const f = next() * 2
+          s.tone(t, { type: 'sine', from: f, duration: this.step * 2.5, gain: 0.05, attack: 0.3 })
+          s.tone(t, { type: 'sine', from: f, duration: this.step * 2.5, gain: 0.04, attack: 0.3, detune: 9 })
+        }
+      },
+    }
+  },
+  boss: () => {
+    // 마단조, 8분음표 한 칸, 빠르기 132
+    const bass = [-29, -29, -29, -27, -29, -29, -22, -23].map(note)
+    const stabs = [[-17, -11, -5], [-18, -12, -6]].map((c) => c.map(note))
+    return {
+      step: 60 / 132 / 2,
+      play(s, t, i) {
+        if (i % 2 === 0) {
+          s.tone(t, { from: 100, to: 42, duration: 0.18, gain: 0.55 })
+          s.noise(t, { filter: 'lowpass', from: 260, duration: 0.08, gain: 0.25 })
+        }
+        if (i % 8 === 4) s.noise(t, { from: 1800, q: 1.2, duration: 0.12, gain: 0.25 })
+        s.tone(t, { type: 'sawtooth', from: bass[i % bass.length]!, duration: this.step * 0.9, gain: 0.07 })
+        if (i % 32 === 0) pad(s, t, [note(-29), note(-23), note(-17)], this.step * 16, 0.05)
+        // 금관 찌르기: 네 마디 가운데 앞 두 마디 끝에
+        if (i % 64 === 14 || i % 64 === 30) for (const f of stabs[(i % 64) === 14 ? 0 : 1]!) s.tone(t, { type: 'square', from: f, duration: this.step * 1.6, gain: 0.04, attack: 0.01 })
+      },
+    }
+  },
+  ending: () => {
+    // 라장조 I-V-vi-IV, 빠르기 66
+    const chords = [[-24, -20, -17], [-17, -13, -10], [-15, -12, -8], [-19, -15, -12]].map((c) => c.map(note))
+    const bells = [12, 11, 9, 7, 4, 7, 9, 4].map(note)
+    return {
+      step: 60 / 66,
+      play(s, t, i) {
+        const chord = chords[Math.floor(i / 4) % chords.length]!
+        if (i % 4 === 0) {
+          pad(s, t, chord, this.step * 4.5, 0.06)
+          s.tone(t, { type: 'triangle', from: chord[0]! / 2, duration: this.step * 4, gain: 0.08, attack: 0.2 })
+        }
+        // 화음을 위로 펼쳐 뜯고, 두 박마다 종소리가 한 음씩 내려앉는다
+        pluck(s, t, chord[i % 3]! * 2, this.step * 1.5, 0.04)
+        if (i % 2 === 0) s.tone(t + 0.02, { type: 'sine', from: bells[(i / 2) % bells.length]!, duration: this.step * 2.4, gain: 0.07, attack: 0.005 })
+      },
+    }
+  },
+  shrine: () => {
+    const chords = [[-24, -17, -12, -5], [-26, -19, -14, -7]].map((c) => c.map(note))
+    return {
+      step: 60 / 50,
+      play(s, t, i) {
+        if (i % 6 === 0) pad(s, t, chords[Math.floor(i / 6) % chords.length]!, this.step * 6.5, 0.06)
+        if (i % 3 === 1 && Math.random() < 0.6) s.tone(t, { type: 'sine', from: [note(7), note(12), note(14), note(19)][i % 4]!, duration: this.step * 3, gain: 0.05, attack: 0.005 })
       },
     }
   },

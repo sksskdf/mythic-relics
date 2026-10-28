@@ -1,3 +1,4 @@
+import type { ThemeId } from '../audio/music'
 import type { SoundCue } from '../audio/sounds'
 import type { ChapterDef, ChapterStep } from '../data/chapters'
 import type { GearItem } from '../gear/roll'
@@ -5,6 +6,7 @@ import type { Giant } from '../enemies/Giant'
 import type { God, RelicId } from '../relics/data'
 import type { CombatTarget } from './PlayerCombat'
 import type { LoadoutChange } from './RelicPowers'
+import type { MomentShow } from './systems/Moments'
 
 /**
  * 시스템끼리 주고받는 사건. 보내는 쪽은 누가 듣는지 모르고, 듣는 쪽은 누가 보냈는지 모른다.
@@ -68,6 +70,10 @@ export interface GameEvents {
   progressChanged: Record<string, never>
   /** 소리를 낼 순간 (휘두름, 스킬, 예고 등). x·z가 있으면 그 자리에서 난다 */
   sound: { cue: SoundCue; x?: number; z?: number }
+  /** 보일 순간 (E23-01): 등급에 맞는 크기로 MomentSystem이 보인다 */
+  moment: MomentShow
+  /** 장면·고르기 동안 흐를 곡 (E23-04). null이면 땅의 곡으로 돌아간다 */
+  music: { theme: ThemeId | null }
 }
 
 type Listener<T> = (payload: T) => void

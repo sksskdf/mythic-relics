@@ -43,17 +43,15 @@ export class ThreatSystem {
 
   /** 열린 단계 안에서 고른다. 처음 오르는 단계면 큰 카드로 알린다 (엔딩 뒤) */
   choose(level: number): boolean {
-    const { threat, bus, hud, fx, hero, ending } = this.ctx
+    const { threat, bus, ending } = this.ctx
     if (!ending.has('threat') || !this.here || level === threat.level) return false
     const first = level > threat.reached
     if (!threat.choose(level)) return false
     this.apply()
     if (first) {
-      hud.flash('#c9a24a')
-      fx.power.burst(hero.object.position, '#c9a24a', 3)
-      hud.showGains('위협 단계', `${level}단계`, '#c9a24a', '', ['적이 세지고 정예가 늘어난다', '장비 등급과 재료가 좋아진다'])
+      bus.emit('moment', { id: 'threatUp', card: { kind: '위협 단계', title: `${level}단계`, color: '#c9a24a', lines: ['적이 세지고 정예가 늘어난다', '장비 등급과 재료가 좋아진다'] } })
       this.count('threat', threat.reached, 'set')
-    } else hud.showToast(`위협 ${level}단계`)
+    } else bus.emit('moment', { id: 'threatSet', text: `위협 ${level}단계` })
     bus.emit('threatChanged', { level })
     bus.emit('progressChanged', {})
     return true
@@ -61,27 +59,28 @@ export class ThreatSystem {
 
   /** 한계를 깸 (E17-01): 다섯 신화권 보스를 모두 10단계에서 이겼다. 위협 단계의 끝이 사라지고 균열이 열린다 */
   breakLimit(): void {
-    const { threat, hud, fx, hero, view, bus } = this.ctx
+    const { threat, view, bus } = this.ctx
     threat.limitBroken = true
     if (threat.unlocked >= THREAT_MAX) threat.unlocked = THREAT_MAX + 1
-    hud.flash('#e6d2ff')
     view.shake(0.5)
-    fx.power.burst(hero.object.position, '#e6d2ff', 5)
-    hud.showGains('한계를 깸', '세계의 끝이 갈라졌다', '#e6d2ff', '', ['위협 단계의 끝이 사라졌다', '마을에서 균열에 들어갈 수 있다 (정보 화면 › 균열)'])
+    bus.emit('moment', {
+      id: 'limitBroken',
+      card: { kind: '한계를 깸', title: '세계의 끝이 갈라졌다', color: '#e6d2ff', lines: ['위협 단계의 끝이 사라졌다', '마을에서 균열에 들어갈 수 있다 (정보 화면 › 균열)'] },
+    })
     bus.emit('limitBroken', {})
     bus.emit('progressChanged', {})
   }
 
   private announceOpened(): void {
-    const { hud, threat } = this.ctx
+    const { bus, threat } = this.ctx
     const top = threat.unlocked >= threat.max ? ' (끝)' : ''
-    hud.showToast(`위협 ${threat.unlocked}단계가 열렸다${top} · 마을 촌장`)
+    bus.emit('moment', { id: 'threatUnlocked', text: `위협 ${threat.unlocked}단계가 열렸다${top} · 마을 촌장` })
   }
 
   private count(counter: CounterId, value: number, mode: 'add' | 'set' = 'add'): void {
     const opened = this.ctx.conveniences.count(counter, value, mode)
     for (const c of opened) {
-      this.ctx.hud.showGains('편의', c.name, '#9fe3ff', '', [c.text])
+      this.ctx.bus.emit('moment', { id: 'convenience', card: { kind: '편의', title: c.name, color: '#9fe3ff', lines: [c.text] } })
       this.ctx.bus.emit('progressChanged', {})
     }
   }

@@ -3,10 +3,12 @@ import * as THREE from 'three'
 
 import { type God, godDef, isRelicId, relicDef, type RelicId } from '../../relics/data'
 import { effectScale, isMythRelic, relicMyth, relicStats, relicTier, stageName } from '../../gear/mythRelic'
+import { GRADE_COLORS } from '../../art/palette'
 import { statText } from '../../myth/alwaysText'
 import { materialName } from '../../gear/materials'
 import { type GearItem, gearName } from '../../gear/roll'
 import { levelGains } from '../../myth/levelGains'
+import { sceneId } from '../../data/scenes'
 import { classIcon } from '../../ui/classIcons'
 import type { GameContext } from '../context'
 import type { LoadoutChange } from '../RelicPowers'
@@ -78,22 +80,22 @@ export class RelicSystem {
    * 마을에서만 하는 규칙은 부르는 쪽(정보 화면)이 지킨다.
    */
   forge(god: God): boolean {
-    const { powers, hud, fx, hero, view, bus } = this.ctx
+    const { powers, view, bus } = this.ctx
     const made = powers.forge(god)
     if (!made) return false
     const def = godDef(god)
     const name = stageName(made.relic, made.stage)
-    bus.emit('forged', { relic: made.relic, stage: made.stage })
-    if (made.stage === 1) this.unlock(made.relic, true)
-    this.changed(made.change, true, made.relic)
     // 새 단계의 기본 수치와, 그 신화를 골랐을 때 효과 배율 (E21-04)
     const lines = [
       made.stage === 1 ? '대장간에서 처음 벼렸다' : `${made.stage}단계 · ${relicTier(made.relic, made.stage)}단계 장비만큼`,
       ...relicStats(made.relic, made.stage).map((s) => statText(s.kind, s.value)),
       `유물 효과 피해 ×${effectScale(made.relic, made.stage, null)} (${def.name}의 신화로 ×${effectScale(made.relic, made.stage, god)})`,
     ]
-    hud.showGains('대장간', name, def.color, classIcon(def.name), lines)
-    fx.power.burst(hero.object.position, def.color, 2 + made.stage)
+    // 큰 카드 (E23-03): 그 신의 색으로 번쩍임·하늘 기둥·북소리. 벼려서 다음 장이 열리면 그 장면은 이 카드 뒤에 온다
+    bus.emit('moment', { id: 'forged', card: { kind: '대장간', title: name, color: def.color, icon: classIcon(def.name), lines } })
+    bus.emit('forged', { relic: made.relic, stage: made.stage })
+    if (made.stage === 1) this.unlock(made.relic, true)
+    this.changed(made.change, true, made.relic)
     view.shake(0.2 + made.stage * 0.08)
     bus.emit('progressChanged', {})
     return true
@@ -101,14 +103,14 @@ export class RelicSystem {
 
   /** 일반 장비를 분해해 그 땅(마을이면 고른 신화의 땅, 없으면 북유럽) 공통 재료로 바꾼다 (E13-07-3) */
   salvage(id: string): boolean {
-    const { powers, hud, bus, map, build } = this.ctx
+    const { powers, bus, map, build } = this.ctx
     const realm = map.region.realm ?? (build.chosen ? godDef(build.chosen).realm : 'norse')
     const item = powers.loadout.gear.get(id)
     const done = powers.salvage(id, realm === 'hidden' ? 'norse' : realm)
     if (!done || !item) return false
     bus.emit('gearSalvaged', { item })
     if (done.slot >= 0) this.changed(done.change, false)
-    hud.showToast(`분해 · ${materialName(done.material)} ×${done.count}`)
+    bus.emit('moment', { id: 'salvaged', text: `분해 · ${materialName(done.material)} ×${done.count}` })
     bus.emit('progressChanged', {})
     return true
   }
@@ -118,7 +120,7 @@ export class RelicSystem {
    * 재료가 된 유물(E13-03)은 재료 주머니로.
    */
   take(id: string, gear?: GearItem): void {
-    const { powers, hud, bus } = this.ctx
+    const { powers, bus } = this.ctx
     if (gear) {
       powers.loadout.addGear(gear)
       bus.emit('gearPicked', { item: gear })
@@ -129,14 +131,17 @@ export class RelicSystem {
         this.salvage(id)
         return
       }
-      hud.showToast(gearName(gear))
       this.equip(id, true)
+      // 빈 칸에 끼었으면 카드, 가방으로 갔으면 작은 알림 (E23-01)
+      if (powers.loadout.slots.includes(id)) {
+        bus.emit('moment', { id: 'gearWorn', card: { kind: '장비', title: gearName(gear), color: GRADE_COLORS[gear.grade], lines: gear.stats.map((st) => statText(st.kind, st.value)) } })
+      } else bus.emit('moment', { id: 'gearPicked', text: `${gearName(gear)} · 가방` })
     } else if (!isMythRelic(id)) {
       powers.loadout.addMaterial(id)
-      hud.showToast(`${relicDef(id).name} · 재료`)
+      bus.emit('moment', { id: 'materialPicked', text: `${relicDef(id).name} · 재료` })
       bus.emit('relicPicked', { id })
     } else {
-      hud.showToast(relicDef(id).name)
+      bus.emit('moment', { id: 'gearPicked', text: relicDef(id).name })
       bus.emit('relicPicked', { id })
       this.equip(id, true)
     }
@@ -277,8 +282,12 @@ export class RelicSystem {
     if (!announce) return
     bus.emit('manifested', { god: after.manifested })
     const god = godDef(after.manifested)
-    hud.flash(god.color)
-    fx.power.burst(hero.object.position, god.color, 4)
+    // 처음 고른 신화는 장면(E23-02): 그 신의 색으로 번쩍·하늘 기둥, 그 신의 장면 뒤에 큰 카드. 바꿔 고르면 카드
+    const first = progress.opened.length === 1
+    if (first) {
+      hud.flash(god.color)
+      fx.power.column(hero.object.position, god.color)
+    } else fx.power.burst(hero.object.position, god.color, 4)
     // 신마다 다른 발현 순간: 번개 기둥, 흩어지는 그림자, 여섯 칼날
     godMoment(this.ctx, god.id, 1)
     // 발현하면 무엇이 생기는지: 그 신의 힘과 지금 레벨까지 열린 것
@@ -287,7 +296,8 @@ export class RelicSystem {
       for (const g of levelGains(god.id, lv)) if (lv === 1 || g.kind === 'power') lines.push(g.text)
     }
     lines.push(`궁극기 「${god.ultimate.name}」`)
-    hud.showGains('고른 신화', progress.title(god.id), god.color, classIcon(god.name), lines)
+    const card = { kind: '고른 신화', title: progress.title(god.id), color: god.color, icon: classIcon(god.name), lines }
+    bus.emit('moment', first ? { id: 'mythChosen', scene: sceneId('myth', god.id), card } : { id: 'mythSwitched', card })
     // 주변 적을 밀어낸다 (피해는 대기 시간마다 한 번, 멈춘 화면에서 번갈아 골라도 한 번)
     const p = hero.object.position
     fx.puffs.burst(p, 30, 4)

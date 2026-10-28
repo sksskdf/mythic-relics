@@ -13,6 +13,7 @@ function setup(region = 'midgard') {
   const played: string[] = []
   let current: string | null = null
   let paused = false
+  let holding = false
   const scenes = {
     get active() {
       return current !== null
@@ -35,13 +36,13 @@ function setup(region = 'midgard') {
     encounter: { boss: null, bossEngaged: false },
     legend: { active: false },
   } as unknown as GameContext
-  const story = new Storyline({ ctx, scenes: scenes as unknown as DialogScene, villagers: {} as Villagers, paused: () => paused })
+  const story = new Storyline({ ctx, scenes: scenes as unknown as DialogScene, villagers: {} as Villagers, paused: () => paused, holding: () => holding })
   const finish = () => {
     if (current) seen.add(current)
     current = null
     story.next()
   }
-  return { bus, story, played, finish, setPaused: (p: boolean) => (paused = p) }
+  return { bus, story, played, finish, setPaused: (p: boolean) => (paused = p), setHolding: (h: boolean) => (holding = h) }
 }
 
 describe('대화 장면 순서 (E15-06)', () => {
@@ -73,5 +74,20 @@ describe('대화 장면 순서 (E15-06)', () => {
     finish()
     bus.emit('manifested', { god: 'thor' })
     expect(played).toEqual(['mythThor'])
+  })
+
+  it('큰 카드·장면 같은 순간을 보이는 중이면 짧은 대화는 그 뒤에 (E23-01), 순간이 연 장면은 바로', () => {
+    const { story, played, setHolding } = setup('village')
+    setHolding(true)
+    expect(story.play('forgeFirst')).toBe(true)
+    story.next()
+    expect(played).toEqual([])
+    setHolding(false)
+    story.next()
+    expect(played).toEqual(['forgeFirst'])
+    const other = setup()
+    other.setHolding(true)
+    expect(other.story.play('downKing', true)).toBe(true)
+    expect(other.played).toEqual(['downKing'])
   })
 })

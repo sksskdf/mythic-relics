@@ -44,8 +44,8 @@ export interface HudState {
 
 /** 유물 스킬 칸 수 */
 export const SKILL_SLOTS = 4
-/** 얻은 것 카드 하나가 다음 카드에 자리를 내주기 전에 보이는 시간 (ms). 카드 자체는 5초 뒤 사라진다 */
-const GAINS_MIN_MS = 3000
+/** 얻은 것 카드 하나가 다음 카드에 자리를 내주기 전에 보이는 시간 (ms). 카드 자체는 5초 뒤 사라진다. 큰 카드는 거의 다 보인다 */
+const GAINS_MIN_MS = { card: 3000, big: 4500 }
 
 /**
  * HUD: 왼쪽 위에 지금의 나, 아래 가운데에 떠 있는 묶음 하나. (DESIGN.md 10.5)
@@ -89,6 +89,7 @@ export class Hud {
   private readonly gains: HTMLElement
   /** 카드를 띄운 때(ms)와 기다리는 카드: 같은 때 열린 것(위협 단계 + 편의 등)이 서로 덮지 않게 차례로 보인다 */
   private gainsShownAt = -Infinity
+  private gainsHold = 0
   private readonly gainsQueue: (() => void)[] = []
   private gainsTimer: ReturnType<typeof setTimeout> | null = null
   private readonly flashEl: HTMLElement
@@ -294,18 +295,26 @@ export class Hud {
   }
 
   /**
-   * 무엇이 얼마나 강해졌는지 보여 주는 카드 (발현·승급). 가운데 위에 몇 초 떠 있다가 사라진다.
+   * 무엇이 얼마나 강해졌는지 보여 주는 카드. 몇 초 떠 있다가 사라진다 (순간의 크기 E23-01).
+   * - card: 오른쪽 위 작은 지도 아래에 작게 (싸움을 가리지 않게)
+   * - big: 가운데 위에 크게 (신화 단계·유물 벼리기·장면 뒤)
    * lines의 각 줄은 얻은 것 하나. "→"가 있으면 앞은 흐리게, 뒤는 밝게 보인다.
    */
-  showGains(kind: string, title: string, color: string, icon: string, lines: readonly string[]): void {
-    this.gainsQueue.push(() => this.renderGains(kind, title, color, icon, lines))
+  showGains(kind: string, title: string, color: string, icon: string, lines: readonly string[], size: 'card' | 'big' = 'big'): void {
+    this.gainsQueue.push(() => this.renderGains(kind, title, color, icon, lines, size))
     this.nextGains()
+  }
+
+  /** 지금 떠 있는 카드의 크기 (점검용). 없으면 null */
+  get gainsShowing(): 'card' | 'big' | null {
+    if (!this.gains.classList.contains('is-showing') || performance.now() - this.gainsShownAt > 5000) return null
+    return this.gains.classList.contains('is-side') ? 'card' : 'big'
   }
 
   /** 앞 카드가 GAINS_MIN_MS 넘게 보였으면 다음 카드를 띄운다 */
   private nextGains(): void {
     if (this.gainsTimer !== null || this.gainsQueue.length === 0) return
-    const wait = this.gainsShownAt + GAINS_MIN_MS - performance.now()
+    const wait = this.gainsShownAt + this.gainsHold - performance.now()
     if (wait > 0) {
       this.gainsTimer = setTimeout(() => {
         this.gainsTimer = null
@@ -318,9 +327,11 @@ export class Hud {
     this.nextGains()
   }
 
-  private renderGains(kind: string, title: string, color: string, icon: string, lines: readonly string[]): void {
+  private renderGains(kind: string, title: string, color: string, icon: string, lines: readonly string[], size: 'card' | 'big'): void {
     const card = this.gains
     card.replaceChildren()
+    card.classList.toggle('is-side', size === 'card')
+    this.gainsHold = GAINS_MIN_MS[size]
     card.style.setProperty('--glow', color)
     const head = document.createElement('div')
     head.className = 'hud__gains-head'

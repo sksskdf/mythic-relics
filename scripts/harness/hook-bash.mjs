@@ -45,7 +45,7 @@ async function main() {
       if (await portBusy(port)) {
         deny(
           `다른 점검이 포트 ${port}에 미리보기 서버를 띄워 두었다 (${run.script}.mjs도 이 포트를 쓴다). 그 점검이 끝난 뒤 돌린다. ` +
-            `돌고 있는 점검이 없는데 남은 서버면 \`pkill -f "vite preview --port ${port}"\`로 정리한다.`,
+            `돌고 있는 점검이 없는데 남은 서버면 \`pkill -f "[v]ite preview --port ${port}"\`로 정리한다 (대괄호는 이 명령 자신이 걸리지 않게).`,
         )
       }
     }
