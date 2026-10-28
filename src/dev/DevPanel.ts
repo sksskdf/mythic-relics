@@ -216,6 +216,18 @@ export class DevPanel {
         }),
       ),
       row(button('전설 시작', () => this.startLegend())),
+      // 장 흐름 (E22): 지금 목표를 한 것으로, 장 하나를 통째로
+      row(
+        button('목표 건너뛰기', () => {
+          g.skipGoal()
+          g.menu.refresh()
+        }),
+        button('장 건너뛰기', () => {
+          const at = g.chapters.index
+          for (let i = 0; i < 12 && g.chapters.index === at && g.chapters.goal; i++) g.skipGoal()
+          g.menu.refresh()
+        }),
+      ),
       // 엔딩 뒤 장치 (E21-06)·위협 단계·편의 (E14)
       row(
         button('엔딩 뒤로', () => {

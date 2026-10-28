@@ -11,7 +11,7 @@ import { Wardrobe } from '../looks/outfit'
 import { DropTable } from '../gear/DropTable'
 import { worldToScreen } from '../render/picking'
 import { Pickups } from '../gear/Pickups'
-import { DEMO_RELIC_STAGES, RELIC_STAGES } from '../gear/mythRelic'
+import { DEMO_RELIC_STAGES, isMythRelic, RELIC_STAGES } from '../gear/mythRelic'
 import type { SaveData } from '../save/SaveData'
 import { ClassProgress } from '../myth/ClassProgress'
 import type { SkillContext } from '../skills/Skill'
@@ -45,6 +45,8 @@ import { type CombatTarget, PlayerCombat } from './PlayerCombat'
 import { RelicPowers } from './RelicPowers'
 import { Stage } from './Stage'
 import { AppearanceSystem } from './systems/Appearance'
+import { chapterColor, ChapterSystem } from './systems/Chapters'
+import { MythChoiceSystem, realmGods } from './systems/MythChoice'
 import { DamageSystem } from './systems/Damage'
 import { Effects } from './systems/Effects'
 import { HeroLife } from './systems/HeroLife'
@@ -58,6 +60,10 @@ import { TitleBackdrop } from './TitleBackdrop'
 import { DialogScene } from './DialogScene'
 import { DialogBox } from '../ui/DialogBox'
 import { DevTools } from '../dev/DevTools'
+import { ChapterProgress } from '../progress/Chapters'
+import { Barriers } from '../world/Barriers'
+import { MythPicker } from '../ui/MythPicker'
+import { ChapterHud } from '../ui/ChapterHud'
 import { Conveniences } from '../progress/Conveniences'
 import { Ending } from '../progress/Ending'
 import { ThreatProgress } from '../progress/Threat'
@@ -95,7 +101,7 @@ const CHOOSE_NEAR_SANCTUARY = 6
 export interface PlayEvent {
   /** 게임 시간 (초) */
   t: number
-  type: 'relic' | 'manifest' | 'open' | 'forge' | 'gear' | 'kill' | 'bossKill' | 'death' | 'legendStart' | 'legendFail' | 'promote' | 'hurt' | 'threat' | 'region' | 'trial' | 'rift'
+  type: 'relic' | 'manifest' | 'open' | 'forge' | 'gear' | 'kill' | 'bossKill' | 'death' | 'legendStart' | 'legendFail' | 'promote' | 'hurt' | 'threat' | 'region' | 'trial' | 'rift' | 'chapter' | 'ending'
   detail?: string
 }
 
@@ -118,7 +124,11 @@ export class Game {
   readonly pickups = new Pickups()
   /** 첫 엔딩을 보았나 (E21-06): 엔딩 뒤 장치는 여기서만 연다 */
   readonly ending = new Ending()
-  readonly progress = new ClassProgress(() => this.ending.has('mythStage4'))
+  readonly progress = new ClassProgress(
+    () => this.ending.has('mythStage4'),
+    // 데모에서는 경험치로 저절로 열리지 않고 성소에서 고른다 (E22-03)
+    () => this.ending.reached,
+  )
   readonly drops = new DropTable()
   readonly wardrobe = new Wardrobe()
   readonly threat = new ThreatProgress()
@@ -131,6 +141,25 @@ export class Game {
   /** 대화 장면을 언제 여는가: 처음 보는 일, 마을 사람에게 말 걸기, 미룬 장면 (E15-06) */
   private readonly storyline: Storyline
   readonly conveniences = new Conveniences(() => this.ending.has('conveniences'))
+  /** 장 진행 (E22): 지금 장·목표·열린 땅 */
+  readonly chapters = new ChapterProgress(
+    {
+      chose: (realm) => this.progress.opened.some((god) => godDef(god).realm === realm),
+      level: () => Math.max(0, ...this.progress.opened.map((god) => this.progress.level(god))),
+      forged: () => Math.max(0, ...this.powers.loadout.ownedRelics.filter(isMythRelic).map((id) => this.powers.loadout.stage(id))),
+    },
+    () => this.ending.reached,
+  )
+  readonly chapterSystem: ChapterSystem
+  /** 막힌 땅으로 가는 통로의 결계 (E22-02) */
+  private readonly barriers = new Barriers()
+  /** 성소에서 신화 고르기 (E22-03) */
+  readonly mythChoice: MythChoiceSystem
+  private readonly mythPicker: MythPicker
+  /** 목표 한 줄과 장 제목 띠 (E22-04) */
+  readonly chapterHud: ChapterHud
+  /** 마지막 보스를 이겼다: 엔딩 장면이 끝나면(scene) 또는 바로(now) 엔딩 뒤로 (E22-05) */
+  private endingDue: 'scene' | 'now' | null = null
   /** 성소의 전설과 시련 결계 (E6-04) */
   readonly legend: UtgardLegend
   /** 주인공 길찾기 격자 */
@@ -222,10 +251,12 @@ export class Game {
     this.stage = new Stage(this.scene, region, REGIONS)
     const map = this.stage.map
     // 움직일 수 있는 곳: 땅의 네모와 이웃으로 가는 통로 (E19)
-    const area = walkArea(walkRects(region.halfExtent, regionLinks(REGIONS, region.id)))
+    // 막힌 땅으로 가는 통로는 빼고 (E22-02, 불러온 뒤에 World.refreshLinks로 다시 맞춘다)
+    const area = walkArea(walkRects(region.halfExtent, regionLinks(REGIONS, region.id).filter((l) => this.chapters.isOpen(l.to))))
     const nav = new NavGrid(area, 0.5, map.colliders, HERO_RADIUS)
     this.nav = nav
-    this.encounter = new Encounter(region, map.colliders, area)
+    // 땅마다 적의 세기 (E22-02): 장 데이터의 적 지수
+    this.encounter = new Encounter(region, map.colliders, area, (id) => (id ? this.chapters.power(id) : 1))
     this.scene.add(this.encounter.object)
 
     const rig = buildHeroModel()
@@ -266,9 +297,12 @@ export class Game {
         hud: this.hud,
         pickups: this.pickups,
         drops: this.drops,
+        barriers: this.barriers,
+        isOpen: (id) => this.chapters.isOpen(id),
       },
       container,
     )
+    this.scene.add(this.barriers.object)
     this.world.dress(region)
     // 이웃 땅의 무리도 미리 세워 둔다 (E19-04, 프레임마다 무리 하나씩)
     this.encounter.setNeighbors(this.world.neighborLayouts(region))
@@ -341,6 +375,7 @@ export class Game {
       rift: this.rift,
       conveniences: this.conveniences,
       ending: this.ending,
+      chapters: this.chapters,
       build: new Build({ powers: this.powers, progress: this.progress, threat: this.threat, trials: this.trials, trial: () => this.trialSystem?.active?.id ?? null, rift: this.rift, blessings: () => this.riftSystem?.blessings ?? [] }),
       skills,
     }
@@ -391,6 +426,17 @@ export class Game {
     this.growth = new ProgressionSystem(this.ctx)
     this.life = new HeroLife(this.ctx)
     this.threatSystem = new ThreatSystem(this.ctx)
+    this.chapterSystem = new ChapterSystem(this.ctx)
+    this.mythPicker = new MythPicker(this.hud.root)
+    this.mythChoice = new MythChoiceSystem(this.ctx, this.mythPicker)
+    // 다음 장이 열리면 그 땅으로 가는 결계가 풀리고(E22-02) 장 제목 띠가 지나간다 (E22-04)
+    this.chapterHud = new ChapterHud(this.hud.root)
+    this.bus.on('chapterChanged', ({ chapter }) => {
+      this.world.refreshLinks()
+      if (chapter) this.chapterHud.showChapter(chapter.title, chapter.name, chapterColor(chapter))
+      // 마지막 장을 끝냈다 (E22-05): 엔딩 장면 뒤에 엔딩 뒤 장치가 열린다. 장면을 띄우지 않으면(봇) 바로
+      else if (!this.ending.reached) this.endingDue = this.storyline.play('ending') ? 'scene' : 'now'
+    })
     this.trialSystem = new TrialSystem(this.ctx, this.growth, this.threatSystem)
     this.blessingPicker = new BlessingPicker(this.hud.root)
     this.riftSystem = new RiftSystem(
@@ -444,8 +490,15 @@ export class Game {
       // 위협 단계 배율은 불러온 단계로 (이미 세운 적도 다시 세운다)
       this.threatSystem.apply()
       if (this.threat.level > 1) this.encounter.resetAll()
+      this.chapterSystem.sync()
+      this.world.refreshLinks(false)
     }
     for (const id of options.startRelics ?? []) this.relics.equip(id, false)
+    // 처음 선 땅도 들어선 땅이다 (점검 주소로 막힌 땅에서 시작해도 거기는 열려 있게)
+    if (this.chapters.enter(this.ctx.map.region.id)) {
+      this.chapterSystem.sync()
+      this.world.refreshLinks(false)
+    }
 
     this.view.jumpTo(rig.root.position)
     this.resize()
@@ -465,6 +518,7 @@ export class Game {
     bus.on('heroHurt', ({ damage }) => record('hurt', String(Math.round(damage))))
     bus.on('threatChanged', ({ level }) => record('threat', String(level)))
     bus.on('regionEntered', ({ id }) => record('region', id))
+    bus.on('chapterChanged', ({ chapter }) => record('chapter', chapter?.id ?? 'end'))
     bus.on('riftFloor', ({ depth }) => record('rift', `floor:${depth}`))
     bus.on('riftEnded', ({ depth, reason }) => record('rift', `${reason}:${depth}`))
     bus.on('trialEnded', ({ id, level, win, seconds }) => record('trial', `${id}:${level}:${win ? 'win' : 'fail'}:${Math.round(seconds)}`))
@@ -479,15 +533,36 @@ export class Game {
     return this.persistence.snapshot()
   }
 
-  /** 저장하고 처음 화면(슬롯 고르기)으로 돌아간다. 다시 불러와 시작 화면을 띄운다. */
-  /** 첫 엔딩을 보았다 (E21-06): 엔딩 뒤 장치를 연다. 마지막 보스가 생기기 전에는 개발 패널과 점검 스크립트만 부른다 */
+  /** 첫 엔딩 (E22-05): 엔딩 뒤 장치를 열고 「첫 엔딩」 띠와 무엇이 열렸는지 큰 카드로 알린다 */
+  private showEnding(): void {
+    this.endingDue = null
+    this.reachEnding()
+    const gold = '#ffd27a'
+    this.hud.flash(gold)
+    this.fx.power.burst(this.hero.object.position, gold, 5)
+    this.view.shake(0.4)
+    this.chapterHud.showChapter('첫 엔딩', '갈라진 하늘이 닫혔다', gold)
+    this.hud.showGains('첫 엔딩', '갈라진 하늘이 닫혔다', gold, '', [
+      '남은 신화권의 결계가 풀렸다',
+      '위협 단계: 같은 땅을 더 세게 다시 걷는다 (마을 촌장)',
+      '시련·균열·성좌판이 열렸다 (정보 화면)',
+      '신화 4단계·유물 3·4단계, 땅에 떨어지는 유물',
+    ])
+    this.bus.emit('sound', { cue: 'promote' })
+    this.log.push({ t: Math.round(this.time * 10) / 10, type: 'ending' })
+  }
+
+  /** 첫 엔딩을 보았다 (E21-06): 엔딩 뒤 장치를 연다. 마지막 보스를 이기면 엔딩 장면 뒤에 부르고(E22-05), 개발 패널과 점검 스크립트도 부른다 */
   reachEnding(): void {
     if (this.ending.reached) return
     this.ending.reached = true
     this.conveniences.catchUp()
-    this.bus.emit('progressChanged', {})
+    this.chapterSystem.check()
+    // 모든 땅이 열린다
+    this.world.refreshLinks()
   }
 
+  /** 저장하고 처음 화면(슬롯 고르기)으로 돌아간다. 다시 불러와 시작 화면을 띄운다. */
   toTitle(): void {
     this.bus.emit('progressChanged', {})
     this.persistence.saveNow()
@@ -633,9 +708,73 @@ export class Game {
     this.audio.update()
   }
 
-  /** 정보 화면이나 일시 정지 메뉴가 열려 있어 게임이 멈췄는가 */
+  /**
+   * 다음 목표의 자리 (지금 땅 좌표, E22-04): 지금 땅이면 성소(고르기·전설)·보스·대장장이, 다른 땅이면 그쪽 통로 입구.
+   * 작은 지도의 금빛 표시와 봇이 쓴다
+   */
+  goalSpot(): { x: number; z: number } | null {
+    const goal = this.chapters.goal
+    const region = this.ctx.map.region
+    if (!goal || region.kind === 'rift') return null
+    if (goal.region !== region.id) return this.world.wayTo(goal.region)
+    if (goal.kind === 'boss') return region.boss
+    if (goal.kind === 'forge') return region.npcs.find((n) => n.name === '대장장이') ?? null
+    return region.sanctuary
+  }
+
+  /**
+   * 개발 지름길 (E22): 지금 목표를 한 것으로 한다. 들어설 땅이면 그리로 가고, 고르기는 그 신화권 첫 신화,
+   * 신화 단계는 고른 신화를 그 단계까지, 보스는 이긴 것으로(여는 신화권도), 벼리기는 재료를 채워 벼린다
+   */
+  skipGoal(): void {
+    const goal = this.chapters.goal
+    if (!goal) return
+    switch (goal.kind) {
+      case 'enter':
+        // 걸어 넘어가는 동안 기다리지 않게 들어선 것으로 먼저 적는다
+        this.chapters.enter(goal.region)
+        this.world.travelTo(goal.region)
+        break
+      case 'choose': {
+        const god = realmGods(goal.realm!).find((g) => !this.progress.isOpen(g))
+        if (god && this.progress.open(god)) this.bus.emit('mythOpened', { god })
+        break
+      }
+      case 'level':
+        if (!this.ctx.build.chosen) break
+        while (this.progress.level(this.ctx.build.chosen) < goal.n!) this.dev.promote()
+        break
+      case 'boss': {
+        this.chapters.bossDefeated(goal.region)
+        if (goal.opens) this.mythChoice.openRealm(goal.opens)
+        break
+      }
+      case 'forge': {
+        const god = this.ctx.build.chosen
+        if (!god) break
+        for (let i = 0; i < goal.n! && this.chapters.goal === goal; i++) {
+          this.dev.fillForge(god)
+          this.dev.forge(god)
+        }
+        break
+      }
+    }
+    this.chapterSystem.check()
+  }
+
+  /** 지금 땅에 서 있는 결계 (점검용) */
+  get barrierSpots(): { to: string; x: number; z: number }[] {
+    return this.barriers.spots
+  }
+
+  /** 신화 고르기 카드가 떠 있나 (봇·점검용) */
+  get mythPickerOpen(): boolean {
+    return this.mythPicker.open
+  }
+
+  /** 정보 화면·일시 정지 메뉴·신화 고르기가 열려 있어 게임이 멈췄는가 */
   get paused(): boolean {
-    return this.menu.open || (this.pauseMenu?.open ?? false)
+    return this.menu.open || (this.pauseMenu?.open ?? false) || (this.mythPicker?.open ?? false)
   }
 
   /**
@@ -758,6 +897,8 @@ export class Game {
     this.combat.targetScale = this.targetScale
     this.updateEnemies(dt)
     this.growth.update(dt)
+    this.mythChoice.update()
+    if (this.endingDue && !this.scenes.active && (this.endingDue === 'now' || this.ctx.scenesSeen.has('ending'))) this.showEnding()
     this.trialSystem.update(dt)
     this.riftSystem.update(dt)
     this.life.update(dt)
@@ -766,6 +907,7 @@ export class Game {
 
     const position = this.hero.object.position
     this.fx.update(dt, this.hero, this.elapsed)
+    this.barriers.update(dt)
     this.villagers.update(dt, position, (x, y, z) => this.screenPoint(x, y, z))
     // 말 걸기와 보스 등장 장면 (E15-06)
     this.storyline.update(position)
@@ -776,7 +918,7 @@ export class Game {
       this.hud.showToast('성소를 찾았다 · 지도')
       this.bus.emit('progressChanged', {})
     }
-    this.minimap.update(dt, { hero: position, relics: this.pickups.list, sanctuaryReady: this.legend.present && this.growth.sanctuaryOpen })
+    this.minimap.update(dt, { hero: position, relics: this.pickups.list, sanctuaryReady: this.legend.present && (this.growth.sanctuaryOpen || this.mythChoice.here !== null), goal: this.goalSpot() })
     // 이웃 땅 조각과 이웃 무리는 한 프레임에 하나씩만 짓는다 (조각이 먼저)
     if (!this.stage.update(this.elapsed)) this.encounter.buildStep()
     this.stage.follow(position)
@@ -844,6 +986,9 @@ export class Game {
       },
       realDt,
     )
+    // 목표 한 줄 (E22-04): 보스 막대가 서거나 전설·대화 중이면 잠깐 감춘다
+    const fighting = this.legend.active || (boss !== null && this.encounter.bossEngaged)
+    this.chapterHud.setGoal(this.chapterSystem.goalView(), fighting || this.scenes.active || this.world.traveling)
   }
 
   // ── 화면 ──────────────────────────────────────────

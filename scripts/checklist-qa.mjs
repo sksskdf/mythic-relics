@@ -78,14 +78,18 @@ const sections = {
     const base = rows[0].damage
     for (const r of rows) r.vsOne = `${Math.round((r.damage / base - 1) * 100)}%`
     await page.close()
-    // 새로 여는 순간: 경험치로 로키가 열릴 때 화면
+    // 새로 여는 순간 (E22-03): 경험치가 차면 미드가르드 성소 가운데에서 넷 가운데 하나를 골라 연다
     const page2 = await fresh(browser, '?fresh&relics=&region=midgard')
     await page2.evaluate(() => {
       const g = window.__game
-      g.dev.choose('thor')
       g.storyScenes = true
       g.dev.gainMastery()
+      g.hero.teleport(g.legend.center.x, g.legend.center.z)
     })
+    await page2.waitForFunction(() => window.__game.mythPickerOpen, null, { timeout: 30000 })
+    await shot(page2, 'e12-1-pick')
+    await page2.click('.myth-pick__card[data-god="loki"]')
+    await page2.waitForTimeout(500)
     const opened = await page2.evaluate(() => ({ opened: window.__game.progress.opened, scene: window.__game.scenes.current }))
     await shot(page2, 'e12-1-open')
     await page2.close()
@@ -564,6 +568,100 @@ const sections = {
     const tabs = await page.evaluate(() => [...document.querySelectorAll('.menu__tab')].filter((b) => getComputedStyle(b).display !== 'none').map((b) => b.textContent.trim()))
     await page.close()
     return { tabs }
+  },
+
+  /** E22-1 언제든 다음에 무엇을 할지 화면만 보고 안다: 장마다 목표 한 줄·작은 지도 표시·세계 지도를 찍는다 */
+  async 'e22-1'(browser) {
+    const page = await fresh(browser, '?fresh&noscenes')
+    const steps = []
+    for (let i = 0; i < 20; i++) {
+      // 목표 한 줄은 화면을 그릴 때 바뀌므로 몇 프레임 기다린 뒤 읽는다
+      const f = await page.evaluate(() => window.__game.frame)
+      await page.waitForFunction((n) => window.__game.frame > n + 1, f, { timeout: 60000 })
+      const s = await page.evaluate(() => {
+        const g = window.__game
+        const goal = g.chapters.goal
+        return goal ? { chapter: g.chapters.chapter.id, kind: goal.kind, line: document.querySelector('.chapter-goal span')?.textContent ?? '', shown: !document.querySelector('.chapter-goal').hidden, region: g.region.id, spot: g.goalSpot() } : null
+      })
+      if (!s) break
+      steps.push(s)
+      // 장의 처음 목표와 보스 목표만 찍는다
+      if (steps.length === 1 || steps.at(-2)?.chapter !== s.chapter || s.kind === 'boss') await shot(page, `e22-1-${steps.length}-${s.chapter}-${s.kind}`)
+      if (s.chapter === 'north' && s.kind === 'choose') {
+        await page.evaluate(() => window.__game.menu.show('map'))
+        await page.waitForTimeout(500)
+        await shot(page, 'e22-1-map')
+        await page.evaluate(() => window.__game.menu.toggle(false))
+      }
+      await page.evaluate(() => {
+        const g = window.__game
+        g.skipGoal()
+        g.advance(2, 1 / 30)
+      })
+    }
+    await page.waitForTimeout(800)
+    await shot(page, 'e22-1-ending')
+    const end = await page.evaluate(() => ({ ending: window.__game.ending.reached, goalShown: !document.querySelector('.chapter-goal').hidden }))
+    await page.close()
+    return { steps: steps.map((s) => `${s.chapter}:${s.line}${s.shown ? '' : '(숨김)'}${s.spot ? '' : '(지도 표시 없음)'}`), end }
+  },
+
+  /** E22-2 새 땅에 들어서면 다시 조금 버겁고, 떠날 때는 시원하다: power-curve.json에서 땅마다 들어설 때·떠날 때 적 잡는 초 */
+  async 'e22-2'() {
+    const path = 'test-results/power-curve.json'
+    if (!existsSync(path)) return { error: '먼저 node scripts/power-curve.mjs 100 을 돌린다' }
+    const { rows } = JSON.parse(readFileSync(path, 'utf8'))
+    const lands = []
+    for (const r of rows.filter((x) => x.killSeconds !== null)) {
+      const last = lands.at(-1)
+      if (last?.region === r.region) Object.assign(last, { leave: r.killSeconds, to: r.t, leaveHits: r.hitsToDie })
+      else lands.push({ region: r.region, from: r.t, enter: r.killSeconds, enterHits: r.hitsToDie, leave: r.killSeconds, to: r.t, leaveHits: r.hitsToDie })
+    }
+    return lands.map((l) => `${l.region} ${Math.round(l.from / 60)}~${Math.round(l.to / 60)}분: 적 잡는 초 ${l.enter} → ${l.leave}, 버티는 대 ${l.enterHits} → ${l.leaveHits}`)
+  },
+
+  /** E22-3 걸어서 이어진 땅을 탐험하는 느낌이 든다: 통로를 걸어 넘어가는 장면, 결계 너머, 마지막 무대 */
+  async 'e22-3'(browser) {
+    const page = await fresh(browser, '?fresh&noscenes')
+    // 마을에서 미드가르드 쪽 통로를 걷는 중간 (암전 없이 이웃 땅이 보인다)
+    const walk = await page.evaluate(() => {
+      const g = window.__game
+      const exit = g.region.exits.find((e) => e.to === 'midgard')
+      g.dev.teleport(exit.x, exit.z + 2)
+      g.orders.press({ x: exit.x, z: exit.z - 40 }, null)
+      g.advance(2.5, 1 / 30)
+      return { region: g.region.id }
+    })
+    await shot(page, 'e22-3-passage')
+    // 결계 너머 (마을의 올림포스 쪽)
+    await page.evaluate(() => {
+      const g = window.__game
+      g.enterRegion(g.regions.village)
+      const exit = g.region.exits.find((e) => e.to === 'olympus')
+      g.dev.teleport(exit.x - 2, exit.z + 4)
+    })
+    await shot(page, 'e22-3-barrier')
+    // 장이 열리며 결계가 풀리는 순간 (미드가르드에 들어서면 요툰헤임 쪽)
+    const opened = await page.evaluate(() => {
+      const g = window.__game
+      g.world.travelTo('midgard')
+      g.advance(1.5, 1 / 30)
+      const exit = g.region.exits.find((e) => e.to === 'jotunheim')
+      g.dev.teleport(exit.x + 3, exit.z + 5)
+      return { region: g.region.id, chapter: g.chapters.chapter?.id, barriers: g.barrierSpots.map((b) => b.to) }
+    })
+    await page.waitForTimeout(400)
+    await shot(page, 'e22-3-jotunheim-way')
+    // 마지막 무대
+    await page.evaluate(() => {
+      const g = window.__game
+      g.reachEnding()
+      g.enterRegion(g.regions.sky)
+      g.dev.teleport(0, 6)
+    })
+    await shot(page, 'e22-3-sky')
+    await page.close()
+    return { walk, opened }
   },
 }
 

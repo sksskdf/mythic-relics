@@ -28,6 +28,7 @@ const sample: SaveData = {
   trials: parseTrials({ cleared: { glass: 2, slow: 9 }, best: { 'glass:2': 71.3, 'nope:1': 5 } }),
   rift: parseRift({ best: 12, stars: 3, lit: ['thor', 'odin', 'nobody'] }),
   ending: true,
+  chapters: { entered: ['village', 'midgard', 'olympus'], bosses: ['utgard'] },
   region: { id: 'olympus', x: 3.5, z: -12 },
   scenes: ['opening'],
 }
@@ -144,7 +145,7 @@ describe('저장 데이터', () => {
 })
 
 describe('저장 v9: 세 축 정리 (E21-07)', () => {
-  const v8 = (extra: Record<string, unknown>) => JSON.stringify({ ...sample, version: 8, ending: undefined, ...extra })
+  const v8 = (extra: Record<string, unknown>) => JSON.stringify({ ...sample, version: 8, ending: undefined, chapters: undefined, ...extra })
 
   it('신화 고유 재료는 그 신의 신화권 재료로 바꿔 준다 (히든 신화는 북유럽)', () => {
     const data = parseSave(v8({ materials: { thunderShard: 6, boltChip: 3, bladeShard: 2, frostShard: 4, giantHeart: 1 } }))
@@ -163,7 +164,7 @@ describe('저장 v9: 세 축 정리 (E21-07)', () => {
     expect(parseSave(v8({ ...fresh, threat: { level: 1, unlocked: 2, reached: 1 } }))?.ending).toBe(true)
     expect(parseSave(v8({ ...fresh, trials: { cleared: { glass: 1 }, best: {} } }))?.ending).toBe(true)
     expect(parseSave(v8({ ...fresh, rift: { best: 3, stars: 0, lit: [] } }))?.ending).toBe(true)
-    // v9는 적힌 그대로
+    // v9부터는 적힌 그대로
     expect(parseSave(JSON.stringify({ ...sample, ending: false }))?.ending).toBe(false)
   })
 
@@ -171,5 +172,30 @@ describe('저장 v9: 세 축 정리 (E21-07)', () => {
     const item = { uid: 'g:abc12345', part: 'head', base: '철 투구', grade: 'rare', stats: [{ kind: 'maxHp', value: 12 }], source: { id: 'flame', value: 2 } }
     const data = parseSave(v8({ gear: [item], bag: ['g:abc12345'] }))
     expect(data?.gear[0]?.tier).toBe(1)
+  })
+})
+
+describe('저장 v10: 장 진행 (E22-01)', () => {
+  const v9 = (extra: Record<string, unknown>) => JSON.stringify({ ...sample, version: 9, chapters: undefined, ...extra })
+  const none = { threat: { level: 1, unlocked: 1, reached: 1 }, materials: {}, slots: [null, null, null, null, null, null, null], ground: [] }
+
+  it('모르는 땅은 버리고, 보스가 없는 땅은 보스를 이긴 땅이 아니다', () => {
+    const data = parseSave(JSON.stringify({ ...sample, chapters: { entered: ['midgard', 'nowhere', 'midgard', 3], bosses: ['lycia', 'midgard', 'nowhere'] } }))
+    expect(data?.chapters).toEqual({ entered: ['midgard'], bosses: ['lycia'] })
+    expect(parseSave(JSON.stringify({ ...sample, chapters: 'broken' }))?.chapters).toEqual({ entered: [], bosses: [] })
+  })
+
+  it('옛 저장: 있던 땅과 찾은 성소는 들어서 본 땅, 처음 땅만 걸었으면 이긴 보스가 없다', () => {
+    const data = parseSave(v9({ ...none, conveniences: { counters: {}, open: [], visited: ['jotunheim'] } }))
+    expect(new Set(data?.chapters.entered)).toEqual(new Set(['olympus', 'jotunheim']))
+    expect(data?.chapters.bosses).toEqual([])
+  })
+
+  it('옛 저장: 위협 단계에서 이겼거나 보스 재료·그 신화권 유물을 가졌으면 그 신화권 보스를 이긴 것으로 친다', () => {
+    expect(parseSave(v9({ ...none, threat: { level: 1, unlocked: 1, reached: 1, cleared: { greek: 1 } } }))?.chapters.bosses).toEqual(['lycia'])
+    expect(parseSave(v9({ ...none, materials: { giantHeart: 1 } }))?.chapters.bosses).toEqual(['utgard'])
+    const relic = parseSave(v9({ ...none, slots: ['mjolnir', null, null, null, null, null, null] }))?.chapters
+    expect(relic?.bosses).toEqual(['utgard'])
+    expect(relic?.entered).toContain('utgard')
   })
 })

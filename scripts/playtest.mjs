@@ -4,6 +4,7 @@
 // --god=loki 를 붙이면 그 신 유물만 끼고 승급까지 간다.
 // --threat=N 을 붙이면 2단계 뒤에도 이어서 보스를 잡고 위협 단계를 올리며, N단계에 오를 때까지 단계마다 시간·쓰러짐·피격을 잰다 (E14-07).
 // --threat·--trials·--rift는 엔딩 뒤 장치라, 시작할 때 엔딩 뒤로 넘긴다 (E21-06).
+// --ending 을 붙이면 장 흐름을 따라 엔딩까지 가고, 장마다 들어선 시각을 잰다 (E22-06).
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { chromium } from 'playwright-core'
@@ -19,6 +20,8 @@ const STACK = process.argv.find((a) => a.startsWith('--stack='))?.slice(8) ?? nu
 const TRIALS = process.argv.includes('--trials')
 /** --rift 를 붙이면 신화권 다섯을 10단계까지 깬 셈(한계를 깸)으로 마을에서 시작해 균열을 10층까지 내려간다 (E17-07). --relics=mjolnir 와 함께 쓴다 */
 const RIFT = process.argv.includes('--rift')
+/** --ending 을 붙이면 장 흐름을 따라 첫 엔딩까지 간다 (E22-06) */
+const ENDING = process.argv.includes('--ending')
 /** --god=loki 처럼 붙이면 봇이 그 신 유물만 끼고 승급까지 간다 (E6-08) */
 const GOD = process.argv.find((a) => a.startsWith('--god='))?.slice(6) ?? null
 /** --relics=kusanagi,totsuka,... 처럼 붙이면 그 유물을 끼고(발현한 채) 시작해 제한 시간 동안 처치 속도를 잰다 (클래스 비교) */
@@ -100,14 +103,16 @@ try {
         })
       }, STACK)
     if (REGION) await page.evaluate(() => (window.__autoplay.stay = true))
+    // 처음부터 하는 판은 장 흐름의 목표를 따라간다 (E22-06)
+    if (!REGION && !RELICS && !THREAT && !TRIALS && !RIFT) await page.evaluate(() => (window.__autoplay.chapters = true))
     let done = false
     while (!done) {
       const state = await page.evaluate(() => {
         window.__autoplay.run(30)
         const g = window.__game
-        return { t: g.time, promoted: g.progress.promotions >= 1, reached: g.threat.reached, trialsLeft: window.__autoplay.trialsLeft(), depth: window.__game.rift.best }
+        return { t: g.time, promoted: g.progress.promotions >= 1, reached: g.threat.reached, trialsLeft: window.__autoplay.trialsLeft(), depth: window.__game.rift.best, ending: g.ending.reached }
       })
-      done = (RIFT ? state.depth >= 10 : TRIALS ? !state.trialsLeft : RELICS ? false : THREAT > 0 ? state.reached >= THREAT : state.promoted) || state.t > LIMIT_MIN * 60
+      done = (ENDING ? state.ending : RIFT ? state.depth >= 10 : TRIALS ? !state.trialsLeft : RELICS ? false : THREAT > 0 ? state.reached >= THREAT : state.promoted) || state.t > LIMIT_MIN * 60
     }
     const climbs = await page.evaluate(() => [...window.__autoplay.climbs])
     // 끝났을 때 봇이 어디서 무엇을 하고 있었나 (멈춤을 찾을 때)
@@ -153,6 +158,10 @@ try {
       // 균열 (E17-07): 층마다 들어간 때, 끝난 까닭
       rift: log.filter((e) => e.type === 'rift').map((e) => `${e.detail}@${Math.round(e.t)}`),
       riftFloors: await page.evaluate(() => [...window.__autoplay.riftFloors]),
+      // 장 흐름 (E22-06): 장마다 열린 때와 엔딩
+      chapters: log.filter((e) => e.type === 'chapter').map((e) => ({ id: e.detail, t: e.t })),
+      ending: first('ending'),
+      levels: log.filter((e) => e.type === 'promote').map((e) => ({ t: e.t, title: e.detail })),
       // 지역 이동 (E15-07): 처음 들어간 때, 보스의 땅에 처음 닿은 때
       regions: log.filter((e, i) => e.type === 'region' && log.findIndex((x) => x.type === 'region' && x.detail === e.detail) === i).map((e) => ({ id: e.detail, t: e.t })),
       bossLand: log.find((e) => e.type === 'region' && ['utgard', 'lycia', 'huoyanshan', 'hiikawa', 'songdo'].includes(e.detail))?.t,
@@ -172,6 +181,7 @@ try {
       `#${run} 2단계 ${fmt(result.promote)} | 첫 신화 ${fmt(result.manifest)} | 신화 둘 ${fmt(result.opened[1]?.t)} (연 신화 ${result.opened.length}: ${result.opened.map((o) => o.god).join(', ')}) | 거인 왕 ${fmt(result.bossKill)} | 장비 ${result.gear}, 첫 제작 ${fmt(result.forged[0]?.t)}${result.forged[0] ? ` (${result.forged[0].what})` : ''} | ` +
         `유물 ${Object.entries(result.relics).map(([k, v]) => `${k} ${fmt(v)}`).join(', ')} | ` +
         `처치 ${result.kills}(첫 신화 뒤 분당 ${result.killRate}), 쓰러짐 ${result.deaths}, 피격 ${result.hurt}, 전설 실패 ${result.legendFails}` +
+        (ENDING ? ` | 장 ${result.chapters.map((c) => `${c.id} ${fmt(c.t)}`).join(' → ')} | 엔딩 ${fmt(result.ending)} | 단계 ${result.levels.map((l) => fmt(l.t)).join(', ')} | 제작 ${result.forged.map((f) => `${f.what} ${fmt(f.t)}`).join(', ')}` : '') +
         (RIFT ? ` | 균열 ${result.riftFloors.map((f) => `${f.depth}층 ${fmt(f.t)}`).join(', ')} | ${result.rift.filter((x) => !x.startsWith('floor')).join(', ')}` : '') +
         (TRIALS ? ` | 시련 ${result.trials.join(', ')}` : '') +
         (THREAT > 0 ? ` | 보스의 땅 ${fmt(result.bossLand)} | 위협 ${result.threat.map((x) => `${x.level}단계 ${fmt(x.time)}·쓰러짐 ${x.deaths}·피격 ${x.hurt}`).join(' → ')} | 원천 ${result.sources.map((x) => `${x.id} ${x.total}(${x.level})`).join(' ')}` : '') +
@@ -187,7 +197,7 @@ mkdirSync('test-results', { recursive: true })
 writeFileSync('test-results/playtest.json', JSON.stringify(results, null, 2))
 
 if (GATE) {
-  const failed = results.filter((r) => r.promote === undefined || r.errors.length > 0)
+  const failed = results.filter((r) => (ENDING ? r.ending === undefined : r.promote === undefined) || r.errors.length > 0)
   if (failed.length > 0) {
     console.error(`봇 검증 실패: ${failed.length}판이 ${LIMIT_MIN}분 안에 승급하지 못했거나 오류가 났습니다.`)
     // CI 기록만으로도 원인을 볼 수 있게 끝난 자리와 살아 있는 적을 남긴다

@@ -48,4 +48,7 @@
 | 원격 브랜치 지우기 403 | 환경의 git 프록시가 막음 | PR로 병합 + "Automatically delete head branches" ([`environment.md`](environment.md)) |
 | `checklist-qa.mjs`의 장면이 `page.goto: Timeout`으로 줄줄이 실패 (E21) | e12-1이 첫 페이지를 닫지 않은 채 미드가르드를 새로 열었고, 이어진 세계(E19)라 이웃 땅까지 짓느라 30초를 넘김. 실패한 장면의 페이지가 남아 다음 장면까지 느려짐 | 두 번째 페이지를 열기 전에 첫 페이지를 닫고, 처음 여는 시간을 90초까지 기다리며, 장면이 실패하면 열린 페이지를 모두 닫는다 |
 | 정보 화면 탭에 `hidden`을 붙였는데 그대로 보임 (E21) | `.menu__tab { display: flex }`가 `[hidden]`의 기본 `display: none`을 덮음 | `.menu__tab[hidden] { display: none }`을 더함. 스모크는 `b.hidden`만 봐서 못 잡았다 |
-
+| 봇이 우트가르드에서 거인 왕에게 닿지 못하고 70분을 맴돎 (E22) | 보스가 목표라 곧장 보스로 걸어가다가, 가는 길 무리의 공격 예고를 피하느라 되돌아오기를 되풀이 (보스는 내내 idle, 거리 30~69m) | 보스 목표여도 둘레 9m 안에 다른 적이 있으면 먼저 치우고, 비었을 때만 보스로 간다 (`autoplay.ts` step 16) |
+| 생성 스크립트(`gen-finale.mjs`·`gen-regions.mjs`)가 `vite.config.ts`를 불러오다 지역 검사에 걸림 (E22) | vite 설정이 불러올 때 regions.json을 검사하는데, 고치는 중인 파일이라 아직 틀림 | `createServer({ configFile: false })`로 설정 없이 띄우고, 문 없는(검사를 통과하는) 파일을 먼저 쓴 뒤 모듈을 불러와 문을 단다 |
+| 스크래치 폴더에 둔 `.mjs`가 `vite`·`playwright-core`를 못 찾음 | 노드 모듈은 스크립트가 있는 폴더 위로만 찾는다 | 저장소 `scripts/` 안에 잠깐 두고(`.` 이름) 돌린 뒤 지운다 |
+| CI 스모크의 엔딩 확인이 `page.goto: Timeout 90000ms` (E22) | 앞 페이지(게임이 도는 중)를 열어 둔 채 새 페이지를 열어, 소프트웨어 렌더링 CPU를 둘이 나눠 씀. 로컬은 통과하고 CI만 넘김 | 새 페이지를 열기 전에 앞 페이지를 닫고, `load` 대신 `domcontentloaded` 뒤 게임이 도는 것(`playing`)을 120초까지 기다린다 |

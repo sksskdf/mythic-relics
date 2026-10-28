@@ -1,4 +1,5 @@
 import type { SoundCue } from '../audio/sounds'
+import type { ChapterDef, ChapterStep } from '../data/chapters'
 import type { GearItem } from '../gear/roll'
 import type { Giant } from '../enemies/Giant'
 import type { God, RelicId } from '../relics/data'
@@ -39,8 +40,11 @@ export interface GameEvents {
   manifested: { god: God }
   /** 승급했다. */
   promoted: { god: God; title: string }
-  /** 신화가 처음 열렸다: 숙련 문턱(E12-02) 또는 그 신 유물을 처음 손에 넣음(E12-04) */
-  mythOpened: { god: God }
+  /**
+   * 신화가 처음 열렸다: 숙련 문턱(E12-02), 그 신 유물을 처음 손에 넣음(E12-04), 성소에서 고름·장 보스(E22-03).
+   * quiet면 신화마다 카드·장면을 띄우지 않는다 (장 보스가 여럿을 한꺼번에 열 때 한 장으로 알린다)
+   */
+  mythOpened: { god: God; quiet?: boolean }
   /** 주인공이 맞았다. */
   heroHurt: { damage: number }
   /** 주인공이 쓰러졌다. */
@@ -49,6 +53,10 @@ export interface GameEvents {
   heroRevived: Record<string, never>
   /** 지역에 들어갔다 (E7) */
   regionEntered: { id: string }
+  /** 다음 장이 열렸다 (E22): 그 장의 땅이 열린다. 마지막 장을 끝냈으면 chapter가 null */
+  chapterChanged: { chapter: ChapterDef | null; index: number }
+  /** 지금 목표가 바뀌었다 (E22): HUD 한 줄과 지도 표시. 엔딩 뒤이거나 다 했으면 null */
+  goalChanged: { goal: ChapterStep | null }
   /** 승급 전설이 시작됐다 / 실패했다. */
   legendStarted: Record<string, never>
   legendFailed: Record<string, never>

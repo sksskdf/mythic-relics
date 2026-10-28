@@ -130,6 +130,23 @@ try {
   const moved = await heroPos()
   console.log(`이동 확인: (${before.x.toFixed(1)}, ${before.z.toFixed(1)}) → (${moved.x.toFixed(1)}, ${moved.z.toFixed(1)})`)
 
+  // 장 흐름 (E22): 처음에는 목표 한 줄이 미드가르드를 가리키고, 아직 안 열린 올림포스로 가는 통로는 결계가 막는다
+  const sealed = await page.evaluate(() => {
+    const g = window.__game
+    const exit = g.region.exits.find((e) => e.to === 'olympus')
+    const start = { x: g.hero.object.position.x, z: g.hero.object.position.z }
+    g.dev.teleport(exit.x, exit.z + 3)
+    g.orders.press({ x: exit.x, z: exit.z - 60 }, null)
+    g.advance(6, 1 / 30)
+    const out = { region: g.region.id, z: g.hero.object.position.z, half: g.region.halfExtent, barriers: g.barrierSpots.map((b) => b.to).sort(), goal: document.querySelector('.chapter-goal span')?.textContent ?? '' }
+    g.dev.teleport(start.x, start.z)
+    return out
+  })
+  if (sealed.goal !== '미드가르드 설원으로') throw new Error(`장 흐름: 처음 목표 한 줄이 다릅니다 ${JSON.stringify(sealed)}`)
+  if (sealed.region !== 'village' || sealed.z < -sealed.half - 0.6) throw new Error(`장 흐름: 결계가 올림포스로 가는 길을 막지 않습니다 ${JSON.stringify(sealed)}`)
+  if (sealed.barriers.join() !== 'hwagwasan,olympus,sinsi,takamagahara') throw new Error(`장 흐름: 마을의 결계가 다릅니다 ${JSON.stringify(sealed)}`)
+  console.log(`장 흐름 확인: 목표 「${sealed.goal}」, 마을의 결계 넷(${sealed.barriers.join('·')}), 올림포스 쪽 통로에서 걸음이 막힘`)
+
   // 자동 공격 점검: 멈춰 있는 주인공 바로 앞에 졸개를 세우면, 버튼 없이도 때려서 생명력이 줄어야 한다.
   await page.waitForFunction(() => !window.__game.hero.isMoving, null, { timeout: 20000 })
   await page.evaluate(() => {
@@ -384,7 +401,7 @@ try {
   console.log(`지역 전환 반복 확인: ${regionCount}곳을 한 바퀴 돈 뒤 형상 ${memA.geometries}·텍스처 ${memA.textures}, 두 바퀴 더 돈 뒤 ${memB.geometries}·${memB.textures}, 한 번 짓는 데 평균 ${memB.ms}ms (소프트웨어 렌더링)`)
   console.log(`지역 확인: 마을에서 시작, 말풍선 「${bubble}」, 작은 지도, 통로를 걸어 암전 없이 미드가르드로(미리 세워 둔 적 ${walked.woke}마리를 깨움)`)
 
-  // 세계 지도와 성소 워프 (E15-04): 지도 탭에 열여섯 곳, 찾은 성소를 누르면 그 땅으로
+  // 세계 지도와 성소 워프 (E15-04): 지도 탭에 모든 땅 (E22: 마지막 무대까지 열일곱 곳), 찾은 성소를 누르면 그 땅으로
   await page.evaluate(() => {
     const g = window.__game
     g.conveniences.open.add('warp')
@@ -392,12 +409,12 @@ try {
   })
   await page.click('.minimap')
   const mapLabels = await page.locator('.menu-map__label').count()
-  if (mapLabels !== 16) throw new Error(`지도: 지역이 ${mapLabels}곳입니다.`)
+  if (mapLabels !== regionCount) throw new Error(`지도: 지역이 ${mapLabels}곳입니다 (${regionCount}곳이어야 함).`)
   await page.locator('.menu-map__label', { hasText: '요툰헤임 빙하' }).click()
   await page.waitForFunction(() => window.__game.region.id === 'jotunheim', null, { timeout: 15000 }).catch(() => {
     throw new Error('지도: 찾은 성소를 눌렀는데 워프하지 않습니다.')
   })
-  console.log('지도 확인: 작은 지도를 누르면 세계 지도(16곳), 찾은 성소를 눌러 요툰헤임 빙하로 워프')
+  console.log(`지도 확인: 작은 지도를 누르면 세계 지도(${mapLabels}곳), 찾은 성소를 눌러 요툰헤임 빙하로 워프`)
   await page.waitForFunction(() => getComputedStyle(document.querySelector('.region-fade')).opacity === '0', null, { timeout: 15000 })
   await page.evaluate(() => window.__game.enterRegion(window.__game.regions.midgard))
 
@@ -599,6 +616,33 @@ try {
 
   mkdirSync('test-results', { recursive: true })
   await page.screenshot({ path: 'test-results/smoke.png' })
+
+  // 장 흐름을 끝까지 (E22-05): 새 판에서 목표를 차례로 건너뛰면 마지막 보스 뒤 엔딩, 결계가 모두 풀리고 목표 한 줄이 사라진다
+  // 앞 페이지는 닫는다: 소프트웨어 렌더링이라 두 게임이 함께 돌면 새 페이지가 CI에서 90초 안에 뜨지 않는다 (troubleshooting.md)
+  await page.close()
+  const end = await browser.newPage({ viewport: { width: 1280, height: 720 } })
+  end.on('pageerror', (e) => errors.push(e.message))
+  // 이어진 세계(E19)는 이웃 땅까지 지어 처음 여는 데 오래 걸린다. 모든 자원(load)이 아니라 게임이 도는 것을 기다린다
+  await end.goto(`${URL}?fresh&noscenes`, { timeout: 90000, waitUntil: 'domcontentloaded' })
+  await end.waitForFunction(() => (window.__game?.frame ?? 0) > 2 && window.__game.playing, null, { timeout: 120000 })
+  const ending = await end.evaluate(() => {
+    const g = window.__game
+    const chapters = []
+    for (let i = 0; i < 30 && g.chapters.goal; i++) {
+      const id = g.chapters.chapter?.id
+      if (chapters.at(-1) !== id) chapters.push(id)
+      g.skipGoal()
+      g.advance(2, 1 / 30)
+    }
+    g.advance(1, 1 / 30)
+    return { chapters, ending: g.ending.reached, region: g.region.id, barriers: g.barrierSpots.length, log: g.log.filter((e) => e.type === 'ending').length, frame: g.frame }
+  })
+  // 목표 한 줄은 화면을 그릴 때 바뀐다
+  await end.waitForFunction((f) => window.__game.frame > f + 2, ending.frame, { timeout: 60000 })
+  ending.goal = await end.evaluate(() => !document.querySelector('.chapter-goal').hidden)
+  await end.close()
+  if (!ending.ending || ending.log !== 1 || ending.barriers > 0 || ending.goal) throw new Error(`장 흐름: 끝까지 가도 엔딩이 아닙니다 ${JSON.stringify(ending)}`)
+  console.log(`엔딩 확인: ${ending.chapters.join(' → ')} → 갈라진 하늘의 왕을 이기면 엔딩, 결계가 모두 풀리고 목표 한 줄이 사라짐`)
   await browser.close()
 
   if (errors.length) {

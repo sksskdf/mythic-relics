@@ -51,6 +51,19 @@ E12~E14에서 새 규칙을 넣을 때는 `BuildInputs`에 재료를 더하고 `
 | 지도 (E19-05) | `Minimap.setRegion(region, { neighbors, passages })`: 이어진 세계면 반 폭 70m로 통로와 이웃 땅까지 흐리게. 세계 지도(`menu/mapTab.ts`)는 `world.nodes()`의 칸 자리(칸 한 변 = 1)·땅 너비와 `world.me()`(내 자리)를 화면 방향으로 45° 돌려(`view`) 그린다. 이름은 겹치지 않는 자리(아래·위·왼쪽·오른쪽)를 골라 얹는다 |
 | `src/game/World.ts` | `update`에서 `crossingAt`이면 `cross(link)`: 주인공·카메라·떨어진 것을 `shift`만큼 옮기고, 무대·길찾기·적을 새 땅으로, 그다음 가던 길을 다시 찾는다(`orders.shift`). 출구 밟기·암전은 균열에만 남았다 |
 
+## 장 흐름 (E22)
+
+| 곳 | 하는 일 |
+| --- | --- |
+| `src/data/chapters.json`·`chapters.ts` | 장 다섯: 제목·이름·땅 단계(`tier`)·열리는 땅과 적 지수(`lands`)·할 일(`steps`: enter·choose·level·boss·forge, 목표 한 줄 `goal`, 보스가 여는 신화권 `opens`). `landScale`(적 지수 → 생명·피해 배율), `chapterOf` |
+| `src/progress/Chapters.ts` | `ChapterProgress`: 들어선 땅·이긴 보스(저장), 지금 장(`index`·`chapter`)·목표(`goal`)·열린 땅(`isOpen`)·땅 세기(`power`)·땅 단계(`tier`). 신화·유물은 `ChapterWorld`로 묻기만 한다 |
+| `src/game/systems/Chapters.ts` | 땅 들어섬·보스 처치를 적고 `chapterChanged`·`goalChanged`를 보낸다. `goalView`(목표 한 줄과 채우는 막대) |
+| `src/game/systems/MythChoice.ts` | 성소에서 신화 고르기(`offer`·`here`·`pick`, `ui/MythPicker`), 장 보스가 신화권을 엶(`openRealm`). 데모에서는 `ClassProgress`의 `openByXp`가 꺼져 경험치가 문턱에서 멈춘다 |
+| `src/world/Barriers.ts`, `World.openLinks`·`refreshLinks` | 막힌 땅으로 가는 통로는 걸을 수 있는 곳에서 빼고 입구에 결계를 세운다. 장이 바뀌면 빛기둥과 함께 풀린다 |
+| `Encounter.landPower` | 땅 id → 적 지수. 무리·보스·전설의 적에 위협 배율과 곱해 건다(`scaled`) |
+| `ui/ChapterHud.ts` | 목표 한 줄(채우는 목표면 막대)과 장 제목 띠. 지도 탭은 `world.goal()`·`nodes().locked`, 작은 지도는 `Game.goalSpot()` |
+| 엔딩 | 마지막 장이 끝나면(`chapterChanged`의 chapter가 null) 엔딩 장면 → `showEnding`(`reachEnding` + 띠·카드). 개발 패널 「목표 건너뛰기」·「장 건너뛰기」는 `Game.skipGoal` |
+
 ## E14에서 걷어낼 것
 
 옛 순환(`src/progress/Cycle`, `systems/CycleSystem.ts`): 원천 결정·단련·윤회·별자리(→ E17 성좌판)·원천 숙련. 저장을 옮기며 제거한다.

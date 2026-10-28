@@ -5,7 +5,8 @@ import { angleDiff, angleTo, inLine } from '../combat/arc'
 import { nextHop } from '../data/regions'
 import { regionLinks } from '../data/world'
 import { TRIAL_IDS, type TrialId } from '../data/trials'
-import { forgeReady } from '../gear/forge'
+import { forgeReady, missing, nextRecipe } from '../gear/forge'
+import { MATERIALS } from '../gear/materials'
 import { gearScore } from '../gear/roll'
 import { mythRelic } from '../gear/mythRelic'
 import { type God, godDef, isRelicId, relicDef } from '../relics/data'
@@ -41,6 +42,8 @@ export class Autoplayer {
   god: God | null = null
   /** 다른 지역으로 가지 않고 이 자리에서만 싸운다 (scripts/enemy-trial.mjs) */
   stay = false
+  /** 장 흐름의 목표를 따라간다 (E22-06): 들어설 땅·신화 고르기·전설·보스·대장간 (scripts/playtest.mjs) */
+  chapters = false
   /** 마지막 생각이 끝난 단계 (멈춤을 찾을 때) */
   step = 0
 
@@ -99,6 +102,13 @@ export class Autoplayer {
     const { powers, progress, region, regions } = this.game
     const fieldOf = (god: God) => Object.values(regions).find((r) => r.realm === godDef(god).realm && r.zone === 'entrance')?.id
     const manifested = powers.manifested
+    // 성소에서 신화를 고를 수 있으면 그 땅으로 (E22-03)
+    const offer = this.game.mythChoice.offer()
+    if (offer) return offer.region
+    if (this.chapters) {
+      const goal = this.chapterRegion()
+      if (goal) return goal
+    }
     if (manifested && godDef(manifested).legend && progress.readyToPromote(manifested)) return fieldOf(manifested) ?? region.id
     // 벼릴 재료가 차면 마을 대장간으로 (E13-08)
     const hub = Object.values(regions).find((r) => r.kind === 'hub')?.id ?? region.id
@@ -118,6 +128,23 @@ export class Autoplayer {
     // 히든 신화는 자기 땅이 없어 지금 필드(마을이면 미드가르드)에서 싸운다
     if (this.god) return fieldOf(this.god) ?? here
     return here
+  }
+
+  /**
+   * 장 흐름의 목표가 정하는 땅 (E22-06). 벼리기 목표인데 재료가 모자라면 그 재료가 나오는 가장 최근 장의 땅에서 모은다.
+   * 목표가 없으면(엔딩 뒤) null
+   */
+  private chapterRegion(): string | null {
+    const { chapters, powers } = this.game
+    const goal = chapters.goal
+    if (!goal) return null
+    if (goal.kind !== 'forge') return goal.region
+    const god = powers.manifested
+    if (!god || forgeReady(powers.loadout, god, powers.maxStage())) return goal.region
+    const recipe = nextRecipe(powers.loadout, god, powers.maxStage())
+    const realm = recipe ? missing(powers.loadout, recipe).map((m) => MATERIALS[m.id]?.realm).find((r) => r) : undefined
+    const lands = chapters.chapters.flatMap((c) => Object.keys(c.lands)).filter((id) => chapters.isOpen(id) && this.game.regions[id]?.realm === realm && !this.game.regions[id]?.finale)
+    return lands.at(-1) ?? goal.region
   }
 
   /** 다른 지역으로 가야 하면 이웃으로 가는 통로를 따라 걸어 넘어간다 (마을을 거쳐 간다, E19). 걸었으면 true */
@@ -152,8 +179,11 @@ export class Autoplayer {
     const hp = combat.health.ratio
     const leaving = hp >= 0.5 && !legend.active && !this.stay && !this.rift && this.wantRegion() !== this.game.region.id
 
+    // 신화 고르기 성소로 가는 길(E22-03)도 떠날 때처럼 예고를 피하지 않고 걸어간다 (쫓아오는 무리를 다 피하면 닿지 못한다)
+    const offer = this.game.mythChoice.here
+    const toChoose = offer !== null && hp >= 0.5 && !legend.active
     // 1. 예고 범위 안에 있으면 빠져나간다.
-    const dangers = leaving ? [] : enemies.flatMap((g) => g.dangers)
+    const dangers = leaving || toChoose ? [] : enemies.flatMap((g) => g.dangers)
     if (dangers.some((d) => inDanger(here, d, MARGIN))) {
       const escape = this.findEscape(here, dangers)
       if (escape) hero.moveTo(escape)
@@ -251,6 +281,18 @@ export class Autoplayer {
       return
     }
 
+    // 4.8 신화 고르기 (E22-03): 카드가 떠 있으면 정한 신(없으면 첫 신화)을 고르고, 아니면 성소 가운데로 간다
+    if (offer && this.game.mythPickerOpen) {
+      this.game.mythChoice.pick(this.god && offer.gods.includes(this.god) ? this.god : offer.gods[0]!)
+      this.step = 15
+      return
+    }
+    if (toChoose) {
+      if (dist(here, legend.center) > 1.2 && (!hero.isMoving || dist(hero.goal ?? here, legend.center) > 1)) hero.moveTo(legend.center)
+      this.step = 15
+      return
+    }
+
     // 5. 승급 준비가 되면 성소로 간다.
     const manifested = powers.manifested
     if (!legend.active && legend.present && manifested && godDef(manifested).legend && progress.readyToPromote(manifested) && hp > 0.8) {
@@ -262,7 +304,18 @@ export class Autoplayer {
     // 6. 싸울 상대를 고른다. 거인 왕은 유물이 둘 이상이고 생명력이 넉넉할 때만 건드린다.
     const worn = powers.loadout.slots.filter((id) => id !== null).length
     const boss = encounter.boss
-    const bossOk = worn >= 2 && hp > 0.6
+    // 장 흐름 (E22-06): 이 땅의 보스가 목표면 생명이 넉넉할 때 보스를 친다. 둘레에 다른 적이 있으면 먼저 치운다
+    // (보스로 곧장 가면 가는 길의 무리가 던지는 공격을 피하느라 왔다 갔다만 하고 닿지 못한다)
+    const goal = this.chapters ? this.game.chapters.goal : null
+    const bossGoal = goal?.kind === 'boss' && goal.region === this.game.region.id
+    const bossOk = (bossGoal || worn >= 2) && hp > 0.6
+    // 보스가 20m 안이면 둘레에 남은 적이 하나쯤 있어도 보스를 친다 (무리가 계속 다시 나타나는 땅에서 붙들리지 않게)
+    const strays = near.filter((g) => g !== boss).length
+    if (bossGoal && !legend.active && boss?.alive && hp > 0.6 && (strays === 0 || (strays <= 1 && dist(here, boss) < 20))) {
+      this.step = 16
+      this.engage(here, boss)
+      return
+    }
     // 위협 단계를 올리는 봇: 2단계 뒤에는 열린 가장 높은 단계의 문지기(지역 보스)를 찾아간다 (E14-07)
     const threat = this.game.threat
     if (this.climb && !legend.active && progress.promotions >= 1 && threat.unlocked === threat.reached && threat.level === threat.reached && boss?.alive && hp > 0.6) {

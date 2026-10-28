@@ -221,6 +221,13 @@ const DEEP_THEMES = {
     ground: { base: 0x8a9a5e, shade: 0x76864e, alt: 0x9aa868 },
     light: { sky: 0xa0b4c0, hemiSky: 0xe0e8d8, hemiGround: 0x303828, sunIntensity: 2.7 },
   }),
+  /** 갈라진 하늘 (E22-05, 마지막 무대): 하늘이 갈라져 보랏빛이 새는 거인의 돌밭 */
+  sky: variant(BASE_THEMES.snow, {
+    ground: { base: 0x8c8aa0, shade: 0x74728a, alt: 0x9a96ac, path: 0x6a6478, earth: 0x4a3e5a, stone: 0x585468 },
+    water: { surface: 0x9a7ad8, deep: 0x6a4aa8, frozen: false },
+    light: { sky: 0x4a3a6a, hemiSky: 0xd8c2ff, hemiGround: 0x241a34, hemi: 0.8, sun: 0xf0d8ff, sunIntensity: 2.7 },
+    particles: { kind: 'embers', color: 0xd8c2ff },
+  }),
   /** 송도 옛터: 무너진 도읍, 잿빛 흙 */
   ruins: variant(BASE_THEMES.sinsi, {
     ground: { base: 0xa8a08c, shade: 0x928a78, alt: 0xb4ac98, path: 0x8a8274, earth: 0x6a5a4a },

@@ -30,7 +30,7 @@ export class ProgressionSystem {
 
   constructor(private readonly ctx: GameContext) {
     ctx.bus.on('giantKilled', ({ giant }) => this.onGiantKilled(giant))
-    ctx.bus.on('mythOpened', ({ god }) => this.announceOpened(god))
+    ctx.bus.on('mythOpened', ({ god, quiet }) => !quiet && this.announceOpened(god))
   }
 
   /** 지금 이 지역 성소에서 열 수 있는 승급 전설 (없으면 null) */
@@ -39,9 +39,10 @@ export class ProgressionSystem {
     const god = build.chosen
     const legend = god ? godDef(god).legend : undefined
     if (!god || !legend || !progress.readyToPromote(god)) return null
-    // 지역 성소는 그 신화권 클래스의 전설만 연다 (E7-07). 시련 마일스톤 「열린 성소」면 어디서나 (E16)
+    // 엔딩 뒤에는 지역 성소가 그 신화권 클래스의 전설만 연다 (E7-07). 시련 마일스톤 「열린 성소」면 어디서나 (E16).
+    // 데모(엔딩 전)에서는 장 흐름이 정한 성소(요툰헤임·델포이)에서 고른 신화의 전설을 연다 (E22)
     const realm = this.ctx.map.region.realm
-    if (realm && godDef(god).realm !== realm && !this.ctx.trials.has(TRIAL_MILESTONES[1].at)) return null
+    if (this.ctx.ending.reached && realm && godDef(god).realm !== realm && !this.ctx.trials.has(TRIAL_MILESTONES[1].at)) return null
     return legend.kind
   }
 
@@ -124,14 +125,14 @@ export class ProgressionSystem {
       if (MATERIALS[id]?.kind === 'boss') this.ctx.hud.showToast(`${materialName(id)} · 대장간에서 유물을 벼린다`)
     }
     // 일반 장비 (E13-02): 졸개 6%, 정예 25%, 지역 보스는 반드시 (희귀 이상).
-    // 땅 자리마다 드랍 표가 다르고, 단계는 그 땅의 단계 (E21-03)
+    // 땅 자리마다 드랍 표가 다르고, 단계는 그 땅의 단계 (E21-03): 장 흐름의 땅은 장의 단계, 그 밖은 신화권 단계 (E22)
     const boss = giant.spec.boss !== undefined
     const { region } = this.ctx.map
     const land = region.zone ? GEAR.lands[region.zone] : null
     const chance = (boss ? GEAR.drop.boss : giant.elite ? GEAR.drop.elite : GEAR.drop.grunt) * (land?.rate ?? 1) * THREAT.gearDrop ** (level - 1)
     if (Math.random() < chance) {
       const chances = threatGrades(landChances(region.zone), level)
-      const tier = landTier(region.realm ?? giant.spec.realm)
+      const tier = this.ctx.chapters.tier(region.id) ?? landTier(region.realm ?? giant.spec.realm)
       const item = rollGear(Math.random, boss ? { minGrade: GEAR.drop.bossMinGrade, chances, tier } : { chances, tier })
       pickups.drop(item.uid, giant.x + 0.7, giant.z + 0.4, true, item)
     }

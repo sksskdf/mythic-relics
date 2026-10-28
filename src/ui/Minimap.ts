@@ -23,6 +23,8 @@ export interface MinimapState {
   relics: readonly { x: number; z: number }[]
   /** 성소가 열려 있다 (승급할 수 있다) */
   sanctuaryReady: boolean
+  /** 다음 목표의 자리 (지금 땅 좌표, E22-04): 지금 땅의 성소·보스, 다른 땅이면 그쪽으로 가는 통로. 지도 밖이면 가장자리에 */
+  goal?: { x: number; z: number } | null
 }
 
 /**
@@ -148,6 +150,16 @@ export class Minimap {
     for (const r of state.relics) {
       const p = this.project(r.x, r.z)
       g.fillRect(Math.round(p.u) - 1, Math.round(p.v) - 1, 2, 2)
+    }
+    // 다음 목표: 금빛 마름모 테가 그 자리를 두르고 깜빡인다 (출구 표시를 가리지 않게 속은 비움, 지도 밖이면 가장자리로 당겨 방향만)
+    if (state.goal) {
+      const p = this.project(state.goal.x, state.goal.z)
+      const u = Math.round(Math.min(SIZE - 6, Math.max(5, p.u)))
+      const v = Math.round(Math.min(SIZE - 6, Math.max(5, p.v)))
+      g.fillStyle = blink ? this.ink.relic : this.ink.ready
+      for (let i = 0; i <= 4; i++) {
+        for (const [du, dv] of [[i, i - 4], [4 - i, i], [-i, 4 - i], [i - 4, -i]] as const) g.fillRect(u + du, v + dv, 1, 1)
+      }
     }
     // 나
     const me = this.project(state.hero.x, state.hero.z)

@@ -4,6 +4,7 @@ import { DataError } from '../src/data/check'
 import regionsText from '../src/data/regions.json?raw'
 import { arrivalSpot, exitColor, formatRegions, nextHop, worldLayout, parseRegions, RAW_REGIONS, REALM_COLORS, REGIONS, SPAWN_CLEAR, START_REGION } from '../src/data/regions'
 import { GRUNT, KING } from '../src/enemies/Giant'
+import { LAND_DAMAGE_EXPONENT } from '../src/data/chapters'
 import { Encounter } from '../src/game/Encounter'
 import { UtgardLegend } from '../src/game/Legend'
 import { CROSS_MARGIN, crossingAt, regionLinks, walkRects } from '../src/data/world'
@@ -18,6 +19,9 @@ import { NavGrid } from '../src/world/navGrid'
 
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T
 const regions = Object.values(REGIONS)
+/** 신화권 다섯의 땅과 마을 (마지막 무대 빼고) */
+const realmLands = regions.filter((r) => !r.finale)
+const toRealmLand = (id: string) => !REGIONS[id]!.finale
 
 describe.each(regions.map((r) => [r.id, r] as const))('지역 %s', (_id, region) => {
   const colliders = [...region.props.flatMap(collidersFor), ...region.npcs.map((n) => ({ x: n.x, z: n.z, radius: 0.45 }))]
@@ -101,12 +105,13 @@ describe.each(regions.map((r) => [r.id, r] as const))('지역 %s', (_id, region)
 })
 
 describe('세계 (E7, E15)', () => {
-  it('마을 하나와 신화권마다 입구 들판·깊은 땅·보스의 땅, 모두 16곳이고 마을에서 시작한다 (E15-01)', () => {
+  it('마을 하나와 신화권마다 입구 들판·깊은 땅·보스의 땅, 모두 16곳에 마지막 무대 하나, 마을에서 시작한다 (E15-01, E22)', () => {
     const hubs = regions.filter((r) => r.kind === 'hub')
     expect(hubs).toHaveLength(1)
     expect(START_REGION).toBe(hubs[0]!.id)
-    expect(regions).toHaveLength(16)
-    const fields = regions.filter((r) => r.kind === 'field')
+    expect(realmLands).toHaveLength(16)
+    expect(regions.filter((r) => r.finale).map((r) => r.id)).toEqual(['sky'])
+    const fields = realmLands.filter((r) => r.kind === 'field')
     for (const realm of ['china', 'greek', 'japan', 'korea', 'norse']) {
       expect(fields.filter((r) => r.realm === realm).map((r) => r.zone).sort(), realm).toEqual(['boss', 'deep', 'entrance'])
     }
@@ -115,16 +120,24 @@ describe('세계 (E7, E15)', () => {
 
   it('마을 → 입구 들판 → 깊은 땅 → 보스의 땅으로 이어지고, 이웃은 서로 오간다', () => {
     const hub = REGIONS[START_REGION]!
-    const entrances = regions.filter((r) => r.zone === 'entrance')
+    const entrances = realmLands.filter((r) => r.zone === 'entrance')
     expect(hub.exits.map((e) => e.to).sort()).toEqual(entrances.map((r) => r.id).sort())
     for (const entrance of entrances) {
-      const deep = regions.find((r) => r.zone === 'deep' && r.realm === entrance.realm)!
-      const boss = regions.find((r) => r.zone === 'boss' && r.realm === entrance.realm)!
-      expect(entrance.exits.map((e) => e.to).sort(), entrance.id).toEqual([deep.id, hub.id].sort())
+      const deep = realmLands.find((r) => r.zone === 'deep' && r.realm === entrance.realm)!
+      const boss = realmLands.find((r) => r.zone === 'boss' && r.realm === entrance.realm)!
+      expect(entrance.exits.map((e) => e.to).filter(toRealmLand).sort(), entrance.id).toEqual([deep.id, hub.id].sort())
       expect(deep.exits.map((e) => e.to).sort(), deep.id).toEqual([boss.id, entrance.id].sort())
       expect(boss.exits.map((e) => e.to), boss.id).toEqual([deep.id])
     }
     for (const r of regions) for (const e of r.exits) expect(REGIONS[e.to]!.exits.some((back) => back.to === r.id), `${r.id} → ${e.to}`).toBe(true)
+  })
+
+  it('마지막 무대는 미드가르드와 올림포스 두 곳에서 걸어 들어간다 (E22)', () => {
+    expect(REGIONS.sky!.exits.map((e) => e.to).sort()).toEqual(['midgard', 'olympus'])
+    // 마지막 보스는 균열의 우트가르드의 왕과 모습·이름이 같고 세기는 따로 (E22-05)
+    expect(REGIONS.sky!.boss?.enemy).toBe('skyKing')
+    const into = regions.filter((r) => r.exits.some((e) => e.to === 'sky')).map((r) => r.id)
+    expect(into.sort()).toEqual(['midgard', 'olympus'])
   })
 
   it('어느 지역에서 어느 지역으로든 이웃을 따라 갈 수 있다 (봇·지도의 다음 이웃)', () => {
@@ -145,14 +158,14 @@ describe('세계 (E7, E15)', () => {
 
   it('세계 지도: 마을이 가운데, 모든 지역이 서로 다른 자리에, 입구·깊은 땅·보스의 땅 차례로 멀어진다 (E15-04)', () => {
     const layout = worldLayout()
-    expect(Object.keys(layout).sort()).toEqual(regions.map((r) => r.id).sort())
+    expect(Object.keys(layout).filter(toRealmLand).sort()).toEqual(realmLands.map((r) => r.id).sort())
     expect(layout[START_REGION]).toEqual({ x: 0, y: 0 })
     const spots = Object.values(layout).map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`)
     expect(new Set(spots).size).toBe(spots.length)
     const far = (id: string) => Math.hypot(layout[id]!.x, layout[id]!.y)
-    for (const r of regions.filter((x) => x.zone === 'entrance')) {
-      const deep = regions.find((x) => x.zone === 'deep' && x.realm === r.realm)!
-      const boss = regions.find((x) => x.zone === 'boss' && x.realm === r.realm)!
+    for (const r of realmLands.filter((x) => x.zone === 'entrance')) {
+      const deep = realmLands.find((x) => x.zone === 'deep' && x.realm === r.realm)!
+      const boss = realmLands.find((x) => x.zone === 'boss' && x.realm === r.realm)!
       expect(far(r.id)).toBeCloseTo(1)
       expect(far(deep.id)).toBeCloseTo(2)
       expect(far(boss.id)).toBeCloseTo(3)
@@ -261,6 +274,20 @@ describe('지역을 바꿔 다시 짓기', () => {
     expect(encounter.giants.filter((g) => g.spec === GRUNT)).toHaveLength(6)
     expect(encounter.boss).not.toBeNull()
     expect(encounter.spots.boss?.z).toBeCloseTo(-20, 0)
+  })
+
+  it('땅마다 적의 세기가 다르다: 생명은 적 지수만큼, 피해는 덜 (E22-02)', () => {
+    const layout = (id: string) => ({ id, camps: [{ x: 10, z: 0, count: 2 }], boss: { x: -10, z: 0 } })
+    const power = (id: string | undefined) => (id === 'lycia' ? 4 : 1)
+    const weak = new Encounter(layout('midgard'), [], 30, power)
+    const strong = new Encounter(layout('lycia'), [], 30, power)
+    // 정예는 생명이 더 크니 가장 약한 졸개끼리 견준다
+    const gruntHp = (e: Encounter) => Math.min(...e.giants.filter((g) => g.spec === GRUNT).map((g) => g.health.max))
+    expect(gruntHp(strong)).toBeCloseTo(gruntHp(weak) * 4)
+    expect(strong.boss!.health.max).toBeCloseTo(weak.boss!.health.max * 4)
+    expect(strong.boss!.damageScale).toBeCloseTo(4 ** LAND_DAMAGE_EXPONENT)
+    // 전설의 적도 그 땅의 세기로
+    expect(strong.spawn(GRUNT, { x: 0, z: 5 }, false).health.max).toBeCloseTo(GRUNT.hp * 4)
   })
 
   it('보스가 없는 배치(마을)는 보스를 세우지 않는다', () => {

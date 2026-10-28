@@ -1,12 +1,14 @@
+import { DATA } from '../data'
 import { REGIONS } from '../data/regions'
 import { CHOSEN_SLOTS } from '../myth/ClassProgress'
 import { SLOT_PARTS } from '../data/gearData'
 import { isMythRelic } from '../gear/mythRelic'
 import { type GearItem, parseGearItem } from '../gear/roll'
 import { MATERIAL_CAP } from '../gear/Loadout'
-import { realmMaterial } from '../gear/materials'
+import { bossMaterial, realmMaterial } from '../gear/materials'
 import { hiddenUnlocked, legacyManifest } from '../myth/manifest'
 import { relicGods } from '../relics/model'
+import { type ChapterData, parseChapterData } from '../progress/Chapters'
 import { type ConvenienceData, parseConveniences } from '../progress/Conveniences'
 import { parseThreat, type ThreatData } from '../progress/Threat'
 import { parseTrials, type TrialData } from '../progress/Trials'
@@ -32,8 +34,10 @@ import { GODS, godDef, type God, isRelicId, relicDef, type RelicId } from '../re
  *   (E19의 세계 자리는 지역 id와 그 지역 기준 자리라 형식을 바꾸지 않았다)
  * - v9: 세 축 정리 (E21). 엔딩을 보았나(ending). 신화 고유 재료는 그 신의 신화권 재료로 바꾸고,
  *   물려받은 수치·원천 숙련·전투 경험은 버린다. 위협 단계·시련·균열을 해 본 옛 저장은 엔딩 뒤로 친다 (그 장치를 숨기지 않게)
+ * - v10: 장 진행 (E22). 들어서 본 땅과 보스를 이긴 땅. 옛 저장은 있던 땅·찾은 성소를 들어서 본 땅으로,
+ *   위협 단계에서 이겼거나 보스 재료·그 신화권 유물을 가진 신화권의 보스를 이긴 것으로 친다 (지나온 장에 다시 막히지 않게)
  */
-export const SAVE_VERSION = 9
+export const SAVE_VERSION = 10
 
 /** v8 이하의 신화 고유 재료 → 그 신 (E21-04에서 없앰. 그 신의 신화권 재료로 하나씩 바꿔 준다, 히든은 북유럽) */
 export const OLD_MYTH_MATERIALS: Readonly<Record<string, God>> = {
@@ -99,6 +103,8 @@ export interface SaveData {
   rift: RiftData
   /** 첫 엔딩을 보았나 (E21-06): 엔딩 뒤 장치를 연다 */
   ending: boolean
+  /** 장 진행 (E22): 들어서 본 땅, 보스를 이긴 땅 */
+  chapters: ChapterData
   /** 지금 있는 지역과 자리 (E7). 옛 저장이거나 모르는 지역이면 null (마을에서 시작) */
   region: { id: string; x: number; z: number } | null
   /** 본 대화 장면 (E12-10). 옛 저장에는 없어서 빈 목록 */
@@ -124,7 +130,7 @@ export function parseSave(text: string | null): SaveData | null {
   }
   if (typeof raw !== 'object' || raw === null) return null
   const data = raw as Record<string, unknown>
-  if (data.version !== SAVE_VERSION && ![1, 2, 3, 4, 5, 6, 7, 8].includes(data.version as number)) return null
+  if (data.version !== SAVE_VERSION && ![1, 2, 3, 4, 5, 6, 7, 8, 9].includes(data.version as number)) return null
   const old = (data.version as number) < 5
 
   // 일반 장비 (v5)
@@ -194,6 +200,9 @@ export function parseSave(text: string | null): SaveData | null {
   const rift = parseRift(data.rift, (data.version as number) < 6 ? oldStars(data.cycle) : 0)
   // 엔딩 뒤 장치를 해 본 옛 저장은 엔딩 뒤로 친다 (E21-06)
   const tried = threat.limitBroken || threat.unlocked > 1 || Object.values(trials.cleared).some((n) => (n ?? 0) > 0) || rift.best > 0
+  const region = parseRegion(data.region)
+  const conveniences = parseConveniences(data.conveniences)
+  const chapters = (data.version as number) < 10 ? oldChapters(region, conveniences, threat, materials, relicsOwned) : parseChapterData(data.chapters)
   return {
     version: SAVE_VERSION,
     slots: slots.slice(0, SLOT_PARTS.length),
@@ -209,11 +218,12 @@ export function parseSave(text: string | null): SaveData | null {
     looks: data.version === 1 ? migrateLooks(legacySlots(data.slots), legacySlots(data.bag) as RelicId[], classes) : parseLooks(data.looks),
     body: parseBody(data.body),
     threat,
-    conveniences: parseConveniences(data.conveniences),
+    conveniences,
     trials,
     rift,
     ending: data.ending === true || ((data.version as number) < 9 && tried),
-    region: parseRegion(data.region),
+    chapters,
+    region,
     scenes: Array.isArray(data.scenes) ? [...new Set(data.scenes.filter((s): s is string => typeof s === 'string' && s.length < 40))] : [],
   }
 }
@@ -248,6 +258,21 @@ function refundMythMaterials(materials: Record<string, number>): void {
     const to = realmMaterial(godDef(god).realm) ?? 'frostShard'
     materials[to] = Math.min(MATERIAL_CAP, (materials[to] ?? 0) + n)
   }
+}
+
+/** v9 이하 → v10: 장 진행을 그때까지 한 것에서 짐작한다 (E22) */
+function oldChapters(region: SaveData['region'], conveniences: ConvenienceData, threat: ThreatData, materials: Record<string, number>, owned: readonly RelicId[]): ChapterData {
+  const entered = new Set<string>([...(region ? [region.id] : []), ...conveniences.visited])
+  const beaten = (realm: string) => {
+    const boss = Object.values(DATA.enemies).find((e) => e.boss && e.realm === realm && e.role === 'boss')?.boss
+    const material = boss ? bossMaterial(boss) : undefined
+    return (threat.cleared[realm] ?? 0) > 0 || (material !== undefined && (materials[material] ?? 0) > 0) || owned.some((id) => isMythRelic(id) && godDef(relicDef(id).god).realm === realm)
+  }
+  const bosses = Object.values(REGIONS)
+    .filter((r) => r.zone === 'boss' && r.boss && !r.finale && r.realm && beaten(r.realm))
+    .map((r) => r.id)
+  for (const id of bosses) entered.add(id)
+  return parseChapterData({ entered: [...entered], bosses })
 }
 
 /** 옛 저장의 칸 그대로 (1차 발현 규칙으로 고른 신화를 정할 때) */

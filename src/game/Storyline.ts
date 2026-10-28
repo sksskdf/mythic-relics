@@ -31,7 +31,7 @@ export class Storyline {
     const { bus, threat } = parts.ctx
     // 신화 개방: 숙련으로 여럿이 함께 열리면(아직 고른 신화가 없을 때 그 신화권 신 넷) 장면이 줄줄이 서지 않게,
     // 이미 다른 신화의 장면이 떠 있거나 기다리면 미루고 그 신화를 처음 고를 때 연다
-    bus.on('mythOpened', ({ god }) => !this.mythBusy() && this.play(`myth${capital(god)}`))
+    bus.on('mythOpened', ({ god, quiet }) => !quiet && !this.mythBusy() && this.play(`myth${capital(god)}`))
     bus.on('manifested', ({ god }) => this.play(`myth${capital(god)}`))
     bus.on('forged', ({ stage }) => stage === 1 && this.play('forgeFirst'))
     bus.on('limitBroken', () => this.play('limitBreak'))

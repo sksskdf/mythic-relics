@@ -23,8 +23,9 @@ jobs:
       - run: npm ci
       - name: 타입 검사 + 빌드 + 단위 테스트 + 스모크
         run: npm run check
-      - name: 봇 검증 (1판, 25분 안에 승급)
-        run: node scripts/playtest.mjs 1 25 --gate
+      # 장 흐름(E22)을 따라 미드가르드 성소에서 첫 신화를 고르고 요툰헤임 성소에서 2단계로 오른다 (봇 기준 24~27분)
+      - name: 봇 검증 (1판, 35분 안에 승급)
+        run: node scripts/playtest.mjs 1 35 --gate
       - name: 결과 올리기
         if: always()
         uses: actions/upload-artifact@v4

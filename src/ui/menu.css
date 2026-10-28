@@ -1259,9 +1259,44 @@
   fill: var(--realm);
   opacity: 0.18;
 }
+.menu-map__land.is-locked {
+  opacity: 0.06;
+}
 .menu-map__road {
   stroke: var(--c-line-2);
   stroke-width: 0.06;
+}
+/* 결계로 막힌 길은 끊어진 선 (E22-04) */
+.menu-map__road.is-locked {
+  stroke-dasharray: 0.08 0.1;
+  opacity: 0.5;
+}
+.menu-map__node.is-locked {
+  opacity: 0.4;
+}
+/* 다음 목표의 땅: 금빛 고리가 뛴다 */
+.menu-map__goal {
+  fill: none;
+  stroke: var(--c-gold-soft);
+  stroke-width: 0.06;
+  animation: menu-map-goal 1.4s ease-in-out infinite;
+}
+@keyframes menu-map-goal {
+  0%, 100% { stroke-opacity: 1; }
+  50% { stroke-opacity: 0.3; }
+}
+.menu-map__goal-line {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  font: var(--t-body);
+  color: var(--c-moon);
+}
+.menu-map__goal-line i {
+  width: 6px;
+  height: 6px;
+  background: var(--c-gold-soft);
+  transform: rotate(45deg);
 }
 .menu-map__me {
   fill: var(--c-ink-1);
@@ -1335,6 +1370,12 @@
   .menu-map__label small {
     display: none;
   }
+}
+.menu-map__label.is-locked span {
+  color: var(--c-ink-3);
+}
+.menu-map__label.is-goal span {
+  color: var(--c-gold-soft);
 }
 .menu-map__label.is-here {
   color: var(--c-ink-1);

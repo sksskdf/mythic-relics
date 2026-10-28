@@ -1,5 +1,6 @@
 import type { Build } from '../build/Build'
 import type { Conveniences } from '../progress/Conveniences'
+import type { ChapterProgress } from '../progress/Chapters'
 import type { Ending } from '../progress/Ending'
 import type { ThreatProgress } from '../progress/Threat'
 import type { TrialProgress } from '../progress/Trials'
@@ -68,6 +69,8 @@ export interface GameContext {
   readonly conveniences: Conveniences
   /** 첫 엔딩을 보았나: 엔딩 뒤 장치를 연다 (E21-06) */
   readonly ending: Ending
+  /** 장 진행: 지금 장·목표·열린 땅 (E22) */
+  readonly chapters: ChapterProgress
   /** 외형 보관함 (얻은 외형, 칸마다 고른 것) */
   readonly wardrobe: Wardrobe
   /** 빌드 상태: 열린 신화·고른 신화·장비·원천 → 능력치 (E11-04) */

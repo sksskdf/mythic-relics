@@ -15,6 +15,7 @@ const CELLS = {
   hwagwasan: [1, 0], kunlun: [2, 0], huoyanshan: [3, 0],
   sinsi: [-1, 0], taebaek: [-2, 0], songdo: [-3, 0],
   takamagahara: [-0.5, -1], izumo: [-1, -2], hiikawa: [-1.5, -3],
+  sky: [0, 2],
 }
 
 const r2 = (v) => Math.round(v * 100) / 100
@@ -46,7 +47,7 @@ for (const [id, region] of Object.entries(regions)) {
 }
 writeFileSync(FILE, JSON.stringify(regions, null, 2) + '\n')
 // 모듈은 파일을 다시 쓰기 전에 모두 불러 둔다 (설정이 지역 데이터를 읽으므로, 쓰고 나면 서버가 다시 뜨며 끊긴다)
-const vite = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' })
+const vite = await createServer({ configFile: false, server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' })
 const { passages, cellOrigin, CELL } = await vite.ssrLoadModule('/src/data/world.ts')
 const { formatRegions, parseRegions } = await vite.ssrLoadModule('/src/data/regions.ts')
 await vite.close()

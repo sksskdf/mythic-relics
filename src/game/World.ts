@@ -1,4 +1,6 @@
-import { arrivalSpot, REGIONS, type RegionDef } from '../data/regions'
+import { Vector3 } from 'three'
+
+import { arrivalSpot, exitColor, nextHop, REGIONS, type RegionDef } from '../data/regions'
 import { CELL, cellKey, cellOrigin, crossingAt, neighborCells, type RegionLink, regionLinks, walkRects } from '../data/world'
 import { walkArea, type WalkArea } from '../world/colliders'
 import { collidersFor } from '../world/regionMap'
@@ -8,6 +10,7 @@ import type { Pickups } from '../gear/Pickups'
 import type { QuarterViewCamera } from '../render/QuarterViewCamera'
 import type { Hud } from '../ui/Hud'
 import type { Minimap } from '../ui/Minimap'
+import type { Barriers } from '../world/Barriers'
 import { realmSigil } from '../ui/sigils'
 import type { NavGrid } from '../world/navGrid'
 import { THEMES } from '../world/themes'
@@ -51,6 +54,10 @@ export interface WorldParts {
   hud: Hud
   pickups: Pickups
   drops: DropTable
+  /** 막힌 땅으로 가는 통로의 결계 (E22-02) */
+  barriers: Barriers
+  /** 그 땅에 들어갈 수 있나 (장 진행, E22-02) */
+  isOpen: (id: string) => boolean
 }
 
 /**
@@ -84,9 +91,40 @@ export class World {
     return this.parts.stage.map.region
   }
 
-  /** 그 땅에서 움직일 수 있는 곳: 땅의 네모와 이웃으로 가는 통로 (E19) */
+  /** 그 땅에서 열린 땅으로 가는 통로 (막힌 땅으로 가는 통로는 결계가 막는다, E22-02) */
+  openLinks(region: RegionDef): RegionLink[] {
+    return regionLinks(this.regions, region.id).filter((l) => this.parts.isOpen(l.to))
+  }
+
+  /** 그 땅에서 움직일 수 있는 곳: 땅의 네모와 열린 이웃으로 가는 통로 (E19, E22-02) */
   areaOf(region: RegionDef): WalkArea {
-    return walkArea(walkRects(region.halfExtent, regionLinks(this.regions, region.id)))
+    return walkArea(walkRects(region.halfExtent, this.openLinks(region)))
+  }
+
+  /**
+   * 장이 바뀌어 땅이 열렸다 (E22-02): 그 통로의 결계가 빛기둥과 함께 풀리고 걸을 수 있는 곳이 넓어진다.
+   * 불러온 뒤처럼 조용히 맞출 때는 announce를 끈다
+   */
+  refreshLinks(announce = true): void {
+    const { stage, nav, hero, encounter, barriers, fx, bus } = this.parts
+    const region = this.region
+    const before = new Set(this.links.map((l) => l.to))
+    this.links = this.openLinks(region)
+    const opened = this.links.filter((l) => !before.has(l.to))
+    if (opened.length === 0 && announce) return
+    const colliders = stage.map.colliders
+    const area = this.areaOf(region)
+    nav.rebuild(area, colliders)
+    encounter.setArea(area, colliders)
+    hero.area = area
+    this.drawMinimap(region)
+    for (const link of opened) {
+      const at = barriers.open(link.to)
+      if (!at || !announce) continue
+      fx.power.burst(new Vector3(at.x, 0, at.z), exitColor(link.to), 3)
+      bus.emit('sound', { cue: 'manifest', x: at.x, z: at.z })
+    }
+    if (!announce) this.placeBarriers(region)
   }
 
   /** 지금 땅 둘레에 그려지는 땅들의 적 배치와, 지금 땅 좌표로 옮길 만큼 (E19). 세계 칸이 없는 균열이면 없음 */
@@ -120,14 +158,40 @@ export class World {
 
   /** 땅의 날림(눈·꽃잎·낙엽)과 길찾기 밖의 것들을 그 지역 것으로 맞춘다. 처음 지역에도 쓴다 */
   dress(region: RegionDef): void {
-    const { villagers, minimap, fx, drops } = this.parts
-    this.links = regionLinks(this.regions, region.id)
+    const { villagers, fx, drops } = this.parts
+    this.links = this.openLinks(region)
     villagers.load(region.npcs)
-    // 작은 지도: 이어진 세계면 통로와 이웃 땅까지 (E19-05)
-    minimap.setRegion(region, region.cell ? { neighbors: this.neighborLands(region), passages: this.links.map((l) => l.rect) } : null)
+    this.drawMinimap(region)
+    this.placeBarriers(region)
     const particles = THEMES[region.theme].particles
     fx.snow.setStyle(particles.kind, particles.color)
     if (region.realm) drops.realm = region.realm
+  }
+
+  /** 작은 지도: 이어진 세계면 열린 통로와 이웃 땅까지 (E19-05) */
+  private drawMinimap(region: RegionDef): void {
+    this.parts.minimap.setRegion(region, region.cell ? { neighbors: this.neighborLands(region), passages: this.links.map((l) => l.rect) } : null)
+  }
+
+  /**
+   * 그 땅으로 가려면 향할 곳 (지금 땅 좌표, E22-04): 지금 땅이면 null, 아니면 다음 이웃으로 가는 열린 통로 입구.
+   * 길이 없으면(막힌 땅을 지나야만 하면) null
+   */
+  wayTo(id: string): { x: number; z: number } | null {
+    const region = this.region
+    if (id === region.id) return null
+    const hop = nextHop(region.id, id, this.regions)
+    const link = this.links.find((l) => l.to === hop)
+    if (!link) return null
+    const r = link.rect
+    const along = link.dir * region.halfExtent
+    return link.axis === 'x' ? { x: along, z: (r.minZ + r.maxZ) / 2 } : { x: (r.minX + r.maxX) / 2, z: along }
+  }
+
+  /** 막힌 땅으로 가는 통로 입구마다 갈 땅의 신화권 색으로 결계를 세운다 (E22-02) */
+  private placeBarriers(region: RegionDef): void {
+    const locked = regionLinks(this.regions, region.id).filter((l) => !this.parts.isOpen(l.to))
+    this.parts.barriers.set(region.halfExtent, locked, exitColor)
   }
 
   /**
