@@ -1,4 +1,20 @@
 /* 기본 HUD. 화면 크기가 달라도 아래쪽 가운데에 떠 있고, 크기는 화면 높이에 맞춰 바뀐다. */
+
+/* 작은 지도의 크기: 64픽셀 그림의 정수 배라 화면이 크면 세 배·네 배로 (사용자 의견 2026-10-28) */
+:root {
+  --minimap: 128px;
+}
+@media (min-height: 900px) and (min-aspect-ratio: 4/5) {
+  :root {
+    --minimap: 192px;
+  }
+}
+@media (min-height: 1300px) and (min-aspect-ratio: 4/5) {
+  :root {
+    --minimap: 256px;
+  }
+}
+
 .hud {
   --unit: clamp(4px, 0.9vh, 10px);
   --ink: var(--c-ink-1);
@@ -229,6 +245,10 @@ button.hud__slot--empty {
 .damage-number--hurt {
   color: #ff6b5e;
 }
+.damage-number--label {
+  white-space: nowrap;
+  font: max(12px, round(down, 2.2vh, 12px)) / 1 var(--font-body);
+}
 .damage-number--thunder {
   color: #9fe3ff;
 }
@@ -256,6 +276,28 @@ button.hud__slot--empty {
   bottom: calc(var(--unit) * 14);
   font: max(12px, round(down, 2.4vh, 12px)) / 1.4 var(--font-body);
   color: var(--ink);
+}
+/* 조작 안내 한 줄: 해 볼 때까지 남아 천천히 숨 쉰다 (시작 장면 뒤) */
+.hud__coach {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--unit) * 20);
+  transform: translateX(-50%);
+  white-space: nowrap;
+  padding: var(--sp-1) var(--sp-3);
+  background: var(--c-bg-0);
+  border: var(--bw) solid var(--c-line-2);
+  font: max(12px, round(down, 2.4vh, 12px)) / 1.4 var(--font-body);
+  color: var(--c-gold-soft);
+  opacity: 0;
+  transition: opacity 0.4s;
+}
+.hud__coach.is-on {
+  opacity: 1;
+  animation: hud-coach 2.4s ease-in-out infinite;
+}
+@keyframes hud-coach {
+  50% { opacity: 0.6; }
 }
 .hud__banner.is-showing {
   animation: hud-banner 2.4s ease-out forwards;
@@ -401,9 +443,11 @@ button.hud__slot--empty {
 /* 발현·승급 때 무엇이 강해졌는지 보여 주는 카드 */
 .hud__gains {
   --glow: var(--c-moon);
+  /* 가운데 카드의 위 끝 (새 탭 카드가 메뉴 단추로 날아갈 때도 이 값으로 잰다) */
+  --gains-top: 9vh;
   position: absolute;
   left: 50%;
-  top: 9%;
+  top: var(--gains-top);
   min-width: 300px;
   padding: var(--sp-5) var(--sp-6) var(--sp-6);
   background: linear-gradient(180deg, color-mix(in srgb, var(--glow) 16%, rgba(12, 13, 16, 0.92)), rgba(12, 13, 16, 0.92) 60%);
@@ -429,13 +473,23 @@ button.hud__slot--empty {
 .hud__gains:not(.is-side) .hud__gains-title {
   font: var(--t-display);
 }
+/* 새 탭 (E236-05): 가운데 떴다가 오른쪽 위 메뉴 단추로 작아지며 날아 들어간다. 단추는 정보 화면을 열 때까지 부른다 */
+.hud__gains.is-fly.is-showing {
+  animation: hud-gains-fly 3.6s ease-in forwards;
+}
+@keyframes hud-gains-fly {
+  0% { opacity: 0; transform: translate(-50%, 12px) scale(0.96); }
+  8% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  70% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  100% { opacity: 0.2; transform: translate(calc(50vw - 50% - var(--unit) * 5), calc(var(--unit) * 5 - var(--gains-top) - 50%)) scale(0.08); }
+}
 /* 카드 (E23-01): 오른쪽 위 작은 지도 아래에 작게, 싸움을 가리지 않는다. 장 제목 띠가 지나가도 위에 보인다 */
 .hud__gains.is-side {
   z-index: 1;
   --unit: clamp(4px, 0.9vh, 10px);
   left: auto;
   right: calc(var(--unit) * 2);
-  top: calc(var(--unit) * 12 + 128px);
+  top: calc(var(--unit) * 12 + var(--minimap));
   min-width: 0;
   width: 240px;
   padding: var(--sp-4) var(--sp-5) var(--sp-5);
@@ -452,9 +506,6 @@ button.hud__slot--empty {
   6% { opacity: 1; transform: none; }
   88% { opacity: 1; }
   100% { opacity: 0; }
-}
-.devmode .hud__gains.is-side {
-  right: calc(300px + var(--unit) * 2 + 8px);
 }
 .hud__gains-head {
   display: flex;
@@ -592,14 +643,14 @@ button.hud__slot--empty {
   z-index: 20;
 }
 
-/* 작은 지도 (E7-08): 메뉴 단추 아래. 64픽셀로 그려 두 배로 키운다 */
+/* 작은 지도 (E7-08): 메뉴 단추 아래. 64픽셀로 그려 화면 높이에 따라 두~네 배로 키운다 */
 .minimap {
   --unit: clamp(4px, 0.9vh, 10px);
   position: fixed;
   top: calc(var(--unit) * 10);
   right: calc(var(--unit) * 2);
-  width: 128px;
-  height: 128px;
+  width: var(--minimap);
+  height: var(--minimap);
   image-rendering: pixelated;
   background: var(--c-bg-0);
   box-shadow: 0 0 0 2px var(--c-groove);
@@ -610,9 +661,6 @@ button.hud__slot--empty {
 /* 누르면 세계 지도 (E15-04) */
 .minimap:hover {
   box-shadow: 0 0 0 2px var(--c-gold-soft);
-}
-.devmode .minimap {
-  right: calc(300px + clamp(4px, 0.9vh, 10px) * 2 + 8px);
 }
 
 /* 몬스터 이름표 (E12-09): 커서를 올리거나 공격 중인 몬스터 머리 위 */

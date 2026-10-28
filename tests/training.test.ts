@@ -43,7 +43,7 @@ describe('수련 진행 (E236-02)', () => {
     expect(t.gain(-5)).toBe(0)
   })
 
-  it('뿌리부터, 앞 마디를 찍어야 찍는다. 가지는 둘 중 하나만 찍어도 다음으로 간다', () => {
+  it('뿌리부터, 앞 마디를 익혀야 익힌다. 가지는 둘 중 하나만 익혀도 다음으로 간다', () => {
     const t = new TrainingProgress()
     t.gain(10000)
     expect(t.take('edge')).toBe(false)
@@ -55,7 +55,7 @@ describe('수련 진행 (E236-02)', () => {
     expect(t.take('boil')).toBe(true)
   })
 
-  it('깨달음이 모자라면 찍지 못하고, 되돌리면 모두 돌아온다 (무료)', () => {
+  it('깨달음이 모자라면 익히지 못하고, 되돌리면 모두 돌아온다 (무료)', () => {
     const t = new TrainingProgress()
     t.gain(145)
     expect(t.take('awaken')).toBe(true)
@@ -66,7 +66,7 @@ describe('수련 진행 (E236-02)', () => {
     expect(t.taken.size).toBe(0)
   })
 
-  it('찍은 마디의 수치는 같은 종류끼리 더한다', () => {
+  it('익힌 마디의 수치는 같은 종류끼리 더한다', () => {
     const t = new TrainingProgress()
     t.gain(10000)
     for (const id of ['awaken', 'edge', 'fury', 'quick']) t.take(id)
@@ -77,7 +77,7 @@ describe('수련 진행 (E236-02)', () => {
     expect(stats.attackSpeed).toBeCloseTo(0.06)
   })
 
-  it('불러올 때 찍을 수 없는 마디(앞 마디가 빠짐, 깨달음보다 많음)는 버린다', () => {
+  it('불러올 때 익힐 수 없는 마디(앞 마디가 빠짐, 깨달음보다 많음)는 버린다', () => {
     const t = new TrainingProgress()
     t.load({ xp: 145, taken: ['awaken', 'fury', 'quick', 'stride'] })
     expect([...t.taken]).toEqual(['awaken', 'quick'])

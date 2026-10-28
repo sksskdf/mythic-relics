@@ -36,6 +36,8 @@ export interface GameEvents {
   threatChanged: { level: number }
   /** 일반 장비를 주웠다 (E13-02) */
   gearPicked: { item: GearItem }
+  /** 주운 장비가 가방으로 갔는데 지금 낀 것보다 좋다 (메뉴 단추로 장비 탭을 부른다) */
+  gearBetter: { item: GearItem }
   /** 장착이 바뀌었다. announce가 false면 연출 없이 (불러오기 등) */
   loadoutChanged: { change: LoadoutChange; announce: boolean }
   /** 클래스가 발현됐다. */

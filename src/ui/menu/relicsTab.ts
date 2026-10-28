@@ -5,7 +5,7 @@ import { materialName } from '../../gear/materials'
 import { GEAR, gearName } from '../../gear/roll'
 import { godDef, relicDef, type RelicId } from '../../relics/data'
 import { classIcon } from '../classIcons'
-import { gearCard } from '../gearCard'
+import { gearCard, gearIcon } from '../gearCard'
 import { josa } from '../josa'
 import { relicCard, relicIcon } from '../relicCard'
 import { glyph, unknownSigil } from '../sigils'
@@ -206,14 +206,16 @@ export class RelicsTab {
     return box
   }
 
-  /** 칸·가방 단추에 그림: 유물은 유물 그림과 신의 색, 일반 장비는 등급 색 */
+  /** 칸·가방 단추에 그림: 유물은 유물 그림과 신의 색, 일반 장비는 장비 그림과 등급 색 */
   private paintItem(b: HTMLElement, id: string | null): void {
     if (!id) return
+    b.classList.add('is-filled')
     const gear = this.ctx.host.gearOf(id)
     if (gear) {
       b.classList.add('is-gear')
       b.style.setProperty('--god', GRADE_COLORS[gear.grade])
       b.dataset.grade = gear.grade
+      b.style.backgroundImage = `url(${gearIcon(gear)})`
       return
     }
     b.style.backgroundImage = `url(${relicIcon(relicDef(id))})`

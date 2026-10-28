@@ -13,12 +13,11 @@
     top: calc(var(--unit) * 10 + env(safe-area-inset-top, 0px));
   }
   :root .hud__gains.is-side {
-    top: calc(var(--unit) * 12 + 128px + env(safe-area-inset-top, 0px));
+    top: calc(var(--unit) * 12 + var(--minimap) + env(safe-area-inset-top, 0px));
   }
-  /* 개발 패널이 오른쪽을 차지하면(?dev) 그 옆 자리를 그대로 둔다 */
-  :root body:not(.devmode) .menu-button,
-  :root body:not(.devmode) .minimap,
-  :root body:not(.devmode) .hud__gains.is-side {
+  :root .menu-button,
+  :root .minimap,
+  :root .hud__gains.is-side {
     right: calc(var(--unit) * 2 + env(safe-area-inset-right, 0px));
   }
   /* 목표 한 줄: 가운데 위가 아니라 원천 칩 아래 왼쪽, 작은 지도 옆 폭 안에서 줄바꿈 */
@@ -27,15 +26,15 @@
     top: calc(var(--unit) * 4 + 96px + env(safe-area-inset-top, 0px));
     transform: none;
     justify-content: flex-start;
-    max-width: calc(100vw - 128px - var(--unit) * 7);
+    max-width: calc(100vw - var(--minimap) - var(--unit) * 7);
     white-space: normal;
   }
   /* 보스 막대: 목표 한 줄 아래 왼쪽 */
   :root .hud__boss {
     left: calc(var(--unit) * 2 + env(safe-area-inset-left, 0px));
-    top: calc(var(--unit) * 6 + 128px + env(safe-area-inset-top, 0px));
+    top: calc(var(--unit) * 6 + var(--minimap) + env(safe-area-inset-top, 0px));
     transform: none;
-    width: calc(100vw - 128px - var(--unit) * 7);
+    width: calc(100vw - var(--minimap) - var(--unit) * 7);
   }
   /* 마을 사람 말풍선: 좁은 화면에서는 줄을 바꾼다 (가로 자리는 Villagers가 화면 안으로 당긴다) */
   :root .npc-bubble {
@@ -66,7 +65,7 @@
   }
   /* 큰 카드: 작은 지도 아래, 화면 폭에 맞춘다 (가로 화면은 위쪽 9%, 최소 360px) */
   :root .hud__gains:not(.is-side) {
-    top: calc(var(--unit) * 12 + 128px + env(safe-area-inset-top, 0px));
+    --gains-top: calc(var(--unit) * 12 + var(--minimap) + env(safe-area-inset-top, 0px));
     min-width: 0;
     width: calc(100vw - var(--sp-6) * 2);
     max-width: 420px;

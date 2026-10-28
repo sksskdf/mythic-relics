@@ -12,11 +12,11 @@ const COL_MIN = -0.5
 const COL_SPAN = 5
 
 /**
- * 수련 탭 (E236-03): 깨달음과 다음 깨달음까지, 공용 트리(뿌리에서 힘·몸·손 세 갈래), 찍은 마디 수치의 합, 모두 되돌리기.
- * 마디에 올리면(휴대폰은 누르면) 이름과 수치. 마우스는 누르면 찍고, 휴대폰 조작(`touchUi`)은 처음 누르면 설명·한 번 더 누르면 찍는다.
+ * 수련 탭 (E236-03): 깨달음과 다음 깨달음까지, 공용 트리(뿌리에서 힘·몸·손 세 갈래), 익힌 마디 수치의 합, 모두 되돌리기.
+ * 마디에 올리면(휴대폰은 누르면) 이름과 수치. 마우스는 누르면 익히고, 휴대폰 조작(`touchUi`)은 처음 누르면 설명·한 번 더 누르면 익힌다.
  */
 export class TrainingTab {
-  /** 손가락으로 한 번 누른 마디 (한 번 더 누르면 찍는다) */
+  /** 손가락으로 한 번 누른 마디 (한 번 더 누르면 익힌다) */
   private picked: string | null = null
 
   constructor(private readonly ctx: TabContext) {}
@@ -38,12 +38,12 @@ export class TrainingTab {
     this.ctx.hintOn(bar, `다음 깨달음까지\n경험치 ${Math.floor(insight.have)} / ${insight.need}. 적을 잡으면 쌓인다 (정예·전설·보스는 더 많이)`)
     info.append(head, bar)
     const totals = training.totals()
-    info.append(el('div', 'menu-src__text', totals.length ? totals.join(' · ') : '마디를 찍으면 바로 강해진다. 앞 마디를 찍어야 다음 마디를 찍을 수 있다'))
+    info.append(el('div', 'menu-src__text', totals.length ? totals.join(' · ') : '마디를 익히면 바로 강해진다. 앞 마디를 익혀야 다음 마디를 익힐 수 있다'))
     const reset = el('button', 'ui-btn menu-train__reset', '모두 되돌리기')
     reset.type = 'button'
     reset.disabled = training.nodes().every((n) => !n.taken)
     // 힌트를 먼저 걸어 둔다 (누르면 힌트가 뜨고 나서 글이 바뀐다)
-    this.ctx.hintOn(reset, '모두 되돌리기\n찍은 마디를 모두 깨달음으로 돌려받는다. 언제든 무료')
+    this.ctx.hintOn(reset, '모두 되돌리기\n익힌 마디를 모두 깨달음으로 돌려받는다. 언제든 무료')
     reset.addEventListener('click', () => {
       // 잘못 누르지 않게 한 번 더 눌러야 한다 (되돌리기는 무료). 잠시 뒤에는 처음으로
       if (!reset.classList.contains('is-confirm')) {
@@ -111,12 +111,12 @@ export class TrainingTab {
       b.type = 'button'
       b.dataset.node = n.id
       b.setAttribute('aria-label', n.name)
-      const state = n.taken ? '찍었다' : n.can ? `${finger ? '한 번 더 누르면' : '누르면'} 찍는다 (깨달음 하나)` : insight.unspent > 0 ? '앞 마디를 먼저 찍어야 한다' : '깨달음이 모자란다'
-      // 힌트를 먼저 걸어 둔다 (찍으면 다시 그려 힌트가 닫힌다)
+      const state = n.taken ? '익힌 마디' : n.can ? `${finger ? '한 번 더 누르면' : '누르면'} 익힌다 (깨달음 하나)` : insight.unspent > 0 ? '앞 마디를 먼저 익혀야 한다' : '깨달음이 모자란다'
+      // 힌트를 먼저 걸어 둔다 (익히면 다시 그려 힌트가 닫힌다)
       this.ctx.hintOn(b, `${n.name}\n${n.lines.join('\n')}\n${state}`)
       b.addEventListener('click', () => {
         if (!n.can) return
-        // 휴대폰 조작에는 커서가 없다: 처음 누르면 설명만, 같은 마디를 한 번 더 누르면 찍는다 (힌트 글과 같은 기준)
+        // 휴대폰 조작에는 커서가 없다: 처음 누르면 설명만, 같은 마디를 한 번 더 누르면 익힌다 (힌트 글과 같은 기준)
         if (finger && this.picked !== n.id) {
           this.picked = n.id
           return

@@ -6,10 +6,11 @@ import { effectScale, isMythRelic, relicMyth, relicStats, relicTier, stageName }
 import { GRADE_COLORS } from '../../art/palette'
 import { statText } from '../../myth/alwaysText'
 import { materialName } from '../../gear/materials'
-import { type GearItem, gearName } from '../../gear/roll'
+import { type GearItem, gearName, gearScore } from '../../gear/roll'
 import { levelGains } from '../../myth/levelGains'
 import { sceneId } from '../../data/scenes'
 import { classIcon } from '../../ui/classIcons'
+import { delta, gearIcon } from '../../ui/gearCard'
 import type { GameContext } from '../context'
 import type { LoadoutChange } from '../RelicPowers'
 import { godMoment } from './godMoments'
@@ -27,6 +28,8 @@ export class RelicSystem {
   /** 로키의 환영 분신. 거인은 가까이 있으면 주인공 대신 이것을 쫓는다. */
   decoy: { x: number; z: number; radius: number } | null = null
   private readonly lastWalk = new THREE.Vector2()
+  /** 주운 것 이름을 띄울 자리 (프레임마다 새로 만들지 않게) */
+  private readonly labelAt = new THREE.Vector3()
   /** 신화를 고를 때 터지는 충격을 다시 쓸 수 있을 때까지 (초) */
   private burstCooldown = 0
 
@@ -121,7 +124,13 @@ export class RelicSystem {
    */
   take(id: string, gear?: GearItem): void {
     const { powers, bus } = this.ctx
+    // 주운 것의 이름이 머리 위로 떠오른다 (사용자 의견 2026-10-28: 얻는 표현이 모자라다)
+    const label = (text: string, color: string) => this.ctx.numbers.label(this.labelAt.copy(this.ctx.hero.object.position).setY(this.ctx.hero.object.position.y + 2.2), text, color)
     if (gear) {
+      label(gearName(gear), GRADE_COLORS[gear.grade])
+      // 같은 부위에 지금 낀 장비 (가방으로 가면 견준다)
+      const wornId = powers.loadout.slots.find((s) => s && powers.loadout.gear.has(s) && powers.loadout.partOf(s) === gear.part)
+      const worn = wornId ? powers.loadout.gear.get(wornId) : undefined
       powers.loadout.addGear(gear)
       bus.emit('gearPicked', { item: gear })
       // 자동 분해 (E14-05): 흔함 등급이고 그 부위 칸이 이미 차 있으면 바로 재료로
@@ -132,15 +141,26 @@ export class RelicSystem {
         return
       }
       this.equip(id, true)
-      // 빈 칸에 끼었으면 카드, 가방으로 갔으면 작은 알림 (E23-01)
+      // 빈 칸에 끼었으면 카드, 가방으로 갔는데 지금 낀 것보다 좋으면 견준 카드, 아니면 작은 알림 (E23-01)
+      const card = { title: gearName(gear), color: GRADE_COLORS[gear.grade], icon: gearIcon(gear) }
       if (powers.loadout.slots.includes(id)) {
-        bus.emit('moment', { id: 'gearWorn', card: { kind: '장비', title: gearName(gear), color: GRADE_COLORS[gear.grade], lines: gear.stats.map((st) => statText(st.kind, st.value)) } })
+        bus.emit('moment', { id: 'gearWorn', card: { kind: '장비', ...card, lines: gear.stats.map((st) => statText(st.kind, st.value)) } })
+      } else if (worn && gearScore(gear) > gearScore(worn)) {
+        const lines = gear.stats.map((st) => {
+          const same = worn.stats.find((w) => w.kind === st.kind)
+          const d = same ? delta(st.kind, st.value, same.value) : { text: '새 수치' }
+          return d ? `${statText(st.kind, st.value)} ${d.text}` : statText(st.kind, st.value)
+        })
+        bus.emit('moment', { id: 'gearBetter', card: { kind: '더 좋은 장비 · 가방', ...card, lines } })
+        bus.emit('gearBetter', { item: gear })
       } else bus.emit('moment', { id: 'gearPicked', text: `${gearName(gear)} · 가방` })
     } else if (!isMythRelic(id)) {
+      label(relicDef(id).name, godDef(relicDef(id).god).color)
       powers.loadout.addMaterial(id)
       bus.emit('moment', { id: 'materialPicked', text: `${relicDef(id).name} · 재료` })
       bus.emit('relicPicked', { id })
     } else {
+      label(relicDef(id).name, godDef(relicDef(id).god).color)
       bus.emit('moment', { id: 'gearPicked', text: relicDef(id).name })
       bus.emit('relicPicked', { id })
       this.equip(id, true)

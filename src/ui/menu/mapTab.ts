@@ -2,8 +2,10 @@ import { el, type TabContext } from './dom'
 
 /** 지도가 보여 주는 반 폭 (세계 칸 단위) */
 const HALF = 4
-/** 지도 판의 가장 큰 폭 (px, menu.css의 .menu-map__board) */
-const BOARD_PX = 460
+/** 지도 판의 가장 큰 폭 (px, menu.css의 .menu-map__board): 큰 화면에서는 키운다 */
+function boardMax(): number {
+  return typeof matchMedia === 'function' && matchMedia('(min-height: 900px) and (min-aspect-ratio: 4/5)').matches ? 620 : 460
+}
 
 type Box = { x0: number; x1: number; y0: number; y1: number }
 
@@ -66,7 +68,8 @@ export function renderMap(ctx: TabContext, body: HTMLElement): void {
   }
   // 이름 자리: 아래 → 위 → 왼쪽 → 오른쪽 가운데 다른 이름·땅 표시와 겹치지 않는 첫 자리 (모두 겹치면 아래)
   // 글자 크기는 px로 정해져 있으니, 지도 판이 좁으면(휴대폰) 지도 단위로는 이름이 더 넓다
-  const boardPx = Math.min(BOARD_PX, (document.documentElement.clientWidth || BOARD_PX) - 60)
+  const max = boardMax()
+  const boardPx = Math.min(max, (document.documentElement.clientWidth || max) - 60)
   const unit = (px: number) => px / (boardPx / (HALF * 2))
   const CHAR = unit(11)
   const LINE = unit(16)

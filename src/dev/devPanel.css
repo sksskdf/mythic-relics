@@ -1,11 +1,11 @@
-/* 개발 패널: 게임 화면 오른쪽 위에 겹쳐 뜬다. 개발용이라 정보량을 우선한다. */
+/* 개발 패널: 게임 화면 오른쪽 아래에 겹쳐 뜬다 (HUD 자리는 그대로 둔다). 처음에는 접혀 있다. 개발용이라 정보량을 우선한다. */
 .devpanel {
   position: fixed;
-  top: calc(8px + env(safe-area-inset-top, 0px));
+  bottom: calc(8px + env(safe-area-inset-bottom, 0px));
   right: calc(8px + env(safe-area-inset-right, 0px));
   z-index: 50;
   width: min(300px, calc(100vw - 16px));
-  max-height: calc(100vh - 16px);
+  max-height: min(70vh, calc(100vh - 16px));
   overflow-y: auto;
   background: rgba(12, 16, 23, 0.92);
   border: 1px solid var(--c-line-2);

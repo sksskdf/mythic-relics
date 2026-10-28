@@ -193,9 +193,10 @@ describe('위협 단계 (E14-03)', () => {
 })
 
 describe('편의 자동화 (E14-05, E21-06)', () => {
-  it('엔딩 뒤: 세기가 차면 차례대로 하나씩 열린다 (자동 줍기는 처음부터)', () => {
+  it('엔딩 뒤: 세기가 차면 차례대로 하나씩 열린다 (자동 줍기도, 처음에는 밟거나 눌러서 줍는다)', () => {
     const c = new Conveniences()
-    expect(c.has('autoPickup')).toBe(true)
+    expect(ALWAYS_ON).toEqual([])
+    expect(c.has('autoPickup')).toBe(false)
     for (const def of CONVENIENCES.filter((d) => !ALWAYS_ON.includes(d.id))) {
       expect(c.has(def.id)).toBe(false)
       const opened = c.count(def.counter, def.need, 'set')
@@ -213,7 +214,7 @@ describe('편의 자동화 (E14-05, E21-06)', () => {
     const c = new Conveniences(() => ended)
     expect(c.count('salvaged', 50)).toEqual([])
     expect(c.has('autoSalvage')).toBe(false)
-    expect(c.has('autoPickup')).toBe(true)
+    expect(c.has('autoPickup')).toBe(false)
     ended = true
     expect(c.catchUp().map((o) => o.id)).toEqual(['autoSalvage'])
     expect(c.has('autoSalvage')).toBe(true)

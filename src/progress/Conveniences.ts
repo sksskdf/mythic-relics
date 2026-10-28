@@ -2,7 +2,8 @@
  * 편의 자동화 (E14-05, DESIGN.md 9.4).
  * 같은 일을 여러 번 하면 손이 덜 가게 하나씩 열린다. 싸움 자체는 자동으로 만들지 않는다.
  * 자동 줍기 → 낮은 등급 장비 자동 분해 → 재료 자동 모음 → 고른 신화 빠르게 바꾸기 → 성소 워프
- * E21-06: 자동 줍기는 처음부터 켜 있고, 나머지는 엔딩 뒤에만 열린다 (그 전에도 세기는 쌓인다).
+ * E21-06: 엔딩 뒤에만 열린다 (그 전에도 세기는 쌓인다). 자동 줍기도 처음부터 켜 두었다가 되돌렸다:
+ * 떨어진 장비는 밟거나 눌러서 줍는다 (사용자 의견 2026-10-28 「그냥 장비칸으로 들어오는 것도 별로」).
  */
 export type ConvenienceId = 'autoPickup' | 'autoSalvage' | 'autoMaterials' | 'quickChoose' | 'warp'
 export type CounterId = 'pickups' | 'salvaged' | 'forged' | 'opened' | 'threat'
@@ -27,8 +28,8 @@ export interface ConvenienceData {
   visited: string[]
 }
 
-/** 처음부터 켜 있는 편의 (E21-06) */
-export const ALWAYS_ON: readonly ConvenienceId[] = ['autoPickup']
+/** 처음부터 켜 있는 편의 (E21-06에는 자동 줍기, 지금은 없음) */
+export const ALWAYS_ON: readonly ConvenienceId[] = []
 
 export class Conveniences {
   readonly counters: Partial<Record<CounterId, number>> = {}
@@ -36,7 +37,7 @@ export class Conveniences {
   autoSalvage = true
   readonly visited = new Set<string>()
 
-  /** afterEnding: 엔딩을 보았나 (그 전에는 자동 줍기만) */
+  /** afterEnding: 엔딩을 보았나 (그 전에는 아무것도 열리지 않는다) */
   constructor(private readonly afterEnding: () => boolean = () => true) {}
 
   has(id: ConvenienceId): boolean {

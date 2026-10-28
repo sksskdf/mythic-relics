@@ -40,7 +40,7 @@ const TAB_HINTS: Record<MenuTab, string> = {
   rift: '균열\n한계를 깨면 열리는 끝없는 층과, 별을 밝히는 성좌판',
   map: '지도\n마을에서 신화권마다 뻗은 땅 열다섯. 찾은 성소는 빛나고, 워프가 열리면 눌러서 간다',
   classes: '신화\n지금 신화의 개방 단계와 다음 단계로 가는 법, 만난 신들',
-  training: '수련\n적을 잡아 얻은 깨달음으로 힘·몸·손 갈래의 마디를 찍는다. 언제든 무료로 되돌린다',
+  training: '수련\n적을 잡아 얻은 깨달음으로 힘·몸·손 갈래의 마디를 익힌다. 언제든 무료로 되돌린다',
   looks: '외형\n부위마다 보이는 모습을 고른다',
 }
 
@@ -150,6 +150,7 @@ export class GameMenu {
     if (open === this.open) return
     this.window.hidden = !open
     this.button.classList.toggle('is-open', open)
+    if (open) this.button.classList.remove('is-calling')
     if (open) this.render()
     this.onToggle(open)
   }
@@ -157,6 +158,7 @@ export class GameMenu {
   /** 탭을 골라 연다. 유물 탭이면 칸을 함께 고를 수 있다. */
   show(tab: MenuTab, slot?: number): void {
     this.tab = tab
+    this.fresh.delete(tab)
     if (tab === 'looks' || tab === this.pendingTab) this.button.classList.remove('has-new')
     if (tab === this.pendingTab) this.pendingTab = null
     if (slot !== undefined) this.relics.selectedSlot = slot
@@ -172,6 +174,16 @@ export class GameMenu {
     if (this.open && this.tab === tab) return
     this.pendingTab = tab
     this.button.classList.add('has-new')
+  }
+
+  /** 새로 열린 탭 (E236-05): 정보 화면을 열 때까지 단추가 빛나며 부르고, 열면 그 탭이 처음 볼 때까지 빛난다 */
+  private readonly fresh = new Set<MenuTab>()
+
+  callTab(tab: MenuTab): void {
+    this.markTab(tab)
+    this.fresh.add(tab)
+    if (!this.open) this.button.classList.add('is-calling')
+    else this.render()
   }
 
   /** 새 외형을 얻었다: 단추에 표시 */
@@ -220,6 +232,7 @@ export class GameMenu {
     if (!this.tabShown(this.tab)) this.tab = 'status'
     for (const [id, b] of this.tabButtons) {
       b.classList.toggle('is-on', id === this.tab)
+      b.classList.toggle('is-fresh', this.fresh.has(id) && id !== this.tab)
       b.hidden = !this.tabShown(id)
     }
     this.body.replaceChildren()

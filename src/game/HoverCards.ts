@@ -116,6 +116,12 @@ export class HoverCards {
     nameplates.update(plates)
   }
 
+  /** 화면 자리(px) 아래 땅에 떨어진 것의 자리 (누르면 그리로 걸어가 줍는다) */
+  pickupAt(x: number, y: number): { x: number; z: number } | null {
+    const item = this.pickupUnderPointer({ x, y })
+    return item ? { x: item.x, z: item.z } : null
+  }
+
   /** 커서 아래의 땅 유물: 화면에 보이는 유물 모양(발밑 ~ 떠 있는 모델 위)과 커서 사이의 화면 거리로 고른다 */
   private pickupUnderPointer(pointer: { x: number; y: number }): { id: string; x: number; z: number } | null {
     const { container, pixel, view, ctx } = this.parts

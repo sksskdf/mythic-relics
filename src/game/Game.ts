@@ -171,7 +171,7 @@ export class Game {
     () => this.ending.reached,
   )
   readonly chapterSystem: ChapterSystem
-  /** 수련 (E236): 경험치로 얻은 깨달음과 찍은 마디 */
+  /** 수련 (E236): 경험치로 얻은 깨달음과 익힌 마디 */
   readonly training = new TrainingProgress()
   /** 연 정보 화면 탭 (E236-05): 쓸 일이 생길 때 하나씩 열린다 */
   readonly tabs = new TabUnlocks()
@@ -211,6 +211,8 @@ export class Game {
   readonly nameplates: Nameplates
   /** 대화 장면 (E12-10) */
   readonly scenes: DialogScene
+  /** 조작 안내: 걸어 보면 싸우는 법으로, 싸워 보면 사라진다 (저장하지 않는다) */
+  private coach: 'move' | 'fight' | null = null
   readonly dialog: DialogBox
   /** 개발 패널의 지도 편집기 (E7-01). 켜 있으면 땅을 누르는 것이 이동 대신 편집이 된다 */
   mapEditor: { active: boolean; update(cursor: { x: number; z: number } | null, pressed: boolean): void } | null = null
@@ -272,11 +274,12 @@ export class Game {
     this.view.viewHeight = options.viewHeight ?? this.settings.viewHeight
     this.pixel.setTargetHeight(renderHeightForScreen(this.view.viewHeight, container.clientWidth, container.clientHeight, this.baseRenderHeight))
     this.pixel.renderer.domElement.addEventListener('wheel', (e) => this.onWheel(e), { passive: false })
+    // 떠오르는 숫자·주운 것 이름은 HUD(정보 화면 포함)보다 아래에 깔린다 (창을 열면 그 아래로 숨게)
+    this.numbers = new DamageNumbers(container)
     this.hud = new Hud(container)
     this.villagers = new Villagers(container)
     this.scene.add(this.villagers.object)
     this.minimap = new Minimap(this.hud.root)
-    this.numbers = new DamageNumbers(container)
     this.nameplates = new Nameplates(container)
 
     // 지역 (E7): 저장한 지역이 없으면 첫 지역에서 시작한다
@@ -353,7 +356,11 @@ export class Game {
       viewHeight: () => this.view.viewHeight,
       setViewHeight: (viewHeight) => this.applyViewHeight(viewHeight),
       clearOrders: () => this.orders.clear(),
-      onSeen: () => this.bus.emit('progressChanged', {}),
+      onSeen: (id) => {
+        // 시작 장면 뒤: 조작은 대사 대신 해 볼 때까지 남는 안내 한 줄로 (사용자 의견 2026-10-28)
+        if (id === 'opening') this.coach = 'move'
+        this.bus.emit('progressChanged', {})
+      },
       seen: scenesSeen,
       speakerAt: (who) => {
         const boss = this.encounter.alive.find((g) => g.spec.name === who)
@@ -466,22 +473,28 @@ export class Game {
     this.bus.on('looksUnlocked', () => {
       if (this.tabs.has('looks')) this.menu.markNew()
     })
+    // 가방에 더 좋은 장비가 들어왔다: 메뉴 단추를 누르면 장비 탭부터 (밟거나 눌러서 줍기, 사용자 의견 2026-10-28)
+    this.bus.on('gearBetter', () => {
+      if (this.tabs.has('relics')) this.menu.markTab('relics')
+    })
     // 정보 화면 탭은 쓸 일이 생길 때 하나씩 열린다 (E236-05): 열리면 한 줄짜리 카드와 메뉴 단추 표시
     this.tabSystem = new TabSystem(this.ctx)
-    this.tabSystem.onOpened = (tab) => {
-      this.menu.markTab(tab)
+    this.tabSystem.onOpened = (tab, quiet) => {
+      // 카드와 함께 연 탭은 정보 화면을 열 때까지 단추가 부른다 (사용자 의견 2026-10-28: 카드만 잠깐 떴다 마는 것은 모자라다)
+      if (quiet) this.menu.markTab(tab)
+      else this.menu.callTab(tab)
       this.menu.refresh()
     }
     // 수련 (E236): 깨달음을 얻으면 메뉴 단추에 표시하고 알린다. 첫 깨달음은 수련 탭이 열리는 카드가 알린다
     this.bus.on('insightGained', ({ count, unspent }) => {
-      // 마디를 다 찍었으면 더 얻는 깨달음은 쓸 곳이 없다 (엔딩 뒤)
+      // 마디를 다 익혔으면 더 얻는 깨달음은 쓸 곳이 없다 (엔딩 뒤)
       if (this.training.complete) return
       if (!this.tabs.has('training')) {
         this.tabSystem.check()
         return
       }
       this.menu.markTab('training')
-      this.bus.emit('moment', { id: 'insight', text: `깨달음 +${count} · 수련에서 찍는다 (남은 깨달음 ${unspent})` })
+      this.bus.emit('moment', { id: 'insight', text: `깨달음 +${count} · 수련에서 익힌다 (남은 깨달음 ${unspent})` })
     })
     this.bus.on('outfitChanged', () => this.menu.refresh())
     this.bus.on('loadoutChanged', () => this.menu.refresh())
@@ -524,6 +537,7 @@ export class Game {
     this.playerInput = new PlayerInput(this.ctx, this.input, this.pixel, container)
     this.playerInput.talkAt = (x, z) => (this.ctx.map.region.kind === 'hub' ? this.villagers.at(x, z) : null)
     this.playerInput.onTalk = (name) => (this.storyline.talkTo = name)
+    this.playerInput.pickupAt = (x, y) => this.hover.pickupAt(x, y)
     // 휴대폰 (E235): 떠다니는 조이스틱·톡·두 손가락 확대·축소
     if (this.touch) {
       const touch = new TouchControls(this.pixel.renderer.domElement, container)
@@ -593,6 +607,19 @@ export class Game {
     this.view.jumpTo(rig.root.position)
     this.resize()
     window.addEventListener('resize', () => this.resize())
+  }
+
+  /** 조작 안내 한 줄: 땅을 눌러 걸어 보면 → 가까이 적이 있을 때 적을 눌러 보라고 → 싸우면 사라진다 */
+  private updateCoach(): void {
+    if (this.coach === 'move' && this.orders.order?.kind === 'move') this.coach = 'fight'
+    if (this.coach === 'fight' && (this.orders.order?.kind === 'attack' || this.combat.combo.swinging)) this.coach = null
+    let text: string | null = null
+    if (this.playing && !this.paused && !this.scenes.active && this.coach) {
+      const p = this.hero.object.position
+      if (this.coach === 'move') text = this.touch ? '화면을 누른 채 끌면 걷는다' : '땅을 누르면 걷는다'
+      else if (this.encounter.alive.some((g) => Math.hypot(g.x - p.x, g.z - p.z) < 9)) text = this.touch ? '적을 톡 누르면 싸운다' : '적을 누르면 싸운다'
+    }
+    this.hud.setCoach(text)
   }
 
   /**
@@ -1085,6 +1112,7 @@ export class Game {
   private updateHud(realDt: number): void {
     // 창이 열렸거나 대화 중이면 이름표를 띄우지 않는다 (창 위에 그려지지 않게, E12-09)
     this.hover.plates(this.playing && !this.paused && !this.scenes.active)
+    this.updateCoach()
     const boss = this.encounter.boss
     const manifested = this.ctx.build.chosen
     this.hud.update(
