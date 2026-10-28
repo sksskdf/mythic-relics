@@ -38,6 +38,25 @@ export function hasCommit(command) {
   return segments(command).some((w) => gitCall(w)?.sub === 'commit')
 }
 
+/** 명령 맨 앞의 `cd 폴더 &&` (없으면 null): 다른 작업 폴더(worktree)에서 커밋할 때 */
+export function leadingDir(command) {
+  return stripText(command).match(/^\s*cd\s+([^\s;&|]+)\s*&&/)?.[1] ?? null
+}
+
+/** 같은 && 줄에서 `npm run check`(pnpm check)가 커밋보다 먼저 도나 (검사가 실패하면 커밋까지 가지 않는다) */
+export function checksBeforeCommit(command) {
+  let checked = false
+  for (const part of stripText(command).split(/(&&|\|\||;|\n)/)) {
+    if (part === '||' || part === ';' || part === '\n') checked = false
+    if (part === '&&' || part === '||' || part === ';' || part === '\n') continue
+    const words = part.trim().split(/\s+/).filter((w) => w && !/^[A-Za-z_]\w*=/.test(w))
+    const npm = words[0] === 'npm' || words[0] === 'pnpm' ? words.slice(1).filter((w) => w !== 'run') : null
+    if (npm?.[0] === 'check') checked = true
+    if (gitCall(words)?.sub === 'commit') return checked
+  }
+  return false
+}
+
 /** 검사 건너뛰기 표시 (사용자가 검사 없이 커밋하라고 했을 때만 쓴다) */
 export function skipsCheck(command) {
   return /(^|\s)HARNESS_SKIP_CHECK=1(\s|$)/.test(stripText(command))

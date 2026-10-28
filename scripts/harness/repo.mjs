@@ -10,11 +10,12 @@ export const ROOT = process.env.CLAUDE_PROJECT_DIR ?? fileURLToPath(new URL('../
 /** 지문에서 빼는 것: 검사(`npm run check`)가 보지 않는 문서·도구 설정 */
 export const NOT_CODE = ['*.md', 'docs', '.claude', 'tools', 'scripts/roadmap-issues/issues.json']
 
-const git = (args, env) => execFileSync('git', args, { cwd: ROOT, env: { ...process.env, ...env }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
+const git = (args, env, cwd = ROOT) => execFileSync('git', args, { cwd, env: { ...process.env, ...env }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
 
-export const gitDir = () => {
-  const dir = git(['rev-parse', '--git-dir'])
-  return dir.startsWith('/') ? dir : join(ROOT, dir)
+/** 그 작업 폴더의 git 폴더 (worktree면 그 worktree의 것) */
+export const gitDir = (cwd = ROOT) => {
+  const dir = git(['rev-parse', '--git-dir'], {}, cwd)
+  return dir.startsWith('/') ? dir : join(cwd, dir)
 }
 
 export const branch = () => {
@@ -25,51 +26,51 @@ export const branch = () => {
   }
 }
 
-/** 작업 트리 코드의 지문 (문서를 뺀 트리 해시). 같은 내용이면 같은 값 */
-export function workTree() {
-  const index = join(gitDir(), 'harness-index')
+/** 작업 트리 코드의 지문 (문서를 뺀 트리 해시). 같은 내용이면 같은 값. node_modules 링크(worktree)는 뺀다 */
+export function workTree(cwd = ROOT) {
+  const index = join(gitDir(cwd), 'harness-index')
   const env = { GIT_INDEX_FILE: index }
-  git(['add', '-A', '--', '.', ...NOT_CODE.map((p) => `:(exclude)${p}`)], env)
-  return git(['write-tree'], env)
+  git(['add', '-A', '--', '.', ...[...NOT_CODE, 'node_modules'].map((p) => `:(exclude)${p}`)], env, cwd)
+  return git(['write-tree'], env, cwd)
 }
 
 /** 커밋 하나의 코드 지문 */
-export function commitTree(ref = 'HEAD') {
-  const index = join(gitDir(), 'harness-index-head')
+export function commitTree(ref = 'HEAD', cwd = ROOT) {
+  const index = join(gitDir(cwd), 'harness-index-head')
   const env = { GIT_INDEX_FILE: index }
   try {
-    git(['read-tree', ref], env)
-    git(['rm', '--cached', '-r', '-q', '--ignore-unmatch', '--', ...NOT_CODE], env)
-    return git(['write-tree'], env)
+    git(['read-tree', ref], env, cwd)
+    git(['rm', '--cached', '-r', '-q', '--ignore-unmatch', '--', ...NOT_CODE], env, cwd)
+    return git(['write-tree'], env, cwd)
   } finally {
     rmSync(index, { force: true })
   }
 }
 
-const stampFile = () => join(gitDir(), 'harness', 'check-stamp.json')
+const stampFile = (cwd = ROOT) => join(gitDir(cwd), 'harness', 'check-stamp.json')
 
 /** 마지막으로 `npm run check`를 통과한 코드 지문 */
-export function readStamp() {
+export function readStamp(cwd = ROOT) {
   try {
-    return JSON.parse(readFileSync(stampFile(), 'utf8'))
+    return JSON.parse(readFileSync(stampFile(cwd), 'utf8'))
   } catch {
     return null
   }
 }
 
-export function writeStamp(stamp) {
-  mkdirSync(join(gitDir(), 'harness'), { recursive: true })
-  writeFileSync(stampFile(), JSON.stringify(stamp, null, 2))
+export function writeStamp(stamp, cwd = ROOT) {
+  mkdirSync(join(gitDir(cwd), 'harness'), { recursive: true })
+  writeFileSync(stampFile(cwd), JSON.stringify(stamp, null, 2))
 }
 
 /** 검사 중인 지문 (begin에서 적고 pass에서 도장으로 옮긴다) */
-export const pendingFile = () => join(gitDir(), 'harness', 'check-pending.json')
+export const pendingFile = (cwd = ROOT) => join(gitDir(cwd), 'harness', 'check-pending.json')
 
-/** 코드가 HEAD와 같나, 마지막 검사 뒤 바뀌었나 */
-export function checkState() {
-  const tree = workTree()
-  const stamp = readStamp()
-  return { tree, sameAsHead: tree === commitTree('HEAD'), checked: stamp?.tree === tree, stamp }
+/** 코드가 HEAD와 같나, 마지막 검사 뒤 바뀌었나 (cwd: 커밋하는 작업 폴더) */
+export function checkState(cwd = ROOT) {
+  const tree = workTree(cwd)
+  const stamp = readStamp(cwd)
+  return { tree, sameAsHead: tree === commitTree('HEAD', cwd), checked: stamp?.tree === tree, stamp }
 }
 
 /** 빌드(dist)보다 새로 고친 src 파일. 없으면 null */

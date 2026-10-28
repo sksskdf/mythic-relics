@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { lint, rulesFor } from '../scripts/harness/rules.mjs'
-import { hasCommit, pushProblem, scriptRuns, skipsCheck } from '../scripts/harness/shell.mjs'
+import { checksBeforeCommit, hasCommit, leadingDir, pushProblem, scriptRuns, skipsCheck } from '../scripts/harness/shell.mjs'
 
 describe('하네스: 명령 읽기', () => {
   it('main으로 바로 올리기와 강제 푸시를 막고, 브랜치 푸시와 --force-with-lease는 둔다', () => {
@@ -26,6 +26,14 @@ describe('하네스: 명령 읽기', () => {
   it('검사 건너뛰기 표시는 명령 앞의 환경 변수로만 읽는다', () => {
     expect(skipsCheck('HARNESS_SKIP_CHECK=1 git commit -m x')).toBe(true)
     expect(skipsCheck('git commit -m "HARNESS_SKIP_CHECK=1"')).toBe(false)
+  })
+
+  it('같은 && 줄에서 검사 뒤에 하는 커밋은 둔다 (; 나 || 뒤는 아니다), 앞의 cd 폴더를 읽는다', () => {
+    expect(checksBeforeCommit('set -o pipefail && npm run check 2>&1 | tail -3 && git add -A && git commit -m "고침"')).toBe(true)
+    expect(checksBeforeCommit('npm run check; git commit -m x')).toBe(false)
+    expect(checksBeforeCommit('git commit -m x && npm run check')).toBe(false)
+    expect(leadingDir('cd /home/user/game-pages && git commit -m x')).toBe('/home/user/game-pages')
+    expect(leadingDir('git commit -m "cd x && y"')).toBeNull()
   })
 
   it('점검 스크립트와 그 앞에서 빌드했는지를 읽는다', () => {
