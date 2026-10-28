@@ -128,6 +128,11 @@ try {
   await page.waitForFunction(() => window.__game.hud.gainsShowing === 'big' && document.querySelector('.hud__gains-title').textContent === '큰 카드', null, { timeout: 15000 }).catch(() => {
     throw new Error('순간: 큰 카드가 가운데에 뜨지 않습니다.')
   })
+  // 앞의 큰 카드가 자리를 지키는 동안 장면은 기다린다(차례는 tests/moments.test.ts). 이 환경은 프레임 시간이 0.1초에서
+  // 잘려 그 기다림이 실제보다 몇 배 길어, CI가 느린 날 시간을 넘겼다: 카드가 물러난 뒤에 장면을 보낸다
+  await page.waitForFunction(() => !window.__game.moments.holding, null, { timeout: 60000 }).catch(() => {
+    throw new Error('순간: 큰 카드가 물러나지 않습니다.')
+  })
   await page.evaluate((c) => {
     const g = window.__game
     g.storyScenes = true
