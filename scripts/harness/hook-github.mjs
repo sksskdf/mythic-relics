@@ -21,11 +21,24 @@ function main() {
   }
 
   if (tool.endsWith('create_pull_request') && (args.base ?? 'main') === 'main') {
-    const ahead = unpushed()
+    // PR의 head 브랜치를 본다 (작업 폴더가 다른 브랜치여도: worktree로 따로 만든 PR)
+    const git = (a) => execFileSync('git', a, { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
+    const head = typeof args.head === 'string' && args.head ? args.head : null
+    let ref = 'HEAD'
+    let ahead = unpushed()
+    if (head) {
+      try {
+        ref = git(['rev-parse', '--verify', '--quiet', `refs/heads/${head}`]) ? head : `origin/${head}`
+        ahead = ref === head ? Number(git(['rev-list', '--count', `origin/${head}..${head}`])) : 0
+      } catch {
+        ref = `origin/${head}`
+        ahead = null
+      }
+    }
     if (ahead) deny(`로컬 커밋 ${ahead}개를 아직 올리지 않았다. \`git push -u origin <브랜치>\` 뒤에 PR을 만든다.`)
     let files = []
     try {
-      files = execFileSync('git', ['diff', '--name-only', 'origin/main...HEAD'], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).split('\n')
+      files = git(['diff', '--name-only', `origin/main...${ref}`]).split('\n')
     } catch {
       return
     }
