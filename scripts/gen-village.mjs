@@ -69,7 +69,8 @@ const stairs = {
 const south = plazaStair('s', 4)
 
 // 족장의 터: 광장 북쪽에 한 단 더 (광장 안으로 1.5m 걸친다), 광장에서 오르는 계단 하나
-const keep = rect(-5, -15, 5, -4.5)
+// 북쪽 끝은 긴 집 뒤에 갇힌 띠가 남지 않게 긴 집 지붕 끝(z −14)에 맞춘다
+const keep = rect(-5, -14, 5, -4.5)
 const keepStair = { from: { x: 0, z: -2 }, to: { x: 0, z: -7 }, width: 2.2 }
 
 village.terraces = [

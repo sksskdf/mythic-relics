@@ -410,14 +410,35 @@ function buildStream(stream: RegionDef['streams'][number], theme: ThemeDef): THR
   return group
 }
 
-/** 개울은 건너지 못한다: 물길을 따라 0.5m마다 둥근 충돌. 다리(bridge 소품) 자리만 트여 있다 */
+/** 다리 바닥의 반너비 (m, 소품 크기 1): 난간 사이 */
+const BRIDGE_HALF_WIDTH = 1.2
+/** 다리 바닥의 반길이 (m, 소품 크기 1) */
+const BRIDGE_HALF_LENGTH = 2.25
+/** 다리 바닥 옆으로 비워 둘 너비 (m): 주인공 반지름과 길찾기 칸 하나 */
+const BRIDGE_CLEAR = 0.75
+
+/**
+ * 개울은 건너지 못한다: 물길을 따라 0.5m마다 둥근 충돌. 다리(bridge 소품) 바닥을 지나는 길만 트여 있다:
+ * 다리 축(길이 방향)에서 바닥 반너비 + 여유 안으로 들어오는 원은 그만큼 줄이거나 뺀다 (다리 옆 물로는 여전히 못 들어간다)
+ */
 export function streamColliders(region: RegionDef): CircleCollider[] {
   const bridges = region.props.filter((p) => p.kind === 'bridge')
-  return region.streams.flatMap((stream) =>
-    densify(stream.points, 0.5)
-      .filter((p) => bridges.every((b) => Math.hypot(p.x - b.x, p.z - b.z) > 1.4 * b.size))
-      .map((p) => ({ x: p.x, z: p.z, radius: stream.width / 2 })),
-  )
+  const out: CircleCollider[] = []
+  for (const stream of region.streams) {
+    for (const p of densify(stream.points, 0.5)) {
+      let radius = stream.width / 2
+      for (const b of bridges) {
+        const ax = Math.cos(b.rotation)
+        const az = -Math.sin(b.rotation)
+        const along = (p.x - b.x) * ax + (p.z - b.z) * az
+        if (Math.abs(along) > (BRIDGE_HALF_LENGTH + radius) * b.size) continue
+        const side = Math.abs((p.x - b.x) * az - (p.z - b.z) * ax)
+        radius = Math.min(radius, side - (BRIDGE_HALF_WIDTH + BRIDGE_CLEAR) * b.size)
+      }
+      if (radius >= 0.2) out.push({ x: p.x, z: p.z, radius })
+    }
+  }
+  return out
 }
 
 function buildPond(radius: number, water: ThemeDef['water']): THREE.Group {

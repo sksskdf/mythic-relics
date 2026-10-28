@@ -59,6 +59,8 @@ export const FLAT_LAND: Land = { ponds: [], terraces: [] }
 export const TERRACE_STEP = 0.5
 /** 이만큼 넘게 높이가 갈리면 절벽이다 (m) */
 const CLIFF_MIN = 0.4
+/** 계단 옆은 이만큼만 갈려도 막는다 (m) */
+const STAIR_SIDE_MIN = 0.1
 
 /** 세계 좌표로 옮겨 둔 계단식 땅 (점 안에 드는지 빨리 보려고 네모를 함께 둔다) */
 interface PlacedTerrace {
@@ -285,7 +287,8 @@ export function cliffColliders(land: Land): { x: number; z: number; radius: numb
           const x = cx + dz * side * sign
           const z = cz - dx * side * sign
           if (onStairs(x, z)) continue
-          if (Math.abs(levelWorld(x + originX, z + originZ) - height) < CLIFF_MIN) continue
+          // 계단 옆은 작은 턱도 막는다: 비스듬히 잘라 지나면 발 높이가 툭 튄다 (계단은 양 끝으로만 오르내린다)
+          if (Math.abs(levelWorld(x + originX, z + originZ) - height) < STAIR_SIDE_MIN) continue
           out.push({ x, z, radius: 0.25 })
         }
       }
