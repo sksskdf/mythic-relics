@@ -73,6 +73,16 @@ export class HeroOrders {
     this.following = false
   }
 
+  /**
+   * 조이스틱으로 그쪽으로 걷는다 (E235). 이동 지시가 이어지면 목적지만 바꾸고,
+   * 끊겼으면(가장자리·무리에 막혀 멈춤, 쓰러짐, 장면, 땅 넘어가기) 쥔 채로도 다시 내린다.
+   * 다시 내릴 때도 길 찾는 간격을 지킨다 (막힌 채 밀면 프레임마다 길을 찾지 않게)
+   */
+  steer(ground: Point2): void {
+    if (this.following && this.order?.kind === 'move') this.hold(ground)
+    else if (this.hero.canRepath) this.press(ground, null)
+  }
+
   /** 지시를 모두 지운다. (쓰러졌을 때 등) */
   clear(): void {
     this.order = null

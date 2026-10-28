@@ -1,3 +1,4 @@
+import { touchUi } from '../input/device'
 import { lookDef, type LookSlot, SLOT_NAMES } from '../looks/catalog'
 import type { LookChoice, Outfit, Wardrobe } from '../looks/outfit'
 import { HeroPreview } from './HeroPreview'
@@ -95,7 +96,7 @@ export class WardrobePane {
       if (OPTIONAL.has(this.selected)) add(null, null, 'none', '비우기')
     }
     options.append(
-      el('div', 'wardrobe__options-label', this.selected === 'mark' ? '표식은 지금 신화가 정한다' : `${SLOT_NAMES[this.selected]}: 커서를 올리면 입혀 보고, 누르면 고른다`),
+      el('div', 'wardrobe__options-label', this.selected === 'mark' ? '표식은 지금 신화가 정한다' : `${SLOT_NAMES[this.selected]}: ${touchUi() ? '누르면 입혀 보고 고른다' : '커서를 올리면 입혀 보고, 누르면 고른다'}`),
       chips,
     )
     pane.append(options)

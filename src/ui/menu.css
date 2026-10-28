@@ -189,6 +189,15 @@
 @media (max-width: 600px) {
   .menu-relics {
     grid-template-columns: 1fr;
+    gap: var(--sp-5);
+  }
+  /* 좁으면 설명 카드를 가방 바로 아래에 둔다 (휴대폰은 처음 누르면 카드, 한 번 더 누르면 낀다. E235) */
+  .menu-relics .menu-relics__left {
+    display: contents;
+  }
+  .menu-relics .menu-forge,
+  .menu-relics .menu-relics__materials {
+    order: 1;
   }
 }
 .menu-relics__left {
@@ -803,6 +812,13 @@
   grid-template-columns: 200px minmax(0, 1fr);
   gap: var(--sp-6);
   align-items: start;
+}
+/* 좁은 창(휴대폰 세로, E235): 초상 카드 아래에 능력치를 둔다 (옆에 두면 칸이 좁아 글자가 세로로 쪼개진다) */
+@media (max-width: 600px) {
+  .menu-status,
+  .menu-status .menu-status__stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 .menu-status__who {
   --god: var(--c-moon);

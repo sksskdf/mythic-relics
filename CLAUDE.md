@@ -1,6 +1,6 @@
 # 프로젝트 안내 (Claude용)
 
-신화 몬스터를 사냥해 장비와 유물을 모으고, 신화를 개방해 그 신의 힘을 쌓아 가는 쿼터뷰 핵앤슬래시 액션 RPG. 1차 스프린트(E1~E9)와 2차 스프린트(E11~E18: 신화 개방·장비·위협 단계·균열)를 끝냈다. 3차 스프린트는 첫 엔딩까지 90분 데모를 만든다: E19 하나로 이어진 세계, E21 세 축 정리(신화 단계·장비 단계·유물, 엔딩 뒤 장치 숨김), E22 장과 목표 안내(장 다섯·땅 세기·결계·첫 신화 고르기·목표 한 줄·마지막 무대와 엔딩), E23 순간의 크기(작은 알림·카드·큰 카드·장면, 장·보스·엔딩 곡)를 마쳤고 다음은 E24(에셋 v2)이다. 직접 플레이 체크리스트는 사람 대신 Claude가 사람 눈으로 확인한다(2026-10-27 결정).
+신화 몬스터를 사냥해 장비와 유물을 모으고, 신화를 개방해 그 신의 힘을 쌓아 가는 쿼터뷰 핵앤슬래시 액션 RPG. 1차 스프린트(E1~E9)와 2차 스프린트(E11~E18: 신화 개방·장비·위협 단계·균열)를 끝냈다. 3차 스프린트는 첫 엔딩까지 90분 데모를 만든다: E19 하나로 이어진 세계, E21 세 축 정리(신화 단계·장비 단계·유물, 엔딩 뒤 장치 숨김), E22 장과 목표 안내(장 다섯·땅 세기·결계·첫 신화 고르기·목표 한 줄·마지막 무대와 엔딩), E23 순간의 크기(작은 알림·카드·큰 카드·장면, 장·보스·엔딩 곡)를 마쳤다. 사용자가 휴대폰으로 해 보기 시작해 E24 앞에 E235 휴대폰 대응(세로 화면만, 떠다니는 조이스틱, 두 손가락 확대·축소)을 넣었고, 다음은 E24(에셋 v2)이다. 직접 플레이 체크리스트는 사람 대신 Claude가 사람 눈으로 확인한다(2026-10-27 결정).
 
 **용어 (2차 스프린트):** 클래스 → 신화, 발현 → 신화 개방, 클래스 레벨 → 개방 단계, 승급 전설 → 전설, 유물 칸 → 장비 칸. 화면 글·문서는 새 이름을 쓰고, 코드 이름(`class`, `manifested`, `Loadout`, `promote`)은 E11-05·E12~E13에서 `myth/`·`gear/`로 옮기며 바꾼다. 자세한 것은 `docs/knowledge/glossary.md`.
 
@@ -34,7 +34,7 @@
 
 ## 핵심 원칙 (어기면 안 됨)
 
-1. **조작 최소화:** 플레이어가 직접 하는 일은 클릭뿐이다. 땅 = 그곳까지 이동(싸우던 중이어도 빠져나감, 걷는 동안은 싸우지 않음), 적 = 그 적을 자동 공격, 멈춰 서면 둘레 적을 자동 공격. 두 번 클릭은 없다(E12-08). 공격·스킬·궁극기는 자동. 버튼을 늘리지 않는다.
+1. **조작 최소화:** 플레이어가 직접 하는 일은 클릭뿐이다. 땅 = 그곳까지 이동(싸우던 중이어도 빠져나감, 걷는 동안은 싸우지 않음), 적 = 그 적을 자동 공격, 멈춰 서면 둘레 적을 자동 공격. 두 번 클릭은 없다(E12-08). 휴대폰(세로 화면만)은 누른 채 끌면 떠다니는 조이스틱으로 걷고, 적·땅을 톡 누르면 컴퓨터의 클릭과 같다(E235). 공격·스킬·궁극기는 자동. 버튼을 늘리지 않는다.
 2. **텍스트 최소화:** 전투 화면에는 글을 거의 두지 않는다. 설명 카드와 정보 화면에서는 짧은 설명을 허용한다(`DESIGN.md` 2.1).
 3. **2D처럼 보이는 3D:** 낮은 해상도 렌더 + 셀 셰이딩 + 외곽선, 코드로 만드는 복셀 모델.
 4. **UI는 디자인 시스템으로:** 색·글꼴·간격은 `src/ui/theme.css`의 토큰(`--c-*`, `--t-*`, `--sp-*`)만 쓴다. 글꼴은 갈무리 픽셀 글꼴을 정해진 크기(10/12/15px와 그 배수)로만 쓴다. (`DESIGN.md` 10.5)
@@ -44,7 +44,7 @@
 - Three.js + TypeScript + Vite, 테스트는 Vitest와 Playwright(브라우저 스모크).
 - 사용자는 pnpm을 쓴다. `pnpm dev` = Vite 개발 서버 + Electron 창(`scripts/dev-electron.mjs`, `electron/main.cjs`), `pnpm dev:web` = 브라우저.
 - 이 환경에서 Electron 확인: `ELECTRON_ARGS="--use-angle=swiftshader --enable-unsafe-swiftshader" ELECTRON_SHOT=test-results/electron.png xvfb-run -a node scripts/dev-electron.mjs` (8초 뒤 창을 찍고 닫힘)
-- `npm run check`: 타입 검사 + 빌드(데이터 검사 포함) + 단위 테스트 + 스모크. **커밋 전에 반드시 통과시킨다.** 같은 검사와 봇 1판이 GitHub Actions(`.github/workflows/ci.yml`)에서도 돈다.
+- `npm run check`: 타입 검사 + 빌드(데이터 검사 포함) + 단위 테스트 + 스모크(마지막에 휴대폰 390×844 한 바퀴). **커밋 전에 반드시 통과시킨다.** 같은 검사와 봇 1판이 GitHub Actions(`.github/workflows/ci.yml`)에서도 돈다.
 - **웹 배포 (GitHub Pages):** main에 병합하면 `.github/workflows/pages.yml`이 빌드해 https://sksskdf.github.io/mythic-relics/ 에 올린다. 사용자는 휴대폰·다른 컴퓨터에서 이 주소로 해 본다(저장은 그 브라우저에). 개발 패널은 주소 뒤 `?dev`.
 - `npm run build && npm run playtest [횟수] [제한 분]`: 이동만 쓰는 봇이 처음부터 2단계까지 플레이하고 첫 신화·신화 둘·2단계 시간과 피격 등을 기록한다 (`test-results/playtest.json`). 수치를 바꾸면 돌려 본다. `--threat=N`을 붙이면 2단계 뒤에도 지역 보스를 잡고 위협 단계를 올리며 N단계까지 단계마다 시간·쓰러짐·피격을 잰다. `--threat`·`--trials`·`--rift`는 엔딩 뒤 장치라 시작할 때 엔딩 뒤로 넘긴다(`game.reachEnding()`). `--ending`이면 장 흐름의 목표를 따라 첫 엔딩까지 가며 장마다 시각을 잰다(E22, 봇 기준 60~80분이 목표). 처음부터 하는 판은 봇이 장 목표를 따라간다(`autoplay.chapters`). `--trials --relics=mjolnir --god=thor --region=midgard`이면 위협 3단계·토르 2단계로 시작해 시련 1단계 여덟을 차례로 깬다 (E16). `--rift --relics=mjolnir`이면 한계를 깬 채 엔드게임 빌드(`game.dev.endgame()`)로 마을에서 균열에 들어가 10층까지 층마다 시간을 잰다 (E17).
 - `npm run build && node scripts/source-trial.mjs [판 수=2] [분=3]`: 토르(묠니르)를 고른 채 원천 하나를 각성 3단계로 몰고 미드가르드에서 1분당 처치·피격을 재, 원천 넷이 평균 ±25% 안인지 본다 (`test-results/source-trial.json`). 각성 수치를 바꾸면 돌려 본다. playtest와 같은 포트라 동시에 돌리지 않는다.
@@ -57,12 +57,12 @@
 - `npm run build && node scripts/enemy-sheet.mjs [파일.png] [적 id,...]`: 모든 적을 보통·정예로 세운 모습 모음. 적 모델을 바꾸면 찍어 본다.
 - `npm run build && node scripts/class-sheet.mjs [파일.png] [신 id,...]`: 모든 클래스를 자기 유물로 발현시킨 Lv1·Lv4 모습 모음. 클래스·외형을 바꾸면 찍어 본다.
 - `npm run build && node scripts/motion-sheet.mjs [파일.png] [신 id,...]`: 신화마다 1타·2타·마지막 타·유물 행동·궁극기를 게임을 멈춘 채 찍어 신화권별로 모은다 (E18). 동작·유물 행동·궁극기를 바꾸면 찍어 보고, 겹치지 않는지는 `tests/identity.test.ts`와 `ART.md` 9장.
-- `npm run build && node scripts/ui-sheet.mjs [폴더] [크기,...]`: 중반쯤 상태를 꾸며 정보 화면 탭 여덟과 HUD를 화면 크기마다 찍는다(기본 1280×720·960×540·390×844). UI를 바꾸면 찍어 보고, 좁은 화면에서 잘리는지 본다. 무작위는 씨앗 고정이라, `UI_DOM=1`을 붙이면 탭마다 DOM(`.html`)도 남겨 코드를 나누기 전후를 diff로 견줄 수 있다.
-- `npm run build && node scripts/shot.mjs <파일.png> "<주소 뒤 값>" "<게임 안 코드>" [프레임]`: 원하는 상태의 스크린숏. 화면이 바뀌는 작업은 스크린숏을 직접 보고 확인한다.
+- `npm run build && node scripts/ui-sheet.mjs [폴더] [크기,...]`: 중반쯤 상태를 꾸며 정보 화면 탭 여덟과 HUD를 화면 크기마다 찍는다(기본 1280×720·960×540·390×844, 세로 크기는 터치 기기로 연다). UI를 바꾸면 찍어 보고, 좁은 화면에서 잘리는지 본다. 화면 밖이나 잘라 내는 상자 밖으로 나간 요소를 세어 `cut.json`에 남긴다(E235, 0이 기준). 무작위는 씨앗 고정이라, `UI_DOM=1`을 붙이면 탭마다 DOM(`.html`)도 남겨 코드를 나누기 전후를 diff로 견줄 수 있다.
+- `npm run build && node scripts/shot.mjs <파일.png> "<주소 뒤 값>" "<게임 안 코드>" [프레임]`: 원하는 상태의 스크린숏. 화면이 바뀌는 작업은 스크린숏을 직접 보고 확인한다. 휴대폰으로 찍으려면 앞에 `SHOT_SIZE=390x844 SHOT_TOUCH=1`.
 - `node scripts/gen-regions.mjs`: 신화권마다 깊은 땅·보스의 땅을 규칙으로 다시 만든다(E15). 이미 있는 그 땅을 덮어쓰니 규칙을 바꿀 때만 돌린다. 돌린 뒤에는 `node scripts/place-world.mjs`로 출구·길을 세계 통로 자리로 옮긴다(E19-01, 두 번 돌려도 같음).
 - 지도는 개발 패널 「지도」 탭에서 고친다: 편집을 켜고 땅을 누르면 고른 도구가 동작하고, 「저장」은 개발 서버(`pnpm dev`)가 `src/data/regions.json`에 쓴다 (`vite.config.ts`의 saveRegions).
 - 개발 모드: `pnpm dev --dev`(또는 `pnpm dev:tools`), 브라우저는 `?dev`. 오른쪽 개발 패널(`src/dev/DevPanel.ts`)에서 유물·신화·이동·적·전설·시간을 바꾼다. 새 시스템을 만들면 패널에도 시험 단추를 더한다.
-- 점검용 주소: `?relics=all` / `?relics=mjolnir,megingjord` (유물 끼고 시작, 저장 안 함), `?fresh` (저장 지우고 시작), `?region=olympus` (그 지역에서 시작, 새로 시작하면 마을), `?quality=low` (화질, 저장 안 함), `?view=` (시야 높이), `?autoplay` (봇).
+- 점검용 주소: `?relics=all` / `?relics=mjolnir,megingjord` (유물 끼고 시작, 저장 안 함), `?fresh` (저장 지우고 시작), `?region=olympus` (그 지역에서 시작, 새로 시작하면 마을), `?quality=low` (화질, 저장 안 함), `?view=` (시야 높이), `?autoplay` (봇), `?touch` (컴퓨터에서 휴대폰 조작 켜기, E235).
 - 이 환경의 브라우저는 소프트웨어 렌더링이라 초당 몇 프레임밖에 안 나온다. 실제 속도의 느낌은 사용자에게 확인을 부탁한다.
 - 브라우저 실행 경로: `/opt/pw-browsers/chromium-1194/chrome-linux/chrome` (swiftshader 옵션은 스크립트에 있음).
 
@@ -72,7 +72,7 @@
 | --- | --- |
 | `src/data/` | **게임 데이터**: `relics.json`(유물), `gods.json`(신·클래스), `enemies.json`(적), `classes.json`(클래스 트리, `CLASSES.md`와 같아야 함), `schema.ts`(형식과 검사), `classKit.ts`(클래스 부품: 패시브·궁극기·전설 종류), `chapters.json`·`chapters.ts`(장 흐름 E22: 장·땅·적 지수·땅 단계·할 일과 목표 한 줄), `regions.json`·`regions.ts`(지역 16곳과 마지막 무대 「갈라진 하늘」(`finale`, `scripts/gen-finale.mjs`): 자리(입구·깊은 땅·보스)·세계 칸·시작점·성소·무리·보스·출구·소품, 검사와 저장 모양, 다음 이웃 `nextHop`·세계 지도 자리 `worldLayout`), `world.ts`(하나로 이어진 세계: 벽돌 칸·세계 좌표·이웃 통로·갈 수 있는 곳, E19), `scenes.json`(대화 장면), `moments.ts`(순간의 크기 E23: 사건 → 등급 표). 숫자는 여기서 고친다 |
 | `src/game/` | `Game.ts`(조립과 메인 루프), `MenuData`(정보 화면에 보일 값·할 일, 능력치, 설명 카드 상태), `Storyline`(대화 장면을 여는 때·미루기·말 걸기), `AttackFx`(휘두른 궤적·원거리 공격 모습), `HoverCards`(커서 아래 카드·몬스터 이름표), `World`(지역 들어가기 `enter`·출구 이동 `travelTo`·암전, Game에도 같은 이름의 위임이 있음), `TitleBackdrop`(시작 화면 뒤 장면), `Villagers`(마을 사람과 말풍선), `events.ts`(이벤트 버스), `context.ts`(시스템 공용 상태), `Stage`(빛·맵), `HeroController`(이동), `HeroOrders`(클릭 → 지시), `PlayerCombat`(자동 공격), `Encounter`(적 무리·보스), `Legend`(승급 전설), `RelicPowers`(장착한 유물 효과) |
-| `src/game/systems/` | 규칙: `Damage`(피해), `Relics`(줍기·장착·발현), `Progression`(경험치·드랍·승급), `HeroLife`(쓰러짐·부활), `Persistence`(저장), `PlayerInput`(클릭), `Effects`(연출), `Sound`(소리), `Threat`(위협 단계·편의 자동화 세기·한계를 깸, 엔딩 뒤), `Trials`(시련 진행: 제약·난이도·기록), `Rift`(균열: 층·축복·다음 층 문·끝), `Chapters`(장 진행 알림·목표 한 줄, E22), `MythChoice`(성소에서 신화 고르기·장 보스가 신화권을 엶, E22), `Moments`(순간 네 등급: 작은 알림·카드·큰 카드·장면, 느린 동작·장면 뒤 카드, E23). 시스템끼리는 버스로만 주고받는다 |
+| `src/game/systems/` | 규칙: `Damage`(피해), `Relics`(줍기·장착·발현), `Progression`(경험치·드랍·승급), `HeroLife`(쓰러짐·부활), `Persistence`(저장), `PlayerInput`(클릭, 휴대폰의 톡·조이스틱·두 손가락), `Effects`(연출), `Sound`(소리), `Threat`(위협 단계·편의 자동화 세기·한계를 깸, 엔딩 뒤), `Trials`(시련 진행: 제약·난이도·기록), `Rift`(균열: 층·축복·다음 층 문·끝), `Chapters`(장 진행 알림·목표 한 줄, E22), `MythChoice`(성소에서 신화 고르기·장 보스가 신화권을 엶, E22), `Moments`(순간 네 등급: 작은 알림·카드·큰 카드·장면, 느린 동작·장면 뒤 카드, E23). 시스템끼리는 버스로만 주고받는다 |
 | `src/enemies/` | 적 AI(`Giant.ts`: 상태, 공격 예고, 돌진·던지기·막기·부르기·거리 유지·둘러싸기), 날아가는 것(`Projectile.ts`), 정예(`elite.ts`), 모델 생성기(`enemyModel.ts`: 몸 종류 여섯, 거인은 `giantModel.ts`) |
 | `src/skills/` | 유물 효과(`index.ts`: 데이터 → 효과), 행동·오라 종류(`actions.ts`), 행동의 모습(`actionLooks.ts`: 던지는 것·땅 울림 연출, E18), 궁극기(`Ultimate.ts`, 종류+모양) |
 | `src/looks/` | 외형: 칸과 외형 목록(`catalog.ts`, 1차 클래스는 `classLooks.ts`), 장착 → 모습·보관함(`outfit.ts`), 일반 장비 외형(`gearLooks.ts`, 모델은 `src/voxel/models/gearLooks.ts`). 모델은 `src/voxel/models/looks.ts`(손으로 찍은 것)·`classLooks.ts`(생성기 `gen.ts`로 만든 것)·`mythWeapons.ts`(손으로 찍은 신화 무기), 적용은 `systems/Appearance.ts` |
@@ -81,13 +81,14 @@
 | `src/myth/` | 신화: 고른 신화·가호 판정(`manifest.ts`), 개방 단계·경험치·단계 상한·큰 걸음·수집 보너스(`ClassProgress`), 단계별로 얻는 것(`levelGains`), 수치·수집 보너스 글(`alwaysText`) |
 | `src/build/` | 빌드 상태(E11-04): 열린 신화·고른 신화·장비·원천 → 피해 배율·지속 효과·공격 리듬(`BuildState.ts`의 `computeBuild`, 게임 안에서는 `ctx.build`) |
 | `src/progress/` | 장 진행(`Chapters`, E22: 들어선 땅·이긴 보스, 지금 장·목표·열린 땅). 바깥 성장(E14, 엔딩 뒤): 엔딩 뒤 장치를 여는 한 곳(`Ending`, E21-06), 위협 단계(`Threat`), 편의 자동화(`Conveniences`, 자동 줍기는 처음부터), 시련 기록·보상(`Trials`, 규칙은 `src/data/trials.ts`), 균열 기록·성좌판(`Rift`, 수치 `src/data/rift.ts`, 층 생성 `src/world/riftFloor.ts`). 수치는 `src/data/threat.ts`, 원천 각성은 `src/data/awakening.ts`(적용은 `src/skills/SourceAwakening.ts`) |
+| `src/input/` | 입력: 마우스·키(`Input`, 동작 단위), 휴대폰(E235): 터치 기기 알아보기·돌려 달라는 안내 판정(`device`), 손가락 몸짓(`touch.ts`: 톡·끌기·두 손가락), 캔버스 손가락 → 몸짓·조이스틱 그림(`TouchControls`) |
 | `src/save/` | 저장 형식과 검사 |
-| `src/render/` | 픽셀 렌더러, 쿼터뷰 카메라, 화면 ↔ 월드 좌표, 실루엣 |
+| `src/render/` | 픽셀 렌더러, 쿼터뷰 카메라, 화면 ↔ 월드 좌표, 실루엣, 렌더 해상도와 세로 화면 시야(`resolution.ts`: 세로 화면은 가로에 시야 높이 × 0.8) |
 | `src/world/` | 지역 맵(`regionMap.ts`: 지역 데이터 → 땅·길·소품·테두리 숲·출구 문, 다시 짓기), 막힌 땅 통로의 결계(`Barriers.ts`, E22), 지형 테마(`themes.ts`: 땅·물·빛·날림·소품 색 바꾸기), 땅 높이·연못(`terrain.ts`), 길찾기(`navGrid.ts`), 흩뿌리기(`layout.ts`). 그 땅의 소품 모델은 `src/voxel/models/landmarks.ts` |
 | `src/voxel/` | 복셀 격자, 메시 생성, 모델(`models/`) |
 | `src/audio/` | 소리(E5): 믹서·동시 재생 제한·거리 감쇠(`AudioEngine`, `limits`), 코드로 합성한 효과음(`sounds.ts`), 신화권별 합성 곡(`music.ts`, 방향은 `ART.md` 8장). 게임 사건 → 소리는 `systems/Sound.ts` |
 | `src/art/` | 팔레트(`palette.ts`): 연출 언어 색(위험·회복·안내), 신화권·원천·하늘 공격 색, 위험색 규칙 `readsAsDanger` |
-| `src/fx/`, `src/ui/` | 연출, 디자인 시스템(`theme.css`, `fonts/`), HUD·시작 화면·피해 숫자, 작은 지도(`Minimap`), 정보 화면(`GameMenu`는 틀, 탭은 `menu/`의 `statusTab`·`sourcesTab`·`relicsTab`·`mythTab`·`trialsTab`·`riftTab`·`mapTab`, 외형은 `WardrobePane`·`HeroPreview`, 게임에서 읽는 형식은 `menu/host.ts`), 균열 축복 고르기(`BlessingPicker`), 성소의 신화 고르기(`MythPicker`, E22), 목표 한 줄·장 제목 띠(`ChapterHud`, E22), 유물 설명 카드(`relicCard`, `RelicTooltip`), 일시 정지·설정(`PauseMenu`), 조사 붙이기(`josa`) |
+| `src/fx/`, `src/ui/` | 연출, 디자인 시스템(`theme.css`, `fonts/`), HUD·시작 화면·피해 숫자, 작은 지도(`Minimap`), 정보 화면(`GameMenu`는 틀, 탭은 `menu/`의 `statusTab`·`sourcesTab`·`relicsTab`·`mythTab`·`trialsTab`·`riftTab`·`mapTab`, 외형은 `WardrobePane`·`HeroPreview`, 게임에서 읽는 형식은 `menu/host.ts`), 균열 축복 고르기(`BlessingPicker`), 성소의 신화 고르기(`MythPicker`, E22), 목표 한 줄·장 제목 띠(`ChapterHud`, E22), 유물 설명 카드(`relicCard`, `RelicTooltip`), 일시 정지·설정(`PauseMenu`), 조사 붙이기(`josa`), 휴대폰을 가로로 들 때 안내(`RotateHint`), 세로 화면 덮어쓰기(`portrait.css`, 비 4:5보다 좁을 때) |
 | `tools/claude-mods/roadmap/` | 로드맵 패널 모드의 원본 (컨테이너가 바뀌면 다시 올림, 그 폴더 README) |
 | `src/dev/` | 검증용 봇(`autoplay.ts`), 개발 패널(`DevPanel.ts`), 개발 지름길(`DevTools.ts`: `game.dev.equip('mjolnir')`·`dev.teleport`·`dev.promote` 등, 점검 스크립트도 이것을 쓴다), 충돌·길찾기 보기(`DebugOverlay.ts`), 지도 편집기(`RegionEditor.ts`, 편집 동작은 `regionEdit.ts`) |
 

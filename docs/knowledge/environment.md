@@ -39,6 +39,7 @@ Claude가 일하는 곳은 클라우드 컨테이너(Claude Code on the web)다.
 - 크롬: `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`. Playwright는 설치하지 않는다(`playwright install` 금지).
 - WebGL은 swiftshader 소프트웨어 렌더링이다. 초당 몇 프레임이라 **fps·체감 속도는 사용자에게 확인을 부탁한다.** 성능은 `scripts/bench.mjs`의 갱신 시간·그리기 호출·삼각형 수로 본다.
 - Electron 확인: `ELECTRON_ARGS="--use-angle=swiftshader --enable-unsafe-swiftshader" ELECTRON_SHOT=test-results/electron.png xvfb-run -a node scripts/dev-electron.mjs`
+- 휴대폰 흉내 (E235): Playwright 새 페이지에 `viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true`를 주면 `(pointer: coarse)`가 맞아 터치 기기로 뜬다. 끌기·두 손가락은 `page.touchscreen`에 없어 캔버스에 `PointerEvent`(`pointerType: 'touch'`, `pointerId`별)를 직접 보낸다(`scripts/smoke.mjs`의 휴대폰 확인). 스크린숏은 `SHOT_SIZE=390x844 SHOT_TOUCH=1 node scripts/shot.mjs …`. 실제 휴대폰의 fps·손맛은 사용자 확인
 
 ## 네트워크
 

@@ -2,9 +2,10 @@ import * as THREE from 'three'
 
 import { AudioEngine } from '../audio/AudioEngine'
 import { Input } from '../input/Input'
+import { TouchControls } from '../input/TouchControls'
 import { PixelRenderer } from '../render/PixelRenderer'
 import { QuarterViewCamera } from '../render/QuarterViewCamera'
-import { renderHeightFor, TARGET_RENDER_HEIGHT } from '../render/resolution'
+import { renderHeightForScreen, TARGET_RENDER_HEIGHT, visibleHeight } from '../render/resolution'
 import { REGIONS, type RegionDef, START_REGION } from '../data/regions'
 import { godDef, type RelicId } from '../relics/data'
 import { Wardrobe } from '../looks/outfit'
@@ -94,6 +95,10 @@ export interface GameOptions {
   region?: string
   /** 화질을 이것으로 (점검용 ?quality=, 설정에 저장하지 않는다) */
   quality?: RenderQuality
+  /** 터치 기기(휴대폰): 떠다니는 조이스틱과 두 손가락 확대·축소 (E235) */
+  touch?: boolean
+  /** 게임 밖의 까닭으로 멈춘다 (휴대폰을 가로로 들어 돌려 달라는 안내가 떠 있을 때) */
+  suspended?: () => boolean
 }
 
 /** 성소에서 이만큼 가까우면 고른 신화를 바꿀 수 있다 */
@@ -235,21 +240,27 @@ export class Game {
   /** 시작 화면 뒤의 장면 */
   private readonly backdrop: TitleBackdrop
   private elapsed = 0
+  /** 터치 기기(휴대폰)인가 (E235) */
+  readonly touch: boolean
+  /** 게임 밖의 까닭으로 멈췄나 (돌려 달라는 안내) */
+  private readonly suspended: () => boolean
 
   constructor(
     private readonly container: HTMLElement,
     options: GameOptions = {},
   ) {
+    this.touch = options.touch ?? false
+    this.suspended = options.suspended ?? (() => false)
     this.settings = settingsStorage.load()
     if (options.quality) this.settings = { ...this.settings, quality: options.quality }
     // ?res= 로 픽셀 밀도를 바꿔 볼 수 있다. 기본은 프로토타입의 밀도에 설정의 해상도를 곱한다
     this.requestedRenderHeight = options.renderHeight ?? TARGET_RENDER_HEIGHT
     this.baseRenderHeight = options.renderHeight ?? Math.round(TARGET_RENDER_HEIGHT * RENDER_SCALE[this.settings.quality])
     this.pixel = new PixelRenderer(container, this.baseRenderHeight)
-    this.input = new Input(this.pixel.renderer.domElement)
+    this.input = new Input(this.pixel.renderer.domElement, undefined, this.touch)
     // 확대·축소: 주소의 ?view= 가 있으면 그 값, 없으면 저장한 설정
     this.view.viewHeight = options.viewHeight ?? this.settings.viewHeight
-    this.pixel.setTargetHeight(renderHeightFor(this.view.viewHeight, this.baseRenderHeight))
+    this.pixel.setTargetHeight(renderHeightForScreen(this.view.viewHeight, container.clientWidth, container.clientHeight, this.baseRenderHeight))
     this.pixel.renderer.domElement.addEventListener('wheel', (e) => this.onWheel(e), { passive: false })
     this.hud = new Hud(container)
     this.villagers = new Villagers(container)
@@ -476,6 +487,16 @@ export class Game {
     this.playerInput = new PlayerInput(this.ctx, this.input, this.pixel, container)
     this.playerInput.talkAt = (x, z) => (this.ctx.map.region.kind === 'hub' ? this.villagers.at(x, z) : null)
     this.playerInput.onTalk = (name) => (this.storyline.talkTo = name)
+    // 휴대폰 (E235): 떠다니는 조이스틱·톡·두 손가락 확대·축소
+    if (this.touch) {
+      const touch = new TouchControls(this.pixel.renderer.domElement, container)
+      this.playerInput.touch = touch
+      this.input.frameEnd.push(() => touch.gestures.endFrame())
+    }
+    this.playerInput.onZoom = (viewHeight, end) => {
+      if (viewHeight !== this.view.viewHeight) this.setViewHeight(viewHeight)
+      if (end) this.settings = settingsStorage.update({ viewHeight: this.view.viewHeight })
+    }
     this.dev = new DevTools({
       bus: this.bus,
       relics: this.relics,
@@ -710,6 +731,11 @@ export class Game {
   private tick(now: number): void {
     const realDt = frameDelta(this.lastTime, now)
     this.lastTime = now
+    // 휴대폰을 가로로 들어 안내가 화면을 덮은 동안은 그리지 않는다 (배터리, E235)
+    if (this.suspended()) {
+      this.input.endFrame()
+      return
+    }
     if (!this.playing) {
       this.updateBackdrop(realDt)
       return
@@ -813,7 +839,7 @@ export class Game {
 
   /** 정보 화면·일시 정지 메뉴·신화 고르기가 열려 있어 게임이 멈췄는가 */
   get paused(): boolean {
-    return this.menu.open || (this.pauseMenu?.open ?? false) || (this.mythPicker?.open ?? false)
+    return this.menu.open || (this.pauseMenu?.open ?? false) || (this.mythPicker?.open ?? false) || this.suspended()
   }
 
   /**
@@ -824,6 +850,9 @@ export class Game {
     const unlock = () => this.audio.unlock()
     addEventListener('pointerdown', unlock)
     addEventListener('keydown', unlock)
+    // 휴대폰(iOS Safari)은 손가락을 뗄 때만 소리를 켜 준다: 누를 때 만든 소리가 잠들어 있으면 뗄 때 깨운다 (E235)
+    addEventListener('pointerup', unlock)
+    addEventListener('touchend', unlock)
     addEventListener('keydown', (e) => {
       if (e.key !== 'Escape' || !this.playing) return
       if (this.pauseMenu.open) this.pauseMenu.hide()
@@ -1051,8 +1080,6 @@ export class Game {
 
   /** 보이는 범위를 그대로 바꾼다 (대화 장면의 줌은 평소 범위보다 가깝다) */
   private applyViewHeight(next: number): void {
-    // 가장 크게 확대했을 때의 픽셀 크기를 기준으로, 넓게 볼 때는 뭉개지지 않을 만큼만 해상도를 올린다.
-    this.pixel.setTargetHeight(renderHeightFor(next, this.baseRenderHeight))
     this.view.viewHeight = next
     this.resize()
     this.view.setViewHeight(next)
@@ -1060,8 +1087,10 @@ export class Game {
 
   private resize(): void {
     const { clientWidth: width, clientHeight: height } = this.container
+    // 가장 크게 확대했을 때의 픽셀 크기를 기준으로, 넓게 볼 때는 뭉개지지 않을 만큼만 해상도를 올린다 (세로 화면은 늘어난 세로만큼 더)
+    this.pixel.setTargetHeight(renderHeightForScreen(this.view.viewHeight, width, height, this.baseRenderHeight))
     const size = this.pixel.setScreenSize(width, height)
     this.view.setRenderSize(size.width, size.height)
-    this.stage.fitShadow(this.view.viewHeight)
+    this.stage.fitShadow(visibleHeight(this.view.viewHeight, width, height))
   }
 }

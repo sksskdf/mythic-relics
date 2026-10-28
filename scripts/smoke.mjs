@@ -687,6 +687,99 @@ try {
   await end.close()
   if (!ending.ending || ending.log !== 1 || ending.barriers > 0 || ending.goal) throw new Error(`장 흐름: 끝까지 가도 엔딩이 아닙니다 ${JSON.stringify(ending)}`)
   console.log(`엔딩 확인: ${ending.chapters.join(' → ')} → 갈라진 하늘의 왕을 이기면 엔딩, 결계가 모두 풀리고 목표 한 줄이 사라짐`)
+
+  // 휴대폰 (E235): 세로로 든 터치 기기에서 끌기 = 떠다니는 조이스틱으로 걷기, 떼면 멈춤, 톡 = 그곳까지, 두 손가락 = 확대,
+  // 가로로 들면 돌려 달라는 안내와 멈춤. 손가락은 캔버스에 포인터 사건을 보내 흉내 낸다
+  const phone = await browser.newPage({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true })
+  phone.on('pageerror', (e) => errors.push(e.message))
+  await phone.goto(`${URL}?relics=mjolnir&region=midgard`, { timeout: 90000, waitUntil: 'domcontentloaded' })
+  await phone.waitForFunction(() => (window.__game?.frame ?? 0) > 2 && window.__game.playing, null, { timeout: 120000 })
+  const phoneFrames = async (n) => {
+    const f = await phone.evaluate(() => window.__game.frame)
+    await phone.waitForFunction((t) => window.__game.frame >= t, f + n, { timeout: 60000 })
+  }
+  const finger = (type, id, x, y) =>
+    phone.evaluate(([type, id, x, y]) => {
+      const target = type === 'pointerdown' ? window.__game.pixel.renderer.domElement : window
+      target.dispatchEvent(new PointerEvent(type, { pointerId: id, pointerType: 'touch', clientX: x, clientY: y, bubbles: true, isPrimary: id === 1 }))
+    }, [type, id, x, y])
+  const phoneState = () =>
+    phone.evaluate(() => {
+      const g = window.__game
+      const p = g.hero.object.position
+      const cam = g.view.camera
+      return { touch: g.touch && document.documentElement.classList.contains('is-touch'), x: p.x, z: p.z, moving: g.hero.isMoving, view: g.view.viewHeight, across: cam.right - cam.left, stick: !document.querySelector('.stick').hidden, order: g.ctx.orders.order?.kind ?? null, paused: g.paused, rotate: !document.querySelector('.rotate-hint').hidden }
+    })
+  const p0 = await phoneState()
+  if (!p0.touch) throw new Error('휴대폰: 터치 기기로 알아보지 못합니다.')
+  if (Math.abs(p0.across - p0.view * 0.8) > 0.5) throw new Error(`휴대폰: 세로 화면 가로에 시야 높이의 0.8배가 보이지 않습니다 (${p0.across.toFixed(1)}m)`)
+  await finger('pointerdown', 1, 195, 650)
+  for (const y of [640, 625, 610, 600]) {
+    await finger('pointermove', 1, 195, y)
+    await phoneFrames(1)
+  }
+  await phoneFrames(10)
+  const p1 = await phoneState()
+  if (!p1.stick || !p1.moving || Math.hypot(p1.x - p0.x, p1.z - p0.z) < 0.5) throw new Error(`휴대폰: 끌어도 조이스틱 쪽으로 걷지 않습니다 ${JSON.stringify(p1)}`)
+  await finger('pointerup', 1, 195, 600)
+  await phoneFrames(2)
+  const p2 = await phoneState()
+  if (p2.stick || p2.moving) throw new Error(`휴대폰: 손을 떼도 멈추지 않습니다 ${JSON.stringify(p2)}`)
+  await finger('pointerdown', 1, 300, 560)
+  await finger('pointerup', 1, 300, 560)
+  await phoneFrames(2)
+  const p3 = await phoneState()
+  if (p3.order !== 'move' || !p3.moving) throw new Error(`휴대폰: 땅을 톡 눌러도 걷지 않습니다 ${JSON.stringify(p3)}`)
+  // 적을 톡하면 그 적을 공격하라는 지시 (멈춰 세우고 카메라가 따라온 뒤, 몸통을 조금 비켜 누른다)
+  await phone.evaluate(() => {
+    const g = window.__game
+    g.ctx.orders.clear()
+    g.hero.stop()
+  })
+  await phoneFrames(20)
+  const foe = await phone.evaluate(() => {
+    const g = window.__game
+    const p = g.hero.object.position
+    window.__tapTarget = g.encounter.spawnGrunt(p.x + 3, p.z - 3)
+    window.__tapTarget.update = () => {}
+    const point = window.__tapTarget.object.position.clone()
+    point.y += 1.2
+    point.project(g.view.camera)
+    const size = g.renderSize
+    const height = document.getElementById('app').clientHeight
+    return { x: ((point.x + 1) / 2) * size.width * size.scale + 10, y: height - ((point.y + 1) / 2) * size.height * size.scale }
+  })
+  await finger('pointerdown', 1, foe.x, foe.y)
+  await finger('pointerup', 1, foe.x, foe.y)
+  await phoneFrames(2)
+  if (!(await phone.evaluate(() => window.__game.ctx.orders.attackTarget === window.__tapTarget))) throw new Error(`휴대폰: 적을 톡 눌러도 공격 지시가 되지 않습니다 ${JSON.stringify(await phoneState())}`)
+  await phone.evaluate(() => {
+    const g = window.__game
+    g.ctx.orders.clear()
+    g.encounter.clearAll()
+  })
+  await finger('pointerdown', 1, 150, 420)
+  await finger('pointerdown', 2, 240, 420)
+  for (const d of [10, 25, 40]) {
+    await finger('pointermove', 1, 150 - d, 420)
+    await finger('pointermove', 2, 240 + d, 420)
+    await phoneFrames(1)
+  }
+  await finger('pointerup', 2, 280, 420)
+  await finger('pointerup', 1, 110, 420)
+  await phoneFrames(2)
+  const p4 = await phoneState()
+  if (p4.view >= p3.view - 1) throw new Error(`휴대폰: 두 손가락을 벌려도 확대되지 않습니다 (${p3.view} → ${p4.view})`)
+  await phone.setViewportSize({ width: 844, height: 390 })
+  await phone.waitForFunction(() => !document.querySelector('.rotate-hint').hidden && window.__game.paused, null, { timeout: 30000 }).catch(() => {
+    throw new Error('휴대폰: 가로로 들어도 돌려 달라는 안내가 뜨지 않거나 멈추지 않습니다.')
+  })
+  await phone.setViewportSize({ width: 390, height: 844 })
+  await phone.waitForFunction(() => document.querySelector('.rotate-hint').hidden && !window.__game.paused, null, { timeout: 30000 }).catch(() => {
+    throw new Error('휴대폰: 다시 세로로 들어도 안내가 남아 있습니다.')
+  })
+  await phone.close()
+  console.log(`휴대폰 확인: 세로 화면 가로 ${p0.across.toFixed(1)}m, 끌기 → 조이스틱으로 걷기, 떼면 멈춤, 톡 → 그곳까지·적이면 공격, 두 손가락 ${p3.view.toFixed(0)}m → ${p4.view.toFixed(0)}m, 가로로 들면 안내와 멈춤`)
   await browser.close()
 
   if (errors.length) {
