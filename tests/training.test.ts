@@ -27,8 +27,8 @@ describe('깨달음 (E236-02)', () => {
     expect(insightProgress(100)).toEqual({ have: 40, need: INSIGHT_COST.first + INSIGHT_COST.step })
   })
 
-  it('첫 신화를 여는 경험치(450)에 넷, 엔딩 무렵(6000)에 스물쯤', () => {
-    expect(insightsAt(450)).toBe(4)
+  it('첫 신화를 여는 경험치(600)에 다섯, 엔딩 무렵(6000)에 스물쯤', () => {
+    expect(insightsAt(600)).toBe(5)
     expect(insightsAt(6000)).toBeGreaterThanOrEqual(19)
     expect(insightsAt(6000)).toBeLessThan(TRAINING_NODES.length)
   })

@@ -210,8 +210,8 @@ describe('저장 v11: 수련 (E236-02)', () => {
 
   it('옛 저장: 모은 경험치를 신화 경험치로 짐작하고(연 문턱 + 단계 문턱 + 지금), 마디는 비워 둔다', () => {
     const data = parseSave(JSON.stringify({ ...sample, version: 10, training: undefined }))
-    // 토르 2단계, 경험치 40: 450 + 1000 + 40
-    expect(data?.training).toEqual({ xp: 1490, taken: [] })
+    // 토르 2단계, 경험치 40: 600 + 1500 + 40
+    expect(data?.training).toEqual({ xp: 2140, taken: [] })
     const fresh = parseSave(JSON.stringify({ ...sample, version: 10, training: undefined, classes: { thor: { level: 0, xp: 120 } } }))
     expect(fresh?.training.xp).toBe(120)
   })

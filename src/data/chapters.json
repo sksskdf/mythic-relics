@@ -10,7 +10,7 @@
     "title": "제1장",
     "name": "서리 거인의 땅",
     "tier": 1,
-    "lands": { "jotunheim": 2.5, "utgard": 4.2 },
+    "lands": { "jotunheim": 2.5, "utgard": 3.6 },
     "steps": [
       { "kind": "choose", "region": "midgard", "realm": "norse", "goal": "미드가르드 성소에서 신화를 고른다" },
       { "kind": "enter", "region": "jotunheim", "goal": "요툰헤임 빙하로" },
