@@ -79,6 +79,23 @@ describe('승급 전설 「우트가르드 원정」', () => {
     expect(state.arena).toBeNull()
   })
 
+  it('결계가 닫히면 바깥 무리는 안의 주인공을 보지 못하고 제자리로 돌아가며, 전설의 무리만 싸운다', () => {
+    const { encounter, legend, host, world, state } = setup()
+    // 성소 둘레 무리 하나가 주인공을 쫓아오던 참
+    const outsider = encounter.spawnGrunt(15, 0)
+    outsider.alert()
+    legend.update(1 / 60, encounter, host)
+    for (let i = 0; i < 30; i++) encounter.update(1 / 30, world)
+    expect(['return', 'idle']).toContain(outsider.state)
+    const wave = encounter.alive.filter((g) => g !== outsider && Math.hypot(g.x, g.z) < 11)
+    expect(wave.length).toBeGreaterThan(0)
+    expect(wave.every((g) => g.state !== 'idle' && g.state !== 'return')).toBe(true)
+    // 전설이 끝나면 결계가 열린다
+    state.alive = false
+    legend.update(1 / 60, encounter, host)
+    expect(encounter.ward).toBeNull()
+  })
+
   it('도중에 쓰러지면 결계가 풀리고 전설의 거인들이 사라진다', () => {
     const { encounter, legend, host, events, state } = setup()
     legend.update(1 / 60, encounter, host)
