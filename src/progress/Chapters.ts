@@ -20,7 +20,9 @@ export interface ChapterData {
 
 /**
  * 장 진행 (E22-01, TIMELINE.md 4·7장).
- * - 지금 장: 마지막 할 일을 아직 못 한 첫 장. 그 장까지의 땅과 들어서 본 땅이 열려 있다 (마을은 늘)
+ * - 지금 장: 마지막 할 일을 아직 못 한 첫 장. 지난 장의 땅과 들어서 본 땅이 열려 있다 (마을은 늘)
+ * - 지금 장의 땅은 할 일 차례로 열린다 (E236-01): 그 땅에 들어서는 할 일 바로 앞까지 했을 때.
+ *   요툰헤임은 첫 신화를 고른 뒤, 우트가르드는 2단계 전설 뒤 (준비가 되기 전에 거인 왕을 만나지 않게)
  * - 지금 목표: 지금 장에서 아직 못 한 첫 할 일. 뒤의 할 일을 먼저 했으면 앞의 것은 지나간 것으로 친다
  * - 엔딩 뒤에는 모든 땅이 열리고 목표가 없다
  */
@@ -66,10 +68,14 @@ export class ChapterProgress {
   get goal(): ChapterStep | null {
     const chapter = this.chapter
     if (!chapter || this.afterEnding()) return null
-    const steps = chapter.steps
+    return chapter.steps[this.lastDone(chapter) + 1] ?? null
+  }
+
+  /** 그 장에서 한 마지막 할 일의 차례 (하나도 안 했으면 -1). 뒤의 것을 했으면 앞의 것은 지나간 것으로 친다 */
+  private lastDone(chapter: ChapterDef): number {
     let last = -1
-    steps.forEach((s, i) => this.done(s) && (last = i))
-    return steps[last + 1] ?? null
+    chapter.steps.forEach((s, i) => this.done(s) && (last = i))
+    return last
   }
 
   /** 마지막 장의 마지막 할 일까지 했나 (엔딩) */
@@ -81,7 +87,11 @@ export class ChapterProgress {
   isOpen(region: string): boolean {
     if (this.afterEnding() || REGIONS[region]?.kind === 'hub' || this.entered.has(region)) return true
     const at = this.chapters.findIndex((c) => region in c.lands)
-    return at >= 0 && at <= this.index
+    if (at < 0 || at > this.index) return false
+    if (at < this.index) return true
+    const chapter = this.chapters[at]!
+    const enter = chapter.steps.findIndex((s) => s.kind === 'enter' && s.region === region)
+    return enter <= 0 || this.lastDone(chapter) >= enter - 1
   }
 
   /** 그 땅 보통 적의 세기 (처음 땅 = 1). 장 흐름 밖의 들판(엔딩 뒤)은 가장 센 땅만큼, 균열·마을은 1 (균열은 층이 세기를 정한다) */

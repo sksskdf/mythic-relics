@@ -63,6 +63,21 @@ export interface RiftMenuHost {
   light(god: string): boolean
 }
 
+/** 수련 탭이 게임에서 읽고 부르는 것 (E236-03) */
+export interface TrainingHost {
+  /** 모은 깨달음, 쓰지 않은 깨달음, 다음 깨달음까지 (이번 점에서 모은 경험치 / 드는 경험치) */
+  insights(): { total: number; unspent: number; have: number; need: number }
+  /** 마디마다: 이름·갈래·자리·앞 마디·수치 글·찍었나·지금 찍을 수 있나 */
+  nodes(): { id: string; name: string; branch: string; color: string; col: number; row: number; after: readonly string[]; lines: string[]; big: boolean; taken: boolean; can: boolean }[]
+  /** 갈래마다 이름과 한 줄 */
+  branches(): { id: string; name: string; text: string; color: string }[]
+  /** 찍은 마디 수치의 합 (글 몇 줄) */
+  totals(): string[]
+  take(id: string): boolean
+  /** 모두 되돌린다 (무료) */
+  reset(): number
+}
+
 /** 지도 탭이 게임에서 읽고 부르는 것 (E15-04) */
 export interface WorldMapHost {
   /**
@@ -140,8 +155,11 @@ export interface MenuHost {
   readonly world: WorldMapHost
   readonly trials: TrialsHost
   readonly rift: RiftMenuHost
+  readonly training: TrainingHost
   /** 첫 엔딩을 보았나: 엔딩 뒤 장치(위협 단계·편의·시련·균열)를 보인다 (E21-06) */
   afterEnding(): boolean
+  /** 연 탭인가 (E236-05: 상태 탭 말고는 쓸 일이 생길 때 하나씩 열린다) */
+  tabOpen(tab: string): boolean
   /** 저장하고 처음 화면(슬롯 고르기)으로 */
   toTitle(): void
   /** 설정을 연다 (일시 정지 메뉴) */

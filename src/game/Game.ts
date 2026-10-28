@@ -64,6 +64,9 @@ import { DialogScene } from './DialogScene'
 import { DialogBox } from '../ui/DialogBox'
 import { DevTools } from '../dev/DevTools'
 import { ChapterProgress } from '../progress/Chapters'
+import { TrainingProgress } from '../progress/Training'
+import { TabUnlocks } from '../progress/Tabs'
+import { TabSystem } from './systems/Tabs'
 import { Barriers } from '../world/Barriers'
 import { MythPicker } from '../ui/MythPicker'
 import { ChapterHud } from '../ui/ChapterHud'
@@ -99,6 +102,8 @@ export interface GameOptions {
   touch?: boolean
   /** 게임 밖의 까닭으로 멈춘다 (휴대폰을 가로로 들어 돌려 달라는 안내가 떠 있을 때) */
   suspended?: () => boolean
+  /** 정보 화면 탭을 처음부터 모두 연다 (점검용 실행, E236-05) */
+  allTabs?: boolean
 }
 
 /** 성소에서 이만큼 가까우면 고른 신화를 바꿀 수 있다 */
@@ -166,6 +171,11 @@ export class Game {
     () => this.ending.reached,
   )
   readonly chapterSystem: ChapterSystem
+  /** 수련 (E236): 경험치로 얻은 깨달음과 찍은 마디 */
+  readonly training = new TrainingProgress()
+  /** 연 정보 화면 탭 (E236-05): 쓸 일이 생길 때 하나씩 열린다 */
+  readonly tabs = new TabUnlocks()
+  readonly tabSystem: TabSystem
   /** 막힌 땅으로 가는 통로의 결계 (E22-02) */
   private readonly barriers = new Barriers()
   /** 성소에서 신화 고르기 (E22-03) */
@@ -228,7 +238,7 @@ export class Game {
   /** 커서 아래의 설명 카드와 몬스터 이름표 */
   private readonly hover: HoverCards
   private readonly relics: RelicSystem
-  private readonly growth: ProgressionSystem
+  readonly growth: ProgressionSystem
   private readonly life: HeroLife
   private readonly persistence: Persistence
   private readonly playerInput: PlayerInput
@@ -399,7 +409,9 @@ export class Game {
       conveniences: this.conveniences,
       ending: this.ending,
       chapters: this.chapters,
-      build: new Build({ powers: this.powers, progress: this.progress, threat: this.threat, trials: this.trials, trial: () => this.trialSystem?.active?.id ?? null, rift: this.rift, blessings: () => this.riftSystem?.blessings ?? [] }),
+      training: this.training,
+      tabs: this.tabs,
+      build: new Build({ powers: this.powers, progress: this.progress, threat: this.threat, trials: this.trials, trial: () => this.trialSystem?.active?.id ?? null, rift: this.rift, blessings: () => this.riftSystem?.blessings ?? [], training: this.training }),
       skills,
     }
     this.damage = new DamageSystem(this.ctx)
@@ -423,7 +435,11 @@ export class Game {
     })
     this.pauseMenu.onToggle = onToggle
     this.hud.onPortraitClick = () => this.menu.show('status')
-    this.minimap.canvas.addEventListener('click', () => this.menu.show('map'))
+    // 작은 지도를 누르면 지도 탭이 열린다 (성소를 찾기 전이어도. 지금 보고 있으니 카드는 없이)
+    this.minimap.canvas.addEventListener('click', () => {
+      this.tabSystem.open('map', true)
+      this.menu.show('map')
+    })
     // 대화 장면 (E15-06): 마을 사람을 누르면 걸어가 말을 걸고, 처음 보는 일에는 짧은 장면
     this.storyline = new Storyline({ ctx: this.ctx, scenes: this.scenes, villagers: this.villagers, paused: () => this.paused, holding: () => this.moments.holding })
     this.letterbox.className = 'letterbox'
@@ -446,8 +462,27 @@ export class Game {
       hovered: () => this.playerInput.hovered,
       screenPoint: (x, y, z) => this.screenPoint(x, y, z),
     })
-    // 새 외형은 메뉴 단추의 점으로만 알린다. (유물 이름 알림과 겹치지 않게)
-    this.bus.on('looksUnlocked', () => this.menu.markNew())
+    // 새 외형은 메뉴 단추의 점으로만 알린다. (유물 이름 알림과 겹치지 않게, 외형 탭이 열린 뒤에만)
+    this.bus.on('looksUnlocked', () => {
+      if (this.tabs.has('looks')) this.menu.markNew()
+    })
+    // 정보 화면 탭은 쓸 일이 생길 때 하나씩 열린다 (E236-05): 열리면 한 줄짜리 카드와 메뉴 단추 표시
+    this.tabSystem = new TabSystem(this.ctx)
+    this.tabSystem.onOpened = (tab) => {
+      this.menu.markTab(tab)
+      this.menu.refresh()
+    }
+    // 수련 (E236): 깨달음을 얻으면 메뉴 단추에 표시하고 알린다. 첫 깨달음은 수련 탭이 열리는 카드가 알린다
+    this.bus.on('insightGained', ({ count, unspent }) => {
+      // 마디를 다 찍었으면 더 얻는 깨달음은 쓸 곳이 없다 (엔딩 뒤)
+      if (this.training.complete) return
+      if (!this.tabs.has('training')) {
+        this.tabSystem.check()
+        return
+      }
+      this.menu.markTab('training')
+      this.bus.emit('moment', { id: 'insight', text: `깨달음 +${count} · 수련에서 찍는다 (남은 깨달음 ${unspent})` })
+    })
     this.bus.on('outfitChanged', () => this.menu.refresh())
     this.bus.on('loadoutChanged', () => this.menu.refresh())
     // HUD 유물 칸: 커서를 올리면 설명 카드, 누르면 유물 화면
@@ -470,6 +505,8 @@ export class Game {
         this.bus.emit('moment', { id: 'chapterChanged', scene: sceneId('chapter', chapter.id), after: () => this.chapterHud.showChapter(chapter.title, chapter.name, chapterColor(chapter)) })
       } else if (!this.ending.reached) this.endingMoment(true)
     })
+    // 지금 장의 땅은 할 일 차례로 열린다 (E236-01): 할 일을 하나 마치면 다음 땅의 결계가 풀린다
+    this.bus.on('goalChanged', () => this.world.refreshLinks())
     this.trialSystem = new TrialSystem(this.ctx, this.growth, this.threatSystem)
     this.blessingPicker = new BlessingPicker(this.hud.root)
     this.riftSystem = new RiftSystem(
@@ -511,6 +548,7 @@ export class Game {
       region: () => this.ctx.map.region.realm ?? undefined,
       skills: this.ctx.skills,
       encounter: this.encounter,
+      training: this.training,
     })
     this.audio = new AudioEngine(this.settings.volume)
     this.attackFx = new AttackFx({ fx: this.fx, hero: this.hero, combat: this.combat, build: this.ctx.build, audio: this.audio })
@@ -538,7 +576,13 @@ export class Game {
       // 마지막 보스를 이긴 뒤 엔딩이 끝나기 전에 저장된 판: 엔딩을 다시 보인다 (안 그러면 엔딩 뒤 장치가 영영 닫힌다)
       if (this.chapters.finished && !this.ending.reached) this.endingMoment(false)
     }
+    // 점검용 실행과 엔딩 뒤 판은 정보 화면 탭을 모두 연 채로 (E236-05)
+    if (options.allTabs || this.ending.reached) this.tabs.openAll()
     for (const id of options.startRelics ?? []) this.relics.equip(id, false)
+    // 탭 열기는 불러온 뒤에 켠다: 저장에서 빠진 탭이 있으면 카드 없이 연다
+    this.tabSystem.ready = true
+    this.tabSystem.check(true)
+    if (this.tabs.has('training') && this.training.unspent > 0 && !this.training.complete) this.menu.markTab('training')
     // 처음 선 땅도 들어선 땅이다 (점검 주소로 막힌 땅에서 시작해도 거기는 열려 있게)
     if (this.chapters.enter(this.ctx.map.region.id)) {
       this.chapterSystem.sync()
@@ -601,8 +645,10 @@ export class Game {
     this.ending.reached = true
     this.conveniences.catchUp()
     this.chapterSystem.check()
-    // 모든 땅이 열린다
+    // 모든 땅과 정보 화면 탭이 열린다
     this.world.refreshLinks()
+    this.tabs.openAll()
+    this.menu.refresh()
   }
 
   /** 저장하고 처음 화면(슬롯 고르기)으로 돌아간다. 다시 불러와 시작 화면을 띄운다. */

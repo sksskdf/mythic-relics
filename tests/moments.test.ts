@@ -54,9 +54,9 @@ describe('순간의 크기 (E23-01)', () => {
   it('사건 → 등급 표가 TIMELINE.md 6장과 같다', () => {
     const tiers = (tier: number) => (Object.keys(MOMENTS) as MomentId[]).filter((id) => tierOf(id) === tier)
     // 1 작은 알림: 재료·흔한 장비 줍기
-    expect(tiers(1)).toEqual(expect.arrayContaining(['gearPicked', 'materialPicked', 'bossMaterial', 'salvaged']))
+    expect(tiers(1)).toEqual(expect.arrayContaining(['gearPicked', 'materialPicked', 'bossMaterial', 'salvaged', 'insight']))
     // 2 카드: 장비를 칸에 낌, 장치가 처음 열림
-    expect(tiers(2)).toEqual(expect.arrayContaining(['gearWorn', 'convenience', 'realmOpened', 'mythOpened']))
+    expect(tiers(2)).toEqual(expect.arrayContaining(['gearWorn', 'convenience', 'realmOpened', 'mythOpened', 'tabOpened']))
     // 3 큰 카드: 신화 단계, 유물 벼리기
     expect(tiers(3)).toEqual(expect.arrayContaining(['mythLevel', 'forged']))
     // 4 장면: 첫 신화 고르기, 장 보스 처치, 장 넘어가기, 엔딩

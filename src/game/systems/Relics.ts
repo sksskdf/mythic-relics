@@ -204,7 +204,8 @@ export class RelicSystem {
     // 시련 「마른 샘」(E16): 생명이 차오르지 않는다
     combat.healScale = build.noHeal ? 0 : 1 + stats.healingTaken
     combat.bonusRegen = build.noHeal ? 0 : stats.regen
-    combat.lowHpTakenScale = 1 + stats.lowHpGuard
+    // 장비·별·수련(불굴)을 겹쳐도 피해를 아예 안 받게 되지는 않게 (받는 피해와 같은 하한)
+    combat.lowHpTakenScale = Math.max(0.1, 1 + stats.lowHpGuard)
     combat.divineScale = 1 + stats.ultCharge
     skills.area = 1 + stats.areaSize
     const awakening = this.ctx.powers.awakening

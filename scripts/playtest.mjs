@@ -2,7 +2,7 @@
 // 사용법: npm run build && node scripts/playtest.mjs [반복 횟수=3] [제한 시간(분)=45]
 // --gate 를 붙이면 승급하지 못했거나 오류가 난 판이 있을 때 실패로 끝난다. (CI)
 // --god=loki 를 붙이면 그 신 유물만 끼고 승급까지 간다.
-// --threat=N 을 붙이면 2단계 뒤에도 이어서 보스를 잡고 위협 단계를 올리며, N단계에 오를 때까지 단계마다 시간·쓰러짐·피격을 잰다 (E14-07).
+// --threat=N 을 붙이면 첫 엔딩 무렵의 빌드(묠니르 2단계·토르 3단계·깨달음 스물)로 지역 보스를 잡고 위협 단계를 올리며, N단계에 오를 때까지 단계마다 시간·쓰러짐·피격을 잰다 (E14-07, E236).
 // --threat·--trials·--rift는 엔딩 뒤 장치라, 시작할 때 엔딩 뒤로 넘긴다 (E21-06).
 // --ending 을 붙이면 장 흐름을 따라 엔딩까지 가고, 장마다 들어선 시각을 잰다 (E22-06).
 import { spawn } from 'node:child_process'
@@ -68,7 +68,20 @@ try {
     await page.goto(URL)
     await page.waitForFunction(() => window.__autoplay && window.__game.frame > 2, null, { timeout: 30000 })
     if (THREAT > 0 || TRIALS || RIFT) await page.evaluate(() => window.__game.reachEnding())
-    if (THREAT > 0) await page.evaluate(() => Object.assign(window.__autoplay, { climb: true }))
+    // 위협 단계는 첫 엔딩 뒤의 장치라 첫 엔딩 무렵의 빌드로 시작한다 (E236: 땅이 수련만큼 세져 벼린 유물 없이는 우트가르드의 거인 왕을 못 넘는다)
+    // 묠니르 2단계(처음 벼리면 토르가 열림)·토르 3단계·깨달음 스물(봇이 찍는다)
+    if (THREAT > 0)
+      await page.evaluate(() => {
+        const g = window.__game
+        for (let i = 0; i < 2; i++) {
+          g.dev.fillForge('thor')
+          g.dev.forge('thor')
+        }
+        g.dev.promote()
+        g.dev.promote()
+        g.dev.insight(20)
+        Object.assign(window.__autoplay, { climb: true })
+      })
     if (GOD) await page.evaluate((god) => (window.__autoplay.god = god), GOD)
     if (TRIALS)
       await page.evaluate(() => {

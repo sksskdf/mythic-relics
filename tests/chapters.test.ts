@@ -84,7 +84,7 @@ describe('땅 세기 (E22-02)', () => {
     expect(landScale(4).hp).toBe(4)
     expect(landScale(4).damage).toBeGreaterThan(1)
     expect(landScale(4).damage).toBeLessThan(4)
-    expect(TOP_POWER).toBe(10)
+    expect(TOP_POWER).toBe(14)
   })
 })
 
@@ -99,12 +99,11 @@ describe('장 진행 (E22-01)', () => {
     expect(chapters.isOpen('sky')).toBe(false)
   })
 
-  it('미드가르드에 들어서면 제1장: 북유럽 땅이 열리고 목표는 신화 고르기 → 요툰헤임 → 전설 → 우트가르드 → 거인 왕', () => {
+  it('미드가르드에 들어서면 제1장: 목표는 신화 고르기 → 요툰헤임 → 전설 → 우트가르드 → 거인 왕', () => {
     const w = world()
     const chapters = new ChapterProgress(w)
     chapters.enter('midgard')
     expect(chapters.chapter?.id).toBe('north')
-    expect(chapters.isOpen('utgard')).toBe(true)
     expect(chapters.isOpen('olympus')).toBe(false)
     const goals: string[] = []
     const next = (act: () => void) => {
@@ -117,6 +116,41 @@ describe('장 진행 (E22-01)', () => {
     next(() => (w.lv = 2))
     next(() => chapters.enter('utgard'))
     expect(goals).toEqual(['enter', 'level', 'enter', 'boss'])
+  })
+
+  it('지금 장의 땅은 할 일 차례로 열린다: 요툰헤임은 신화를 고른 뒤, 우트가르드는 2단계 전설 뒤 (E236-01)', () => {
+    const w = world()
+    const chapters = new ChapterProgress(w)
+    chapters.enter('midgard')
+    // 신화를 고르기 전에는 거인 왕의 땅까지 걸어가지 못한다
+    expect(chapters.isOpen('jotunheim')).toBe(false)
+    expect(chapters.isOpen('utgard')).toBe(false)
+    w.realms.add('norse')
+    expect(chapters.isOpen('jotunheim')).toBe(true)
+    expect(chapters.isOpen('utgard')).toBe(false)
+    chapters.enter('jotunheim')
+    expect(chapters.isOpen('utgard')).toBe(false)
+    w.lv = 2
+    expect(chapters.isOpen('utgard')).toBe(true)
+  })
+
+  it('그리스와 마지막 무대도 차례로: 델포이는 그리스 신화를 연 뒤, 리키아는 3단계 뒤, 갈라진 하늘은 유물 2단계 뒤', () => {
+    const w = world()
+    const chapters = new ChapterProgress(w)
+    chapters.enter('midgard')
+    chapters.bossDefeated('utgard')
+    w.stage = 1
+    expect(chapters.isOpen('olympus')).toBe(true)
+    expect(chapters.isOpen('delphi')).toBe(false)
+    w.realms.add('greek')
+    expect(chapters.isOpen('delphi')).toBe(true)
+    expect(chapters.isOpen('lycia')).toBe(false)
+    w.lv = 3
+    expect(chapters.isOpen('lycia')).toBe(true)
+    chapters.bossDefeated('lycia')
+    expect(chapters.isOpen('sky')).toBe(false)
+    w.stage = 2
+    expect(chapters.isOpen('sky')).toBe(true)
   })
 
   it('뒤의 할 일을 먼저 했으면 앞의 것은 지나간 것으로 친다 (전설을 건너뛰고 우트가르드로)', () => {
@@ -140,7 +174,7 @@ describe('장 진행 (E22-01)', () => {
     expect(chapters.isOpen('olympus')).toBe(false)
     w.stage = 1
     expect(chapters.chapter?.id).toBe('greek')
-    expect(chapters.isOpen('lycia')).toBe(true)
+    expect(chapters.isOpen('olympus')).toBe(true)
     expect(chapters.isOpen('sky')).toBe(false)
     expect(chapters.goal?.goal).toBe('올림포스 기슭으로')
   })
@@ -153,7 +187,7 @@ describe('장 진행 (E22-01)', () => {
     w.stage = 1
     chapters.bossDefeated('lycia')
     expect(chapters.chapter?.id).toBe('finale')
-    expect(chapters.isOpen('sky')).toBe(true)
+    expect(chapters.isOpen('sky')).toBe(false)
     expect(chapters.goal?.kind).toBe('forge')
     // 2단계로 벼리지 않고 들어서도 목표는 마지막 보스로 넘어간다
     chapters.enter('sky')
@@ -180,7 +214,7 @@ describe('장 진행 (E22-01)', () => {
   it('땅의 세기와 단계: 장 흐름의 땅은 장 데이터, 그 밖의 들판(엔딩 뒤)은 가장 센 땅만큼, 균열은 1', () => {
     const chapters = new ChapterProgress(world())
     expect(chapters.power('midgard')).toBe(1)
-    expect(chapters.power('lycia')).toBe(9)
+    expect(chapters.power('lycia')).toBe(11.5)
     expect(chapters.power('sinsi')).toBe(TOP_POWER)
     expect(chapters.power('rift')).toBe(1)
     expect(chapters.power('village')).toBe(1)

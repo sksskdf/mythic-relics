@@ -138,14 +138,19 @@ export class ProgressionSystem {
     }
   }
 
-  /** 신화 경험치를 쌓는다: 고른 신화만, 고른 신화가 없으면 그 신화권 신들에게 (첫 신화를 연다). 문턱을 넘은 신화는 열린다. */
+  /**
+   * 경험치를 쌓는다: 신화 경험치는 고른 신화만, 고른 신화가 없으면 그 신화권 신들에게 (첫 신화를 연다). 문턱을 넘은 신화는 열린다.
+   * 같은 경험치가 수련에도 쌓여 문턱마다 깨달음 한 점 (E236)
+   */
   gainMastery(amount: number, realm: string | undefined): void {
-    const { build, progress, bus } = this.ctx
-    // 상시 효과: 신화 숙련 얻는 양 (오딘)
+    const { build, progress, training, bus } = this.ctx
+    // 경험치 얻는 양 (오딘, 수련 「배움」)
     amount *= 1 + build.state.stats.masteryGain
     for (const [god, share] of masteryShares(amount, realm, build.chosen, Object.values(GODS))) {
       if (progress.addXp(god, share) === 'opened') bus.emit('mythOpened', { god })
     }
+    const count = training.gain(amount)
+    if (count > 0) bus.emit('insightGained', { count, unspent: training.unspent })
     bus.emit('progressChanged', {})
   }
 
@@ -187,6 +192,23 @@ export class ProgressionSystem {
     fx.puffs.burst(p, 40, 5)
     view.shake(0.6)
     feel.stop(0.2)
+  }
+
+  /** 수련 마디를 찍는다 (E236): 수치는 빌드 상태로 바로 붙고, 최대 생명도 다시 맞춘다 */
+  train(id: string): boolean {
+    if (!this.ctx.training.take(id)) return false
+    this.applyStats()
+    this.ctx.bus.emit('progressChanged', {})
+    return true
+  }
+
+  /** 수련 마디를 모두 되돌린다 (언제든 무료) */
+  untrain(): number {
+    const n = this.ctx.training.reset()
+    if (n === 0) return 0
+    this.applyStats()
+    this.ctx.bus.emit('progressChanged', {})
+    return n
   }
 
   /** 총 승급 횟수에서 나오는 기본 능력치 (DESIGN.md 6.2) */

@@ -47,6 +47,8 @@ export interface GameEvents {
    * quiet면 신화마다 카드·장면을 띄우지 않는다 (장 보스가 여럿을 한꺼번에 열 때 한 장으로 알린다)
    */
   mythOpened: { god: God; quiet?: boolean }
+  /** 수련의 깨달음을 얻었다 (E236): 새로 얻은 수와 쓰지 않은 수 */
+  insightGained: { count: number; unspent: number }
   /** 주인공이 맞았다. */
   heroHurt: { damage: number }
   /** 주인공이 쓰러졌다. */

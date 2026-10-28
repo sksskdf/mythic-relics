@@ -1,6 +1,8 @@
 import type { Build } from '../build/Build'
 import type { Conveniences } from '../progress/Conveniences'
 import type { ChapterProgress } from '../progress/Chapters'
+import type { TrainingProgress } from '../progress/Training'
+import type { TabUnlocks } from '../progress/Tabs'
 import type { Ending } from '../progress/Ending'
 import type { ThreatProgress } from '../progress/Threat'
 import type { TrialProgress } from '../progress/Trials'
@@ -86,6 +88,10 @@ export interface GameContext {
   readonly ending: Ending
   /** 장 진행: 지금 장·목표·열린 땅 (E22) */
   readonly chapters: ChapterProgress
+  /** 수련: 경험치로 얻은 깨달음과 찍은 마디 (E236) */
+  readonly training: TrainingProgress
+  /** 차례로 연 정보 화면 탭 (E236-05) */
+  readonly tabs: TabUnlocks
   /** 외형 보관함 (얻은 외형, 칸마다 고른 것) */
   readonly wardrobe: Wardrobe
   /** 빌드 상태: 열린 신화·고른 신화·장비·원천 → 능력치 (E11-04) */

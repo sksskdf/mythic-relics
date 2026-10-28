@@ -86,6 +86,20 @@ E12~E14에서 새 규칙을 넣을 때는 `BuildInputs`에 재료를 더하고 `
 | `PlayerInput.updateTouch` | 두 손가락 → `onZoom`(한계 안 시야 높이가 2% 넘게 바뀌거나 한계에 닿을 때만, 바뀌었으면 떼면 설정에 저장), 톡 → `orders.press`(클릭과 같다, 적 몸통에서 28px 안이면 그 적), 조이스틱 → 화면 방향을 땅 위 방향으로 바꿔 주인공 앞 2.5m로 `orders.steer`(이동 지시가 끊겼으면 쥔 채로도 다시 내린다), 놓으면 `orders.clear` + `hero.stop` |
 | 화면 | 카메라·렌더 크기는 `visibleHeight`로 세로 화면을 늘린다(픽셀 맞춤은 실제 보이는 세로로, 카메라는 80m 뒤라 가장 넓게 봐도 near 면에 잘리지 않는다). 렌더 픽셀은 화면 픽셀보다 작게 하지 않는다(`computeRenderSize` 배율 1 이상). 배치는 `src/ui/portrait.css`(비 4:5보다 좁을 때, `:root`를 붙여 다른 스타일을 이긴다), 상태·장비 탭은 `menu.css`의 `max-width: 600px`(장비 탭은 설명 카드를 가방 바로 아래로) |
 
+## 수련 (E236)
+
+| 곳 | 하는 일 |
+| --- | --- |
+| `src/data/training.ts` | 갈래 넷(뿌리·힘·몸·손)과 마디 스물둘(자리·앞 마디·수치), 깨달음 문턱(`insightsAt`, 60 + 25 × (k − 1)), 데이터 검사(`checkTraining`) |
+| `src/progress/Training.ts` | 모은 경험치·찍은 마디. `gain`(새 깨달음 수), `canTake`·`take`, `reset`(무료), `stats`(같은 종류끼리 더함), 저장 모양(`parseTraining`) |
+| `Progression.gainMastery` | 신화 경험치와 같은 양을 수련에 더하고, 깨달음을 얻으면 `insightGained`. `train`·`untrain`은 찍고 되돌리며 최대 생명을 다시 맞춘다 |
+| `Build.blessed` | 찍은 마디 수치를 시련 보상·균열 축복과 같이 `bonus`로 더한다 (전투는 기존 수치 종류 그대로) |
+| `Game` | `insightGained` → 메뉴 단추 표시(`markTab('training')`)와 작은 알림(`insight`). 첫 깨달음은 수련 탭이 열리는 카드가 대신 알린다 |
+| `src/progress/Tabs.ts` | 정보 화면 탭을 차례로 (E236-05): 차례로 여는 탭 여섯과 여는 때(`STEP_TAB_DEFS`, `tabsDue`), 연 탭(`TabUnlocks`, 저장 v11 `tabs`, 옛 저장은 모두 열림 `parseTabs`) |
+| `systems/Tabs.ts` | `TabSystem`: 장비·신화·벼리기·`progressChanged`마다 지금 상태(`facts`)를 보고 열 때가 된 탭을 연다. 열면 카드(`tabOpened`, 등급 2, 같은 사건의 더 큰 순간 뒤에 서도록 한 박자 늦게)와 메뉴 단추 표시(여럿이면 차례의 첫 탭). 불러온 뒤에 켜고(`ready`), 점검용 실행(`allTabs`)·엔딩 뒤에는 모두 연다. 메뉴는 `host.tabOpen`으로 숨길 탭을 가린다 |
+| `src/ui/menu/trainingTab.ts` | 깨달음·다음 점 막대·찍은 수치의 합·모두 되돌리기(한 번 더 눌러야), 트리(가로 %·세로 px, SVG 줄). 손가락은 처음 누르면 설명 |
+| 땅 차례 | `ChapterProgress.isOpen`: 지금 장의 땅은 그 땅에 들어서는 할 일 바로 앞까지 했을 때 열린다. `goalChanged`에도 결계를 다시 맞춘다(`World.refreshLinks`) |
+
 ## E14에서 걷어낼 것
 
 옛 순환(`src/progress/Cycle`, `systems/CycleSystem.ts`): 원천 결정·단련·윤회·별자리(→ E17 성좌판)·원천 숙련. 저장을 옮기며 제거한다.

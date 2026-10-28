@@ -14,6 +14,8 @@ import type { ProgressionSystem } from '../game/systems/Progression'
 import type { RelicSystem } from '../game/systems/Relics'
 import type { Encounter } from '../game/Encounter'
 import { ENEMIES, GRUNT } from '../enemies/Giant'
+import { insightsAt, SAMPLE_ORDER } from '../data/training'
+import type { TrainingProgress } from '../progress/Training'
 import type { SkillContext } from '../skills/Skill'
 
 /** 개발 도구가 손대는 게임의 부품 */
@@ -33,6 +35,8 @@ export interface DevParts {
   /** 스킬이 세계와 주고받는 것 (유물 행동을 바로 터뜨릴 때) */
   skills: SkillContext
   encounter: Encounter
+  /** 수련 (E236) */
+  training: TrainingProgress
 }
 
 /**
@@ -84,9 +88,11 @@ export class DevTools {
     return true
   }
 
-  /** 한계를 깬 무렵의 빌드 (균열 시험, E17-07): 영웅 장비 여섯을 끼고, 고른 신화를 최고 단계로, 같은 신화권 신화를 모두 연다 */
+  /** 한계를 깬 무렵의 빌드 (균열 시험, E17-07): 영웅 장비 여섯을 끼고, 고른 신화를 최고 단계로, 같은 신화권 신화를 모두 연다. 수련은 엔딩 무렵만큼(깨달음 스물, E236) */
   endgame(): void {
     const { powers, progress, bus } = this.parts
+    this.insight(Math.max(0, 20 - insightsAt(this.parts.training.xp)))
+    for (const id of SAMPLE_ORDER) this.train(id)
     for (const part of ['head', 'body', 'hands', 'feet', 'trinket', 'trinket'] as const) {
       const item = rollGear(Math.random, { part, grade: 'hero' })
       powers.loadout.addGear(item)
@@ -155,6 +161,22 @@ export class DevTools {
   /** 이 지역 신화권의 신들에게 숙련을 준다 (신화 개방 시험). 신화권이 없는 마을이면 북유럽 */
   gainMastery(amount = MASTERY_TO_OPEN * 4): void {
     this.parts.growth.gainMastery(amount, this.parts.region() ?? 'norse')
+  }
+
+  /** 수련 경험치만 준다 (깨달음 시험). 신화 경험치는 그대로 */
+  insight(count = 1): void {
+    const { training, bus } = this.parts
+    const target = insightsAt(training.xp) + count
+    let need = 0
+    while (insightsAt(training.xp + need) < target) need += 5
+    const gained = training.gain(need)
+    if (gained > 0) bus.emit('insightGained', { count: gained, unspent: training.unspent })
+    bus.emit('progressChanged', {})
+  }
+
+  /** 수련 마디를 찍는다 (점검 스크립트·봇) */
+  train(id: string): boolean {
+    return this.parts.growth.train(id)
   }
 
   /** 신화 성장(개방 단계·경험치)을 처음으로 되돌린다. */

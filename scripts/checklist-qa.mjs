@@ -588,7 +588,11 @@ const sections = {
       // 장의 처음 목표와 보스 목표만 찍는다
       if (steps.length === 1 || steps.at(-2)?.chapter !== s.chapter || s.kind === 'boss') await shot(page, `e22-1-${steps.length}-${s.chapter}-${s.kind}`)
       if (s.chapter === 'north' && s.kind === 'choose') {
-        await page.evaluate(() => window.__game.menu.show('map'))
+        // 처음부터 하는 판이라 지도 탭은 성소를 찾아야 열린다 (E236-05): 작은 지도를 누른 것처럼 연다
+        await page.evaluate(() => {
+          window.__game.tabSystem.open('map', true)
+          window.__game.menu.show('map')
+        })
         await page.waitForTimeout(500)
         await shot(page, 'e22-1-map')
         await page.evaluate(() => window.__game.menu.toggle(false))

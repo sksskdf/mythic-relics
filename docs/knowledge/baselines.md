@@ -2,6 +2,17 @@
 
 E11은 "기능 그대로"라서 아래 범위 안에 있어야 한다. 마일스톤이 끝날 때마다 새 기준을 더한다. 자세한 기록은 `PLAYTEST.md` 7장, 성능은 `ART.md` 6장.
 
+## E236 수련 트리와 땅 차례 (2026-10-28)
+
+| 무엇 | 어떻게 재나 | 값 |
+| --- | --- | --- |
+| 기본 봇 (CI) | `node scripts/playtest.mjs 4 35 --gate` | 2단계 21:10~22:19 (네 판), 쓰러짐 0, 전설 실패 0. 첫 신화 9:41 |
+| 엔딩까지 봇 | `node scripts/playtest.mjs 2 100 --ending` | 엔딩 57:31 / 62:16, 쓰러짐 0 / 0. 첫 신화 9:41 / 14:10, 2단계 26:07 / 28:37, 거인 왕 29:55 / 30:29 |
+| 성장 곡선 | `node scripts/power-curve.mjs 100` | 미드가르드 7:31에 공격 1.41(신화 전), 들어설 때 적 잡는 초 2.3~3, 떠날 때 1.8~2.6, 버티는 대 12~26 (`TIMELINE.md` 1.4) |
+| 위협 단계 봇 | `node scripts/playtest.mjs 1 50 --threat=5` (첫 엔딩 무렵 빌드로 시작) | 위협 5단계 14:09, 단계마다 2:22~4:43, 쓰러짐 0 |
+| 시련 봇 | `node scripts/playtest.mjs 1 40 --trials --relics=mjolnir --god=thor --region=midgard` | 여덟 모두 깸, 37~103초, 쓰러짐 0 |
+| 균열 봇 | `node scripts/playtest.mjs 1 50 --rift --relics=mjolnir` | 10층 7:30(층마다 0:17~1:14), 쓰러짐 0 |
+
 ## 전설 결계 고침 (2026-10-28)
 
 | 무엇 | 어떻게 재나 | 값 |

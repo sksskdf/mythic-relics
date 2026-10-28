@@ -1,3 +1,4 @@
+import { SAMPLE_ORDER } from '../data/training'
 import type { Giant, GiantDanger } from '../enemies/Giant'
 import type { Game } from '../game/Game'
 import { clampToCircle } from '../game/HeroController'
@@ -215,6 +216,8 @@ export class Autoplayer {
       const target = slots.find((i) => powers.loadout.slots[i] === null) ?? slots.find((i) => !isRelicId(powers.loadout.slots[i] ?? ''))
       if (target !== undefined) this.game.dev.wield(own, target)
     }
+    // 깨달음이 있으면 수련 마디를 찍는다 (E236): 힘 갈래를 먼저 끝까지, 그다음 몸·손
+    for (const id of SAMPLE_ORDER) if (this.game.training.unspent > 0) this.game.dev.train(id)
     // 가방의 일반 장비가 더 좋으면 바꿔 낀다 (빈 칸이면 그냥 낀다, 유물은 빼지 않는다) (E13-08)
     for (const id of [...powers.loadout.bag]) {
       const item = powers.loadout.gear.get(id)

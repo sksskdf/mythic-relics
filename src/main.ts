@@ -90,6 +90,7 @@ async function boot(): Promise<Game> {
     quality: RENDER_QUALITIES.find((q) => q === params.get('quality')),
     touch,
     suspended: () => rotateHint.shown,
+    allTabs: testRun,
   })
   game.start()
   ;(window as unknown as { __game: Game }).__game = game

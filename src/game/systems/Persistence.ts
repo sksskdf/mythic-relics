@@ -67,6 +67,8 @@ export class Persistence {
       rift: this.ctx.rift.toData(),
       ending: this.ctx.ending.reached,
       chapters: this.ctx.chapters.toData(),
+      training: this.ctx.training.toData(),
+      tabs: this.ctx.tabs.toData(),
       region: { id: this.ctx.map.region.id, x: this.ctx.hero.object.position.x, z: this.ctx.hero.object.position.z },
       scenes: [...this.ctx.scenesSeen],
     }
@@ -79,6 +81,8 @@ export class Persistence {
     wardrobe.body = { ...data.body }
     this.ctx.ending.reached = data.ending
     this.ctx.chapters.load(data.chapters)
+    this.ctx.training.load(data.training)
+    this.ctx.tabs.load(data.tabs)
     this.ctx.threat.load(data.threat)
     this.ctx.conveniences.load(data.conveniences)
     this.ctx.trials.load(data.trials)

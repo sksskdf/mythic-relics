@@ -1249,6 +1249,122 @@
   cursor: pointer;
 }
 
+/* 수련 (E236-03): 깨달음과 공용 트리 (뿌리에서 힘·몸·손 세 갈래) */
+.menu-train {
+  display: grid;
+  grid-template-columns: minmax(0, 220px) minmax(0, 1fr);
+  gap: var(--sp-5);
+  align-items: start;
+}
+@media (max-width: 600px) {
+  .menu-train {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.menu-train__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+.menu-train__bar {
+  height: 8px;
+  background: var(--c-well);
+  box-shadow: inset 0 0 0 1px var(--c-well-line);
+}
+.menu-train__bar i {
+  display: block;
+  height: 100%;
+  background: var(--c-gold);
+}
+.menu-train__reset.is-confirm {
+  color: var(--c-bad);
+}
+.menu-train__legend {
+  display: flex;
+  justify-content: space-around;
+}
+.menu-train__branch {
+  --branch: var(--c-moon);
+  font: var(--t-strong);
+  color: var(--branch);
+  cursor: help;
+}
+.menu-train__board {
+  position: relative;
+  width: min(100%, 420px);
+  justify-self: center;
+  align-self: center;
+}
+.menu-train__links {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.menu-train__link {
+  --branch: var(--c-moon);
+  stroke: var(--c-line-2);
+  stroke-width: 2;
+}
+.menu-train__link.is-on {
+  stroke: var(--branch);
+}
+.menu-train__spot {
+  --branch: var(--c-moon);
+  --size: 30px;
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-1);
+  width: 60px;
+  transform: translate(-50%, calc(var(--size) / -2));
+}
+.menu-train__spot.is-big {
+  --size: 40px;
+}
+.menu-train__node {
+  width: var(--size);
+  height: var(--size);
+  padding: 0;
+  border: var(--bw) solid var(--branch);
+  border-radius: 50%;
+  background: var(--c-bg-1);
+  /* 아직 못 찍는 마디는 어둡게 (반투명이면 이은 줄이 마디 위로 비친다) */
+  filter: brightness(0.6) saturate(0.6);
+  cursor: help;
+}
+.menu-train__spot.is-big .menu-train__node {
+  box-shadow: 0 0 0 2px var(--c-bg-1), 0 0 0 4px var(--branch);
+}
+.menu-train__node.is-taken {
+  background: var(--branch);
+  filter: none;
+}
+.menu-train__node.can-take {
+  filter: none;
+  border-color: var(--c-gold);
+  cursor: pointer;
+  animation: menu-train-can 1.4s ease-in-out infinite;
+}
+@keyframes menu-train-can {
+  50% {
+    border-color: var(--branch);
+  }
+}
+.menu-train__name {
+  max-width: 50px;
+  padding: 0 var(--sp-1);
+  font: var(--t-small);
+  color: var(--c-ink-2);
+  text-align: center;
+  word-break: keep-all;
+  /* 이은 줄이 이름 위로 지나가지 않게 판 바탕을 깐다 */
+  background: var(--c-stone-lo);
+}
+
 /* 지도 (E15-04): 마을이 가운데, 신화권마다 세 땅 */
 .menu-map {
   display: flex;
