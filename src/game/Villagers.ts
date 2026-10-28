@@ -107,7 +107,17 @@ export class Villagers {
         v.bubble.textContent = def.lines[v.line]!
       }
       const p = project(def.x, rig.root.position.y + 2.3, def.z)
-      v.bubble.style.transform = `translate(${Math.round(p.x)}px, ${Math.round(p.y)}px) translate(-50%, -100%)`
+      // 화면 가장자리에서 잘리지 않게 가로를 안으로 당긴다 (휴대폰 세로 화면에서 왼쪽으로 잘리던 것, E235)
+      const x = keepInside(p.x, v.bubble.offsetWidth / 2, this.overlay.clientWidth)
+      v.bubble.style.transform = `translate(${Math.round(x)}px, ${Math.round(p.y)}px) translate(-50%, -100%)`
     }
   }
+}
+
+/** 가운데 x, 반폭 half인 것을 폭 width 화면 안(가장자리에서 margin)으로 당긴 가운데 x */
+export function keepInside(x: number, half: number, width: number, margin = 8): number {
+  if (width <= 0) return x
+  const min = half + margin
+  const max = width - half - margin
+  return max < min ? width / 2 : Math.min(max, Math.max(min, x))
 }

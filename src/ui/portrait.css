@@ -1,0 +1,71 @@
+/*
+ * 세로 화면 (휴대폰, E235). 가로·세로 비가 4:5보다 좁으면(카메라의 PORTRAIT_SPAN과 같은 경계) 덮어쓴다.
+ * 가로 화면 배치는 그대로 둔다. 다른 스타일보다 늦게 불려도 이기도록 :root를 앞에 붙인다.
+ *
+ * 위쪽: 왼쪽에 초상·원천 칩·목표 한 줄·보스 막대, 오른쪽에 메뉴 단추·작은 지도·카드를 모으고, 가운데 싸움 자리를 비운다.
+ */
+@media (max-aspect-ratio: 4/5) {
+  /* 노치·둥근 모서리: 오른쪽 위 메뉴 단추·작은 지도·카드도 안전 영역 안으로 (왼쪽 위·아래는 원래 들어가 있다) */
+  :root .menu-button {
+    top: calc(var(--unit) * 2 + env(safe-area-inset-top, 0px));
+    right: calc(var(--unit) * 2 + env(safe-area-inset-right, 0px));
+  }
+  :root .minimap {
+    top: calc(var(--unit) * 10 + env(safe-area-inset-top, 0px));
+    right: calc(var(--unit) * 2 + env(safe-area-inset-right, 0px));
+  }
+  :root .hud__gains.is-side {
+    top: calc(var(--unit) * 12 + 128px + env(safe-area-inset-top, 0px));
+    right: calc(var(--unit) * 2 + env(safe-area-inset-right, 0px));
+  }
+  /* 목표 한 줄: 가운데 위가 아니라 원천 칩 아래 왼쪽, 작은 지도 옆 폭 안에서 줄바꿈 */
+  :root .chapter-goal {
+    left: calc(var(--unit) * 2 + env(safe-area-inset-left, 0px));
+    top: calc(var(--unit) * 4 + 96px + env(safe-area-inset-top, 0px));
+    transform: none;
+    justify-content: flex-start;
+    max-width: calc(100vw - 128px - var(--unit) * 7);
+    white-space: normal;
+  }
+  /* 보스 막대: 목표 한 줄 아래 왼쪽 */
+  :root .hud__boss {
+    left: calc(var(--unit) * 2 + env(safe-area-inset-left, 0px));
+    top: calc(var(--unit) * 6 + 128px + env(safe-area-inset-top, 0px));
+    transform: none;
+    width: calc(100vw - 128px - var(--unit) * 7);
+  }
+  /* 마을 사람 말풍선: 좁은 화면에서는 줄을 바꾼다 (가로 자리는 Villagers가 화면 안으로 당긴다) */
+  :root .npc-bubble {
+    max-width: min(220px, calc(100vw - 16px));
+    white-space: normal;
+  }
+  /* 정보 화면: 세로 화면을 거의 다 쓴다 (가로 화면은 높이 560px) */
+  :root .menu {
+    padding: calc(var(--sp-4) + env(safe-area-inset-top, 0px)) var(--sp-4) calc(var(--sp-4) + env(safe-area-inset-bottom, 0px));
+  }
+  :root .menu__frame {
+    height: calc(100dvh - var(--sp-4) * 2 - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  }
+  /* 땅·전설 이름 카드: 양옆 띠를 줄이고 이름은 화면 폭 안에서 줄을 바꾼다 */
+  :root .hud__card-band {
+    width: calc(var(--unit) * 8);
+  }
+  :root .hud__card-name {
+    max-width: calc(100vw - var(--sp-6) * 2);
+    text-align: center;
+  }
+  /* 장 제목 띠: 좁으면 줄을 바꾼다 */
+  :root .chapter-band {
+    flex-wrap: wrap;
+    padding: var(--sp-4) var(--sp-6);
+    white-space: normal;
+    text-align: center;
+  }
+  /* 큰 카드: 작은 지도 아래, 화면 폭에 맞춘다 (가로 화면은 위쪽 9%, 최소 360px) */
+  :root .hud__gains:not(.is-side) {
+    top: calc(var(--unit) * 12 + 128px + env(safe-area-inset-top, 0px));
+    min-width: 0;
+    width: calc(100vw - var(--sp-6) * 2);
+    max-width: 420px;
+  }
+}

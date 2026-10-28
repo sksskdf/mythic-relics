@@ -16,3 +16,14 @@ describe('휴대폰 알아보기 (E235)', () => {
     expect(wantsPortrait(false, 1280, 720)).toBe(false)
   })
 })
+
+describe('말풍선을 화면 안으로 (E235)', () => {
+  it('가장자리 밖으로 나가면 안으로 당기고, 안이면 그대로 둔다', async () => {
+    const { keepInside } = await import('../src/game/Villagers')
+    expect(keepInside(20, 100, 390)).toBe(108)
+    expect(keepInside(380, 100, 390)).toBe(282)
+    expect(keepInside(200, 100, 390)).toBe(200)
+    // 화면보다 넓으면 가운데
+    expect(keepInside(10, 300, 390)).toBe(195)
+  })
+})

@@ -7,6 +7,8 @@ import { SLOT_COUNT, saveStorage, TITLE_REQUEST } from './save/SaveData'
 import { RENDER_QUALITIES } from './save/settings'
 import { RotateHint } from './ui/RotateHint'
 import { type SlotSummary, type TitleHandlers, TitleScreen } from './ui/TitleScreen'
+// 세로 화면(휴대폰) 덮어쓰기는 다른 스타일 뒤에 (E235)
+import './ui/portrait.css'
 
 const container = document.getElementById('app')
 if (!container) throw new Error('#app 요소가 없습니다.')

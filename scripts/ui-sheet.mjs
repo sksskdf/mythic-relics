@@ -2,6 +2,8 @@
 // 사용법: npm run build && node scripts/ui-sheet.mjs [저장 폴더=test-results/ui] [크기=1280x720,960x540,390x844]
 // 결과: <폴더>/<크기>-<탭>.png, <크기>-hud.png. 글이 넘치거나 잘리는지, 좁은 화면에서 깨지는지 직접 본다.
 // UI_DOM=1 이면 탭마다 정보 화면의 DOM도 <크기>-<탭>.html로 남긴다 (코드를 나눈 뒤 화면이 그대로인지 diff로 견줄 때)
+// 세로 크기(가로 < 세로)는 터치 기기로 연다. 화면마다 잘린 요소(화면 밖이나 잘라 내는 상자 밖으로 가로가 나간 것)를 세어
+// <폴더>/cut.json에 남긴다 (E235: 휴대폰에서 어느 화면도 잘리지 않는다)
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { chromium } from 'playwright-core'
@@ -17,6 +19,30 @@ const stop = () => {
   } catch {}
 }
 
+/**
+ * 잘린 요소 (페이지 안에서 돈다): 보이는 HUD·정보 화면 요소 가운데, 가장 가까운 잘라 내는 조상(overflow hidden)이나
+ * 화면 밖으로 가로가 나간 것. 밀어 볼 수 있는 상자(overflow auto·scroll) 안은 뺀다
+ */
+function findCuts() {
+  const out = []
+  for (const el of document.querySelectorAll('.hud *, .menu *, .minimap, .menu-button')) {
+    if (!el.checkVisibility({ opacityProperty: true, visibilityProperty: true })) continue
+    const r = el.getBoundingClientRect()
+    if (r.width < 2 || r.height < 2) continue
+    let clip = null
+    for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+      if (getComputedStyle(p).overflowX !== 'visible') {
+        clip = p
+        break
+      }
+    }
+    if (clip && ['auto', 'scroll'].includes(getComputedStyle(clip).overflowX)) continue
+    const box = clip ? clip.getBoundingClientRect() : { left: 0, right: innerWidth }
+    if (r.left < box.left - 1 || r.right > box.right + 1) out.push(`${el.className || el.tagName}: ${(el.textContent ?? '').trim().slice(0, 16)}`)
+  }
+  return out
+}
+
 try {
   for (let i = 0; i < 50; i++) {
     try {
@@ -30,9 +56,11 @@ try {
     args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
   })
   const errors = []
+  /** 화면마다 잘린 요소 */
+  const cuts = {}
   for (const size of sizesArg.split(',')) {
     const [width, height] = size.split('x').map(Number)
-    const page = await browser.newPage({ viewport: { width, height } })
+    const page = await browser.newPage({ viewport: { width, height }, ...(width < height ? { hasTouch: true, isMobile: true } : {}) })
     page.on('pageerror', (e) => errors.push(`${size}: ${e.message}`))
     // 장비 굴림이 판마다 같게 Math.random을 씨앗 고정으로 (DOM을 견줄 수 있게)
     await page.addInitScript(() => {
@@ -73,6 +101,7 @@ try {
     }
     await wait(6)
     await page.screenshot({ path: `${dir}/${size}-hud.png` })
+    cuts[`${size} hud`] = await page.evaluate(findCuts)
     for (const tab of TABS) {
       await page.evaluate((tab) => {
         const g = window.__game
@@ -93,11 +122,16 @@ try {
         return out.slice(0, 8)
       })
       if (overflow.length) console.log(`${size} ${tab} 넘침: ${overflow.join(' | ')}`)
+      cuts[`${size} ${tab}`] = await page.evaluate(findCuts)
     }
     await page.close()
     console.log(`${size} 찍음`)
   }
   await browser.close()
+  writeFileSync(`${dir}/cut.json`, JSON.stringify(cuts, null, 2))
+  const cutCount = Object.values(cuts).reduce((n, list) => n + list.length, 0)
+  for (const [where, list] of Object.entries(cuts)) if (list.length) console.log(`${where} 잘림 ${list.length}: ${list.slice(0, 4).join(' | ')}`)
+  console.log(`잘린 요소 ${cutCount}`)
   console.log(errors.length ? `오류: ${errors.join(' / ')}` : `저장: ${dir}`)
 } finally {
   stop()

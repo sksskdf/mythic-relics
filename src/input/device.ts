@@ -15,3 +15,8 @@ export function coarsePointer(): boolean {
 export function wantsPortrait(touch: boolean, width: number, height: number): boolean {
   return touch && width > height
 }
+
+/** 지금 화면이 휴대폰 조작인가 (main이 html에 단 is-touch). 커서가 없어 올려 보기 대신 누르기로 보여 줄 때 */
+export function touchUi(): boolean {
+  return typeof document !== 'undefined' && document.documentElement.classList.contains('is-touch')
+}

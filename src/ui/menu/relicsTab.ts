@@ -3,6 +3,7 @@ import { SLOT_PARTS } from '../../data/gearData'
 import type { SourceId } from '../../data/schema'
 import { materialName } from '../../gear/materials'
 import { GEAR, gearName } from '../../gear/roll'
+import { touchUi } from '../../input/device'
 import { godDef, relicDef, type RelicId } from '../../relics/data'
 import { classIcon } from '../classIcons'
 import { gearCard } from '../gearCard'
@@ -17,6 +18,8 @@ export class RelicsTab {
   selectedSlot = 0
   /** 커서를 올린 가방 유물 */
   hovered: RelicId | null = null
+  /** 휴대폰에서 한 번 누른 가방 유물: 한 번 더 누르면 낀다 (E235) */
+  private picked: string | null = null
 
   constructor(private readonly ctx: TabContext) {}
 
@@ -95,6 +98,14 @@ export class RelicsTab {
         this.renderDetail(detail)
       })
       b.addEventListener('click', () => {
+        // 휴대폰에는 커서가 없다: 처음 누르면 설명 카드만 보이고, 같은 것을 한 번 더 누르면 낀다 (E235)
+        if (touchUi() && this.picked !== id) {
+          this.picked = id
+          this.hovered = id
+          this.renderDetail(detail)
+          return
+        }
+        this.picked = null
         this.hovered = null
         const slot = this.wieldSlot(id)
         if (slot === undefined) return
