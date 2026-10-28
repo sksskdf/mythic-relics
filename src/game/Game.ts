@@ -575,6 +575,7 @@ export class Game {
       this.world.refreshLinks(false)
       // 마지막 보스를 이긴 뒤 엔딩이 끝나기 전에 저장된 판: 엔딩을 다시 보인다 (안 그러면 엔딩 뒤 장치가 영영 닫힌다)
       if (this.chapters.finished && !this.ending.reached) this.endingMoment(false)
+      this.settleLoaded()
     }
     // 점검용 실행과 엔딩 뒤 판은 정보 화면 탭을 모두 연 채로 (E236-05)
     if (options.allTabs || this.ending.reached) this.tabs.openAll()
@@ -592,6 +593,25 @@ export class Game {
     this.view.jumpTo(rig.root.position)
     this.resize()
     window.addEventListener('resize', () => this.resize())
+  }
+
+  /**
+   * 불러온 자리가 막혔거나 시작점까지 길이 없으면 가까운 빈 곳이나 시작점에 세운다 (E24-07: 마을을 다시 지어
+   * 옛 저장의 자리가 새 건물·절벽 안일 수 있다). 막힌 곳에 떨어져 있던 물건도 가까운 빈 곳으로 옮긴다
+   */
+  private settleLoaded(): void {
+    const p = this.hero.object.position
+    const spawn = this.ctx.map.region.spawn
+    const free = this.nav.nearestFree({ x: p.x, z: p.z }, 4)
+    if (!free || this.nav.findPath(free, spawn).length === 0) this.hero.teleport(spawn.x, spawn.z)
+    else if (free.x !== p.x || free.z !== p.z) this.hero.teleport(free.x, free.z)
+    for (const item of [...this.pickups.list]) {
+      if (!this.nav.isBlocked(item)) continue
+      const to = this.nav.nearestFree(item) ?? spawn
+      const gear = item.gear
+      this.pickups.remove(item.id)
+      this.pickups.drop(item.id, to.x, to.z, true, gear)
+    }
   }
 
   /** 사건을 플레이 기록으로 남긴다. (봇 검증과 수치 조정용) */

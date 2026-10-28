@@ -7,7 +7,7 @@ import { screenRay, screenToGround, worldToScreen } from '../../render/picking'
 import type { PixelRenderer } from '../../render/PixelRenderer'
 import { clampViewHeight, VIEW_HEIGHT } from '../../save/settings'
 import type { Point2 } from '../../world/colliders'
-import { heightAt } from '../../world/terrain'
+import { heightAt, highestLand, rayToLand } from '../../world/terrain'
 import type { GameContext } from '../context'
 
 /** 조이스틱으로 걸을 때 주인공 앞 이만큼(m)을 목적지로 잡는다 (길을 다시 찾는 0.12초 동안 다 걷지 못할 만큼) */
@@ -26,6 +26,10 @@ export class PlayerInput {
   private readonly cursor = new THREE.Vector3()
   private readonly from = new THREE.Vector3()
   private readonly toward = new THREE.Vector3()
+  /** 화면 광선 (프레임마다 새로 만들지 않게 하나를 다시 쓴다) */
+  private readonly ray = new THREE.Ray()
+  /** 조이스틱 방향을 재는 주인공 발 높이의 수평면 */
+  private readonly stickPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)
   /** 커서 아래의 몬스터 (이름표용, 프레임마다 갱신) */
   hovered: Giant | null = null
   /** 누른 땅 가까이 선 마을 사람 (E15-06). 그 사람에게 걸어가 말을 건다 */
@@ -114,19 +118,29 @@ export class PlayerInput {
     return touch.holding || pinch !== null
   }
 
-  /** 조이스틱 방향(화면)을 땅 위 방향으로 바꿔, 주인공 앞 STICK_AHEAD m 자리 */
+  /**
+   * 조이스틱 방향(화면)을 땅 위 방향으로 바꿔, 주인공 앞 STICK_AHEAD m 자리.
+   * 방향은 주인공 발 높이의 수평면에서 잰다: 땅을 짚으면 계단식 땅 가장자리에서 두 점이 다른 높이에 닿아 방향이 틀어진다 (E24-07)
+   */
   private stickTarget(dx: number, dy: number): Point2 | null {
     const { hero, view } = this.ctx
     const p = hero.object.position
     const at = worldToScreen(p, this.container.clientHeight, this.pixel.size, view.camera, view.subpixel)
     const len = Math.hypot(dx, dy) || 1
-    const a = this.groundAt(at.x, at.y, this.from)
-    const b = this.groundAt(at.x + (dx / len) * 40, at.y + (dy / len) * 40, this.toward)
+    this.stickPlane.constant = -p.y
+    const a = this.planeAt(at.x, at.y, this.from)
+    const b = this.planeAt(at.x + (dx / len) * 40, at.y + (dy / len) * 40, this.toward)
     if (!a || !b) return null
     const gx = b.x - a.x
     const gz = b.z - a.z
     const g = Math.hypot(gx, gz) || 1
     return { x: p.x + (gx / g) * STICK_AHEAD, z: p.z + (gz / g) * STICK_AHEAD }
+  }
+
+  /** 화면 한 점이 주인공 발 높이의 수평면과 만나는 곳 */
+  private planeAt(x: number, y: number, out: THREE.Vector3): THREE.Vector3 | null {
+    const ray = screenRay(x, y, this.container.clientHeight, this.pixel.size, this.ctx.view.camera, this.ctx.view.subpixel, this.ray)
+    return ray.intersectPlane(this.stickPlane, out)
   }
 
   /** 커서 아래의 적 */
@@ -138,7 +152,7 @@ export class PlayerInput {
 
   /** 화면 한 점 아래의 적. 거인 몸통(세로 기둥)과 광선이 가장 가까운 적을 고른다. */
   private enemyAt(x: number, y: number): Giant | null {
-    const ray = screenRay(x, y, this.container.clientHeight, this.pixel.size, this.ctx.view.camera, this.ctx.view.subpixel)
+    const ray = screenRay(x, y, this.container.clientHeight, this.pixel.size, this.ctx.view.camera, this.ctx.view.subpixel, this.ray)
     const bottom = new THREE.Vector3()
     const top = new THREE.Vector3()
     let best: Giant | null = null
@@ -182,6 +196,12 @@ export class PlayerInput {
 
   /** 화면 한 점이 가리키는 땅 위치 */
   private groundAt(x: number, y: number, out: THREE.Vector3): THREE.Vector3 | null {
-    return screenToGround(x, y, this.container.clientHeight, this.pixel.size, this.ctx.view.camera, out, this.ctx.view.subpixel)
+    const { camera, subpixel } = this.ctx.view
+    // 계단식 땅이 있으면 (E24-07) 광선을 위에서부터 따라 내려가 처음 닿는 땅을 찾는다. 없으면 평면 하나로 충분하다
+    if (highestLand() > 0) {
+      const ray = screenRay(x, y, this.container.clientHeight, this.pixel.size, camera, subpixel, this.ray)
+      return rayToLand(ray.origin, ray.direction, out)
+    }
+    return screenToGround(x, y, this.container.clientHeight, this.pixel.size, camera, out, subpixel)
   }
 }

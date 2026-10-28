@@ -9,8 +9,8 @@ import { Encounter } from '../src/game/Encounter'
 import { UtgardLegend } from '../src/game/Legend'
 import { CROSS_MARGIN, crossingAt, regionLinks, walkRects } from '../src/data/world'
 import { walkArea } from '../src/world/colliders'
-import { collidersFor } from '../src/world/regionMap'
-import { heightAt, setPonds } from '../src/world/terrain'
+import { collidersFor, streamColliders } from '../src/world/regionMap'
+import { cliffColliders, heightAt, setLand } from '../src/world/terrain'
 import { NavGrid } from '../src/world/navGrid'
 
 /**
@@ -24,7 +24,9 @@ const realmLands = regions.filter((r) => !r.finale)
 const toRealmLand = (id: string) => !REGIONS[id]!.finale
 
 describe.each(regions.map((r) => [r.id, r] as const))('지역 %s', (_id, region) => {
-  const colliders = [...region.props.flatMap(collidersFor), ...region.npcs.map((n) => ({ x: n.x, z: n.z, radius: 0.45 }))]
+  // 게임과 같은 충돌: 소품·마을 사람에 절벽과 개울까지 (E24-07: 다리 틈이 막히면 개울 건너 출구에 못 간다)
+  setLand(region)
+  const colliders = [...region.props.flatMap(collidersFor), ...region.npcs.map((n) => ({ x: n.x, z: n.z, radius: 0.45 })), ...cliffColliders(region), ...streamColliders(region)]
   const heroNav = new NavGrid(region.halfExtent, 0.5, colliders, 0.4)
   const kingNav = new NavGrid(region.halfExtent, 0.5, colliders, KING.radius)
 
@@ -47,6 +49,31 @@ describe.each(regions.map((r) => [r.id, r] as const))('지역 %s', (_id, region)
       const end = path[path.length - 1]!
       expect(Math.hypot(end.x - goal.x, end.z - goal.z), `${name} 가까이 가지 못한다`).toBeLessThan(3)
     }
+  })
+
+  it('계단식 땅·개울이 있는 땅은 갇힌 빈터가 없다: 빈 칸은 거의 다 시작점에서 걸어서 닿는다 (E24-07)', () => {
+    if (region.terraces.length === 0 && region.streams.length === 0) return
+    const h = region.halfExtent
+    const n = Math.floor((2 * h) / 0.5)
+    const at = (i: number, k: number) => ({ x: -h + (i + 0.5) * 0.5, z: -h + (k + 0.5) * 0.5 })
+    const seen = new Uint8Array(n * n)
+    const start = { i: Math.floor((region.spawn.x + h) / 0.5), k: Math.floor((region.spawn.z + h) / 0.5) }
+    const queue = [start]
+    seen[start.k * n + start.i] = 1
+    while (queue.length) {
+      const { i, k } = queue.pop()!
+      for (const [di, dk] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+        const ni = i + di
+        const nk = k + dk
+        if (ni < 0 || nk < 0 || ni >= n || nk >= n || seen[nk * n + ni] || heroNav.isBlocked(at(ni, nk))) continue
+        seen[nk * n + ni] = 1
+        queue.push({ i: ni, k: nk })
+      }
+    }
+    const stranded: string[] = []
+    for (let k = 0; k < n; k++) for (let i = 0; i < n; i++) if (!seen[k * n + i] && !heroNav.isBlocked(at(i, k))) stranded.push(`(${at(i, k).x}, ${at(i, k).z})`)
+    // 소품 틈의 한두 칸은 봐준다 (2m² 안)
+    expect(stranded.length, `갇힌 빈 칸: ${stranded.slice(0, 8).join(' ')}`).toBeLessThanOrEqual(8)
   })
 
   it('시작점에서 이웃으로 가는 통로마다 걸어서 가운데를 넘을 수 있다 (E19-07: 16곳 걷기)', () => {
@@ -95,7 +122,7 @@ describe.each(regions.map((r) => [r.id, r] as const))('지역 %s', (_id, region)
   })
 
   it('연못 위는 평평하다', () => {
-    setPonds(region.ponds)
+    setLand(region)
     for (const pond of region.ponds) {
       const a = heightAt(pond.x, pond.z)
       const b = heightAt(pond.x + pond.radius * 0.7, pond.z)

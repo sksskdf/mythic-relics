@@ -33,14 +33,16 @@ import {
   torii,
   well,
 } from '../voxel/models/landmarks'
+import { chinaMark, greekMark, japanMark, koreaMark, norseMark, riftMark, villageMark } from '../voxel/models/roadMarks'
+import { bridge, forge, forgeGlow, house2, longhouse, palisade, stall, watchtower } from '../voxel/models/village'
 import { VoxelGrid } from '../voxel/VoxelGrid'
 import { EFFECT_LAYER } from '../render/PixelRenderer'
 import { toonMaterial } from '../render/toon'
 import type { CircleCollider } from './colliders'
-import { exitColor, type PropKind, type PropPlacement, type RegionDef } from '../data/regions'
+import { exitColor, type PropKind, type PropPlacement, type RegionDef, REGIONS } from '../data/regions'
 import { CELL, type Cell, cellOrigin, inRect, type Rect, rectDistance, type RegionLink } from '../data/world'
 import { createRng } from './rng'
-import { buildGround, buildScatter, EDGE_BLEND, edgeWave, type GroundBlend, groundSteps, heightAt, type Pond, pondLevel, setPonds } from './terrain'
+import { baseHeightAt, buildGround, buildScatter, buildTerraces, cliffColliders, EDGE_BLEND, edgeWave, FLAT_LAND, type GroundBlend, groundSteps, heightAt, type Pond, pondLevel, setLand } from './terrain'
 import { THEMES, type ThemeDef, type ThemeId } from './themes'
 
 type Animator = (elapsed: number) => void
@@ -182,6 +184,39 @@ function makeBrazier(variant: number, base: VoxelGrid = brazier(), flameY = 1.05
   return { object: own(group), animate }
 }
 
+/** 대장간 (E24-07): 돌 화덕의 불 아가리가 일렁이고, 굴뚝에서 연기가 피어오른다 */
+function makeForge(variant: number): Built {
+  const group = new THREE.Group()
+  group.add(new THREE.Mesh(buildVoxelGeometry(forge(), { voxelSize: 0.15 }), voxelMaterial()))
+  const glowMaterial = new THREE.MeshBasicMaterial({ vertexColors: true })
+  group.add(new THREE.Mesh(buildVoxelGeometry(forgeGlow(), { voxelSize: 0.15 }), glowMaterial))
+  // 불 아가리 앞의 빛 (격자 가운데가 원점: 아가리는 x −1.5m, 앞 z +0.8m)
+  const light = new THREE.PointLight(PROP_COLORS.fire, 3, 7, 1.6)
+  light.position.set(-1.5, 0.6, 1.2)
+  group.add(light)
+  // 굴뚝 끝 (x −1.5m, 높이 4.4m, z −0.1m)에서 오르는 연기 덩이
+  const puffs: THREE.Mesh[] = []
+  const puffGeometry = new THREE.BoxGeometry(0.3, 0.3, 0.3)
+  for (let i = 0; i < 6; i++) {
+    const puff = new THREE.Mesh(puffGeometry, new THREE.MeshBasicMaterial({ color: 0xb8b4ac, transparent: true, depthWrite: false }))
+    group.add(puff)
+    puffs.push(puff)
+  }
+  const seed = variant * 1.9
+  const animate: Animator = (t) => {
+    const flicker = 0.75 + (Math.sin(t * 11 + seed) * 0.5 + Math.sin(t * 6.1 + seed * 2) * 0.5) * 0.25
+    glowMaterial.color.setScalar(0.7 + flicker * 0.3)
+    light.intensity = 2.4 * flicker + 0.6
+    puffs.forEach((puff, i) => {
+      const k = (t / 3.6 + i / puffs.length) % 1
+      puff.position.set(-1.5 + Math.sin(k * 3 + i) * 0.25 + k * 0.6, 4.4 + k * 2.6, -0.1 + Math.cos(k * 2 + i) * 0.2)
+      puff.scale.setScalar(0.6 + k * 1.6)
+      ;(puff.material as THREE.MeshBasicMaterial).opacity = 0.75 * (1 - k)
+    })
+  }
+  return { object: own(group), animate }
+}
+
 export const BUILDERS: Record<PropKind, VariantFactory> = {
   pine: cachedVoxel(pineTree, 0.2),
   rock: cachedVoxel(rock, 0.15),
@@ -207,6 +242,13 @@ export const BUILDERS: Record<PropKind, VariantFactory> = {
   campfire: (variant) => () => makeBrazier(variant, campfire(), 0.15),
   well: cachedVoxel(() => well(), 0.15),
   fence: cachedVoxel(() => fence(), 0.12),
+  palisade: cachedVoxel(palisade, 0.15),
+  watchtower: cachedVoxel(watchtower, 0.15),
+  longhouse: cachedVoxel(longhouse, 0.2),
+  house2: cachedVoxel(house2, 0.2),
+  forge: (variant) => () => makeForge(variant),
+  stall: cachedVoxel(stall, 0.12),
+  bridge: cachedVoxel(() => bridge(), 0.15),
 }
 
 /** 소품의 x축을 따라 늘어선 원들 (rotation.y만큼 돌아간 상태) */
@@ -214,6 +256,22 @@ function along(p: PropPlacement, offsets: readonly number[], radius: number): Ci
   const ax = Math.cos(p.rotation)
   const az = -Math.sin(p.rotation)
   return offsets.map((offset) => ({ x: p.x + ax * offset * p.size, z: p.z + az * offset * p.size, radius: radius * p.size }))
+}
+
+/** 다리 난간: 다리 바닥 양옆(소품 z ±1.2m)에 x를 따라 늘어선 작은 원. 바닥은 걸어서 건넌다 */
+function bridgeRails(p: PropPlacement): CircleCollider[] {
+  const ax = Math.cos(p.rotation)
+  const az = -Math.sin(p.rotation)
+  // 소품의 z축 (x축을 시계 반대로 90° 돌린 것)
+  const bx = -az
+  const bz = ax
+  const out: CircleCollider[] = []
+  for (const side of [-1.2, 1.2]) {
+    for (const offset of [-1.8, -0.9, 0, 0.9, 1.8]) {
+      out.push({ x: p.x + (ax * offset + bx * side) * p.size, z: p.z + (az * offset + bz * side) * p.size, radius: 0.2 * p.size })
+    }
+  }
+  return out
 }
 
 /** 소품 하나가 차지하는 충돌 영역. 둔덕·덤불은 밟고 지나갈 수 있어 충돌이 없다. */
@@ -264,6 +322,20 @@ export function collidersFor(p: PropPlacement): CircleCollider[] {
       return one(0.85)
     case 'fence':
       return along(p, [-0.9, 0, 0.9], 0.3)
+    case 'palisade':
+      return along(p, [-1.6, -0.55, 0.55, 1.6], 0.5)
+    case 'watchtower':
+      return one(1.4)
+    case 'longhouse':
+      return along(p, [-3.3, -1.65, 0, 1.65, 3.3], 1.6)
+    case 'house2':
+      return along(p, [-1.5, -0.5, 0.5, 1.5], 1.3)
+    case 'forge':
+      return along(p, [-1.6, 0, 1.6], 1.3)
+    case 'stall':
+      return along(p, [-0.9, 0.9], 0.8)
+    case 'bridge':
+      return bridgeRails(p)
     case 'mound':
     case 'bush':
       return []
@@ -284,6 +356,89 @@ function flatMesh(geometry: THREE.BufferGeometry, color: number, x = 0, y = 0, z
   const m = new THREE.Mesh(geometry, toonMaterial(color))
   m.position.set(x, y, z)
   return m
+}
+
+/** 꺾은선을 step(m)마다 나눈 점들 (땅 높이를 따라가려고) */
+function densify(points: readonly { x: number; z: number }[], step: number): { x: number; z: number }[] {
+  const out: { x: number; z: number }[] = []
+  for (let i = 0; i + 1 < points.length; i++) {
+    const a = points[i]!
+    const b = points[i + 1]!
+    const n = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / step))
+    for (let k = 0; k < n; k++) out.push({ x: a.x + ((b.x - a.x) * k) / n, z: a.z + ((b.z - a.z) * k) / n })
+  }
+  out.push({ ...points.at(-1)! })
+  return out
+}
+
+/** 꺾은선을 따라가는 폭 width의 띠 (바닥 판 높이 + lift) */
+function ribbon(points: readonly { x: number; z: number }[], width: number, color: number, lift: number): THREE.Mesh {
+  const position: number[] = []
+  const index: number[] = []
+  points.forEach((p, i) => {
+    const a = points[Math.max(0, i - 1)]!
+    const b = points[Math.min(points.length - 1, i + 1)]!
+    const len = Math.hypot(b.x - a.x, b.z - a.z) || 1
+    const nx = -(b.z - a.z) / len
+    const nz = (b.x - a.x) / len
+    for (const side of [1, -1]) {
+      const x = p.x + nx * (width / 2) * side
+      const z = p.z + nz * (width / 2) * side
+      position.push(x, baseHeightAt(x, z) + lift, z)
+    }
+    if (i > 0) {
+      const v = i * 2
+      index.push(v - 2, v, v - 1, v - 1, v, v + 1)
+    }
+  })
+  const geometry = new THREE.BufferGeometry()
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(position, 3))
+  geometry.setIndex(index)
+  geometry.computeVertexNormals()
+  const mesh = new THREE.Mesh(geometry, toonMaterial(color))
+  mesh.receiveShadow = true
+  return mesh
+}
+
+/** 개울 (E24-07): 돌 둑 위로 물 띠, 가운데는 깊은 물 색 */
+function buildStream(stream: RegionDef['streams'][number], theme: ThemeDef): THREE.Group {
+  const group = new THREE.Group()
+  const points = densify(stream.points, 1)
+  group.add(ribbon(points, stream.width + 0.6, theme.ground.stone, 0.03))
+  group.add(ribbon(points, stream.width, theme.water.surface, 0.05))
+  group.add(ribbon(points, stream.width * 0.4, theme.water.deep, 0.06))
+  return group
+}
+
+/** 다리 바닥의 반너비 (m, 소품 크기 1): 난간 사이 */
+const BRIDGE_HALF_WIDTH = 1.2
+/** 다리 바닥의 반길이 (m, 소품 크기 1) */
+const BRIDGE_HALF_LENGTH = 2.25
+/** 다리 바닥 옆으로 비워 둘 너비 (m): 주인공 반지름과 길찾기 칸 하나 */
+const BRIDGE_CLEAR = 0.75
+
+/**
+ * 개울은 건너지 못한다: 물길을 따라 0.5m마다 둥근 충돌. 다리(bridge 소품) 바닥을 지나는 길만 트여 있다:
+ * 다리 축(길이 방향)에서 바닥 반너비 + 여유 안으로 들어오는 원은 그만큼 줄이거나 뺀다 (다리 옆 물로는 여전히 못 들어간다)
+ */
+export function streamColliders(region: RegionDef): CircleCollider[] {
+  const bridges = region.props.filter((p) => p.kind === 'bridge')
+  const out: CircleCollider[] = []
+  for (const stream of region.streams) {
+    for (const p of densify(stream.points, 0.5)) {
+      let radius = stream.width / 2
+      for (const b of bridges) {
+        const ax = Math.cos(b.rotation)
+        const az = -Math.sin(b.rotation)
+        const along = (p.x - b.x) * ax + (p.z - b.z) * az
+        if (Math.abs(along) > (BRIDGE_HALF_LENGTH + radius) * b.size) continue
+        const side = Math.abs((p.x - b.x) * az - (p.z - b.z) * ax)
+        radius = Math.min(radius, side - (BRIDGE_HALF_WIDTH + BRIDGE_CLEAR) * b.size)
+      }
+      if (radius >= 0.2) out.push({ x: p.x, z: p.z, radius })
+    }
+  }
+  return out
 }
 
 function buildPond(radius: number, water: ThemeDef['water']): THREE.Group {
@@ -545,8 +700,8 @@ function finish(steps: Generator<void, Chunk>): Chunk {
 export function* chunkSteps(region: RegionDef, links: readonly RegionLink[] = [], themeAt?: (cell: Cell) => ThemeId): Generator<void, Chunk> {
   const chunk = new Chunk(region, region.cell)
   const theme = THEMES[region.theme]
-  // 땅 높이가 이 지역의 연못을 따르게 한 뒤 땅과 소품을 놓는다
-  setPonds(region.ponds)
+  // 땅 높이가 이 지역의 연못·계단식 땅을 따르게 한 뒤 땅과 소품을 놓는다
+  setLand(region)
   const half = region.halfExtent
   if (region.cell) {
     // 땅은 칸 전체를 덮어 이웃 칸의 땅과 맞닿는다. 움직일 수 있는 네모와 통로 밖은 빽빽한 숲. 가장자리는 이웃 얼굴과 섞는다
@@ -560,6 +715,12 @@ export function* chunkSteps(region: RegionDef, links: readonly RegionLink[] = []
     chunk.group.add(own(buildGround(half + BORDER_DEPTH, theme, region.paths)))
     chunk.group.add(buildBorder(region.seed, half, region.theme))
   }
+  // 계단식 땅과 계단 (E24-07): 바닥 판 위에 쌓고, 절벽은 둥근 충돌을 줄지어 막는다
+  const terraces = buildTerraces(region, theme, region.paths, region.seed)
+  if (terraces) chunk.group.add(own(terraces))
+  chunk.colliders.push(...cliffColliders(region))
+  for (const stream of region.streams) chunk.group.add(own(buildStream(stream, theme)))
+  chunk.colliders.push(...streamColliders(region))
   chunk.group.add(own(buildScatter(half, theme)))
   for (const pond of region.ponds) chunk.group.add(own(pondMesh(pond, theme)))
   region.props.forEach((placement, index) => {
@@ -575,13 +736,13 @@ export function* chunkSteps(region: RegionDef, links: readonly RegionLink[] = []
     chunk.sanctuary = sanctuaryMark(region.sanctuary)
     chunk.group.add(chunk.sanctuary)
   }
-  // 출구: 통로 입구의 문과 갈 곳의 빛기둥 (글 없이 색으로 어디로 가는지 알린다)
+  // 출구: 통로 입구의 길목(가는 땅의 모습)과 갈 곳의 빛기둥 (글 없이 모습과 색으로 어디로 가는지 알린다)
   for (const exit of region.exits) {
-    const gate = buildGate(exitColor(exit.to))
-    own(gate.object)
+    const gate = buildGate(exit.to, exitColor(exit.to))
     gate.object.position.set(exit.x, heightAt(exit.x, exit.z), exit.z)
-    // 문은 지역 가운데를 바라본다
-    gate.object.rotation.y = Math.atan2(-exit.x, -exit.z)
+    // 길목은 통로를 가로지른다: 통로가 난 땅 끝(가까운 변)에 나란히 서서 땅 안쪽을 본다.
+    // 세계 축에 맞춰 두면 쿼터뷰에서 어느 길목이든 비스듬한 정면이 보인다 (가운데를 보게 하면 북동·남서 길목은 옆모습뿐)
+    gate.object.rotation.y = Math.abs(exit.z) >= Math.abs(exit.x) ? (exit.z < 0 ? 0 : Math.PI) : exit.x < 0 ? Math.PI / 2 : -Math.PI / 2
     chunk.group.add(gate.object)
     chunk.animators.push(gate.animate!)
   }
@@ -610,7 +771,7 @@ export function buildFillerChunk(cell: Cell, theme: ThemeId, open: readonly Rect
 /** 빈 칸 조각을 땅·숲 단계로 나눠 짓는다 */
 export function* fillerSteps(cell: Cell, theme: ThemeId, open: readonly Rect[] = [], themeAt?: (cell: Cell) => ThemeId): Generator<void, Chunk> {
   const chunk = new Chunk(null, cell)
-  setPonds([])
+  setLand(FLAT_LAND)
   const mix = themeAt ? edgeMixer(cell, theme, themeAt) : null
   chunk.group.add(own(yield* groundSteps(CELL / 2 - 4, THEMES[theme], [], undefined, groundMix(mix))))
   yield
@@ -708,23 +869,34 @@ function sanctuaryMark(center: { x: number; z: number }): THREE.Group {
   return group
 }
 
-/** 출구 문: 나무 기둥 둘과 가로대, 갈 곳의 색 빛기둥과 바닥 고리 */
-function buildGate(color: number): Built {
-  const group = new THREE.Group()
-  const wood = toonMaterial(0x6a4e34)
-  for (const x of [-1.3, 1.3]) {
-    const post = new THREE.Mesh(new THREE.BoxGeometry(0.3, 2.6, 0.3), wood)
-    post.position.set(x, 1.3, 0)
-    post.castShadow = true
-    group.add(post)
+/** 길목 모양 (E24-07): 그 길이 가는 땅의 모습. 모양은 조각끼리 함께 쓴다 */
+const roadMarkGeometries = new Map<string, THREE.BufferGeometry>()
+function roadMarkGeometry(to: string): THREE.BufferGeometry {
+  const region = REGIONS[to]
+  const kind = !region ? 'hub' : region.kind === 'hub' ? 'hub' : region.finale ? 'finale' : (region.realm ?? 'hub')
+  let geometry = roadMarkGeometries.get(kind)
+  if (!geometry) {
+    const grid =
+      kind === 'norse' ? norseMark(7)
+      : kind === 'greek' ? greekMark()
+      : kind === 'china' ? chinaMark()
+      : kind === 'japan' ? japanMark()
+      : kind === 'korea' ? koreaMark()
+      : kind === 'finale' ? riftMark(11)
+      : villageMark(5)
+    geometry = buildVoxelGeometry(grid, { voxelSize: 0.15 })
+    roadMarkGeometries.set(kind, geometry)
   }
-  const beam = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.3, 0.35), wood)
-  beam.position.y = 2.6
-  beam.castShadow = true
-  group.add(beam)
-  const banner = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.8, 0.06), toonMaterial(color))
-  banner.position.set(0, 2.05, 0.05)
-  group.add(banner)
+  return geometry
+}
+
+/** 출구의 길목: 가는 땅의 모습으로 선 문(신화권마다 다르다)과, 갈 곳의 색 빛기둥과 바닥 고리 */
+function buildGate(to: string, color: number): Built {
+  const group = new THREE.Group()
+  const mark = new THREE.Mesh(roadMarkGeometry(to), voxelMaterial())
+  mark.castShadow = true
+  mark.receiveShadow = true
+  group.add(mark)
   const lightMaterial = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.25, depthWrite: false, side: THREE.DoubleSide })
   const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 1.2, 7, 8, 1, true), lightMaterial)
   pillar.position.y = 3.5
@@ -734,7 +906,8 @@ function buildGate(color: number): Built {
   for (const mesh of [pillar, ring]) {
     mesh.layers.set(EFFECT_LAYER)
     mesh.renderOrder = 12
-    group.add(mesh)
+    // 빛기둥과 고리는 이 문만 쓴다 (길목 모양은 조각끼리 함께 써서 내리지 않는다)
+    group.add(own(mesh))
   }
   const animate: Animator = (t) => {
     lightMaterial.opacity = 0.2 + Math.sin(t * 2.4) * 0.08

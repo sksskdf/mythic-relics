@@ -27,7 +27,7 @@ import {
 import { clampToArea, inArea, walkArea } from '../src/world/colliders'
 import { NavGrid } from '../src/world/navGrid'
 import { buildChunk, cellTheme, RegionMap } from '../src/world/regionMap'
-import { EDGE_BLEND, edgeWave, heightAt, withTerrainFrame } from '../src/world/terrain'
+import { EDGE_BLEND, edgeWave, FLAT_LAND, heightAt, withTerrainFrame } from '../src/world/terrain'
 
 /**
  * 하나로 이어진 세계 (E19-01). 지역 데이터 전부를 돈다: 지역을 더하면 같은 검사가 저절로 붙는다.
@@ -217,8 +217,8 @@ describe('땅 높이는 세계 좌표를 따른다 (E19-02)', () => {
     const om = cellOrigin(midgard.cell)
     const keep = heightAt(0, 0)
     for (const [wx, wz] of [[ov.x + 3, ov.z - 49], [om.x - 2, om.z + 50], [ov.x, ov.z - 50]] as const) {
-      const fromVillage = withTerrainFrame(ov, REGIONS.village!.ponds, () => heightAt(wx - ov.x, wz - ov.z))
-      const fromMidgard = withTerrainFrame(om, REGIONS.midgard!.ponds, () => heightAt(wx - om.x, wz - om.z))
+      const fromVillage = withTerrainFrame(ov, REGIONS.village!, () => heightAt(wx - ov.x, wz - ov.z))
+      const fromMidgard = withTerrainFrame(om, REGIONS.midgard!, () => heightAt(wx - om.x, wz - om.z))
       expect(fromVillage).toBeCloseTo(fromMidgard, 5)
     }
     // 잠깐 바꾼 틀은 끝나면 되돌아온다
@@ -229,8 +229,8 @@ describe('땅 높이는 세계 좌표를 따른다 (E19-02)', () => {
     const ov = cellOrigin(placed.village!.cell)
     const om = cellOrigin(placed.midgard!.cell)
     for (const [wx, wz] of [[ov.x - 20, ov.z - 50], [ov.x + 7, ov.z - 47]] as const) {
-      const a = withTerrainFrame(ov, [], () => edgeWave(wx - ov.x, wz - ov.z))
-      const b = withTerrainFrame(om, [], () => edgeWave(wx - om.x, wz - om.z))
+      const a = withTerrainFrame(ov, FLAT_LAND, () => edgeWave(wx - ov.x, wz - ov.z))
+      const b = withTerrainFrame(om, FLAT_LAND, () => edgeWave(wx - om.x, wz - om.z))
       expect(a).toBeCloseTo(b, 6)
       expect(Math.abs(a)).toBeLessThanOrEqual(EDGE_BLEND)
     }

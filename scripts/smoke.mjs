@@ -91,7 +91,9 @@ try {
   if (await page.evaluate(() => window.__game.story('mythThor'))) throw new Error('대화: 본 신화 개방 장면이 다시 열립니다.')
   await page.evaluate(() => {
     const g = window.__game
-    g.hero.teleport(5.2, -7.6)
+    // 대장장이 곁에서 (마을을 다시 지어도 따라가게 자리는 데이터에서)
+    const smith = g.region.npcs.find((n) => n.name === '대장장이')
+    g.hero.teleport(smith.x - 1.3, smith.z + 1.4)
     g.playerInput.onTalk('대장장이')
     // 걸어가 말을 거는 동안 실제 프레임을 기다리지 않고 게임 시간을 직접 흘린다 (느린 CI 러너에서도 같게)
     for (let i = 0; i < 150 && g.scenes.current !== 'talkSmith'; i++) g.advance(1 / 30, 1 / 30)

@@ -44,7 +44,7 @@ E12~E14에서 새 규칙을 넣을 때는 `BuildInputs`에 재료를 더하고 `
 | --- | --- |
 | `src/data/world.ts` | 칸·통로 계산. `regionLinks(regions, id)`(그 땅의 통로: 지역 안 좌표의 통로 네모, 넘어갈 때 옮길 `shift`, 축·방향·가운데), `walkRects`(땅 네모 + 통로), `crossingAt`(통로 가운데를 1m 넘었나) |
 | `src/world/colliders.ts` | `WalkArea`(움직일 수 있는 네모들과 격자 반 폭 `reach`), `clampToArea`·`inArea`. 주인공(`HeroController.area`)·적(`GiantWorld.area`)·길찾기(`NavGrid`, 밖은 막힌 칸)가 같은 것을 쓴다. 균열 층은 `squareArea` |
-| `src/world/terrain.ts` | 땅 높이·땅 무늬·경계 물결(`edgeWave`)은 세계 좌표로 잰다: `setTerrainOrigin`, 이웃 조각은 `withTerrainFrame(원점, 연못, fn)` 안에서 짓는다 |
+| `src/world/terrain.ts` | 땅 높이·땅 무늬·경계 물결(`edgeWave`)은 세계 좌표로 잰다: `setTerrainOrigin`, 이웃 조각은 `withTerrainFrame(원점, 땅 모양 Land, fn)` 안에서 짓는다 |
 | `src/world/regionMap.ts` | `Chunk`(땅 하나 또는 빈 칸 숲), `chunkSteps`·`fillerSteps`(단계로 나눠 짓기), 숲 `buildForest`(가장자리·깊은 숲, 6m 네모마다 InstancedMesh, 깊은 숲은 `plain` 단순한 나무), 경계 섞기 `edgeMixer`·`cellTheme`. `RegionMap`은 지금 땅 조각을 쥐고 `adopt`로 이웃 조각을 넘겨받는다 |
 | `src/game/Stage.ts` | 지금 땅 + 이웃 여섯을 그린다(`planNeighbors`, 프레임마다 한 단계 `buildNext`, 점검은 `flush`). `cross(to)`로 지금 땅을 바꾸고, `follow`에서 통로 안 하늘빛을 섞는다 |
 | `src/game/Encounter.ts` | 지금 땅의 무리(`camps`·`boss`)와 이웃 땅에 남겨 둔 무리(`parked`, 땅 id별). `setNeighbors`(이웃 땅 배치와 칸 자리 차이)로 이웃 무리를 줄 세우고 `buildStep`으로 프레임마다 무리 하나(땅 조각을 짓지 않는 프레임에만, Game이 부름). `cross`는 모두 옮긴 뒤 앞 땅 무리를 남겨 두고 넘어간 땅 무리를 깨운다(쫓던 적·쓰러지는 적은 지금 땅 적으로 남음). 남겨 둔 거인은 `Giant.park`·`rest`(숨쉬기만), 옮길 때 `Giant.shift`(집·길·예고·던진 것까지) |
@@ -99,6 +99,21 @@ E12~E14에서 새 규칙을 넣을 때는 `BuildInputs`에 재료를 더하고 `
 | `systems/Tabs.ts` | `TabSystem`: 장비·신화·벼리기·`progressChanged`마다 지금 상태(`facts`)를 보고 열 때가 된 탭을 연다. 열면 카드(`tabOpened`, 등급 2, 같은 사건의 더 큰 순간 뒤에 서도록 한 박자 늦게)와 메뉴 단추 표시(여럿이면 차례의 첫 탭). 불러온 뒤에 켜고(`ready`), 점검용 실행(`allTabs`)·엔딩 뒤에는 모두 연다. 메뉴는 `host.tabOpen`으로 숨길 탭을 가린다 |
 | `src/ui/menu/trainingTab.ts` | 깨달음·다음 점 막대·찍은 수치의 합·모두 되돌리기(한 번 더 눌러야), 트리(가로 %·세로 px, SVG 줄). 손가락은 처음 누르면 설명 |
 | 땅 차례 | `ChapterProgress.isOpen`: 지금 장의 땅은 그 땅에 들어서는 할 일 바로 앞까지 했을 때 열린다. `goalChanged`에도 결계를 다시 맞춘다(`World.refreshLinks`) |
+
+## 땅 높낮이 (E24-07)
+
+| 곳 | 하는 일 |
+| --- | --- |
+| `regions.json`의 `terraces` | 계단식 땅: 꼭짓점·높이(0.5m 단위)·계단(아랫땅 발치 from → 윗면 to, 너비). 검사는 `regions.ts`의 `parseTerrace`(윗끝은 안, 발치는 밖) |
+| `world/terrain.ts` | 땅 모양 `Land`(연못·계단식 땅)를 `setLand`로 넣는다(옛 `setPonds`). `heightAt` = 바탕 땅(기복·연못)과 계단식 땅 가운데 높은 것, 계단 위면 발치에서 윗면까지 고른 비탈. `baseHeightAt`은 계단식 땅을 뺀 바탕(바닥 판). `cliffColliders`: 높이가 0.4m 넘게 갈리는 변과 계단 옆을 0.5m마다 둥근 충돌로 막는다(계단이 지나는 곳은 트임). `rayToLand`: 화면 광선이 처음 닿는 땅(위에서부터 0.1m씩 내려가며 찾고 반으로 좁힘) |
+| `buildTerraces` | 바닥 판 위에 0.5m 복셀 기둥으로 쌓는다(윗면은 바닥과 같은 땅 색·길, 옆면은 흙과 돌 켜). 계단은 0.25m 단의 돌계단 |
+| `regionMap.chunkSteps` | 조각을 지을 때 계단식 땅을 쌓고 절벽 충돌을 더한다. 길찾기는 이 충돌을 피해 계단으로 돈다 |
+| `PlayerInput.groundAt` | 계단식 땅이 있으면 `rayToLand`, 없으면 평면 하나 |
+| 모양 규칙 | 변과 계단은 세계 축에 맞춘다: 쿼터뷰에서 화면의 사선이 되어 깨끗하고, 세계 대각선 변은 복셀이 톱니로 보인다 |
+| 개울 `regions.json`의 `streams` | 꺾은선과 폭. `regionMap`이 돌 둑·물·깊은 물 세 겹 띠로 그리고(`ribbon`, 바닥 판 높이를 따른다), 물길을 0.5m마다 둥근 충돌로 막는다(`streamColliders`). 다리(`bridge` 소품) 자리만 트여 있고, 다리는 난간만 막는다(`bridgeRails`) |
+| 길목 `voxel/models/roadMarks.ts` | 출구마다 가는 땅의 모습으로 선 문: 북유럽(눈 덮인 통나무 문·룬 돌)·그리스(대리석 기둥과 박공)·중국(푸른 기와 패루)·일본(도리이와 석등)·한국(홍살문)·마을(짚 지붕 어귀 문)·갈라진 하늘(무너진 아치). `regionMap.buildGate`가 가는 땅으로 고르고(모양은 조각끼리 함께 씀), 통로가 난 변에 나란히(세계 축) 세워 쿼터뷰에서 늘 비스듬한 정면이 보인다. 갈 곳의 색 빛기둥은 그대로 |
+| 마을 소품 `voxel/models/village.ts` | 목책(3.9m 한 칸)·망루·족장의 긴 집·이층집·대장간(불 아가리 빛·굴뚝 연기, `makeForge`)·장터 노점·나무다리 |
+| `scripts/gen-village.mjs` | 마을을 규칙으로 짓는다: 광장 1.5m·족장의 터 3m·계단 일곱·길, 개울(북 → 연못 → 남)과 다리 둘, 건물(긴 집·노점·우물·대장간·집 일곱), 둘레 22.5m 목책(길·개울 자리는 비움)과 망루 셋, 사람 자리. 문과 길 바깥 끝은 세계 통로 자리 그대로 |
 
 ## E14에서 걷어낼 것
 

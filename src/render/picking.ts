@@ -73,9 +73,10 @@ export function screenRay(
   size: RenderSize,
   camera: THREE.Camera,
   subpixel: Subpixel = NO_SUBPIXEL,
+  out = new THREE.Ray(),
 ): THREE.Ray {
   const ndc = screenToNdc(x, y, screenHeight, size, subpixel)
   ndcVector.set(ndc.x, ndc.y)
   raycaster.setFromCamera(ndcVector, camera)
-  return raycaster.ray.clone()
+  return out.copy(raycaster.ray)
 }

@@ -121,6 +121,8 @@ export function riftFloor(depth: number, runSeed: number): RiftFloor {
     spawn,
     sanctuary: null,
     ponds: [],
+    streams: [],
+    terraces: [],
     paths,
     camps,
     boss: bossSpot ? { ...bossSpot, ...(doom ? { enemy: DOOM_BOSS } : realmBoss ? { enemy: realmBoss } : {}) } : null,

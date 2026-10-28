@@ -18,6 +18,8 @@ export const PROP_KINDS = [
   'pine', 'rock', 'mound', 'ruin', 'deadTree', 'bush', 'runestone', 'brazier',
   'olive', 'cypress', 'column', 'peach', 'spire', 'bamboo', 'cherry', 'torii', 'lantern', 'maple', 'cairn', 'jangseung',
   'house', 'campfire', 'well', 'fence',
+  // 마을 다시 짓기 (E24-07)
+  'palisade', 'watchtower', 'longhouse', 'house2', 'forge', 'stall', 'bridge',
 ] as const
 export type PropKind = (typeof PROP_KINDS)[number]
 
@@ -80,6 +82,10 @@ export interface RegionDef {
   sanctuary: (Spot & { radius: number }) | null
   /** 연못 같은 평평한 웅덩이 */
   ponds: (Spot & { radius: number })[]
+  /** 개울 (E24-07): 꺾은선을 따라 흐르는 얕은 물. 건너지 못하고, 다리(소품 bridge) 자리에서만 건넌다 */
+  streams: { points: Spot[]; width: number }[]
+  /** 계단식 땅 (E24-07): 둘레보다 높은 평평한 땅(꼭짓점·높이)과, 아랫땅 발치(from)에서 윗면(to)으로 오르는 계단 */
+  terraces: { points: Spot[]; height: number; stairs: { from: Spot; to: Spot; width: number }[] }[]
   /** 다져진 길: 점을 잇는 꺾은선과 폭 */
   paths: { points: Spot[]; width: number }[]
   /** 적 무리: 수와 무리를 이루는 적 (enemies.json의 id, 없으면 졸개) */
@@ -109,12 +115,48 @@ function spots(o: Obj, key: string, path: string): unknown[] {
   return v
 }
 
+/** 점이 꼭짓점들로 둘러싼 땅 안에 있나 (짝홀 규칙) */
+export function insideOutline(points: readonly Spot[], x: number, z: number): boolean {
+  let inside = false
+  for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+    const a = points[i]!
+    const b = points[j]!
+    if (a.z > z !== b.z > z && x < ((b.x - a.x) * (z - a.z)) / (b.z - a.z) + a.x) inside = !inside
+  }
+  return inside
+}
+
+/** 계단식 땅 하나 (E24-07): 꼭짓점 셋 이상, 높이는 0.5m 단위, 계단은 바깥 발치에서 안쪽 윗면으로 */
+function parseTerrace(raw: unknown, q: string, half: number): RegionDef['terraces'][number] {
+  const o = obj(raw, q)
+  onlyKeys(o, q, ['points', 'height', 'stairs'])
+  const points = list(o, 'points', q).map((pt, j) => {
+    const s = spot(pt, `${q}.points[${j}]`, [], half)
+    return { x: s.x, z: s.z }
+  })
+  if (points.length < 3) throw new DataError(`${q}.points`, '꼭짓점이 셋 이상이어야 합니다')
+  const height = num(o, 'height', q, { min: 0.5, max: 6 })
+  if (Math.abs(height * 2 - Math.round(height * 2)) > 1e-6) throw new DataError(`${q}.height`, '높이는 0.5m 단위여야 합니다 (땅 복셀 한 칸)')
+  const stairs = (o.stairs === undefined ? [] : list(o, 'stairs', q)).map((r, j) => {
+    const sq = `${q}.stairs[${j}]`
+    const so = obj(r, sq)
+    onlyKeys(so, sq, ['from', 'to', 'width'])
+    const from = spot(so.from, `${sq}.from`, [], half)
+    const to = spot(so.to, `${sq}.to`, [], half)
+    if (!insideOutline(points, to.x, to.z)) throw new DataError(`${sq}.to`, '계단 윗끝은 계단식 땅 안이어야 합니다')
+    if (insideOutline(points, from.x, from.z)) throw new DataError(`${sq}.from`, '계단 발치는 계단식 땅 밖이어야 합니다')
+    const width = num(so, 'width', sq, { min: 1, max: 6 })
+    return { from: { x: from.x, z: from.z }, to: { x: to.x, z: to.z }, width }
+  })
+  return { points, height, stairs }
+}
+
 /** regions.json 검사. 위치는 지역 안에 있어야 하고, 출구는 있는 지역으로 이어져야 한다. */
 export function parseRegions(rawRegions: unknown, path = 'regions.json'): Record<string, RegionDef> {
   const out: Record<string, RegionDef> = {}
   for (const [id, o] of table(rawRegions, path)) {
     const p = `${path}.${id}`
-    onlyKeys(o, p, ['name', 'kind', 'zone', 'elite', 'finale', 'realm', 'theme', 'cell', 'halfExtent', 'seed', 'spawn', 'sanctuary', 'ponds', 'paths', 'camps', 'boss', 'exits', 'npcs', 'props'])
+    onlyKeys(o, p, ['name', 'kind', 'zone', 'elite', 'finale', 'realm', 'theme', 'cell', 'halfExtent', 'seed', 'spawn', 'sanctuary', 'ponds', 'streams', 'terraces', 'paths', 'camps', 'boss', 'exits', 'npcs', 'props'])
     const half = num(o, 'halfExtent', p, { min: 10, max: CELL / 2 - 4 })
     const c = obj(o.cell, `${p}.cell`)
     onlyKeys(c, `${p}.cell`, ['col', 'row'])
@@ -150,6 +192,19 @@ export function parseRegions(rawRegions: unknown, path = 'regions.json'): Record
         const s = spot(r, `${p}.ponds[${i}]`, ['radius'], half)
         return { x: s.x, z: s.z, radius: num(s, 'radius', `${p}.ponds[${i}]`, { min: 1, max: 12 }) }
       }),
+      streams: spots(o, 'streams', p).map((r, i) => {
+        const q = `${p}.streams[${i}]`
+        const so = obj(r, q)
+        onlyKeys(so, q, ['points', 'width'])
+        // 개울은 숲 띠로 흘러 나갈 수 있다 (칸 끝까지)
+        const points = list(so, 'points', q).map((pt, j) => {
+          const s = spot(pt, `${q}.points[${j}]`, [], CELL / 2)
+          return { x: s.x, z: s.z }
+        })
+        if (points.length < 2) throw new DataError(`${q}.points`, '점이 둘 이상이어야 합니다')
+        return { points, width: num(so, 'width', q, { min: 1, max: 6 }) }
+      }),
+      terraces: spots(o, 'terraces', p).map((r, i) => parseTerrace(r, `${p}.terraces[${i}]`, half)),
       paths: spots(o, 'paths', p).map((r, i) => {
         const q = `${p}.paths[${i}]`
         const po = obj(r, q)

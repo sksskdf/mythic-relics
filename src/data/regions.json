@@ -6,15 +6,16 @@
     "cell": { "col": 0, "row": 0 },
     "halfExtent": 24,
     "seed": 3,
-    "spawn": { "x": 0, "z": 4 },
+    "spawn": { "x": 0, "z": 5 },
     "ponds": [
-      { "x": 13, "z": -2, "radius": 2.5 }
+      { "x": 17.5, "z": -1, "radius": 2.6 }
     ],
     "paths": [
       {
         "points": [
-          { "x": 0, "z": 0 },
-          { "x": 0, "z": -12 },
+          { "x": 0, "z": 1 },
+          { "x": -7, "z": -4.4 },
+          { "x": -7, "z": -9 },
           { "x": -19, "z": -21 },
           { "x": -19, "z": -50 }
         ],
@@ -22,8 +23,9 @@
       },
       {
         "points": [
-          { "x": 0, "z": 0 },
-          { "x": 10, "z": -4 },
+          { "x": 0, "z": 1 },
+          { "x": 7, "z": -4.4 },
+          { "x": 7, "z": -9 },
           { "x": 19, "z": -21 },
           { "x": 19, "z": -50 }
         ],
@@ -31,8 +33,9 @@
       },
       {
         "points": [
-          { "x": 0, "z": 0 },
-          { "x": 8, "z": 10 },
+          { "x": 0, "z": 1 },
+          { "x": 7.4, "z": 4 },
+          { "x": 12, "z": 4 },
           { "x": 21, "z": 10 },
           { "x": 50, "z": 10 }
         ],
@@ -40,8 +43,9 @@
       },
       {
         "points": [
-          { "x": 0, "z": 0 },
-          { "x": -8, "z": 10 },
+          { "x": 0, "z": 1 },
+          { "x": -6, "z": 6.4 },
+          { "x": -6, "z": 11 },
           { "x": -19, "z": 21 },
           { "x": -19, "z": 50 }
         ],
@@ -49,12 +53,31 @@
       },
       {
         "points": [
-          { "x": 0, "z": 0 },
-          { "x": -10, "z": -4 },
+          { "x": 0, "z": 1 },
+          { "x": -7.4, "z": -1 },
+          { "x": -12, "z": -1 },
           { "x": -21, "z": -3 },
           { "x": -50, "z": -3 }
         ],
         "width": 2.2
+      },
+      {
+        "points": [
+          { "x": 0, "z": 1 },
+          { "x": 4, "z": 6.4 },
+          { "x": 4, "z": 11 },
+          { "x": 4, "z": 16 }
+        ],
+        "width": 2
+      },
+      {
+        "points": [
+          { "x": 0, "z": 1 },
+          { "x": 0, "z": -2 },
+          { "x": 0, "z": -7 },
+          { "x": 0, "z": -9 }
+        ],
+        "width": 2
       }
     ],
     "camps": [],
@@ -66,10 +89,10 @@
       { "x": -21, "z": -3, "to": "sinsi" }
     ],
     "npcs": [
-      { "x": -2.6, "z": 1.6, "name": "촌장", "lines": ["신들이 사라진 뒤로 땅마다 유물만 남았지.", "땅의 주인을 쓰러뜨리면 유물을 벼릴 재료가 나온다네."], "body": [2, 3, 3] },
+      { "x": -2.6, "z": 2.6, "name": "촌장", "lines": ["신들이 사라진 뒤로 땅마다 유물만 남았지.", "땅의 주인을 쓰러뜨리면 유물을 벼릴 재료가 나온다네."], "body": [2, 3, 3] },
       {
-        "x": 6.5,
-        "z": -9,
+        "x": 11,
+        "z": -4.2,
         "name": "대장장이",
         "lines": [
           "땅 주인의 재료를 가져오면 유물을 벼려 주지.",
@@ -78,54 +101,141 @@
         ],
         "body": [1, 1, 2]
       },
-      { "x": -6.5, "z": 9.5, "name": "아이", "lines": ["성소에 빛기둥이 서면 신화가 한 단계 더 열릴 때래요!", "모닥불 곁에 있으면 하나도 안 무서워요."], "body": [1, 2, 1] }
+      { "x": -1.5, "z": 12.5, "name": "아이", "lines": ["성소에 빛기둥이 서면 신화가 한 단계 더 열릴 때래요!", "모닥불 곁에 있으면 하나도 안 무서워요."], "body": [1, 2, 1] }
     ],
     "props": [
-      { "kind": "house", "x": -8, "z": -10, "size": 1, "rotation": 3.82 },
-      { "kind": "house", "x": 9, "z": -12, "size": 1, "rotation": 2.5 },
-      { "kind": "house", "x": 13, "z": 7, "size": 1, "rotation": 1.08 },
-      { "kind": "house", "x": -13, "z": 6, "size": 1, "rotation": 5.14 },
-      { "kind": "house", "x": 0, "z": 15, "size": 1, "rotation": 0 },
-      { "kind": "fence", "x": 5, "z": -16, "size": 1, "rotation": 0 },
-      { "kind": "fence", "x": -17, "z": 2, "size": 1, "rotation": 1.6 },
-      { "kind": "lantern", "x": 3, "z": -20, "size": 1, "rotation": 0 },
-      { "kind": "lantern", "x": -3, "z": -20, "size": 1, "rotation": 0 },
-      { "kind": "jangseung", "x": 18, "z": -3, "size": 1, "rotation": 0 },
-      { "kind": "jangseung", "x": 18, "z": -9, "size": 1, "rotation": 0 },
-      { "kind": "brazier", "x": 11, "z": 18, "size": 0.9, "rotation": 0 },
-      { "kind": "brazier", "x": -11, "z": 18, "size": 0.9, "rotation": 0 },
-      { "kind": "brazier", "x": -19, "z": -10, "size": 0.9, "rotation": 0 },
-      { "kind": "rock", "x": 7.75, "z": 15.12, "size": 0.78, "rotation": 2.62 },
-      { "kind": "mound", "x": -6.95, "z": -19.11, "size": 1.32, "rotation": 4.17 },
-      { "kind": "rock", "x": 9.86, "z": -20.36, "size": 1.28, "rotation": 5.31 },
+      { "kind": "campfire", "x": 0, "z": 1, "size": 1.2, "rotation": 0 },
+      { "kind": "longhouse", "x": 0, "z": -11.6, "size": 1, "rotation": 0 },
+      { "kind": "brazier", "x": -3.4, "z": -7.2, "size": 0.9, "rotation": 0 },
+      { "kind": "brazier", "x": 3.4, "z": -7.2, "size": 0.9, "rotation": 0 },
+      { "kind": "stall", "x": -6.6, "z": 3, "size": 1, "rotation": 1.87 },
+      { "kind": "stall", "x": 6.9, "z": 6.6, "size": 1, "rotation": -2.25 },
+      { "kind": "well", "x": 4, "z": -2.6, "size": 1, "rotation": 0 },
+      { "kind": "lantern", "x": -8, "z": 7, "size": 1, "rotation": 0 },
+      { "kind": "forge", "x": 12.2, "z": -0.4, "size": 1, "rotation": -1.57 },
+      { "kind": "house2", "x": -14.5, "z": -9.5, "size": 1, "rotation": 0.79 },
+      { "kind": "house2", "x": -15.5, "z": 7.5, "size": 1, "rotation": 1.57 },
+      { "kind": "house2", "x": 8.6, "z": -17.5, "size": 1, "rotation": 0 },
+      { "kind": "house", "x": -9, "z": -17.5, "size": 1, "rotation": 0 },
+      { "kind": "house", "x": -9.5, "z": 17.5, "size": 1, "rotation": 2.82 },
+      { "kind": "house", "x": -1.5, "z": 16.5, "size": 1, "rotation": 3.14 },
+      { "kind": "house", "x": 7.8, "z": 15.4, "size": 1, "rotation": 3.14 },
+      { "kind": "fence", "x": -4.6, "z": 19.8, "size": 1, "rotation": 0 },
+      { "kind": "fence", "x": 4.8, "z": 19.2, "size": 1, "rotation": 0 },
+      { "kind": "bridge", "x": 13.2, "z": -15.2, "size": 1, "rotation": 0.79 },
+      { "kind": "bridge", "x": 14.5, "z": 5.67, "size": 1, "rotation": -0.59 },
+      { "kind": "watchtower", "x": 20.5, "z": 20.5, "size": 1, "rotation": 0 },
+      { "kind": "watchtower", "x": -20.5, "z": 11, "size": 1, "rotation": 1.57 },
+      { "kind": "watchtower", "x": 4.5, "z": -20.5, "size": 1, "rotation": 3.14 },
+      { "kind": "palisade", "x": -22.5, "z": -16.65, "size": 1, "rotation": 1.57 },
+      { "kind": "palisade", "x": -22.5, "z": -12.75, "size": 1, "rotation": 1.57 },
+      { "kind": "palisade", "x": -22.5, "z": -8.85, "size": 1, "rotation": 1.57 },
+      { "kind": "palisade", "x": -22.5, "z": 2.85, "size": 1, "rotation": 1.57 },
+      { "kind": "palisade", "x": -22.5, "z": 6.75, "size": 1, "rotation": 1.57 },
+      { "kind": "palisade", "x": -22.5, "z": 10.65, "size": 1, "rotation": 1.57 },
+      { "kind": "palisade", "x": -22.5, "z": 14.55, "size": 1, "rotation": 1.57 },
+      { "kind": "palisade", "x": -22.5, "z": 18.45, "size": 1, "rotation": 1.57 },
+      { "kind": "palisade", "x": 22.5, "z": -16.65, "size": 1, "rotation": 1.57 },
+      { "kind": "palisade", "x": 22.5, "z": -12.75, "size": 1, "rotation": 1.57 },
+      { "kind": "palisade", "x": 22.5, "z": -8.85, "size": 1, "rotation": 1.57 },
+      { "kind": "palisade", "x": 22.5, "z": -4.95, "size": 1, "rotation": 1.57 },
+      { "kind": "palisade", "x": 22.5, "z": -1.05, "size": 1, "rotation": 1.57 },
+      { "kind": "palisade", "x": 22.5, "z": 2.85, "size": 1, "rotation": 1.57 },
+      { "kind": "palisade", "x": 22.5, "z": 14.55, "size": 1, "rotation": 1.57 },
+      { "kind": "palisade", "x": 22.5, "z": 18.45, "size": 1, "rotation": 1.57 },
+      { "kind": "palisade", "x": 22.5, "z": 22.35, "size": 1, "rotation": 1.57 },
+      { "kind": "palisade", "x": -12.75, "z": -22.5, "size": 1, "rotation": 0 },
+      { "kind": "palisade", "x": -8.85, "z": -22.5, "size": 1, "rotation": 0 },
+      { "kind": "palisade", "x": -4.95, "z": -22.5, "size": 1, "rotation": 0 },
+      { "kind": "palisade", "x": -1.05, "z": -22.5, "size": 1, "rotation": 0 },
+      { "kind": "palisade", "x": 2.85, "z": -22.5, "size": 1, "rotation": 0 },
+      { "kind": "palisade", "x": 6.75, "z": -22.5, "size": 1, "rotation": 0 },
+      { "kind": "palisade", "x": -12.75, "z": 22.5, "size": 1, "rotation": 0 },
+      { "kind": "palisade", "x": -8.85, "z": 22.5, "size": 1, "rotation": 0 },
+      { "kind": "palisade", "x": -4.95, "z": 22.5, "size": 1, "rotation": 0 },
+      { "kind": "palisade", "x": -1.05, "z": 22.5, "size": 1, "rotation": 0 },
+      { "kind": "palisade", "x": 2.85, "z": 22.5, "size": 1, "rotation": 0 },
+      { "kind": "palisade", "x": 18.45, "z": 22.5, "size": 1, "rotation": 0 },
+      { "kind": "palisade", "x": 22.35, "z": 22.5, "size": 1, "rotation": 0 },
       { "kind": "pine", "x": -20.93, "z": -14.72, "size": 1.24, "rotation": 1.75 },
-      { "kind": "bush", "x": 1.49, "z": 19.54, "size": 1.08, "rotation": 3.02 },
-      { "kind": "bush", "x": -7.54, "z": 4.95, "size": 1.03, "rotation": 0.68 },
-      { "kind": "bush", "x": -19.25, "z": 9.14, "size": 1.15, "rotation": 2.86 },
-      { "kind": "bush", "x": -5, "z": 19.9, "size": 1.08, "rotation": 2.19 },
-      { "kind": "pine", "x": -0.71, "z": 21.68, "size": 1.14, "rotation": 2.42 },
-      { "kind": "rock", "x": 4.65, "z": 10.42, "size": 0.97, "rotation": 0.54 },
-      { "kind": "pine", "x": 6.88, "z": 21.72, "size": 1.26, "rotation": 1.76 },
-      { "kind": "bush", "x": -7.06, "z": 2.04, "size": 0.81, "rotation": 0.74 },
-      { "kind": "pine", "x": -11.83, "z": 10.15, "size": 0.95, "rotation": 1.83 },
-      { "kind": "mound", "x": -6.39, "z": -21.72, "size": 0.97, "rotation": 1.67 },
-      { "kind": "rock", "x": -21.95, "z": 8.43, "size": 0.75, "rotation": 1.2 },
-      { "kind": "bush", "x": -12.51, "z": -1.13, "size": 0.99, "rotation": 0.93 },
-      { "kind": "bush", "x": 2.55, "z": 10.23, "size": 0.98, "rotation": 1.77 },
-      { "kind": "pine", "x": -9.52, "z": -22.46, "size": 0.84, "rotation": 5.06 },
-      { "kind": "mound", "x": -14.75, "z": -16.06, "size": 1.11, "rotation": 2.35 },
-      { "kind": "mound", "x": -16.08, "z": -11.07, "size": 1.29, "rotation": 0.69 },
-      { "kind": "rock", "x": -10.05, "z": 1.16, "size": 0.75, "rotation": 0.66 },
-      { "kind": "bush", "x": 19.06, "z": 5, "size": 0.84, "rotation": 6.15 },
-      { "kind": "bush", "x": -11.73, "z": -11.28, "size": 1.16, "rotation": 1.84 },
-      { "kind": "mound", "x": -5.49, "z": 18.13, "size": 1.05, "rotation": 5.5 },
-      { "kind": "bush", "x": 3.87, "z": 17.31, "size": 1.32, "rotation": 4.72 },
-      { "kind": "pine", "x": -6.9, "z": 21.92, "size": 0.76, "rotation": 4.85 },
-      { "kind": "bush", "x": 8.47, "z": 0.39, "size": 0.97, "rotation": 2.75 },
-      { "kind": "bush", "x": 21.35, "z": 22.42, "size": 0.97, "rotation": 5.67 },
-      { "kind": "pine", "x": 6.58, "z": 12.8, "size": 0.92, "rotation": 4.68 },
-      { "kind": "bush", "x": -19.6, "z": 13.33, "size": 1.35, "rotation": 4.36 },
       { "kind": "rock", "x": 17.66, "z": -11.12, "size": 1.09, "rotation": 0.8 }
+    ],
+    "terraces": [
+      {
+        "points": [
+          { "x": -9, "z": -6 },
+          { "x": 9, "z": -6 },
+          { "x": 9, "z": 8 },
+          { "x": -9, "z": 8 }
+        ],
+        "height": 1.5,
+        "stairs": [
+          {
+            "from": { "x": -7, "z": -9 },
+            "to": { "x": -7, "z": -4.4 },
+            "width": 2.4
+          },
+          {
+            "from": { "x": 7, "z": -9 },
+            "to": { "x": 7, "z": -4.4 },
+            "width": 2.4
+          },
+          {
+            "from": { "x": 12, "z": 4 },
+            "to": { "x": 7.4, "z": 4 },
+            "width": 2.4
+          },
+          {
+            "from": { "x": -6, "z": 11 },
+            "to": { "x": -6, "z": 6.4 },
+            "width": 2.4
+          },
+          {
+            "from": { "x": -12, "z": -1 },
+            "to": { "x": -7.4, "z": -1 },
+            "width": 2.4
+          },
+          {
+            "from": { "x": 4, "z": 11 },
+            "to": { "x": 4, "z": 6.4 },
+            "width": 2.4
+          }
+        ]
+      },
+      {
+        "points": [
+          { "x": -5, "z": -14 },
+          { "x": 5, "z": -14 },
+          { "x": 5, "z": -4.5 },
+          { "x": -5, "z": -4.5 }
+        ],
+        "height": 3,
+        "stairs": [
+          {
+            "from": { "x": 0, "z": -2 },
+            "to": { "x": 0, "z": -7 },
+            "width": 2.2
+          }
+        ]
+      }
+    ],
+    "streams": [
+      {
+        "points": [
+          { "x": 13, "z": -32 },
+          { "x": 13.5, "z": -22 },
+          { "x": 13.2, "z": -15.2 },
+          { "x": 15.5, "z": -7 },
+          { "x": 17, "z": -1 },
+          { "x": 15.6, "z": 2.5 },
+          { "x": 14.5, "z": 5.67 },
+          { "x": 13.6, "z": 11 },
+          { "x": 11.5, "z": 17 },
+          { "x": 10.5, "z": 24 },
+          { "x": 10, "z": 32 }
+        ],
+        "width": 2
+      }
     ]
   },
   "midgard": {
