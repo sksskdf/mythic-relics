@@ -22,7 +22,7 @@ import { type Modifiers, NO_MODIFIERS } from '../skills/Skill'
 export interface BuildInputs {
   /** 열린 신화와 개방 단계 (1~4) */
   open: ReadonlyMap<God, number>
-  /** 고른 신화 (지금은 발현한 신 하나, 없으면 빈 목록) */
+  /** 신위 칸 (E237): 첫째가 주신(고른 신화), 그 뒤는 빌린 신. 없으면 빈 목록 */
   chosen: readonly God[]
   /** 칸에 낀 유물 (빈 칸과 일반 장비는 null) */
   gear: readonly (RelicId | null)[]
@@ -64,8 +64,10 @@ export function statAt(stat: MythAlways['stat'], stage: number): number {
 
 /** 빌드 상태: 능력치와 걸린 힘 */
 export interface BuildState {
-  /** 지금 고른 신화 (궁극기·패시브·공격 모션을 정한다) */
+  /** 지금 고른 신화 = 주신 (궁극기·패시브·공격 모션을 정한다) */
   chosen: God | null
+  /** 신위 칸의 빌린 신들 (E237): 대표 패시브 하나와 그 신 유물의 깨어남 */
+  borrowed: readonly God[]
   /** 고른 신화의 개방 단계 (없으면 0) */
   level: number
   /** 기본 공격과 스킬에 공통으로 곱하는 피해 배율 */
@@ -141,9 +143,11 @@ export function computeBuild(inputs: BuildInputs): BuildState {
   }
   // 유물의 지속 효과는 그 신화를 골랐을 때만 깨어난다 (E21-04). 시련으로 신화를 막아도 고른 신화는 그대로 본다
   const picked = inputs.chosen[0] ?? null
-  const modifiers = gearModifiers(inputs.gear.map((id) => (id && relicAwake(id, picked) ? id : null)))
+  const borrowed = rules.noMyth ? [] : inputs.chosen.slice(1)
+  const modifiers = gearModifiers(inputs.gear.map((id) => (id && relicAwake(id, picked, inputs.chosen.slice(1)) ? id : null)))
   return {
     chosen,
+    borrowed,
     level: chosen ? (inputs.open.get(chosen) ?? 0) : 0,
     damageScale,
     modifiers,

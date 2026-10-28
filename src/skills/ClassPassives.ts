@@ -81,6 +81,8 @@ export function orbMesh(shape: OrbitShape, color: number): THREE.Mesh {
  * - 불꽃 길: 걸은 만큼
  */
 export class ClassPassives {
+  /** 이 묶음이 돌리는 패시브와 단계 (빌린 힘, E237). 없으면 고른 신화(주신)의 것 */
+  bound: { passive: ClassPassive; level: number } | null = null
   private skyTimer = 0
   private pulseTimer = 0
   private bloomTimer = 0
@@ -149,10 +151,14 @@ export class ClassPassives {
     }
   }
 
+  /** 돌릴 패시브와 단계: 빌린 힘이면 그것, 아니면 주신의 것 */
+  private use(ctx: SkillContext): { passive: ClassPassive | null; level: number } {
+    return this.bound ?? { passive: ctx.manifested ? godDef(ctx.manifested).passive : null, level: ctx.level }
+  }
+
   update(dt: number, ctx: SkillContext): void {
     this.updateScatter(dt)
-    const passive = ctx.manifested ? godDef(ctx.manifested).passive : null
-    const level = ctx.level
+    const { passive, level } = this.use(ctx)
     const on = (p: { minLevel: number } | undefined): p is NonNullable<typeof p> => !!p && level >= p.minLevel
     const hero = ctx.hero.object.position
 
@@ -294,8 +300,7 @@ export class ClassPassives {
 
   /** 기본 공격이 맞았다: 연사(다른 적에게도 날아감), 저주 걸기 */
   onBasicHit(targets: readonly CombatTarget[], ctx: SkillContext): void {
-    const passive = ctx.manifested ? godDef(ctx.manifested).passive : null
-    const level = ctx.level
+    const { passive, level } = this.use(ctx)
     const volley = passive?.volley
     if (volley && level >= volley.minLevel && targets.length > 0) {
       const hero = ctx.hero.object.position
@@ -326,8 +331,9 @@ export class ClassPassives {
 
   /** 적이 쓰러졌다: 저주가 옆 적에게 옮는다 (spreadMinLevel부터) */
   onKill(target: CombatTarget, ctx: SkillContext): void {
-    const curse = ctx.manifested ? godDef(ctx.manifested).passive.curse : undefined
-    if (!curse || ctx.level < curse.spreadMinLevel || !this.cursed.has(target)) return
+    const { passive, level } = this.use(ctx)
+    const curse = passive?.curse
+    if (!curse || level < curse.spreadMinLevel || !this.cursed.has(target)) return
     this.cursed.delete(target)
     const next = nearestEnemy(
       ctx.enemies.filter((e) => e !== target && !this.cursed.has(e)),
@@ -461,7 +467,10 @@ export class ClassPassives {
       s.mesh.removeFromParent()
       ;(s.mesh.material as THREE.Material).dispose()
     }
+    for (const s of this.scatter.splice(0)) s.root.removeFromParent()
     this.pulseRing.removeFromParent()
+    this.pulseRing.geometry.dispose()
+    this.pulseMaterial.dispose()
     for (const m of this.materials.values()) m.dispose()
   }
 }

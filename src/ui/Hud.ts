@@ -36,6 +36,8 @@ export interface HudState {
   portrait: { name: string; title: string; color: string; level: number } | null
   /** 원천 수치 (장비의 합 + 원천 숙련)와 각성 단계 0~3 (E14-02). 모두 0이면 감춘다 */
   sources: Readonly<Record<string, { value: number; level: number }>>
+  /** 신위 칸의 빌린 신들 (E237): 초상 옆에 밝게 */
+  lent: readonly { name: string; color: string }[]
   /** 잠든 유물의 신들 (가호, E21-04에서 유물의 힘은 잠든다) */
   blessings: readonly { name: string; color: string }[]
   /** 경험치가 가득 차 승급 전설에 들어갈 수 있다 */
@@ -274,9 +276,10 @@ export class Hud {
 
   /** 왼쪽 위 지금의 나: 바뀌었을 때만 다시 그린다. */
   private updateStatus(state: HudState): void {
-    const { portrait, blessings, promote } = state
-    this.statusTip = portrait ? `${portrait.title}\n${portrait.name} ${portrait.level}단계${promote ? ' · 다음 단계 준비됨' : ''}` : ''
-    const key = `${portrait?.name}|${portrait?.level}|${blessings.map((b) => b.name).join()}|${promote}`
+    const { portrait, lent, blessings, promote } = state
+    const borrowed = lent.length ? `\n빌린 힘: ${lent.map((b) => b.name).join('·')}` : ''
+    this.statusTip = portrait ? `${portrait.title}\n${portrait.name} ${portrait.level}단계${borrowed}${promote ? ' · 다음 단계 준비됨' : ''}` : ''
+    const key = `${portrait?.name}|${portrait?.level}|${lent.map((b) => b.name).join()}|${blessings.map((b) => b.name).join()}|${promote}`
     if (key === this.statusKey) return
     this.statusKey = key
     this.portrait.classList.toggle('is-empty', !portrait)
@@ -285,6 +288,11 @@ export class Hud {
     this.gems.forEach((gem, i) => gem.classList.toggle('is-on', !!portrait && i < portrait.level))
     ;(this.gems[0]!.parentElement as HTMLElement).style.setProperty('--gem', portrait?.color ?? '')
     this.chips.replaceChildren()
+    for (const b of lent) {
+      const chip = this.el('span', 'ui-chip is-lent', this.chips)
+      chip.style.setProperty('--glow', b.color)
+      chip.append(this.img(classIcon(b.name)))
+    }
     for (const b of blessings) {
       const chip = this.el('span', 'ui-chip', this.chips)
       chip.style.setProperty('--glow', b.color)

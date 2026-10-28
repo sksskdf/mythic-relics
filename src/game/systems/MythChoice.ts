@@ -51,7 +51,8 @@ export class MythChoiceSystem {
       const region = ctx.map.region
       if (giant.spec.role !== 'boss' || !region.boss || ctx.legend.active || region.kind === 'rift') return
       const realm = ctx.chapters.chapters.flatMap((c) => c.steps).find((s) => s.kind === 'boss' && s.region === region.id)?.opens
-      if (realm) this.openRealm(realm)
+      // 장 진행이 이긴 보스를 적은 뒤에 연다: 신위 칸이 그 보스로 하나 늘어난 채 빈 칸을 채운다 (E237)
+      if (realm) queueMicrotask(() => this.openRealm(realm))
     })
   }
 
@@ -119,6 +120,8 @@ export class MythChoiceSystem {
     if (opened.length === 0) return opened
     for (const god of opened) bus.emit('mythOpened', { god, quiet: true })
     const names = opened.map((g) => godDef(g).name)
+    // 빈 빌린 칸에 저절로 들어간 신 (E237, RelicSystem이 mythOpened에서 넣는다)
+    const lent = opened.filter((g) => progress.chosen.includes(g))
     // 카드 (E23-01): 장 보스 장면이 끝난 뒤에 뜬다
     bus.emit('moment', {
       id: 'realmOpened',
@@ -127,7 +130,7 @@ export class MythChoiceSystem {
         title: `${REALM_NAMES[realm] ?? realm} 신화 ${opened.length}`,
         color: realmInk(realm).light,
         icon: this.iconOf(opened[0]!),
-        lines: [`${josa(names.join('·'), '이')} 열렸다`, '마을이나 성소에서 바꿔 쓸 수 있다', `수집 보너스: ${collectionText()}`],
+        lines: [`${josa(names.join('·'), '이')} 열렸다`, lent.length ? `빌린 칸에 넣음: ${lent.map((g) => godDef(g).name).join('·')}` : '마을이나 성소에서 신위 칸에 넣는다', `수집 보너스: ${collectionText()}`],
       },
     })
     bus.emit('progressChanged', {})

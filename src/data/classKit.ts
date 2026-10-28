@@ -101,10 +101,14 @@ function part(o: Obj, path: string, keys: readonly string[]): PartBase {
   return { name: str(o, 'name', path), minLevel: optNum(o, 'minLevel', path, { min: 1, max: 4 }) ?? 1 }
 }
 
+/** 패시브 부품 이름 (빌려줄 수 있는 것, E237) */
+export const PASSIVE_PARTS = ['basicLightning', 'chainLightning', 'bladeStorm', 'skyStrike', 'companions', 'orbit', 'pulse', 'volley', 'curse', 'trail', 'bloom', 'guard'] as const
+export type PassivePart = (typeof PASSIVE_PARTS)[number]
+
 /** gods.json의 passive */
 export function parsePassive(raw: unknown, p: string): ClassPassive {
   const o = obj(raw ?? {}, p)
-  onlyKeys(o, p, ['damageScale', 'attackSpeed', 'basicLightning', 'chainLightning', 'bladeStorm', 'skyStrike', 'companions', 'orbit', 'pulse', 'volley', 'curse', 'trail', 'bloom', 'guard'])
+  onlyKeys(o, p, ['damageScale', 'attackSpeed', ...PASSIVE_PARTS])
   const out: ClassPassive = {
     damageScale: optNum(o, 'damageScale', p, { min: 0 }) ?? 1,
     attackSpeed: optNum(o, 'attackSpeed', p, { min: 0.5, max: 2 }) ?? 1,

@@ -29,6 +29,7 @@ export const MOMENTS = {
   gearBetter: 2,
   mythOpened: 2,
   mythSwitched: 2,
+  mythLent: 2,
   realmOpened: 2,
   convenience: 2,
   threatUp: 2,

@@ -114,3 +114,22 @@ export function levelGains(god: God, level: number): LevelGain[] {
 export function allLevelGains(god: God): LevelGain[][] {
   return Array.from({ length: MAX_LEVEL }, (_, i) => levelGains(god, i + 1))
 }
+
+/** 빌린 힘 한 줄 (E237): 그 신이 빌린 칸에 들면 그 단계로 주는 대표 패시브 */
+export function lendText(god: God, level: number): string {
+  const def = godDef(god)
+  const passive = def.passive
+  const lv = Math.max(1, level)
+  switch (def.lend) {
+    case 'basicLightning':
+      return `기본 공격에 번개 (피해 ${passive.basicLightning!.damage})`
+    case 'chainLightning':
+      return `번개가 주변 적 ${passive.chainLightning!.jumps}명에게 옮겨 붙음`
+    case 'bladeStorm': {
+      const b = passive.bladeStorm!
+      return `칼날 폭풍: 때릴 때마다 주변 적에게 칼 ${b.base + b.perLevel * (lv - 1)}자루 (피해 ${b.damage})`
+    }
+    default:
+      return describe(def.lend, passive[def.lend] as never, lv)
+  }
+}

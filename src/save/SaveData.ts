@@ -38,10 +38,11 @@ import { GODS, godDef, type God, isRelicId, relicDef, type RelicId } from '../re
  *   물려받은 수치·원천 숙련·전투 경험은 버린다. 위협 단계·시련·균열을 해 본 옛 저장은 엔딩 뒤로 친다 (그 장치를 숨기지 않게)
  * - v10: 장 진행 (E22). 들어서 본 땅과 보스를 이긴 땅. 옛 저장은 있던 땅·찾은 성소를 들어서 본 땅으로,
  *   위협 단계에서 이겼거나 보스 재료·그 신화권 유물을 가진 신화권의 보스를 이긴 것으로 친다 (지나온 장에 다시 막히지 않게)
- * - v11: 수련 (E236). 모은 경험치와 찍은 마디. 옛 저장은 신화 경험치에서 모은 경험치를 짐작하고 마디는 비워 둔다 (깨달음은 그대로 쓸 수 있다).
+ * - v11: 수련 (E236). 모은 경험치와 익힌 마디. 옛 저장은 신화 경험치에서 모은 경험치를 짐작하고 마디는 비워 둔다 (깨달음은 그대로 쓸 수 있다).
  *   차례로 연 정보 화면 탭(E236-05). 옛 저장은 탭을 모두 연 것으로 친다
+ * - v12: 신위 칸 (E237). chosen은 첫째가 주신(고른 신화), 그 뒤가 빌린 신(넷까지). 옛 저장은 주신 하나뿐이라 그대로 읽는다
  */
-export const SAVE_VERSION = 11
+export const SAVE_VERSION = 12
 
 /** v8 이하의 신화 고유 재료 → 그 신 (E21-04에서 없앰. 그 신의 신화권 재료로 하나씩 바꿔 준다, 히든은 북유럽) */
 export const OLD_MYTH_MATERIALS: Readonly<Record<string, God>> = {
@@ -87,7 +88,7 @@ export interface SaveData {
   ground: { id: string; x: number; z: number }[]
   /** 신화별 개방 단계(0~4)와 신화 숙련 */
   classes: Partial<Record<God, { level: number; xp: number }>>
-  /** 고른 신화 (E12-04). 옛 저장은 1차 스프린트 발현 규칙으로 정한다 */
+  /** 신위 칸 (E237): 첫째가 주신(고른 신화, E12-04), 그 뒤가 빌린 신. 옛 저장은 1차 스프린트 발현 규칙으로 정한다 */
   chosen: God[]
   /** 불운 보정: 마지막 유물 뒤로 놓친 횟수 */
   dropMisses: number
@@ -138,7 +139,7 @@ export function parseSave(text: string | null): SaveData | null {
   }
   if (typeof raw !== 'object' || raw === null) return null
   const data = raw as Record<string, unknown>
-  if (data.version !== SAVE_VERSION && ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10].includes(data.version as number)) return null
+  if (data.version !== SAVE_VERSION && ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].includes(data.version as number)) return null
   const old = (data.version as number) < 5
 
   // 일반 장비 (v5)

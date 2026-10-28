@@ -1,6 +1,6 @@
 import { DATA } from '../../data'
 import { collectionText, starText } from '../../myth/alwaysText'
-import { allLevelGains, levelGains } from '../../myth/levelGains'
+import { allLevelGains, lendText, levelGains } from '../../myth/levelGains'
 import { type God, godDef } from '../../relics/data'
 import { classIcon } from '../classIcons'
 import { glyph, SOURCE_COLORS, sourceSigil, unknownSigil } from '../sigils'
@@ -32,7 +32,7 @@ export class MythTab {
       const ratio = progress.xpRatio(god)
       const ready = progress.readyToPromote(god)
       const step1 = el('div', `menu-promo__step${ready ? ' is-done' : ' is-now'}`)
-      step1.append(el('span', 'menu-promo__no', '1'), el('span', '', '이 신화를 고른 채 싸워 경험치를 채운다'))
+      step1.append(el('span', 'menu-promo__no', '1'), el('span', '', '이 신을 신위 칸에 모신 채 싸워 경험치를 채운다 (빌린 칸은 절반)'))
       const bar = el('div', 'ui-bar ui-bar--thin')
       bar.style.setProperty('--fill', def.color)
       bar.style.setProperty('--pct', ratio.toFixed(3))
@@ -66,6 +66,43 @@ export class MythTab {
   }
 
   /**
+   * 신위 칸 (E237): 주신·빌린 힘·빈 칸·잠긴 칸(열리는 때). 칸을 누르면 그 신의 카드
+   */
+  private slotRow(): HTMLElement {
+    const { progress, myths } = this.ctx.host
+    const { count, gods, locked } = myths.slots()
+    const row = el('section', 'menu-slots')
+    gods.forEach((god, i) => {
+      const def = godDef(god)
+      const b = el('button', `menu-slots__slot${i === 0 ? ' is-main' : ''}`)
+      b.type = 'button'
+      b.style.setProperty('--god', def.color)
+      b.append(img(classIcon(def.name), 'menu-slots__emblem'))
+      const words = el('span', 'menu-slots__words')
+      words.append(el('small', '', i === 0 ? '주신' : '빌린 힘'), el('b', '', def.name))
+      b.append(words)
+      this.ctx.hintOn(b, i === 0 ? `주신 ${def.name}\n무기·궁극기·모습과 패시브 전부` : `빌린 힘 ${def.name}\n${lendText(god, progress.level(god))}`)
+      b.addEventListener('click', () => {
+        this.selected = god
+        this.ctx.render()
+      })
+      row.append(b)
+    })
+    for (let i = gods.length; i < count; i++) {
+      const empty = el('div', 'menu-slots__slot is-empty')
+      empty.append(el('span', 'menu-slots__words', '빈 칸'))
+      this.ctx.hintOn(empty, '빈 칸\n깨운 신의 카드에서 「빌린 칸에 넣기」')
+      row.append(empty)
+    }
+    for (const when of locked) {
+      const slot = el('div', 'menu-slots__slot is-locked')
+      slot.append(el('span', 'menu-slots__words', when))
+      row.append(slot)
+    }
+    return row
+  }
+
+  /**
    * 한 신화 카드 (E12-06): 단계·칭호, 수집 보너스(열려 있으면 늘), 추가 효과(고르면), 다음 단계 조건, 고르기 단추.
    */
   private mythCard(god: God): HTMLElement {
@@ -74,6 +111,10 @@ export class MythTab {
     const level = progress.level(god)
     const star = myths.star(god)
     const chosen = loadout.manifested === god
+    // 신위 칸 (E237): 빌린 칸에 든 신인가, 빈 칸이 있는가
+    const slots = myths.slots()
+    const lent = !chosen && slots.gods.includes(god)
+    const room = slots.gods.length < slots.count
     const card = el('section', `menu-myth${level === 0 ? ' is-closed' : ''}`)
     card.style.setProperty('--god', def.color)
 
@@ -84,7 +125,8 @@ export class MythTab {
     if (level > 0) title.append(pips(level))
     name.append(title, el('small', '', level > 0 ? def.name : '아직 열리지 않은 신화'))
     head.append(name)
-    if (chosen) head.append(el('span', 'ui-tag ui-tag--solid menu-myth__chosen', '고른 신화'))
+    if (chosen) head.append(el('span', 'ui-tag ui-tag--solid menu-myth__chosen', '주신'))
+    else if (lent) head.append(el('span', 'ui-tag ui-tag--solid menu-myth__chosen', '빌린 힘'))
     card.append(head)
 
     // 수집 보너스 (E21-02): 열린 신화면 고르지 않아도 늘 붙는다. 별을 밝힌 신화는 그 신화의 수치도 (엔딩 뒤)
@@ -96,24 +138,39 @@ export class MythTab {
     always.append(alwaysList)
     card.append(always)
 
-    // 추가 효과: 고른 신화만
+    // 주신일 때: 무기·패시브 전부·궁극기
     const extra = el('div', `menu-myth__part${chosen ? '' : ' is-dim'}`)
-    extra.append(el('b', '', '추가 효과'), el('small', '', '고른 신화만'))
+    extra.append(el('b', '', '주신일 때'), el('small', '', '신위 칸 첫째'))
     const extraList = el('ul', '')
     for (const g of levelGains(god, 1)) if (g.kind === 'power' || g.kind === 'damage') extraList.append(el('li', chosen ? 'is-on' : '', g.text))
     extraList.append(el('li', chosen ? 'is-on' : '', `궁극기 「${def.ultimate.name}」`))
     extra.append(extraList)
     card.append(extra)
 
-    // 고르기: 열린 신화만, 마을·성소에서만
+    // 빌린 힘일 때 (E237): 대표 패시브 하나와 유물의 깨어남
+    const lendPart = el('div', `menu-myth__part${lent ? '' : ' is-dim'}`)
+    lendPart.append(el('b', '', '빌린 힘일 때'), el('small', '', '신위 칸 둘째부터'))
+    const lendList = el('ul', '')
+    lendList.append(el('li', lent ? 'is-on' : '', lendText(god, Math.max(1, level))), el('li', lent ? 'is-on' : '', '이 신의 유물이 깨어난다'))
+    lendPart.append(lendList)
+    card.append(lendPart)
+
+    // 신위 칸 바꾸기: 열린 신화만, 마을·성소에서만
     if (level > 0 && !chosen) {
       const can = myths.canChoose()
-      const button = el('button', 'menu-myth__choose', '이 신화 고르기')
-      button.type = 'button'
-      button.disabled = !can
-      if (can) button.addEventListener('click', () => myths.choose(god) && this.ctx.render())
-      else this.ctx.hintOn(button, '고른 신화는 마을이나 성소 곁에서만 바꿀 수 있다.')
-      card.append(button)
+      const buttons = el('div', 'menu-myth__buttons')
+      const button = (label: string, run: () => boolean, ok: boolean, why: string) => {
+        const b = el('button', 'menu-myth__choose', label)
+        b.type = 'button'
+        b.disabled = !can || !ok
+        if (can && ok) b.addEventListener('click', () => run() && this.ctx.render())
+        else this.ctx.hintOn(b, can ? why : '신위 칸은 마을이나 성소 곁에서만 바꿀 수 있다.')
+        buttons.append(b)
+      }
+      button('주신으로', () => myths.choose(god), true, '')
+      if (lent) button('빌린 칸에서 빼기', () => myths.lend(god, false), true, '')
+      else button('빌린 칸에 넣기', () => myths.lend(god, true), room, '빈 칸이 없다. 빌린 신 하나를 먼저 뺀다.')
+      card.append(buttons)
     }
 
     // 다음 단계: 못 연 신화는 여는 법, 연 신화는 경험치와 전설
@@ -192,6 +249,7 @@ export class MythTab {
       this.ctx.hintOn(now, '한 신의 유물을 손에 넣으면 그 신의 힘이 깨어난다.')
     }
     wrap.append(now)
+    if (current) wrap.append(this.slotRow())
 
     // 눌러 본 신화(없으면 고른 신화)의 카드: 상시·추가 효과, 다음 단계, 고르기 (E12-06)
     const focus = this.selected ?? current

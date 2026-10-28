@@ -1,4 +1,5 @@
 import { type God, godDef } from '../relics/data'
+import { BORROWED_XP, MAX_SLOTS } from './slots'
 
 export const MAX_LEVEL = 4
 /** 데모(첫 엔딩까지)의 단계 끝: 4단계는 엔딩 뒤 (E21-01, TIMELINE.md 3장) */
@@ -18,8 +19,8 @@ export interface ClassRecord {
   xp: number
 }
 
-/** 고를 수 있는 신화 수. 위협 단계·균열·시련 보상으로 2까지 늘린다 (E16·E17) */
-export const CHOSEN_SLOTS = 1
+/** 신위 칸에 모실 수 있는 신 수 (E237: 주신 하나 + 빌린 힘, 칸 수는 `myth/slots.ts`) */
+export const CHOSEN_SLOTS = MAX_SLOTS
 
 /** 숙련을 더한 결과 */
 export type MasteryResult = 'opened' | null
@@ -42,7 +43,7 @@ export const PER_OPENED = { damage: 0.04, maxHp: 5 }
  */
 export class ClassProgress {
   readonly records = new Map<God, ClassRecord>()
-  /** 고른 신화 (E12-04). 지금은 1개, 보상으로 2개까지 (CHOSEN_SLOTS) */
+  /** 신위 칸 (E237): 첫째가 주신(고른 신화, E12-04), 그 뒤는 빌린 신 */
   chosen: God[] = []
   /**
    * afterEnding: 엔딩 뒤인가. 그 뒤로는 4단계까지 오른다.
@@ -162,13 +163,16 @@ export class ClassProgress {
 
 /**
  * 몬스터 하나를 잡았을 때 신화 경험치가 누구에게 가는가 (E21-01: 숙련 나눠 주기를 없앰).
- * - 고른 신화가 있으면 고른 신화만 전부 받는다 (어느 신화권 몬스터든).
+ * - 고른 신화(주신)가 있으면 주신이 전부 받는다 (어느 신화권 몬스터든). 빌린 신은 절반씩 (E237)
  * - 아직 고른 신화가 없으면 그 몬스터 신화권의 신들이 받는다: 첫 신화를 여는 데 쓰인다.
  * - 히든 신화는 몬스터로 쌓이지 않는다 (유물로 연다).
  */
-export function masteryShares(amount: number, realm: string | undefined, chosen: God | null, gods: readonly { id: God; realm: string; hidden: boolean }[]): Map<God, number> {
+export function masteryShares(amount: number, realm: string | undefined, chosen: God | null, gods: readonly { id: God; realm: string; hidden: boolean }[], borrowed: readonly God[] = []): Map<God, number> {
   const out = new Map<God, number>()
-  if (chosen) out.set(chosen, amount)
+  if (chosen) {
+    out.set(chosen, amount)
+    for (const god of borrowed) if (god !== chosen) out.set(god, amount * BORROWED_XP)
+  }
   else if (realm) for (const g of gods) if (!g.hidden && g.realm === realm) out.set(g.id, amount)
   return out
 }

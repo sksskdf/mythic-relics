@@ -8,6 +8,7 @@ import type { LoadoutState } from '../myth/manifest'
 import { createEffect } from '../skills'
 import type { BasicHit, RelicEffect, SkillContext } from '../skills/Skill'
 import type { CombatTarget } from './PlayerCombat'
+import type { ClassPassive } from '../data/classKit'
 import { ClassPassives } from '../skills/ClassPassives'
 import { SourceAwakening } from '../skills/SourceAwakening'
 import { createUltimate, type Ultimate } from '../skills/Ultimate'
@@ -31,8 +32,10 @@ export class RelicPowers {
   readonly effects: (RelicEffect | null)[]
   /** 궁극기들 (신마다 하나, 처음 발현할 때 만든다): 발현한 신의 것만 새로 나가고, 이미 나간 것은 끝까지 돈다 */
   private readonly ultimates = new Map<God, Ultimate>()
-  /** 프레임마다 도는 발현 패시브 부품 (src/skills/ClassPassives.ts) */
+  /** 프레임마다 도는 발현 패시브 부품 (src/skills/ClassPassives.ts): 주신의 것 */
   readonly classPassives: ClassPassives
+  /** 빌린 힘 (E237): 빌린 신마다 따로 돌린다 (타이머·동료가 주신의 것과 섞이지 않게) */
+  private readonly lentPassives: ClassPassives[] = []
   /** 시련 「세 칸의 짐」(E16): 효과가 도는 칸. null이면 모두 */
   allowSlots: readonly number[] | null = null
   /** 대장간에서 올릴 수 있는 유물 단계 (데모 2, 엔딩 뒤 4. 게임이 정한다) */
@@ -40,7 +43,7 @@ export class RelicPowers {
 
   /** 유물의 힘(지속·행동 효과)은 그 신화를 골랐을 때만 깨어난다 (E21-04). 고르지 않은 신화의 유물은 기본 수치만 낸다 */
   awake(id: string | null): boolean {
-    return !!id && isRelicId(id) && relicAwake(id, this.loadout.chosen)
+    return !!id && isRelicId(id) && relicAwake(id, this.loadout.chosen, this.loadout.borrowed)
   }
 
   /** 지금 도는 유물 효과 (잠든 유물과 시련으로 막힌 칸은 뺀다) */
@@ -89,6 +92,26 @@ export class RelicPowers {
     // 고른 신화의 유물은 효과가 한 단계 위로 돈다 (E21-04)
     this.refreshStages()
     return this.refresh()
+  }
+
+  /** 신위 칸의 빌린 신을 바꾼다 (E237): 그 신들의 유물이 깨어난다 */
+  lend(gods: readonly God[]): void {
+    this.loadout.borrowed = [...gods]
+  }
+
+  /**
+   * 빌린 힘을 돌린다 (E237): 빌린 신마다 그 신의 대표 패시브를 그 신 단계로.
+   * 신이 바뀌면 그 자리의 동료·도는 것은 부품이 다시 만든다
+   */
+  setLent(list: readonly { passive: ClassPassive; level: number }[]): void {
+    while (this.lentPassives.length > list.length) this.lentPassives.pop()!.dispose()
+    while (this.lentPassives.length < list.length) this.lentPassives.push(new ClassPassives(this.fx))
+    list.forEach((l, i) => (this.lentPassives[i]!.bound = l))
+  }
+
+  /** 도는 패시브 부품 모두: 주신의 것 다음에 빌린 힘 */
+  get allPassives(): readonly ClassPassives[] {
+    return [this.classPassives, ...this.lentPassives]
   }
 
   /** 빈 칸이 있는가 */
@@ -170,7 +193,7 @@ export class RelicPowers {
   update(dt: number, ctx: SkillContext): void {
     for (const effect of this.live) effect?.update(dt, ctx)
     for (const u of this.ultimates.values()) u.update(dt, ctx)
-    this.classPassives.update(dt, ctx)
+    for (const p of this.allPassives) p.update(dt, ctx)
     this.awakening.update(dt, ctx)
   }
 

@@ -357,9 +357,21 @@ try {
   if ((await page.evaluate(() => window.__game.powers.loadout.stage('mjolnir'))) !== 2) throw new Error('대장간: 벼렸는데 묠니르가 2단계가 아닙니다.')
   await page.click('.menu__tab:nth-child(4)')
   if (!(await page.locator('.menu-classes__now').textContent()).includes('천둥의 신')) throw new Error('정보 화면: 신화 탭에 지금 신화가 없습니다.')
-  // 신화 카드 (E12-06, E21-02): 수집 보너스·추가 효과와 고른 신화 표시
+  // 신화 카드 (E12-06, E21-02, E237): 수집 보너스·주신일 때·빌린 힘일 때와 주신 표시
   const myth = await page.locator('.menu-myth').textContent()
-  if (!myth.includes('수집 보너스') || !myth.includes('추가 효과') || !myth.includes('고른 신화')) throw new Error(`정보 화면: 신화 카드가 모자랍니다 (${myth.slice(0, 60)})`)
+  if (!myth.includes('수집 보너스') || !myth.includes('주신일 때') || !myth.includes('빌린 힘일 때') || !myth.includes('주신')) throw new Error(`정보 화면: 신화 카드가 모자랍니다 (${myth.slice(0, 60)})`)
+  // 신위 칸 (E237): 둘째 신이 깨어나면 빌린 칸이 생기고, 그 신의 카드에서 「빌린 칸에 넣기」를 누르면 빌린 힘이 돈다
+  await page.evaluate(() => {
+    const g = window.__game
+    g.progress.open('loki')
+    g.menu.myths.selected = 'loki'
+    g.menu.refresh()
+  })
+  await page.locator('.menu-myth__choose', { hasText: '빌린 칸에 넣기' }).click()
+  const lent = await page.evaluate(() => ({ borrowed: [...window.__game.ctx.build.borrowed], slots: [...document.querySelectorAll('.menu-slots__slot')].map((e) => e.textContent), awake: window.__game.powers.awake('lokiMask') }))
+  if (lent.borrowed.join() !== 'loki' || !lent.slots[1]?.includes('로키')) throw new Error(`신위 칸: 로키를 빌린 칸에 넣지 못했습니다 ${JSON.stringify(lent)}`)
+  console.log(`신위 칸 확인: 칸 ${lent.slots.length}개(${lent.slots.join(' / ')}), 빌린 힘 로키`)
+  await page.evaluate(() => window.__game.lendMyth('loki', false))
   // 수련 탭 (E236): 깨달음을 얻으면 메뉴 단추에 표시, 뿌리 마디를 누르면 찍히고 피해가 오른다
   const trainBefore = await page.evaluate(() => {
     const g = window.__game

@@ -12,6 +12,8 @@ export interface RestoreHost {
   equip(id: RelicId): void
   /** 연출 없이 신화를 고른다. */
   choose(god: God): void
+  /** 연출 없이 빌린 칸에 넣는다 (E237) */
+  lend(god: God): void
   /** 성장 기록에 맞춰 기본 능력치를 다시 계산한다. */
   applyStats(): void
   /** 외형 보관함을 되돌린 뒤 다시 입는다. */
@@ -94,6 +96,7 @@ export class Persistence {
     }
     // 고른 신화를 먼저 정해 두어야, 유물을 끼울 때 처음 연 신화를 저절로 고르지 않는다
     if (data.chosen.length) host.choose(data.chosen[0]!)
+    for (const god of data.chosen.slice(1)) host.lend(god)
     host.applyStats()
     combat.health.reset()
     // 장비 (E13-06): 일반 장비 내용과 유물 단계를 먼저 적어 두고, 칸의 것은 그 부위 칸에 다시 낀다

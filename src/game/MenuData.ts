@@ -83,6 +83,8 @@ export class MenuData {
       myths: {
         canChoose: () => game.canChooseMyth,
         choose: (god) => game.chooseMyth(god),
+        slots: () => game.mythSlots(),
+        lend: (god, on) => game.lendMyth(god, on),
         star: (god) => (game.rift.lit.has(god) ? alwaysStage(game.progress.level(god), powers.loadout.relics.some((id) => id !== null && relicDef(id).god === god), true) : 0),
       },
       cardContext: (id, preview) => this.cardContext(id, preview),

@@ -148,6 +148,19 @@ export class DevTools {
     powers.loadout.slots.forEach((id, slot) => id && relics.unequip(slot, false))
   }
 
+  /**
+   * 신위 칸 (E237): 신을 열고 칸에 넣는다 (곳을 가리지 않는다). 주신이 없으면 첫 신이 주신, 나머지는 빈 빌린 칸에.
+   * 칸 수는 장 진행 그대로라, 넣지 못한 신은 열리기만 한다
+   */
+  lend(...gods: string[]): void {
+    const { powers, progress, relics } = this.parts
+    for (const god of gods) {
+      progress.open(god)
+      if (!powers.manifested) relics.choose(god, false)
+      else relics.lend(god)
+    }
+  }
+
   /** 지금 신화의 경험치를 채우고 바로 다음 개방 단계로 올린다. 데모 끝 단계(3)도 넘긴다 */
   promote(): void {
     const { powers, progress, growth } = this.parts

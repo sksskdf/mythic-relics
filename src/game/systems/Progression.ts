@@ -146,7 +146,7 @@ export class ProgressionSystem {
     const { build, progress, training, bus } = this.ctx
     // 경험치 얻는 양 (오딘, 수련 「배움」)
     amount *= 1 + build.state.stats.masteryGain
-    for (const [god, share] of masteryShares(amount, realm, build.chosen, Object.values(GODS))) {
+    for (const [god, share] of masteryShares(amount, realm, build.chosen, Object.values(GODS), build.borrowed)) {
       if (progress.addXp(god, share) === 'opened') bus.emit('mythOpened', { god })
     }
     const count = training.gain(amount)

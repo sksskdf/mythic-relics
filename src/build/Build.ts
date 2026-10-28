@@ -10,7 +10,9 @@ import type { TrialProgress } from '../progress/Trials'
 import type { TrainingProgress } from '../progress/Training'
 import { isMythRelic, relicStats } from '../gear/mythRelic'
 import { isGearUid } from '../gear/roll'
-import { isRelicId } from '../relics/data'
+import type { ClassPassive } from '../data/classKit'
+import { lentPassive } from '../myth/slots'
+import { type God, godDef, isRelicId } from '../relics/data'
 import { type BuildInputs, type BuildState, computeBuild } from './BuildState'
 
 /**
@@ -35,7 +37,8 @@ export class Build {
     const relicItems = relics.flatMap((id) => (id && isMythRelic(id) ? [{ stats: relicStats(id, loadout.stage(id)), source: { id: 'flame' as const, value: 0 } }] : []))
     return {
       open,
-      chosen: powers.manifested ? [powers.manifested] : [],
+      // 신위 칸 (E237): 주신 다음에 빌린 신
+      chosen: powers.manifested ? [powers.manifested, ...powers.loadout.borrowed] : [],
       gear: relics,
       gearItems: [...gearItems, ...relicItems],
       ...this.blessed(),
@@ -63,6 +66,20 @@ export class Build {
   get chosen(): string | null {
     if (this.from.trial?.() === 'noMyth') return null
     return this.from.powers.manifested
+  }
+
+  /** 신위 칸의 빌린 신들 (E237, 시련 「신화 없이」에서는 없음) */
+  get borrowed(): readonly God[] {
+    if (this.from.trial?.() === 'noMyth' || !this.from.powers.manifested) return []
+    return this.from.powers.loadout.borrowed
+  }
+
+  /** 도는 패시브: 주신의 패시브 전부(주신 단계), 빌린 신마다 대표 패시브 하나(그 신 단계) */
+  passives(): { god: God; passive: ClassPassive; level: number; main: boolean }[] {
+    const { progress } = this.from
+    const main = this.chosen
+    if (!main) return []
+    return [{ god: main, passive: godDef(main).passive, level: progress.level(main), main: true }, ...this.borrowed.map((god) => ({ god, passive: lentPassive(god), level: progress.level(god), main: false }))]
   }
 
   /** 고른 신화의 개방 단계 (없으면 0) */

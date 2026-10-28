@@ -92,13 +92,15 @@ describe('신화 고르기 (E22-03)', () => {
     expect(shown).toHaveLength(0)
   })
 
-  it('거인 왕을 이기면 북유럽 나머지가 모두 열리고, 그리스는 올림포스에서 경험치 없이 하나를 연다', () => {
+  it('거인 왕을 이기면 북유럽 나머지가 모두 열리고, 그리스는 올림포스에서 경험치 없이 하나를 연다', async () => {
     const { progress, chapters, system, listeners, ctx, events } = setup()
     chapters.enter('midgard')
     progress.open('thor')
     ctx.map.region = REGIONS.utgard!
     chapters.bossDefeated('utgard')
     for (const fn of listeners.get('giantKilled') ?? []) fn({ giant: { spec: { role: 'boss' } } })
+    // 장 진행이 이긴 보스를 적은 뒤(한 박자 늦게) 연다 (E237: 신위 칸이 그 보스로 늘어난 채)
+    await Promise.resolve()
     expect(progress.opened.sort()).toEqual(['freyr', 'loki', 'odin', 'thor'])
     expect(events.filter((e) => e.name === 'mythOpened').every((e) => (e.payload as { quiet?: boolean }).quiet)).toBe(true)
     // 대장간에서 벼리기 전에는 그리스가 아직이다
