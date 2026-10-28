@@ -100,6 +100,20 @@ export const RULES = [
     note: '대사는 짧게, 이름 뒤 조사는 josa.ts로.',
   },
   {
+    id: 'moments',
+    files: /^src\/data\/moments\.ts$|^src\/game\/systems\/Moments\.ts$|^src\/game\/Storyline\.ts$/,
+    run: [`${B}node scripts/checklist-qa.mjs e23 (장면·카드 화면을 직접 본다)`],
+    docs: ['TIMELINE.md 6장'],
+    note: '사건 → 등급은 src/data/moments.ts. 작은 일은 싸움을 가리지 않고, 큰 걸음은 큰 카드나 장면으로.',
+  },
+  {
+    id: 'music',
+    files: /^src\/audio\//,
+    run: [],
+    docs: ['ART.md 8장'],
+    note: '이 환경에서는 소리를 들을 수 없다. 곡·효과음은 사용자에게 들어 봐 달라고 한다 (개발 패널의 곡 고르기·소리).',
+  },
+  {
     id: 'bot',
     files: /^src\/dev\/autoplay\.ts$|^scripts\/playtest\.mjs$/,
     run: [`${B}node scripts/playtest.mjs 2 40 (첫 신화·2단계 시간, CI는 35분 안)`],

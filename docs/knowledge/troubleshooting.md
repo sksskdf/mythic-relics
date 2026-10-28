@@ -52,3 +52,5 @@
 | 생성 스크립트(`gen-finale.mjs`·`gen-regions.mjs`)가 `vite.config.ts`를 불러오다 지역 검사에 걸림 (E22) | vite 설정이 불러올 때 regions.json을 검사하는데, 고치는 중인 파일이라 아직 틀림 | `createServer({ configFile: false })`로 설정 없이 띄우고, 문 없는(검사를 통과하는) 파일을 먼저 쓴 뒤 모듈을 불러와 문을 단다 |
 | 스크래치 폴더에 둔 `.mjs`가 `vite`·`playwright-core`를 못 찾음 | 노드 모듈은 스크립트가 있는 폴더 위로만 찾는다 | 저장소 `scripts/` 안에 잠깐 두고(`.` 이름) 돌린 뒤 지운다 |
 | CI 스모크의 엔딩 확인이 `page.goto: Timeout 90000ms` (E22) | 앞 페이지(게임이 도는 중)를 열어 둔 채 새 페이지를 열어, 소프트웨어 렌더링 CPU를 둘이 나눠 씀. 로컬은 통과하고 CI만 넘김 | 새 페이지를 열기 전에 앞 페이지를 닫고, `load` 대신 `domcontentloaded` 뒤 게임이 도는 것(`playing`)을 120초까지 기다린다 |
+| 스모크를 돌린 뒤 포트 4173에 `vite preview`가 남아, 하네스가 다음 검사를 막음 (E23) | 스모크가 `npx`만 끄고 그 아래 vite는 남았다 | 미리보기 서버를 묶음으로 띄우고(`detached`) 묶음째 끈다(`process.kill(-pid)`). 남은 서버는 `pkill -f "[v]ite preview --port 4173"`로 지운다. 대괄호 없이 쓰면 그 명령을 돌리는 셸 자신이 걸려 함께 꺼진다(종료 코드 144) |
+| 점검 스크립트에서 장면 뒤 카드·엔딩이 오지 않음 (E23) | `Game.advance`(감기)가 `update`만 돌려 순간 줄이 흐르지 않았다 | `advance`에서도 `moments.update`를 부른다. 이 환경은 초당 몇 프레임이고 프레임 시간이 0.1초에서 잘려 순간의 기다림(실제 2.6초)이 열 배쯤 길다: 점검은 `moments.holding`이 풀리기를 기다린다 |
