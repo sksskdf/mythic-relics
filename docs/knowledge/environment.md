@@ -16,6 +16,13 @@ Claude가 일하는 곳은 클라우드 컨테이너(Claude Code on the web)다.
 | GitHub 프로젝트(Projects) 보기·고치기 | 도구 없음 | 사용자가 만들어 둔 프로젝트가 있다. 자동 추가·Item closed → Done 작업 흐름으로 이슈와 이어지게 사용자에게 안내 |
 | PR 만들기·병합·CI 보기 | 됨 | `create_pull_request`, `merge_pull_request`, `pull_request_read`(get_check_runs). 기다릴 때는 `subscribe_pr_activity` |
 
+## 웹 배포 (GitHub Pages)
+
+- 저장소는 공개(2026-10-28)이고 이름은 `sksskdf/mythic-relics`다(예전 이름 `game`은 GitHub가 넘겨 준다).
+- main에 올라오면 `.github/workflows/pages.yml`이 `npm run build`의 `dist`를 Pages에 올린다: https://sksskdf.github.io/mythic-relics/
+- 처음 한 번은 저장소 Settings › Pages › Build and deployment › Source를 **GitHub Actions**로 둬야 한다(사용자만 할 수 있음). 안 되어 있으면 워크플로의 `configure-pages`에서 실패한다.
+- vite의 `base`가 `./`라 하위 주소에서도 그대로 돈다. 휴대폰 확인은 Playwright의 `isMobile`·`hasTouch`(390×844)로 하위 주소를 열어 본다.
+
 ## 아티팩트
 
 - 로드맵 페이지: https://claude.ai/artifact/VLnz4HHR5F7VMGG496TmqK. 다른 세션에서 올릴 때는 `url`을 넘긴다. 처음엔 `action: read`로 읽어야 올릴 수 있다.

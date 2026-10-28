@@ -26,11 +26,11 @@ export const branch = () => {
   }
 }
 
-/** 작업 트리 코드의 지문 (문서를 뺀 트리 해시). 같은 내용이면 같은 값. node_modules 링크(worktree)는 뺀다 */
+/** 작업 트리 코드의 지문 (문서를 뺀 트리 해시). 같은 내용이면 같은 값 (worktree의 node_modules 링크는 .gitignore가 뺀다) */
 export function workTree(cwd = ROOT) {
   const index = join(gitDir(cwd), 'harness-index')
   const env = { GIT_INDEX_FILE: index }
-  git(['add', '-A', '--', '.', ...[...NOT_CODE, 'node_modules'].map((p) => `:(exclude)${p}`)], env, cwd)
+  git(['add', '-A', '--', '.', ...NOT_CODE.map((p) => `:(exclude)${p}`)], env, cwd)
   return git(['write-tree'], env, cwd)
 }
 

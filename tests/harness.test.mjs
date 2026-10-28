@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { checkState } from '../scripts/harness/repo.mjs'
 import { lint, rulesFor } from '../scripts/harness/rules.mjs'
 import { checksBeforeCommit, hasCommit, leadingDir, pushProblem, scriptRuns, skipsCheck } from '../scripts/harness/shell.mjs'
 
@@ -70,5 +71,13 @@ describe('하네스: 고친 파일 규칙', () => {
     const model = ['claude', 'opus', '5'].join('-')
     expect(lint('docs/x.md', `만든 것: ${model}`)[0]).toMatch(/모델 이름/)
     expect(lint('.claude/agents/x.md', model)).toHaveLength(0)
+  })
+})
+
+describe('하네스: 검사 도장', () => {
+  it('이 저장소에서 코드 지문을 읽는다 (읽지 못하면 커밋 훅이 막는다)', () => {
+    const s = checkState()
+    expect(s.tree).toMatch(/^[0-9a-f]{40}$/)
+    expect(typeof s.sameAsHead).toBe('boolean')
   })
 })

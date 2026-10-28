@@ -32,7 +32,13 @@ async function main() {
   if (push) deny(push)
 
   if (hasCommit(command) && !skipsCheck(command) && !checksBeforeCommit(command)) {
-    const s = checkState(dir)
+    // 도장을 읽지 못하면 막는다 (훅이 틀려 조용히 통과시키지 않게)
+    let s
+    try {
+      s = checkState(dir)
+    } catch (e) {
+      deny(`검사 도장을 읽지 못했다 (${String(e instanceof Error ? e.message : e).split('\n')[0]}). scripts/harness를 고치거나, 사용자가 허락하면 HARNESS_SKIP_CHECK=1을 붙인다.`)
+    }
     if (!s.sameAsHead && !s.checked) {
       deny(
         '마지막 `npm run check` 통과 뒤 코드가 바뀌었다 (또는 이 컨테이너에서 아직 검사하지 않았다). ' +
