@@ -725,8 +725,28 @@ try {
   await phoneFrames(2)
   const p2 = await phoneState()
   if (p2.stick || p2.moving) throw new Error(`휴대폰: 손을 떼도 멈추지 않습니다 ${JSON.stringify(p2)}`)
-  await finger('pointerdown', 1, 300, 560)
-  await finger('pointerup', 1, 300, 560)
+  // 땅 톡: 조이스틱으로 걸은 거리가 프레임 빠르기마다 달라 정한 화면 자리는 나무·막힌 땅일 수 있다.
+  // 주인공에게서 4m 떨어진 걸을 수 있고 곧장 보이는 땅을 골라 그 화면 자리를 누른다 (근처 적을 누른 것이 되지 않게 적은 치운다)
+  await phone.evaluate(() => window.__game.encounter.clearAll())
+  await phoneFrames(10)
+  const ground = await phone.evaluate(() => {
+    const g = window.__game
+    const p = g.hero.object.position
+    const nav = g.hero.nav
+    for (let i = 0; i < 16; i++) {
+      const a = (i / 16) * Math.PI * 2
+      const to = { x: p.x + Math.sin(a) * 4, z: p.z + Math.cos(a) * 4 }
+      if (nav.isBlocked(to) || !nav.hasLineOfSight({ x: p.x, z: p.z }, to)) continue
+      const point = p.clone().set(to.x, p.y, to.z).project(g.view.camera)
+      const size = g.renderSize
+      const height = document.getElementById('app').clientHeight
+      return { x: ((point.x + 1) / 2) * size.width * size.scale, y: height - ((point.y + 1) / 2) * size.height * size.scale }
+    }
+    return null
+  })
+  if (!ground) throw new Error('휴대폰: 주인공 둘레에 걸어갈 땅이 없습니다')
+  await finger('pointerdown', 1, ground.x, ground.y)
+  await finger('pointerup', 1, ground.x, ground.y)
   await phoneFrames(2)
   const p3 = await phoneState()
   if (p3.order !== 'move' || !p3.moving) throw new Error(`휴대폰: 땅을 톡 눌러도 걷지 않습니다 ${JSON.stringify(p3)}`)
