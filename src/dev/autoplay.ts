@@ -309,7 +309,9 @@ export class Autoplayer {
     const goal = this.chapters ? this.game.chapters.goal : null
     const bossGoal = goal?.kind === 'boss' && goal.region === this.game.region.id
     const bossOk = (bossGoal || worn >= 2) && hp > 0.6
-    if (bossGoal && !legend.active && boss?.alive && hp > 0.6 && near.every((g) => g === boss)) {
+    // 보스가 20m 안이면 둘레에 남은 적이 하나쯤 있어도 보스를 친다 (무리가 계속 다시 나타나는 땅에서 붙들리지 않게)
+    const strays = near.filter((g) => g !== boss).length
+    if (bossGoal && !legend.active && boss?.alive && hp > 0.6 && (strays === 0 || (strays <= 1 && dist(here, boss) < 20))) {
       this.step = 16
       this.engage(here, boss)
       return

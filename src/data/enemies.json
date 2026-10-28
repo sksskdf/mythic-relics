@@ -1357,7 +1357,7 @@
     "boss": "skyKing",
     "xp": 0,
     "tint": "#d8c2ff",
-    "hp": 1200,
+    "hp": 1000,
     "aggroRange": 18,
     "leashRange": 40
   }
