@@ -2,7 +2,7 @@
 // - 검사(`npm run check`)를 통과하지 않은 코드의 커밋 (문서만 바뀐 커밋, 같은 && 줄에서 검사 뒤 커밋, HARNESS_SKIP_CHECK=1은 둔다).
 //   명령이 `cd 폴더 &&`로 시작하면 그 폴더(worktree)를 본다
 // - main으로 바로 푸시, 강제 푸시
-// - 빌드보다 새로 고친 src가 있는데 dist를 쓰는 점검 스크립트를 돌림 (`npm run build &&`를 앞에 붙이면 됨)
+// - 빌드보다 새로 고친 src가 있는데 dist를 쓰는 점검 스크립트를 돌림 (`npm run build &&`를 앞에 붙이면 됨, `cd 폴더 &&`면 그 폴더의 빌드)
 // - 같은 포트를 쓰는 점검 스크립트가 이미 돌고 있음
 // - `playwright install` (이 환경에 깔린 브라우저를 못 찾게 된다)
 // 훅이 스스로 틀리면 막지 않는다.
@@ -51,7 +51,7 @@ async function main() {
   for (const run of scriptRuns(command)) {
     if (!usesBuild(run.script)) continue
     if (!run.built) {
-      const stale = staleBuild()
+      const stale = staleBuild(dir)
       if (stale) deny(`빌드(dist)가 ${stale.file}보다 오래됐다. 점검이 옛 코드를 잰다. \`npm run build && \`를 앞에 붙여 돌린다.`)
     }
     for (const port of scriptPorts(run.script)) {
