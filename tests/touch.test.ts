@@ -24,20 +24,23 @@ describe('휴대폰 손가락 몸짓 (E235)', () => {
     expect(g.takeTap()).toBeNull()
   })
 
-  it('끌면 누른 자리에 조이스틱이 생기고, 원 밖으로 나가면 원이 손가락을 따라온다', () => {
+  it('끌면 누른 자리에 조이스틱이 생기고, 원은 그 자리에 있고 손잡이만 원 안에서 움직인다', () => {
     const g = new TouchGestures()
     g.down(1, 100, 300, 0)
     g.move(1, 100 + DRAG_START - 2, 300)
     expect(g.stick).toBeNull()
     g.move(1, 130, 300)
     expect(g.stick).toEqual({ x: 100, y: 300, dx: 30, dy: 0 })
-    g.move(1, 300, 300)
+    // 원 밖으로 멀리 끌어도 원은 움직이지 않고, 손잡이는 가장자리에 머문다
+    g.move(1, 300, 340)
     const stick = g.stick!
+    expect(stick.x).toBe(100)
+    expect(stick.y).toBe(300)
     expect(Math.hypot(stick.dx, stick.dy)).toBeCloseTo(STICK_RADIUS)
-    expect(stick.x).toBeCloseTo(300 - STICK_RADIUS)
-    // 반대로 돌아서면 바로 반대 방향
-    g.move(1, stick.x - 20, 300)
-    expect(g.stick!.dx).toBeLessThan(0)
+    expect(stick.dy / stick.dx).toBeCloseTo(40 / 200)
+    // 원 반대쪽으로 넘어가면 반대 방향
+    g.move(1, 80, 300)
+    expect(g.stick).toEqual({ x: 100, y: 300, dx: -20, dy: 0 })
     // 떼면 조이스틱이 사라지고 톡도 아니다
     g.up(1, 2)
     expect(g.stick).toBeNull()

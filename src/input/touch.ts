@@ -1,7 +1,8 @@
 /**
  * 손가락 몸짓 알아보기 (E235, 휴대폰). 좌표는 화면의 CSS 픽셀이다.
  * - 톡: 짧게 누르고 거의 움직이지 않고 뗀다 → 컴퓨터의 클릭과 같다 (적이면 공격, 땅이면 그곳까지)
- * - 끌기: 누른 자리에 떠다니는 조이스틱이 생기고, 손잡이 쪽으로 걷는다. 손가락이 원 밖으로 나가면 원이 따라온다
+ * - 끌기: 누른 자리에 떠다니는 조이스틱이 생기고, 손잡이 쪽으로 걷는다. 원은 뗄 때까지 그 자리에 있고, 손잡이만 원 안에서 움직인다
+ *   (원이 손가락을 따라오면 패드가 움직여 보인다는 사용자 의견, 2026-10-28)
  * - 두 손가락: 벌리고 오므려 확대·축소. 두 손가락을 댄 뒤로는 손을 다 뗄 때까지 걷거나 톡이 되지 않는다
  */
 
@@ -67,16 +68,6 @@ export class TouchGestures {
       this.origin.x = finger.startX
       this.origin.y = finger.startY
     }
-    if (id === this.stickId) {
-      // 원 밖으로 나가면 원이 손가락을 따라온다 (반대로 돌아설 때 멀리 되돌아오지 않게)
-      const dx = x - this.origin.x
-      const dy = y - this.origin.y
-      const dist = Math.hypot(dx, dy)
-      if (dist > STICK_RADIUS) {
-        this.origin.x = x - (dx / dist) * STICK_RADIUS
-        this.origin.y = y - (dy / dist) * STICK_RADIUS
-      }
-    }
   }
 
   up(id: number, t: number): void {
@@ -93,11 +84,14 @@ export class TouchGestures {
     if (this.fingers.delete(id)) this.release(id)
   }
 
-  /** 지금 조이스틱 (없으면 null) */
+  /** 지금 조이스틱 (없으면 null). 손가락이 원 밖에 있어도 손잡이는 원 가장자리에 둔다 */
   get stick(): Stick | null {
     const finger = this.stickId === null ? null : this.fingers.get(this.stickId)
     if (!finger) return null
-    return { x: this.origin.x, y: this.origin.y, dx: finger.x - this.origin.x, dy: finger.y - this.origin.y }
+    const dx = finger.x - this.origin.x
+    const dy = finger.y - this.origin.y
+    const k = Math.min(1, STICK_RADIUS / (Math.hypot(dx, dy) || 1))
+    return { x: this.origin.x, y: this.origin.y, dx: dx * k, dy: dy * k }
   }
 
   /** 두 손가락 거리가 처음의 몇 배인가 (확대·축소 중이 아니면 null) */
