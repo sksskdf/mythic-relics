@@ -203,6 +203,11 @@ export class DevPanel {
         button('레벨 초기화', () => g.dev.resetMyths()),
         button('이 신화권 경험치', () => g.dev.gainMastery()),
         button('깨달음 하나', () => g.dev.insight()),
+        // 신위 칸 (E237): 북유럽 넷을 열고 빈 빌린 칸을 채운다 (칸 수는 장 진행 그대로)
+        button('빌린 칸 채우기', () => {
+          g.dev.lend('thor', 'loki', 'odin', 'freyr')
+          g.menu.refresh()
+        }),
         // 정보 화면 탭 차례 (E236-05): 처음으로 되돌리면 지금 상태에 맞는 탭이 카드와 함께 다시 열린다
         button('탭 처음으로', () => {
           g.tabs.load([])

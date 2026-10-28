@@ -146,7 +146,7 @@ export class ProgressionSystem {
     const { build, progress, training, bus } = this.ctx
     // 경험치 얻는 양 (오딘, 수련 「배움」)
     amount *= 1 + build.state.stats.masteryGain
-    for (const [god, share] of masteryShares(amount, realm, build.chosen, Object.values(GODS))) {
+    for (const [god, share] of masteryShares(amount, realm, build.chosen, Object.values(GODS), build.borrowed)) {
       if (progress.addXp(god, share) === 'opened') bus.emit('mythOpened', { god })
     }
     const count = training.gain(amount)
@@ -157,10 +157,10 @@ export class ProgressionSystem {
   /** 신화가 처음 열렸다 (경험치 문턱 또는 유물): 칭호 카드 (고르지 않아도 수집 보너스가 붙는다) */
   private announceOpened(god: God): void {
     const { bus, progress } = this.ctx
-    // 처음 연 신화를 바로 골랐으면 고른 신화 장면이 대신 알린다
+    // 처음 연 신화를 바로 골랐거나 빌린 칸에 넣었으면 그쪽(고른 신화 장면·빌린 힘 카드)이 대신 알린다 (RelicSystem이 먼저 듣는다)
     if (progress.chosen.includes(god)) return
     const def = godDef(god)
-    const lines = [`${def.name}의 힘이 깨어났다`, `수집 보너스: ${collectionText()}`]
+    const lines = [`${def.name}의 힘이 깨어났다`, '마을이나 성소에서 신위 칸에 넣는다', `수집 보너스: ${collectionText()}`]
     bus.emit('moment', { id: 'mythOpened', card: { kind: '신화 개방', title: def.titles[0], color: def.color, icon: classIcon(def.name), lines } })
   }
 

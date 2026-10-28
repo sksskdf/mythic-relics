@@ -7,13 +7,15 @@ import { GRADE_COLORS } from '../../art/palette'
 import { statText } from '../../myth/alwaysText'
 import { materialName } from '../../gear/materials'
 import { type GearItem, gearName, gearScore } from '../../gear/roll'
-import { levelGains } from '../../myth/levelGains'
+import { lendText, levelGains } from '../../myth/levelGains'
 import { sceneId } from '../../data/scenes'
 import { classIcon } from '../../ui/classIcons'
+import { josa } from '../../ui/josa'
 import { delta, gearIcon } from '../../ui/gearCard'
 import type { GameContext } from '../context'
 import type { LoadoutChange } from '../RelicPowers'
 import { godMoment } from './godMoments'
+import { SLOT_BOSSES, slotCount, withLent, withMain, withoutLent } from '../../myth/slots'
 
 /** 클래스가 발현되는 순간 주변 적을 밀어내는 범위와 피해 */
 const MANIFEST_RADIUS = 4
@@ -36,14 +38,22 @@ export class RelicSystem {
   constructor(private readonly ctx: GameContext) {
     ctx.bus.on('targetKilled', ({ target }) => {
       ctx.powers.onKill(target, ctx.skills)
-      ctx.powers.classPassives.onKill(target, ctx.skills)
+      for (const passives of ctx.powers.allPassives) passives.onKill(target, ctx.skills)
     })
     ctx.bus.on('heroRevived', () => {
       this.decoy = null
     })
-    // 처음 열린 신화: 고른 신화가 없으면 바로 고른다 (E12-04)
-    ctx.bus.on('mythOpened', ({ god }) => {
+    // 처음 열린 신화: 고른 신화가 없으면 바로 고른다 (E12-04). 있으면 빈 빌린 칸에 바로 넣는다 (E237)
+    ctx.bus.on('mythOpened', ({ god, quiet }) => {
       if (!ctx.progress.chosen.length) this.choose(god, true)
+      // 한꺼번에 열린 것(장 보스)은 신화권 카드가 함께 알린다
+      else if (this.lend(god) && !quiet) {
+        const def = godDef(god)
+        ctx.bus.emit('moment', {
+          id: 'mythLent',
+          card: { kind: '빌린 힘', title: def.name, color: def.color, icon: classIcon(def.name), lines: [lendText(god, ctx.progress.level(god)), `${josa(relicDef(def.relic).name, '이')} 깨어난다`] },
+        })
+      }
     })
   }
 
@@ -54,10 +64,42 @@ export class RelicSystem {
   choose(god: God, announce: boolean): boolean {
     const { progress, powers, bus } = this.ctx
     if (!progress.isOpen(god)) return false
-    progress.chosen = [god]
+    // 신위 칸 (E237): 고른 신이 주신, 앞의 주신은 빌린 칸으로 물러난다
+    progress.chosen = withMain(progress.chosen, god, Math.max(1, this.slots))
     const change = powers.choose(god)
+    powers.lend(progress.chosen.slice(1))
     bus.emit('progressChanged', {})
     this.changed(change, announce)
+    return true
+  }
+
+  /** 신위 칸 수 (E237): 깨어난 신 수와 이긴 장 보스(거인 왕·키마이라)로 정한다 */
+  get slots(): number {
+    const { progress, chapters } = this.ctx
+    return slotCount(progress.opened.length, SLOT_BOSSES.filter((r) => chapters.bosses.has(r)).length)
+  }
+
+  /** 빌린 칸에 넣는다 (E237). 열린 신이고 빈 칸이 있어야 한다. 마을·성소에서만 하는 규칙은 부르는 쪽이 지킨다 */
+  lend(god: God): boolean {
+    const { progress, powers, bus } = this.ctx
+    if (!progress.isOpen(god)) return false
+    const next = withLent(progress.chosen, god, this.slots)
+    if (next.length === progress.chosen.length) return false
+    progress.chosen = next
+    powers.lend(next.slice(1))
+    bus.emit('mythLent', { god })
+    bus.emit('progressChanged', {})
+    return true
+  }
+
+  /** 빌린 칸에서 뺀다 (E237) */
+  unlend(god: God): boolean {
+    const { progress, powers, bus } = this.ctx
+    const next = withoutLent(progress.chosen, god)
+    if (next.length === progress.chosen.length) return false
+    progress.chosen = next
+    powers.lend(next.slice(1))
+    bus.emit('progressChanged', {})
     return true
   }
 
@@ -175,6 +217,8 @@ export class RelicSystem {
     skills.enemies = encounter.alive
     skills.manifested = this.ctx.build.chosen
     skills.level = this.ctx.build.level
+    // 빌린 힘 (E237): 빌린 신마다 대표 패시브를 그 신 단계로 돌린다
+    powers.setLent(this.ctx.build.passives().filter((p) => !p.main))
     this.updateGlow()
 
     // 걸은 거리 (이동 연동 효과). 순간이동처럼 한 번에 크게 옮긴 것은 빼고, 밀려난 것은 걸음으로 치지 않는다.
@@ -317,7 +361,7 @@ export class RelicSystem {
       for (const g of levelGains(god.id, lv)) if (lv === 1 || g.kind === 'power') lines.push(g.text)
     }
     lines.push(`궁극기 「${god.ultimate.name}」`)
-    const card = { kind: '고른 신화', title: progress.title(god.id), color: god.color, icon: classIcon(god.name), lines }
+    const card = { kind: '주신', title: progress.title(god.id), color: god.color, icon: classIcon(god.name), lines }
     bus.emit('moment', first ? { id: 'mythChosen', scene: sceneId('myth', god.id), card } : { id: 'mythSwitched', card })
     // 주변 적을 밀어낸다 (피해는 대기 시간마다 한 번, 멈춘 화면에서 번갈아 골라도 한 번)
     const p = hero.object.position

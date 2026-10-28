@@ -27,8 +27,10 @@ export class Loadout {
   readonly stages = new Map<RelicId, number>()
   /** 재료 개수 (재료가 된 유물, E13-04의 재료) */
   readonly materials = new Map<string, number>()
-  /** 고른 신화 (E12-04: 열린 신화 가운데 하나, 유물 수와 상관없다) */
+  /** 고른 신화 (E12-04: 열린 신화 가운데 하나, 유물 수와 상관없다). 신위 칸의 주신 (E237) */
   chosen: God | null = null
+  /** 신위 칸의 빌린 신들 (E237): 그 신의 유물이 깨어난다 */
+  borrowed: God[] = []
 
   get state(): LoadoutState {
     return resolveLoadout(this.relics, this.chosen)

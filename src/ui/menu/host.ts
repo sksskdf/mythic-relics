@@ -144,6 +144,10 @@ export interface MenuHost {
     /** 지금 고른 신화를 바꿀 수 있는 곳인가 (마을·성소) */
     canChoose(): boolean
     choose(god: God): boolean
+    /** 신위 칸 (E237): 칸 수, 칸의 신(첫째가 주신), 아직 잠긴 칸마다 열리는 때 */
+    slots(): { count: number; gods: readonly God[]; locked: readonly string[] }
+    /** 빌린 칸에 넣거나 뺀다 (마을·성소에서만) */
+    lend(god: God, on: boolean): boolean
     /** 성좌판에서 별을 밝힌 신화의 수치 단계 (밝히지 않았으면 0, 엔딩 뒤) */
     star(god: God): number
   }

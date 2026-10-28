@@ -15,6 +15,7 @@ import { Pickups } from '../gear/Pickups'
 import { DEMO_RELIC_STAGES, isMythRelic, RELIC_STAGES } from '../gear/mythRelic'
 import type { SaveData } from '../save/SaveData'
 import { ClassProgress } from '../myth/ClassProgress'
+import { MAX_SLOTS, SLOT_BOSSES } from '../myth/slots'
 import type { SkillContext } from '../skills/Skill'
 import { DamageNumbers } from '../ui/DamageNumbers'
 import { Hud } from '../ui/Hud'
@@ -69,6 +70,8 @@ import { TabUnlocks } from '../progress/Tabs'
 import { TabSystem } from './systems/Tabs'
 import { Barriers } from '../world/Barriers'
 import { MythPicker } from '../ui/MythPicker'
+import { josa } from '../ui/josa'
+import { ENEMIES } from '../enemies/Giant'
 import { ChapterHud } from '../ui/ChapterHud'
 import { Conveniences } from '../progress/Conveniences'
 import { Ending } from '../progress/Ending'
@@ -579,6 +582,7 @@ export class Game {
       this.persistence.restore(options.load, {
         equip: (id) => this.relics.equip(id, false),
         choose: (god) => this.relics.choose(god, false),
+        lend: (god) => this.relics.lend(god),
         applyStats: () => this.growth.applyStats(),
         applyLooks: () => this.appearance.apply(),
       })
@@ -1000,6 +1004,24 @@ export class Game {
     return this.canChooseMyth && this.relics.choose(god, true)
   }
 
+  /** 신위 칸 (E237): 칸 수, 칸의 신, 잠긴 칸마다 열리는 때 (정보 화면) */
+  mythSlots(): { count: number; gods: readonly string[]; locked: readonly string[] } {
+    const count = this.relics.slots
+    const locked: string[] = []
+    if (this.progress.opened.length < 2) locked.push('두 번째 신이 깨어나면')
+    for (const region of SLOT_BOSSES) {
+      if (this.chapters.bosses.has(region)) continue
+      const boss = REGIONS[region]?.boss
+      locked.push(`${josa(ENEMIES[boss?.enemy ?? 'king']?.name ?? '장 보스', '을')} 이기면`)
+    }
+    return { count, gods: this.progress.chosen.slice(0, Math.max(1, count)), locked: locked.slice(0, Math.max(0, MAX_SLOTS - Math.max(1, count))) }
+  }
+
+  /** 정보 화면에서 신위 칸의 빌린 칸에 넣거나 뺀다 (E237). 마을·성소에서만 */
+  lendMyth(god: string, on: boolean): boolean {
+    return this.canChooseMyth && (on ? this.relics.lend(god) : this.relics.unlend(god))
+  }
+
   /** 기본 공격의 대상별 배율 (정예·보스에게 피해) */
   private readonly targetScale = (target: CombatTarget): number => this.damage.targetScale(target)
 
@@ -1143,7 +1165,9 @@ export class Game {
         portrait: manifested
           ? { name: godDef(manifested).name, title: this.progress.title(manifested), color: godDef(manifested).color, level: this.progress.level(manifested) }
           : null,
-        blessings: this.powers.state.blessings.map((g) => ({ name: godDef(g).name, color: godDef(g).color })),
+        // 빌린 신(E237)은 밝은 칩, 그 밖에 낀 유물의 신은 잠든 가호
+        lent: this.ctx.build.borrowed.map((g) => ({ name: godDef(g).name, color: godDef(g).color })),
+        blessings: this.powers.state.blessings.filter((g) => !this.ctx.build.borrowed.includes(g)).map((g) => ({ name: godDef(g).name, color: godDef(g).color })),
         promote: manifested !== null && this.progress.readyToPromote(manifested),
         sources: Object.fromEntries(this.sourceRows().map((r) => [r.id, { value: r.total, level: r.level }])),
       },

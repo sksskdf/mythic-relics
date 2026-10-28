@@ -39,6 +39,7 @@
         "style": "lightning"
       }
     },
+    "lend": "basicLightning",
     "always": {
       "stat": {
         "kind": "bossDamage",
@@ -107,6 +108,7 @@
         "burstDamage": 7
       }
     },
+    "lend": "companions",
     "always": {
       "stat": {
         "kind": "attackSpeed",
@@ -165,6 +167,7 @@
         "perLevel": 1
       }
     },
+    "lend": "bladeStorm",
     "always": {
       "stat": {
         "kind": "damage",
@@ -236,6 +239,7 @@
         "burstDamage": 8
       }
     },
+    "lend": "companions",
     "always": {
       "stat": {
         "kind": "masteryGain",
@@ -320,6 +324,7 @@
         ]
       }
     },
+    "lend": "bloom",
     "always": {
       "stat": {
         "kind": "maxHp",
@@ -396,6 +401,7 @@
         "style": "lightning"
       }
     },
+    "lend": "skyStrike",
     "always": {
       "stat": {
         "kind": "skyDamage",
@@ -470,6 +476,7 @@
         "knockback": 4
       }
     },
+    "lend": "pulse",
     "always": {
       "stat": {
         "kind": "areaSize",
@@ -533,6 +540,7 @@
         "spreadMinLevel": 3
       }
     },
+    "lend": "curse",
     "always": {
       "stat": {
         "kind": "healOnKill",
@@ -622,6 +630,7 @@
         "range": 6
       }
     },
+    "lend": "volley",
     "always": {
       "stat": {
         "kind": "basicDamage",
@@ -695,6 +704,7 @@
         "burstDamage": 9
       }
     },
+    "lend": "companions",
     "always": {
       "stat": {
         "kind": "companionDamage",
@@ -764,6 +774,7 @@
         "hitInterval": 0.5
       }
     },
+    "lend": "orbit",
     "always": {
       "stat": {
         "kind": "ultCharge",
@@ -839,6 +850,7 @@
         "style": "water"
       }
     },
+    "lend": "skyStrike",
     "always": {
       "stat": {
         "kind": "regen",
@@ -923,6 +935,7 @@
         "hitInterval": 0.6
       }
     },
+    "lend": "trail",
     "always": {
       "stat": {
         "kind": "dotDamage",
@@ -1009,6 +1022,7 @@
         ]
       }
     },
+    "lend": "skyStrike",
     "always": {
       "stat": {
         "kind": "healingTaken",
@@ -1079,6 +1093,7 @@
         "speed": 3.2
       }
     },
+    "lend": "orbit",
     "always": {
       "stat": {
         "kind": "orbitDamage",
@@ -1154,6 +1169,7 @@
         "knockback": 2
       }
     },
+    "lend": "pulse",
     "always": {
       "stat": {
         "kind": "pulseDamage",
@@ -1213,6 +1229,7 @@
         "color": "#4a7ad0"
       }
     },
+    "lend": "bladeStorm",
     "always": {
       "stat": {
         "kind": "damageTaken",
@@ -1294,6 +1311,7 @@
         "width": 0.8
       }
     },
+    "lend": "volley",
     "always": {
       "stat": {
         "kind": "moveSpeed",
@@ -1377,6 +1395,7 @@
         "cooldown": 30
       }
     },
+    "lend": "guard",
     "always": {
       "stat": {
         "kind": "lowHpGuard",
@@ -1450,6 +1469,7 @@
         "speed": 2.8
       }
     },
+    "lend": "orbit",
     "always": {
       "stat": {
         "kind": "dropChance",
@@ -1524,6 +1544,7 @@
         "style": "stone"
       }
     },
+    "lend": "skyStrike",
     "always": {
       "stat": {
         "kind": "maxHpPct",

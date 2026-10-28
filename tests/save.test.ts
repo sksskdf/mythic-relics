@@ -78,6 +78,10 @@ describe('저장 데이터', () => {
   it('고른 신화는 열린 신화만, 칸 수만큼만 남긴다', () => {
     expect(parseSave(JSON.stringify({ ...sample, chosen: ['zeus'] }))?.chosen).toEqual([])
     expect(parseSave(JSON.stringify({ ...sample, chosen: ['thor', 'thor', 'nobody'] }))?.chosen).toEqual(['thor'])
+    // 신위 칸 (E237, v12): 주신 다음에 빌린 신, 넷까지
+    const many = { thor: { level: 2, xp: 0 }, loki: { level: 1, xp: 0 }, odin: { level: 1, xp: 0 }, freyr: { level: 1, xp: 0 }, zeus: { level: 1, xp: 0 } }
+    expect(parseSave(JSON.stringify({ ...sample, classes: many, chosen: ['thor', 'loki', 'odin'] }))?.chosen).toEqual(['thor', 'loki', 'odin'])
+    expect(parseSave(JSON.stringify({ ...sample, classes: many, chosen: ['thor', 'loki', 'odin', 'freyr', 'zeus'] }))?.chosen).toHaveLength(4)
     // 개방 단계 0(숙련만 쌓인 신화)도 그대로 남는다
     expect(parseSave(JSON.stringify({ ...sample, classes: { ...sample.classes, zeus: { level: 0, xp: 120 } } }))?.classes.zeus).toEqual({ level: 0, xp: 120 })
   })

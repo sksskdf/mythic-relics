@@ -1,6 +1,5 @@
 import * as THREE from 'three'
 
-import { godDef } from '../../relics/data'
 import type { DamageStyle } from '../../ui/DamageNumbers'
 import { heightAt } from '../../world/terrain'
 import type { GameContext } from '../context'
@@ -65,7 +64,7 @@ export class DamageSystem {
 
   /** 기본 공격이 맞았다: 피해 숫자, 유물 연타 연동, 발현 패시브(번개) */
   onHeroHits(hits: HitReport[]): void {
-    const { combat, numbers, powers, progress, hero, fx, feel, view, bus, skills } = this.ctx
+    const { combat, numbers, powers, hero, fx, feel, view, bus, skills } = this.ctx
     for (const hit of hits) {
       const { x, z, radius } = hit.target
       // 거인 키는 몸 반지름의 약 3배
@@ -78,10 +77,11 @@ export class DamageSystem {
     }
     if (hits.length === 0) return
     bus.emit('basicHits', { targets: hits.map((h) => h.target) })
-    powers.classPassives.onBasicHit(
-      hits.map((h) => h.target),
-      skills,
-    )
+    for (const passives of powers.allPassives)
+      passives.onBasicHit(
+        hits.map((h) => h.target),
+        skills,
+      )
     powers.awakening.onBasicHit(
       hits.map((h) => h.target),
       skills,
@@ -96,43 +96,42 @@ export class DamageSystem {
       skills,
     )
     // 발현 패시브: 처음 맞은 적에게 번개가 함께 떨어지고(천둥의 신), 레벨이 차면 옮겨 붙는다(천둥군주).
+    // 주신의 패시브와 빌린 힘(E237)을 차례로 본다
     const first = hits[0]!.target
-    const manifested = this.ctx.build.chosen
-    const passive = manifested ? godDef(manifested).passive : null
-    if (manifested && passive?.basicLightning && first.alive) {
-      const finisher = hits[0]!.strong
-      const p = hero.object.position
-      const from = new THREE.Vector3(p.x, p.y + 1.6, p.z)
-      fx.lightning.strike(from, new THREE.Vector3(first.x, p.y + 0.8, first.z), 0.08, 0.12)
-      const dx = first.x - p.x
-      const dz = first.z - p.z
-      const len = Math.hypot(dx, dz) || 1
-      const bolt = passive.basicLightning
-      this.deal(first, finisher ? bolt.finisherDamage : bolt.damage, dx / len, dz / len, 0, 'thunder')
-      const chain = passive.chainLightning
-      const level = progress.level(manifested)
-      if (chain && level >= chain.minLevel) {
-        const jumps = level >= 4 && chain.topJumps ? chain.topJumps : chain.jumps
-        this.chainLightning(first, finisher ? chain.finisherDamage : chain.damage, jumps, chain.range)
-      }
-    }
-    // 발현 패시브: 칼날 폭풍 (아수라왕). 등의 팔들이 가까운 적들에게 차례로 칼을 휘두른다.
-    const storm = passive?.bladeStorm
-    if (manifested && storm) {
-      const level = progress.level(manifested)
-      const blades = Math.round(storm.base + storm.perLevel * (level - 1))
-      const p = hero.object.position
-      const near = this.ctx.encounter.alive.filter((e) => Math.hypot(e.x - p.x, e.z - p.z) < storm.radius)
-      for (let i = 0; i < blades && near.length > 0; i++) {
-        const enemy = near[i % near.length]!
-        const dx = enemy.x - p.x
-        const dz = enemy.z - p.z
+    for (const { passive, level } of this.ctx.build.passives()) {
+      if (passive.basicLightning && first.alive) {
+        const finisher = hits[0]!.strong
+        const p = hero.object.position
+        const from = new THREE.Vector3(p.x, p.y + 1.6, p.z)
+        fx.lightning.strike(from, new THREE.Vector3(first.x, p.y + 0.8, first.z), 0.08, 0.12)
+        const dx = first.x - p.x
+        const dz = first.z - p.z
         const len = Math.hypot(dx, dz) || 1
-        // 칼 색: 데이터의 color (없으면 검붉은 두 색을 번갈아)
-        const tint = storm.color ? new THREE.Color(storm.color).getHex() : 0xff4a5a
-        fx.slashes.spawn(new THREE.Vector3(enemy.x, heightAt(enemy.x, enemy.z), enemy.z), Math.random() * Math.PI * 2, 1 + Math.random() * 0.4, 0.8, false, i % 2 ? tint : new THREE.Color(tint).multiplyScalar(0.6).getHex())
-        bus.emit('sound', { cue: 'blade', x: enemy.x, z: enemy.z })
-        this.deal(enemy, storm.damage, dx / len, dz / len, 1.5, 'normal')
+        const bolt = passive.basicLightning
+        this.deal(first, finisher ? bolt.finisherDamage : bolt.damage, dx / len, dz / len, 0, 'thunder')
+        const chain = passive.chainLightning
+        if (chain && level >= chain.minLevel) {
+          const jumps = level >= 4 && chain.topJumps ? chain.topJumps : chain.jumps
+          this.chainLightning(first, finisher ? chain.finisherDamage : chain.damage, jumps, chain.range)
+        }
+      }
+      // 발현 패시브: 칼날 폭풍 (아수라왕). 등의 팔들이 가까운 적들에게 차례로 칼을 휘두른다.
+      const storm = passive.bladeStorm
+      if (storm) {
+        const blades = Math.round(storm.base + storm.perLevel * (level - 1))
+        const p = hero.object.position
+        const near = this.ctx.encounter.alive.filter((e) => Math.hypot(e.x - p.x, e.z - p.z) < storm.radius)
+        for (let i = 0; i < blades && near.length > 0; i++) {
+          const enemy = near[i % near.length]!
+          const dx = enemy.x - p.x
+          const dz = enemy.z - p.z
+          const len = Math.hypot(dx, dz) || 1
+          // 칼 색: 데이터의 color (없으면 검붉은 두 색을 번갈아)
+          const tint = storm.color ? new THREE.Color(storm.color).getHex() : 0xff4a5a
+          fx.slashes.spawn(new THREE.Vector3(enemy.x, heightAt(enemy.x, enemy.z), enemy.z), Math.random() * Math.PI * 2, 1 + Math.random() * 0.4, 0.8, false, i % 2 ? tint : new THREE.Color(tint).multiplyScalar(0.6).getHex())
+          bus.emit('sound', { cue: 'blade', x: enemy.x, z: enemy.z })
+          this.deal(enemy, storm.damage, dx / len, dz / len, 1.5, 'normal')
+        }
       }
     }
     const strong = hits.some((h) => h.strong)
