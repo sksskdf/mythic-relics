@@ -1,5 +1,10 @@
+import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
 import { describe, expect, it } from 'vitest'
 
+import { checkState, staleBuild } from '../scripts/harness/repo.mjs'
 import { lint, rulesFor } from '../scripts/harness/rules.mjs'
 import { checksBeforeCommit, hasCommit, leadingDir, pushProblem, scriptRuns, skipsCheck } from '../scripts/harness/shell.mjs'
 
@@ -49,6 +54,8 @@ describe('하네스: 고친 파일 규칙', () => {
     expect(rulesFor('src/data/enemies.json').map((r) => r.id)).toEqual(['enemies'])
     expect(rulesFor('src/data/chapters.json').map((r) => r.id)).toEqual(['growth'])
     expect(rulesFor('src/game/HeroOrders.ts').map((r) => r.id)).toEqual(['feel'])
+    expect(rulesFor('src/data/moments.ts').map((r) => r.id)).toEqual(['moments'])
+    expect(rulesFor('src/audio/music.ts').map((r) => r.id)).toEqual(['music'])
     expect(rulesFor('src/ui/fonts/Galmuri11.woff2')).toEqual([])
     expect(rulesFor('src/game/systems/Foo.ts', true).map((r) => r.id)).toContain('new-system')
   })
@@ -68,5 +75,30 @@ describe('하네스: 고친 파일 규칙', () => {
     const model = ['claude', 'opus', '5'].join('-')
     expect(lint('docs/x.md', `만든 것: ${model}`)[0]).toMatch(/모델 이름/)
     expect(lint('.claude/agents/x.md', model)).toHaveLength(0)
+  })
+})
+
+describe('하네스: 낡은 빌드', () => {
+  it('점검을 돌리는 폴더(worktree)의 dist와 src를 견준다', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'harness-'))
+    expect(staleBuild(dir)?.file).toBe('dist 없음')
+    mkdirSync(join(dir, 'dist'))
+    mkdirSync(join(dir, 'src'))
+    writeFileSync(join(dir, 'dist', 'index.html'), '')
+    writeFileSync(join(dir, 'src', 'a.ts'), '')
+    const old = new Date(Date.now() - 60_000)
+    utimesSync(join(dir, 'dist', 'index.html'), old, old)
+    expect(staleBuild(dir)?.file).toBe(join('src', 'a.ts'))
+    utimesSync(join(dir, 'dist', 'index.html'), new Date(), new Date())
+    expect(staleBuild(dir)).toBeNull()
+    rmSync(dir, { recursive: true, force: true })
+  })
+})
+
+describe('하네스: 검사 도장', () => {
+  it('이 저장소에서 코드 지문을 읽는다 (읽지 못하면 커밋 훅이 막는다)', () => {
+    const s = checkState()
+    expect(s.tree).toMatch(/^[0-9a-f]{40}$/)
+    expect(typeof s.sameAsHead).toBe('boolean')
   })
 })

@@ -663,6 +663,179 @@ const sections = {
     await page.close()
     return { walk, opened }
   },
+
+  /**
+   * E23-1 큰 걸음마다 「강해졌다」가 크게 보인다: 첫 신화 고르기(장면) → 고른 신화 큰 카드, 신화 단계·유물 벼리기(큰 카드),
+   * 장 보스 처치(느린 동작 → 장면) → 장 넘어가기 장면 → 신화 개방 카드, 엔딩 장면 → 큰 카드
+   */
+  async 'e23-1'(browser) {
+    const page = await fresh(browser, '?fresh&noscenes')
+    const moments = []
+    const record = async (name) => {
+      moments.push({ name, ...(await page.evaluate(() => ({ shown: window.__game.moments.shown.slice(-3).map((m) => `${m.id}:${m.tier}`), card: window.__game.hud.gainsShowing, scene: window.__game.scenes.current, speed: window.__game.gameSpeed, music: window.__game.audio.theme }))) })
+      return shot(page, name)
+    }
+    const state = () => page.evaluate(() => ({ active: window.__game.scenes.active, current: window.__game.scenes.current, busy: window.__game.moments.busy }))
+    /** 떠 있는 장면을 모두 넘기고 기다리는 순간이 없을 때까지 (한 번 누르면 완성, 다시 누르면 다음 줄) */
+    const settle = async () => {
+      for (let i = 0; i < 120; i++) {
+        const s = await state()
+        if (!s.active && !s.busy) break
+        if (s.active) await page.mouse.click(640, 600)
+        await page.waitForTimeout(200)
+      }
+      await page.waitForTimeout(700)
+    }
+    /** 다음 장면이 열릴 때까지 기다린다 */
+    const nextScene = async (except = null) => {
+      for (let i = 0; i < 40; i++) {
+        const s = await state()
+        if (s.active && s.current !== except) return s.current
+        await page.waitForTimeout(250)
+      }
+      return null
+    }
+    /** 지금 장면 하나만 넘긴다 */
+    const skipOne = async () => {
+      const id = (await state()).current
+      for (let i = 0; i < 30 && (await state()).current === id; i++) {
+        await page.mouse.click(640, 600)
+        await page.waitForTimeout(200)
+      }
+    }
+    // 미드가르드에 들어서면 제1장: 장 넘어가기 장면 → 장 제목 띠
+    await page.evaluate(() => {
+      const g = window.__game
+      g.storyScenes = true
+      g.world.travelTo('midgard')
+    })
+    await nextScene()
+    await record('e23-1-chapter-north')
+    await settle()
+    // 첫 신화 고르기: 성소 가운데에 서면 넷이 선다 (위아래 검은 띠, 성소의 곡)
+    await page.evaluate(() => {
+      const g = window.__game
+      for (const god of ['thor', 'loki', 'odin', 'freyr']) g.progress.addXp(god, 450)
+      const s = g.region.sanctuary
+      g.dev.teleport(s.x, s.z)
+    })
+    await page.waitForTimeout(800)
+    await record('e23-1-choose')
+    await page.click('.myth-pick__card[data-god="thor"]')
+    await page.waitForTimeout(500)
+    await record('e23-1-choose-scene')
+    await settle()
+    await record('e23-1-choose-card')
+    // 신화 단계 (큰 카드): 번쩍·하늘 기둥·북소리
+    await page.waitForTimeout(4500)
+    await page.evaluate(() => window.__game.dev.promote())
+    await page.waitForTimeout(500)
+    await record('e23-1-level')
+    await settle()
+    // 유물 벼리기 (큰 카드)
+    await page.waitForTimeout(4500)
+    await page.evaluate(() => {
+      const g = window.__game
+      g.enterRegion(g.regions.village)
+      g.advance(0.5, 1 / 30)
+      g.dev.fillForge('thor')
+      g.dev.forge('thor')
+    })
+    await page.waitForTimeout(500)
+    await record('e23-1-forge')
+    await settle()
+    // 장 보스 처치: 느린 동작 → 쓰러지며 한마디 → 장 넘어가기 장면 → 장 제목 띠·신화 개방 카드
+    await page.waitForTimeout(4500)
+    await page.evaluate(() => {
+      const g = window.__game
+      g.enterRegion(g.regions.utgard)
+      g.advance(1, 1 / 30)
+      const b = g.encounter.boss
+      g.dev.teleport(b.x, b.z + 4)
+      b.takeHit(b.health.hp + 1, 0, 1, 0)
+    })
+    await page.waitForTimeout(250)
+    await record('e23-1-boss-slow')
+    await nextScene()
+    await record('e23-1-boss-scene')
+    await skipOne()
+    await nextScene('downKing')
+    await record('e23-1-chapter-scene')
+    await settle()
+    await record('e23-1-chapter-after')
+    // 엔딩: 마지막 보스 → 느린 동작 → 엔딩 장면(엔딩 곡) → 큰 카드
+    await page.waitForTimeout(4500)
+    await page.evaluate(() => {
+      const g = window.__game
+      for (let i = 0; i < 12 && g.chapters.goal && !(g.chapters.goal.kind === 'enter' && g.chapters.goal.region === 'sky'); i++) g.skipGoal()
+    })
+    await settle()
+    await page.evaluate(() => {
+      const g = window.__game
+      g.enterRegion(g.regions.sky)
+      g.chapters.enter('sky')
+      g.advance(1, 1 / 30)
+    })
+    await settle()
+    await page.evaluate(() => {
+      const g = window.__game
+      // 땅을 건너뛰어 들어오면 보스가 아직 서지 않았을 수 있다
+      if (!g.encounter.boss) g.encounter.resetAll()
+      const b = g.encounter.boss
+      g.dev.teleport(b.x, b.z + 5)
+      b.takeHit(b.health.hp + 1, 0, 1, 0)
+    })
+    await page.waitForTimeout(250)
+    await record('e23-1-ending-slow')
+    await nextScene()
+    await page.waitForTimeout(1500)
+    await record('e23-1-ending-scene')
+    await settle()
+    await record('e23-1-ending-card')
+    const end = await page.evaluate(() => ({ ending: window.__game.ending.reached }))
+    await page.close()
+    return { moments, end }
+  },
+
+  /** E23-2 작은 일은 싸움을 가리지 않는다: 둘러싸여 싸우는 중에 작은 알림·카드가 뜬 화면, 카드·알림이 화면 가운데(싸움)를 덮는지 */
+  async 'e23-2'(browser) {
+    const page = await fresh(browser, '?fresh&noscenes')
+    // 신화를 고르고 미드가르드에 들어선 큰 순간(큰 카드·장 제목 띠)이 지나간 뒤에 싸운다
+    await page.evaluate(() => {
+      const g = window.__game
+      g.dev.choose('thor')
+      g.world.travelTo('midgard')
+    })
+    // 이 환경은 초당 몇 프레임이라 순간의 기다림(실제 초)이 길다: 기다리는 순간이 없을 때까지
+    await page.waitForFunction(() => !window.__game.moments.holding && window.__game.hud.gainsShowing === null, null, { timeout: 120000 })
+    await page.evaluate(() => {
+      const g = window.__game
+      g.combat.godMode = true
+      const p = g.hero.object.position
+      for (let i = 0; i < 6; i++) g.encounter.spawnById('grunt', { x: p.x + Math.sin(i) * 3, z: p.z + Math.cos(i) * 3 }, true)
+      g.advance(1, 1 / 30)
+      g.bus.emit('moment', { id: 'materialPicked', text: '서리 결정 · 재료' })
+      g.bus.emit('moment', { id: 'gearWorn', card: { kind: '장비', title: '서리 늑대 가죽 장화', color: '#5aa8ff', lines: ['이동 속도 +6%', '최대 생명 +12'] } })
+    })
+    await page.waitForFunction(() => window.__game.hud.gainsShowing === 'card', null, { timeout: 30000 })
+    const path = await shot(page, 'e23-2-fight')
+    const layout = await page.evaluate(() => {
+      const r = (sel) => {
+        const b = document.querySelector(sel)?.getBoundingClientRect()
+        return b ? { x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.width), h: Math.round(b.height) } : null
+      }
+      const g = window.__game
+      const p = g.hero.object.position
+      const hero = g.screenPoint(p.x, p.y + 1, p.z)
+      const card = r('.hud__gains')
+      // 싸움 자리: 주인공을 가운데 둔 화면 가운데 절반
+      const fight = { x: innerWidth / 4, y: innerHeight / 4, w: innerWidth / 2, h: innerHeight / 2 }
+      const overlap = card && !(card.x > fight.x + fight.w || card.x + card.w < fight.x || card.y > fight.y + fight.h || card.y + card.h < fight.y)
+      return { hero: { x: Math.round(hero.x), y: Math.round(hero.y) }, card, toast: r('.hud__toast'), cardSize: g.hud.gainsShowing, cardCoversFight: overlap }
+    })
+    await page.close()
+    return { shot: path, ...layout }
+  },
 }
 
 try {

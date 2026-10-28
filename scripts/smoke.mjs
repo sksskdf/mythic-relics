@@ -1,5 +1,5 @@
 // 빌드 결과를 실제 브라우저로 열어, 화면이 그려지고 오류가 없는지 확인한다.
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync } from 'node:fs'
 import { chromium } from 'playwright-core'
 
@@ -7,11 +7,13 @@ const PORT = 4173
 const URL = `http://localhost:${PORT}/`
 const BROWSER = process.env.CHROMIUM_PATH ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'
 
-// 따로 묶어 띄우고 묶음째 끈다: npx만 끄면 그 아래 vite가 남아 다음 검사의 포트를 막는다
-const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'pipe', detached: true })
+// 따로 묶어 띄우고 묶음째 끈다: npx만 끄면 그 아래 vite가 남아 다음 검사의 포트를 막는다 (윈도우는 taskkill /T)
+const windows = process.platform === 'win32'
+const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'pipe', detached: !windows, shell: windows, windowsHide: true })
 const stop = () => {
   try {
-    process.kill(-server.pid, 'SIGTERM')
+    if (windows) spawnSync('taskkill', ['/pid', String(server.pid), '/T', '/F'], { stdio: 'ignore' })
+    else process.kill(-server.pid, 'SIGTERM')
   } catch {}
 }
 
@@ -112,6 +114,43 @@ try {
   })
   await closeDialog()
   console.log('대화 확인: 신화 개방 장면(한 번만, 세계 멈춤), 마을 사람에게 말 걸기, 창이 열린 동안 온 장면은 닫은 뒤')
+
+  // 순간 네 등급 (E23-01): 작은 알림은 화면 아래 한 줄, 카드는 오른쪽 위에 작게, 큰 카드는 가운데,
+  // 장면은 느린 동작 뒤에 열리고 넘기면 그 뒤에 얻은 것 카드
+  const card = (title) => ({ kind: '점검', title, color: '#9fe3ff', lines: ['한 줄'] })
+  await page.evaluate(() => window.__game.bus.emit('moment', { id: 'gearPicked', text: '낡은 장화 · 가방' }))
+  if ((await page.locator('.hud__toast.is-showing').textContent()) !== '낡은 장화 · 가방') throw new Error('순간: 작은 알림이 화면 아래에 뜨지 않습니다.')
+  await page.evaluate((c) => window.__game.bus.emit('moment', { id: 'gearWorn', card: c }), card('작은 카드'))
+  await page.waitForFunction(() => window.__game.hud.gainsShowing === 'card', null, { timeout: 10000 }).catch(() => {
+    throw new Error('순간: 카드가 오른쪽 위에 작게 뜨지 않습니다.')
+  })
+  await page.evaluate((c) => window.__game.bus.emit('moment', { id: 'forged', card: c }), card('큰 카드'))
+  await page.waitForFunction(() => window.__game.hud.gainsShowing === 'big' && document.querySelector('.hud__gains-title').textContent === '큰 카드', null, { timeout: 15000 }).catch(() => {
+    throw new Error('순간: 큰 카드가 가운데에 뜨지 않습니다.')
+  })
+  // 앞의 큰 카드가 자리를 지키는 동안 장면은 기다린다(차례는 tests/moments.test.ts). 이 환경은 프레임 시간이 0.1초에서
+  // 잘려 그 기다림이 실제보다 몇 배 길어, CI가 느린 날 시간을 넘겼다: 카드가 물러난 뒤에 장면을 보낸다
+  await page.waitForFunction(() => !window.__game.moments.holding, null, { timeout: 60000 }).catch(() => {
+    throw new Error('순간: 큰 카드가 물러나지 않습니다.')
+  })
+  await page.evaluate((c) => {
+    const g = window.__game
+    g.storyScenes = true
+    g.forgetScene('downKing')
+    g.bus.emit('moment', { id: 'chapterBoss', scene: 'downKing', slow: true, card: c })
+  }, card('장면 뒤 카드'))
+  await page.waitForFunction(() => window.__game.gameSpeed < 1, null, { timeout: 10000 }).catch(() => {
+    throw new Error('순간: 장면 앞에 느린 동작이 없습니다.')
+  })
+  await page.waitForFunction(() => window.__game.scenes.current === 'downKing', null, { timeout: 20000 }).catch(() => {
+    throw new Error('순간: 느린 동작 뒤에 장면이 열리지 않습니다.')
+  })
+  if (!(await page.locator('.letterbox.is-on').count())) throw new Error('순간: 장면에 위아래 검은 띠가 없습니다.')
+  await closeDialog()
+  await page.waitForFunction(() => document.querySelector('.hud__gains-title')?.textContent === '장면 뒤 카드', null, { timeout: 15000 }).catch(() => {
+    throw new Error('순간: 장면을 넘긴 뒤 얻은 것 카드가 뜨지 않습니다.')
+  })
+  console.log('순간 확인: 작은 알림(아래)·카드(오른쪽 위)·큰 카드(가운데), 장면은 느린 동작·검은 띠 뒤에 열리고 넘기면 카드')
   // 이 뒤의 점검(대장간 제작 등)이 처음 보는 일 장면에 막히지 않게 끈다
   await page.evaluate(() => (window.__game.storyScenes = false))
 

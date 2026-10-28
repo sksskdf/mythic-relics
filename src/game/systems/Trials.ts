@@ -84,7 +84,7 @@ export class TrialSystem {
 
   private onWin(): void {
     const t = this.active!
-    const { trials, hud, fx, hero, bus } = this.ctx
+    const { trials, fx, hero, bus } = this.ctx
     const before = trials.total
     const { record, raised } = trials.win(t.id, t.level, t.t)
     this.end()
@@ -93,9 +93,8 @@ export class TrialSystem {
     const lines = [`${fmt(t.t)}${record ? ' · 새 기록' : ''}`]
     if (raised) lines.push(`${def.reward.text} +${def.reward.per < 1 ? `${Math.round(def.reward.per * 100)}%` : def.reward.per} (영구)`)
     for (const m of TRIAL_MILESTONES) if (before < m.at && trials.total >= m.at) lines.push(`${m.name}: ${m.text}`)
-    hud.flash('#c9a24a')
     fx.power.burst(hero.object.position, '#c9a24a', 3)
-    hud.showGains('시련', `${def.name} ${t.level}단계`, '#c9a24a', '', lines)
+    bus.emit('moment', { id: 'trialCleared', card: { kind: '시련', title: `${def.name} ${t.level}단계`, color: '#c9a24a', lines } })
     bus.emit('progressChanged', {})
   }
 
@@ -103,7 +102,7 @@ export class TrialSystem {
     const t = this.active!
     this.end()
     this.ctx.bus.emit('trialEnded', { id: t.id, level: t.level, win: false, seconds: t.t })
-    this.ctx.hud.showToast(`시련 실패 · ${TRIALS[t.id].name} ${t.level}단계`)
+    this.ctx.bus.emit('moment', { id: 'trialFailed', text: `시련 실패 · ${TRIALS[t.id].name} ${t.level}단계` })
   }
 
   /** 시련이 끝났다: 제약과 배율을 되돌린다 */

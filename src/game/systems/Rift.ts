@@ -157,12 +157,12 @@ export class RiftSystem {
     const p = run.floor.portal
     this.portal.position.set(p.x, heightAt(p.x, p.z) + 5, p.z)
     this.portal.visible = true
-    this.ctx.hud.showToast(`${blessingDef(id)!.name} · 다음 층 문이 열렸다`)
+    this.ctx.bus.emit('moment', { id: 'blessingPicked', text: `${blessingDef(id)!.name} · 다음 층 문이 열렸다` })
   }
 
   /** 층을 깬 보상: 그 땅 공통 재료(깊을수록 많이, 시련 기록 배율), 보스 층은 귀한 재료, 종말 보스는 별 둘, 처음 닿은 5층마다 별 하나 */
   private reward(run: RiftRun): void {
-    const { powers, trials, rift, hud, bus } = this.ctx
+    const { powers, trials, rift, bus } = this.ctx
     const scale = trials.riftScale()
     const lines: string[] = []
     const common = run.floor.region.realm ? realmMaterial(run.floor.region.realm) : undefined
@@ -186,7 +186,7 @@ export class RiftSystem {
       stars += STARS_PER_DOOM
     }
     if (stars > 0) lines.push(`별 +${stars} (성좌판)`)
-    hud.showGains('균열', `${run.depth}층을 깼다`, '#e6d2ff', '', lines)
+    bus.emit('moment', { id: 'riftCleared', card: { kind: '균열', title: `${run.depth}층을 깼다`, color: '#e6d2ff', lines } })
     bus.emit('progressChanged', {})
   }
 
@@ -199,7 +199,7 @@ export class RiftSystem {
     // 다른 땅으로 나왔으면 그 땅은 이미 균열 배율로 적을 세웠다 (워프 등): 고른 위협 단계로 다시 세운다
     if (reason === 'left') this.ctx.encounter.resetAll()
     this.host.closeBlessings()
-    this.ctx.hud.showToast(`균열 ${run.depth}층에서 ${reason === 'fell' ? '쓰러졌다' : '나왔다'} · 가장 깊이 ${this.ctx.rift.best}층`)
+    this.ctx.bus.emit('moment', { id: 'riftEnded', text: `균열 ${run.depth}층에서 ${reason === 'fell' ? '쓰러졌다' : '나왔다'} · 가장 깊이 ${this.ctx.rift.best}층` })
     this.ctx.bus.emit('riftEnded', { depth: run.depth, reason })
     this.ctx.bus.emit('progressChanged', {})
     if (reason === 'fell') this.host.home()

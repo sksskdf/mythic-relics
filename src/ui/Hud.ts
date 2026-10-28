@@ -44,8 +44,10 @@ export interface HudState {
 
 /** 유물 스킬 칸 수 */
 export const SKILL_SLOTS = 4
-/** 얻은 것 카드 하나가 다음 카드에 자리를 내주기 전에 보이는 시간 (ms). 카드 자체는 5초 뒤 사라진다 */
-const GAINS_MIN_MS = 3000
+/** 얻은 것 카드 하나가 다음 카드에 자리를 내주기 전에 보이는 시간 (ms). 카드 자체는 5초 뒤 사라진다. 큰 카드는 거의 다 보인다 */
+const GAINS_MIN_MS = { card: 3000, big: 4500 }
+/** 장면이 HUD를 숨기기 이만큼(ms) 안에 띄운 제목 카드는 장면 뒤에 다시 띄운다 */
+const TITLE_REPLAY_MS = 3000
 
 /**
  * HUD: 왼쪽 위에 지금의 나, 아래 가운데에 떠 있는 묶음 하나. (DESIGN.md 10.5)
@@ -89,6 +91,10 @@ export class Hud {
   private readonly gains: HTMLElement
   /** 카드를 띄운 때(ms)와 기다리는 카드: 같은 때 열린 것(위협 단계 + 편의 등)이 서로 덮지 않게 차례로 보인다 */
   private gainsShownAt = -Infinity
+  private gainsHold = 0
+  /** 마지막 제목 카드와 띄운 때, HUD를 숨긴 때 (장면 뒤 다시 띄우기) */
+  private lastTitle: { args: [string, string, string, string]; at: number } | null = null
+  private hiddenAt = 0
   private readonly gainsQueue: (() => void)[] = []
   private gainsTimer: ReturnType<typeof setTimeout> | null = null
   private readonly flashEl: HTMLElement
@@ -294,18 +300,46 @@ export class Hud {
   }
 
   /**
-   * 무엇이 얼마나 강해졌는지 보여 주는 카드 (발현·승급). 가운데 위에 몇 초 떠 있다가 사라진다.
+   * 무엇이 얼마나 강해졌는지 보여 주는 카드. 몇 초 떠 있다가 사라진다 (순간의 크기 E23-01).
+   * - card: 오른쪽 위 작은 지도 아래에 작게 (싸움을 가리지 않게)
+   * - big: 가운데 위에 크게 (신화 단계·유물 벼리기·장면 뒤)
    * lines의 각 줄은 얻은 것 하나. "→"가 있으면 앞은 흐리게, 뒤는 밝게 보인다.
    */
-  showGains(kind: string, title: string, color: string, icon: string, lines: readonly string[]): void {
-    this.gainsQueue.push(() => this.renderGains(kind, title, color, icon, lines))
+  showGains(kind: string, title: string, color: string, icon: string, lines: readonly string[], size: 'card' | 'big' = 'big'): void {
+    this.gainsQueue.push(() => this.renderGains(kind, title, color, icon, lines, size))
     this.nextGains()
+  }
+
+  /** 줄에 선 카드가 있거나, 지금 카드가 아직 자리를 지키는 중인가 (그동안 장면이 HUD를 숨기면 카드가 가려진다) */
+  get gainsBusy(): boolean {
+    return this.gainsQueue.length > 0 || performance.now() - this.gainsShownAt < this.gainsHold
+  }
+
+  /**
+   * 대화 장면 동안 HUD를 숨긴다 (투명하게만: 움직임은 그대로 흐른다).
+   * 숨기기 직전 3초 안에 띄운 지역·전설 제목 카드는 장면 뒤에 다시 띄운다 (장면 밑에서 지나가 버리지 않게)
+   */
+  setHidden(hidden: boolean): void {
+    if (this.root.classList.contains('is-hidden') === hidden) return
+    this.root.classList.toggle('is-hidden', hidden)
+    if (hidden) this.hiddenAt = performance.now()
+    else if (this.lastTitle && this.hiddenAt - this.lastTitle.at < TITLE_REPLAY_MS) {
+      const { args } = this.lastTitle
+      this.lastTitle = null
+      this.showTitleCard(...args)
+    }
+  }
+
+  /** 지금 떠 있는 카드의 크기 (점검용). 없으면 null */
+  get gainsShowing(): 'card' | 'big' | null {
+    if (!this.gains.classList.contains('is-showing') || performance.now() - this.gainsShownAt > 5000) return null
+    return this.gains.classList.contains('is-side') ? 'card' : 'big'
   }
 
   /** 앞 카드가 GAINS_MIN_MS 넘게 보였으면 다음 카드를 띄운다 */
   private nextGains(): void {
     if (this.gainsTimer !== null || this.gainsQueue.length === 0) return
-    const wait = this.gainsShownAt + GAINS_MIN_MS - performance.now()
+    const wait = this.gainsShownAt + this.gainsHold - performance.now()
     if (wait > 0) {
       this.gainsTimer = setTimeout(() => {
         this.gainsTimer = null
@@ -318,9 +352,11 @@ export class Hud {
     this.nextGains()
   }
 
-  private renderGains(kind: string, title: string, color: string, icon: string, lines: readonly string[]): void {
+  private renderGains(kind: string, title: string, color: string, icon: string, lines: readonly string[], size: 'card' | 'big'): void {
     const card = this.gains
     card.replaceChildren()
+    card.classList.toggle('is-side', size === 'card')
+    this.gainsHold = GAINS_MIN_MS[size]
     card.style.setProperty('--glow', color)
     const head = document.createElement('div')
     head.className = 'hud__gains-head'
@@ -357,6 +393,7 @@ export class Hud {
    * color는 CSS 색 (토큰이면 var(--c-realm-…))
    */
   showTitleCard(name: string, color: string, emblem: string, sub = ''): void {
+    this.lastTitle = { args: [name, color, emblem, sub], at: performance.now() }
     const card = this.card
     card.replaceChildren()
     card.style.setProperty('--glow', color)

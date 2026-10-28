@@ -26,11 +26,11 @@ export const branch = () => {
   }
 }
 
-/** 작업 트리 코드의 지문 (문서를 뺀 트리 해시). 같은 내용이면 같은 값. node_modules 링크(worktree)는 뺀다 */
+/** 작업 트리 코드의 지문 (문서를 뺀 트리 해시). 같은 내용이면 같은 값 (worktree의 node_modules 링크는 .gitignore가 뺀다) */
 export function workTree(cwd = ROOT) {
   const index = join(gitDir(cwd), 'harness-index')
   const env = { GIT_INDEX_FILE: index }
-  git(['add', '-A', '--', '.', ...[...NOT_CODE, 'node_modules'].map((p) => `:(exclude)${p}`)], env, cwd)
+  git(['add', '-A', '--', '.', ...NOT_CODE.map((p) => `:(exclude)${p}`)], env, cwd)
   return git(['write-tree'], env, cwd)
 }
 
@@ -73,9 +73,9 @@ export function checkState(cwd = ROOT) {
   return { tree, sameAsHead: tree === commitTree('HEAD', cwd), checked: stamp?.tree === tree, stamp }
 }
 
-/** 빌드(dist)보다 새로 고친 src 파일. 없으면 null */
-export function staleBuild() {
-  const built = join(ROOT, 'dist', 'index.html')
+/** 빌드(dist)보다 새로 고친 src 파일. 없으면 null (cwd: 점검을 돌리는 폴더, worktree면 그 폴더) */
+export function staleBuild(cwd = ROOT) {
+  const built = join(cwd, 'dist', 'index.html')
   if (!existsSync(built)) return { file: 'dist 없음', newer: true }
   const at = statSync(built).mtimeMs
   const roots = ['src', 'index.html', 'vite.config.ts', 'tsconfig.json']
@@ -89,8 +89,8 @@ export function staleBuild() {
       newest = { path, mtimeMs: s.mtimeMs }
     }
   }
-  for (const r of roots) visit(join(ROOT, r))
-  return newest ? { file: newest.path.slice(ROOT.length + 1), newer: true } : null
+  for (const r of roots) visit(join(cwd, r))
+  return newest ? { file: newest.path.slice(cwd.length + 1), newer: true } : null
 }
 
 /** 점검 스크립트가 띄우는 미리보기 서버 포트 (그 스크립트가 다른 점검 스크립트를 부르면 그 포트도) */

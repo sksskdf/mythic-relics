@@ -32,6 +32,7 @@ export type SoundCue =
   | 'manifest'
   | 'promote'
   | 'rebirth'
+  | 'drum'
   | 'ui'
   | 'uiOpen'
   | 'uiClose'
@@ -348,6 +349,19 @@ export const SOUNDS: Record<SoundCue, SoundRecipe> = {
       for (const f of [147, 220, 294]) s.tone(t + 1, { type: 'triangle', from: f, duration: 1.2, gain: 0.4, attack: 0.05 })
     },
   },
+  // 큰 카드 (E23-03): 큰북 세 번, 둥·둥·둥— 마지막이 가장 크고 길다
+  drum: {
+    duration: 1.4,
+    volume: 0.7,
+    play: (s, t) => {
+      ;[0, 0.24, 0.52].forEach((at, i) => {
+        const last = i === 2
+        s.tone(t + at, { from: last ? 110 : 96, to: 42, duration: last ? 0.8 : 0.32, gain: last ? 0.9 : 0.6 })
+        s.noise(t + at, { filter: 'lowpass', from: 420, to: 120, duration: last ? 0.4 : 0.14, gain: last ? 0.45 : 0.3 })
+      })
+      s.noise(t + 0.52, { filter: 'highpass', from: 5000, duration: 0.6, gain: 0.08, attack: 0.05 })
+    },
+  },
   ui: {
     duration: 0.06,
     volume: 0.22,
@@ -366,6 +380,6 @@ export const SOUNDS: Record<SoundCue, SoundRecipe> = {
 }
 
 /** UI 소리: 주인공과의 거리를 보지 않는다 */
-export const UI_SOUNDS: ReadonlySet<SoundCue> = new Set(['ui', 'uiOpen', 'uiClose', 'relic', 'equip', 'manifest', 'promote', 'rebirth', 'revive', 'death'])
+export const UI_SOUNDS: ReadonlySet<SoundCue> = new Set(['ui', 'uiOpen', 'uiClose', 'relic', 'equip', 'manifest', 'promote', 'rebirth', 'drum', 'revive', 'death'])
 
 export const SOUND_CUES = Object.keys(SOUNDS) as SoundCue[]

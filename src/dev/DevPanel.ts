@@ -1,3 +1,4 @@
+import { THEME_IDS, type ThemeId } from '../audio/music'
 import { SOUND_CUES } from '../audio/sounds'
 import { type Realm, REALMS } from '../data/classKit'
 import { REGIONS } from '../data/regions'
@@ -228,6 +229,22 @@ export class DevPanel {
           g.menu.refresh()
         }),
       ),
+      // 순간의 크기 (E23-01): 등급마다 하나씩 띄워 본다
+      row(
+        ...(
+          [
+            ['알림', { id: 'gearPicked', text: '낡은 장화 · 가방' }],
+            ['카드', { id: 'gearWorn', card: { kind: '장비', title: '서리 늑대 가죽 장화', color: '#5aa8ff', lines: ['이동 속도 +6%', '최대 생명 +12'] } }],
+            ['큰 카드', { id: 'forged', card: { kind: '대장간', title: '묠니르 2단계', color: '#ffd75e', lines: ['모든 피해 +18', '유물 효과 피해 ×1.4'] } }],
+            ['장면', { id: 'chapterBoss', scene: 'downKing', slow: true, card: { kind: '장 보스', title: '거인 왕', color: '#9fe3ff', lines: ['우트가르드가 무너졌다'] } }],
+          ] as const
+        ).map(([label, m]) =>
+          button(label, () => {
+            if ('scene' in m) g.forgetScene(m.scene)
+            g.bus.emit('moment', m)
+          }),
+        ),
+      ),
       // 엔딩 뒤 장치 (E21-06)·위협 단계·편의 (E14)
       row(
         button('엔딩 뒤로', () => {
@@ -422,22 +439,8 @@ export class DevPanel {
       ),
       // 소리 (E5): 효과음 하나씩 들어 보기, 곡 바꾸기
       row(select('소리', SOUND_CUES.map((c) => [c, c] as const), (cue) => g.audio.play(cue as (typeof SOUND_CUES)[number]))),
-      row(
-        ...([
-          ['village', '마을'],
-          ['norse', '북유럽'],
-          ['greek', '그리스'],
-          ['china', '중국'],
-          ['japan', '일본'],
-          ['korea', '한국'],
-          ['legend', '전설'],
-          [null, '곡 끄기'],
-        ] as const).map(([theme, label]) => {
-          const b = button(label, () => g.audio.setTheme(theme))
-          this.refreshers.push(() => b.classList.toggle('is-on', g.audio.theme === theme))
-          return b
-        }),
-      ),
+      // 곡 (E23-04): 고른 곡을 계속 틀고, 「상황대로」면 장면·전설·보스·땅에 맞춰 고른다
+      row(select('곡', [['', '상황대로'], ...THEME_IDS.map((t) => [t, t] as const)], (theme) => g.bus.emit('music', { theme: (theme || null) as ThemeId | null }))),
     )
   }
 

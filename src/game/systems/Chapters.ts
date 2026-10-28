@@ -1,5 +1,6 @@
 import type { ChapterDef, ChapterStep } from '../../data/chapters'
 import { REGIONS } from '../../data/regions'
+import { sceneId } from '../../data/scenes'
 import { missing, nextRecipe } from '../../gear/forge'
 import { MASTERY_TO_OPEN } from '../../myth/ClassProgress'
 import { GODS } from '../../relics/data'
@@ -26,7 +27,12 @@ export class ChapterSystem {
       const region = ctx.map.region
       // 땅의 보스만 (성소의 전설·시련·균열 층의 보스는 세지 않는다)
       if (giant.spec.role !== 'boss' || !region.boss || ctx.legend.active || region.kind === 'rift') return
-      if (chapters.bossDefeated(region.id)) this.check()
+      if (!chapters.bossDefeated(region.id)) return
+      // 장 보스를 처음 이겼다 (E23-02): 느린 동작 → 쓰러지며 하는 한마디. 마지막 보스는 엔딩 장면이 대신한다
+      const last = chapters.chapters.at(-1)?.steps.at(-1)
+      const step = chapters.chapters.flatMap((c) => c.steps).find((s) => s.kind === 'boss' && s.region === region.id)
+      if (step && step !== last) bus.emit('moment', { id: 'chapterBoss', scene: sceneId('down', giant.spec.id), slow: true })
+      this.check()
     })
     bus.on('mythOpened', () => this.check())
     bus.on('promoted', () => this.check())

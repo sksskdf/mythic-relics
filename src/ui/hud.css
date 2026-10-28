@@ -364,8 +364,13 @@ button.hud__slot--empty {
   to { filter: brightness(1.6); }
 }
 
+/* 대화 장면 중: 보이지 않게만 한다 (display: none이면 지역 제목 띠 같은 움직임이 장면 뒤에 처음부터 다시 돈다) */
 .hud.is-hidden {
-  display: none;
+  opacity: 0;
+}
+.hud.is-hidden,
+.hud.is-hidden * {
+  pointer-events: none;
 }
 
 /* 올리면 뜨는 짧은 설명 */
@@ -416,6 +421,40 @@ button.hud__slot--empty {
   6% { opacity: 1; transform: translate(-50%, 0) scale(1); }
   88% { opacity: 1; }
   100% { opacity: 0; }
+}
+/* 큰 카드 (E23-03): 신화 단계·유물 벼리기·장면 뒤. 이름을 크게 */
+.hud__gains:not(.is-side) {
+  min-width: 360px;
+}
+.hud__gains:not(.is-side) .hud__gains-title {
+  font: var(--t-display);
+}
+/* 카드 (E23-01): 오른쪽 위 작은 지도 아래에 작게, 싸움을 가리지 않는다. 장 제목 띠가 지나가도 위에 보인다 */
+.hud__gains.is-side {
+  z-index: 1;
+  --unit: clamp(4px, 0.9vh, 10px);
+  left: auto;
+  right: calc(var(--unit) * 2);
+  top: calc(var(--unit) * 12 + 128px);
+  min-width: 0;
+  width: 240px;
+  padding: var(--sp-4) var(--sp-5) var(--sp-5);
+  transform: none;
+}
+.hud__gains.is-side.is-showing {
+  animation: hud-gains-side 5s ease-out forwards;
+}
+.hud__gains.is-side .ui-portrait {
+  --size: 36px;
+}
+@keyframes hud-gains-side {
+  0% { opacity: 0; transform: translateX(16px); }
+  6% { opacity: 1; transform: none; }
+  88% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.devmode .hud__gains.is-side {
+  right: calc(300px + var(--unit) * 2 + 8px);
 }
 .hud__gains-head {
   display: flex;
@@ -676,4 +715,32 @@ button.hud__slot--empty {
   color: var(--c-ink-2);
   font: var(--t-small);
   cursor: pointer;
+}
+
+/* 장면의 위아래 검은 띠 (E23-02): 대화 장면과 신화 고르기 동안 */
+.letterbox {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
+}
+.letterbox::before,
+.letterbox::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  background: var(--c-page);
+  transition: height 0.5s ease-out;
+}
+.letterbox::before {
+  top: 0;
+}
+.letterbox::after {
+  bottom: 0;
+}
+.letterbox.is-on::before,
+.letterbox.is-on::after {
+  height: 9vh;
 }

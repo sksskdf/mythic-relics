@@ -2,7 +2,7 @@
 // - 검사(`npm run check`)를 통과하지 않은 코드의 커밋 (문서만 바뀐 커밋, 같은 && 줄에서 검사 뒤 커밋, HARNESS_SKIP_CHECK=1은 둔다).
 //   명령이 `cd 폴더 &&`로 시작하면 그 폴더(worktree)를 본다
 // - main으로 바로 푸시, 강제 푸시
-// - 빌드보다 새로 고친 src가 있는데 dist를 쓰는 점검 스크립트를 돌림 (`npm run build &&`를 앞에 붙이면 됨)
+// - 빌드보다 새로 고친 src가 있는데 dist를 쓰는 점검 스크립트를 돌림 (`npm run build &&`를 앞에 붙이면 됨, `cd 폴더 &&`면 그 폴더의 빌드)
 // - 같은 포트를 쓰는 점검 스크립트가 이미 돌고 있음
 // - `playwright install` (이 환경에 깔린 브라우저를 못 찾게 된다)
 // 훅이 스스로 틀리면 막지 않는다.
@@ -32,7 +32,13 @@ async function main() {
   if (push) deny(push)
 
   if (hasCommit(command) && !skipsCheck(command) && !checksBeforeCommit(command)) {
-    const s = checkState(dir)
+    // 도장을 읽지 못하면 막는다 (훅이 틀려 조용히 통과시키지 않게)
+    let s
+    try {
+      s = checkState(dir)
+    } catch (e) {
+      deny(`검사 도장을 읽지 못했다 (${String(e instanceof Error ? e.message : e).split('\n')[0]}). scripts/harness를 고치거나, 사용자가 허락하면 HARNESS_SKIP_CHECK=1을 붙인다.`)
+    }
     if (!s.sameAsHead && !s.checked) {
       deny(
         '마지막 `npm run check` 통과 뒤 코드가 바뀌었다 (또는 이 컨테이너에서 아직 검사하지 않았다). ' +
@@ -45,14 +51,14 @@ async function main() {
   for (const run of scriptRuns(command)) {
     if (!usesBuild(run.script)) continue
     if (!run.built) {
-      const stale = staleBuild()
+      const stale = staleBuild(dir)
       if (stale) deny(`빌드(dist)가 ${stale.file}보다 오래됐다. 점검이 옛 코드를 잰다. \`npm run build && \`를 앞에 붙여 돌린다.`)
     }
     for (const port of scriptPorts(run.script)) {
       if (await portBusy(port)) {
         deny(
           `다른 점검이 포트 ${port}에 미리보기 서버를 띄워 두었다 (${run.script}.mjs도 이 포트를 쓴다). 그 점검이 끝난 뒤 돌린다. ` +
-            `돌고 있는 점검이 없는데 남은 서버면 \`pkill -f "vite preview --port ${port}"\`로 정리한다.`,
+            `돌고 있는 점검이 없는데 남은 서버면 \`pkill -f "[v]ite preview --port ${port}"\`로 정리한다 (대괄호는 이 명령 자신이 걸리지 않게).`,
         )
       }
     }
