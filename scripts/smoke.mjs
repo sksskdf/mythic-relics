@@ -618,11 +618,13 @@ try {
   await page.screenshot({ path: 'test-results/smoke.png' })
 
   // 장 흐름을 끝까지 (E22-05): 새 판에서 목표를 차례로 건너뛰면 마지막 보스 뒤 엔딩, 결계가 모두 풀리고 목표 한 줄이 사라진다
+  // 앞 페이지는 닫는다: 소프트웨어 렌더링이라 두 게임이 함께 돌면 새 페이지가 CI에서 90초 안에 뜨지 않는다 (troubleshooting.md)
+  await page.close()
   const end = await browser.newPage({ viewport: { width: 1280, height: 720 } })
   end.on('pageerror', (e) => errors.push(e.message))
-  // 이어진 세계(E19)는 이웃 땅까지 지어 처음 여는 데 오래 걸린다 (troubleshooting.md)
-  await end.goto(`${URL}?fresh&noscenes`, { timeout: 90000 })
-  await end.waitForFunction(() => (window.__game?.frame ?? 0) > 2 && window.__game.playing, null, { timeout: 60000 })
+  // 이어진 세계(E19)는 이웃 땅까지 지어 처음 여는 데 오래 걸린다. 모든 자원(load)이 아니라 게임이 도는 것을 기다린다
+  await end.goto(`${URL}?fresh&noscenes`, { timeout: 90000, waitUntil: 'domcontentloaded' })
+  await end.waitForFunction(() => (window.__game?.frame ?? 0) > 2 && window.__game.playing, null, { timeout: 120000 })
   const ending = await end.evaluate(() => {
     const g = window.__game
     const chapters = []
