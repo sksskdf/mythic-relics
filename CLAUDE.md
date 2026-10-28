@@ -60,6 +60,7 @@
 - `npm run build && node scripts/ui-sheet.mjs [폴더] [크기,...]`: 중반쯤 상태를 꾸며 정보 화면 탭 여덟과 HUD를 화면 크기마다 찍는다(기본 1280×720·960×540·390×844, 세로 크기는 터치 기기로 연다). UI를 바꾸면 찍어 보고, 좁은 화면에서 잘리는지 본다. 화면 밖이나 잘라 내는 상자 밖으로 나간 요소를 세어 `cut.json`에 남긴다(E235, 0이 기준). 무작위는 씨앗 고정이라, `UI_DOM=1`을 붙이면 탭마다 DOM(`.html`)도 남겨 코드를 나누기 전후를 diff로 견줄 수 있다.
 - `npm run build && node scripts/shot.mjs <파일.png> "<주소 뒤 값>" "<게임 안 코드>" [프레임]`: 원하는 상태의 스크린숏. 화면이 바뀌는 작업은 스크린숏을 직접 보고 확인한다. 휴대폰으로 찍으려면 앞에 `SHOT_SIZE=390x844 SHOT_TOUCH=1`.
 - `node scripts/gen-regions.mjs`: 신화권마다 깊은 땅·보스의 땅을 규칙으로 다시 만든다(E15). 이미 있는 그 땅을 덮어쓰니 규칙을 바꿀 때만 돌린다. 돌린 뒤에는 `node scripts/place-world.mjs`로 출구·길을 세계 통로 자리로 옮긴다(E19-01, 두 번 돌려도 같음).
+- `node scripts/gen-village.mjs`: 모닥불 마을을 규칙으로 다시 짓는다(E24-07: 언덕 위 광장·족장의 터·계단·길·사람 자리). 마을을 덮어쓰니 규칙을 바꿀 때만 돌린다.
 - 지도는 개발 패널 「지도」 탭에서 고친다: 편집을 켜고 땅을 누르면 고른 도구가 동작하고, 「저장」은 개발 서버(`pnpm dev`)가 `src/data/regions.json`에 쓴다 (`vite.config.ts`의 saveRegions).
 - 개발 모드: `pnpm dev --dev`(또는 `pnpm dev:tools`), 브라우저는 `?dev`. 오른쪽 개발 패널(`src/dev/DevPanel.ts`)에서 유물·신화·이동·적·전설·시간을 바꾼다. 새 시스템을 만들면 패널에도 시험 단추를 더한다.
 - 점검용 주소: `?relics=all` / `?relics=mjolnir,megingjord` (유물 끼고 시작, 저장 안 함), `?fresh` (저장 지우고 시작), `?region=olympus` (그 지역에서 시작, 새로 시작하면 마을), `?quality=low` (화질, 저장 안 함), `?view=` (시야 높이), `?autoplay` (봇), `?touch` (컴퓨터에서 휴대폰 조작 켜기, E235).
@@ -70,7 +71,7 @@
 
 | 폴더 | 내용 |
 | --- | --- |
-| `src/data/` | **게임 데이터**: `relics.json`(유물), `gods.json`(신·클래스), `enemies.json`(적), `classes.json`(클래스 트리, `CLASSES.md`와 같아야 함), `schema.ts`(형식과 검사), `classKit.ts`(클래스 부품: 패시브·궁극기·전설 종류), `chapters.json`·`chapters.ts`(장 흐름 E22: 장·땅·적 지수·땅 단계·할 일과 목표 한 줄), `regions.json`·`regions.ts`(지역 16곳과 마지막 무대 「갈라진 하늘」(`finale`, `scripts/gen-finale.mjs`): 자리(입구·깊은 땅·보스)·세계 칸·시작점·성소·무리·보스·출구·소품, 검사와 저장 모양, 다음 이웃 `nextHop`·세계 지도 자리 `worldLayout`), `world.ts`(하나로 이어진 세계: 벽돌 칸·세계 좌표·이웃 통로·갈 수 있는 곳, E19), `scenes.json`(대화 장면), `moments.ts`(순간의 크기 E23: 사건 → 등급 표). 숫자는 여기서 고친다 |
+| `src/data/` | **게임 데이터**: `relics.json`(유물), `gods.json`(신·클래스), `enemies.json`(적), `classes.json`(클래스 트리, `CLASSES.md`와 같아야 함), `schema.ts`(형식과 검사), `classKit.ts`(클래스 부품: 패시브·궁극기·전설 종류), `chapters.json`·`chapters.ts`(장 흐름 E22: 장·땅·적 지수·땅 단계·할 일과 목표 한 줄), `regions.json`·`regions.ts`(지역 16곳(계단식 땅 `terraces`, E24-07)과 마지막 무대 「갈라진 하늘」(`finale`, `scripts/gen-finale.mjs`): 자리(입구·깊은 땅·보스)·세계 칸·시작점·성소·무리·보스·출구·소품, 검사와 저장 모양, 다음 이웃 `nextHop`·세계 지도 자리 `worldLayout`), `world.ts`(하나로 이어진 세계: 벽돌 칸·세계 좌표·이웃 통로·갈 수 있는 곳, E19), `scenes.json`(대화 장면), `moments.ts`(순간의 크기 E23: 사건 → 등급 표). 숫자는 여기서 고친다 |
 | `src/game/` | `Game.ts`(조립과 메인 루프), `MenuData`(정보 화면에 보일 값·할 일, 능력치, 설명 카드 상태), `Storyline`(대화 장면을 여는 때·미루기·말 걸기), `AttackFx`(휘두른 궤적·원거리 공격 모습), `HoverCards`(커서 아래 카드·몬스터 이름표), `World`(지역 들어가기 `enter`·출구 이동 `travelTo`·암전, Game에도 같은 이름의 위임이 있음), `TitleBackdrop`(시작 화면 뒤 장면), `Villagers`(마을 사람과 말풍선), `events.ts`(이벤트 버스), `context.ts`(시스템 공용 상태), `Stage`(빛·맵), `HeroController`(이동), `HeroOrders`(클릭 → 지시), `PlayerCombat`(자동 공격), `Encounter`(적 무리·보스), `Legend`(승급 전설), `RelicPowers`(장착한 유물 효과) |
 | `src/game/systems/` | 규칙: `Damage`(피해), `Relics`(줍기·장착·발현), `Progression`(경험치·드랍·승급), `HeroLife`(쓰러짐·부활), `Persistence`(저장), `PlayerInput`(클릭, 휴대폰의 톡·조이스틱·두 손가락), `Effects`(연출), `Sound`(소리), `Threat`(위협 단계·편의 자동화 세기·한계를 깸, 엔딩 뒤), `Trials`(시련 진행: 제약·난이도·기록), `Rift`(균열: 층·축복·다음 층 문·끝), `Chapters`(장 진행 알림·목표 한 줄, E22), `MythChoice`(성소에서 신화 고르기·장 보스가 신화권을 엶, E22), `Moments`(순간 네 등급: 작은 알림·카드·큰 카드·장면, 느린 동작·장면 뒤 카드, E23), `Tabs`(정보 화면 탭을 쓸 일이 생길 때 하나씩 열고 카드, E236-05). 시스템끼리는 버스로만 주고받는다 |
 | `src/enemies/` | 적 AI(`Giant.ts`: 상태, 공격 예고, 돌진·던지기·막기·부르기·거리 유지·둘러싸기), 날아가는 것(`Projectile.ts`), 정예(`elite.ts`), 모델 생성기(`enemyModel.ts`: 몸 종류 여섯, 거인은 `giantModel.ts`) |
@@ -84,7 +85,7 @@
 | `src/input/` | 입력: 마우스·키(`Input`, 동작 단위), 휴대폰(E235): 터치 기기 알아보기·돌려 달라는 안내 판정(`device`), 손가락 몸짓(`touch.ts`: 톡·끌기·두 손가락), 캔버스 손가락 → 몸짓·조이스틱 그림(`TouchControls`) |
 | `src/save/` | 저장 형식과 검사 |
 | `src/render/` | 픽셀 렌더러, 쿼터뷰 카메라, 화면 ↔ 월드 좌표, 실루엣, 렌더 해상도와 세로 화면 시야(`resolution.ts`: 세로 화면은 가로에 시야 높이 × 0.8) |
-| `src/world/` | 지역 맵(`regionMap.ts`: 지역 데이터 → 땅·길·소품·테두리 숲·출구 문, 다시 짓기), 막힌 땅 통로의 결계(`Barriers.ts`, E22), 지형 테마(`themes.ts`: 땅·물·빛·날림·소품 색 바꾸기), 땅 높이·연못(`terrain.ts`), 길찾기(`navGrid.ts`), 흩뿌리기(`layout.ts`). 그 땅의 소품 모델은 `src/voxel/models/landmarks.ts` |
+| `src/world/` | 지역 맵(`regionMap.ts`: 지역 데이터 → 땅·길·소품·테두리 숲·출구 문, 다시 짓기), 막힌 땅 통로의 결계(`Barriers.ts`, E22), 지형 테마(`themes.ts`: 땅·물·빛·날림·소품 색 바꾸기), 땅 높이·연못·계단식 땅과 계단·절벽 충돌·광선 찾기(`terrain.ts`, E24-07), 길찾기(`navGrid.ts`), 흩뿌리기(`layout.ts`). 그 땅의 소품 모델은 `src/voxel/models/landmarks.ts` |
 | `src/voxel/` | 복셀 격자, 메시 생성, 모델(`models/`) |
 | `src/audio/` | 소리(E5): 믹서·동시 재생 제한·거리 감쇠(`AudioEngine`, `limits`), 코드로 합성한 효과음(`sounds.ts`), 신화권별 합성 곡(`music.ts`, 방향은 `ART.md` 8장). 게임 사건 → 소리는 `systems/Sound.ts` |
 | `src/art/` | 팔레트(`palette.ts`): 연출 언어 색(위험·회복·안내), 신화권·원천·하늘 공격 색, 위험색 규칙 `readsAsDanger` |

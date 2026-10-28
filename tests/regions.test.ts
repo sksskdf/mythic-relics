@@ -10,7 +10,7 @@ import { UtgardLegend } from '../src/game/Legend'
 import { CROSS_MARGIN, crossingAt, regionLinks, walkRects } from '../src/data/world'
 import { walkArea } from '../src/world/colliders'
 import { collidersFor } from '../src/world/regionMap'
-import { heightAt, setPonds } from '../src/world/terrain'
+import { heightAt, setLand } from '../src/world/terrain'
 import { NavGrid } from '../src/world/navGrid'
 
 /**
@@ -95,7 +95,7 @@ describe.each(regions.map((r) => [r.id, r] as const))('지역 %s', (_id, region)
   })
 
   it('연못 위는 평평하다', () => {
-    setPonds(region.ponds)
+    setLand(region)
     for (const pond of region.ponds) {
       const a = heightAt(pond.x, pond.z)
       const b = heightAt(pond.x + pond.radius * 0.7, pond.z)

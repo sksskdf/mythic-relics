@@ -100,6 +100,18 @@ E12~E14에서 새 규칙을 넣을 때는 `BuildInputs`에 재료를 더하고 `
 | `src/ui/menu/trainingTab.ts` | 깨달음·다음 점 막대·찍은 수치의 합·모두 되돌리기(한 번 더 눌러야), 트리(가로 %·세로 px, SVG 줄). 손가락은 처음 누르면 설명 |
 | 땅 차례 | `ChapterProgress.isOpen`: 지금 장의 땅은 그 땅에 들어서는 할 일 바로 앞까지 했을 때 열린다. `goalChanged`에도 결계를 다시 맞춘다(`World.refreshLinks`) |
 
+## 땅 높낮이 (E24-07)
+
+| 곳 | 하는 일 |
+| --- | --- |
+| `regions.json`의 `terraces` | 계단식 땅: 꼭짓점·높이(0.5m 단위)·계단(아랫땅 발치 from → 윗면 to, 너비). 검사는 `regions.ts`의 `parseTerrace`(윗끝은 안, 발치는 밖) |
+| `world/terrain.ts` | 땅 모양 `Land`(연못·계단식 땅)를 `setLand`로 넣는다(옛 `setPonds`). `heightAt` = 바탕 땅(기복·연못)과 계단식 땅 가운데 높은 것, 계단 위면 발치에서 윗면까지 고른 비탈. `baseHeightAt`은 계단식 땅을 뺀 바탕(바닥 판). `cliffColliders`: 높이가 0.4m 넘게 갈리는 변과 계단 옆을 0.5m마다 둥근 충돌로 막는다(계단이 지나는 곳은 트임). `rayToLand`: 화면 광선이 처음 닿는 땅(위에서부터 0.1m씩 내려가며 찾고 반으로 좁힘) |
+| `buildTerraces` | 바닥 판 위에 0.5m 복셀 기둥으로 쌓는다(윗면은 바닥과 같은 땅 색·길, 옆면은 흙과 돌 켜). 계단은 0.25m 단의 돌계단 |
+| `regionMap.chunkSteps` | 조각을 지을 때 계단식 땅을 쌓고 절벽 충돌을 더한다. 길찾기는 이 충돌을 피해 계단으로 돈다 |
+| `PlayerInput.groundAt` | 계단식 땅이 있으면 `rayToLand`, 없으면 평면 하나 |
+| 모양 규칙 | 변과 계단은 세계 축에 맞춘다: 쿼터뷰에서 화면의 사선이 되어 깨끗하고, 세계 대각선 변은 복셀이 톱니로 보인다 |
+| `scripts/gen-village.mjs` | 마을을 규칙으로 짓는다(광장 1.5m·족장의 터 3m·계단 일곱·길·사람 자리). 문과 길 바깥 끝은 세계 통로 자리 그대로 |
+
 ## E14에서 걷어낼 것
 
 옛 순환(`src/progress/Cycle`, `systems/CycleSystem.ts`): 원천 결정·단련·윤회·별자리(→ E17 성좌판)·원천 숙련. 저장을 옮기며 제거한다.

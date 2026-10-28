@@ -7,7 +7,7 @@ import { screenRay, screenToGround, worldToScreen } from '../../render/picking'
 import type { PixelRenderer } from '../../render/PixelRenderer'
 import { clampViewHeight, VIEW_HEIGHT } from '../../save/settings'
 import type { Point2 } from '../../world/colliders'
-import { heightAt } from '../../world/terrain'
+import { heightAt, highestLand, rayToLand } from '../../world/terrain'
 import type { GameContext } from '../context'
 
 /** 조이스틱으로 걸을 때 주인공 앞 이만큼(m)을 목적지로 잡는다 (길을 다시 찾는 0.12초 동안 다 걷지 못할 만큼) */
@@ -182,6 +182,12 @@ export class PlayerInput {
 
   /** 화면 한 점이 가리키는 땅 위치 */
   private groundAt(x: number, y: number, out: THREE.Vector3): THREE.Vector3 | null {
-    return screenToGround(x, y, this.container.clientHeight, this.pixel.size, this.ctx.view.camera, out, this.ctx.view.subpixel)
+    const { camera, subpixel } = this.ctx.view
+    // 계단식 땅이 있으면 (E24-07) 광선을 위에서부터 따라 내려가 처음 닿는 땅을 찾는다. 없으면 평면 하나로 충분하다
+    if (highestLand() > 0) {
+      const ray = screenRay(x, y, this.container.clientHeight, this.pixel.size, camera, subpixel)
+      return rayToLand(ray.origin, ray.direction, out)
+    }
+    return screenToGround(x, y, this.container.clientHeight, this.pixel.size, camera, out, subpixel)
   }
 }

@@ -3,7 +3,7 @@ import * as THREE from 'three'
 import type { RegionDef } from '../data/regions'
 import { type Cell, cellKey, cellOrigin, inRect, neighborCells, type Rect, regionLinks } from '../data/world'
 import { cellTheme, type Chunk, chunkSteps, fillerSteps, openRects, RegionMap } from '../world/regionMap'
-import { type Pond, setPonds, setTerrainOrigin, withTerrainFrame } from '../world/terrain'
+import { FLAT_LAND, type Land, setLand, setTerrainOrigin, withTerrainFrame } from '../world/terrain'
 import { THEMES, type ThemeId } from '../world/themes'
 
 type Regions = Readonly<Record<string, RegionDef>>
@@ -79,7 +79,7 @@ export class Stage {
     this.others.delete(to.id)
     if (!chunk) chunk = this.buildNeighbor(to.id)!
     setTerrainOrigin(o.x, o.z)
-    setPonds(to.ponds)
+    setLand(to)
     const previous = this.map.adopt(chunk)
     if (previous.region) this.others.set(previous.region.id, previous)
     this.othersGroup.add(previous.group)
@@ -131,7 +131,7 @@ export class Stage {
   }
 
   /** 지금 짓고 있는 이웃 조각 (한 프레임에 한 단계씩) */
-  private building: { key: string; cell: Cell; ponds: readonly Pond[]; steps: Generator<void, Chunk> } | null = null
+  private building: { key: string; cell: Cell; land: Land; steps: Generator<void, Chunk> } | null = null
 
   /** 이웃 조각을 한 단계 짓는다. 다 지으면 이웃으로 놓는다 */
   private buildNext(): void {
@@ -142,7 +142,7 @@ export class Stage {
       if (!this.building) return
     }
     const job = this.building
-    const step = withTerrainFrame(cellOrigin(job.cell), job.ponds, () => job.steps.next())
+    const step = withTerrainFrame(cellOrigin(job.cell), job.land, () => job.steps.next())
     if (!step.done) return
     this.building = null
     this.others.set(job.key, step.value)
@@ -150,12 +150,12 @@ export class Stage {
   }
 
   /** 이웃 조각 하나를 그 칸의 원점에서 짓기 시작한다 */
-  private startNeighbor(key: string): { key: string; cell: Cell; ponds: readonly Pond[]; steps: Generator<void, Chunk> } | null {
+  private startNeighbor(key: string): { key: string; cell: Cell; land: Land; steps: Generator<void, Chunk> } | null {
     const cell = this.wanted().get(key) ?? this.regions[key]?.cell
     if (!cell) return null
     const region = this.regions[key]
     const steps = region ? chunkSteps(region, regionLinks(this.regions, region.id), this.themeAt) : fillerSteps(cell, this.themeAt(cell), this.fillerOpen(cell), this.themeAt)
-    return { key, cell, ponds: region?.ponds ?? [], steps }
+    return { key, cell, land: region ?? FLAT_LAND, steps }
   }
 
   /** 이웃 조각 하나를 바로 끝까지 짓는다 (걸어 넘어갔는데 아직 덜 지었을 때) */
@@ -163,8 +163,8 @@ export class Stage {
     const job = this.building?.key === key ? this.building : this.startNeighbor(key)
     if (job === this.building) this.building = null
     if (!job) return null
-    let step = withTerrainFrame(cellOrigin(job.cell), job.ponds, () => job.steps.next())
-    while (!step.done) step = withTerrainFrame(cellOrigin(job.cell), job.ponds, () => job.steps.next())
+    let step = withTerrainFrame(cellOrigin(job.cell), job.land, () => job.steps.next())
+    while (!step.done) step = withTerrainFrame(cellOrigin(job.cell), job.land, () => job.steps.next())
     this.others.set(key, step.value)
     this.place(step.value)
     return step.value

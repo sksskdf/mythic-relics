@@ -40,7 +40,7 @@ import type { CircleCollider } from './colliders'
 import { exitColor, type PropKind, type PropPlacement, type RegionDef } from '../data/regions'
 import { CELL, type Cell, cellOrigin, inRect, type Rect, rectDistance, type RegionLink } from '../data/world'
 import { createRng } from './rng'
-import { buildGround, buildScatter, EDGE_BLEND, edgeWave, type GroundBlend, groundSteps, heightAt, type Pond, pondLevel, setPonds } from './terrain'
+import { buildGround, buildScatter, buildTerraces, cliffColliders, EDGE_BLEND, edgeWave, FLAT_LAND, type GroundBlend, groundSteps, heightAt, type Pond, pondLevel, setLand } from './terrain'
 import { THEMES, type ThemeDef, type ThemeId } from './themes'
 
 type Animator = (elapsed: number) => void
@@ -545,8 +545,8 @@ function finish(steps: Generator<void, Chunk>): Chunk {
 export function* chunkSteps(region: RegionDef, links: readonly RegionLink[] = [], themeAt?: (cell: Cell) => ThemeId): Generator<void, Chunk> {
   const chunk = new Chunk(region, region.cell)
   const theme = THEMES[region.theme]
-  // 땅 높이가 이 지역의 연못을 따르게 한 뒤 땅과 소품을 놓는다
-  setPonds(region.ponds)
+  // 땅 높이가 이 지역의 연못·계단식 땅을 따르게 한 뒤 땅과 소품을 놓는다
+  setLand(region)
   const half = region.halfExtent
   if (region.cell) {
     // 땅은 칸 전체를 덮어 이웃 칸의 땅과 맞닿는다. 움직일 수 있는 네모와 통로 밖은 빽빽한 숲. 가장자리는 이웃 얼굴과 섞는다
@@ -560,6 +560,10 @@ export function* chunkSteps(region: RegionDef, links: readonly RegionLink[] = []
     chunk.group.add(own(buildGround(half + BORDER_DEPTH, theme, region.paths)))
     chunk.group.add(buildBorder(region.seed, half, region.theme))
   }
+  // 계단식 땅과 계단 (E24-07): 바닥 판 위에 쌓고, 절벽은 둥근 충돌을 줄지어 막는다
+  const terraces = buildTerraces(region, theme, region.paths, region.seed)
+  if (terraces) chunk.group.add(own(terraces))
+  chunk.colliders.push(...cliffColliders(region))
   chunk.group.add(own(buildScatter(half, theme)))
   for (const pond of region.ponds) chunk.group.add(own(pondMesh(pond, theme)))
   region.props.forEach((placement, index) => {
@@ -610,7 +614,7 @@ export function buildFillerChunk(cell: Cell, theme: ThemeId, open: readonly Rect
 /** 빈 칸 조각을 땅·숲 단계로 나눠 짓는다 */
 export function* fillerSteps(cell: Cell, theme: ThemeId, open: readonly Rect[] = [], themeAt?: (cell: Cell) => ThemeId): Generator<void, Chunk> {
   const chunk = new Chunk(null, cell)
-  setPonds([])
+  setLand(FLAT_LAND)
   const mix = themeAt ? edgeMixer(cell, theme, themeAt) : null
   chunk.group.add(own(yield* groundSteps(CELL / 2 - 4, THEMES[theme], [], undefined, groundMix(mix))))
   yield
