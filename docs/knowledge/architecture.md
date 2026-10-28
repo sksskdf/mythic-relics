@@ -75,6 +75,17 @@ E12~E14에서 새 규칙을 넣을 때는 `BuildInputs`에 재료를 더하고 `
 | 곡 | `SoundSystem.theme()`이 프레임마다 고른다. 장면·고르기의 곡은 버스의 `music` |
 | 빠르기 | `Feel.slow`·`timeScale`: `Game.update`에서 게임 시간만 느려진다. `Game.advance`(봇·점검의 감기)도 순간을 흘린다 |
 
+## 휴대폰 (E235)
+
+| 곳 | 하는 일 |
+| --- | --- |
+| `src/input/device.ts` | 터치 기기 알아보기(주 포인터가 손가락, `?touch`), 가로로 들었나(`wantsPortrait`), 화면이 휴대폰 조작인가(`touchUi`: html의 `is-touch`) |
+| `src/main.ts` | 터치 기기면 html에 `is-touch`, `RotateHint`(가로로 들면 안내), Game 옵션 `touch`·`suspended`(안내가 떠 있으면 `paused`) |
+| `src/input/touch.ts` | 손가락 몸짓 상태 기계(DOM 없음, `tests/touch.test.ts`): 톡(짧게·거의 안 움직임, 그 프레임에 읽지 않으면 버림), 끌기(누른 자리의 조이스틱, 원 밖으로 나가면 원이 따라옴), 두 손가락(벌린 배율, 다 뗄 때까지 걷기·톡 없음) |
+| `src/input/TouchControls.ts` | 캔버스의 손가락 포인터 사건 → 몸짓, 조이스틱 원·손잡이 그리기. 톡은 `Input.frameEnd`에서 버린다. 마우스는 `Input`이 받고 손가락은 받지 않는다(`ignoreTouch`) |
+| `PlayerInput.updateTouch` | 두 손가락 → `onZoom`(시야 높이, 2% 넘게 바뀔 때만, 떼면 설정에 저장), 톡 → `orders.press`(클릭과 같다), 조이스틱 → 화면 방향을 땅 위 방향으로 바꿔 주인공 앞 2.5m로 `press`·`hold`, 놓으면 `orders.clear` + `hero.stop` |
+| 화면 | 카메라·렌더 크기는 `visibleHeight`로 세로 화면을 늘린다. 배치는 `src/ui/portrait.css`(비 4:5보다 좁을 때, `:root`를 붙여 다른 스타일을 이긴다), 상태 탭은 `menu.css`의 `max-width: 600px` |
+
 ## E14에서 걷어낼 것
 
 옛 순환(`src/progress/Cycle`, `systems/CycleSystem.ts`): 원천 결정·단련·윤회·별자리(→ E17 성좌판)·원천 숙련. 저장을 옮기며 제거한다.

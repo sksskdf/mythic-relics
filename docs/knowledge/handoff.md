@@ -10,7 +10,8 @@
 
 | 항목 | 상태 |
 | --- | --- |
-| 브랜치 | `feature/e23-moments` (E23, PR로 병합). 하네스는 PR #134, Pages 배포는 PR #135, E22는 PR #133 |
+| 브랜치 | `feature/e235-mobile` (E235 휴대폰 대응, PR로 병합). E23은 PR #136, 전설 결계 고침은 PR #137, 하네스는 PR #134, Pages 배포는 PR #135 |
+| 휴대폰 (E235) | 터치 기기면 html에 `is-touch`, 가로로 들면 돌려 달라는 안내와 멈춤(`RotateHint`). 세로 화면은 가로에 시야 높이 × 0.8(`resolution.ts`의 `visibleHeight`), 손가락 몸짓 `src/input/touch.ts`(톡·끌기·두 손가락), `TouchControls`(캔버스 → 몸짓, 조이스틱 그림), `PlayerInput.updateTouch`(톡 = 클릭, 조이스틱 = 주인공 앞 2.5m로 걷기, 놓으면 멈춤, 두 손가락 = 시야 높이). 배치 `src/ui/portrait.css`(비 4:5보다 좁을 때). 점검: 스모크 마지막의 휴대폰 한 바퀴, `ui-sheet.mjs`의 `cut.json`(잘린 요소 0), `SHOT_SIZE=390x844 SHOT_TOUCH=1 shot.mjs` |
 | 순간의 크기 (E23) | 표 `src/data/moments.ts`(사건 → 등급, 느린 동작 1.2초×0.25, 카드 기다림 3·4.5초, 띠 5초), 시스템 `systems/Moments.ts`(버스의 `moment`, `holding`이면 `Storyline`이 짧은 대화를 미룸, 장면은 `play(id, true)`), HUD `showGains(…, 'card'|'big')`·`gainsBusy`·`setHidden`(장면 중 투명하게, 직전 제목 카드는 장면 뒤 다시), 검은 띠 `.letterbox`, 하늘 기둥 `PowerUp.column`, 큰북 `drum`, 곡은 `SoundSystem.theme()`이 프레임마다(장면 곡 > 전설 > 보스 > 땅, 마지막 무대는 `sky`). 엔딩 중에 저장된 판은 불러오면 엔딩을 다시 보인다. 점검 `scripts/checklist-qa.mjs e23`, 개발 패널 「알림·카드·큰 카드·장면」·「곡」 |
 | 웹 배포 | `.github/workflows/pages.yml`: main에 올라오면 빌드해 Pages로. 처음 배포는 Pages가 꺼져 있어 실패(사용자가 Settings › Pages › Source를 GitHub Actions로 켜야 함). 휴대폰 터치: 확대·글 선택 막음(`index.html`) |
 | 하네스 | `.claude/settings.json`의 훅 넷(세션 시작 요약, Bash 명령 막기, PR 만들기·병합 규칙, 고친 뒤 알림), 스크립트는 `scripts/harness/`(규칙 `rules.mjs`, 명령 읽기 `shell.mjs`, 검사 도장 `check-stamp.mjs`, 모아 보기 `what-to-run.mjs`). 서브에이전트 셋(`game-reviewer`·`playtest-qa`·`balance-analyst`), 스킬 넷(`roadmap-sync`·`balance-pass`·`qa-pass`·`steward`). 설명은 `CLAUDE.md` 하네스, 역할은 `workflow.md`. 시험은 `tests/harness.test.mjs` |
@@ -36,7 +37,7 @@
 
 ## 다음 할 일
 
-1. **E235 휴대폰 대응** (`ROADMAP.md` 2장, 이슈 sksskdf/mythic-relics#138): 터치 기기 알아보기·세로 기준·돌려 달라는 안내 → 떠다니는 조이스틱과 톡 누르기 → 두 손가락 확대·축소 → HUD 세로 배치 → 정보 화면 세로 배치 → 터치 스모크·넘침 검사. 끝나면 사용자가 휴대폰으로 체크리스트를 본다
+1. **E235 휴대폰 대응: 만들기는 끝(E235-01~06), 사용자가 휴대폰으로 체크리스트 셋을 볼 차례** (이슈 sksskdf/mythic-relics#138). 병합해 Pages에 올라가면 사용자에게 휴대폰으로 해 보고 「엄지 하나로 걷고 싸우기가 편하다·어느 화면도 잘리거나 글자가 깨지지 않는다·두 손가락으로 당겨 보고 밀어 볼 수 있다」와 fps를 알려 달라고 한다. 의견이 오면 고치고 마일스톤을 닫는다
 2. **E24 에셋 v2** (아트 기준 v2, 주인공 가독성, 땅 키트·적 키트(갈라진 하늘 땅 모습 포함), 등급별 연출·UI, 장비 아이콘과 입은 모습) → E25 데모 다듬기(떠날 때의 시원함·종장 시간, 처음 90분 통째로) (`ROADMAP.md` 2장, `TIMELINE.md` 8장)
 3. 영웅 장비 고유 효과 열둘은 카드의 글뿐이고 돌지 않는다 (따로 할 일)
 4. 기본안 확인(`decisions.md` 맨 아래, E21·E22·E23 기본안과 전설 결계): 사용자가 보면 고친다
@@ -44,7 +45,8 @@
 ## 사용자에게 받아야 할 것
 
 - **Claude GitHub 앱이 이름이 바뀐 저장소(mythic-relics)에 닿는지:** 이 세션은 `sksskdf/game`으로 잡혀 있어 PR 알림이 오지 않았다 (https://github.com/apps/claude/installations/select_target)
-- 직접 해 본 의견이 있으면 (체크리스트는 받지 않는다). 휴대폰 의견도
+- **휴대폰 체크리스트 셋과 fps (E235):** 엄지 하나로 걷고 싸우기가 편한지, 어느 화면도 잘리거나 글자가 깨지지 않는지, 두 손가락으로 당겨 보고 밀어 볼 수 있는지
+- 직접 해 본 의견이 있으면 (체크리스트는 받지 않는다)
 - 이슈 #1 삭제 (Delete issue는 저장소 관리자만)
 - GitHub 프로젝트에 이슈가 들어갔는지, "Item closed → Done" 작업 흐름이 켜졌는지
 
