@@ -37,16 +37,18 @@ export function canWakeMore(awakened: number, mainLevel: number, afterEnding = f
   return afterEnding || awakened < Math.max(1, mainLevel)
 }
 
-/** 조각 2까지 잡아야 하는 적 수 (그 신의 땅에서) */
-export const HUNT_KILLS = 40
+/** 조각 2까지 잡아야 하는 적 수 (그 신의 땅에서). E239에서 사냥 땅이 미드가르드 옆 새 땅(세기 1.25)으로 옮겨 가 40 → 30 */
+export const HUNT_KILLS = 30
 /** 흔적에 이만큼(m) 다가가면 지키는 무리가 깨어난다 */
 export const TRACE_RADIUS = 3
 /** 지키는 무리가 깨어난 뒤 이만큼(m) 넘게 멀어지면 무리가 흩어지고 처음부터 */
 export const TRACE_LEASH = 26
 /** 수호자 자리에 이만큼(m) 다가가면 수호자가 나타난다 */
 export const GUARDIAN_RADIUS = 8
-/** 수호자가 나타난 뒤 이만큼(m) 넘게 멀어지면 수호자가 물러난다 (다시 다가가면 처음부터) */
+/** 수호자가 나타난 뒤 이만큼(m) 넘게 멀어지면 수호자가 물러난다 (다시 다가가면 다시 나타난다) */
 export const GUARDIAN_LEASH = 30
+/** 물러난 수호자의 상처가 아무는 빠르기 (초당 최대 생명의 몫, E239): 물러났다 와도 깎아 둔 생명이 한 번에 차지 않는다 */
+export const GUARDIAN_MEND = 0.01
 
 export const AWAKEN: Readonly<Partial<Record<God, AwakenDef>>> = {
   thor: {

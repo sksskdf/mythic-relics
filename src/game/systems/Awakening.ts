@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 
-import { AWAKEN, AWAKEN_GODS, awakenDef, canWakeMore, GUARDIAN_LEASH, GUARDIAN_RADIUS, TRACE_LEASH, TRACE_RADIUS, type TraceState } from '../../data/awaken'
+import { AWAKEN, AWAKEN_GODS, awakenDef, canWakeMore, GUARDIAN_LEASH, GUARDIAN_MEND, GUARDIAN_RADIUS, TRACE_LEASH, TRACE_RADIUS, type TraceState } from '../../data/awaken'
 import { REGIONS } from '../../data/regions'
 import { sceneId } from '../../data/scenes'
 import type { GiantSpec } from '../../data/schema'
@@ -56,6 +56,8 @@ export class AwakeningSystem {
   private traces: { god: God; x: number; z: number; beam: THREE.Mesh }[] = []
   /** 깨어난 지키는 무리 */
   private pack: { god: God; x: number; z: number; giants: Giant[] } | null = null
+  /** 물러난 수호자의 남은 생명 (그 신·비율·물러난 때, E239) */
+  private wound: { god: God; ratio: number; at: number } | null = null
   /** 수호자 자리 (조각 2를 모았고 그 땅에 있을 때) */
   private lair: { god: God; x: number; z: number; beam: THREE.Mesh } | null = null
   /** 나타난 수호자 */
@@ -113,6 +115,11 @@ export class AwakeningSystem {
   /** 지금 땅의 흔적 자리 (작은 지도·커서 카드) */
   get spots(): readonly { god: God; x: number; z: number; state: TraceState }[] {
     return this.traces.map((t) => ({ god: t.god, x: t.x, z: t.z, state: this.traceState(t.god) }))
+  }
+
+  /** 흔적을 지키는 무리가 깨어나 있나 (봇: 그동안은 흔적으로 걸어가지 않고 싸운다) */
+  get roused(): boolean {
+    return this.pack !== null
   }
 
   /** 수호자 자리 (작은 지도) */
@@ -290,6 +297,11 @@ export class AwakeningSystem {
   /** 수호자가 물러난다 (멀리 달아남·쓰러짐·땅을 옮김): 다시 다가가면 처음부터 */
   private dismiss(): void {
     if (!this.guardian) return
+    // 수호자가 불러낸 졸개도 함께 거둔다 (물러났다 다시 올 때마다 졸개가 쌓이지 않게, E239)
+    const guardian = this.guardian
+    // 깎아 둔 생명은 기억해 둔다 (E239): 다시 나타나면 그동안 조금씩 아문 만큼만
+    if (guardian.alive && this.lair) this.wound = { god: this.lair.god, ratio: guardian.health.ratio, at: this.time }
+    for (const giant of this.ctx.encounter.alive.filter((g) => g.summoner === guardian)) this.ctx.encounter.remove(giant)
     if (this.guardian.alive) this.ctx.encounter.remove(this.guardian)
     this.guardian = null
     this.ctx.bus.emit('music', { theme: null })
@@ -366,6 +378,12 @@ export class AwakeningSystem {
     const at = { x: this.lair.x, z: this.lair.z }
     this.guardian = this.ctx.encounter.spawn(spec, at, true)
     this.ours.add(this.guardian)
+    const wound = this.wound?.god === god ? this.wound : null
+    if (wound) {
+      const health = this.guardian.health
+      health.hp = health.max * Math.min(1, wound.ratio + (this.time - wound.at) * GUARDIAN_MEND)
+    }
+    this.wound = null
     this.ctx.fx.power.burst(this.guardian.object.position, godDef(god).color, 4)
     this.ctx.fx.puffs.burst(this.guardian.object.position, 30, 4)
     this.ctx.view.shake(0.5)

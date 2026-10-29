@@ -57,8 +57,9 @@ describe('신을 깨우는 길 데이터 (E238)', () => {
       expect(spec.poise, god).toBe(Infinity)
       expect(spec.realm, god).toBe(godDef(god).realm)
       expect(spec.leashRange, god).toBe(GUARDIAN_LEASH)
-      expect(spec.attacks.some((a) => a.name === 'roar'), god).toBe(true)
     }
+    // 두 번째 신부터의 수호자(스카디·수르트)만 생명이 반 아래로 떨어지면 포효하며 졸개를 부른다
+    expect(['thor', 'odin', 'loki', 'freyr'].map((g) => guardianSpec(g as 'thor')!.attacks.some((a) => a.name === 'roar'))).toEqual([false, false, true, true])
     // 몸이 넷 다 다르다 (뱀·짐승·사람·거인)
     expect(new Set(specs.map((s) => s.body.kind)).size).toBe(4)
     // 싸우는 방식: 요르문간드는 멀리 독(던지기)과 넓은 꼬리, 펜리르는 돌진과 부르기, 스카디는 물러서며 쏜다, 수르트는 큰 칼과 불덩이

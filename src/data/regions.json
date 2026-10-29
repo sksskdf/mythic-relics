@@ -257,8 +257,8 @@
     "paths": [
       {
         "points": [
-          { "x": -50, "z": 5.47 },
-          { "x": -35, "z": 5.47 },
+          { "x": -50, "z": 5.24 },
+          { "x": -35, "z": 5.24 },
           { "x": -34, "z": 4.84 },
           { "x": -30, "z": 2.66 },
           { "x": -26, "z": -0.13 },
@@ -277,8 +277,8 @@
           { "x": 26, "z": 0.13 },
           { "x": 30, "z": -2.66 },
           { "x": 34, "z": -4.84 },
-          { "x": 35, "z": -5.47 },
-          { "x": 50, "z": -5.47 }
+          { "x": 35, "z": -5.23 },
+          { "x": 50, "z": -5.23 }
         ],
         "width": 2.2
       },
@@ -294,8 +294,8 @@
         "points": [
           { "x": -6, "z": -3.96 },
           { "x": 4, "z": -27 },
-          { "x": -24.87, "z": -35 },
-          { "x": -24.87, "z": -50 }
+          { "x": -24.93, "z": -35 },
+          { "x": -24.93, "z": -50 }
         ],
         "width": 2.4
       }
@@ -307,9 +307,9 @@
     ],
     "exits": [
       { "x": 31, "z": 35, "to": "village" },
-      { "x": -24.87, "z": -35, "to": "jotunheim" },
-      { "x": -35, "z": 5.47, "to": "ironwood" },
-      { "x": 35, "z": -5.47, "to": "serpentshore" }
+      { "x": -24.93, "z": -35, "to": "jotunheim" },
+      { "x": -35, "z": 5.24, "to": "ironwood" },
+      { "x": 35, "z": -5.23, "to": "serpentshore" }
     ],
     "npcs": [],
     "props": [
@@ -414,8 +414,8 @@
     "paths": [
       {
         "points": [
-          { "x": 50, "z": 5.47 },
-          { "x": 37, "z": 5.47 },
+          { "x": 50, "z": 5.24 },
+          { "x": 37, "z": 5.24 },
           { "x": 32.18, "z": 3.91 },
           { "x": 27.4, "z": 3.6 },
           { "x": 22.68, "z": 4.41 },
@@ -461,7 +461,7 @@
       { "x": -28, "z": 28, "count": 4, "members": ["wolf", "grunt", "varg", "varg"] }
     ],
     "exits": [
-      { "x": 37, "z": 5.47, "to": "midgard" }
+      { "x": 37, "z": 5.24, "to": "midgard" }
     ],
     "npcs": [],
     "props": [
@@ -638,8 +638,8 @@
     "paths": [
       {
         "points": [
-          { "x": -50, "z": -5.47 },
-          { "x": -37, "z": -5.47 },
+          { "x": -50, "z": -5.23 },
+          { "x": -37, "z": -5.23 },
           { "x": -32.32, "z": -6.59 },
           { "x": -27.6, "z": -7.4 },
           { "x": -22.82, "z": -7.09 },
@@ -680,12 +680,12 @@
       { "x": -16, "z": -18, "count": 3, "members": ["draugr", "drowned", "drowned"] },
       { "x": -6, "z": 10, "count": 3, "members": ["seaSerpent", "draugr", "draugr"] },
       { "x": 12, "z": 4, "count": 4, "members": ["drowned", "draugr", "grunt", "drowned"] },
-      { "x": 4, "z": -22, "count": 4, "members": ["draugr", "seaSerpent", "seaSerpent", "draugr"] },
+      { "x": -2, "z": -26, "count": 4, "members": ["draugr", "seaSerpent", "seaSerpent", "draugr"] },
       { "x": 26, "z": 10, "count": 4, "members": ["seaSerpent", "drowned", "grunt", "draugr"] },
       { "x": 24, "z": 30, "count": 3, "members": ["grunt", "seaSerpent", "draugr"] }
     ],
     "exits": [
-      { "x": -37, "z": -5.47, "to": "midgard" }
+      { "x": -37, "z": -5.23, "to": "midgard" }
     ],
     "npcs": [],
     "props": [
@@ -744,7 +744,7 @@
       { "kind": "pine", "x": -7.11, "z": -13.88, "size": 1.04, "rotation": 5.85 },
       { "kind": "rock", "x": -20.17, "z": -11.88, "size": 1.21, "rotation": 1.07 },
       { "kind": "pine", "x": -24.76, "z": 3.25, "size": 1.07, "rotation": 4.49 },
-      { "kind": "rock", "x": 4.17, "z": -36.42, "size": 1.02, "rotation": 2.97 },
+      { "kind": "mound", "x": 7.07, "z": -22.09, "size": 0.82, "rotation": 1.78 },
       { "kind": "rock", "x": 15.18, "z": -21.94, "size": 1.26, "rotation": 1.02 },
       { "kind": "rock", "x": -33.9, "z": 30.23, "size": 0.88, "rotation": 2.67 },
       { "kind": "pine", "x": -37.85, "z": 21.9, "size": 0.94, "rotation": 1.58 },
@@ -779,15 +779,13 @@
       { "kind": "deadTree", "x": 33.16, "z": -38.65, "size": 0.95, "rotation": 2.83 },
       { "kind": "rock", "x": -13.6, "z": 38.87, "size": 1.18, "rotation": 5.21 },
       { "kind": "pine", "x": -29.74, "z": 3.28, "size": 0.87, "rotation": 3.9 },
-      { "kind": "pine", "x": -5.11, "z": -23.64, "size": 0.81, "rotation": 4.78 },
-      { "kind": "pine", "x": -2.46, "z": -37.25, "size": 1.16, "rotation": 1.73 },
       { "kind": "deadTree", "x": 20.61, "z": 4.74, "size": 1.01, "rotation": 0.17 },
       { "kind": "rock", "x": -20.63, "z": -29.8, "size": 1.2, "rotation": 5.58 },
       { "kind": "mound", "x": 37.76, "z": 5.49, "size": 1.06, "rotation": 3.95 },
       { "kind": "bush", "x": -1.37, "z": -31.97, "size": 1, "rotation": 6.1 },
       { "kind": "rock", "x": -27.57, "z": -37.74, "size": 1.24, "rotation": 2.48 },
       { "kind": "deadTree", "x": -38.12, "z": -35.88, "size": 1.02, "rotation": 2.63 },
-      { "kind": "pine", "x": -3.7, "z": -25.49, "size": 1.21, "rotation": 4.45 },
+      { "kind": "rock", "x": 16.23, "z": 33.93, "size": 1.16, "rotation": 4.71 },
       { "kind": "rock", "x": -27.78, "z": -17.39, "size": 1.25, "rotation": 2.48 },
       { "kind": "rock", "x": 35.88, "z": -34.17, "size": 1.24, "rotation": 0.94 },
       { "kind": "rock", "x": 32.57, "z": 9.1, "size": 1, "rotation": 3.97 },
@@ -798,7 +796,9 @@
       { "kind": "pine", "x": -25.5, "z": -15.1, "size": 1.06, "rotation": 0.8 },
       { "kind": "pine", "x": 13.23, "z": -22.5, "size": 0.99, "rotation": 4.04 },
       { "kind": "rock", "x": -2.85, "z": 24.92, "size": 0.82, "rotation": 0.89 },
-      { "kind": "deadTree", "x": -21.42, "z": -26.46, "size": 1.22, "rotation": 4.11 }
+      { "kind": "deadTree", "x": -21.42, "z": -26.46, "size": 1.22, "rotation": 4.11 },
+      { "kind": "mound", "x": -3.38, "z": -35.08, "size": 1.15, "rotation": 0.45 },
+      { "kind": "pine", "x": -7.1, "z": -32.31, "size": 0.89, "rotation": 4.32 }
     ]
   },
   "jotunheim": {
@@ -820,8 +820,8 @@
     "paths": [
       {
         "points": [
-          { "x": 25.13, "z": 50 },
-          { "x": 25.13, "z": 37 },
+          { "x": 25.07, "z": 50 },
+          { "x": 25.07, "z": 37 },
           { "x": 22.55, "z": 33.1 },
           { "x": 20.8, "z": 29 },
           { "x": 20.05, "z": 24.6 },
@@ -897,7 +897,7 @@
       { "x": -28, "z": 26, "count": 4, "members": ["grunt", "stoneThrower", "grunt", "stoneThrower"] }
     ],
     "exits": [
-      { "x": 25.13, "z": 37, "to": "midgard" },
+      { "x": 25.07, "z": 37, "to": "midgard" },
       { "x": 25, "z": -37, "to": "utgard" },
       { "x": 37, "z": -2, "to": "muspel" }
     ],
@@ -2524,8 +2524,8 @@
           { "x": 0, "z": -18 },
           { "x": -6, "z": 0 },
           { "x": 4, "z": 10 },
-          { "x": -37, "z": 0.56 },
-          { "x": -50, "z": 0.56 }
+          { "x": -37, "z": 0.84 },
+          { "x": -50, "z": 0.84 }
         ],
         "width": 2.4
       },
@@ -2545,7 +2545,7 @@
     ],
     "exits": [
       { "x": 37, "z": -33.5, "to": "olympus" },
-      { "x": -37, "z": 0.56, "to": "izumo" }
+      { "x": -37, "z": 0.84, "to": "izumo" }
     ],
     "npcs": [],
     "props": [
@@ -2671,8 +2671,8 @@
     "paths": [
       {
         "points": [
-          { "x": 50, "z": 0.56 },
-          { "x": 37, "z": 0.56 },
+          { "x": 50, "z": 0.84 },
+          { "x": 37, "z": 0.84 },
           { "x": 32, "z": -0.79 },
           { "x": 24, "z": -3.49 },
           { "x": 16, "z": -4.92 },
@@ -2703,7 +2703,7 @@
       { "x": -4, "z": -27.06, "count": 4, "members": ["oni", "kappa", "kappa", "oni"] }
     ],
     "exits": [
-      { "x": 37, "z": 0.56, "to": "takamagahara" },
+      { "x": 37, "z": 0.84, "to": "takamagahara" },
       { "x": -37, "z": -0.54, "to": "hiikawa" }
     ],
     "npcs": [],

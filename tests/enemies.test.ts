@@ -206,10 +206,10 @@ describe('적 데이터 규칙 (E8-01)', () => {
           expect(e.attacks.some((a) => a.name === 'roar'), e.id).toBe(true)
           break
         case 'guardian':
-          // 수호자 (E239-03): 보스처럼 끊기지 않고 포효하지만, 지역 보스가 아니라 보스 재료가 없다
+          // 수호자 (E239-03): 보스처럼 끊기지 않지만 지역 보스가 아니라 보스 재료가 없다. 범위가 셋 넘게 다른 공격을 섞는다
+          // (첫 신의 수호자 둘은 포효로 졸개를 부르지 않는다: 처음 만나는 큰 싸움이 졸개에 묻히지 않게)
           expect(e.poise, e.id).toBe(Infinity)
           expect(e.boss, e.id).toBeUndefined()
-          expect(e.attacks.some((a) => a.name === 'roar'), e.id).toBe(true)
           expect(new Set(kinds).size, e.id).toBeGreaterThanOrEqual(3)
           break
       }

@@ -85,6 +85,8 @@ export class Giant {
   gone = false
   /** 이번 프레임에 조각으로 흩어졌다. */
   justShattered = false
+  /** 이 적을 불러낸 적 (포효·부르기). 수호자가 물러날 때 함께 거둔다 (E239) */
+  summoner: Giant | null = null
 
   private stateTime = 0
   private attack: AttackSpec | null = null

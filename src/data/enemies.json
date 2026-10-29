@@ -1662,11 +1662,11 @@
     "xp": 160,
     "voxelSize": 0.22,
     "radius": 1.9,
-    "hp": 820,
+    "hp": 1000,
     "speed": 2.4,
     "aggroRange": 16,
     "leashRange": 30,
-    "returnRegen": 0.02,
+    "returnRegen": 0.005,
     "superArmor": true,
     "minion": "seaSerpent",
     "body": {
@@ -1683,7 +1683,7 @@
         "name": "bite",
         "windup": 0.8,
         "recover": 0.7,
-        "damage": 12,
+        "damage": 9,
         "knockback": 8,
         "area": {
           "kind": "sector",
@@ -1691,30 +1691,44 @@
           "halfAngleDeg": 50
         },
         "reach": 4.2,
-        "cooldown": 2
+        "cooldown": 2.2
       },
       {
         "name": "cast",
         "windup": 0.9,
         "recover": 0.6,
-        "damage": 10,
+        "damage": 7,
         "knockback": 4,
         "area": {
           "kind": "circle",
           "radius": 2.4
         },
         "reach": 16,
-        "cooldown": 2.6,
+        "cooldown": 3.4,
         "projectile": {
           "speed": 12,
           "look": "venom"
         }
       },
       {
+        "name": "charge",
+        "windup": 0.9,
+        "recover": 1,
+        "damage": 10,
+        "knockback": 10,
+        "area": {
+          "kind": "line",
+          "length": 10,
+          "width": 2.2
+        },
+        "reach": 10,
+        "cooldown": 5.5
+      },
+      {
         "name": "sweep",
         "windup": 1.1,
         "recover": 1,
-        "damage": 15,
+        "damage": 12,
         "knockback": 14,
         "area": {
           "kind": "sector",
@@ -1722,23 +1736,7 @@
           "halfAngleDeg": 110
         },
         "reach": 6,
-        "cooldown": 6
-      },
-      {
-        "name": "roar",
-        "windup": 1,
-        "recover": 1.2,
-        "damage": 10,
-        "knockback": 10,
-        "area": {
-          "kind": "ring",
-          "speed": 9,
-          "startRadius": 3.6,
-          "maxRadius": 13,
-          "width": 1.2
-        },
-        "reach": 30,
-        "cooldown": 16
+        "cooldown": 6.5
       }
     ]
   },
@@ -1749,11 +1747,11 @@
     "xp": 140,
     "voxelSize": 0.22,
     "radius": 1.5,
-    "hp": 760,
+    "hp": 1000,
     "speed": 5.4,
     "aggroRange": 16,
     "leashRange": 30,
-    "returnRegen": 0.02,
+    "returnRegen": 0.005,
     "superArmor": true,
     "minion": "varg",
     "body": {
@@ -1769,7 +1767,7 @@
         "name": "bite",
         "windup": 0.6,
         "recover": 0.5,
-        "damage": 10,
+        "damage": 7,
         "knockback": 6,
         "area": {
           "kind": "sector",
@@ -1777,13 +1775,13 @@
           "halfAngleDeg": 55
         },
         "reach": 3.2,
-        "cooldown": 1.3
+        "cooldown": 1.4
       },
       {
         "name": "charge",
         "windup": 0.8,
         "recover": 0.8,
-        "damage": 13,
+        "damage": 11,
         "knockback": 12,
         "area": {
           "kind": "line",
@@ -1791,20 +1789,20 @@
           "width": 2.4
         },
         "reach": 13,
-        "cooldown": 3.6
+        "cooldown": 4
       },
       {
         "name": "slam",
         "windup": 0.9,
         "recover": 0.9,
-        "damage": 15,
+        "damage": 12,
         "knockback": 10,
         "area": {
           "kind": "circle",
           "radius": 3
         },
         "reach": 10,
-        "cooldown": 6
+        "cooldown": 6.5
       },
       {
         "name": "summon",
@@ -1818,23 +1816,7 @@
           "count": 2
         },
         "reach": 18,
-        "cooldown": 14
-      },
-      {
-        "name": "roar",
-        "windup": 1,
-        "recover": 1.2,
-        "damage": 12,
-        "knockback": 10,
-        "area": {
-          "kind": "ring",
-          "speed": 9,
-          "startRadius": 3.6,
-          "maxRadius": 13,
-          "width": 1.2
-        },
-        "reach": 30,
-        "cooldown": 16
+        "cooldown": 20
       }
     ]
   },
@@ -1845,11 +1827,11 @@
     "xp": 150,
     "voxelSize": 0.19,
     "radius": 1.1,
-    "hp": 700,
+    "hp": 2000,
     "speed": 3.8,
     "aggroRange": 16,
     "leashRange": 30,
-    "returnRegen": 0.02,
+    "returnRegen": 0.005,
     "superArmor": true,
     "keepAway": 9,
     "minion": "wolf",
@@ -1868,14 +1850,14 @@
         "name": "throw",
         "windup": 0.6,
         "recover": 0.4,
-        "damage": 9,
+        "damage": 8,
         "knockback": 4,
         "area": {
           "kind": "circle",
           "radius": 1.6
         },
         "reach": 18,
-        "cooldown": 1.4,
+        "cooldown": 1.8,
         "projectile": {
           "speed": 22,
           "look": "ice"
@@ -1951,11 +1933,11 @@
     "xp": 160,
     "voxelSize": 0.22,
     "radius": 1.9,
-    "hp": 860,
+    "hp": 2200,
     "speed": 2.3,
     "aggroRange": 16,
     "leashRange": 30,
-    "returnRegen": 0.02,
+    "returnRegen": 0.005,
     "superArmor": true,
     "minion": "fireGiant",
     "body": {
