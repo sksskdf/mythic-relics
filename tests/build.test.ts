@@ -6,7 +6,12 @@ import { alwaysStage, computeBuild, gearModifiers, statAt, TOP_STAGE } from '../
 import { RelicPowers } from '../src/game/RelicPowers'
 import { relicAwake } from '../src/gear/mythRelic'
 import { ClassProgress, PER_OPENED, PER_PROMOTION } from '../src/myth/ClassProgress'
+import { RiftProgress } from '../src/progress/Rift'
 import { ThreatProgress } from '../src/progress/Threat'
+import { TrainingProgress } from '../src/progress/Training'
+import { TrialProgress } from '../src/progress/Trials'
+import { TRAINING_NODES } from '../src/data/training'
+import { TRIAL_IDS } from '../src/data/trials'
 import { GODS, godDef, RELIC_IDS, relicDef } from '../src/relics/data'
 
 /** 신화 단계(큰 걸음)와 고른 신화의 패시브 배율 (E21-01) */
@@ -151,5 +156,42 @@ describe('신화 단계와 수집 보너스 (E21-01·02)', () => {
     // 받는 피해: 스사노오 −6%와 유물의 배율을 곱한다
     const tough = computeBuild({ ...base, chosen: [], open: new Map([['susanoo', 3]]), gear: ['megingjord'], starred })
     expect(tough.damageTaken).toBeCloseTo(gearModifiers(['megingjord']).damageTaken * (1 + godDef('susanoo').always.stat.value[1]))
+  })
+})
+
+describe('빌드 상태 다시 쓰기', () => {
+  it('재료가 그대로면 지난 계산을 돌려주고, 장착·단계·수련·시련·축복·별이 바뀌면 새로 계산한다', () => {
+    const powers = new RelicPowers(new THREE.Group())
+    const progress = new ClassProgress()
+    const training = new TrainingProgress()
+    const trials = new TrialProgress()
+    const rift = new RiftProgress()
+    const blessings: string[] = []
+    const build = new Build({ powers, progress, threat: new ThreatProgress(), training, trials, rift, blessings: () => blessings })
+    const first = build.state
+    expect(build.state).toBe(first)
+    const changes: (() => void)[] = [
+      () => powers.equip('mjolnir'),
+      () => powers.loadout.stages.set('mjolnir', 3),
+      () => progress.record('thor'),
+      () => powers.choose('thor'),
+      () => promoteTimes(progress, 'thor', 1),
+      () => {
+        training.gain(1e7)
+        training.take(TRAINING_NODES.find((n) => n.after.length === 0)!.id)
+      },
+      () => trials.win(TRIAL_IDS[0], 1, 60),
+      () => blessings.push('x'),
+      () => rift.lit.add('thor'),
+    ]
+    let last = first
+    for (const change of changes) {
+      change()
+      const next = build.state
+      expect(next).not.toBe(last)
+      expect(next).toEqual(computeBuild(build.inputs()))
+      expect(build.state).toBe(next)
+      last = next
+    }
   })
 })

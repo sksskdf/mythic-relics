@@ -571,6 +571,8 @@ export class Game {
       this.input.frameEnd.push(() => touch.gestures.endFrame())
     }
     this.playerInput.onZoom = (viewHeight, end) => {
+      // 대화 장면의 시야는 장면이 정한다 (휠과 같이)
+      if (this.scenes.active) return
       if (viewHeight !== this.view.viewHeight) this.setViewHeight(viewHeight)
       if (end) this.settings = settingsStorage.update({ viewHeight: this.view.viewHeight })
     }
@@ -1138,7 +1140,7 @@ export class Game {
     this.trialSystem.update(dt)
     this.riftSystem.update(dt)
     this.life.update(dt)
-    this.appearance.update()
+    this.appearance.update(dt)
     this.sound.update()
 
     const position = this.hero.object.position
@@ -1246,6 +1248,8 @@ export class Game {
   /** 마우스 휠로 확대·축소한다. 설정에 저장되어 다시 켜도 유지된다. */
   private onWheel(e: WheelEvent): void {
     e.preventDefault()
+    // 대화 장면(줌인·줌아웃 포함)의 시야는 장면이 정한다. 바꾸지도 저장하지도 않는다
+    if (this.scenes.active) return
     const next = clampViewHeight(this.view.viewHeight * (e.deltaY > 0 ? 1.1 : 1 / 1.1))
     if (next === this.view.viewHeight) return
     this.setViewHeight(next)

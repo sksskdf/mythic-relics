@@ -411,3 +411,45 @@ describe('지역 보스 (E8-05)', () => {
     }
   })
 })
+
+describe('땅 세기를 받은 적', () => {
+  it('휘청임은 배율을 곱하기 전의 타격 세기로 본다: 피해가 커도 약한 타격은 예고를 끊지 않는다', () => {
+    const giant = new Giant(GRUNT, { x: 0, z: 0 })
+    giant.applyThreat({ hp: 4.6, damage: 1 })
+    const { world } = makeWorld({ x: 1.8, z: 0 })
+    world.giants = [giant]
+    for (let i = 0; i < 600 && giant.state !== 'windup'; i++) giant.update(1 / 60, world)
+    expect(giant.state).toBe('windup')
+    giant.takeHit(GRUNT.poise * 2, 1, 0, 0, GRUNT.poise - 1)
+    expect(giant.state).toBe('windup')
+    giant.takeHit(GRUNT.poise * 2, 1, 0, 0, GRUNT.poise)
+    expect(giant.state).toBe('stagger')
+  })
+
+  it('돌아가며 회복할 때 배율 받은 최대 생명력을 기준으로 찬다', () => {
+    const giant = new Giant(GRUNT, { x: 0, z: 0 })
+    giant.applyThreat({ hp: 6.6, damage: 1 })
+    const { world } = makeWorld({ x: 15, z: 15 })
+    world.hero.alive = false
+    world.giants = [giant]
+    giant.health.hp = giant.health.max / 2
+    giant.rig.root.position.set(8, 0, 0)
+    giant['setState']('return')
+    run(giant, world, 1.1)
+    expect(giant.state).toBe('return')
+    expect(giant.health.hp).toBeCloseTo(giant.health.max, 5)
+  })
+
+  it('다른 거인에게 밀려도 나무 속에 든 채로 멈추지 않는다', () => {
+    const giant = new Giant(GRUNT, { x: 1.2, z: 0 })
+    const other = new Giant(GRUNT, { x: 0, z: 0 })
+    const tree = { x: 0, z: 0, radius: 1 }
+    other.rig.root.position.set(1 + giant.radius + other.radius - 0.3, 0, 0)
+    other.collider.x = other.x
+    const { world } = makeWorld({ x: 15, z: 15 })
+    world.staticColliders = [tree]
+    world.giants = [giant, other]
+    giant['translate'](0, 0, world)
+    expect(Math.hypot(giant.x - tree.x, giant.z - tree.z)).toBeGreaterThanOrEqual(tree.radius + giant.radius - 1e-6)
+  })
+})

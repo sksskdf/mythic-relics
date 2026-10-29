@@ -448,6 +448,8 @@ export function* groundSteps(halfExtent: number, theme: ThemeDef, paths: readonl
       data[i + 2] = Math.round(color.b * 255)
       data[i + 3] = 255
     }
+    // 4만 텍셀을 한 번에 칠하면 한 프레임이 길어지므로 25줄마다 쉰다 (무작위 차례는 그대로라 같은 땅이 나온다)
+    if (row % 25 === 24) yield
   }
   const texture = new THREE.DataTexture(data, texels, texels, THREE.RGBAFormat)
   texture.magFilter = THREE.NearestFilter

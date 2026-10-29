@@ -252,8 +252,8 @@ export class Hud {
       this.xpFill.style.width = `${(state.xp * 100).toFixed(1)}%`
       this.xpFill.style.background = state.xpColor
       this.xpFill.style.color = state.xpColor
-      // 가득 차면 깜빡여서 승급 전설에 들어갈 수 있음을 알린다.
-      this.xpBar.classList.toggle('is-full', state.xp >= 1)
+      // 다음 단계를 올릴 수 있을 때만 깜빡여서 승급 전설에 들어갈 수 있음을 알린다 (단계 끝이면 가득 찬 채 멈춘다)
+      this.xpBar.classList.toggle('is-full', state.promote)
     }
 
     this.ultimate.style.setProperty('--charge', state.ultimate ? state.divine.toFixed(3) : '0')

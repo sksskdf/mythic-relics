@@ -521,6 +521,16 @@ try {
   console.log('전설 확인: 성소에서 시작')
 
   // 저장 점검: 새로 고침해도 주운 유물을 그대로 끼고 이어 한다.
+  // 저장 왕복: 로키를 빌린 칸에 넣고, 정보 화면을 열어 멈춘 채(창을 닫을 때 다시 저장해도 같게) 저장한다
+  const keep = () => {
+    const d = window.__game.snapshot()
+    return { chosen: d.chosen, waking: d.awaken.waking, fragments: d.awaken.fragments, slots: d.slots, bag: d.bag, stages: d.stages, taken: d.training.taken, ending: d.ending, threat: d.threat.reached, open: d.conveniences.open.filter((id) => id !== 'warp'), visited: d.conveniences.visited }
+  }
+  await page.evaluate(() => {
+    window.__game.relics.lend('loki')
+    window.__game.menu.toggle(true)
+  })
+  const kept = await page.evaluate(keep)
   const savedAt = await page.evaluate(() => {
     window.__game.saveNow()
     const p = window.__game.hero.object.position
@@ -537,12 +547,16 @@ try {
     return { relic: l.slots[0] === 'mjolnir', gear: l.slots[4] === uid && l.gear.get(uid)?.grade === 'rare', material: l.materials.get('megingjord') === 1 }
   }, bootsUid)
   if (!restored.relic || !restored.gear || !restored.material) throw new Error(`이어서 플레이 실패: 저장한 장비가 없습니다 ${JSON.stringify(restored)}`)
+  // 주신·빌린 신·깨우는 신·조각·장비 칸·가방·단계·수련·엔딩·위협·웨이포인트가 저장 전과 같다 (Persistence 저장·되살리기 왕복)
+  const again = await page.evaluate(keep)
+  await page.evaluate(() => window.__game.relics.unlend('loki'))
+  if (JSON.stringify(again) !== JSON.stringify(kept) || kept.chosen.join() !== 'thor,loki') throw new Error(`이어서 플레이 실패: 되살린 상태가 저장 전과 다릅니다 ${JSON.stringify({ kept, again })}`)
   if ((await page.evaluate(() => window.__game.hero.rig.outfit.weapon)) !== 'shortSword') throw new Error('이어서 플레이 실패: 고른 외형이 없습니다.')
   if ((await page.evaluate(() => window.__game.region.id)) !== 'midgard') throw new Error('이어서 플레이 실패: 있던 지역(미드가르드)이 아닙니다.')
   // 세계 자리 (E19-05): 지역 id + 지역 안 좌표가 곧 이어진 세계의 자리다
   const back = await page.evaluate(() => ({ x: window.__game.hero.object.position.x, z: window.__game.hero.object.position.z }))
   if (Math.hypot(back.x - savedAt.x, back.z - savedAt.z) > 1) throw new Error(`이어서 플레이 실패: 저장한 자리가 아닙니다 ${JSON.stringify({ savedAt, back })}`)
-  console.log('저장 확인: 새로 고침하면 단추 없이 바로 이어서, 유물·일반 장비·재료와 고른 외형, 있던 지역과 자리 유지')
+  console.log('저장 확인: 새로 고침하면 단추 없이 바로 이어서, 유물·일반 장비·재료와 고른 외형, 신위 칸·조각·단계·수련·위협·웨이포인트, 있던 지역과 자리 유지')
 
   // 처음 화면으로: 정보 화면의 단추를 두 번 누르면 저장하고 슬롯 고르기로 돌아가고, 그 슬롯을 누르면 이어 간다.
   await page.click('.menu-button')

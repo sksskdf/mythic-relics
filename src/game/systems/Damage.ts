@@ -6,6 +6,8 @@ import type { GameContext } from '../context'
 import type { StatKind } from '../../data/mythAlways'
 import type { DamageSource } from '../../skills/Skill'
 import type { CombatTarget, HitReport } from '../PlayerCombat'
+import type { BuildState } from '../../build/BuildState'
+import { isBossLike } from '../../enemies/grade'
 
 /** 피해가 온 곳 → 그 피해를 키우는 상시 효과 수치 */
 const SOURCE_STAT: Partial<Record<DamageSource, StatKind>> = {
@@ -17,11 +19,14 @@ const SOURCE_STAT: Partial<Record<DamageSource, StatKind>> = {
   dot: 'dotDamage',
 }
 
-/** 정예·보스인가 (상시 효과 「정예·보스에게 피해」) */
+/** 정예·보스인가 (상시 효과 「정예·보스에게 피해」). 신을 깨우는 수호자(E239)도 보스로 친다 */
 function isBig(target: CombatTarget): boolean {
-  const t = target as { elite?: unknown; spec?: { boss?: unknown } }
-  return !!t.elite || !!t.spec?.boss
+  const t = target as { elite?: unknown; spec?: { boss?: unknown; role?: string } }
+  return !!t.elite || !!t.spec?.boss || (!!t.spec && isBossLike(t.spec))
 }
+
+/** 휘청임을 볼 타격 세기(배율을 곱하기 전)를 함께 받는 대상. 거인만 읽고, 나머지는 넘겨도 버린다 */
+type ImpactTarget = CombatTarget & { takeHit(damage: number, dirX: number, dirZ: number, knockback: number, impact?: number): number }
 
 /** 신위 게이지: 스킬로 맞힐 때, 쓰러뜨릴 때 차오르는 양 */
 const DIVINE_PER_SKILL_HIT = 0.01
@@ -37,15 +42,14 @@ export class DamageSystem {
   constructor(private readonly ctx: GameContext) {}
 
   /** 피해 배율: 공통 배율 × 그 피해가 온 곳의 상시 효과 수치 */
-  scale(source: DamageSource = 'other'): number {
-    const state = this.ctx.build.state
+  scale(source: DamageSource = 'other', state: BuildState = this.ctx.build.state): number {
     const stat = SOURCE_STAT[source]
     return state.damageScale * (stat ? 1 + state.stats[stat] : 1) * this.ctx.powers.awakening.damageScale
   }
 
   /** 그 대상에게만 붙는 배율 (정예·보스에게 피해) */
-  targetScale(target: CombatTarget): number {
-    return isBig(target) ? 1 + this.ctx.build.state.stats.bossDamage : 1
+  targetScale(target: CombatTarget, state: BuildState = this.ctx.build.state): number {
+    return isBig(target) ? 1 + state.stats.bossDamage : 1
   }
 
   /** 스킬로 적에게 피해를 준다. 배율, 피해 숫자, 신위 게이지를 함께 처리한다. */
@@ -53,7 +57,8 @@ export class DamageSystem {
     if (!target.alive) return
     const { combat, numbers, build, bus } = this.ctx
     const state = build.state
-    const dealt = target.takeHit(damage * this.scale(source) * this.targetScale(target), dirX, dirZ, knockback * state.modifiers.knockbackDealt)
+    // 휘청임은 배율을 곱하기 전의 세기로 본다 (땅 세기·빌드가 커져도 센 타격만 휘청이게)
+    const dealt = (target as ImpactTarget).takeHit(damage * this.scale(source, state) * this.targetScale(target, state), dirX, dirZ, knockback * state.modifiers.knockbackDealt, damage)
     if (dealt > 0 && !target.alive) bus.emit('targetKilled', { target })
     if (dealt <= 0) return
     if (style === 'thunder') bus.emit('sound', { cue: 'thunder', x: target.x, z: target.z })

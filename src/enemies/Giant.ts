@@ -72,6 +72,9 @@ interface Shockwave {
 const SUMMON_CROWD = 1.5
 const DEATH_COLLAPSE = 0.55
 const REPATH = 0.45
+/** 밀어낼 충돌체 하나를 넘기는 목록과 주인공 원 (translate가 프레임마다 새로 만들지 않게 다시 쓴다) */
+const ONE: CircleCollider[] = [{ x: 0, z: 0, radius: 0 }]
+const HERO_CIRCLE: CircleCollider = { x: 0, z: 0, radius: 0 }
 /** 돌진 빠르기 (m/s) */
 const DASH_SPEED = 16
 
@@ -97,6 +100,10 @@ export class Giant {
   private readonly knock = new THREE.Vector2()
   private path: Point2[] = []
   private repathTimer = 0
+  /** 지난번 길찾기가 길을 못 찾았다 (다음 다시 찾기까지 기다린다) */
+  private pathFailed = false
+  /** 예고를 마지막으로 놓은 자리와 방향 (같으면 다시 땅에 맞추지 않는다) */
+  private readonly placed = { x: NaN, z: NaN, facing: NaN }
   private walkCycle = Math.random() * 10
   private flash = 0
   /** 생명이 반 아래로 처음 떨어져 포효했는가 (물러났다 다시 나타난 수호자는 기억한 값을 받는다, E239) */
@@ -262,9 +269,10 @@ export class Giant {
 
   /**
    * 주인공의 공격에 맞았다.
+   * impact는 휘청임을 볼 타격 세기다. 빌드·땅 세기 배율을 곱하기 전의 수치를 넘기면, 땅이 세져도 센 타격만 휘청인다 (없으면 피해와 같다)
    * @returns 실제로 깎인 생명력
    */
-  takeHit(damage: number, dirX: number, dirZ: number, knockback: number): number {
+  takeHit(damage: number, dirX: number, dirZ: number, knockback: number, impact = damage): number {
     if (!this.alive) return 0
     // 막기 (E8-02): 앞에서 맞으면 피해가 준다. 맞은 방향(dir)은 주인공 → 적이라, 주인공은 그 반대쪽에 있다
     // 공격하는 동안(예고·빈틈)은 방패가 내려가 그대로 들어간다
@@ -286,7 +294,7 @@ export class Giant {
       return dealt
     }
     if (this.spec.poise !== Infinity) this.knock.set(this.knock.x + dirX * knockback, this.knock.y + dirZ * knockback)
-    if (damage >= this.spec.poise && !frontal) {
+    if (impact >= this.spec.poise && !frontal) {
       this.clearTelegraph()
       this.setState('stagger')
     } else if (this.state === 'idle' || this.state === 'return') {
@@ -324,7 +332,8 @@ export class Giant {
         if (hero.alive && distToHero < this.spec.aggroRange) this.setState('chase')
         break
       case 'return':
-        this.health.heal(this.spec.hp * this.spec.returnRegen * dt)
+        // 배율 받은 최대 생명력 기준 (땅 세기·정예로 커진 적도 같은 빠르기로 찬다)
+        this.health.heal(this.health.max * this.spec.returnRegen * dt)
         if (this.walkTo(this.home, dt, world) < 0.5) this.setState('idle')
         else if (hero.alive && distToHero < this.spec.aggroRange * 0.6) this.setState('chase')
         break
@@ -440,6 +449,7 @@ export class Giant {
     this.stateTime = 0
     this.path = []
     this.repathTimer = 0
+    this.pathFailed = false
   }
 
   private chooseAttack(distToHero: number, world: GiantWorld): AttackSpec | null {
@@ -486,7 +496,10 @@ export class Giant {
               : { kind: 'ring', radius: area.startRadius, width: area.width },
     )
     world.effects.add(this.telegraph.object)
+    this.placed.x = NaN
     this.placeTelegraph()
+    // 채움은 setProgress가 땅에 맞춘다 (place는 채움을 맞추지 않는다)
+    this.telegraph.setProgress(0)
     world.warn?.(this.x, this.z)
   }
 
@@ -510,9 +523,17 @@ export class Giant {
 
   private placeTelegraph(): void {
     if (!this.telegraph || !this.attack) return
-    if (this.attack.area.kind === 'circle') this.telegraph.place(this.target.x, this.target.y)
-    else if (this.attack.area.kind === 'line' || this.attack.area.kind === 'sector') this.telegraph.place(this.x, this.z, this.rig.root.rotation.y)
-    else this.telegraph.place(this.x, this.z, this.rig.root.rotation.y)
+    const circle = this.attack.area.kind === 'circle'
+    const x = circle ? this.target.x : this.x
+    const z = circle ? this.target.y : this.z
+    const facing = circle ? 0 : this.rig.root.rotation.y
+    // 자리가 고정된 뒤(예고 40% 뒤)에는 같은 자리라 땅에 다시 맞추지 않는다. 채움은 setProgress가 따로 맞춘다
+    const placed = this.placed
+    if (placed.x === x && placed.z === z && placed.facing === facing) return
+    placed.x = x
+    placed.z = z
+    placed.facing = facing
+    this.telegraph.place(x, z, facing)
   }
 
   private strike(attack: AttackSpec, world: GiantWorld): void {
@@ -684,8 +705,10 @@ export class Giant {
     this.repathTimer -= dt
     let waypoint: Point2 = goal
     if (!world.nav.hasLineOfSight(here, goal)) {
-      if (this.repathTimer <= 0 || this.path.length === 0) {
+      // 길이 없으면 프레임마다 다시 찾지 않고 다음 다시 찾을 때까지 곧장 걷는다
+      if (this.repathTimer <= 0 || (this.path.length === 0 && !this.pathFailed)) {
         this.path = world.nav.findPath(here, goal)
+        this.pathFailed = this.path.length === 0
         this.repathTimer = REPATH
       }
       while (this.path.length > 0 && Math.hypot(this.path[0]!.x - this.x, this.path[0]!.z - this.z) < 0.3) this.path.shift()
@@ -712,9 +735,24 @@ export class Giant {
     next = pushOut(next, this.radius, world.staticColliders)
     for (const other of world.giants) {
       if (other === this || !other.alive) continue
-      next = pushOut(next, this.radius, [other.collider])
+      // 겹친 거인만 민다 (pushOut이 건너뛰는 조건과 같다). 넘기는 목록은 하나를 다시 쓴다
+      const c = other.collider
+      const ox = next.x - c.x
+      const oz = next.z - c.z
+      const reach = c.radius + this.radius
+      if (ox * ox + oz * oz >= reach * reach) continue
+      ONE[0] = c
+      next = pushOut(next, this.radius, ONE)
     }
-    if (world.hero.alive) next = pushOut(next, this.radius, [{ x: world.hero.x, z: world.hero.z, radius: world.hero.radius }])
+    if (world.hero.alive) {
+      HERO_CIRCLE.x = world.hero.x
+      HERO_CIRCLE.z = world.hero.z
+      HERO_CIRCLE.radius = world.hero.radius
+      ONE[0] = HERO_CIRCLE
+      next = pushOut(next, this.radius, ONE)
+    }
+    // 나무·바위가 마지막에 이긴다: 거인·주인공에게 밀려 그 속에 든 채 프레임을 끝내지 않게
+    next = pushOut(next, this.radius, world.staticColliders)
     next = clampToArea(next, world.area)
     position.set(next.x, heightAt(next.x, next.z), next.z)
   }

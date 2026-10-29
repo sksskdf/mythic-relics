@@ -129,10 +129,13 @@ export class TargetMarker {
 export class PathLine {
   readonly object: THREE.Line
   private readonly positions = new Float32Array(6)
+  /** 점선을 긋는 거리 (시작 0, 끝 = 선 길이). computeLineDistances는 부를 때마다 버퍼를 새로 붙이니 직접 쓴다 */
+  private readonly distances = new Float32Array(2)
 
   constructor() {
     const geometry = new THREE.BufferGeometry()
     geometry.setAttribute('position', new THREE.BufferAttribute(this.positions, 3))
+    geometry.setAttribute('lineDistance', new THREE.BufferAttribute(this.distances, 1))
     const material = new THREE.LineDashedMaterial({ color: GOLD, dashSize: 0.35, gapSize: 0.25, transparent: true, opacity: 0.85, depthTest: false })
     this.object = new THREE.Line(geometry, material)
     this.object.layers.set(EFFECT_LAYER)
@@ -144,8 +147,19 @@ export class PathLine {
   update(from: THREE.Vector3, to: { x: number; z: number } | null): void {
     this.object.visible = to !== null
     if (!to) return
-    this.positions.set([from.x, from.y + 0.1, from.z, to.x, heightAt(to.x, to.z) + 0.1, to.z])
-    this.object.geometry.attributes.position!.needsUpdate = true
-    this.object.computeLineDistances()
+    const p = this.positions
+    p[0] = from.x
+    p[1] = from.y + 0.1
+    p[2] = from.z
+    p[3] = to.x
+    p[4] = heightAt(to.x, to.z) + 0.1
+    p[5] = to.z
+    const dx = p[3]! - p[0]!
+    const dy = p[4]! - p[1]!
+    const dz = p[5]! - p[2]!
+    this.distances[1] = Math.sqrt(dx * dx + dy * dy + dz * dz)
+    const { attributes } = this.object.geometry
+    attributes.position!.needsUpdate = true
+    attributes.lineDistance!.needsUpdate = true
   }
 }

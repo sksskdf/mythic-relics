@@ -74,8 +74,8 @@ export function renderStatus(ctx: TabContext, body: HTMLElement): void {
     grid.append(r)
   }
   const changed = (v: number, higherIsGood: boolean) => (Math.abs(v - 1) < 0.005 ? undefined : { text: pct(v), good: v > 1 === higherIsGood })
-  row('heart', '생명', `${Math.round(stats.hp)} / ${stats.maxHp}`, '생명\n개방 단계가 오를 때마다 최대 생명 +15. 오르면 가득 찬다.')
-  row('sword', '주는 피해', `×${stats.damage.toFixed(2)}`, '주는 피해\n개방 단계가 오를 때마다 +5%, 지금 신화의 힘이 곱해진다.', changed(stats.damage, true))
+  row('heart', '생명', `${Math.round(stats.hp)} / ${stats.maxHp}`, `생명\n개방 단계를 하나 올릴 때마다 최대 생명 +${Math.round(PER_PROMOTION.maxHpPct * 100)}%, 열린 신화 하나마다 +${PER_OPENED.maxHp}. 오르면 가득 찬다.`)
+  row('sword', '주는 피해', `×${stats.damage.toFixed(2)}`, `주는 피해\n개방 단계를 하나 올릴 때마다 ×${PER_PROMOTION.damage}, 열린 신화 하나마다 +${Math.round(PER_OPENED.damage * 100)}%, 지금 신화의 힘이 곱해진다.`, changed(stats.damage, true))
   row('shield', '받는 피해', `×${stats.damageTaken.toFixed(2)}`, '낀 유물의 지속 효과', changed(stats.damageTaken, false))
   row('boot', '이동 속도', `${Math.round(stats.moveSpeed * 100)}%`, '낀 유물의 지속 효과', changed(stats.moveSpeed, true))
   row('push', '밀쳐 내기', `×${stats.knockbackDealt.toFixed(2)}`, '내 공격이 적을 미는 힘', changed(stats.knockbackDealt, true))

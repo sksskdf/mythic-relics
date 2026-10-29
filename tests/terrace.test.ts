@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest'
+import * as THREE from 'three'
+
 import { parseRegions } from '../src/data/regions'
+import { Telegraph } from '../src/fx/Telegraphs'
 import { baseHeightAt, cliffColliders, FLAT_LAND, heightAt, highestLand, type Land, onStairs, rayToLand, setLand, setTerrainOrigin } from '../src/world/terrain'
 
 /** 가로세로 10m 네모 땅 (높이 2m), 남쪽 변 가운데로 오르는 계단 하나 (z 8 → 3, 너비 2) */
@@ -109,5 +112,26 @@ describe('계단식 땅 (E24-07)', () => {
     expect(() => parseRegions({ village: { ...base, terraces: [{ points: square, height: 1.2 }] } })).toThrow(/0.5m 단위/)
     expect(() => parseRegions({ village: { ...base, terraces: [{ points: square, height: 1, stairs: [{ from: { x: 0, z: 1 }, to: { x: 0, z: 3 }, width: 2 }] }] } })).toThrow(/발치/)
     expect(() => parseRegions({ village: { ...base, terraces: [{ points: square, height: 1, stairs: [{ from: { x: 0, z: 9 }, to: { x: 0, z: 7 }, width: 2 }] }] } })).toThrow(/윗끝/)
+  })
+})
+
+describe('충격파 예고 다시 짓기', () => {
+  afterEach(() => setLand(FLAT_LAND))
+
+  it('반지름을 바꾸면 형상을 새로 만들지 않고, 새로 만든 것과 같은 정점을 쓴다 (계단식 땅 위에서도 땅을 따른다)', () => {
+    setLand(plaza)
+    const wave = new Telegraph({ kind: 'ring', radius: 1, width: 0.6 })
+    wave.place(1, 2)
+    const base = (wave.object.children[0] as THREE.Mesh).geometry
+    wave.reshape({ kind: 'ring', radius: 4.5, width: 0.6 })
+    expect((wave.object.children[0] as THREE.Mesh).geometry).toBe(base)
+    const fresh = new Telegraph({ kind: 'ring', radius: 4.5, width: 0.6 })
+    fresh.place(1, 2)
+    const a = base.getAttribute('position').array
+    const b = (fresh.object.children[0] as THREE.Mesh).geometry.getAttribute('position').array
+    expect(Array.from(a)).toEqual(Array.from(b))
+    expect(Array.from(base.getAttribute('uv').array)).toEqual(Array.from((fresh.object.children[0] as THREE.Mesh).geometry.getAttribute('uv').array))
+    // 계단식 땅(높이 2m) 위에 놓은 띠가 땅 끝을 넘으면, 넘은 정점은 아래 바닥까지 내려간다
+    expect(Math.min(...Array.from(a).filter((_, i) => i % 3 === 2))).toBeLessThan(-1.5)
   })
 })

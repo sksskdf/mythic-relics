@@ -105,6 +105,9 @@ const ZERO = new THREE.Vector2()
 export class PixelRenderer {
   readonly renderer: THREE.WebGLRenderer
   size: RenderSize = { width: 1, height: 1, scale: 1 }
+  /** 앞서 setScreenSize로 받은 화면 크기 (처음은 아직 없음) */
+  private screenWidth = -1
+  private screenHeight = -1
 
   private readonly colorTarget: THREE.WebGLRenderTarget
   private readonly normalTarget: THREE.WebGLRenderTarget
@@ -125,6 +128,8 @@ export class PixelRenderer {
     this.renderer.setPixelRatio(1)
     this.renderer.shadowMap.enabled = true
     this.renderer.shadowMap.type = THREE.BasicShadowMap
+    // 그림자 맵은 색 패스에서만 그린다. 법선 패스는 같은 장면이라 같은 맵을 다시 그릴 까닭이 없다 (render)
+    this.renderer.shadowMap.autoUpdate = false
     container.appendChild(this.renderer.domElement)
 
     const targetOptions = {
@@ -184,9 +189,18 @@ export class PixelRenderer {
     this.targetHeight = height
   }
 
-  /** 화면 크기가 바뀌면 저해상도 버퍼 크기와 확대 배율을 다시 계산한다. */
+  /**
+   * 화면 크기가 바뀌면 저해상도 버퍼 크기와 확대 배율을 다시 계산한다.
+   * 화면·렌더 크기가 앞과 같으면 아무것도 하지 않는다 (캔버스 크기를 다시 넣으면 같은 값이어도 그리기 버퍼를 다시 잡는다)
+   */
   setScreenSize(width: number, height: number): RenderSize {
-    this.size = computeRenderSize(width, height, this.targetHeight)
+    const next = computeRenderSize(width, height, this.targetHeight)
+    if (width === this.screenWidth && height === this.screenHeight && next.width === this.size.width && next.height === this.size.height) {
+      return this.size
+    }
+    this.screenWidth = width
+    this.screenHeight = height
+    this.size = next
     this.renderer.setSize(width, height, false)
     this.colorTarget.setSize(this.size.width, this.size.height)
     this.normalTarget.setSize(this.size.width, this.size.height)
@@ -208,6 +222,8 @@ export class PixelRenderer {
 
     camera.layers.enable(EFFECT_LAYER)
     renderer.setRenderTarget(this.colorTarget)
+    // 그림자 맵은 여기서 한 번만 그린다. 그린 뒤 three가 needsUpdate를 스스로 끄므로 법선·합성·확대 패스는 건너뛴다
+    renderer.shadowMap.needsUpdate = true
     renderer.render(scene, camera)
     camera.layers.disable(EFFECT_LAYER)
 

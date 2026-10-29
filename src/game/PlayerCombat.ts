@@ -10,7 +10,8 @@ export interface CombatTarget {
   readonly z: number
   readonly radius: number
   readonly alive: boolean
-  takeHit(damage: number, dirX: number, dirZ: number, knockback: number): number
+  /** impact: 휘청임을 판정할 타격 세기 (땅 세기 배율을 곱하기 전, 없으면 damage) */
+  takeHit(damage: number, dirX: number, dirZ: number, knockback: number, impact?: number): number
 }
 
 /** 공격이 맞았을 때 연출을 위해 알려 주는 내용 */
@@ -207,7 +208,7 @@ export class PlayerCombat {
       const dx = enemy.x - p.x
       const dz = enemy.z - p.z
       const len = Math.hypot(dx, dz) || 1
-      const dealt = enemy.takeHit(swing.damage * this.damageScale * this.targetScale(enemy), dx / len, dz / len, swing.knockback * this.knockbackScale)
+      const dealt = enemy.takeHit(swing.damage * this.damageScale * this.targetScale(enemy), dx / len, dz / len, swing.knockback * this.knockbackScale, swing.damage)
       if (dealt > 0) hits.push({ target: enemy, damage: dealt, strong })
     }
     if (swing.shape === 'shot') for (const target of struck.slice(0, swing.shots ?? 1)) hooks?.onShot?.(target, strong)

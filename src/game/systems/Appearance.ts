@@ -65,8 +65,8 @@ export class AppearanceSystem {
     bus.emit('outfitChanged', {})
   }
 
-  /** 프레임마다: 표식에 딸린 기운 연출을 켜고 끈다. 쓰러져 있으면 끈다. 아수라의 팔은 천천히 숨 쉬듯 흔들린다. */
-  update(): void {
+  /** 프레임마다: 표식에 딸린 기운 연출을 켜고 끈다. 쓰러져 있으면 끈다. 아수라의 팔은 천천히 숨 쉬듯 흔들린다(dt: 이번 프레임의 게임 시간). */
+  update(dt = 1 / 60): void {
     const { hero, combat, fx } = this.ctx
     const mark = hero.rig.outfit.mark
     const aura = combat.alive && mark ? lookDef(mark).aura : undefined
@@ -79,7 +79,8 @@ export class AppearanceSystem {
       this.tinted = manifestedGod
       fx.tint.setColor(parseInt(godDef(manifestedGod).color.slice(1), 16))
     }
-    this.sway += 1 / 60
+    // 타격 멈춤·느린 동작을 따르도록 게임 dt만큼 흐른다
+    this.sway += dt
     // 표식은 레벨마다 다른 모양으로 자라고(E6), 조금씩 커진다 (Lv1 1배 → Lv4 1.15배)
     const manifested = this.ctx.build.chosen
     const level = manifested ? this.ctx.progress.level(manifested) : 1

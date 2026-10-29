@@ -1,5 +1,5 @@
-// 마지막 무대 만들기 (E22-05): 세계 칸 (0, 2)에 「갈라진 하늘」을 놓고, 미드가르드·올림포스에서 걸어 들어오게 잇는다.
-// 남쪽 두 문(미드가르드·올림포스) → 시작점 → 북쪽으로 꺾인 큰길을 따라 무리 → 큰길 끝의 우트가르드의 왕. 성소는 서쪽 샛길 옆.
+// 마지막 무대 만들기 (E22-05): 「갈라진 하늘」을 세계 칸(place-world.mjs CELLS의 sky 자리)에 놓고, 올림포스에서 걸어 들어오게 잇는다 (E239: 이음은 올림포스 하나).
+// 남쪽 문(올림포스) → 시작점 → 북쪽으로 꺾인 큰길을 따라 무리 → 큰길 끝의 우트가르드의 왕. 성소는 서쪽 샛길 옆.
 // 같은 시드면 같은 땅이 나온다. 이미 있으면 덮어쓰니 규칙을 바꿀 때만 돌린다.
 // 사용법: node scripts/gen-finale.mjs && node scripts/place-world.mjs   (통로 자리로 문과 길을 옮긴다)
 import { readFileSync, writeFileSync } from 'node:fs'
@@ -46,16 +46,12 @@ const pt = (x, z) => ({ x: r2(x), z: r2(z) })
 const enemies = ['grunt', 'draugr', 'wolf', 'frostWitch', 'stoneThrower', 'cyclops', 'harpy', 'spartoi']
 const pick = () => enemies[Math.floor(rand() * enemies.length)]
 
-const exits = [
-  { ...pt(-20, 37), to: 'midgard' },
-  { ...pt(20, 37), to: 'olympus' },
-]
+const exits = [{ ...pt(20, 37), to: 'olympus' }]
 const spawn = pt(0, 31)
 const boss = { ...pt(0, -30), enemy: 'skyKing' }
 const main = [pt(0, 31), pt(3, 22), pt(-2, 12), pt(2, 2), pt(-3, -8), pt(1, -18), pt(0, -27)]
 const sanctuary = { ...pt(-25, 10), radius: 9 }
 const paths = [
-  { points: [pt(-20, 37), pt(-8, 34), spawn], width: 2.4 },
   { points: [pt(20, 37), pt(8, 34), spawn], width: 2.4 },
   { points: main, width: 2.4 },
   { points: [pt(-2, 12), pt(-15, 10)], width: 2 },
@@ -74,7 +70,7 @@ const props = []
 for (let i = 0; i < 8; i++) {
   const a = (i / 8) * Math.PI * 2 + 0.2
   const p = pt(sanctuary.x + Math.cos(a) * (sanctuary.radius + 1.6), sanctuary.z + Math.sin(a) * (sanctuary.radius + 1.6))
-  if (toLine(p, paths[3].points) < 2.5 || Math.abs(p.x) > HALF - 1 || Math.abs(p.z) > HALF - 1) continue
+  if (toLine(p, paths[2].points) < 2.5 || Math.abs(p.x) > HALF - 1 || Math.abs(p.z) > HALF - 1) continue
   props.push({ kind: i % 2 ? 'column' : 'runestone', ...p, size: 1, rotation: r2(a) })
 }
 const weights = [['rock', 6], ['deadTree', 4], ['ruin', 3], ['mound', 3], ['brazier', 1], ['pine', 2]]
@@ -99,38 +95,36 @@ for (let tries = 0; props.length < 110 && tries < 6000; tries++) {
   props.push({ kind: kind(), ...p, size: r2(0.8 + rand() * 0.6), rotation: r2(rand() * Math.PI * 2) })
 }
 
-regions[ID] = {
-  name: '갈라진 하늘',
-  kind: 'field',
-  zone: 'boss',
-  elite: 0.3,
-  finale: true,
-  realm: 'norse',
-  theme: 'sky',
-  cell: { col: 0, row: 2 },
-  halfExtent: HALF,
-  seed: SEED,
-  spawn,
-  sanctuary,
-  ponds: [pond],
-  paths,
-  camps,
-  boss,
-  exits: [],
-  npcs: [],
-  props,
-}
-// 지역 모듈은 불러올 때 regions.json을 검사하므로(문은 통로 입구에 있어야 한다), 먼저 문 없이 써 두고 불러온 뒤 문을 단다
-for (const region of Object.values(regions)) region.exits = region.exits.filter((e) => e.to !== ID)
-writeFileSync(FILE, JSON.stringify(regions, null, 2) + '\n')
-
+// 지역 모듈은 불러올 때 regions.json을 검사하므로, 아직 고치지 않은 파일로 먼저 불러온다 (고친 것은 메모리에서 검사한 뒤 한 번만 쓴다)
 const vite = await createServer({ configFile: false, server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' })
 try {
   const { formatRegions, parseRegions } = await vite.ssrLoadModule('/src/data/regions.ts')
   const { passages, cellOrigin, CELL } = await vite.ssrLoadModule('/src/data/world.ts')
-  // 문 잇기: 마지막 무대의 남쪽 두 문과 미드가르드·올림포스의 북쪽 문
+  regions[ID] = {
+    name: '갈라진 하늘',
+    kind: 'field',
+    zone: 'boss',
+    elite: 0.3,
+    finale: true,
+    realm: 'norse',
+    theme: 'sky',
+    cell: regions[ID]?.cell ?? { col: -0.5, row: 5 },
+    halfExtent: HALF,
+    seed: SEED,
+    spawn,
+    sanctuary,
+    ponds: [pond],
+    paths,
+    camps,
+    boss,
+    exits: [],
+    npcs: [],
+    props,
+  }
+  // 문 잇기: 전에 낸 마지막 무대 문을 걷고, 마지막 무대의 남쪽 문과 올림포스의 북쪽 문을 단다
+  for (const region of Object.values(regions)) region.exits = region.exits.filter((e) => e.to !== ID)
   regions[ID].exits = exits
-  for (const [from, x] of [['midgard', 20], ['olympus', -20]]) regions[from].exits.push({ x, z: -37, to: ID })
+  for (const [from, x] of [['olympus', -20]]) regions[from].exits.push({ x, z: -37, to: ID })
   const placed = Object.fromEntries(Object.entries(regions).map(([id, r]) => [id, { id, cell: r.cell, halfExtent: r.halfExtent, exits: r.exits }]))
   for (const p of passages(placed).filter((q) => q.from === ID || q.to === ID)) {
     for (const [self, other, world] of [[p.from, p.to, p.fromExit], [p.to, p.from, p.toExit]]) {

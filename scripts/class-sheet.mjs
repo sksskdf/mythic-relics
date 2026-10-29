@@ -57,9 +57,10 @@ try {
           for (const id of god.relics.slice(0, 4)) g.dev.equip(id)
           g.dev.choose(god.id)
           for (let l = 1; l < level; l++) g.dev.promote()
-          // 적이 없는 빈터에서 오른쪽 아래를 보게 한다
+          // 미드가르드 시작점(4m 안에 소품이 없는 트인 땅, 마을 밖은 숲 띠)에서 오른쪽 아래를 보게 한다
+          if (g.region.id !== 'midgard') g.enterRegion(g.regions.midgard)
           g.encounter.clearAll()
-          g.dev.teleport(30, 30)
+          g.dev.teleport(0, 0)
           g.hero.face(Math.PI * 0.25)
         },
         { god, level },

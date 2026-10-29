@@ -16,19 +16,36 @@ for (const god of ids) {
   const own = Object.keys(relics).filter((r) => relics[r].god === god)
   const shared = Object.keys(relics).filter((r) => relics[r].also?.includes(god))
   const set = [...own, ...shared].slice(0, 4)
-  execFileSync('node', ['scripts/playtest.mjs', runs, minutes, `--relics=${set.join(',')}`, `--god=${god}`, '--region=midgard'], { stdio: 'ignore' })
-  const results = JSON.parse(readFileSync('test-results/playtest.json', 'utf8'))
+  // 봇이 끊겨도 원인을 보이고 다음 신화로 간다 (지난 결과 파일을 이 신화 것으로 읽지 않게)
+  try {
+    execFileSync('node', ['scripts/playtest.mjs', runs, minutes, `--relics=${set.join(',')}`, `--god=${god}`, '--region=midgard'], { stdio: ['ignore', 'ignore', 'inherit'] })
+  } catch (e) {
+    rows.push({ god, name: gods[god].name, rates: [], mean: 0, hurt: [], errors: [String(e?.message ?? e)], chosen: god, failed: true })
+    console.error(`${gods[god].name}: 봇 실패`)
+    continue
+  }
+  // 끊긴 판(crashed)은 재지 않고 오류만 모은다
+  const all = JSON.parse(readFileSync('test-results/playtest.json', 'utf8'))
+  const results = all.filter((r) => !r.crashed)
+  if (results.length === 0) {
+    rows.push({ god, name: gods[god].name, rates: [], mean: 0, hurt: [], errors: all.flatMap((r) => r.errors), chosen: god, failed: true })
+    console.error(`${gods[god].name}: 판이 모두 끊겼다`)
+    continue
+  }
   const rates = results.map((r) => r.killRate)
   const mean = Math.round((rates.reduce((s, v) => s + v, 0) / rates.length) * 10) / 10
   const chosen = results[0]?.log.find((e) => e.type === 'open')?.detail ?? god
-  rows.push({ god, name: gods[god].name, rates, mean, hurt: results.map((r) => r.hurt), errors: results.flatMap((r) => r.errors), chosen })
+  rows.push({ god, name: gods[god].name, rates, mean, hurt: results.map((r) => r.hurt), errors: all.flatMap((r) => r.errors), chosen })
   console.log(`${gods[god].name}: 1분당 처치 ${rates.join(' / ')} (평균 ${mean})`)
 }
 
-const sorted = rows.map((r) => r.mean).sort((a, b) => a - b)
+// 봇이 실패한 신화는 중앙값·벗어남에서 빼고 따로 알린다
+const measured = rows.filter((r) => !r.failed)
+const sorted = measured.map((r) => r.mean).sort((a, b) => a - b)
 const median = sorted[Math.floor(sorted.length / 2)] ?? 0
-const outside = rows.filter((r) => Math.abs(r.mean - median) > median * 0.2)
+const outside = measured.filter((r) => Math.abs(r.mean - median) > median * 0.2)
 console.log(`중앙값 ${median}, ±20% ${(median * 0.8).toFixed(1)}~${(median * 1.2).toFixed(1)}`)
+if (measured.length < rows.length) console.log(`봇 실패: ${rows.filter((r) => r.failed).map((r) => r.name).join(', ')}`)
 console.log(outside.length ? `벗어난 신화: ${outside.map((r) => `${r.name} ${r.mean}`).join(', ')}` : '모두 ±20% 안')
 mkdirSync('test-results', { recursive: true })
 writeFileSync('test-results/myth-trial.json', JSON.stringify({ median, rows }, null, 2))

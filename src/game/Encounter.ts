@@ -105,6 +105,8 @@ export class Encounter {
   rng: () => number = Math.random
   /** 지금 땅 (E19) */
   private region: string | null = null
+  /** 쓰러진 적이 쓰러진 땅 (무너짐이 끝나기 전에 통로를 넘어도 처치는 그 땅의 것) */
+  private readonly fellIn = new WeakMap<Giant, string | null>()
   /** 이웃 땅에 남겨 둔 무리 (E19) */
   private readonly parked = new Map<string, Parked>()
   /** 아직 세우지 않은 이웃 무리와, 지금 세우고 있는 것 (한 프레임에 무리 하나씩) */
@@ -214,6 +216,11 @@ export class Encounter {
     while (this.queue.length > 0 || this.building) this.buildNext()
   }
 
+  /** 그 적이 쓰러진 땅 id. 쓰러진 것을 아직 보지 못했으면 undefined */
+  fellRegion(giant: Giant): string | null | undefined {
+    return this.fellIn.get(giant)
+  }
+
   /** 이웃 땅에 남겨 둔 적들 (점검용) */
   get parkedGiants(): Giant[] {
     return [...this.parked.values()].flatMap((p) => p.giants)
@@ -237,16 +244,23 @@ export class Encounter {
     const clear = (p: Point2) => pushOut(p, GRUNT.radius + 0.4, colliders)
     const herd = this.newHerd(n.layout, clear, n.offset)
     const giants: Giant[] = []
-    for (const camp of herd.camps) {
-      this.fillCamp(camp, herd.elite, clear, giants, herd.power)
-      yield
+    let built = false
+    try {
+      for (const camp of herd.camps) {
+        this.fillCamp(camp, herd.elite, clear, giants, herd.power)
+        yield
+      }
+      if (herd.bossHome) {
+        herd.boss = this.makeGiant(herd.bossSpec, herd.bossHome, this.scaled(herd.power))
+        giants.push(herd.boss)
+      }
+      for (const giant of giants) giant.park()
+      built = true
+      return { herd, giants }
+    } finally {
+      // 다 짓기 전에 끊겼다(땅을 옮김): 이미 장면에 붙인 거인은 어디에도 들지 않으니 여기서 지운다
+      if (!built) for (const giant of giants) giant.dispose()
     }
-    if (herd.bossHome) {
-      herd.boss = this.makeGiant(herd.bossSpec, herd.bossHome, this.scaled(herd.power))
-      giants.push(herd.boss)
-    }
-    for (const giant of giants) giant.park()
-    return { herd, giants }
   }
 
   /**
@@ -257,6 +271,8 @@ export class Encounter {
   cross(to: EncounterLayout, shift: Point2, staticColliders: readonly CircleCollider[], area: WalkArea): void {
     // 짓던 이웃 무리는 마저 지어 함께 옮긴다
     while (this.building) this.buildNext()
+    // 이번 프레임에 막 쓰러진 적은 앞 땅에서 쓰러진 것으로 적어 둔다
+    for (const giant of this.giants) if (!giant.alive && !this.fellIn.has(giant)) this.fellIn.set(giant, this.region)
     const { x: dx, z: dz } = shift
     const move = (p: Point2 | null) => {
       if (!p) return
@@ -344,6 +360,7 @@ export class Encounter {
         giants: this.giants,
         summon: (x, z, count, enemy) => this.queueSummon(giant, x, z, count, enemy, member),
       })
+      if (!giant.alive && !this.fellIn.has(giant)) this.fellIn.set(giant, this.region)
       if (giant.justShattered) shattered.push(giant)
     }
     this.flushSummons()

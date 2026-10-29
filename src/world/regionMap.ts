@@ -199,6 +199,8 @@ function makeForge(variant: number): Built {
   const puffGeometry = new THREE.BoxGeometry(0.3, 0.3, 0.3)
   for (let i = 0; i < 6; i++) {
     const puff = new THREE.Mesh(puffGeometry, new THREE.MeshBasicMaterial({ color: 0xb8b4ac, transparent: true, depthWrite: false }))
+    // 효과 층: 법선 패스에서 꽉 찬 상자로 그려져 옅어진 연기에 밝은 테두리가 남지 않게 (성소 고리·출구 빛기둥과 같다)
+    puff.layers.set(EFFECT_LAYER)
     group.add(puff)
     puffs.push(puff)
   }
@@ -505,8 +507,11 @@ function buildBorder(seed: number, halfExtent: number, theme: ThemeId): THREE.Gr
 
 /** 숲 칸의 간격 (m). 칸마다 조금 흔들어 놓아 줄이 보이지 않게 한다 */
 const FOREST_STEP = 2.1
-/** 숲을 이만한 네모(m)로 나눠 그린다. 화면 밖 네모는 그리지 않는다 (시야 거르기) */
-const FOREST_TILE = 6
+/**
+ * 숲을 이만한 네모(m)로 나눠 그린다. 화면 밖 네모는 그리지 않는다 (시야 거르기).
+ * 땅 네모(GROUND_TILE)와 같은 굵기: 6m로 잘게 나누면 모양마다 한두 그루짜리 묶음이 되어 그리기 호출이 나무 수만큼 는다
+ */
+const FOREST_TILE = 25
 /** 트인 땅에서 이 거리(m) 안의 숲 가장자리는 빽빽하게 심는다. 그 안쪽 깊은 숲은 성기게, 크게, 단순한 모양으로 */
 const FOREST_EDGE = 6
 /** 그림자는 트인 땅에 닿는 맨 앞줄(이 거리 m 안)만 드리운다. 숲 안쪽 그림자는 우듬지에 가려 보이지 않는다 */
@@ -517,7 +522,7 @@ const FOREST_SHADE = 3
  * depth(x, z)는 트인 땅(움직일 수 있는 곳과 그 둘레)까지의 거리다. 칸마다 수천 그루라, 숲 네모(FOREST_TILE)와
  * 모양(종류·변형)마다 InstancedMesh 하나로 그린다. 충돌체는 없다 (움직일 수 있는 곳 밖이라).
  */
-function buildForest(seed: number, theme: ThemeId, depth: (x: number, z: number) => number, mix: EdgeMix | null = null): THREE.Group {
+function* forestSteps(seed: number, theme: ThemeId, depth: (x: number, z: number) => number, mix: EdgeMix | null = null): Generator<void, THREE.Group> {
   const group = new THREE.Group()
   const rng = createRng(seed * 31 + 5)
   const spots = new Map<string, THREE.Matrix4[]>()
@@ -549,8 +554,13 @@ function buildForest(seed: number, theme: ThemeId, depth: (x: number, z: number)
       list.push(dummy.matrix.clone())
       spots.set(key, list)
     }
+    // 이웃 조각을 프레임마다 조금씩 지을 때 한 프레임이 길어지지 않게 숲 네모 한 줄(25m, 약 12열)마다 쉰다
+    if (Math.floor((x + FOREST_STEP + half) / FOREST_TILE) !== Math.floor((x + half) / FOREST_TILE)) yield
   }
+  yield
+  let made = 0
   for (const [key, matrices] of spots) {
+    if (++made % 40 === 0) yield
     const [face, kind, variant, shade, plain] = key.split('|') as [ThemeId, PropKind, string, string, string]
     const mesh = BUILDERS[kind](Number(variant), face, plain === '1')().object
     if (!(mesh instanceof THREE.Mesh)) continue
@@ -708,7 +718,7 @@ export function* chunkSteps(region: RegionDef, links: readonly RegionLink[] = []
     const mix = themeAt ? edgeMixer(region.cell, region.theme, themeAt) : null
     chunk.group.add(own(yield* groundSteps(CELL / 2 - 4, theme, region.paths, undefined, groundMix(mix))))
     yield
-    chunk.group.add(buildForest(region.seed, region.theme, openDepth(openRects(half, links)), mix))
+    chunk.group.add(yield* forestSteps(region.seed, region.theme, openDepth(openRects(half, links)), mix))
     yield
   } else {
     // 땅은 움직일 수 있는 범위보다 넓게 깔아서, 멀리 축소해도 맵 끝이 허공으로 보이지 않게 한다.
@@ -776,7 +786,7 @@ export function* fillerSteps(cell: Cell, theme: ThemeId, open: readonly Rect[] =
   chunk.group.add(own(yield* groundSteps(CELL / 2 - 4, THEMES[theme], [], undefined, groundMix(mix))))
   yield
   const seed = Math.round(cell.col * 2 + 1000) * 131 + Math.round(cell.row + 1000)
-  chunk.group.add(buildForest(seed, theme, open.length ? openDepth(open) : () => Infinity, mix))
+  chunk.group.add(yield* forestSteps(seed, theme, open.length ? openDepth(open) : () => Infinity, mix))
   return chunk
 }
 

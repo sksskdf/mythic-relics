@@ -1,6 +1,7 @@
 import { THREAT, threatGrades } from '../../data/threat'
 import type { Giant } from '../../enemies/Giant'
 import { ELITE_REWARD } from '../../enemies/elite'
+import { isBossLike } from '../../enemies/grade'
 import { MATERIALS, materialName, rollMaterials } from '../../gear/materials'
 import { GEAR, landChances, landTier, rollGear } from '../../gear/roll'
 import { masteryShares, PER_PROMOTION } from '../../myth/ClassProgress'
@@ -100,7 +101,7 @@ export class ProgressionSystem {
     const { powers, combat, drops, pickups } = this.ctx
     this.gainMastery(giant.spec.xp * (giant.elite ? ELITE_REWARD.xp : 1), giant.spec.realm)
     // 적을 쓰러뜨리면 생명력을 조금 되찾는다. 몰려오는 무리를 쓸어 내며 버틸 수 있게 한다.
-    if (combat.alive) combat.heal((giant.spec.boss ? HEAL_PER_BOSS : HEAL_PER_KILL) + this.ctx.build.state.stats.healOnKill)
+    if (combat.alive) combat.heal((isBossLike(giant.spec) || giant.spec.boss ? HEAL_PER_BOSS : HEAL_PER_KILL) + this.ctx.build.state.stats.healOnKill)
     const owned = new Set<RelicId>([
       ...powers.loadout.ownedRelics,
       // 재료가 된 유물만 (새 재료는 유물이 아니다)

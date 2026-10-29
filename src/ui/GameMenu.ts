@@ -127,6 +127,8 @@ export class GameMenu {
     head.append(tabs, home, gear, close)
     this.body = el('div', 'menu__body')
     frame.append(head, this.body, this.hint)
+    // 손가락으로 띄운 힌트는 다음에 누를 때 거둔다 (힌트 칸이면 뗄 때 다시 뜬다)
+    frame.addEventListener('pointerdown', (e) => e.pointerType !== 'mouse' && (this.hint.hidden = true))
     this.window.append(frame)
     // 바깥 어두운 곳을 누르면 닫는다.
     this.window.addEventListener('pointerdown', (e) => {
@@ -213,8 +215,10 @@ export class GameMenu {
       const top = below + this.hint.offsetHeight > frame.height - 8 ? r.top - frame.top - this.hint.offsetHeight - 6 : below
       this.hint.style.transform = `translate(${Math.round(left)}px, ${Math.round(top)}px)`
     }
-    target.addEventListener('pointerenter', show)
-    target.addEventListener('pointerleave', () => (this.hint.hidden = true))
+    target.addEventListener('pointerenter', (e) => e.pointerType === 'mouse' && show())
+    target.addEventListener('pointerleave', (e) => e.pointerType === 'mouse' && (this.hint.hidden = true))
+    // 손가락: 눌 수 없는(disabled) 단추에는 click이 오지 않는다. 떼는 순간 띄우고 다음에 누를 때까지 둔다
+    target.addEventListener('pointerup', (e) => e.pointerType !== 'mouse' && show())
     target.addEventListener('click', show)
   }
 

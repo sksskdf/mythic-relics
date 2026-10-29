@@ -11,6 +11,7 @@ import { MATERIALS } from '../gear/materials'
 import { gearScore } from '../gear/roll'
 import { mythRelic } from '../gear/mythRelic'
 import { type God, godDef, isRelicId, relicDef } from '../relics/data'
+import { relicGods } from '../relics/model'
 import type { Point2 } from '../world/colliders'
 
 /** 판단 간격 (초). 사람의 반응 속도쯤으로 둔다. */
@@ -212,9 +213,9 @@ export class Autoplayer {
     }
     if (hp < 0.7 && near.length === 0 && !legend.active && !hero.isMoving) return void (this.step = 5)
 
-    // 3. 떨어진 유물을 줍는다. 한 신만 쓰는 봇은 다른 신 유물을 가방에 넣는다.
+    // 3. 떨어진 유물을 줍는다. 한 신만 쓰는 봇은 다른 신 유물을 가방에 넣는다 (함께 쓰는 유물 also는 그 신 것으로 본다).
     if (this.god) {
-      powers.loadout.relics.forEach((id, slot) => id && relicDef(id).god !== this.god && this.game.dev.stow(slot))
+      powers.loadout.relics.forEach((id, slot) => id && !relicGods(relicDef(id)).includes(this.god!) && this.game.dev.stow(slot))
     }
     // 정한 신이 있으면 그 신화가 열리는 대로 고른다 (사람은 마을·성소에서 고른다)
     if (this.god && powers.manifested !== this.god && this.game.progress.isOpen(this.god)) this.game.dev.choose(this.god)
@@ -248,7 +249,7 @@ export class Autoplayer {
     if (!legend.active) {
       const t = this.game.time
       const reachable = (id: string) => t - (this.pickupSince.get(id) ?? t) < 20
-      const pickup = nearest(pickups.list.filter((i) => !powers.loadout.has(i.id) && reachable(i.id) && (i.gear !== undefined || !this.god || relicDef(i.id).god === this.god)), here)
+      const pickup = nearest(pickups.list.filter((i) => !powers.loadout.has(i.id) && reachable(i.id) && (i.gear !== undefined || !this.god || relicGods(relicDef(i.id)).includes(this.god))), here)
       if (pickup && near.length < 3) {
         if (!this.pickupSince.has(pickup.id)) this.pickupSince.set(pickup.id, t)
         hero.moveTo(pickup)

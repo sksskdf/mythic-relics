@@ -307,6 +307,8 @@ export class UtgardLegend {
   }
 
   private finish(encounter: Encounter, host: LegendHost): void {
+    // 결계 안의 적을 모두 거둔다: 전설이 셈하지 않는 것(우트가르드의 왕이 부른 졸개)도 결계 명단에는 있다. 쓰러지는 중인 것은 그대로 둔다
+    for (const giant of encounter.ward?.members ?? []) if (giant.alive) encounter.remove(giant)
     encounter.ward = null
     this.phase = 'idle'
     this.timeLeft = null

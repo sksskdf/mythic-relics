@@ -4,7 +4,7 @@ import type { SourceId } from '../data/schema'
 import type { RiftProgress } from '../progress/Rift'
 import type { RelicPowers } from '../game/RelicPowers'
 import type { ClassProgress } from '../myth/ClassProgress'
-import { type TrialId, trialRules } from '../data/trials'
+import { TRIAL_IDS, type TrialId, trialRules } from '../data/trials'
 import type { ThreatProgress } from '../progress/Threat'
 import type { TrialProgress } from '../progress/Trials'
 import type { TrainingProgress } from '../progress/Training'
@@ -103,8 +103,52 @@ export class Build {
     return god ? this.from.progress.level(god) : 0
   }
 
-  /** 지금의 빌드 상태 (부를 때마다 새로 계산한다) */
+  /**
+   * 지금의 빌드 상태. 피해마다 여러 번 읽으므로 재료가 그대로면 지난 계산을 돌려준다.
+   * 재료가 바뀌었는지는 inputs()가 읽는 값을 모두 적은 지문(fingerprint)으로 본다. 돌려준 값은 고치지 않는다
+   */
   get state(): BuildState {
-    return computeBuild(this.inputs())
+    this.fingerprint(this.probe)
+    if (this.memo && sameList(this.probe, this.seen)) return this.memo
+    this.seen.length = 0
+    for (const v of this.probe) this.seen.push(v)
+    this.memo = computeBuild(this.inputs())
+    return this.memo
   }
+
+  private memo: BuildState | null = null
+  /** 지난 계산의 지문 */
+  private readonly seen: unknown[] = []
+  /** 이번에 읽은 지문 (부를 때마다 새로 만들지 않게 같은 배열을 다시 쓴다) */
+  private readonly probe: unknown[] = []
+
+  /**
+   * inputs()가 읽는 재료를 차례로 적는다: 시련, 고른 신화·빌린 신·깨우는 신, 칸마다 장비(일반 장비는 그 물건, 유물은 단계),
+   * 열린 신화의 단계(승급 합도 여기서 나온다), 시련 보상(깬 난이도), 수련 수치(익히고 되돌릴 때만 바뀌는 객체), 균열의 축복, 성좌판의 별.
+   * 길이가 바뀌는 묶음 사이에는 가름표를 둔다
+   */
+  private fingerprint(out: unknown[]): void {
+    out.length = 0
+    const { powers, progress, trials, training, rift } = this.from
+    const { loadout } = powers
+    out.push(this.from.trial?.() ?? null, loadout, powers.state.manifested, loadout.waking, loadout.borrowed.length)
+    for (const god of loadout.borrowed) out.push(god)
+    for (const id of loadout.slots) out.push(id, id && isRelicId(id) ? loadout.stage(id) : id && isGearUid(id) ? loadout.gear.get(id) : null)
+    out.push(progress.records.size)
+    progress.records.forEach((record, god) => out.push(god, record.level))
+    if (trials) for (const id of TRIAL_IDS) out.push(trials.cleared[id] ?? 0)
+    out.push(training?.stats())
+    const blessings = this.from.blessings?.() ?? []
+    out.push(blessings.length)
+    for (const id of blessings) out.push(id)
+    out.push(rift?.lit.size ?? 0)
+    rift?.lit.forEach((god) => out.push(god))
+  }
+}
+
+/** 두 목록이 차례대로 같은가 (값은 ===로 견준다) */
+function sameList(a: readonly unknown[], b: readonly unknown[]): boolean {
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false
+  return true
 }
