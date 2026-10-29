@@ -18,7 +18,9 @@ export interface GearItem {
   stats: { kind: StatKind; value: number }[]
   /** 원천 수치: 등급 수치와 따로 늘 하나 (DESIGN.md 4.3.1) */
   source: { id: SourceId; value: number }
+  /** 고유 효과: 영웅 하나, 전설은 둘(unique2) */
   unique?: string
+  unique2?: string
 }
 
 /** 장비 id는 이 글자로 시작한다 (유물 id와 섞여 칸에 들어가므로) */
@@ -81,7 +83,8 @@ export function rollGear(rng: () => number, options: { part?: GearPart; grade?: 
   const source = { id: pick(rng, SOURCE_IDS), value: slo + Math.floor(rng() * (shi - slo + 1)) }
   const uid = GEAR_PREFIX + Math.floor(rng() * 36 ** 8).toString(36).padStart(8, '0')
   const item: GearItem = { uid, part, base: pick(rng, data.parts[part].bases), grade, tier, stats, source }
-  if (grade === 'hero') item.unique = pick(rng, Object.keys(data.uniques))
+  if (grade === 'hero' || grade === 'legend') item.unique = pick(rng, Object.keys(data.uniques))
+  if (grade === 'legend') item.unique2 = pick(rng, Object.keys(data.uniques).filter((u) => u !== item.unique))
   return item
 }
 
@@ -109,7 +112,8 @@ export function parseGearItem(raw: unknown, data: GearData = GEAR): GearItem | n
   // 단계가 없던 옛 저장(E21 전)은 1단계
   const tier = typeof o.tier === 'number' && Number.isFinite(o.tier) ? Math.max(1, Math.min(9, Math.round(o.tier))) : 1
   const item: GearItem = { uid: o.uid, part, base: o.base.slice(0, 20), grade, tier, stats: stats.map((s) => ({ kind: s.kind, value: s.value })), source: { id: src.id as SourceId, value: Math.max(0, Math.min(5, Math.round(src.value))) } }
-  if (grade === 'hero' && typeof o.unique === 'string' && data.uniques[o.unique]) item.unique = o.unique
+  if ((grade === 'hero' || grade === 'legend') && typeof o.unique === 'string' && data.uniques[o.unique]) item.unique = o.unique
+  if (grade === 'legend' && typeof o.unique2 === 'string' && data.uniques[o.unique2] && o.unique2 !== item.unique) item.unique2 = o.unique2
   return item
 }
 
@@ -120,6 +124,6 @@ export function gearScore(item: GearItem, data: GearData = GEAR): number {
     const [lo, hi] = data.ranges[s.kind]
     score += Math.abs(s.value) / Math.max(Math.abs(lo), Math.abs(hi))
   }
-  return score + (item.unique ? 1 : 0)
+  return score + (item.unique ? 1 : 0) + (item.unique2 ? 1 : 0)
 }
 

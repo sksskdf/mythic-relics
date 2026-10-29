@@ -142,6 +142,10 @@ export interface MenuHost {
   drop(slot: number): void
   /** 일반 장비를 분해해 재료로 (E13-07-3) */
   salvage(id: string): void
+  /** 가방에서 합칠 수 있는 셋 묶음 (장비 id, E303) */
+  mergeable(): string[][]
+  /** 셋을 합친다 */
+  merge(uids: readonly string[]): void
   readonly progress: ClassProgress
   /** 신화 탭 (E12-06): 고르기와 별 수치 */
   readonly myths: {

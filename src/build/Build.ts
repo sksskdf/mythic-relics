@@ -14,6 +14,7 @@ import { isGearUid } from '../gear/roll'
 import type { ClassPassive } from '../data/classKit'
 import { breathPassive, focusGod, partLevel, pantheonGods } from '../myth/pantheon'
 import { type God, isRelicId } from '../relics/data'
+import { UNIQUE_STATS } from '../skills/uniques'
 import { type BuildInputs, type BuildState, computeBuild } from './BuildState'
 
 /**
@@ -33,7 +34,8 @@ export class Build {
     // 시련 「세 칸의 짐」: 쓸 수 있는 칸만 (E16)
     const slots = loadout.slots.map((id, i) => (rules.slots && !rules.slots.includes(i) ? null : id))
     const relics = slots.map((id) => (id && isRelicId(id) ? id : null))
-    const gearItems = slots.flatMap((id) => (isGearUid(id) && loadout.gear.has(id) ? [loadout.gear.get(id)!] : []))
+    // 고유 효과 가운데 수치인 것(깊은 울림·사냥꾼의 눈, E303)은 그 장비의 수치로 더한다
+    const gearItems = slots.flatMap((id) => (isGearUid(id) && loadout.gear.has(id) ? [withUniqueStats(loadout.gear.get(id)!)] : []))
     // 신화의 유물은 기본 수치를 낸다 (같은 단계 영웅 장비보다 조금 못하다, E21-04). 원천은 computeBuild가 유물 단계로 따로 더한다
     const relicItems = relics.flatMap((id) => (id && isMythRelic(id) ? [{ stats: relicStats(id, loadout.stage(id)), source: { id: 'flame' as const, value: 0 } }] : []))
     return {
@@ -196,6 +198,12 @@ export class Build {
     out.push(rift?.lit.size ?? 0)
     rift?.lit.forEach((god) => out.push(god))
   }
+}
+
+/** 고유 효과 가운데 수치인 것을 그 장비의 수치 줄에 더한 모습 (없으면 그대로) */
+function withUniqueStats<T extends { stats: readonly { kind: StatKind; value: number }[]; unique?: string; unique2?: string }>(item: T): T {
+  const extra = [item.unique, item.unique2].flatMap((u) => (u && UNIQUE_STATS[u] ? [UNIQUE_STATS[u]!] : []))
+  return extra.length ? { ...item, stats: [...item.stats, ...extra] } : item
 }
 
 /** 도는 패시브 하나: 그 신, 패시브, 단계, 주신인가 */

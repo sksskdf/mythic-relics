@@ -17,6 +17,9 @@ export const MOMENTS = {
   materialPicked: 1,
   bossMaterial: 1,
   salvaged: 1,
+  // 합치기 (E303): 보통·좋음·희귀는 카드, 영웅·전설은 큰 카드
+  merged: 2,
+  mergedHigh: 3,
   shrineFound: 1,
   threatSet: 1,
   threatUnlocked: 1,

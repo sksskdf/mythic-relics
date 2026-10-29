@@ -463,7 +463,8 @@ const mix = (a: string, b: string, t: number): string => {
 export function gearIconRows(part: string, base: number, grade: Grade): { rows: string[]; colors: Record<string, string> } | null {
   const def = GEAR_ICONS[`${part}-${base}`]
   if (!def) return null
-  const lv = GRADES.indexOf(grade)
+  // 전설(E303)은 영웅과 같은 장식, 색만 다르다
+  const lv = Math.min(3, GRADES.indexOf(grade))
   const gate = def.gate ?? {}
   const rows = def.rows.map((row) => [...row].map((ch) => gate[ch]?.[lv] ?? ch).join(''))
   const accent = GRADE_COLORS[grade]

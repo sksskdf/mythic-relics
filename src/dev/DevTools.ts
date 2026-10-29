@@ -157,6 +157,11 @@ export class DevTools {
     this.parts.relics.wield(id, slot)
   }
 
+  /** 가방의 셋을 합친다 (E303, 봇·점검) */
+  merge(uids: readonly string[]): boolean {
+    return this.parts.relics.merge(uids) !== null
+  }
+
   /** 칸의 유물을 가방에 넣는다. (봇이 한 신만 쓸 때) */
   stow(slot: number): void {
     this.parts.relics.stow(slot)

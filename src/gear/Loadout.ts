@@ -2,6 +2,7 @@ import { type GearPart, SLOT_PARTS } from '../data/gearData'
 import { type God, isRelicId, type RelicId } from '../relics/data'
 import { type LoadoutState, resolveLoadout } from '../myth/manifest'
 import { emptyPantheon, type Pantheon } from '../myth/pantheon'
+import { mergeGear, mergeGroups } from './merge'
 import { relicPart } from './mythRelic'
 import { type GearItem, isGearUid } from './roll'
 
@@ -128,6 +129,25 @@ export class Loadout {
     const previous = this.stow(slot)
     this.slots[slot] = id
     return previous
+  }
+
+  /** 가방에서 합칠 수 있는 셋 묶음 (E303, 낀 것은 먹이에서 빠진다) */
+  mergeable(): GearItem[][] {
+    return mergeGroups(this.bag.flatMap((id) => (isGearUid(id) && this.gear.has(id) ? [this.gear.get(id)!] : [])))
+  }
+
+  /** 가방의 셋을 합쳐 한 등급 위 하나를 가방에 넣는다 (E303). 못 합치면 null */
+  merge(uids: readonly string[], rng: () => number): GearItem | null {
+    if (uids.some((u) => !this.bag.includes(u))) return null
+    const out = mergeGear(
+      uids.map((u) => this.gear.get(u)!).filter(Boolean),
+      rng,
+    )
+    if (!out) return null
+    for (const u of uids) this.discard(u)
+    this.addGear(out)
+    this.bag.push(out.uid)
+    return out
   }
 
   /** 가방의 일반 장비를 버린다 (분해하기 전에 빼 둔다) */

@@ -12,7 +12,8 @@ export const GEAR_PARTS = ['weapon', 'head', 'body', 'hands', 'feet', 'trinket']
 export type GearPart = (typeof GEAR_PARTS)[number]
 export const SLOT_PARTS: readonly GearPart[] = ['weapon', 'head', 'body', 'hands', 'feet', 'trinket', 'trinket']
 
-export const GRADES = ['common', 'good', 'rare', 'hero'] as const
+/** 등급 (E303: 영웅·전설은 합쳐야만 나온다, 드랍 확률 0) */
+export const GRADES = ['common', 'good', 'rare', 'hero', 'legend'] as const
 export type Grade = (typeof GRADES)[number]
 
 /** 땅 자리 (regions.ts의 REGION_ZONES와 같다) */
@@ -84,7 +85,7 @@ export function parseGear(raw: unknown, path = 'gear.json'): GearData {
     onlyKeys(g, p, ['name', 'stats', 'scale', 'source', 'chance'])
     grades[grade] = {
       name: str(g, 'name', p),
-      stats: num(g, 'stats', p, { min: 1, max: 4 }),
+      stats: num(g, 'stats', p, { min: 1, max: 5 }),
       scale: num(g, 'scale', p, { min: 1 }),
       source: pair(g, 'source', p),
       chance: num(g, 'chance', p, { min: 0, max: 1 }),

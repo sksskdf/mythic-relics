@@ -1,4 +1,6 @@
 import * as THREE from 'three'
+import { UniqueState } from '../skills/uniques'
+import { UniqueSystem } from './systems/Uniques'
 
 import { AudioEngine } from '../audio/AudioEngine'
 import { Input } from '../input/Input'
@@ -192,6 +194,7 @@ export class Game {
   /** 성소에서 신화 고르기 (E22-03) */
   readonly mythChoice: MythChoiceSystem
   private readonly mythPicker: MythPicker
+  private readonly uniqueSystem: UniqueSystem
   /** 목표 한 줄과 장 제목 띠 (E22-04) */
   readonly chapterHud: ChapterHud
   /** 순간의 크기 (E23-01): 사건을 등급에 맞는 크기(작은 알림·카드·큰 카드·장면)로 보인다 */
@@ -430,11 +433,13 @@ export class Game {
       training: this.training,
       tabs: this.tabs,
       awaken: this.awaken,
+      uniques: new UniqueState(),
       build: new Build({ powers: this.powers, progress: this.progress, threat: this.threat, trials: this.trials, trial: () => this.trialSystem?.active?.id ?? null, rift: this.rift, blessings: () => this.riftSystem?.blessings ?? [], training: this.training, awaken: this.awaken }),
       skills,
     }
     this.damage = new DamageSystem(this.ctx)
     this.relics = new RelicSystem(this.ctx)
+    this.uniqueSystem = new UniqueSystem(this.ctx)
     this.appearance = new AppearanceSystem(this.ctx)
     this.menuData = new MenuData({ game: this, ctx: this.ctx, relics: this.relics })
     this.menu = new GameMenu(this.hud.root, this.menuData.host())
@@ -1133,6 +1138,7 @@ export class Game {
       onHits: (hits) => this.damage.onHeroHits(hits),
     })
     this.relics.update(dt)
+    this.uniqueSystem.update(dt, this.relics.walked)
     // 최대 생명: 개방 단계·상시 효과·장비 (빌드 상태 한 곳에서 계산)
     const wantHp = this.ctx.build.state.maxHp
     if (this.combat.health.max !== wantHp) this.combat.health.setMax(wantHp)

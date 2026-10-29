@@ -124,6 +124,9 @@ export class Giant {
   elite: EliteKind | null = null
   private size = 1
   private speedScale = 1
+  /** 느려짐 (영웅 고유 효과 「서리」, E303): 남은 초와 빠르기 배율 */
+  private chillLeft = 0
+  private chillScale = 1
   private cooldownScale = 1
   private aura: THREE.Mesh | null = null
   /** 정예의 은은한 몸 빛 (맞았을 때 번쩍임이 끝나면 이 빛으로 돌아간다) */
@@ -302,7 +305,15 @@ export class Giant {
     return dealt
   }
 
+  /** 잠시 느리게 한다 (서리). 더 센 쪽·더 긴 쪽을 남긴다 */
+  chill(seconds: number, scale: number): void {
+    if (!this.alive) return
+    this.chillLeft = Math.max(this.chillLeft, seconds)
+    this.chillScale = Math.min(this.chillLeft > 0 ? this.chillScale : 1, scale)
+  }
+
   update(dt: number, world: GiantWorld): void {
+    if (this.chillLeft > 0 && (this.chillLeft -= dt) <= 0) this.chillScale = 1
     this.justShattered = false
     this.stateTime += dt
     for (const [attack, left] of this.cooldowns) this.cooldowns.set(attack, Math.max(0, left - dt))
@@ -717,7 +728,7 @@ export class Giant {
     const dz = waypoint.z - this.z
     const len = Math.hypot(dx, dz)
     if (len > 1e-3) {
-      const step = Math.min(len, this.spec.speed * this.speedScale * dt)
+      const step = Math.min(len, this.spec.speed * this.speedScale * (this.chillLeft > 0 ? this.chillScale : 1) * dt)
       // 몸을 확 돌리지 않고 조금씩 돌린다.
       const want = Math.atan2(dx, dz)
       const turn = angleDiff(want, this.rig.root.rotation.y)

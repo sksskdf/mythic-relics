@@ -229,6 +229,8 @@ export class Autoplayer {
     }
     // 깨달음이 있으면 수련 마디를 찍는다 (E236): 힘 갈래를 먼저 끝까지, 그다음 몸·손
     for (const id of SAMPLE_ORDER) if (this.game.training.unspent > 0) this.game.dev.train(id)
+    // 가방에 셋이 모이면 합친다 (E303): 낮은 등급부터
+    for (const group of powers.loadout.mergeable()) this.game.dev.merge(group.map((i) => i.uid))
     // 가방의 일반 장비가 더 좋으면 바꿔 낀다 (빈 칸이면 그냥 낀다, 유물은 빼지 않는다) (E13-08)
     for (const id of [...powers.loadout.bag]) {
       const item = powers.loadout.gear.get(id)

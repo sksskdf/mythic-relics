@@ -1,4 +1,5 @@
 import type { Build } from '../build/Build'
+import type { UniqueState } from '../skills/uniques'
 import type { Conveniences } from '../progress/Conveniences'
 import type { ChapterProgress } from '../progress/Chapters'
 import type { TrainingProgress } from '../progress/Training'
@@ -101,6 +102,8 @@ export interface GameContext {
   readonly build: Build
   /** 본 대화 장면 (E12-10, 저장) */
   readonly scenesSeen: Set<string>
+  /** 영웅·전설 장비의 고유 효과 상태 (E303-03): 타이머·셈·받는 피해·이동 배율·달빛 방패 */
+  readonly uniques: UniqueState
   /** 유물 스킬이 세계와 주고받는 것 (프레임마다 적 목록 등을 채운다) */
   readonly skills: SkillContext
 }

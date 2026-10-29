@@ -1987,3 +1987,50 @@ button.menu-slots__slot {
   image-rendering: pixelated;
 }
 
+
+/* 합치기 (E303): 셋이 모인 가방 칸은 등급 색으로 숨 쉬듯 빛나고, 설명 카드 아래 셋 → 다음 등급 상자 */
+.menu-relics__item.is-mergeable {
+  box-shadow:
+    0 0 0 2px var(--god),
+    var(--stone-raised);
+  animation: menu-merge-glow 1.6s ease-in-out infinite;
+}
+@keyframes menu-merge-glow {
+  50% {
+    filter: brightness(1.35);
+  }
+}
+.menu-merge {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--c-stone-hi);
+  box-shadow: var(--stone-raised);
+  border-top: 2px solid var(--god);
+}
+.menu-merge__row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.menu-merge__icon {
+  width: 30px;
+  height: 30px;
+  background-size: 100% 100%;
+  image-rendering: pixelated;
+  box-shadow: 0 0 0 2px var(--god);
+}
+.menu-merge__arrow {
+  font: var(--t-body);
+  color: var(--god);
+  margin-left: var(--sp-2);
+}
+.menu-merge small {
+  font: var(--t-small);
+  color: var(--c-ink-2);
+}
+.menu-merge__go {
+  align-self: flex-start;
+}

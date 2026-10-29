@@ -6,7 +6,7 @@ import { effectScale, isMythRelic, relicMyth, relicStats, relicTier, stageName }
 import { GRADE_COLORS } from '../../art/palette'
 import { statText } from '../../myth/alwaysText'
 import { materialName } from '../../gear/materials'
-import { type GearItem, gearName, gearScore } from '../../gear/roll'
+import { GEAR, type GearItem, gearName, gearScore } from '../../gear/roll'
 import { lendText, levelGains } from '../../myth/levelGains'
 import { sceneId } from '../../data/scenes'
 import { classIcon } from '../../ui/classIcons'
@@ -31,6 +31,8 @@ export class RelicSystem {
   /** 로키의 환영 분신. 거인은 가까이 있으면 주인공 대신 이것을 쫓는다. */
   decoy: { x: number; z: number; radius: number } | null = null
   private readonly lastWalk = new THREE.Vector2()
+  /** 이번 프레임에 걸은 거리 (고유 효과 「회오리 걸음」이 읽는다) */
+  walked = 0
   /** 주운 것 이름을 띄울 자리 (프레임마다 새로 만들지 않게) */
   private readonly labelAt = new THREE.Vector3()
   /** 신화를 고를 때 터지는 충격을 다시 쓸 수 있을 때까지 (초) */
@@ -207,6 +209,19 @@ export class RelicSystem {
   }
 
   /** 일반 장비를 분해해 그 땅(마을이면 고른 신화의 땅, 없으면 북유럽) 공통 재료로 바꾼다 (E13-07-3) */
+  /** 가방의 셋을 합친다 (E303, 어디서나): 한 등급 위 하나가 가방에, 카드로 알린다 */
+  merge(uids: readonly string[]): GearItem | null {
+    const { powers, bus } = this.ctx
+    const out = powers.loadout.merge(uids, Math.random)
+    if (!out) return null
+    bus.emit('gearMerged', { item: out })
+    const grade = GEAR.grades[out.grade].name
+    const lines = [`셋 → ${grade}`, ...(out.unique ? [`고유 효과: ${GEAR.uniques[out.unique]!.name}`] : []), ...(out.unique2 ? [`고유 효과: ${GEAR.uniques[out.unique2]!.name}`] : [])]
+    bus.emit('moment', { id: out.grade === 'hero' || out.grade === 'legend' ? 'mergedHigh' : 'merged', card: { kind: '합치기', title: gearName(out), color: GRADE_COLORS[out.grade], icon: gearIcon(out), lines } })
+    bus.emit('progressChanged', {})
+    return out
+  }
+
   salvage(id: string): boolean {
     const { powers, bus, map, build } = this.ctx
     const realm = map.region.realm ?? (build.chosen ? godDef(build.chosen).realm : 'norse')
@@ -284,6 +299,7 @@ export class RelicSystem {
     // 걸은 거리 (이동 연동 효과). 순간이동처럼 한 번에 크게 옮긴 것은 빼고, 밀려난 것은 걸음으로 치지 않는다.
     const step = Math.hypot(position.x - this.lastWalk.x, position.z - this.lastWalk.y)
     if (hero.isMoving && step < 1) powers.onWalk(step, skills)
+    this.walked = hero.isMoving && step < 1 ? step : 0
     this.lastWalk.set(position.x, position.z)
 
     if (combat.alive) {
@@ -312,6 +328,7 @@ export class RelicSystem {
     if (combat.alive && ultimate && combat.divine >= 1 && !powers.ultimateActive && !this.ctx.build.state.noUltimate && ultimate.worthUsing(skills, bossNear)) {
       combat.divine = 0
       ultimate.start(skills)
+      this.ctx.bus.emit('ultimateCast', {})
       feel.stop(0.12)
     }
 
@@ -319,10 +336,11 @@ export class RelicSystem {
     const build = this.ctx.build.state
     combat.knockbackScale = build.modifiers.knockbackDealt
     combat.knockbackTakenScale = build.modifiers.knockbackTaken
-    combat.damageTakenScale = build.damageTaken
+    // 고유 효과 (E303): 바위 껍질이 켜진 동안 받는 피해가 줄고, 순례자는 지역을 옮긴 뒤 빨라진다
+    combat.damageTakenScale = build.damageTaken * this.ctx.uniques.takenScale
     combat.attackSpeed = build.attackSpeed
     combat.setStyle(build.attack)
-    hero.speedScale = build.moveSpeed
+    hero.speedScale = build.moveSpeed * this.ctx.uniques.moveScale
     // 상시 효과 수치 (E12-03)
     const stats = build.stats
     // 시련 「마른 샘」(E16): 생명이 차오르지 않는다

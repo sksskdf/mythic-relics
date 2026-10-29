@@ -84,7 +84,7 @@ export function craft(loadout: Loadout, god: God, maxStage = RELIC_STAGES): { re
 }
 
 /** 분해하면 나오는 그 땅 공통 재료 수 (E13-07-3) */
-export const SALVAGE: Readonly<Record<Grade, number>> = { common: 1, good: 2, rare: 4, hero: 8 }
+export const SALVAGE: Readonly<Record<Grade, number>> = { common: 1, good: 2, rare: 4, hero: 8, legend: 16 }
 
 /** 일반 장비를 분해한다: 칸이나 가방에서 없애고 공통 재료를 준다. 나온 재료와 수 (장비가 아니면 null) */
 export function salvage(loadout: Loadout, id: string, realm: string): { material: string; count: number; slot: number } | null {

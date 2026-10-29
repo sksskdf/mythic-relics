@@ -2,6 +2,7 @@ import { GRADE_COLORS } from '../../art/palette'
 import { SLOT_PARTS } from '../../data/gearData'
 import type { SourceId } from '../../data/schema'
 import { materialName } from '../../gear/materials'
+import { nextGrade } from '../../gear/merge'
 import { GEAR, gearName } from '../../gear/roll'
 import { godDef, relicDef, type RelicId } from '../../relics/data'
 import { classIcon } from '../classIcons'
@@ -89,8 +90,10 @@ export class RelicsTab {
     // 가방: 누르면 그 부위 칸에 낀다 (고른 칸이 맞는 부위면 그 칸, 아니면 비어 있는 칸부터)
     const bag = el('div', 'menu-relics__bag')
     bag.style.backgroundImage = `url(${glyph('bag', '#222a36', '#141a24')})`
+    // 합칠 수 있는 셋 (E303): 그 칸이 빛난다
+    const mergeable = new Set(host.mergeable().flat())
     for (const id of host.bag) {
-      const b = el('button', 'menu-relics__item')
+      const b = el('button', `menu-relics__item${mergeable.has(id) ? ' is-mergeable' : ''}`)
       b.type = 'button'
       this.paintItem(b, id)
       b.setAttribute('aria-label', this.itemName(id))
@@ -150,6 +153,8 @@ export class RelicsTab {
       const wornId = host.slotsFor(id).map((i) => host.slots[i]).find((x) => x && x !== id && host.gearOf(x))
       const totals = Object.fromEntries(host.sources.rows().map((r) => [r.id, r.total])) as Record<SourceId, number>
       detail.append(gearCard(gear, wornId ? host.gearOf(wornId) : null, totals))
+      const group = host.mergeable().find((g) => g.includes(id))
+      if (group) detail.append(this.mergeBox(group))
       const b = el('button', 'menu-relics__salvage')
       b.type = 'button'
       b.append(img(glyph('salvage')), '분해')
@@ -165,6 +170,34 @@ export class RelicsTab {
     const target = this.hovered ? this.wieldSlot(this.hovered) : undefined
     const preview = this.hovered && target !== undefined ? { before: host.loadout, after: host.preview(target, this.hovered) } : undefined
     detail.append(relicCard(relicDef(id), host.cardContext(id, preview)))
+  }
+
+  /** 합치기 상자 (E303): 셋의 그림 → 결과 등급, 「합치기」 단추 */
+  private mergeBox(group: readonly string[]): HTMLElement {
+    const { host } = this.ctx
+    const items = group.map((id) => host.gearOf(id)!).filter(Boolean)
+    const next = nextGrade(items[0]!.grade)!
+    const box = el('section', 'menu-merge')
+    box.style.setProperty('--god', GRADE_COLORS[next])
+    const row = el('div', 'menu-merge__row')
+    for (const item of items) {
+      const icon = el('span', 'menu-merge__icon')
+      icon.style.backgroundImage = `url(${gearIcon(item)})`
+      icon.style.setProperty('--god', GRADE_COLORS[item.grade])
+      row.append(icon)
+    }
+    row.append(el('b', 'menu-merge__arrow', `→ ${GEAR.grades[next].name}`))
+    box.append(row)
+    const note = next === 'hero' ? '고유 효과 하나가 붙는다' : next === 'legend' ? '고유 효과 둘 (하나는 물려받음)' : '가장 좋은 수치 하나를 이어받는다'
+    box.append(el('small', '', note))
+    const b = el('button', 'ui-btn menu-merge__go', '합치기')
+    b.type = 'button'
+    b.addEventListener('click', () => {
+      this.hovered = null
+      host.merge(group)
+    })
+    box.append(b)
+    return box
   }
 
   /** 가방의 것을 누르면 낄 칸: 고른 칸이 맞는 부위면 그 칸, 아니면 비어 있는 맞는 칸부터 */
