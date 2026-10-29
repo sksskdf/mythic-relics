@@ -12,6 +12,7 @@ import { nextRecipe } from '../gear/forge'
 import { materialName } from '../gear/materials'
 import { MYTH_RELICS, mythRelic, relicMyth, stageName } from '../gear/mythRelic'
 import { GEAR } from '../gear/roll'
+import { TRAINING_UNIQUES } from '../skills/uniques'
 import { levelGains } from '../myth/levelGains'
 import { CONVENIENCES } from '../progress/Conveniences'
 import { BRANCHES, insightProgress, TRAINING_NODES } from '../data/training'
@@ -154,7 +155,7 @@ export class MenuData {
             col: n.col,
             row: n.row,
             after: n.after,
-            lines: n.stats.map((s) => statText(s.kind, s.value)),
+            lines: [...n.stats.map((s) => statText(s.kind, s.value)), ...(TRAINING_UNIQUES[n.id] ? [`${GEAR.uniques[TRAINING_UNIQUES[n.id]!]!.name}: ${GEAR.uniques[TRAINING_UNIQUES[n.id]!]!.text}`] : [])],
             big: !!n.big,
             taken: ctx.training.taken.has(n.id),
             can: ctx.training.canTake(n.id),

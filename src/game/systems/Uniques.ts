@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 
-import { UNIQUE } from '../../skills/uniques'
+import { TRAINING_UNIQUES, UNIQUE } from '../../skills/uniques'
 import { heightAt } from '../../world/terrain'
 import type { GameContext } from '../context'
 import type { CombatTarget } from '../PlayerCombat'
@@ -47,10 +47,11 @@ export class UniqueSystem {
     })
   }
 
-  /** 낀 장비의 고유 효과를 맞추고 타이머를 돌린다. 걸은 거리로 회오리 걸음 */
+  /** 낀 장비와 수련 큰 마디의 고유 효과를 맞추고 타이머를 돌린다. 걸은 거리로 회오리 걸음 */
   update(dt: number, walked: number): void {
-    const { powers, uniques } = this.ctx
+    const { powers, uniques, training } = this.ctx
     const ids = powers.loadout.wornGear.flatMap((g) => [g.unique, g.unique2].filter((u): u is string => !!u))
+    for (const [node, unique] of Object.entries(TRAINING_UNIQUES)) if (training.taken.has(node) && !ids.includes(unique)) ids.push(unique)
     const key = ids.join(',')
     if (key !== this.worn) {
       this.worn = key

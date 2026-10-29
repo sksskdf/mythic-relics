@@ -19,6 +19,13 @@ export const UNIQUE = {
   pilgrim: { duration: 10, speed: 1.2 },
 } as const
 
+/** 수련 큰 마디 셋이 켜는 고유 효과 (E303-03: 수치 묶음에 싸우는 방식 하나를 더한다) */
+export const TRAINING_UNIQUES: Readonly<Record<string, string>> = {
+  slayer: 'shadowBlade',
+  unbroken: 'stoneSkin',
+  whirl: 'whirlStep',
+}
+
 /** 빌드 상태에 수치로 더하는 고유 효과 (장비 수치와 같은 종류) */
 export const UNIQUE_STATS: Readonly<Record<string, { kind: 'ultCharge' | 'bossDamage'; value: number }>> = {
   deepRoar: { kind: 'ultCharge', value: 0.15 },

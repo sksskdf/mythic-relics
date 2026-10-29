@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import { GEAR } from '../src/gear/roll'
-import { UNIQUE, UNIQUE_STATS, UniqueState } from '../src/skills/uniques'
+import { TRAINING_UNIQUES, UNIQUE, UNIQUE_STATS, UniqueState } from '../src/skills/uniques'
+import { trainingNode } from '../src/data/training'
 
 describe('고유 효과 (E303-03)', () => {
   it('gear.json의 고유 효과 열둘이 모두 규칙이나 수치로 돈다', () => {
@@ -56,5 +57,14 @@ describe('고유 효과 (E303-03)', () => {
     expect(s.moveScale).toBe(UNIQUE.pilgrim.speed)
     s.update(10.1)
     expect(s.moveScale).toBe(1)
+  })
+})
+
+describe('수련 큰 마디 (E303-03)', () => {
+  it('큰 마디 셋은 고유 효과 하나씩을 켠다 (gear.json에 있는 효과)', () => {
+    for (const [node, unique] of Object.entries(TRAINING_UNIQUES)) {
+      expect(trainingNode(node)?.big, node).toBe(true)
+      expect(GEAR.uniques[unique], unique).toBeDefined()
+    }
   })
 })

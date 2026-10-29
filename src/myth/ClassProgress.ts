@@ -152,6 +152,15 @@ export class ClassProgress {
     return true
   }
 
+  /** 승천 (E304): 귀환 갈래로 열린 신 하나를 한 단계 올린다 (경험치 막대·전설 없이). 올랐으면 true */
+  ascend(god: God): boolean {
+    const record = this.record(god)
+    if (record.level < 1 || record.level >= this.levelCap) return false
+    record.level += 1
+    record.xp = 0
+    return true
+  }
+
   /** 총 승급 횟수 */
   get promotions(): number {
     let total = 0
