@@ -22,7 +22,8 @@ export class AppearanceSystem {
     // 신의 자리 셋 (E302): 무기와 표식은 손의 신, 옷까지 그 신의 모습은 한 신에 몰았을 때만
     const hand = build.chosen
     const focus = build.focus
-    const handLooks = hand ? { ...(godDef(hand).looks.weapon ? { weapon: godDef(hand).looks.weapon } : {}), mark: godDef(hand).mark } : {}
+    const weapon = hand ? handWeapon(hand) : undefined
+    const handLooks = hand ? { ...(weapon ? { weapon } : {}), mark: godDef(hand).mark } : {}
     return autoOutfit({
       gearLooks: powers.loadout.slots.map((uid) => (uid ? powers.loadout.gear.get(uid) : undefined)).flatMap((item) => (item ? (gearLook(item) ?? []) : [])),
       relicLooks: powers.loadout.relics.filter((id) => id !== null).map((id) => relicDef(id).look),
@@ -99,4 +100,12 @@ export class AppearanceSystem {
   private sway = 0
   /** 공용 기운을 마지막으로 물들인 신 */
   private tinted: string | null = null
+}
+
+/** 손에 쥔 신의 무기 모습: 신화 외형의 무기, 없으면 그 신의 유물이 무기면 그 모습 (묠니르·궁니르) */
+function handWeapon(god: string): string | undefined {
+  const def = godDef(god)
+  if (def.looks.weapon) return def.looks.weapon
+  const look = relicDef(def.relic).look
+  return lookDef(look).slot === 'weapon' ? look : undefined
 }
