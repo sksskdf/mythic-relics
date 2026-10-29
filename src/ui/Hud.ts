@@ -1,3 +1,4 @@
+import type { RelicId } from '../relics/data'
 import { classIcon } from './classIcons'
 import './hud.css'
 import { BOLT_ICON, pixelIcon } from './pixelIcon'
@@ -10,8 +11,8 @@ export interface HudSlot {
   icon: string | null
   /** 행동 연동 효과의 충전 정도 0~1 (1이면 다 참) */
   charge: number
-  /** 이 유물이 있는 장비 칸 번호 (빈 칸이면 null) */
-  slot: number | null
+  /** 이 칸의 유물 (빈 칸이면 null) */
+  relic: RelicId | null
   /** 그 신화를 고르지 않아 유물의 힘이 잠들어 있다 (E21-04) */
   asleep?: boolean
 }

@@ -292,9 +292,10 @@ try {
     g.dev.awaken('thor')
     g.dev.awaken()
   })
-  await page.waitForFunction(() => window.__game.powers.loadout.slots[0] === 'mjolnir', null, { timeout: 15000 }).catch(() => {
-    throw new Error('신의 조각: 조각 2를 모았는데 묠니르가 무기 칸에 들어오지 않았습니다.')
+  await page.waitForFunction(() => window.__game.powers.loadout.lit.includes('mjolnir'), null, { timeout: 15000 }).catch(() => {
+    throw new Error('신의 조각: 조각 2를 모았는데 묠니르가 유물표에 켜지지 않았습니다.')
   })
+  if ((await page.evaluate(() => window.__game.powers.loadout.slots.includes('mjolnir')))) throw new Error('유물표: 묠니르가 장비 칸에 들어갔습니다 (유물은 칸을 떠났다, E303-04).')
   if ((await page.evaluate(() => window.__game.hero.rig.outfit.weapon)) !== 'mjolnirHammer') throw new Error('외형: 묠니르를 얻자마자 망치가 보이지 않습니다.')
   const asleep = await page.evaluate(() => {
     const g = window.__game
@@ -363,9 +364,13 @@ try {
   if ((await page.evaluate(() => window.__game.powers.loadout.stage('mjolnir'))) !== 2) throw new Error('대장간: 벼렸는데 묠니르가 2단계가 아닙니다.')
   await page.click('.menu__tab:nth-child(4)')
   if (!(await page.locator('.menu-classes__now').textContent()).includes('천둥의 신')) throw new Error('정보 화면: 신화 탭에 지금 신화가 없습니다.')
-  // 신화 카드 (E12-06, E21-02, E302): 수집 보너스·손·심장·숨에 끼면 얻는 것과 한 신에 몰기 표시
+  // 신화 카드 (E12-06, E21-02, E302): 열린 신화·손·심장·숨에 끼면 얻는 것과 한 신에 몰기 표시
   const myth = await page.locator('.menu-myth').textContent()
-  if (!['수집 보너스', '손에 쥐면', '심장에 두면', '숨에 넣으면', '한 신에 몰기'].every((w) => myth.includes(w))) throw new Error(`정보 화면: 신화 카드가 모자랍니다 (${myth.slice(0, 60)})`)
+  // 유물표 (E303-04): 묠니르 칸이 켜져 깨어 있고, 못 켠 칸은 실루엣
+  const table = await page.evaluate(() => ({ lit: document.querySelectorAll('.menu-table__cell.is-lit').length, awake: document.querySelectorAll('.menu-table__cell.is-awake').length, all: document.querySelectorAll('.menu-table__cell').length, head: document.querySelector('.menu-table__head')?.textContent ?? '' }))
+  if (table.lit < 1 || table.awake < 1 || table.all < 20 || !table.head.includes('+')) throw new Error(`유물표: 묠니르 칸이 켜지지 않았습니다 ${JSON.stringify(table)}`)
+  console.log(`유물표 확인: ${table.head}, 칸 ${table.all}`)
+  if (!['열린 신화', '손에 쥐면', '심장에 두면', '숨에 넣으면', '한 신에 몰기'].every((w) => myth.includes(w))) throw new Error(`정보 화면: 신화 카드가 모자랍니다 (${myth.slice(0, 60)})`)
   // 신의 자리 셋 (E302): 둘째 신이 깨어나면 숨 칸이 둘, 그 신의 카드에서 「숨에 넣기」를 누르면 그 신의 패시브가 돈다
   await page.evaluate(() => {
     const g = window.__game
@@ -556,7 +561,7 @@ try {
   // 유물·일반 장비·재료가 모두 그대로 (E13-06)
   const restored = await page.evaluate((uid) => {
     const l = window.__game.powers.loadout
-    return { relic: l.slots[0] === 'mjolnir', gear: l.slots[4] === uid && l.gear.get(uid)?.grade === 'rare', material: l.materials.get('megingjord') === 1 }
+    return { relic: l.lit.includes('mjolnir') && !!window.__game.powers.effectOf('mjolnir'), gear: l.slots[4] === uid && l.gear.get(uid)?.grade === 'rare', material: l.materials.get('megingjord') === 1 }
   }, bootsUid)
   if (!restored.relic || !restored.gear || !restored.material) throw new Error(`이어서 플레이 실패: 저장한 장비가 없습니다 ${JSON.stringify(restored)}`)
   // 주신·빌린 신·깨우는 신·조각·장비 칸·가방·단계·수련·엔딩·위협·웨이포인트가 저장 전과 같다 (Persistence 저장·되살리기 왕복)

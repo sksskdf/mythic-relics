@@ -1,4 +1,4 @@
-import { PER_OPENED, PER_PROMOTION } from '../../myth/ClassProgress'
+import { PER_LIT, PER_OPENED, PER_PROMOTION } from '../../myth/ClassProgress'
 import { godDef, relicDef, type RelicId } from '../../relics/data'
 import { classIcon } from '../classIcons'
 import { relicIcon } from '../relicCard'
@@ -75,7 +75,7 @@ export function renderStatus(ctx: TabContext, body: HTMLElement): void {
   }
   const changed = (v: number, higherIsGood: boolean) => (Math.abs(v - 1) < 0.005 ? undefined : { text: pct(v), good: v > 1 === higherIsGood })
   row('heart', '생명', `${Math.round(stats.hp)} / ${stats.maxHp}`, `생명\n개방 단계를 하나 올릴 때마다 최대 생명 +${Math.round(PER_PROMOTION.maxHpPct * 100)}%, 열린 신화 하나마다 +${PER_OPENED.maxHp}. 오르면 가득 찬다.`)
-  row('sword', '주는 피해', `×${stats.damage.toFixed(2)}`, `주는 피해\n개방 단계를 하나 올릴 때마다 ×${PER_PROMOTION.damage}, 열린 신화 하나마다 +${Math.round(PER_OPENED.damage * 100)}%, 지금 신화의 힘이 곱해진다.`, changed(stats.damage, true))
+  row('sword', '주는 피해', `×${stats.damage.toFixed(2)}`, `주는 피해\n개방 단계를 하나 올릴 때마다 ×${PER_PROMOTION.damage}, 유물표에 켠 칸 하나마다 +${Math.round(PER_LIT * 100)}%, 손에 쥔 신의 힘이 곱해진다.`, changed(stats.damage, true))
   row('shield', '받는 피해', `×${stats.damageTaken.toFixed(2)}`, '낀 유물의 지속 효과', changed(stats.damageTaken, false))
   row('boot', '이동 속도', `${Math.round(stats.moveSpeed * 100)}%`, '낀 유물의 지속 효과', changed(stats.moveSpeed, true))
   row('push', '밀쳐 내기', `×${stats.knockbackDealt.toFixed(2)}`, '내 공격이 적을 미는 힘', changed(stats.knockbackDealt, true))
@@ -92,16 +92,16 @@ export function renderStatus(ctx: TabContext, body: HTMLElement): void {
     right.append(list)
   }
 
-  // 수집 보너스 (E21-02): 열린 신화 하나마다 같은 덧셈
-  if (stats.collected > 0 || stats.powers.length > 0) {
+  // 유물표 (E303-04): 켠 칸 하나마다 같은 덧셈, 열린 신화는 생명
+  if (stats.collected > 0 || stats.lit > 0 || stats.powers.length > 0) {
     const list = el('div', 'menu-status__powers')
-    if (stats.collected > 0) {
+    if (stats.collected > 0 || stats.lit > 0) {
       const n = stats.collected
       const line = el('div', 'menu-status__power')
       const chip = el('span', 'ui-chip')
       chip.style.setProperty('--glow', 'var(--c-gilt)')
       chip.append(img(glyph('star', '#ffd27a', '#a8862e')))
-      line.append(chip, el('span', '', '수집 보너스'), el('em', '', `열린 신화 ${n} · 모든 피해 +${Math.round(n * PER_OPENED.damage * 100)}%, 최대 생명 +${n * PER_OPENED.maxHp}`))
+      line.append(chip, el('span', '', '유물표'), el('em', '', `켠 칸 ${stats.lit} · 모든 피해 +${Math.round(stats.lit * PER_LIT * 100)}%, 열린 신화 ${n} · 최대 생명 +${n * PER_OPENED.maxHp}`))
       list.append(line)
     }
     for (const p of stats.powers) {

@@ -11,8 +11,8 @@ describe('신화 수치 글 (E12-06, E21)', () => {
     expect(statText('damageTaken', -0.06)).toBe('받는 피해 −6%')
   })
 
-  it('수집 보너스는 열린 신화 하나마다 같은 한 줄', () => {
-    expect(collectionText()).toBe('모든 피해 +4%, 최대 생명 +5')
+  it('열린 신화 하나마다 같은 한 줄 (피해는 유물표로 옮겼다, E303-04)', () => {
+    expect(collectionText()).toBe('최대 생명 +5')
   })
 
   it('별 수치는 단계가 오를수록 크고, 작동 전에는 앞 단계 값을 보인다', () => {

@@ -22,8 +22,10 @@ export interface HeroStats {
   divine: number
   /** 총 승급 횟수 */
   promotions: number
-  /** 열린 신화 수 (수집 보너스, E21-02) */
+  /** 열린 신화 수 (하나마다 최대 생명) */
   collected: number
+  /** 유물표에 켠 칸 수 (E303-04) */
+  lit: number
   /** 주는 피해가 어디서 오나 (E301-01): 그대로가 아닌 층마다 이름과 몫(×1.35, +12%) */
   layers: { name: string; text: string }[]
   /** 지금 걸린 힘: 발현, 가호, 낀 유물의 지속 효과 */
@@ -163,10 +165,12 @@ export interface MenuHost {
     waking(): { god: God; fragments: number; next: string } | null
     /** 성좌판에서 별을 밝힌 신화의 수치 단계 (밝히지 않았으면 0, 엔딩 뒤) */
     star(god: God): number
+    /** 유물표 (E303-04): 신화의 유물과 고유 효과 칸, 켰는지·깨어났는지 */
+    table(): { relics: { id: RelicId; lit: boolean; awake: boolean; stage: number }[]; uniques: { id: string; name: string; text: string; lit: boolean }[] }
   }
   readonly wardrobe: WardrobeHost
   /** 설명 카드에 넣을 지금 상태 */
-  cardContext(id: RelicId, preview?: { before: LoadoutState; after: LoadoutState }): RelicCardContext
+  cardContext(id: RelicId): RelicCardContext
   stats(): HeroStats
   readonly sources: SourcesHost
   readonly world: WorldMapHost

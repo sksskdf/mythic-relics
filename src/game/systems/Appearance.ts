@@ -3,6 +3,7 @@ import { lookDef, type LookSlot } from '../../looks/catalog'
 import { gearLook, parseGearLook } from '../../looks/gearLooks'
 import { autoOutfit, type LookChoice, type Outfit } from '../../looks/outfit'
 import { godDef, relicDef } from '../../relics/data'
+import { relicOwner } from '../../gear/mythRelic'
 import type { GameContext } from '../context'
 
 /**
@@ -26,7 +27,8 @@ export class AppearanceSystem {
     const handLooks = hand ? { ...(weapon ? { weapon } : {}), mark: godDef(hand).mark } : {}
     return autoOutfit({
       gearLooks: powers.loadout.slots.map((uid) => (uid ? powers.loadout.gear.get(uid) : undefined)).flatMap((item) => (item ? (gearLook(item) ?? []) : [])),
-      relicLooks: powers.loadout.relics.filter((id) => id !== null).map((id) => relicDef(id).look),
+      // 유물표의 유물은 손의 신 것만 모습에 보인다 (E303-04: 유물은 칸을 떠났다)
+      relicLooks: powers.loadout.relics.filter((id) => hand !== null && relicOwner(id) === hand).map((id) => relicDef(id).look),
       manifestLooks: focus ? { ...godDef(focus).looks, mark: godDef(focus).mark } : handLooks,
     })
   }

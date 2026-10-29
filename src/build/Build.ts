@@ -9,11 +9,10 @@ import type { ThreatProgress } from '../progress/Threat'
 import type { TrialProgress } from '../progress/Trials'
 import type { TrainingProgress } from '../progress/Training'
 import type { AwakenProgress } from '../progress/Awakening'
-import { isMythRelic, relicStats } from '../gear/mythRelic'
 import { isGearUid } from '../gear/roll'
 import type { ClassPassive } from '../data/classKit'
 import { breathPassive, focusGod, partLevel, pantheonGods } from '../myth/pantheon'
-import { type God, isRelicId } from '../relics/data'
+import type { God } from '../relics/data'
 import { UNIQUE_STATS } from '../skills/uniques'
 import { type BuildInputs, type BuildState, computeBuild } from './BuildState'
 
@@ -33,11 +32,8 @@ export class Build {
     const { loadout } = powers
     // 시련 「세 칸의 짐」: 쓸 수 있는 칸만 (E16)
     const slots = loadout.slots.map((id, i) => (rules.slots && !rules.slots.includes(i) ? null : id))
-    const relics = slots.map((id) => (id && isRelicId(id) ? id : null))
     // 고유 효과 가운데 수치인 것(깊은 울림·사냥꾼의 눈, E303)은 그 장비의 수치로 더한다
     const gearItems = slots.flatMap((id) => (isGearUid(id) && loadout.gear.has(id) ? [withUniqueStats(loadout.gear.get(id)!)] : []))
-    // 신화의 유물은 기본 수치를 낸다 (같은 단계 영웅 장비보다 조금 못하다, E21-04). 원천은 computeBuild가 유물 단계로 따로 더한다
-    const relicItems = relics.flatMap((id) => (id && isMythRelic(id) ? [{ stats: relicStats(id, loadout.stage(id)), source: { id: 'flame' as const, value: 0 } }] : []))
     return {
       open,
       // 신의 자리 셋 (E302): 손의 신과 자리에 든 신들
@@ -45,9 +41,10 @@ export class Build {
       present: pantheonGods(loadout.pantheon),
       // 깨우는 신 (E238): 조각 2부터 유물이 깨어난다
       waking: loadout.waking,
-      gear: relics,
+      // 유물표 (E303-04): 유물은 칸을 떠나 기본 수치·원천 없이 지속·행동 효과만, 켠 칸마다 +1%
+      gear: loadout.relics,
+      lit: loadout.litCount,
       gearItems,
-      relicItems,
       ...this.blessed(),
       starred: this.from.rift?.lit,
       rules,
@@ -187,7 +184,10 @@ export class Build {
     const { pantheon } = loadout
     out.push(this.from.trial?.() ?? null, loadout, pantheon.hand, pantheon.heart, loadout.waking, this.from.awaken?.waking ?? null, this.from.awaken?.fragments ?? 0, pantheon.breath.length)
     for (const god of pantheon.breath) out.push(god)
-    for (const id of loadout.slots) out.push(id, id && isRelicId(id) ? loadout.stage(id) : id && isGearUid(id) ? loadout.gear.get(id) : null)
+    for (const id of loadout.slots) out.push(id, id && isGearUid(id) ? loadout.gear.get(id) : null)
+    // 유물표: 켠 유물과 그 단계, 켠 고유 효과 수
+    out.push(loadout.lit.length, loadout.uniquesSeen.size)
+    for (const id of loadout.lit) out.push(id, loadout.stage(id))
     out.push(progress.records.size)
     progress.records.forEach((record, god) => out.push(god, record.level))
     if (trials) for (const id of TRIAL_IDS) out.push(trials.cleared[id] ?? 0)

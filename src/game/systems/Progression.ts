@@ -156,13 +156,13 @@ export class ProgressionSystem {
     bus.emit('progressChanged', {})
   }
 
-  /** 신화가 처음 열렸다 (경험치 문턱 또는 유물): 칭호 카드 (고르지 않아도 수집 보너스가 붙는다) */
+  /** 신화가 처음 열렸다 (경험치 문턱 또는 유물): 칭호 카드 (고르지 않아도 최대 생명이 붙는다) */
   private announceOpened(god: God): void {
     const { bus, progress } = this.ctx
     // 처음 연 신화를 바로 골랐거나 빌린 칸에 넣었으면 그쪽(고른 신화 장면·빌린 힘 카드)이 대신 알린다 (RelicSystem이 먼저 듣는다)
     if (inPantheon(progress.pantheon, god)) return
     const def = godDef(god)
-    const lines = [`${def.name}의 힘이 깨어났다`, '신 탭에서 손·심장·숨 자리에 낀다', `수집 보너스: ${collectionText()}`]
+    const lines = [`${def.name}의 힘이 깨어났다`, '신 탭에서 손·심장·숨 자리에 낀다', `열린 신화: ${collectionText()}`]
     bus.emit('moment', { id: 'mythOpened', card: { kind: '신화 개방', title: def.titles[0], color: def.color, icon: classIcon(def.name), lines } })
   }
 

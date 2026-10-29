@@ -2,7 +2,11 @@ import { ATTACK_NAMES } from '../../combat/styles'
 import { DATA } from '../../data'
 import { collectionText, starText } from '../../myth/alwaysText'
 import { allLevelGains, lendText, levelGains } from '../../myth/levelGains'
-import { type God, godDef } from '../../relics/data'
+import { type God, godDef, relicDef } from '../../relics/data'
+import { relicMyth, stageName } from '../../gear/mythRelic'
+import { PER_LIT } from '../../myth/ClassProgress'
+import { josa } from '../josa'
+import { relicIcon } from '../relicCard'
 import { classIcon } from '../classIcons'
 import { glyph, SOURCE_COLORS, sourceSigil, unknownSigil } from '../sigils'
 import { el, img, pips, type TabContext } from './dom'
@@ -128,7 +132,7 @@ export class MythTab {
   }
 
   /**
-   * 한 신화 카드 (E12-06 → E302): 단계·칭호, 수집 보너스, 손·심장·숨에 끼면 얻는 것, 자리 바꾸기, 다음 단계 조건.
+   * 한 신화 카드 (E12-06 → E302): 단계·칭호, 열린 신화의 생명, 손·심장·숨에 끼면 얻는 것, 자리 바꾸기, 다음 단계 조건.
    */
   private mythCard(god: God): HTMLElement {
     const { progress, myths } = this.ctx.host
@@ -155,9 +159,9 @@ export class MythTab {
     else if (tags.length) head.append(el('span', 'ui-tag ui-tag--solid menu-myth__chosen', tags.join('·')))
     card.append(head)
 
-    // 수집 보너스 (E21-02): 열린 신화면 자리에 없어도 늘 붙는다. 별을 밝힌 신화는 그 신화의 수치도 (엔딩 뒤)
+    // 열린 신화 (E21-02 → E303-04): 자리에 없어도 늘 붙는다(최대 생명). 별을 밝힌 신화는 그 신화의 수치도 (엔딩 뒤)
     const always = el('div', 'menu-myth__part')
-    always.append(el('b', '', '수집 보너스'), el('small', '', '열려 있으면 늘'))
+    always.append(el('b', '', '열린 신화'), el('small', '', '열려 있으면 늘'))
     const alwaysList = el('ul', '')
     alwaysList.append(el('li', level > 0 ? 'is-on' : '', collectionText()))
     if (star > 0) alwaysList.append(el('li', star >= 3 ? 'is-on' : '', `별: ${starText(god, star)}${star >= 3 ? '' : ' (3단계부터)'}`))
@@ -226,6 +230,36 @@ export class MythTab {
    * - 숨겨진 별은 이름 없이 흐리게 떠 있다.
    * 모든 ?는 올리거나 누르면 그 신화의 이야기로 된 힌트를 보여 준다.
    */
+  /**
+   * 유물표 (E303-04, `CYCLE.md` 4.4): 신화의 유물과 처음 만든 고유 효과. 켠 칸마다 모든 피해 +1%.
+   * 못 켠 칸은 실루엣, 켰는데 그 신이 자리에 없으면 흐리게
+   */
+  private relicTable(): HTMLElement {
+    const { relics, uniques } = this.ctx.host.myths.table()
+    const box = el('section', 'menu-table')
+    const lit = relics.filter((r) => r.lit).length + uniques.filter((u) => u.lit).length
+    box.append(el('div', 'menu-table__head', `유물표 · ${lit}칸 켬 · 모든 피해 +${Math.round(lit * PER_LIT * 100)}%`))
+    const grid = el('div', 'menu-table__grid')
+    for (const r of relics) {
+      const def = relicDef(r.id)
+      const owner = godDef(relicMyth(r.id)!)
+      const cell = el('span', `menu-table__cell${r.lit ? ' is-lit' : ''}${r.awake ? ' is-awake' : ''}`)
+      cell.style.setProperty('--god', owner.color)
+      cell.append(img(r.lit ? relicIcon(def) : unknownSigil('#3a4558')))
+      if (r.lit && r.stage > 1) cell.append(el('small', '', String(r.stage)))
+      this.ctx.hintOn(cell, r.lit ? `${stageName(r.id, r.stage)}\n${r.awake ? `${josa(owner.name, '이')} 자리에 있어 깨어났다` : `${josa(owner.name, '을')} 자리에 넣으면 깨어난다`}` : `???\n${owner.name}의 조각을 모으면 켜진다`)
+      grid.append(cell)
+    }
+    for (const u of uniques) {
+      const cell = el('span', `menu-table__cell menu-table__cell--unique${u.lit ? ' is-lit' : ''}`)
+      cell.append(img(u.lit ? glyph('star', '#ffd27a', '#a8862e') : unknownSigil('#3a4558')))
+      this.ctx.hintOn(cell, u.lit ? `${u.name}\n${u.text}` : '???\n영웅 장비를 합쳐 만들면 켜진다')
+      grid.append(cell)
+    }
+    box.append(grid)
+    return box
+  }
+
   render(body: HTMLElement): void {
     const { progress, loadout } = this.ctx.host
     const tree = DATA.classes
@@ -280,6 +314,7 @@ export class MythTab {
     const waking = this.wakingBox()
     if (waking) wrap.append(waking)
     if (current) wrap.append(this.slotRow())
+    wrap.append(this.relicTable())
 
     // 눌러 본 신화(없으면 고른 신화)의 카드: 상시·추가 효과, 다음 단계, 고르기 (E12-06)
     const focus = this.selected ?? current

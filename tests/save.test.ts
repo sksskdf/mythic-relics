@@ -10,8 +10,10 @@ import { HUNT_KILLS } from '../src/data/awaken'
 
 const sample: SaveData = {
   version: SAVE_VERSION,
-  slots: ['mjolnir', null, null, null, null, null, null],
+  slots: [null, null, null, null, null, null, null],
   bag: [],
+  lit: ['mjolnir'],
+  uniques: [],
   ground: [{ id: 'lokiMask', x: 3, z: -4 }],
   classes: { thor: { level: 2, xp: 40 } },
   pantheon: { hand: 'thor', heart: 'thor', breath: ['thor'] },
@@ -111,7 +113,9 @@ describe('저장 데이터', () => {
         divine: 3,
       }),
     )
-    expect(data?.slots).toEqual(['mjolnir', null, null, null, null, null, null])
+    // v15는 칸에 유물을 두지 않는다 (유물표, E303-04)
+    expect(data?.slots).toEqual([null, null, null, null, null, null, null])
+    expect(data?.lit).toEqual(['mjolnir'])
     expect(data?.ground).toEqual([])
     expect(data?.classes).toEqual({ thor: { level: 4, xp: 0 } })
     expect(data?.divine).toBe(1)
@@ -130,8 +134,9 @@ describe('저장 데이터', () => {
     const { looks: _looks, ...rest } = sample
     const data = parseSave(JSON.stringify({ ...rest, version: 1, slots: ['mjolnir', 'megingjord', null, 'jarngreipr'] }))
     expect(data?.version).toBe(SAVE_VERSION)
-    // 신화의 유물(묠니르)은 칸에, 재료가 된 유물(메긴교르드·야른그레이프르)은 재료로 (E13-06)
-    expect(data?.slots).toEqual(['mjolnir', null, null, null, null, null, null])
+    // 신화의 유물(묠니르)은 유물표에(E303-04), 재료가 된 유물(메긴교르드·야른그레이프르)은 재료로 (E13-06)
+    expect(data?.slots).toEqual([null, null, null, null, null, null, null])
+    expect(data?.lit).toEqual(['mjolnir'])
     expect(data?.materials).toEqual({ megingjord: 1, jarngreipr: 1 })
     expect(data?.looks.unlocked).toEqual(expect.arrayContaining(['shortSword', 'mjolnirHammer', 'megingjordBelt', 'ironGauntlets', 'thorHelm', 'thorCape']))
     expect(data?.looks.unlocked).not.toContain('lokiMaskFace')
@@ -295,17 +300,25 @@ describe('저장 v15: 원형 (E303-04)', () => {
     expect(data?.materials).toEqual({ prototype: 7, giantHeart: 1 })
   })
 
-  it('12칸을 넘친 가방은 낮은 등급 일반 장비부터 녹여 원형으로 (유물은 남긴다)', () => {
-    const items = [...Array.from({ length: 12 }, (_, i) => gear(`g:${i}`, 'rare')), gear('g:low1', 'common'), gear('g:low2', 'good')]
+  it('신화의 유물은 칸·가방을 떠나 유물표로, 빈 칸은 가방의 가장 좋은 장비로 채운다', () => {
+    const ring = gear('g:ring', 'rare')
+    const data = parseSave(JSON.stringify({ ...sample, version: 14, slots: ['mjolnir', null, null, null, null, null, null], bag: ['lokiMask', 'g:ring'], gear: [ring], ground: [] }))!
+    expect(data.lit).toEqual(['mjolnir', 'lokiMask'])
+    expect(data.slots).toEqual([null, null, null, null, null, 'g:ring', null])
+    expect(data.bag).toEqual([])
+  })
+
+  it('12칸을 넘친 가방은 칸을 채운 뒤 낮은 등급 일반 장비부터 녹여 원형으로', () => {
+    const items = [...Array.from({ length: 14 }, (_, i) => gear(`g:${i}`, 'rare')), gear('g:low1', 'common'), gear('g:low2', 'good')]
     const bag = ['lokiMask', ...items.map((g) => g.uid)]
     const data = parseSave(JSON.stringify({ ...sample, version: 14, ground: [], bag, gear: items, materials: {} }))!
+    // 장신구 칸 둘을 채우고 남은 14 가운데 낮은 둘을 녹인다: 보통 1 + 좋음 3
+    expect(data.slots.filter(Boolean)).toHaveLength(2)
     expect(data.bag).toHaveLength(12)
-    expect(data.bag).toContain('lokiMask')
     expect(data.bag).not.toContain('g:low1')
     expect(data.bag).not.toContain('g:low2')
-    // 하나 더 넘쳐 희귀 하나도 녹는다: 보통 1 + 좋음 3 + 희귀 9
-    expect(data.materials.prototype).toBe(13)
-    expect(data.gear.map((g) => g.uid)).toEqual(expect.arrayContaining(data.bag.filter((id) => id.startsWith('g:'))))
-    expect(data.gear).toHaveLength(11)
+    expect(data.materials.prototype).toBe(4)
+    expect(data.lit).toContain('lokiMask')
+    expect(data.gear).toHaveLength(14)
   })
 })

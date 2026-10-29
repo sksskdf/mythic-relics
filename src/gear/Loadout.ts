@@ -3,7 +3,6 @@ import { type God, isRelicId, type RelicId } from '../relics/data'
 import { type LoadoutState, resolveLoadout } from '../myth/manifest'
 import { emptyPantheon, type Pantheon } from '../myth/pantheon'
 import { mergeGear, mergeGroups } from './merge'
-import { relicPart } from './mythRelic'
 import { type GearItem, isGearUid } from './roll'
 
 /** 장비 칸 수 (E13: 무기·머리·몸·손·발·장신구 둘) */
@@ -13,18 +12,24 @@ export const BAG_SIZE = 12
 /** 재료 하나를 가질 수 있는 수 (저장을 읽을 때도 이만큼에서 자른다) */
 export const MATERIAL_CAP = 9999
 
-/** 칸·가방에 들어가는 것: 유물 id 또는 일반 장비 id(`g:`로 시작) */
+/** 칸·가방에 들어가는 것: 일반 장비 id(`g:`로 시작). 신화의 유물은 유물표에 켜진다 */
 export type EquipId = string
 
 /**
- * 장비 칸 7과 가방 (E13-02). 유물도 장비라 자기 부위 칸을 차지한다 (묠니르는 무기).
- * 주운 것은 그 부위의 빈 칸에 바로 들어가고(조작 최소화), 칸이 차 있으면 가방으로 간다.
+ * 장비 칸 7과 가방 (E13-02), 유물표 (E303-04, `CYCLE.md` 4.4).
+ * 칸과 가방에는 일반 장비만 든다. 주운 것은 그 부위의 빈 칸에 바로 들어가고(조작 최소화), 칸이 차 있으면 가방으로 간다.
+ * 신화의 유물은 칸을 차지하지 않고 유물표(`lit`)에 켜진다. 그 신이 자리에 들면 유물의 행동·오라가 깨어난다.
+ * 유물표에는 처음 만든 영웅·전설 고유 효과도 켜진다(`uniquesSeen`). 켠 칸마다 모든 피해 +1%.
  * 일반 장비의 내용은 `gear`에, 유물의 단계는 `stages`에, 재료는 `materials`에 둔다.
  */
 export class Loadout {
   readonly slots: (EquipId | null)[] = Array.from({ length: SLOT_COUNT }, () => null)
-  /** 칸에 끼지 않은 장비·유물 */
+  /** 칸에 끼지 않은 일반 장비 */
   readonly bag: EquipId[] = []
+  /** 유물표에 켠 신화의 유물 (얻은 차례) */
+  readonly lit: RelicId[] = []
+  /** 유물표에 켠 고유 효과 (처음 만든 영웅·전설의 것) */
+  readonly uniquesSeen = new Set<string>()
   /** 가진 일반 장비 (칸·가방에 있는 것) */
   readonly gear = new Map<string, GearItem>()
   /** 유물 단계 1~4 (없으면 1) */
@@ -40,9 +45,29 @@ export class Loadout {
     return resolveLoadout(this.relics, this.pantheon.hand)
   }
 
-  /** 칸에 낀 유물들 (칸 순서, 빈 칸과 일반 장비는 null) */
-  get relics(): (RelicId | null)[] {
-    return this.slots.map((id) => (id && isRelicId(id) ? id : null))
+  /** 유물표에 켠 유물들 (얻은 차례) */
+  get relics(): RelicId[] {
+    return [...this.lit]
+  }
+
+  /** 유물표에 켠 칸 수 (유물 + 고유 효과) */
+  get litCount(): number {
+    return this.lit.length + this.uniquesSeen.size
+  }
+
+  /** 유물을 유물표에 켠다 (땅에서 주운 재료 유물은 재료 주머니로 가니 여기 오는 것은 신화의 유물과 점검용). 새로 켰으면 true */
+  light(id: RelicId): boolean {
+    if (this.lit.includes(id)) return false
+    this.lit.push(id)
+    return true
+  }
+
+  /** 유물표에서 끈다 (개발 도구) */
+  unlight(id: RelicId): boolean {
+    const i = this.lit.indexOf(id)
+    if (i < 0) return false
+    this.lit.splice(i, 1)
+    return true
   }
 
   /** 칸에 낀 일반 장비들 */
@@ -55,19 +80,18 @@ export class Loadout {
     return [...this.slots.filter((id): id is EquipId => id !== null), ...this.bag]
   }
 
-  /** 가진 유물 (칸과 가방) */
+  /** 가진 유물 (유물표) */
   get ownedRelics(): RelicId[] {
-    return this.owned.filter((id): id is RelicId => isRelicId(id))
+    return [...this.lit]
   }
 
   has(id: EquipId): boolean {
-    return this.slots.includes(id) || this.bag.includes(id)
+    return this.slots.includes(id) || this.bag.includes(id) || (isRelicId(id) && this.lit.includes(id))
   }
 
-  /** 그 장비·유물의 부위 */
+  /** 그 장비의 부위 (유물은 칸에 들지 않아 없다) */
   partOf(id: EquipId): GearPart | null {
-    if (isGearUid(id)) return this.gear.get(id)?.part ?? null
-    return isRelicId(id) ? relicPart(id) : null
+    return isGearUid(id) ? (this.gear.get(id)?.part ?? null) : null
   }
 
   /** 그 칸에 낄 수 있는가 (부위가 맞는가) */
@@ -79,9 +103,10 @@ export class Loadout {
     return this.stages.get(id) ?? 1
   }
 
-  /** 일반 장비를 가진 것으로 적는다 (칸·가방에 넣기 전에) */
+  /** 일반 장비를 가진 것으로 적는다 (칸·가방에 넣기 전에). 고유 효과는 유물표에 켠다 */
   addGear(item: GearItem): void {
     this.gear.set(item.uid, item)
+    for (const u of [item.unique, item.unique2]) if (u) this.uniquesSeen.add(u)
   }
 
   addMaterial(id: string, count = 1): void {
@@ -97,8 +122,12 @@ export class Loadout {
     return true
   }
 
-  /** 그 부위의 빈 칸에 끼운다. 빈 칸이 없으면 가방에 넣는다. 끼운 칸 번호를 돌려준다(가방이면 -1). */
+  /** 그 부위의 빈 칸에 끼운다. 빈 칸이 없으면 가방에 넣는다. 끼운 칸 번호를 돌려준다(가방·유물표면 -1). 신화의 유물은 유물표에 켠다 */
   equip(id: EquipId): number {
+    if (isRelicId(id)) {
+      this.light(id)
+      return -1
+    }
     if (this.has(id)) return this.slots.indexOf(id)
     const free = this.slots.findIndex((s, i) => s === null && this.fits(id, i))
     if (free < 0) {
@@ -171,15 +200,8 @@ export class Loadout {
     return true
   }
 
-  /** 바꿔 끼면 고른 신화·가호가 어떻게 되는지 미리 본다. slot에 id를 끼운다고 친다. (id가 null이면 비운다고 친다) */
-  preview(slot: number, id: EquipId | null): LoadoutState {
-    const next = [...this.slots]
-    const already = next.indexOf(id)
-    if (id && already >= 0) next[already] = null
-    next[slot] = id
-    return resolveLoadout(
-      next.map((x) => (x && isRelicId(x) ? x : null)),
-      this.pantheon.hand,
-    )
+  /** 바꿔 끼면 고른 신화·가호가 어떻게 되는지 미리 본다 (유물은 칸에 들지 않아 장비를 바꿔도 같다) */
+  preview(_slot: number, _id: EquipId | null): LoadoutState {
+    return this.state
   }
 }

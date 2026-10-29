@@ -482,7 +482,7 @@ export class Game {
       pixel: this.pixel,
       view: this.view,
       nameplates: this.nameplates,
-      cardContext: (id, preview) => this.menuData.cardContext(id, preview),
+      cardContext: (id) => this.menuData.cardContext(id),
       hovered: () => this.playerInput.hovered,
       screenPoint: (x, y, z) => this.screenPoint(x, y, z),
       traces: () => this.awakening.spots,
@@ -518,11 +518,10 @@ export class Game {
     })
     this.bus.on('outfitChanged', () => this.menu.refresh())
     this.bus.on('loadoutChanged', () => this.menu.refresh())
-    // HUD 유물 칸: 커서를 올리면 설명 카드, 누르면 유물 화면
-    // HUD 칸 i → 그 유물이 있는 장비 칸
-    const equipSlot = (i: number | null) => (i === null ? null : (this.powers.hudSlots()[i]?.slot ?? null))
-    this.hud.onSlotClick = (i) => this.menu.show('relics', equipSlot(i) ?? 0)
-    this.hud.onSlotHover = (i, anchor) => this.hover.slot(equipSlot(i), anchor)
+    // HUD 유물 칸: 커서를 올리면 설명 카드, 누르면 신 탭(유물표)
+    const hudRelic = (i: number | null) => (i === null ? null : (this.powers.hudSlots()[i]?.relic ?? null))
+    this.hud.onSlotClick = () => this.menu.show('classes')
+    this.hud.onSlotHover = (i, anchor) => this.hover.slot(hudRelic(i), anchor)
     this.growth = new ProgressionSystem(this.ctx)
     this.life = new HeroLife(this.ctx)
     this.threatSystem = new ThreatSystem(this.ctx)

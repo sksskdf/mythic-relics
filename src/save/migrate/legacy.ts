@@ -5,8 +5,8 @@ import { isMythRelic } from '../../gear/mythRelic'
 import { BAG_SIZE, MATERIAL_CAP } from '../../gear/Loadout'
 import { bossMaterial, MATERIALS, PROTOTYPE, realmMaterial } from '../../gear/materials'
 import { PROTOTYPE_VALUE } from '../../gear/merge'
-import type { GearItem } from '../../gear/roll'
-import { GRADES } from '../../data/gearData'
+import { type GearItem, gearScore } from '../../gear/roll'
+import { GRADES, SLOT_PARTS } from '../../data/gearData'
 import { hiddenUnlocked } from '../../myth/manifest'
 import { relicGods } from '../../relics/model'
 import { type ChapterData, parseChapterData } from '../../progress/Chapters'
@@ -115,6 +115,20 @@ export function meltOverflow(bag: readonly string[], gear: ReadonlyMap<string, G
   )
   for (const id of melt) materials[PROTOTYPE] = Math.min(MATERIAL_CAP, (materials[PROTOTYPE] ?? 0) + PROTOTYPE_VALUE[gear.get(id)!.grade])
   return bag.filter((id) => !melt.has(id))
+}
+
+/** v14 이하 → v15: 신화의 유물이 비운 장비 칸을 가방의 가장 좋은 장비로 채운다 (E303-04). 남은 가방 */
+export function fillEmptySlots(slots: (string | null)[], bag: readonly string[], gear: ReadonlyMap<string, GearItem>): string[] {
+  const rest = [...bag]
+  for (let i = 0; i < Math.min(slots.length, SLOT_PARTS.length); i++) {
+    if (slots[i] !== null) continue
+    const fits = rest.filter((id) => gear.get(id)?.part === SLOT_PARTS[i])
+    const best = fits.sort((a, b) => gearScore(gear.get(b)!) - gearScore(gear.get(a)!))[0]
+    if (!best) continue
+    slots[i] = best
+    rest.splice(rest.indexOf(best), 1)
+  }
+  return rest
 }
 
 /** v9 이하 → v10: 장 진행을 그때까지 한 것에서 짐작한다 (E22) */

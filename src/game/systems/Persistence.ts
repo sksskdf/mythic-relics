@@ -51,6 +51,8 @@ export class Persistence {
       version: SAVE_VERSION,
       slots: [...powers.loadout.slots],
       bag: [...powers.loadout.bag],
+      lit: [...powers.loadout.lit],
+      uniques: [...powers.loadout.uniquesSeen],
       // 칸·가방·땅에 있는 일반 장비의 내용
       gear: [...powers.loadout.gear.values(), ...pickups.list.flatMap((p) => (p.gear ? [p.gear] : []))],
       stages: Object.fromEntries([...powers.loadout.stages].filter(([, n]) => n >= 2)),
@@ -105,6 +107,9 @@ export class Persistence {
     for (const [id, n] of Object.entries(data.stages)) if (n) powers.loadout.stages.set(id, n)
     for (const [id, n] of Object.entries(data.materials)) powers.loadout.addMaterial(id, n)
     data.slots.forEach((id) => id && host.equip(id))
+    // 유물표 (E303-04): 켠 유물은 효과를 다시 만들고, 고유 효과 칸은 그대로
+    data.lit.forEach((id) => host.equip(id))
+    for (const u of data.uniques) powers.loadout.uniquesSeen.add(u)
     powers.loadout.bag.push(...data.bag)
     for (const item of data.ground) pickups.drop(item.id, item.x, item.z, true, gear.get(item.id))
     drops.misses = data.dropMisses

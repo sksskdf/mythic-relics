@@ -1,16 +1,15 @@
 import type { ChargeDef, RelicDef } from '../data/schema'
 import { lookDef, SLOT_NAMES } from '../looks/catalog'
-import { effectScale, relicMyth, relicStats, relicTier } from '../gear/mythRelic'
-import { statText } from '../myth/alwaysText'
+import { effectScale, relicMyth } from '../gear/mythRelic'
 import { type God, godDef, type RelicId } from '../relics/data'
-import type { LoadoutState } from '../myth/manifest'
 import { relicIconRows } from '../relics/model'
+import { josa } from './josa'
 import { pixelIcon } from './pixelIcon'
 
 /** 카드가 놓인 자리와 지금 상태. 없으면 도감처럼 정보만 보여 준다. */
 export interface RelicCardContext {
   /** 이 유물이 어디 있나 */
-  place?: { kind: 'slot'; slot: number } | { kind: 'bag' } | { kind: 'ground' }
+  place?: { kind: 'lit' } | { kind: 'ground' }
   /** 끼고 있으면 행동 연동 효과의 충전 정도 0~1 */
   charge?: number
   /** 지금 낀 유물들 (세트 표시) */
@@ -22,8 +21,8 @@ export interface RelicCardContext {
   level: number
   /** 유물 단계 (없으면 1) */
   stage?: number
-  /** 끼면(또는 빼면) 발현·가호가 어떻게 되는지 */
-  preview?: { before: LoadoutState; after: LoadoutState }
+  /** 그 신이 자리에 들어 유물이 깨어났는가 (E302) */
+  awake?: boolean
 }
 
 /** 무엇으로 충전되는지 한마디로 */
@@ -100,15 +99,11 @@ function withNumbers(parent: HTMLElement, text: string): HTMLElement {
   return parent
 }
 
-function stateLine(state: LoadoutState): string {
-  return state.manifested ? `${godDef(state.manifested).name}의 신화 개방` : '신화 개방 없음'
-}
-
 /**
  * 유물 설명 카드. (E4-03, 실제 게임의 아이템 툴팁을 참고)
- * 위에서부터: 머리(그림·이름·종류) → 자리 → 지속 효과 → 행동 연동 효과(충전·수치·강화) → 기본 수치와 고른 신화 → 바꿔 끼면 → 전해지는 이야기
+ * 위에서부터: 머리(그림·이름·종류) → 자리 → 지속 효과 → 행동 연동 효과(충전·수치·강화) → 깨어나는 때 → 전해지는 이야기
  * - 이름은 신의 색, 수치는 밝게, 이야기는 맨 아래에 흐리게 둔다.
- * - 끼고 있으면 지금 충전 정도를, 아니면 끼었을 때 발현이 어떻게 되는지 보여 준다.
+ * - 유물표에 켰으면 지금 충전 정도를 보여 준다.
  */
 export function relicCard(def: RelicDef, ctx?: RelicCardContext): HTMLElement {
   const god = godDef(def.god)
@@ -132,7 +127,7 @@ export function relicCard(def: RelicDef, ctx?: RelicCardContext): HTMLElement {
   if (ctx?.place) {
     const place = ctx.place
     const text =
-      place.kind === 'slot' ? `장착 중 · ${place.slot + 1}번 칸` : place.kind === 'bag' ? '가방에 있음' : '땅에 떨어져 있음 · 밟으면 줍습니다'
+      place.kind === 'lit' ? '유물표에 켜짐' : '땅에 떨어져 있음 · 밟으면 줍습니다'
     card.append(el('div', `rc__place rc__place--${place.kind}`, text))
   }
 
@@ -173,37 +168,20 @@ export function relicCard(def: RelicDef, ctx?: RelicCardContext): HTMLElement {
   }
   card.append(trigger)
 
-  // 신화의 유물 (E21-04): 기본 수치(같은 단계 영웅 장비보다 조금 못하다)와, 그 신화를 고르면 한 단계 위로 도는 효과
+  // 신화의 유물 (E21-04 → E303-04): 기본 수치는 없다. 그 신이 자리에 들면 깨어나고, 한 신에 몰면 한 단계 위로 돈다
   const owner = relicMyth(def.id)
   if (owner) {
     const stage = ctx?.stage ?? 1
     const myth = godDef(owner)
     const section = el('section', 'rc__section')
-    section.append(el('div', 'rc__label', `기본 수치 · ${relicTier(def.id, stage)}단계 장비만큼`))
-    const list = el('ul', 'gc__stats')
-    for (const s of relicStats(def.id, stage)) list.append(el('li', '', statText(s.kind, s.value)))
-    section.append(list)
-    // 유물의 힘(지속·행동 효과)은 그 신화를 골랐을 때만 깨어나고, 한 단계 위로 돈다
-    const active = ctx?.manifested === owner
-    const boosted = effectScale(def.id, stage, owner)
+    const active = ctx?.awake ?? ctx?.manifested === owner
     section.append(
       withNumbers(
         el('div', `rc__bonus${active ? ' is-active' : ''}`),
-        active ? `${myth.name}의 신화로 깨어남: 유물 효과 피해 ×${boosted}` : `${myth.name}의 신화를 고르면 깨어난다 (유물 효과 피해 ×${boosted}). 지금은 기본 수치만`,
+        active ? `${josa(myth.name, '이')} 자리에 있어 깨어남 (유물 효과 피해 ×${effectScale(def.id, stage, null)})` : `${josa(myth.name, '을')} 자리에 넣으면 깨어난다. 한 신에 몰면 피해 ×${effectScale(def.id, stage, owner)}`,
       ),
     )
     card.append(section)
-  }
-
-  // 바꿔 끼면
-  if (ctx?.preview) {
-    const { before, after } = ctx.preview
-    const box = el('div', 'rc__preview')
-    const changed = before.manifested !== after.manifested
-    box.append(el('span', 'rc__label', ctx.place?.kind === 'slot' ? '빼면' : '끼우면'))
-    box.append(el('span', changed ? (after.manifested ? 'rc__good' : 'rc__warn') : '', changed ? stateLine(after) : '신화는 그대로'))
-    if (changed && before.manifested && !after.manifested) box.append(el('span', 'rc__warn', ` (${godDef(before.manifested).title} 풀림)`))
-    card.append(box)
   }
 
   // 전해지는 이야기

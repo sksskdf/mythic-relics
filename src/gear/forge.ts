@@ -71,16 +71,16 @@ export function missing(loadout: Loadout, recipe: Recipe): { id: string; count: 
 
 /**
  * 만든다 (올린다). 재료가 모자라면 아무것도 쓰지 않고 null.
- * 처음 제작이면 유물을 그 부위 칸(차 있으면 가방)에 넣는다.
- * @returns 만든 유물과 단계, 들어간 칸 (가방이면 −1)
+ * 처음 제작이면 유물을 유물표에 켠다 (E303-04).
+ * @returns 만든 유물과 단계
  */
-export function craft(loadout: Loadout, god: God, maxStage = RELIC_STAGES): { relic: RelicId; stage: number; slot: number } | null {
+export function craft(loadout: Loadout, god: God, maxStage = RELIC_STAGES): { relic: RelicId; stage: number } | null {
   const recipe = nextRecipe(loadout, god, maxStage)
   if (!recipe || missing(loadout, recipe).length > 0) return null
   for (const { id, count } of recipe.materials) loadout.useMaterial(id, count)
-  if (recipe.stage === 1) return { relic: recipe.relic, stage: 1, slot: loadout.equip(recipe.relic) }
-  loadout.stages.set(recipe.relic, recipe.stage)
-  return { relic: recipe.relic, stage: recipe.stage, slot: loadout.slots.indexOf(recipe.relic) }
+  if (recipe.stage === 1) loadout.light(recipe.relic)
+  else loadout.stages.set(recipe.relic, recipe.stage)
+  return { relic: recipe.relic, stage: recipe.stage }
 }
 
 /** 일반 장비를 녹인다 (E303-04): 칸이나 가방에서 없애고 그 등급의 원형 값을 준다 (자동 녹이기, 귀환 E304). 장비가 아니면 null */

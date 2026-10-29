@@ -3,8 +3,8 @@ import { awakeningLevel } from '../data/awakening'
 import { NO_RULES, type TrialRules } from '../data/trials'
 import { type MythAlways, STAT_KINDS, type StatKind } from '../data/mythAlways'
 import { SOURCE_IDS, type SourceId } from '../data/schema'
-import { relicAwake, relicSource } from '../gear/mythRelic'
-import { PER_OPENED, PER_PROMOTION } from '../myth/ClassProgress'
+import { relicAwake } from '../gear/mythRelic'
+import { PER_LIT, PER_OPENED, PER_PROMOTION } from '../myth/ClassProgress'
 import { type God, godDef, relicDef, type RelicId } from '../relics/data'
 import { type Modifiers, NO_MODIFIERS } from '../skills/Skill'
 import { type DamageLayer, layerProduct } from './layers'
@@ -13,9 +13,9 @@ import { type DamageLayer, layerProduct } from './layers'
  * 빌드 상태 (E11-04, DESIGN.md 4.6).
  * 힘은 "열린 신화 + 고른 신화 + 장비 + 원천"을 모은 이 한 곳에서 계산한다.
  * - 고른 신화(지금은 발현한 신)는 추가 효과: 패시브·궁극기·공격 리듬
- * - 열린 신화는 모두 수집 보너스(E21-02): 하나마다 모든 피해 +4%, 최대 생명 +5
+ * - 열린 신화는 하나마다 최대 생명 +5, 유물표에 켠 칸은 하나마다 모든 피해 +1% (E303-04)
  * - 승급(신화 단계)은 큰 걸음(E21-01): 한 번마다 모든 피해 ×1.35, 최대 생명 +25%
- * - 장비 = 유물과 일반 장비, 원천 = 장비의 원천 수치 (E14에서 각성, 원천 숙련은 E21-05에서 없앰)
+ * - 장비 = 일반 장비(유물은 E303-04에서 유물표로, 기본 수치·원천 없음), 원천 = 장비의 원천 수치 (E14에서 각성, 원천 숙련은 E21-05에서 없앰)
  * - 성좌판에서 별을 밝힌 신화는 그 신화의 수치를 낸다 (엔딩 뒤, E17)
  */
 
@@ -29,12 +29,12 @@ export interface BuildInputs {
   present?: readonly God[]
   /** 깨우는 중인 신 (E238): 조각 2부터 그 신의 유물이 깨어난다. 자리에는 들지 않는다 */
   waking?: God | null
-  /** 칸에 낀 유물 (빈 칸과 일반 장비는 null) */
+  /** 유물표에 켠 유물 (E303-04): 그 신이 자리에 들면 지속 효과가 깨어난다 */
   gear: readonly (RelicId | null)[]
+  /** 유물표에 켠 칸 수 (유물 + 고유 효과): 하나마다 모든 피해 +1% */
+  lit?: number
   /** 칸에 낀 일반 장비 (E13-02): 수치는 상시 효과 수치와 같은 종류끼리 더한다 */
   gearItems?: readonly GearItemStats[]
-  /** 칸에 낀 신화 유물의 기본 수치 (E21-04): 일반 장비와 같이 더하고, 층은 따로 센다 */
-  relicItems?: readonly GearItemStats[]
   /** 유물 단계 (E13-03, 없으면 1) */
   stage?: (id: RelicId) => number
   /** 올린 개방 단계의 합 */
@@ -101,8 +101,10 @@ export interface BuildState {
   attackSpeed: number
   /** 기본 공격 모션 */
   attack: AttackStyle
-  /** 열린 신화 수 (수집 보너스, E21-02) */
+  /** 열린 신화 수 (하나마다 최대 생명 +5) */
   collected: number
+  /** 유물표에 켠 칸 수 (하나마다 모든 피해 +1%, E303-04) */
+  lit: number
   /** 수치: 일반 장비·시련 보상·별을 밝힌 신화의 같은 종류 수치를 더한 값 (없으면 0) */
   stats: Readonly<Record<StatKind, number>>
   /** 최대 생명 */
@@ -159,21 +161,15 @@ export function computeBuild(inputs: BuildInputs): BuildState {
     }
   }
   addFrom('gear', () => addItems(inputs.gearItems))
-  addFrom('relics', () => addItems(inputs.relicItems))
-  for (const id of inputs.gear) {
-    if (!id) continue
-    const source = relicSource(id, inputs.stage?.(id) ?? 1)
-    sources[source.id] += source.value
-  }
   for (const from of BONUS_FROM) {
     addFrom(from, () => {
       for (const [kind, value] of Object.entries(inputs.bonus?.[from] ?? {}) as [StatKind, number][]) stats[kind] += value
     })
   }
   const awakening = Object.fromEntries(SOURCE_IDS.map((s) => [s, Math.min(3, awakeningLevel(sources[s]) + (inputs.awakenBonus?.[s] ?? 0))])) as Record<SourceId, number>
-  // 신화 단계(큰 걸음)는 곱하고, 수집 보너스는 다른 피해 수치와 더한다. 고른 신화의 패시브(천둥의 신: 거인 특효)는 곱한다
+  // 신화 단계(큰 걸음)는 곱하고, 유물표는 다른 피해 수치와 더한다. 고른 신화의 패시브(천둥의 신: 거인 특효)는 곱한다
   layers.unshift({ id: 'promotion', kind: 'mul', value: PER_PROMOTION.damage ** inputs.promotions })
-  layers.push({ id: 'collection', kind: 'add', value: collected * PER_OPENED.damage })
+  layers.push({ id: 'collection', kind: 'add', value: (inputs.lit ?? 0) * PER_LIT })
   layers.push({ id: 'myth', kind: 'mul', value: god ? god.passive.damageScale : 1 })
   const damageScale = layerProduct(layers)
   // 유물의 지속 효과는 그 신이 자리에 들었을 때만 깨어난다 (E21-04 → E302). 시련으로 신화를 막아도 자리는 그대로 본다
@@ -194,6 +190,7 @@ export function computeBuild(inputs: BuildInputs): BuildState {
     attackSpeed: (god ? god.passive.attackSpeed : 1) * (1 + stats.attackSpeed),
     attack: god ? god.attack : 'blade',
     collected,
+    lit: inputs.lit ?? 0,
     stats,
     sources,
     awakening,

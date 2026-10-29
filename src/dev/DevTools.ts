@@ -4,7 +4,7 @@ import type { Pickups } from '../gear/Pickups'
 import { nextRecipe } from '../gear/forge'
 import { type GearItem, rollGear } from '../gear/roll'
 import { gearIcon } from '../ui/gearCard'
-import { GODS, type RelicId } from '../relics/data'
+import { GODS, isRelicId, type RelicId } from '../relics/data'
 import { type ClassProgress, MASTERY_TO_OPEN } from '../myth/ClassProgress'
 import type { EventBus, GameEvents } from '../game/events'
 import type { HeroController } from '../game/HeroController'
@@ -91,8 +91,7 @@ export class DevTools {
   fireRelic(id?: RelicId): boolean {
     const { powers, skills } = this.parts
     const relic = id ?? (powers.manifested ? GODS[powers.manifested]?.relic : undefined)
-    const slot = relic ? powers.loadout.slots.indexOf(relic) : -1
-    const effect = slot >= 0 ? powers.effects[slot] : null
+    const effect = relic ? powers.effectOf(relic) : null
     if (!effect?.forceFire) return false
     effect.forceFire(skills)
     return true
@@ -146,14 +145,18 @@ export class DevTools {
     relics.restore({ hand: p.hand ?? null, heart: p.heart ?? null, breath: [...(p.breath ?? [])] }, true)
   }
 
-  /** 유물 하나를 뺀다. (땅에 내려놓지 않고 없앤다) */
-  unequip(id: RelicId): void {
+  /** 유물 하나를 유물표에서 끄거나 장비 하나를 뺀다. (땅에 내려놓지 않고 없앤다) */
+  unequip(id: string): void {
+    if (isRelicId(id)) {
+      this.parts.relics.unlight(id)
+      return
+    }
     const slot = this.parts.powers.loadout.slots.indexOf(id)
     if (slot >= 0) this.parts.relics.unequip(slot, false)
   }
 
-  /** 가방의 유물을 칸에 끼운다. (봇이 신화를 여는 조합으로 바꿔 낄 때) */
-  wield(id: RelicId, slot: number): void {
+  /** 가방의 장비를 칸에 끼운다. (봇이 더 좋은 장비로 바꿔 낄 때) */
+  wield(id: string, slot: number): void {
     this.parts.relics.wield(id, slot)
   }
 
@@ -162,7 +165,7 @@ export class DevTools {
     return this.parts.relics.merge(uids) !== null
   }
 
-  /** 칸의 유물을 가방에 넣는다. (봇이 한 신만 쓸 때) */
+  /** 칸의 장비를 가방에 넣는다. */
   stow(slot: number): void {
     this.parts.relics.stow(slot)
   }

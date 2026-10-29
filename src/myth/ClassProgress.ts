@@ -29,8 +29,10 @@ export type MasteryResult = 'opened' | null
  */
 export const PER_PROMOTION = { damage: 1.35, maxHpPct: 0.25 }
 
-/** 수집 보너스 (E21-02): 열린 신화 하나마다 모든 피해 +4%, 최대 생명 +5. 메아리 대신 신화를 모으는 이유 */
-export const PER_OPENED = { damage: 0.04, maxHp: 5 }
+/** 열린 신화 하나마다 최대 생명 +5 (E21-02의 수집 보너스에서 생명만 남김) */
+export const PER_OPENED = { maxHp: 5 }
+/** 유물표 (E303-04): 켠 칸(신화의 유물·고유 효과) 하나마다 모든 피해 +1% */
+export const PER_LIT = 0.01
 
 /**
  * 신화 성장 기록. (DESIGN.md 5.2, E12-02 → E21-01)

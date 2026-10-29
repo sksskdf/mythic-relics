@@ -1,7 +1,7 @@
 import { godDef } from '../../relics/data'
 import { glyph } from '../../ui/sigils'
 import { threatScale } from '../../data/threat'
-import { TRIAL_DIFFICULTY, TRIAL_MILESTONES, TRIAL_TIME, TRIAL_UNLOCK_THREAT, type TrialId, trialRules, TRIALS } from '../../data/trials'
+import { TRIAL_DIFFICULTY, TRIAL_MILESTONES, TRIAL_TIME, TRIAL_UNLOCK_THREAT, type TrialId, TRIALS } from '../../data/trials'
 import type { LegendKind } from '../../data/classKit'
 import type { GameContext } from '../context'
 import type { ProgressionSystem } from './Progression'
@@ -56,13 +56,12 @@ export class TrialSystem {
   /** 시련을 연다 */
   start(id: TrialId, level: number): boolean {
     if (this.blocked() !== null) return false
-    const { encounter, legend, hero, build, powers } = this.ctx
+    const { encounter, legend, hero, build } = this.ctx
     this.active = { id, level, t: 0 }
     // 결계 안 적: 위협 단계 배율 × 시련 난이도
     const base = threatScale(this.ctx.threat.level)
     encounter.arenaThreat = { hp: base.hp * TRIAL_DIFFICULTY.hp[level - 1]! * (TRIALS[id].enemyHp ?? 1), damage: base.damage * TRIAL_DIFFICULTY.damage[level - 1]! * (TRIALS[id].enemyDamage ?? 1) }
     legend.rules = { crowd: id === 'crowd' ? 2 : 1, timeLimit: id === 'timed' ? TRIAL_TIME[level - 1]! : null }
-    powers.allowSlots = trialRules(id).slots
     const chosen = build.chosen
     const kind: LegendKind = (chosen && godDef(chosen).legend?.kind) || 'boss'
     hero.teleport(legend.center.x, legend.center.z)
@@ -108,7 +107,6 @@ export class TrialSystem {
   /** 시련이 끝났다: 제약과 배율을 되돌린다 */
   private end(): void {
     this.active = null
-    this.ctx.powers.allowSlots = null
     this.ctx.encounter.arenaThreat = null
     this.threat.apply()
   }

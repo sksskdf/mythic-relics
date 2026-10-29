@@ -4,7 +4,7 @@ import type { SourceId } from '../../data/schema'
 import { materialName } from '../../gear/materials'
 import { nextGrade, PROTOTYPE_VALUE } from '../../gear/merge'
 import { GEAR, gearName } from '../../gear/roll'
-import { godDef, relicDef, type RelicId } from '../../relics/data'
+import { godDef, isRelicId, relicDef } from '../../relics/data'
 import { classIcon } from '../classIcons'
 import { gearCard, gearIcon } from '../gearCard'
 import { josa } from '../josa'
@@ -16,8 +16,8 @@ import { el, img, type TabContext } from './dom'
 export class RelicsTab {
   /** 고른 칸 */
   selectedSlot = 0
-  /** 커서를 올린 가방 유물 */
-  hovered: RelicId | null = null
+  /** 커서를 올린 가방 장비 */
+  hovered: string | null = null
   /** 휴대폰에서 한 번 누른 가방 유물: 한 번 더 누르면 낀다 (E235) */
   private picked: string | null = null
 
@@ -47,7 +47,7 @@ export class RelicsTab {
       const chip = el('span', 'menu-relics__blessing')
       chip.style.setProperty('--god', god.color)
       chip.append(img(classIcon(god.name)))
-      this.ctx.hintOn(chip, `잠든 ${god.name}의 유물\n${god.name}의 신화를 고르면 유물의 힘이 깨어난다. 지금은 기본 수치만 낸다.`)
+      this.ctx.hintOn(chip, `${god.name}의 유물\n그 신이 자리에 있으면 유물의 힘이 깨어난다.`)
       state.append(chip)
     }
     left.append(state)
@@ -166,10 +166,7 @@ export class RelicsTab {
       detail.append(b)
       return
     }
-    // 미리보기는 누르면 실제로 낄 칸으로 본다
-    const target = this.hovered ? this.wieldSlot(this.hovered) : undefined
-    const preview = this.hovered && target !== undefined ? { before: host.loadout, after: host.preview(target, this.hovered) } : undefined
-    detail.append(relicCard(relicDef(id), host.cardContext(id, preview)))
+    if (isRelicId(id)) detail.append(relicCard(relicDef(id), host.cardContext(id)))
   }
 
   /** 합치기 상자 (E303): 셋의 그림 → 결과 등급, 「합치기」 단추 */

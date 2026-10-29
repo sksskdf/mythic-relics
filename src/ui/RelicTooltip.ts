@@ -27,7 +27,7 @@ export class RelicTooltip {
    * 매 프레임 불러도 된다.
    */
   show(def: RelicDef, ctx: RelicCardContext | undefined, x: number, y: number, above = false): void {
-    const key = `${def.id}|${ctx?.place?.kind ?? ''}|${ctx?.charge === undefined ? '' : Math.round(ctx.charge * 20)}|${ctx?.manifested ?? ''}${ctx?.level ?? ''}|${ctx?.preview?.after.manifested ?? ''}`
+    const key = `${def.id}|${ctx?.place?.kind ?? ''}|${ctx?.charge === undefined ? '' : Math.round(ctx.charge * 20)}|${ctx?.manifested ?? ''}${ctx?.level ?? ''}|${ctx?.awake ? 1 : 0}`
     this.showCard(def.id, key, () => relicCard(def, ctx), x, y, above)
   }
 

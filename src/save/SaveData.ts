@@ -2,7 +2,7 @@ import { REGIONS } from '../data/regions'
 import { fromChosen, MAX_BREATH, type Pantheon } from '../myth/pantheon'
 import { SLOT_PARTS } from '../data/gearData'
 import { isMythRelic } from '../gear/mythRelic'
-import { type GearItem, parseGearItem } from '../gear/roll'
+import { GEAR, type GearItem, parseGearItem } from '../gear/roll'
 import { MATERIAL_CAP } from '../gear/Loadout'
 import { legacyManifest } from '../myth/manifest'
 import { type ChapterData, parseChapterData } from '../progress/Chapters'
@@ -17,7 +17,7 @@ import { type BodyLook, parseBody } from '../looks/body'
 import { isLookId, lookDef, type LookSlot, STARTING_LOOKS, WARDROBE_SLOTS } from '../looks/catalog'
 import type { LookChoice } from '../looks/outfit'
 import { GODS, type God, isRelicId, type RelicId } from '../relics/data'
-import { legacySlots, migrateLooks, oldChapters, oldStars, oldTrainingXp, meltOverflow, openOwned, realmToPrototype, refundCycle, refundMythMaterials } from './migrate/legacy'
+import { legacySlots, migrateLooks, oldChapters, oldStars, oldTrainingXp, fillEmptySlots, meltOverflow, openOwned, realmToPrototype, refundCycle, refundMythMaterials } from './migrate/legacy'
 
 /**
  * 저장 형식 버전. 형식이 바뀌면 올리고, 옛 형식을 옮기는 코드를 둔다.
@@ -42,16 +42,21 @@ import { legacySlots, migrateLooks, oldChapters, oldStars, oldTrainingXp, meltOv
  * - v12: 신위 칸 (E237). chosen은 첫째가 주신(고른 신화), 그 뒤가 빌린 신(넷까지). 옛 저장은 주신 하나뿐이라 그대로 읽는다
  * - v13: 신을 깨우는 조각 (E238). 깨우는 신과 모은 조각·사냥한 수. 옛 저장은 깨우는 신 없이 (이미 연 신은 그대로)
  * - v14: 신의 자리 셋 (E302). chosen(주신 + 빌린 신) → pantheon(손·심장·숨). 옛 주신은 손·심장·숨 첫 칸으로(한 신에 몰기), 빌린 신은 숨 칸으로
- * - v15: 원형 (E303-04). 신화권 재료 → 원형 하나씩, 12칸을 넘친 가방의 일반 장비는 낮은 등급부터 녹여 원형으로
+ * - v15: 원형과 유물표 (E303-04). 신화권 재료 → 원형 하나씩, 12칸을 넘친 가방의 일반 장비는 낮은 등급부터 녹여 원형으로.
+ *   칸·가방의 신화 유물은 유물표(lit)로 옮기고 빈 칸은 가방의 가장 좋은 장비로 채운다. 가진 장비의 고유 효과도 유물표에 켠다
  */
 export const SAVE_VERSION = 15
 
 export interface SaveData {
   version: typeof SAVE_VERSION
-  /** 장비 칸 7 (유물 id 또는 일반 장비 id). 불러올 때 그 부위 칸에 다시 낀다 */
+  /** 장비 칸 7 (일반 장비 id). 불러올 때 그 부위 칸에 다시 낀다 */
   slots: (string | null)[]
-  /** 가방 (유물 id 또는 일반 장비 id) */
+  /** 가방 (일반 장비 id) */
   bag: string[]
+  /** 유물표에 켠 신화의 유물 (E303-04, 얻은 차례) */
+  lit: RelicId[]
+  /** 유물표에 켠 고유 효과 (처음 만든 영웅·전설의 것) */
+  uniques: string[]
   /** 가진 일반 장비의 내용 (칸·가방·땅에 있는 것) */
   gear: GearItem[]
   /** 유물 단계 2~4 (1단계는 적지 않는다) */
@@ -136,12 +141,24 @@ export function parseSave(text: string | null): SaveData | null {
   if ((data.version as number) < 15) realmToPrototype(materials)
 
   const seen = new Set<string>()
-  /** 칸·가방·땅에 들어갈 수 있는 것: 신화의 유물이나 가진 일반 장비, 한 번씩만 */
+  // 유물표 (E303-04): v15는 저장된 것, 옛 저장은 칸·가방에 있던 신화의 유물
+  const lit: RelicId[] = []
+  const light = (id: unknown) => {
+    if (typeof id === 'string' && isRelic(id) && isMythRelic(id) && !lit.includes(id)) lit.push(id)
+  }
+  if ((data.version as number) >= 15 && Array.isArray(data.lit)) data.lit.forEach(light)
+  /** 칸·가방·땅에 들어갈 수 있는 것: 가진 일반 장비(땅에는 유물도), 한 번씩만 */
   const unique = (id: unknown, ground = false): id is string => {
     if (typeof id !== 'string' || seen.has(id)) return false
     // 재료가 된 유물: 땅에는 그대로, 옛 저장의 칸·가방에 있던 것은 재료로
     if (isRelic(id) && !isMythRelic(id) && !ground) {
       if (old) materials[id] = (materials[id] ?? 0) + 1
+      return false
+    }
+    // 신화의 유물은 칸·가방을 떠나 유물표로 (옛 저장). 이미 켠 유물은 땅에도 없다
+    if (isRelic(id) && isMythRelic(id) && ground && lit.includes(id)) return false
+    if (isRelic(id) && isMythRelic(id) && !ground) {
+      if ((data.version as number) < 15) light(id)
       return false
     }
     if (!isRelic(id) && !gearById.has(id)) return false
@@ -170,7 +187,7 @@ export function parseSave(text: string | null): SaveData | null {
     }
   }
 
-  const relicsOwned = [...slots, ...bag].filter((id): id is RelicId => !!id && isRelic(id))
+  const relicsOwned = [...lit]
   // 옛 순환에서 돌려받은 재료(서리 조각 등)는 유물이 아니라 신화를 여는 데 세지 않는다
   const myths = (data.version as number) < 4 ? openOwned(classes, [...relicsOwned, ...Object.keys(materials).filter(isRelic)]) : classes
   // 유물 단계: 가진 신화의 유물만, 2~4
@@ -180,7 +197,10 @@ export function parseSave(text: string | null): SaveData | null {
       if (isRelic(id) && isMythRelic(id) && typeof n === 'number' && n >= 2) stages[id] = Math.min(4, Math.round(n))
     }
   }
-  const fullBag = meltOverflow([...bag, ...slots.slice(SLOT_PARTS.length).filter((id): id is string => id !== null)], gearById, materials)
+  let fullBag = [...bag, ...slots.slice(SLOT_PARTS.length).filter((id): id is string => id !== null)]
+  // 유물이 비운 칸은 가방의 가장 좋은 장비로 채우고(v15), 그래도 12칸을 넘친 가방은 녹인다
+  if ((data.version as number) < 15) fullBag = fillEmptySlots(slots, fullBag, gearById)
+  fullBag = meltOverflow(fullBag, gearById, materials)
   const keep = new Set([...slots.slice(0, SLOT_PARTS.length), ...fullBag, ...ground.map((g) => g.id)])
   const threat = parseThreat(data.threat)
   const trials = parseTrials(data.trials)
@@ -195,6 +215,8 @@ export function parseSave(text: string | null): SaveData | null {
     version: SAVE_VERSION,
     slots: slots.slice(0, SLOT_PARTS.length),
     bag: fullBag,
+    lit,
+    uniques: parseUniques(data.uniques, (data.version as number) < 15 ? [...gearById.values()] : []),
     gear: [...gearById.values()].filter((g) => keep.has(g.uid)),
     stages,
     materials,
@@ -217,6 +239,14 @@ export function parseSave(text: string | null): SaveData | null {
     region,
     scenes: Array.isArray(data.scenes) ? [...new Set(data.scenes.filter((s): s is string => typeof s === 'string' && s.length < 40))] : [],
   }
+}
+
+/** 유물표의 고유 효과: 있는 것만 한 번씩. 옛 저장은 가진 장비의 고유 효과로 (E303-04) */
+function parseUniques(raw: unknown, owned: readonly GearItem[]): string[] {
+  const out = new Set<string>()
+  for (const id of Array.isArray(raw) ? raw : []) if (typeof id === 'string' && GEAR.uniques[id]) out.add(id)
+  for (const g of owned) for (const u of [g.unique, g.unique2]) if (u) out.add(u)
+  return [...out]
 }
 
 /** 깨우는 신이 이미 열린 신이면 (어긋난 저장) 처음으로 */

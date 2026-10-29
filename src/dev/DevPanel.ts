@@ -161,7 +161,7 @@ export class DevPanel {
           b.setAttribute('aria-label', def.name)
           b.style.backgroundImage = `url(${relicIcon(def)})`
           b.style.setProperty('--god', godDef(def.god).color)
-          b.addEventListener('click', () => (g.powers.loadout.slots.includes(id) ? g.dev.unequip(id) : g.dev.equip(id)))
+          b.addEventListener('click', () => (g.powers.loadout.has(id) ? g.dev.unequip(id) : g.dev.equip(id)))
           this.refreshers.push(() => b.classList.toggle('is-on', g.powers.loadout.slots.includes(id)))
           line.append(b)
         }

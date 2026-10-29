@@ -2,7 +2,7 @@ import { AUTO_PICKUP_RADIUS } from '../../progress/Conveniences'
 import * as THREE from 'three'
 
 import { type God, godDef, isRelicId, relicDef, type RelicId } from '../../relics/data'
-import { effectScale, isMythRelic, relicMyth, relicStats, relicTier, stageName } from '../../gear/mythRelic'
+import { effectScale, isMythRelic, relicMyth, stageName } from '../../gear/mythRelic'
 import { GRADE_COLORS } from '../../art/palette'
 import { statText } from '../../myth/alwaysText'
 import { materialName } from '../../gear/materials'
@@ -194,11 +194,10 @@ export class RelicSystem {
     if (!made) return false
     const def = godDef(god)
     const name = stageName(made.relic, made.stage)
-    // 새 단계의 기본 수치와, 그 신화를 골랐을 때 효과 배율 (E21-04)
+    // 새 단계의 효과 배율과 한 신에 몰았을 때 (E21-04 → E303-04: 유물은 유물표에, 기본 수치 없음)
     const lines = [
-      made.stage === 1 ? '대장간에서 처음 벼렸다' : `${made.stage}단계 · ${relicTier(made.relic, made.stage)}단계 장비만큼`,
-      ...relicStats(made.relic, made.stage).map((s) => statText(s.kind, s.value)),
-      `유물 효과 피해 ×${effectScale(made.relic, made.stage, null)} (${def.name}의 신화로 ×${effectScale(made.relic, made.stage, god)})`,
+      made.stage === 1 ? '대장간에서 처음 벼렸다 · 유물표에 켜짐' : `${made.stage}단계`,
+      `유물 효과 피해 ×${effectScale(made.relic, made.stage, null)} (${josa(def.name, '으로')} 몰면 ×${effectScale(made.relic, made.stage, god)})`,
     ]
     // 큰 카드 (E23-03): 그 신의 색으로 번쩍임·하늘 기둥·북소리. 벼려서 다음 장이 열리면 그 장면은 이 카드 뒤에 온다
     bus.emit('moment', { id: 'forged', card: { kind: '대장간', title: name, color: def.color, icon: classIcon(def.name), lines } })
@@ -237,7 +236,7 @@ export class RelicSystem {
   }
 
   /**
-   * 땅에서 주웠다 (E13-02): 일반 장비는 그 부위의 빈 칸이나 가방으로, 신화의 유물은 칸에 끼며 신화를 연다,
+   * 땅에서 주웠다 (E13-02): 일반 장비는 그 부위의 빈 칸이나 가방으로, 신화의 유물은 유물표에 켜며 신화를 연다,
    * 재료가 된 유물(E13-03)은 재료 주머니로.
    */
   take(id: string, gear?: GearItem): void {
@@ -279,7 +278,7 @@ export class RelicSystem {
       bus.emit('relicPicked', { id })
     } else {
       label(relicDef(id).name, godDef(relicDef(id).god).color)
-      bus.emit('moment', { id: 'gearPicked', text: relicDef(id).name })
+      bus.emit('moment', { id: 'gearPicked', text: `${relicDef(id).name} · 유물표` })
       bus.emit('relicPicked', { id })
       this.equip(id, true)
     }
@@ -366,7 +365,7 @@ export class RelicSystem {
     awakening.maxHp = build.maxHp
   }
 
-  /** 유물을 끼운다. announce가 false면 발현 연출 없이 (불러오기·점검용) */
+  /** 장비를 끼우거나 유물을 유물표에 켠다. announce가 false면 발현 연출 없이 (불러오기·점검용) */
   equip(id: RelicId, announce: boolean): void {
     this.changed(this.ctx.powers.equip(id), announce, id)
     this.unlock(id, announce)
@@ -389,20 +388,27 @@ export class RelicSystem {
     fx.power.setGlow(best ? godDef(best as never).color : null, best ? counts.get(best)! : 0)
   }
 
-  /** 유물 하나를 뺀다. drop이면 발밑에 내려놓고, 아니면 없앤다(개발 패널). */
+  /** 칸의 장비 하나를 뺀다. drop이면 발밑에 내려놓고, 아니면 없앤다(개발 패널). */
   unequip(slot: number, drop: boolean): void {
     const result = this.ctx.powers.unequip(slot)
     if (!result) return
     this.ctx.bus.emit('progressChanged', {})
     if (drop) {
       const p = this.ctx.hero.object.position
-      // 일반 장비는 내용과 함께 내려놓는다
-      this.ctx.pickups.drop(result.relic, p.x, p.z, false, this.ctx.powers.loadout.gear.get(result.relic))
+      this.ctx.pickups.drop(result.id, p.x, p.z, false, this.ctx.powers.loadout.gear.get(result.id))
     }
     this.changed(result.change, drop)
   }
 
-  /** 유물 화면: 칸의 유물을 가방에 넣는다. */
+  /** 유물표에서 끈다 (개발 패널) */
+  unlight(id: RelicId): void {
+    const change = this.ctx.powers.unlight(id)
+    if (!change) return
+    this.ctx.bus.emit('progressChanged', {})
+    this.changed(change, false)
+  }
+
+  /** 장비 화면: 칸의 장비를 가방에 넣는다. */
   stow(slot: number): void {
     const change = this.ctx.powers.stow(slot)
     if (!change) return
@@ -410,8 +416,8 @@ export class RelicSystem {
     this.changed(change, true)
   }
 
-  /** 유물 화면: 가방의 유물을 칸에 끼운다. */
-  wield(id: RelicId, slot: number): void {
+  /** 장비 화면: 가방의 장비를 칸에 끼운다. */
+  wield(id: string, slot: number): void {
     const change = this.ctx.powers.wield(id, slot)
     if (!change) return
     this.ctx.bus.emit('progressChanged', {})

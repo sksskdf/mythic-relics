@@ -127,7 +127,7 @@ export class MythChoiceSystem {
         title: `${REALM_NAMES[realm] ?? realm} 신화 ${opened.length}`,
         color: realmInk(realm).light,
         icon: this.iconOf(opened[0]!),
-        lines: [`${josa(names.join('·'), '이')} 열렸다`, lent.length ? `빌린 칸에 넣음: ${lent.map((g) => godDef(g).name).join('·')}` : '마을이나 성소에서 신위 칸에 넣는다', `수집 보너스: ${collectionText()}`],
+        lines: [`${josa(names.join('·'), '이')} 열렸다`, lent.length ? `빌린 칸에 넣음: ${lent.map((g) => godDef(g).name).join('·')}` : '마을이나 성소에서 신위 칸에 넣는다', `열린 신화: ${collectionText()}`],
       },
     })
     bus.emit('progressChanged', {})

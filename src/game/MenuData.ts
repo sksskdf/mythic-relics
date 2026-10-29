@@ -10,7 +10,8 @@ import { LIMIT_REALMS, REALM_NAMES } from '../data/threat'
 import { TRIAL_IDS, TRIAL_MILESTONES, type TrialId, TRIALS } from '../data/trials'
 import { nextRecipe } from '../gear/forge'
 import { materialName } from '../gear/materials'
-import { mythRelic, stageName } from '../gear/mythRelic'
+import { MYTH_RELICS, mythRelic, relicMyth, stageName } from '../gear/mythRelic'
+import { GEAR } from '../gear/roll'
 import { levelGains } from '../myth/levelGains'
 import { CONVENIENCES } from '../progress/Conveniences'
 import { BRANCHES, insightProgress, TRAINING_NODES } from '../data/training'
@@ -92,8 +93,12 @@ export class MenuData {
         unplace: (god) => game.unplaceMyth(god),
         waking: () => game.wakingMyth(),
         star: (god) => (game.rift.lit.has(god) ? alwaysStage(game.progress.level(god), powers.loadout.relics.some((id) => id !== null && relicDef(id).god === god), true) : 0),
+        table: () => ({
+          relics: MYTH_RELICS.filter((id) => !godDef(relicMyth(id)!).hidden || powers.loadout.lit.includes(id)).map((id) => ({ id, lit: powers.loadout.lit.includes(id), awake: powers.awake(id), stage: powers.loadout.stage(id) })),
+          uniques: Object.entries(GEAR.uniques).map(([id, u]) => ({ id, name: u.name, text: u.text, lit: powers.loadout.uniquesSeen.has(id) })),
+        }),
       },
-      cardContext: (id, preview) => this.cardContext(id, preview),
+      cardContext: (id) => this.cardContext(id),
       stats: () => this.heroStats(),
       afterEnding: () => game.ending.reached,
       tabOpen: (tab) => game.tabs.has(tab),
@@ -285,26 +290,27 @@ export class MenuData {
       divine: game.combat.divine,
       promotions: game.progress.promotions,
       collected: build.collected,
+      lit: build.lit,
       layers: activeLayers(build.layers).map((l) => ({ name: LAYER_NAMES[l.id], text: l.kind === 'mul' ? `×${l.value.toFixed(2)}` : `${l.value > 0 ? '+' : '−'}${Math.round(Math.abs(l.value) * 100)}%` })),
       powers,
     }
   }
 
   /** 설명 카드에 넣을 지금 상태: 자리, 충전, 세트, 신화 강화 조건 */
-  cardContext(id: RelicId, preview?: RelicCardContext['preview']): RelicCardContext {
+  cardContext(id: RelicId): RelicCardContext {
     const { game, ctx } = this.parts
     const { loadout } = game.powers
-    const slot = loadout.slots.indexOf(id)
+    const effect = game.powers.effectOf(id)
     const manifested = ctx.build.chosen
     return {
-      place: slot >= 0 ? { kind: 'slot', slot } : loadout.bag.includes(id) ? { kind: 'bag' } : { kind: 'ground' },
-      ...(slot >= 0 ? { charge: game.powers.effects[slot]?.charge ?? 0 } : {}),
+      place: loadout.lit.includes(id) ? { kind: 'lit' } : { kind: 'ground' },
+      ...(effect ? { charge: effect.charge } : {}),
       equipped: loadout.relics,
       owned: new Set(loadout.ownedRelics),
+      awake: game.powers.awake(id),
       manifested,
       level: manifested ? game.progress.level(manifested) : 0,
       stage: loadout.stage(id),
-      ...(preview ? { preview } : {}),
     }
   }
 

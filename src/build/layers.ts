@@ -5,7 +5,7 @@
  */
 
 /** 층 이름 (출처) */
-export type LayerId = 'promotion' | 'collection' | 'stars' | 'gear' | 'relics' | 'trials' | 'training' | 'blessings' | 'myth'
+export type LayerId = 'promotion' | 'collection' | 'stars' | 'gear' | 'trials' | 'training' | 'blessings' | 'myth'
 
 export interface DamageLayer {
   id: LayerId
@@ -18,10 +18,9 @@ export interface DamageLayer {
 /** 층마다 화면에 보일 이름 */
 export const LAYER_NAMES: Readonly<Record<LayerId, string>> = {
   promotion: '올린 단계',
-  collection: '수집 보너스',
+  collection: '유물표',
   stars: '성좌판',
   gear: '장비',
-  relics: '유물 기본 수치',
   trials: '시련 보상',
   training: '수련',
   blessings: '균열의 축복',
