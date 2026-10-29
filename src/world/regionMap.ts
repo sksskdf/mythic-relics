@@ -41,6 +41,7 @@ import { toonMaterial } from '../render/toon'
 import type { CircleCollider } from './colliders'
 import { exitColor, type PropKind, type PropPlacement, type RegionDef, REGIONS } from '../data/regions'
 import { CELL, type Cell, cellOrigin, inRect, type Rect, rectDistance, type RegionLink } from '../data/world'
+import { collectPropLights, PropLight } from './propLights'
 import { createRng } from './rng'
 import { baseHeightAt, buildGround, buildScatter, buildTerraces, cliffColliders, EDGE_BLEND, edgeWave, FLAT_LAND, type GroundBlend, groundSteps, heightAt, type Pond, pondLevel, setLand } from './terrain'
 import { THEMES, type ThemeDef, type ThemeId } from './themes'
@@ -134,7 +135,7 @@ function glowing(body: VoxelGrid, glow: VoxelGrid, voxelSize: number, light: { c
   group.add(new THREE.Mesh(buildVoxelGeometry(body, { voxelSize }), voxelMaterial()))
   const glowMaterial = new THREE.MeshBasicMaterial({ vertexColors: true })
   group.add(new THREE.Mesh(buildVoxelGeometry(glow, { voxelSize }), glowMaterial))
-  const point = new THREE.PointLight(light.color, light.intensity, 5, 2)
+  const point = new PropLight(light.color, light.intensity, 5, 2)
   point.position.y = light.y
   group.add(point)
   const animate: Animator = (t) => {
@@ -153,7 +154,7 @@ function makeRunestone(variant: number): Built {
   const glyph = new THREE.Mesh(buildVoxelGeometry(runestoneGlyph(seed), { voxelSize: 0.12 }), glowMaterial)
   glyph.position.z = 0.005
   group.add(glyph)
-  const light = new THREE.PointLight(PROP_COLORS.rune, 1.5, 4, 2)
+  const light = new PropLight(PROP_COLORS.rune, 1.5, 4, 2)
   light.position.set(0, 1.1, 0.6)
   group.add(light)
   const phase = variant * 1.3
@@ -171,7 +172,7 @@ function makeBrazier(variant: number, base: VoxelGrid = brazier(), flameY = 1.05
   const flameMesh = new THREE.Mesh(buildVoxelGeometry(flame(), { voxelSize: 0.1 }), new THREE.MeshBasicMaterial({ vertexColors: true }))
   flameMesh.position.y = flameY
   group.add(flameMesh)
-  const light = new THREE.PointLight(PROP_COLORS.fire, 4, 9, 1.6)
+  const light = new PropLight(PROP_COLORS.fire, 4, 9, 1.6)
   light.position.y = 1.7
   group.add(light)
   const seed = variant * 2.1
@@ -191,7 +192,7 @@ function makeForge(variant: number): Built {
   const glowMaterial = new THREE.MeshBasicMaterial({ vertexColors: true })
   group.add(new THREE.Mesh(buildVoxelGeometry(forgeGlow(), { voxelSize: 0.15 }), glowMaterial))
   // 불 아가리 앞의 빛 (격자 가운데가 원점: 아가리는 x −1.5m, 앞 z +0.8m)
-  const light = new THREE.PointLight(PROP_COLORS.fire, 3, 7, 1.6)
+  const light = new PropLight(PROP_COLORS.fire, 3, 7, 1.6)
   light.position.set(-1.5, 0.6, 1.2)
   group.add(light)
   // 굴뚝 끝 (x −1.5m, 높이 4.4m, z −0.1m)에서 오르는 연기 덩이
@@ -665,6 +666,13 @@ export class Chunk {
     readonly region: RegionDef | null,
     readonly cell: Cell | null,
   ) {}
+
+  private lightList: PropLight[] | null = null
+
+  /** 이 조각의 불빛 자리 (다 지은 뒤 처음 물을 때 한 번 모은다). 진짜 빛은 무대가 가까운 것에만 단다 */
+  get lights(): readonly PropLight[] {
+    return (this.lightList ??= collectPropLights(this.group))
+  }
 
   /** 불꽃, 룬 빛처럼 움직이는 것들을 갱신한다. */
   update(elapsed: number): void {

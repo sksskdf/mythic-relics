@@ -3,6 +3,7 @@ import * as THREE from 'three'
 import type { RegionDef } from '../data/regions'
 import { type Cell, cellKey, cellOrigin, inRect, neighborCells, type Rect, regionLinks } from '../data/world'
 import { cellTheme, type Chunk, chunkSteps, fillerSteps, openRects, RegionMap } from '../world/regionMap'
+import { type PropLight, PropLightPool } from '../world/propLights'
 import { FLAT_LAND, type Land, setLand, setTerrainOrigin, withTerrainFrame } from '../world/terrain'
 import { THEMES, type ThemeId } from '../world/themes'
 
@@ -27,9 +28,12 @@ export class Stage {
   /** 아직 짓지 않은 이웃 조각 */
   private queue: string[] = []
   private regions: Regions = {}
+  /** 화로·룬스톤 불빛: 늘 넷만 켜고 주인공 가까운 자리로 옮겨 단다 */
+  private readonly propLights: PropLightPool
 
   constructor(scene: THREE.Scene, region: RegionDef, regions: Regions = {}) {
     scene.background = this.sky
+    this.propLights = new PropLightPool(scene)
     this.hemi = new THREE.HemisphereLight(0xc4d8ff, 0x4a5566, 0.85)
     scene.add(this.hemi)
 
@@ -254,6 +258,12 @@ export class Stage {
     this.sun.position.set(focus.x + 12, 20, focus.z + 6)
     this.sun.target.position.copy(focus)
     this.blendLight(focus.x, focus.z)
+    this.propLights.update(focus, this.lightSources())
+  }
+
+  private *lightSources(): Generator<readonly PropLight[]> {
+    yield this.map.chunk.lights
+    for (const chunk of this.others.values()) yield chunk.lights
   }
 
   /** 그림자가 그려지는 범위를 화면에 보이는 범위에 맞춘다. */
