@@ -26,7 +26,7 @@ function legacyDamage(progress: ClassProgress, manifested: string | null): numbe
 function manifest(god: string): RelicPowers {
   const powers = new RelicPowers(new THREE.Group())
   for (const id of RELIC_IDS.filter((r) => relicDef(r).god === god).slice(0, godDef(god).manifestCount)) powers.equip(id)
-  powers.choose(god)
+  powers.setPantheon({ hand: god, heart: god, breath: [god] })
   return powers
 }
 
@@ -84,8 +84,8 @@ describe('빌드 상태 (E11-04)', () => {
 
   it('계산은 재료만 보고, 고른 신화의 패시브 배율을 곱한다', () => {
     const base = { open: new Map(), gear: [], promotions: 2 }
-    expect(computeBuild({ ...base, chosen: [] }).damageScale).toBeCloseTo(PER_PROMOTION.damage ** 2)
-    const thor = computeBuild({ ...base, chosen: ['thor'], open: new Map([['thor', 3]]) })
+    expect(computeBuild({ ...base, hand: null }).damageScale).toBeCloseTo(PER_PROMOTION.damage ** 2)
+    const thor = computeBuild({ ...base, hand: 'thor', open: new Map([['thor', 3]]) })
     expect(thor.level).toBe(3)
     expect(thor.damageScale).toBeCloseTo(PER_PROMOTION.damage ** 2 * (1 + PER_OPENED.damage) * godDef('thor').passive.damageScale)
   })
@@ -95,7 +95,7 @@ describe('빌드 상태 (E11-04)', () => {
       { stats: [], source: { id: 'stone' as const, value: 3 } },
       { stats: [], source: { id: 'stone' as const, value: 3 } },
     ]
-    const state = computeBuild({ open: new Map(), chosen: [], gear: ['mjolnir'], gearItems, stage: () => 4, promotions: 0 })
+    const state = computeBuild({ open: new Map(), hand: null, gear: ['mjolnir'], gearItems, stage: () => 4, promotions: 0 })
     // 묠니르 4단계: 불꽃 +5
     expect(state.sources).toEqual({ flame: 5, hunt: 0, wind: 0, stone: 6 })
     expect(state.awakening).toEqual({ flame: 1, hunt: 0, wind: 0, stone: 1 })
@@ -107,8 +107,8 @@ describe('신화 단계와 수집 보너스 (E21-01·02)', () => {
   const base = { gear: [] as (string | null)[], promotions: 0 }
 
   it('단계 하나(승급 한 번)가 큰 걸음: 모든 피해 ×1.35, 최대 생명 +25%', () => {
-    const one = computeBuild({ ...base, chosen: [], open: new Map(), promotions: 1 })
-    const two = computeBuild({ ...base, chosen: [], open: new Map(), promotions: 2 })
+    const one = computeBuild({ ...base, hand: null, open: new Map(), promotions: 1 })
+    const two = computeBuild({ ...base, hand: null, open: new Map(), promotions: 2 })
     expect(one.damageScale).toBeCloseTo(1.35)
     expect(two.damageScale).toBeCloseTo(1.35 * 1.35)
     expect(one.maxHp).toBe(125)
@@ -116,7 +116,7 @@ describe('신화 단계와 수집 보너스 (E21-01·02)', () => {
   })
 
   it('열린 신화 하나마다 모든 피해 +4%, 최대 생명 +5. 메아리도 신화마다 다른 수치도 없다', () => {
-    const state = computeBuild({ ...base, chosen: [], open: new Map([['thor', 3], ['zeus', 1], ['loki', 2]]) })
+    const state = computeBuild({ ...base, hand: null, open: new Map([['thor', 3], ['zeus', 1], ['loki', 2]]) })
     expect(state.collected).toBe(3)
     expect(state.damageScale).toBeCloseTo(1 + 3 * PER_OPENED.damage)
     expect(state.maxHp).toBe(100 + 3 * PER_OPENED.maxHp)
@@ -130,9 +130,9 @@ describe('신화 단계와 수집 보너스 (E21-01·02)', () => {
     expect(alwaysStage(2, true, true)).toBe(4)
     expect(alwaysStage(4, true, true)).toBe(TOP_STAGE)
     const stat = godDef('thor').always.stat
-    const plain = computeBuild({ ...base, chosen: [], open: new Map([['thor', 2]]), gear: ['mjolnir'] })
-    const star = computeBuild({ ...base, chosen: [], open: new Map([['thor', 2]]), starred: new Set(['thor']) })
-    const starRelic = computeBuild({ ...base, chosen: [], open: new Map([['thor', 2]]), gear: ['mjolnir'], starred: new Set(['thor']) })
+    const plain = computeBuild({ ...base, hand: null, open: new Map([['thor', 2]]), gear: ['mjolnir'] })
+    const star = computeBuild({ ...base, hand: null, open: new Map([['thor', 2]]), starred: new Set(['thor']) })
+    const starRelic = computeBuild({ ...base, hand: null, open: new Map([['thor', 2]]), gear: ['mjolnir'], starred: new Set(['thor']) })
     expect(plain.stats.bossDamage).toBe(0)
     expect(star.stats.bossDamage).toBe(stat.value[0])
     expect(starRelic.stats.bossDamage).toBe(stat.value[1])
@@ -149,13 +149,13 @@ describe('신화 단계와 수집 보너스 (E21-01·02)', () => {
   it('같은 종류 수치는 더하고, 다른 종류끼리는 곱한다', () => {
     const starred = new Set(['freyr', 'mago', 'loki', 'susanoo'])
     // 최대 생명 +20(프레이)과 +10%(마고할미), 수집 보너스 둘 +10
-    const state = computeBuild({ ...base, chosen: [], open: new Map([['freyr', 3], ['mago', 3]]), starred })
+    const state = computeBuild({ ...base, hand: null, open: new Map([['freyr', 3], ['mago', 3]]), starred })
     expect(state.maxHp).toBe(Math.round((100 + 20 + 2 * PER_OPENED.maxHp) * 1.1))
     // 고른 신화의 공격 리듬(제우스)과 공격 빠르기(로키 4단계)는 곱한다
-    const fast = computeBuild({ ...base, chosen: ['zeus'], open: new Map([['loki', 3], ['zeus', 1]]), starred })
+    const fast = computeBuild({ ...base, hand: 'zeus', open: new Map([['loki', 3], ['zeus', 1]]), starred })
     expect(fast.attackSpeed).toBeCloseTo(godDef('zeus').passive.attackSpeed * (1 + godDef('loki').always.stat.value[1]))
     // 받는 피해: 스사노오 −6%와 유물의 배율을 곱한다
-    const tough = computeBuild({ ...base, chosen: [], open: new Map([['susanoo', 3]]), gear: ['megingjord'], starred })
+    const tough = computeBuild({ ...base, hand: null, open: new Map([['susanoo', 3]]), gear: ['megingjord'], starred })
     expect(tough.damageTaken).toBeCloseTo(gearModifiers(['megingjord']).damageTaken * (1 + godDef('susanoo').always.stat.value[1]))
   })
 })
@@ -175,7 +175,7 @@ describe('빌드 상태 다시 쓰기', () => {
       () => powers.equip('mjolnir'),
       () => powers.loadout.stages.set('mjolnir', 3),
       () => progress.record('thor'),
-      () => powers.choose('thor'),
+      () => powers.setPantheon({ hand: 'thor', heart: 'thor', breath: ['thor'] }),
       () => promoteTimes(progress, 'thor', 1),
       () => {
         training.gain(1e7)
@@ -205,12 +205,12 @@ describe('빌드 층 목록 (E301-01)', () => {
     const gearItems = [{ stats: [{ kind: 'damage' as const, value: 0.08 }], source: { id: 'flame' as const, value: 3 } }]
     const relicItems = [{ stats: [{ kind: 'damage' as const, value: 0.05 }], source: { id: 'flame' as const, value: 0 } }]
     const samples: Parameters<typeof computeBuild>[0][] = [
-      { open: new Map(), chosen: [], gear: [], promotions: 0 },
-      { open: new Map([['thor', 1]]), chosen: ['thor'], gear: ['mjolnir'], promotions: 0 },
-      { open: new Map([['thor', 3], ['loki', 2]]), chosen: ['thor', 'loki'], gear: ['mjolnir'], gearItems, relicItems, promotions: 3 },
-      { open: new Map([['zeus', 2]]), chosen: ['zeus'], gear: [], gearItems, promotions: 1, bonus: { trials: { damage: 0.1 }, training: { damage: 0.12, maxHp: 10 }, blessings: { damage: 0.05 } } },
-      { open: new Map([['odin', 4], ['thor', 2]]), chosen: [], gear: ['mjolnir'], promotions: 4, starred: new Set(['odin', 'thor']) },
-      { open: new Map([['artemis', 2]]), chosen: ['artemis'], waking: 'loki', gear: [], relicItems, promotions: 1 },
+      { open: new Map(), hand: null, gear: [], promotions: 0 },
+      { open: new Map([['thor', 1]]), hand: 'thor', gear: ['mjolnir'], promotions: 0 },
+      { open: new Map([['thor', 3], ['loki', 2]]), hand: 'thor', present: ['thor', 'loki'], gear: ['mjolnir'], gearItems, relicItems, promotions: 3 },
+      { open: new Map([['zeus', 2]]), hand: 'zeus', gear: [], gearItems, promotions: 1, bonus: { trials: { damage: 0.1 }, training: { damage: 0.12, maxHp: 10 }, blessings: { damage: 0.05 } } },
+      { open: new Map([['odin', 4], ['thor', 2]]), hand: null, gear: ['mjolnir'], promotions: 4, starred: new Set(['odin', 'thor']) },
+      { open: new Map([['artemis', 2]]), hand: 'artemis', waking: 'loki', gear: [], relicItems, promotions: 1 },
     ]
     for (const input of samples) {
       const state = computeBuild(input)
@@ -220,7 +220,7 @@ describe('빌드 층 목록 (E301-01)', () => {
   })
 
   it('덧셈 층은 출처마다 피해 몫을 따로 센다', () => {
-    const state = computeBuild({ open: new Map([['thor', 2]]), chosen: ['thor'], gear: [], promotions: 2, bonus: { trials: { damage: 0.1 }, training: { damage: 0.2 } } })
+    const state = computeBuild({ open: new Map([['thor', 2]]), hand: 'thor', gear: [], promotions: 2, bonus: { trials: { damage: 0.1 }, training: { damage: 0.2 } } })
     const by = Object.fromEntries(state.layers.map((l) => [l.id, l.value]))
     expect(by.trials).toBeCloseTo(0.1)
     expect(by.training).toBeCloseTo(0.2)

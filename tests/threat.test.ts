@@ -56,7 +56,7 @@ function stacked(source: (typeof SOURCE_IDS)[number], grade: (typeof GRADES)[num
   const relic = MYTH_RELICS.find((id) => godDef(relicDef(id).god).source === source)!
   return computeBuild({
     open: new Map(),
-    chosen: [],
+    hand: null,
     gear: [relic],
     gearItems: Array.from({ length: 6 }, () => ({ stats: [], source: { id: source, value } })),
     stage: () => stage,
@@ -82,7 +82,7 @@ describe('원천 각성 규칙 (E14-01)', () => {
   it('둘로 나누면 두 원천 모두 2단계에 머문다 (몰지 나눌지가 선택)', () => {
     const split = computeBuild({
       open: new Map(),
-      chosen: [],
+      hand: null,
       gear: [],
       gearItems: [...Array.from({ length: 3 }, () => ({ stats: [], source: { id: 'flame' as const, value: 4 } })), ...Array.from({ length: 3 }, () => ({ stats: [], source: { id: 'stone' as const, value: 4 } }))],
       promotions: 0,

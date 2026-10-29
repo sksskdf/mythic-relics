@@ -74,7 +74,7 @@ describe('신을 깨우는 길 데이터 (E238)', () => {
 
   it('조각 2로 받는 유물은 그 신의 유물이고, 그때부터 칸에 들지 않아도 깨어난다', () => {
     for (const god of AWAKEN_GODS) expect(mythRelic(god)).toBe(godDef(god).relic)
-    const base = { open: new Map<string, number>(), gear: ['lokiMask' as const], promotions: 0, chosen: [] }
+    const base = { open: new Map<string, number>(), gear: ['lokiMask' as const], promotions: 0, hand: null }
     const asleep = computeBuild(base)
     const waking = computeBuild({ ...base, waking: 'loki' })
     expect(waking.modifiers).not.toEqual(asleep.modifiers)

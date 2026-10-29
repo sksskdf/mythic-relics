@@ -159,15 +159,15 @@ export class DevTools {
   }
 
   /**
-   * 신위 칸 (E237): 신을 열고 칸에 넣는다 (곳을 가리지 않는다). 주신이 없으면 첫 신이 주신, 나머지는 빈 빌린 칸에.
-   * 칸 수는 장 진행 그대로라, 넣지 못한 신은 열리기만 한다
+   * 신의 자리 셋 (E302): 신을 열고 빈 자리에 넣는다 (곳을 가리지 않는다). 자리가 비었으면 첫 신에 몰고, 나머지는 빈 숨 칸에.
+   * 숨 칸 수는 장 진행 그대로라, 넣지 못한 신은 열리기만 한다
    */
   lend(...gods: string[]): void {
-    const { powers, progress, relics } = this.parts
+    const { progress, relics } = this.parts
     for (const god of gods) {
       progress.open(god)
-      if (!powers.manifested) relics.choose(god, false)
-      else relics.lend(god)
+      if (!progress.pantheon.hand) relics.choose(god, false)
+      else relics.fill(god, ['breath'])
     }
   }
 

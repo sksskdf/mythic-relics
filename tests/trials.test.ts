@@ -14,7 +14,7 @@ import { parseTrials, TrialProgress } from '../src/progress/Trials'
 function geared(trial: () => TrialId | null) {
   const powers = new RelicPowers(new THREE.Group())
   powers.equip('mjolnir')
-  powers.choose('thor')
+  powers.setPantheon({ hand: 'thor', heart: 'thor', breath: ['thor'] })
   let seed = 1
   const rng = () => ((seed = (seed * 16807) % 2147483647) / 2147483647)
   for (const part of ['head', 'body', 'hands', 'feet', 'trinket', 'trinket'] as const) {
@@ -51,7 +51,7 @@ describe('시련 제약 (E16-02)', () => {
   })
 
   it('규칙 없음은 아무것도 바꾸지 않는다', () => {
-    const base = { open: new Map([['thor', 2]]), chosen: ['thor'], gear: [], promotions: 1 }
+    const base = { open: new Map([['thor', 2]]), hand: 'thor', gear: [], promotions: 1 }
     expect(computeBuild({ ...base, rules: NO_RULES })).toEqual(computeBuild(base))
   })
 })

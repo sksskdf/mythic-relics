@@ -5,6 +5,7 @@ import { isBossLike } from '../../enemies/grade'
 import { MATERIALS, materialName, rollMaterials } from '../../gear/materials'
 import { GEAR, landChances, landTier, rollGear } from '../../gear/roll'
 import { masteryShares, PER_PROMOTION } from '../../myth/ClassProgress'
+import { emptyPantheon, inPantheon } from '../../myth/pantheon'
 import { collectionText } from '../../myth/alwaysText'
 import { levelGains } from '../../myth/levelGains'
 import { classIcon } from '../../ui/classIcons'
@@ -159,9 +160,9 @@ export class ProgressionSystem {
   private announceOpened(god: God): void {
     const { bus, progress } = this.ctx
     // 처음 연 신화를 바로 골랐거나 빌린 칸에 넣었으면 그쪽(고른 신화 장면·빌린 힘 카드)이 대신 알린다 (RelicSystem이 먼저 듣는다)
-    if (progress.chosen.includes(god)) return
+    if (inPantheon(progress.pantheon, god)) return
     const def = godDef(god)
-    const lines = [`${def.name}의 힘이 깨어났다`, '마을이나 성소에서 신위 칸에 넣는다', `수집 보너스: ${collectionText()}`]
+    const lines = [`${def.name}의 힘이 깨어났다`, '신 탭에서 손·심장·숨 자리에 낀다', `수집 보너스: ${collectionText()}`]
     bus.emit('moment', { id: 'mythOpened', card: { kind: '신화 개방', title: def.titles[0], color: def.color, icon: classIcon(def.name), lines } })
   }
 
@@ -220,8 +221,8 @@ export class ProgressionSystem {
   /** 클래스 성장(레벨·경험치)을 처음으로 되돌린다. */
   reset(): void {
     this.ctx.progress.records.clear()
-    this.ctx.progress.chosen = []
-    this.ctx.powers.choose(null)
+    this.ctx.progress.pantheon = emptyPantheon()
+    this.ctx.powers.setPantheon(emptyPantheon())
     this.applyStats()
     this.ctx.combat.health.reset()
     this.ctx.bus.emit('progressChanged', {})

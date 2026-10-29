@@ -89,7 +89,7 @@ describe('데이터에만 넣은 시험용 유물', () => {
     const change = powers.equip('megingjord')
     expect(change?.after.blessings).toEqual(['thor'])
     expect(powers.awake('testRelic')).toBe(false)
-    powers.choose('thor')
+    powers.setPantheon({ hand: 'thor', heart: 'thor', breath: ['thor'] })
     expect(powers.awake('testRelic')).toBe(true)
     expect(gearModifiers(powers.loadout.relics).damageTaken).toBeCloseTo(0.8)
     // 유물은 외형 칸으로 정한 부위 칸에 들어간다 (시험용 뿔잔은 얼굴 → 머리)

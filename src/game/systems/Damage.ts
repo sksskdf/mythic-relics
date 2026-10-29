@@ -97,7 +97,7 @@ export class DamageSystem {
       skills,
     )
     // 발현 패시브: 처음 맞은 적에게 번개가 함께 떨어지고(천둥의 신), 레벨이 차면 옮겨 붙는다(천둥군주).
-    // 주신의 패시브와 빌린 힘(E237)을 차례로 본다
+    // 숨 칸의 신마다 그 패시브를 차례로 본다 (E302)
     const first = hits[0]!.target
     for (const { passive, level } of this.ctx.build.passives()) {
       if (passive.basicLightning && first.alive) {

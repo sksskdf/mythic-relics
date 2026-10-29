@@ -85,8 +85,9 @@ export class MenuData {
       myths: {
         canChoose: () => game.canChooseMyth,
         choose: (god) => game.chooseMyth(god),
-        slots: () => game.mythSlots(),
-        lend: (god, on) => game.lendMyth(god, on),
+        pantheon: () => game.pantheonView(),
+        place: (part, god) => game.placeMyth(part, god),
+        unplace: (god) => game.unplaceMyth(god),
         waking: () => game.wakingMyth(),
         star: (god) => (game.rift.lit.has(god) ? alwaysStage(game.progress.level(god), powers.loadout.relics.some((id) => id !== null && relicDef(id).god === god), true) : 0),
       },

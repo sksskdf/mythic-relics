@@ -1,5 +1,5 @@
 import { REGIONS } from '../data/regions'
-import { CHOSEN_SLOTS } from '../myth/ClassProgress'
+import { fromChosen, MAX_BREATH, type Pantheon } from '../myth/pantheon'
 import { SLOT_PARTS } from '../data/gearData'
 import { isMythRelic } from '../gear/mythRelic'
 import { type GearItem, parseGearItem } from '../gear/roll'
@@ -41,8 +41,9 @@ import { legacySlots, migrateLooks, oldChapters, oldStars, oldTrainingXp, openOw
  *   차례로 연 정보 화면 탭(E236-05). 옛 저장은 탭을 모두 연 것으로 친다
  * - v12: 신위 칸 (E237). chosen은 첫째가 주신(고른 신화), 그 뒤가 빌린 신(넷까지). 옛 저장은 주신 하나뿐이라 그대로 읽는다
  * - v13: 신을 깨우는 조각 (E238). 깨우는 신과 모은 조각·사냥한 수. 옛 저장은 깨우는 신 없이 (이미 연 신은 그대로)
+ * - v14: 신의 자리 셋 (E302). chosen(주신 + 빌린 신) → pantheon(손·심장·숨). 옛 주신은 손·심장·숨 첫 칸으로(한 신에 몰기), 빌린 신은 숨 칸으로
  */
-export const SAVE_VERSION = 13
+export const SAVE_VERSION = 14
 
 export interface SaveData {
   version: typeof SAVE_VERSION
@@ -60,8 +61,8 @@ export interface SaveData {
   ground: { id: string; x: number; z: number }[]
   /** 신화별 개방 단계(0~4)와 신화 숙련 */
   classes: Partial<Record<God, { level: number; xp: number }>>
-  /** 신위 칸 (E237): 첫째가 주신(고른 신화, E12-04), 그 뒤가 빌린 신. 옛 저장은 1차 스프린트 발현 규칙으로 정한다 */
-  chosen: God[]
+  /** 신의 자리 셋 (E302): 손·심장·숨에 낀 신. 열린 신만 */
+  pantheon: Pantheon
   /** 불운 보정: 마지막 유물 뒤로 놓친 횟수 */
   dropMisses: number
   /** 신위 게이지 */
@@ -113,7 +114,7 @@ export function parseSave(text: string | null): SaveData | null {
   }
   if (typeof raw !== 'object' || raw === null) return null
   const data = raw as Record<string, unknown>
-  if (data.version !== SAVE_VERSION && ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].includes(data.version as number)) return null
+  if (data.version !== SAVE_VERSION && ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13].includes(data.version as number)) return null
   const old = (data.version as number) < 5
 
   // 일반 장비 (v5)
@@ -186,6 +187,7 @@ export function parseSave(text: string | null): SaveData | null {
   const region = parseRegion(data.region)
   const conveniences = parseConveniences(data.conveniences)
   const chapters = (data.version as number) < 10 ? oldChapters(region, conveniences, threat, materials, relicsOwned) : parseChapterData(data.chapters)
+  const awaken = openedAwaken(parseAwaken(data.awaken), myths)
   return {
     version: SAVE_VERSION,
     slots: slots.slice(0, SLOT_PARTS.length),
@@ -195,7 +197,7 @@ export function parseSave(text: string | null): SaveData | null {
     materials,
     ground,
     classes: myths,
-    chosen: parseChosen(data.chosen, legacySlots(data.slots), myths),
+    pantheon: (data.version as number) < 14 ? fromChosen(parseChosen(data.chosen, legacySlots(data.slots), myths)) : parsePantheon(data.pantheon, myths, awaken.fragments >= 2 ? awaken.waking : null),
     dropMisses: Math.round(num(data.dropMisses, 0, 1000, 0)),
     divine: num(data.divine, 0, 1, 0),
     looks: data.version === 1 ? migrateLooks(legacySlots(data.slots), legacySlots(data.bag) as RelicId[], classes) : parseLooks(data.looks),
@@ -208,7 +210,7 @@ export function parseSave(text: string | null): SaveData | null {
     chapters,
     training: parseTraining(data.training, (data.version as number) < 11 ? oldTrainingXp(myths) : 0),
     tabs: parseTabs(data.tabs, (data.version as number) < 11),
-    awaken: openedAwaken(parseAwaken(data.awaken), myths),
+    awaken,
     region,
     scenes: Array.isArray(data.scenes) ? [...new Set(data.scenes.filter((s): s is string => typeof s === 'string' && s.length < 40))] : [],
   }
@@ -222,9 +224,21 @@ function openedAwaken(awaken: AwakenData, classes: SaveData['classes']): AwakenD
 /** 고른 신화: 열린 신화만. 없으면(옛 저장) 칸의 유물로 1차 스프린트 발현 규칙을 따른다 */
 function parseChosen(raw: unknown, slots: readonly (RelicId | null)[], classes: SaveData['classes']): God[] {
   const open = (god: God) => (classes[god]?.level ?? 0) >= 1
-  if (Array.isArray(raw)) return [...new Set(raw.filter((g): g is God => isGod(g) && open(g)))].slice(0, CHOSEN_SLOTS)
+  if (Array.isArray(raw)) return [...new Set(raw.filter((g): g is God => isGod(g) && open(g)))].slice(0, MAX_BREATH)
   const legacy = legacyManifest(slots)
   return legacy && open(legacy) ? [legacy] : []
+}
+
+/** 신의 자리 셋 (v14): 열린 신만(손은 조각 2를 모은 깨우는 신도), 숨은 겹치지 않게 넷까지 */
+function parsePantheon(raw: unknown, classes: SaveData['classes'], holding: God | null): Pantheon {
+  const o = typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {}
+  const open = (g: unknown): g is God => typeof g === 'string' && isGod(g) && (classes[g]?.level ?? 0) >= 1
+  return {
+    // 손은 조각 2를 모은 깨우는 신도 쥘 수 있다 (E302)
+    hand: open(o.hand) || (holding !== null && o.hand === holding) ? (o.hand as God) : null,
+    heart: open(o.heart) ? o.heart : null,
+    breath: Array.isArray(o.breath) ? [...new Set(o.breath.filter(open))].slice(0, MAX_BREATH) : [],
+  }
 }
 
 function parseRegion(raw: unknown): SaveData['region'] {

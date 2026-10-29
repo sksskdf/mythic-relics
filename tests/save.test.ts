@@ -14,7 +14,7 @@ const sample: SaveData = {
   bag: [],
   ground: [{ id: 'lokiMask', x: 3, z: -4 }],
   classes: { thor: { level: 2, xp: 40 } },
-  chosen: ['thor'],
+  pantheon: { hand: 'thor', heart: 'thor', breath: ['thor'] },
   gear: [],
   stages: {},
   materials: {},
@@ -57,16 +57,16 @@ describe('저장 데이터', () => {
   })
 
   it('v4: 신화. 옛 저장(v3)은 가진 유물의 신화를 열고, 고른 신화는 유물 셋 발현 규칙으로 정한다 (E12-05)', () => {
-    const { chosen: _, ...v3 } = { ...sample, version: 3, slots: ['mjolnir', 'megingjord', null, 'jarngreipr'], bag: ['lokiMask'] }
+    const { pantheon: _, ...v3 } = { ...sample, version: 3, slots: ['mjolnir', 'megingjord', null, 'jarngreipr'], bag: ['lokiMask'] }
     const data = parseSave(JSON.stringify(v3))!
     expect(data.version).toBe(SAVE_VERSION)
     // 토르는 원래 2단계 그대로, 가방의 로키 유물로 로키가 1단계로 열린다
     expect(data.classes).toEqual({ thor: { level: 2, xp: 40 }, loki: { level: 1, xp: 0 } })
-    expect(data.chosen).toEqual(['thor'])
+    expect(data.pantheon).toEqual({ hand: 'thor', heart: 'thor', breath: ['thor'] })
     // 유물이 둘뿐이면(발현 전) 고른 신화 없이 열리기만 한다
     const two = parseSave(JSON.stringify({ ...v3, slots: ['mjolnir', 'megingjord', null, null], classes: {} }))!
     expect(two.classes.thor).toEqual({ level: 1, xp: 0 })
-    expect(two.chosen).toEqual([])
+    expect(two.pantheon).toEqual({ hand: null, heart: null, breath: [] })
     // 옛 순환 기록이 있어도(서리 조각·심장으로 돌려받음) 그 재료를 유물로 세다 멈추지 않는다
     const cycled = parseSave(JSON.stringify({ ...v3, cycle: { essence: { flame: 250 }, ash: 7 } }))!
     expect(cycled.classes.thor).toEqual({ level: 2, xp: 40 })
@@ -77,15 +77,22 @@ describe('저장 데이터', () => {
     expect(() => parseSave(JSON.stringify({ ...sample, gear: [{ uid: 5, part: 'head', grade: 'rare', base: '철 투구' }] }))).not.toThrow()
   })
 
-  it('고른 신화는 열린 신화만, 칸 수만큼만 남긴다', () => {
-    expect(parseSave(JSON.stringify({ ...sample, chosen: ['zeus'] }))?.chosen).toEqual([])
-    expect(parseSave(JSON.stringify({ ...sample, chosen: ['thor', 'thor', 'nobody'] }))?.chosen).toEqual(['thor'])
-    // 신위 칸 (E237, v12): 주신 다음에 빌린 신, 넷까지
+  it('자리 셋은 열린 신만, 숨은 겹치지 않게 넷까지 (E302, v14)', () => {
     const many = { thor: { level: 2, xp: 0 }, loki: { level: 1, xp: 0 }, odin: { level: 1, xp: 0 }, freyr: { level: 1, xp: 0 }, zeus: { level: 1, xp: 0 } }
-    expect(parseSave(JSON.stringify({ ...sample, classes: many, chosen: ['thor', 'loki', 'odin'] }))?.chosen).toEqual(['thor', 'loki', 'odin'])
-    expect(parseSave(JSON.stringify({ ...sample, classes: many, chosen: ['thor', 'loki', 'odin', 'freyr', 'zeus'] }))?.chosen).toHaveLength(4)
+    expect(parseSave(JSON.stringify({ ...sample, pantheon: { hand: 'zeus', heart: 'nobody', breath: ['thor', 'thor', 'nobody'] } }))?.pantheon).toEqual({ hand: null, heart: null, breath: ['thor'] })
+    expect(parseSave(JSON.stringify({ ...sample, classes: many, pantheon: { hand: 'loki', heart: 'odin', breath: ['thor', 'loki', 'odin', 'freyr', 'zeus'] } }))?.pantheon.breath).toHaveLength(4)
+    // 손은 조각 2를 모은 깨우는 신도 쥘 수 있다
+    expect(parseSave(JSON.stringify({ ...sample, awaken: { waking: 'odin', fragments: 2, hunt: 0 }, pantheon: { hand: 'odin', heart: null, breath: [] } }))?.pantheon.hand).toBe('odin')
+    expect(parseSave(JSON.stringify({ ...sample, awaken: { waking: 'odin', fragments: 1, hunt: 0 }, pantheon: { hand: 'odin', heart: null, breath: [] } }))?.pantheon.hand).toBeNull()
     // 개방 단계 0(숙련만 쌓인 신화)도 그대로 남는다
     expect(parseSave(JSON.stringify({ ...sample, classes: { ...sample.classes, zeus: { level: 0, xp: 120 } } }))?.classes.zeus).toEqual({ level: 0, xp: 120 })
+  })
+
+  it('v13 이하의 신위 칸(주신 + 빌린 신)은 주신을 손·심장·숨 첫 칸으로, 빌린 신을 숨으로 옮긴다', () => {
+    const many = { thor: { level: 2, xp: 0 }, loki: { level: 1, xp: 0 }, odin: { level: 1, xp: 0 } }
+    const { pantheon: _, ...rest } = sample
+    const v13 = { ...rest, version: 13, classes: many, chosen: ['thor', 'loki', 'odin', 'nobody'] }
+    expect(parseSave(JSON.stringify(v13))?.pantheon).toEqual({ hand: 'thor', heart: 'thor', breath: ['thor', 'loki', 'odin'] })
   })
 
   it('깨졌거나 버전이 다르면 새로 시작한다', () => {

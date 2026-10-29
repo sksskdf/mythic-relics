@@ -5,6 +5,7 @@ import { effectScale, RELIC_STAGES, relicAwake } from '../gear/mythRelic'
 import { craft, salvage } from '../gear/forge'
 import { Loadout } from '../gear/Loadout'
 import type { LoadoutState } from '../myth/manifest'
+import { focusGod, inPantheon, type Pantheon } from '../myth/pantheon'
 import { createEffect } from '../skills'
 import type { BasicHit, RelicEffect, SkillContext } from '../skills/Skill'
 import type { CombatTarget } from './PlayerCombat'
@@ -32,24 +33,26 @@ export class RelicPowers {
   readonly effects: (RelicEffect | null)[]
   /** 궁극기들 (신마다 하나, 처음 발현할 때 만든다): 발현한 신의 것만 새로 나가고, 이미 나간 것은 끝까지 돈다 */
   private readonly ultimates = new Map<God, Ultimate>()
-  /** 프레임마다 도는 발현 패시브 부품 (src/skills/ClassPassives.ts): 주신의 것 */
+  /** 발현 순간의 연출을 위한 패시브 묶음 (E302부터 패시브 자체는 숨 칸 묶음이 돌린다) */
   readonly classPassives: ClassPassives
-  /** 빌린 힘 (E237): 빌린 신마다 따로 돌린다 (타이머·동료가 주신의 것과 섞이지 않게) */
+  /** 숨 칸 (E302): 숨의 신마다 따로 돌린다 (타이머·동료가 섞이지 않게) */
   private readonly lentPassives: ClassPassives[] = []
   /** 시련 「세 칸의 짐」(E16): 효과가 도는 칸. null이면 모두 */
   allowSlots: readonly number[] | null = null
   /** 대장간에서 올릴 수 있는 유물 단계 (데모 2, 엔딩 뒤 4. 게임이 정한다) */
   maxStage: () => number = () => RELIC_STAGES
 
-  /** 유물의 힘(지속·행동 효과)은 그 신화를 골랐을 때만 깨어난다 (E21-04). 고르지 않은 신화의 유물은 기본 수치만 낸다 */
+  /** 유물의 힘(지속·행동 효과)은 그 신이 자리에 들었을 때만 깨어난다 (E21-04 → E302). 아니면 기본 수치만 낸다 */
   awake(id: string | null): boolean {
-    return !!id && isRelicId(id) && relicAwake(id, this.loadout.chosen, this.awakeBorrowed)
+    return !!id && isRelicId(id) && relicAwake(id, null, this.awakeGods)
   }
 
-  /** 유물이 깨어나는 빌린 신: 빌린 칸과, 조각 2를 모은 깨우는 신 (E238) */
-  get awakeBorrowed(): readonly God[] {
-    const { borrowed, waking } = this.loadout
-    return waking && !borrowed.includes(waking) ? [...borrowed, waking] : borrowed
+  /** 유물이 깨어나는 신: 자리 셋에 든 신과, 조각 2를 모은 깨우는 신 (E238) */
+  get awakeGods(): readonly God[] {
+    const { pantheon, waking } = this.loadout
+    const gods = [pantheon.hand, pantheon.heart, ...pantheon.breath].filter((g): g is God => g !== null)
+    if (waking && !inPantheon(pantheon, waking)) gods.push(waking)
+    return gods
   }
 
   /** 지금 도는 유물 효과 (잠든 유물과 시련으로 막힌 칸은 뺀다) */
@@ -67,12 +70,14 @@ export class RelicPowers {
     this.effects = this.loadout.slots.map(() => null)
     this.state = this.loadout.state
     this.classPassives = new ClassPassives(fx)
+    // 신의 자리 셋 (E302): 패시브는 숨 칸마다 따로 돈다. 이 묶음은 발현 순간의 흩어지는 분신(burst)만 쓴다
+    this.classPassives.bound = { passive: { damageScale: 1, attackSpeed: 1 }, level: 0 }
     this.awakening = new SourceAwakening(fx)
   }
 
-  /** 지금 발현한 신의 궁극기 (발현하지 않았으면 null) */
+  /** 심장에 낀 신의 궁극기 (비었으면 null) */
   get ultimate(): Ultimate | null {
-    const god = this.manifested
+    const god = this.loadout.pantheon.heart
     if (!god) return null
     let u = this.ultimates.get(god)
     if (!u) {
@@ -91,18 +96,12 @@ export class RelicPowers {
     return this.state.manifested
   }
 
-  /** 고른 신화를 바꾼다 (null이면 없앤다) */
-  choose(god: God | null): LoadoutChange | null {
-    if (this.loadout.chosen === god) return null
-    this.loadout.chosen = god
-    // 고른 신화의 유물은 효과가 한 단계 위로 돈다 (E21-04)
+  /** 신의 자리 셋을 바꾼다 (E302). 손의 신이 바뀌면 바뀐 것을 돌려준다 (발현 연출) */
+  setPantheon(next: Pantheon): LoadoutChange | null {
+    this.loadout.pantheon = next
+    // 한 신에 몰면 그 신 유물의 효과가 한 단계 위로 돈다 (E21-04의 고른 신화 → 몰기)
     this.refreshStages()
     return this.refresh()
-  }
-
-  /** 신위 칸의 빌린 신을 바꾼다 (E237): 그 신들의 유물이 깨어난다 */
-  lend(gods: readonly God[]): void {
-    this.loadout.borrowed = [...gods]
   }
 
   /**
@@ -115,7 +114,7 @@ export class RelicPowers {
     list.forEach((l, i) => (this.lentPassives[i]!.bound = l))
   }
 
-  /** 도는 패시브 부품 모두: 주신의 것 다음에 빌린 힘 */
+  /** 도는 패시브 묶음 모두: 연출 묶음 다음에 숨 칸 */
   get allPassives(): readonly ClassPassives[] {
     return [this.classPassives, ...this.lentPassives]
   }
@@ -137,7 +136,7 @@ export class RelicPowers {
   private effectFor(id: string): RelicEffect | null {
     if (!isRelicId(id)) return null
     const effect = createEffect(relicDef(id), this.fx)
-    effect.stageScale = effectScale(id, this.loadout.stage(id), this.loadout.chosen)
+    effect.stageScale = effectScale(id, this.loadout.stage(id), focusGod(this.loadout.pantheon))
     return effect
   }
 
@@ -167,7 +166,7 @@ export class RelicPowers {
   refreshStages(): void {
     this.loadout.slots.forEach((id, slot) => {
       const effect = this.effects[slot]
-      if (effect && id && isRelicId(id)) effect.stageScale = effectScale(id, this.loadout.stage(id), this.loadout.chosen)
+      if (effect && id && isRelicId(id)) effect.stageScale = effectScale(id, this.loadout.stage(id), focusGod(this.loadout.pantheon))
     })
   }
 

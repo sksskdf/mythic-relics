@@ -12,8 +12,8 @@ import type { AwakenProgress } from '../progress/Awakening'
 import { isMythRelic, relicStats } from '../gear/mythRelic'
 import { isGearUid } from '../gear/roll'
 import type { ClassPassive } from '../data/classKit'
-import { lentPassive } from '../myth/slots'
-import { type God, godDef, isRelicId } from '../relics/data'
+import { breathPassive, focusGod, partLevel, pantheonGods } from '../myth/pantheon'
+import { type God, isRelicId } from '../relics/data'
 import { type BuildInputs, type BuildState, computeBuild } from './BuildState'
 
 /**
@@ -38,8 +38,9 @@ export class Build {
     const relicItems = relics.flatMap((id) => (id && isMythRelic(id) ? [{ stats: relicStats(id, loadout.stage(id)), source: { id: 'flame' as const, value: 0 } }] : []))
     return {
       open,
-      // 신위 칸 (E237): 주신 다음에 빌린 신
-      chosen: powers.manifested ? [powers.manifested, ...powers.loadout.borrowed] : [],
+      // 신의 자리 셋 (E302): 손의 신과 자리에 든 신들
+      hand: loadout.pantheon.hand,
+      present: pantheonGods(loadout.pantheon),
       // 깨우는 신 (E238): 조각 2부터 유물이 깨어난다
       waking: loadout.waking,
       gear: relics,
@@ -66,30 +67,45 @@ export class Build {
     return { bonus, awakenBonus }
   }
 
-  /** 지금 고른 신화 (state.chosen과 같다. 자주 읽는 곳을 위해 전체 계산 없이) */
+  /** 손에 낀 신 (state.chosen과 같다. 자주 읽는 곳을 위해 전체 계산 없이) */
   get chosen(): string | null {
     if (this.from.trial?.() === 'noMyth') return null
-    return this.from.powers.manifested
+    return this.from.powers.loadout.pantheon.hand
   }
 
-  /** 신위 칸의 빌린 신들 (E237, 시련 「신화 없이」에서는 없음) */
+  /** 심장에 낀 신 (궁극기) */
+  get heart(): God | null {
+    if (this.from.trial?.() === 'noMyth') return null
+    return this.from.powers.loadout.pantheon.heart
+  }
+
+  /** 손 말고 자리에 든 신들 (심장·숨, 시련 「신화 없이」에서는 없음) */
   get borrowed(): readonly God[] {
-    if (this.from.trial?.() === 'noMyth' || !this.from.powers.manifested) return []
-    return this.from.powers.loadout.borrowed
+    if (this.from.trial?.() === 'noMyth') return []
+    const { pantheon } = this.from.powers.loadout
+    return pantheonGods(pantheon).filter((g) => g !== pantheon.hand)
+  }
+
+  /** 한 신에 몰았으면 그 신 (손·심장·숨 하나가 같은 신) */
+  get focus(): God | null {
+    if (this.from.trial?.() === 'noMyth') return null
+    return focusGod(this.from.powers.loadout.pantheon)
   }
 
   /**
-   * 깨우는 중인 신 (E238): 조각 1(흔적)부터 그 신의 대표 힘을 빌린다. 칸이 없어도 켜지고, 깨어나면 칸으로 옮긴다.
+   * 깨우는 중인 신 (E238): 조각 1(흔적)부터 그 신의 숨을 빌린다. 자리가 없어도 켜지고, 깨어나면 자리로 옮긴다.
    * 시련 「신화 없이」에서는 없음
    */
   get waking(): God | null {
     const awaken = this.from.awaken
     if (!awaken?.waking || awaken.fragments < 1 || this.from.trial?.() === 'noMyth') return null
+    // 숨 칸에 들었으면 그쪽이 돌린다 (조각 2에 손에 쥔 것만으로는 숨이 아니다)
+    if (this.from.powers.loadout.pantheon.breath.includes(awaken.waking)) return null
     return this.from.progress.isOpen(awaken.waking) ? null : awaken.waking
   }
 
   /**
-   * 도는 패시브: 주신의 패시브 전부(주신 단계), 빌린 신마다 대표 패시브 하나(그 신 단계), 깨우는 신의 대표 패시브(1단계).
+   * 도는 패시브: 숨 칸의 신마다 그 신의 패시브(대표 힘은 1단계부터, 나머지는 단계대로, 한 신에 몰면 하나 위), 깨우는 신의 숨(1단계).
    * 피해마다 읽으므로 판이 그대로면 지난 목록을 돌려준다 (E301-02). 돌려준 목록은 고치지 않는다
    */
   passives(): readonly ActivePassive[] {
@@ -104,15 +120,17 @@ export class Build {
   private passiveVersion = -1
 
   private listPassives(): ActivePassive[] {
+    if (this.from.trial?.() === 'noMyth') return []
     const { progress } = this.from
-    const main = this.chosen
-    const out = main ? [{ god: main, passive: godDef(main).passive, level: progress.level(main), main: true }, ...this.borrowed.map((god) => ({ god, passive: lentPassive(god), level: progress.level(god), main: false }))] : []
+    const { pantheon } = this.from.powers.loadout
+    const focus = focusGod(pantheon)
+    const out = pantheon.breath.map((god) => ({ god, passive: breathPassive(god), level: partLevel(pantheon, god, progress.level(god)), main: god === focus }))
     const waking = this.waking
-    if (waking) out.push({ god: waking, passive: lentPassive(waking), level: 1, main: false })
+    if (waking) out.push({ god: waking, passive: breathPassive(waking), level: 1, main: false })
     return out
   }
 
-  /** 고른 신화의 개방 단계 (없으면 0) */
+  /** 손에 낀 신의 단계 (없으면 0) */
   get level(): number {
     const god = this.chosen
     return god ? this.from.progress.level(god) : 0
@@ -164,8 +182,9 @@ export class Build {
     const { powers, progress, trials, training, rift } = this.from
     const { loadout } = powers
     // 깨우는 신은 장비 쪽(loadout.waking)과 조각 쪽(awaken: 도는 패시브가 읽음)을 함께 본다
-    out.push(this.from.trial?.() ?? null, loadout, powers.state.manifested, loadout.waking, this.from.awaken?.waking ?? null, this.from.awaken?.fragments ?? 0, loadout.borrowed.length)
-    for (const god of loadout.borrowed) out.push(god)
+    const { pantheon } = loadout
+    out.push(this.from.trial?.() ?? null, loadout, pantheon.hand, pantheon.heart, loadout.waking, this.from.awaken?.waking ?? null, this.from.awaken?.fragments ?? 0, pantheon.breath.length)
+    for (const god of pantheon.breath) out.push(god)
     for (const id of loadout.slots) out.push(id, id && isRelicId(id) ? loadout.stage(id) : id && isGearUid(id) ? loadout.gear.get(id) : null)
     out.push(progress.records.size)
     progress.records.forEach((record, god) => out.push(god, record.level))

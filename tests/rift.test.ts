@@ -88,7 +88,7 @@ describe('성좌판 (E17-05)', () => {
   })
 
   it('밝힌 별만 그 신화의 수치를 내고, 축복은 수치와 각성 단계를 더한다', () => {
-    const base = { open: new Map([['thor', 2], ['odin', 4]]), chosen: [], gear: [], promotions: 0 }
+    const base = { open: new Map([['thor', 2], ['odin', 4]]), hand: null, gear: [], promotions: 0 }
     const plain = computeBuild(base)
     const starred = computeBuild({ ...base, starred: new Set(['thor', 'odin']) })
     const odin = godDef('odin').always.stat

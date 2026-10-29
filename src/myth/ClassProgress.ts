@@ -1,5 +1,5 @@
 import { type God, godDef } from '../relics/data'
-import { BORROWED_XP, MAX_SLOTS } from './slots'
+import { emptyPantheon, OTHER_XP, type Pantheon } from './pantheon'
 
 export const MAX_LEVEL = 4
 /** 데모(첫 엔딩까지)의 단계 끝: 4단계는 엔딩 뒤 (E21-01, TIMELINE.md 3장) */
@@ -19,8 +19,6 @@ export interface ClassRecord {
   xp: number
 }
 
-/** 신위 칸에 모실 수 있는 신 수 (E237: 주신 하나 + 빌린 힘, 칸 수는 `myth/slots.ts`) */
-export const CHOSEN_SLOTS = MAX_SLOTS
 
 /** 숙련을 더한 결과 */
 export type MasteryResult = 'opened' | null
@@ -43,8 +41,8 @@ export const PER_OPENED = { damage: 0.04, maxHp: 5 }
  */
 export class ClassProgress {
   readonly records = new Map<God, ClassRecord>()
-  /** 신위 칸 (E237): 첫째가 주신(고른 신화, E12-04), 그 뒤는 빌린 신 */
-  chosen: God[] = []
+  /** 신의 자리 셋 (E302): 손·심장·숨에 낀 신 */
+  pantheon: Pantheon = emptyPantheon()
   /**
    * afterEnding: 엔딩 뒤인가. 그 뒤로는 4단계까지 오른다.
    * openByXp: 경험치가 문턱을 넘으면 신화가 저절로 열리는가. 데모(엔딩 전)에서는 끄고, 문턱까지만 쌓아 성소에서 고르게 한다 (E22-03)
@@ -171,7 +169,7 @@ export function masteryShares(amount: number, realm: string | undefined, chosen:
   const out = new Map<God, number>()
   if (chosen) {
     out.set(chosen, amount)
-    for (const god of borrowed) if (god !== chosen) out.set(god, amount * BORROWED_XP)
+    for (const god of borrowed) if (god !== chosen) out.set(god, amount * OTHER_XP)
   }
   else if (realm) for (const g of gods) if (!g.hidden && g.realm === realm) out.set(g.id, amount)
   return out

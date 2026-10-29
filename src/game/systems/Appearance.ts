@@ -19,11 +19,14 @@ export class AppearanceSystem {
   /** 장착 상태가 정하는 모습 (보관함 선택을 적용하기 전) */
   get auto(): Outfit {
     const { powers, build } = this.ctx
-    const manifested = build.chosen
+    // 신의 자리 셋 (E302): 무기와 표식은 손의 신, 옷까지 그 신의 모습은 한 신에 몰았을 때만
+    const hand = build.chosen
+    const focus = build.focus
+    const handLooks = hand ? { ...(godDef(hand).looks.weapon ? { weapon: godDef(hand).looks.weapon } : {}), mark: godDef(hand).mark } : {}
     return autoOutfit({
       gearLooks: powers.loadout.slots.map((uid) => (uid ? powers.loadout.gear.get(uid) : undefined)).flatMap((item) => (item ? (gearLook(item) ?? []) : [])),
       relicLooks: powers.loadout.relics.filter((id) => id !== null).map((id) => relicDef(id).look),
-      manifestLooks: manifested ? { ...godDef(manifested).looks, mark: godDef(manifested).mark } : {},
+      manifestLooks: focus ? { ...godDef(focus).looks, mark: godDef(focus).mark } : handLooks,
     })
   }
 

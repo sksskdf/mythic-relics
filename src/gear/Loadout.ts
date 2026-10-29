@@ -1,6 +1,7 @@
 import { type GearPart, SLOT_PARTS } from '../data/gearData'
 import { type God, isRelicId, type RelicId } from '../relics/data'
 import { type LoadoutState, resolveLoadout } from '../myth/manifest'
+import { emptyPantheon, type Pantheon } from '../myth/pantheon'
 import { relicPart } from './mythRelic'
 import { type GearItem, isGearUid } from './roll'
 
@@ -27,15 +28,13 @@ export class Loadout {
   readonly stages = new Map<RelicId, number>()
   /** 재료 개수 (재료가 된 유물, E13-04의 재료) */
   readonly materials = new Map<string, number>()
-  /** 고른 신화 (E12-04: 열린 신화 가운데 하나, 유물 수와 상관없다). 신위 칸의 주신 (E237) */
-  chosen: God | null = null
-  /** 신위 칸의 빌린 신들 (E237): 그 신의 유물이 깨어난다 */
-  borrowed: God[] = []
+  /** 신의 자리 셋 (E302): 손의 신이 무기·리듬, 심장의 신이 궁극기, 숨의 신들이 패시브. 자리에 든 신의 유물이 깨어난다 */
+  pantheon: Pantheon = emptyPantheon()
   /** 깨우는 중인 신 (E238): 조각 2(그 신의 유물)부터 그 신의 유물이 빌린 칸처럼 깨어난다 */
   waking: God | null = null
 
   get state(): LoadoutState {
-    return resolveLoadout(this.relics, this.chosen)
+    return resolveLoadout(this.relics, this.pantheon.hand)
   }
 
   /** 칸에 낀 유물들 (칸 순서, 빈 칸과 일반 장비는 null) */
@@ -148,7 +147,7 @@ export class Loadout {
     next[slot] = id
     return resolveLoadout(
       next.map((x) => (x && isRelicId(x) ? x : null)),
-      this.chosen,
+      this.pantheon.hand,
     )
   }
 }

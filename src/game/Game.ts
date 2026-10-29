@@ -15,7 +15,7 @@ import { Pickups } from '../gear/Pickups'
 import { DEMO_RELIC_STAGES, isMythRelic, RELIC_STAGES } from '../gear/mythRelic'
 import type { SaveData } from '../save/SaveData'
 import { ClassProgress } from '../myth/ClassProgress'
-import { MAX_SLOTS, SLOT_BOSSES } from '../myth/slots'
+import { BREATH_BOSSES, focusGod, MAX_BREATH, type PartKind } from '../myth/pantheon'
 import type { SkillContext } from '../skills/Skill'
 import { DamageNumbers } from '../ui/DamageNumbers'
 import { Hud } from '../ui/Hud'
@@ -114,8 +114,6 @@ export interface GameOptions {
   relicsOpenMyths?: boolean
 }
 
-/** 성소에서 이만큼 가까우면 고른 신화를 바꿀 수 있다 */
-const CHOOSE_NEAR_SANCTUARY = 6
 
 /** 첫 엔딩의 큰 카드 (E22-05): 엔딩 장면 뒤에 무엇이 열렸는지 */
 const ENDING_CARD: MomentCard = {
@@ -607,8 +605,7 @@ export class Game {
     if (options.load) {
       this.persistence.restore(options.load, {
         equip: (id) => this.relics.equip(id, false),
-        choose: (god) => this.relics.choose(god, false),
-        lend: (god) => this.relics.lend(god),
+        pantheon: (p) => this.relics.restore(p),
         applyStats: () => this.growth.applyStats(),
         applyLooks: () => this.appearance.apply(),
       })
@@ -1034,31 +1031,38 @@ export class Game {
     }
   }
 
-  /** 고른 신화를 바꿀 수 있는 곳인가: 마을, 또는 지역 성소 곁 (E12-04, DESIGN.md 4.2). 전설·시련 중에는 못 바꾼다 (도전한 신화가 승급하도록) */
+  /** 신의 자리를 바꿀 수 있는가 (E302: 어디서나). 전설·시련 중에는 못 바꾼다 (도전한 신화가 승급하도록) */
   get canChooseMyth(): boolean {
-    if (this.legend.active) return false
-    if (this.ctx.map.region.kind === 'hub' || this.conveniences.has('quickChoose')) return true
-    if (!this.legend.present) return false
-    const p = this.hero.object.position
-    return Math.hypot(p.x - this.legend.center.x, p.z - this.legend.center.z) <= CHOOSE_NEAR_SANCTUARY
+    return !this.legend.active
   }
 
-  /** 정보 화면에서 신화를 고른다. 마을·성소가 아니거나 닫힌 신화면 false */
+  /** 정보 화면에서 한 신에 몰아 고른다 (손·심장·숨 첫 칸). 닫힌 신화면 false */
   chooseMyth(god: string): boolean {
     return this.canChooseMyth && this.relics.choose(god, true)
   }
 
-  /** 신위 칸 (E237): 칸 수, 칸의 신, 잠긴 칸마다 열리는 때 (정보 화면) */
-  mythSlots(): { count: number; gods: readonly string[]; locked: readonly string[] } {
+  /** 신의 자리 셋 (E302): 손·심장·숨, 숨 칸 수, 잠긴 숨 칸마다 열리는 때, 한 신에 몰았으면 그 신 (정보 화면) */
+  pantheonView(): { hand: string | null; heart: string | null; breath: readonly string[]; count: number; locked: readonly string[]; focus: string | null } {
     const count = this.relics.slots
     const locked: string[] = []
     if (this.progress.opened.length < 2) locked.push('두 번째 신이 깨어나면')
-    for (const region of SLOT_BOSSES) {
+    for (const region of BREATH_BOSSES) {
       if (this.chapters.bosses.has(region)) continue
       const boss = REGIONS[region]?.boss
       locked.push(`${josa(ENEMIES[boss?.enemy ?? 'king']?.name ?? '장 보스', '을')} 이기면`)
     }
-    return { count, gods: this.progress.chosen.slice(0, Math.max(1, count)), locked: locked.slice(0, Math.max(0, MAX_SLOTS - Math.max(1, count))) }
+    const p = this.progress.pantheon
+    return { hand: p.hand, heart: p.heart, breath: p.breath, count, locked: locked.slice(0, Math.max(0, MAX_BREATH - Math.max(1, count))), focus: focusGod(p) }
+  }
+
+  /** 정보 화면에서 그 자리에 낀다 (손·심장은 바꿔 끼고, 숨은 빈 칸에) */
+  placeMyth(part: PartKind, god: string): boolean {
+    return this.canChooseMyth && this.relics.place(part, god)
+  }
+
+  /** 정보 화면에서 숨 칸에서 뺀다 */
+  unplaceMyth(god: string): boolean {
+    return this.canChooseMyth && this.relics.unplace(god)
   }
 
   /** 깨우는 중인 신 (E238): 모은 조각과 다음 할 일 (정보 화면 신화 탭) */
@@ -1068,11 +1072,6 @@ export class Game {
     if (!waking || !path || this.progress.isOpen(waking)) return null
     const next = fragments >= 2 ? `${josa(path.guardian.name, '을')} 쓰러뜨린다` : `${REGIONS[path.land]?.name ?? path.land}에서 사냥한다 (${hunt}/${HUNT_KILLS})`
     return { god: waking, fragments, next }
-  }
-
-  /** 정보 화면에서 신위 칸의 빌린 칸에 넣거나 뺀다 (E237). 마을·성소에서만 */
-  lendMyth(god: string, on: boolean): boolean {
-    return this.canChooseMyth && (on ? this.relics.lend(god) : this.relics.unlend(god))
   }
 
   /** 기본 공격의 대상별 배율 (정예·보스에게 피해) */
@@ -1222,7 +1221,7 @@ export class Game {
                 ? boss.spec.name
                 : (this.awakening.fighting?.spec.name ?? null),
         slots: this.powers.hudSlots(),
-        ultimate: manifested !== null,
+        ultimate: this.ctx.build.heart !== null,
         xp: manifested ? this.progress.xpRatio(manifested) : null,
         xpColor: manifested ? godDef(manifested).color : '',
         portrait: manifested

@@ -23,9 +23,11 @@ import { type DamageLayer, layerProduct } from './layers'
 export interface BuildInputs {
   /** 열린 신화와 개방 단계 (1~4) */
   open: ReadonlyMap<God, number>
-  /** 신위 칸 (E237): 첫째가 주신(고른 신화), 그 뒤는 빌린 신. 없으면 빈 목록 */
-  chosen: readonly God[]
-  /** 깨우는 중인 신 (E238): 조각 2부터 그 신의 유물이 깨어난다. 칸에는 들지 않는다 */
+  /** 손에 낀 신 (E302): 공격 동작·리듬·피해 배율. 없으면 낡은 검 */
+  hand: God | null
+  /** 자리 셋(손·심장·숨)에 든 신들 (E302): 그 신의 유물이 깨어난다 */
+  present?: readonly God[]
+  /** 깨우는 중인 신 (E238): 조각 2부터 그 신의 유물이 깨어난다. 자리에는 들지 않는다 */
   waking?: God | null
   /** 칸에 낀 유물 (빈 칸과 일반 장비는 null) */
   gear: readonly (RelicId | null)[]
@@ -79,11 +81,11 @@ export function statAt(stat: MythAlways['stat'], stage: number): number {
 
 /** 빌드 상태: 능력치와 걸린 힘 */
 export interface BuildState {
-  /** 지금 고른 신화 = 주신 (궁극기·패시브·공격 모션을 정한다) */
+  /** 손에 낀 신 (E302): 공격 동작·리듬을 정한다 */
   chosen: God | null
-  /** 신위 칸의 빌린 신들 (E237): 대표 패시브 하나와 그 신 유물의 깨어남 */
+  /** 손 말고 자리에 든 신들 (E302): 심장·숨 */
   borrowed: readonly God[]
-  /** 고른 신화의 개방 단계 (없으면 0) */
+  /** 손에 낀 신의 단계 (없으면 0) */
   level: number
   /** 기본 공격과 스킬에 공통으로 곱하는 피해 배율 (= 층 목록의 곱) */
   damageScale: number
@@ -127,7 +129,7 @@ export function gearModifiers(gear: readonly (RelicId | null)[]): Modifiers {
 /** 재료에서 빌드 상태를 계산한다. (부수 효과 없음) */
 export function computeBuild(inputs: BuildInputs): BuildState {
   const rules = inputs.rules ?? NO_RULES
-  const chosen = rules.noMyth ? null : (inputs.chosen[0] ?? null)
+  const chosen = rules.noMyth ? null : inputs.hand
   const god = chosen ? godDef(chosen) : null
   // 수치: 같은 종류는 더하고, 다른 종류끼리는 아래에서 곱한다
   const worn = new Set(inputs.gear.filter((id): id is RelicId => id !== null).map((id) => relicDef(id).god))
@@ -174,11 +176,11 @@ export function computeBuild(inputs: BuildInputs): BuildState {
   layers.push({ id: 'collection', kind: 'add', value: collected * PER_OPENED.damage })
   layers.push({ id: 'myth', kind: 'mul', value: god ? god.passive.damageScale : 1 })
   const damageScale = layerProduct(layers)
-  // 유물의 지속 효과는 그 신화를 골랐을 때만 깨어난다 (E21-04). 시련으로 신화를 막아도 고른 신화는 그대로 본다
-  const picked = inputs.chosen[0] ?? null
-  const borrowed = rules.noMyth ? [] : inputs.chosen.slice(1)
-  const lent = inputs.waking && !rules.noMyth ? [...inputs.chosen.slice(1), inputs.waking] : inputs.chosen.slice(1)
-  const modifiers = gearModifiers(inputs.gear.map((id) => (id && relicAwake(id, picked, lent) ? id : null)))
+  // 유물의 지속 효과는 그 신이 자리에 들었을 때만 깨어난다 (E21-04 → E302). 시련으로 신화를 막아도 자리는 그대로 본다
+  const present = inputs.present ?? (inputs.hand ? [inputs.hand] : [])
+  const borrowed = rules.noMyth ? [] : present.filter((g) => g !== inputs.hand)
+  const lent = inputs.waking && !rules.noMyth ? [...present, inputs.waking] : present
+  const modifiers = gearModifiers(inputs.gear.map((id) => (id && relicAwake(id, inputs.hand, lent) ? id : null)))
   return {
     chosen,
     borrowed,
