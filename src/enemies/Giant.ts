@@ -99,7 +99,8 @@ export class Giant {
   private repathTimer = 0
   private walkCycle = Math.random() * 10
   private flash = 0
-  private roared = false
+  /** 생명이 반 아래로 처음 떨어져 포효했는가 (물러났다 다시 나타난 수호자는 기억한 값을 받는다, E239) */
+  roared = false
   /** 돌진 중: 남은 거리와 방향, 이미 쳤는지 */
   private dash: { left: number; dirX: number; dirZ: number; hit: boolean; attack: AttackSpec } | null = null
   /** 날아가는 것들 (던지기) */

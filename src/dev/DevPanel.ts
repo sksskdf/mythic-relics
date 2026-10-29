@@ -382,7 +382,7 @@ export class DevPanel {
     // 신화권 순서로 늘어놓고, 이름 앞에 신화권과 역할을 붙인다
     const REALM_ORDER = ['norse', 'greek', 'china', 'japan', 'korea']
     const REALM_SHORT: Record<string, string> = { norse: '북유럽', greek: '그리스', china: '중국', japan: '일본', korea: '한국' }
-    const ROLE_NAMES: Record<string, string> = { brute: '근접', charger: '돌진', ranged: '원거리', guard: '방패', summoner: '부르기', boss: '보스' }
+    const ROLE_NAMES: Record<string, string> = { brute: '근접', charger: '돌진', ranged: '원거리', guard: '방패', summoner: '부르기', boss: '보스', guardian: '수호자' }
     const enemies = Object.values(ENEMIES)
       .slice()
       .sort((a, b) => REALM_ORDER.indexOf(a.realm ?? '') - REALM_ORDER.indexOf(b.realm ?? ''))

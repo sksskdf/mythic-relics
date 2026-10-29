@@ -120,7 +120,9 @@ describe('깨우는 진행 (E238)', () => {
   })
 
   it('저장에서 읽기: 깨우는 길이 없는 신·깨진 값은 처음으로, 사냥한 수는 범위 안으로', () => {
-    expect(parseAwaken({ waking: 'loki', fragments: 1, hunt: 99 })).toEqual({ waking: 'loki', fragments: 1, hunt: HUNT_KILLS })
+    // 사냥 수가 다 찬 옛 저장(E238은 40)은 조각 2로
+    expect(parseAwaken({ waking: 'loki', fragments: 1, hunt: 99 })).toEqual({ waking: 'loki', fragments: 2, hunt: HUNT_KILLS })
+    expect(parseAwaken({ waking: 'loki', fragments: 1, hunt: HUNT_KILLS - 1 })).toEqual({ waking: 'loki', fragments: 1, hunt: HUNT_KILLS - 1 })
     expect(parseAwaken({ waking: 'loki', fragments: 7, hunt: 2 })).toEqual({ waking: 'loki', fragments: 1, hunt: 2 })
     expect(parseAwaken({ waking: 'hades', fragments: 1, hunt: 2 })).toEqual({ waking: null, fragments: 0, hunt: 0 })
     expect(parseAwaken('broken')).toEqual({ waking: null, fragments: 0, hunt: 0 })

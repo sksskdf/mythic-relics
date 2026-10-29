@@ -11,10 +11,13 @@ const GATE = process.argv.includes('--gate')
 const SETS = process.argv.slice(2).filter((a) => !a.startsWith('--'))
 const CLASSES = SETS.length > 0 ? SETS : ['mjolnir,megingjord,jarngreipr', 'silverBow,cerynitian,houndLeash', 'yataMirror,sunSilk,uzumeBells']
 const ENEMIES = JSON.parse(readFileSync(new globalThis.URL('../src/data/enemies.json', import.meta.url), 'utf8'))
-/** 시험할 적: 지역에 나오는 졸개는 셋씩, 보스는 혼자 (우트가르드의 왕은 승급 전설 보스라 뺀다) */
+/** 시험할 적: 지역에 나오는 졸개는 셋씩, 보스·수호자는 혼자 (우트가르드의 왕은 승급 전설 보스라 뺀다) */
 const TARGETS = Object.entries(ENEMIES)
   .filter(([id, e]) => id !== 'utgardKing' && (e.realm || e.extends))
-  .map(([id, e]) => ({ id, role: e.role, count: e.role === 'boss' ? 1 : 3, limit: e.role === 'boss' ? 240 : 90 }))
+  .map(([id, e]) => {
+    const big = e.role === 'boss' || e.role === 'guardian'
+    return { id, role: e.role, count: big ? 1 : 3, limit: big ? 240 : 90 }
+  })
 const PORT = 4191
 const URL = (relics) => `http://localhost:${PORT}/?relics=${relics}&region=village&autoplay`
 const BROWSER = process.env.CHROMIUM_PATH ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'

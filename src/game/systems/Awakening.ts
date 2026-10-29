@@ -57,7 +57,7 @@ export class AwakeningSystem {
   /** 깨어난 지키는 무리 */
   private pack: { god: God; x: number; z: number; giants: Giant[] } | null = null
   /** 물러난 수호자의 남은 생명 (그 신·비율·물러난 때, E239) */
-  private wound: { god: God; ratio: number; at: number } | null = null
+  private wound: { god: God; ratio: number; at: number; roared: boolean } | null = null
   /** 수호자 자리 (조각 2를 모았고 그 땅에 있을 때) */
   private lair: { god: God; x: number; z: number; beam: THREE.Mesh } | null = null
   /** 나타난 수호자 */
@@ -210,14 +210,17 @@ export class AwakeningSystem {
     if (o.material instanceof THREE.MeshBasicMaterial) o.material.dispose()
   }
 
-  /** 무리의 마지막·수호자의 생명이 다했으면 바로 조각을 준다 (무너지는 0.55초를 기다리지 않는다) */
+  /**
+   * 무리의 마지막·수호자의 생명이 다했으면 바로 조각을 준다 (무너지는 0.55초를 기다리지 않는다).
+   * 쓰러졌는지는 생명으로 본다: 땅을 옮기며(워프) 지운 적도 alive가 꺼지지만 쓰러뜨린 것이 아니다
+   */
   private settleDeaths(): void {
-    if (this.pack && this.pack.giants.every((g) => !g.alive)) {
+    if (this.pack && this.pack.giants.every((g) => g.health.dead)) {
       const god = this.pack.god
       this.pack = null
       this.piece1(god)
     }
-    if (this.guardian && !this.guardian.alive) {
+    if (this.guardian?.health.dead) {
       this.guardian = null
       this.awaken()
     }
@@ -260,7 +263,7 @@ export class AwakeningSystem {
     }
     if (this.guardian) {
       if (!this.guardian.alive) return
-      // 멀리 물러나면 수호자도 물러난다 (다시 다가가면 처음부터)
+      // 멀리 물러나면 수호자도 물러난다 (다시 다가가면 입은 상처는 그대로, E239)
       if (this.lair && Math.hypot(p.x - this.lair.x, p.z - this.lair.z) > GUARDIAN_LEASH) this.dismiss()
     } else if (this.lair && Math.hypot(p.x - this.lair.x, p.z - this.lair.z) <= GUARDIAN_RADIUS) this.summon(this.lair.god)
   }
@@ -294,13 +297,13 @@ export class AwakeningSystem {
     this.pack = null
   }
 
-  /** 수호자가 물러난다 (멀리 달아남·쓰러짐·땅을 옮김): 다시 다가가면 처음부터 */
+  /** 수호자가 물러난다 (멀리 달아남·쓰러짐·땅을 옮김): 다시 다가가면 그동안 조금 아문 만큼으로 돌아온다 */
   private dismiss(): void {
     if (!this.guardian) return
     // 수호자가 불러낸 졸개도 함께 거둔다 (물러났다 다시 올 때마다 졸개가 쌓이지 않게, E239)
     const guardian = this.guardian
     // 깎아 둔 생명은 기억해 둔다 (E239): 다시 나타나면 그동안 조금씩 아문 만큼만
-    if (guardian.alive && this.lair) this.wound = { god: this.lair.god, ratio: guardian.health.ratio, at: this.time }
+    if (!guardian.health.dead && this.lair) this.wound = { god: this.lair.god, ratio: guardian.health.ratio, at: this.time, roared: guardian.roared }
     for (const giant of this.ctx.encounter.alive.filter((g) => g.summoner === guardian)) this.ctx.encounter.remove(giant)
     if (this.guardian.alive) this.ctx.encounter.remove(this.guardian)
     this.guardian = null
@@ -382,6 +385,8 @@ export class AwakeningSystem {
     if (wound) {
       const health = this.guardian.health
       health.hp = health.max * Math.min(1, wound.ratio + (this.time - wound.at) * GUARDIAN_MEND)
+      // 이미 포효했으면 다시 나타나자마자 또 포효하지 않게
+      this.guardian.roared = wound.roared
     }
     this.wound = null
     this.ctx.fx.power.burst(this.guardian.object.position, godDef(god).color, 4)
