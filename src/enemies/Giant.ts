@@ -269,10 +269,9 @@ export class Giant {
 
   /**
    * 주인공의 공격에 맞았다.
-   * impact는 휘청임을 볼 타격 세기다. 빌드·땅 세기 배율을 곱하기 전의 수치를 넘기면, 땅이 세져도 센 타격만 휘청인다 (없으면 피해와 같다)
    * @returns 실제로 깎인 생명력
    */
-  takeHit(damage: number, dirX: number, dirZ: number, knockback: number, impact = damage): number {
+  takeHit(damage: number, dirX: number, dirZ: number, knockback: number): number {
     if (!this.alive) return 0
     // 막기 (E8-02): 앞에서 맞으면 피해가 준다. 맞은 방향(dir)은 주인공 → 적이라, 주인공은 그 반대쪽에 있다
     // 공격하는 동안(예고·빈틈)은 방패가 내려가 그대로 들어간다
@@ -294,7 +293,7 @@ export class Giant {
       return dealt
     }
     if (this.spec.poise !== Infinity) this.knock.set(this.knock.x + dirX * knockback, this.knock.y + dirZ * knockback)
-    if (impact >= this.spec.poise && !frontal) {
+    if (damage >= this.spec.poise && !frontal) {
       this.clearTelegraph()
       this.setState('stagger')
     } else if (this.state === 'idle' || this.state === 'return') {

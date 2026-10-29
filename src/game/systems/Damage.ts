@@ -25,9 +25,6 @@ function isBig(target: CombatTarget): boolean {
   return !!t.elite || !!t.spec?.boss || (!!t.spec && isBossLike(t.spec))
 }
 
-/** 휘청임을 볼 타격 세기(배율을 곱하기 전)를 함께 받는 대상. 거인만 읽고, 나머지는 넘겨도 버린다 */
-type ImpactTarget = CombatTarget & { takeHit(damage: number, dirX: number, dirZ: number, knockback: number, impact?: number): number }
-
 /** 신위 게이지: 스킬로 맞힐 때, 쓰러뜨릴 때 차오르는 양 */
 const DIVINE_PER_SKILL_HIT = 0.01
 const DIVINE_PER_KILL = 0.05
@@ -57,8 +54,7 @@ export class DamageSystem {
     if (!target.alive) return
     const { combat, numbers, build, bus } = this.ctx
     const state = build.state
-    // 휘청임은 배율을 곱하기 전의 세기로 본다 (땅 세기·빌드가 커져도 센 타격만 휘청이게)
-    const dealt = (target as ImpactTarget).takeHit(damage * this.scale(source, state) * this.targetScale(target, state), dirX, dirZ, knockback * state.modifiers.knockbackDealt, damage)
+    const dealt = target.takeHit(damage * this.scale(source, state) * this.targetScale(target, state), dirX, dirZ, knockback * state.modifiers.knockbackDealt)
     if (dealt > 0 && !target.alive) bus.emit('targetKilled', { target })
     if (dealt <= 0) return
     if (style === 'thunder') bus.emit('sound', { cue: 'thunder', x: target.x, z: target.z })

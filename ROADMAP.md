@@ -698,18 +698,18 @@
 
 | ID | 분야 | 작업 | 산출물 | 규모 |
 | --- | --- | --- | --- | --- |
-| E301-01 | EN | 빌드 층 목록 | `src/build/layers.ts`, `computeBuild`를 층 목록으로(결과는 그대로), 상태 탭이 층을 읽음 | M |
-| E301-02 | EN | 판 번호 | `Build` 지문 → 판 번호, `passives()` 캐시 | S |
-| E301-03 | EN | 저장 사슬 | `src/save/migrate/legacy.ts`로 v1~v12 묶기, 옮기기 전 `save.v13.bak` | M |
-| E301-04 | EN | 데이터 검사 나누기 | `schema.ts`를 `src/data/schema/`로 | S |
-| E301-05 | QA | 성능 기준 다시 재기 | `bench.mjs` 렌더 540, 기준을 `baselines.md`에 | S |
+| E301-01 ✅ | EN | 빌드 층 목록 | `src/build/layers.ts`, `computeBuild`를 층 목록으로(결과는 그대로), 상태 탭이 층을 읽음 | M |
+| E301-02 ✅ | EN | 판 번호 | `Build` 지문 → 판 번호, `passives()` 캐시 | S |
+| E301-03 ✅ | EN | 저장 사슬 | `src/save/migrate/legacy.ts`로 v1~v12 묶기, 옮기기 전 `save.v13.bak` | M |
+| E301-04 ✅ | EN | 데이터 검사 나누기 | `schema.ts`를 `src/data/schema/`로 | S |
+| E301-05 ✅ | QA | 성능 기준 다시 재기 | `bench.mjs` 렌더 540, 기준을 `baselines.md`에 | S |
 
 - **작업 단위**
-  - [ ] E301-01-1 층 목록과 동일성 테스트
-  - [ ] E301-02-1 판 번호
-  - [ ] E301-03-1 저장 사슬과 견본 테스트
-  - [ ] E301-04-1 데이터 검사 나누기
-  - [ ] E301-05-1 bench 다시 재기
+  - [x] E301-01-1 층 목록과 동일성 테스트
+  - [x] E301-02-1 판 번호
+  - [x] E301-03-1 저장 사슬과 견본 테스트
+  - [x] E301-04-1 데이터 검사 나누기
+  - [x] E301-05-1 bench 다시 재기
 - **자동 검증**
   - `npm run check`, 동일성 테스트(견본 `Build`가 소수 넷째 자리까지 같음), 저장 견본, 봇 `--ending` 시각 ±5%, bench 갱신 시간이 지금 이하
 - **직접 플레이 체크리스트** (Claude가 사람 눈으로)
