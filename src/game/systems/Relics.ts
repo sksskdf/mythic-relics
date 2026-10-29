@@ -54,9 +54,10 @@ export class RelicSystem {
       if (piece === 2) this.offer(god, 'hand')
       if (piece === 3) this.offer(god, 'heart')
     })
-    // 처음 깨어난 신: 자리가 비었으면 손·심장·숨을 모두 그 신으로 (E12-04 → E302). 있으면 빈 자리에 저절로 넣는다
+    // 처음 깨어난 신: 손·심장·숨을 모두 그 신으로 (E12-04 → E302). 있으면 빈 자리에 저절로 넣는다
     ctx.bus.on('mythOpened', ({ god, quiet }) => {
-      if (!ctx.progress.pantheon.hand && !ctx.progress.pantheon.heart) this.choose(god, true)
+      // 심장이 비었으면 첫 신이다 (손은 조각 2에 이미 쥐었을 수 있다): 세 자리에 몰고 깨어나는 장면
+      if (!ctx.progress.pantheon.heart) this.choose(god, true)
       // 한꺼번에 열린 것(장 보스)은 신화권 카드가 함께 알린다
       // 장 보스·개발 지름길로 한꺼번에 열린 신은 카드 없이 빈 자리에만 (두 갈래는 조각으로 깨울 때만)
       else if (this.fill(god, ['heart', 'breath']).length && !quiet) {
@@ -141,12 +142,18 @@ export class RelicSystem {
   }
 
   /** 불러온 자리 셋을 연출 없이 낀다 (열린 신만) */
-  restore(p: typeof this.ctx.progress.pantheon): void {
+  restore(p: typeof this.ctx.progress.pantheon, anyBreath = false): void {
     const { progress, awaken } = this.ctx
     const open = (g: God | null) => (g && progress.isOpen(g) ? g : null)
     // 손은 조각 2를 모은 깨우는 신도 쥘 수 있다
     const hand = p.hand && awaken.waking === p.hand && awaken.fragments >= 2 ? p.hand : open(p.hand)
-    this.apply({ hand, heart: open(p.heart), breath: p.breath.filter((g) => progress.isOpen(g)) }, false)
+    const next = { hand, heart: open(p.heart), breath: p.breath.filter((g) => progress.isOpen(g)) }
+    // 개발 지름길은 숨 칸 수를 장 진행에 맞추지 않는다
+    if (anyBreath) {
+      progress.pantheon = next
+      this.changed(this.ctx.powers.setPantheon(next), false)
+      this.ctx.bus.emit('progressChanged', {})
+    } else this.apply(next, false)
   }
 
   /** 그 신이 자리에 들었나 */

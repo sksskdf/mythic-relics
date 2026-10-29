@@ -22,6 +22,7 @@
 | --- | --- |
 | `ROADMAP.md` | 로드맵: 지금 할 일만 (2차 스프린트 E11~E18, 끝난 기록은 git). 마일스톤 → 이슈(`E11-01`) → 작업 단위(`E11-01-1`). **0.2 "지금 할 일"과 2장 마일스톤이 현재 작업 기준** |
 | `REDESIGN.md` | 2차 스프린트 기획 개편안의 논의 기록 (선택지·사용자 의견·Revolution Idle 조사). 내용은 E11에서 `DESIGN.md`로 옮겼다 |
+| `CYCLE.md` | **원정 순환 재편안 (2026-10-29, 추천안 확정, 지금 기준)**: 원정·기세·귀환(명성 배율·갈래), 신의 자리 셋(손·심장·숨, 고정 클래스 해체), 템빨용사식 합치기, 맹세·장 정복, 장치 14 → 7, 마일스톤 E301~E306 |
 | `MYTHBUILD.md` | 신화 빌드 개편안 (2026-10-28): 신위 칸(주신 + 빌린 힘), 신을 깨우는 조각 셋(흔적·사냥·수호자), 성장의 박자, 한 줄로 이은 북유럽, 웨이포인트·탈것, E237~E241 마일스톤 안. 사용자 확인 뒤 `DESIGN.md`·`TIMELINE.md`로 옮긴다 |
 | `TIMELINE.md` | 3차 스프린트 플레이 타임라인 설계 (E20): 첫 엔딩까지 90분 데모의 장 흐름, 목표 성장 곡선, 성장 축 셋(신화·장비·세계 단계), 순간의 크기. 확정되면 `DESIGN.md`로 옮긴다 |
 | `DESIGN.md` | 기획 전체 v2.0 (핵심 원칙, 조작, 신화 개방·장비·유물 제작, 원천 각성, 위협 단계·시련·균열·성좌판, 대화 장면). 장마다 "지금 게임" 칸은 1차 스프린트 구현 |
@@ -81,11 +82,11 @@
 | `src/looks/` | 외형: 칸과 외형 목록(`catalog.ts`, 1차 클래스는 `classLooks.ts`), 장착 → 모습·보관함(`outfit.ts`), 일반 장비 외형(`gearLooks.ts`, 모델은 `src/voxel/models/gearLooks.ts`). 모델은 `src/voxel/models/looks.ts`(손으로 찍은 것)·`classLooks.ts`(생성기 `gen.ts`로 만든 것)·`mythWeapons.ts`(손으로 찍은 신화 무기), 적용은 `systems/Appearance.ts` |
 | `src/relics/` | 유물·신 데이터(`data.ts`), 유물 모델·아이콘, 커서 아래 유물 고르기 |
 | `src/gear/` | 장비(E13, E21): 칸 7과 가방(`Loadout`), 일반 장비 굴리기와 장비 단계(`roll`), 신화의 유물·기본 수치·깨어남(`mythRelic`), 재료 둘(`materials`), 대장간 제작법·분해(`forge`), 땅에 떨어진 것(`Pickups`), 엔딩 뒤 유물 드랍(`DropTable`) |
-| `src/myth/` | 신화: 고른 신화·가호 판정(`manifest.ts`), 개방 단계·경험치·단계 상한·큰 걸음·수집 보너스(`ClassProgress`), 단계별로 얻는 것(`levelGains`), 수치·수집 보너스 글(`alwaysText`) |
-| `src/build/` | 빌드 상태(E11-04): 열린 신화·고른 신화·장비·원천 → 피해 배율·지속 효과·공격 리듬(`BuildState.ts`의 `computeBuild`, 게임 안에서는 `ctx.build`) |
+| `src/myth/` | 신화: 신의 자리 셋(`pantheon.ts`, E302: 손·심장·숨, 한 신에 몰기, 숨의 패시브), 가호 판정(`manifest.ts`), 개방 단계·경험치·단계 상한·큰 걸음·수집 보너스(`ClassProgress`), 단계별로 얻는 것(`levelGains`), 수치·수집 보너스 글(`alwaysText`) |
+| `src/build/` | 빌드 상태(E11-04): 열린 신화·자리 셋·장비·원천 → 피해 배율·지속 효과·공격 리듬(`BuildState.ts`의 `computeBuild`, 게임 안에서는 `ctx.build`, 판 번호 `version`). 피해 배율은 층 목록(`layers.ts`, E301) |
 | `src/progress/` | 장 진행(`Chapters`, E22: 들어선 땅·이긴 보스, 지금 장·목표·열린 땅, 지금 장의 땅은 할 일 차례로 열림 E236). 수련(`Training`, E236: 모은 경험치·익힌 마디, 마디와 깨달음 문턱은 `src/data/training.ts`). 연 정보 화면 탭(`Tabs`, E236-05: 여는 때·연 탭·저장). 바깥 성장(E14, 엔딩 뒤): 엔딩 뒤 장치를 여는 한 곳(`Ending`, E21-06), 위협 단계(`Threat`), 편의 자동화(`Conveniences`, 엔딩 뒤: 그 전에는 장비를 밟거나 눌러서 줍는다. 성소 워프만 처음부터 켜 있는 웨이포인트, E239-05), 시련 기록·보상(`Trials`, 규칙은 `src/data/trials.ts`), 균열 기록·성좌판(`Rift`, 수치 `src/data/rift.ts`, 층 생성 `src/world/riftFloor.ts`). 수치는 `src/data/threat.ts`, 원천 각성은 `src/data/awakening.ts`(적용은 `src/skills/SourceAwakening.ts`) |
 | `src/input/` | 입력: 마우스·키(`Input`, 동작 단위), 휴대폰(E235): 터치 기기 알아보기·돌려 달라는 안내 판정(`device`), 손가락 몸짓(`touch.ts`: 톡·끌기·두 손가락), 캔버스 손가락 → 몸짓·조이스틱 그림(`TouchControls`) |
-| `src/save/` | 저장 형식과 검사 |
+| `src/save/` | 저장 형식과 검사, 옛 버전 옮기기(`migrate/legacy.ts`: v1~v12, E301) |
 | `src/render/` | 픽셀 렌더러, 쿼터뷰 카메라, 화면 ↔ 월드 좌표, 실루엣, 렌더 해상도와 세로 화면 시야(`resolution.ts`: 세로 화면은 가로에 시야 높이 × 0.8) |
 | `src/world/` | 지역 맵(`regionMap.ts`: 지역 데이터 → 땅·길·소품·테두리 숲·출구 문, 다시 짓기), 막힌 땅 통로의 결계(`Barriers.ts`, E22), 지형 테마(`themes.ts`: 땅·물·빛·날림·소품 색 바꾸기), 땅 높이·연못·계단식 땅과 계단·절벽 충돌·광선 찾기(`terrain.ts`, E24-07), 길찾기(`navGrid.ts`), 흩뿌리기(`layout.ts`). 그 땅의 소품 모델은 `src/voxel/models/landmarks.ts` |
 | `src/voxel/` | 복셀 격자, 메시 생성, 모델(`models/`) |

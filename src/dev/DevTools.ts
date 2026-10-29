@@ -136,6 +136,16 @@ export class DevTools {
     this.parts.relics.choose(god, true)
   }
 
+  /**
+   * 신의 자리 셋을 그대로 낀다 (E302, 점검·봇). 닫힌 신은 먼저 연다. 예: `pantheon({ hand: 'thor', heart: 'odin', breath: ['loki'] })`
+   * 숨 칸 수는 장 진행을 따르지 않고 준 만큼 낀다 (넷까지)
+   */
+  pantheon(p: { hand?: string | null; heart?: string | null; breath?: readonly string[] }): void {
+    const { progress, relics } = this.parts
+    for (const g of [p.hand, p.heart, ...(p.breath ?? [])]) if (g) progress.open(g)
+    relics.restore({ hand: p.hand ?? null, heart: p.heart ?? null, breath: [...(p.breath ?? [])] }, true)
+  }
+
   /** 유물 하나를 뺀다. (땅에 내려놓지 않고 없앤다) */
   unequip(id: RelicId): void {
     const slot = this.parts.powers.loadout.slots.indexOf(id)

@@ -24,6 +24,8 @@ const RIFT = process.argv.includes('--rift')
 const ENDING = process.argv.includes('--ending')
 /** --god=loki 처럼 붙이면 봇이 그 신 유물만 끼고 승급까지 간다 (E6-08) */
 const GOD = process.argv.find((a) => a.startsWith('--god='))?.slice(6) ?? null
+/** --pantheon=hand:thor;heart:odin;breath:loki+freyr 처럼 붙이면 그 자리 셋으로 시작한다 (E302: 손마다·숨마다 처치 속도). --god과 함께 쓰지 않는다 */
+const PANTHEON = process.argv.find((a) => a.startsWith('--pantheon='))?.slice(11) ?? null
 /** --relics=kusanagi,totsuka,... 처럼 붙이면 그 유물을 끼고(발현한 채) 시작해 제한 시간 동안 처치 속도를 잰다 (클래스 비교) */
 const RELICS = process.argv.find((a) => a.startsWith('--relics='))?.slice(9) ?? null
 /** 기록할 유물: 데이터 파일에 있는 유물 전부 */
@@ -84,6 +86,10 @@ try {
           Object.assign(window.__autoplay, { climb: true })
         })
       if (GOD) await page.evaluate((god) => (window.__autoplay.god = god), GOD)
+      if (PANTHEON) {
+        const spec = Object.fromEntries(PANTHEON.split(';').map((kv) => kv.split(':')))
+        await page.evaluate((s) => window.__game.dev.pantheon({ hand: s.hand || null, heart: s.heart || null, breath: s.breath ? s.breath.split('+') : [] }), spec)
+      }
       if (TRIALS)
         await page.evaluate(() => {
           const g = window.__game

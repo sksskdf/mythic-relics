@@ -306,6 +306,10 @@ try {
   await page.evaluate(() => window.__game.dev.awaken())
   const woke = await page.evaluate(() => ({ ...window.__game.progress.pantheon, focus: window.__game.ctx.build.focus }))
   if (woke.heart !== 'thor' || woke.focus !== 'thor') throw new Error(`신화 고르기 실패: 토르의 수호자를 쓰러뜨렸는데 한 신에 몰리지 않았습니다 ${JSON.stringify(woke)}`)
+  // 손은 조각 2에 이미 쥐었어도 깨어나는 순간(장면·큰 카드)은 수호자 뒤에 온다
+  await page.waitForFunction(() => window.__game.moments.shown.some((m) => m.id === 'mythChosen'), null, { timeout: 90000 }).catch(() => {
+    throw new Error('신화 고르기: 토르가 깨어났는데 깨어나는 순간(mythChosen)이 없습니다.')
+  })
   if (!(await page.evaluate(() => window.__game.progress.isOpen('thor')))) throw new Error('신화 개방: 토르의 수호자를 쓰러뜨렸는데 토르 신화가 열리지 않았습니다.')
   console.log('신의 조각 확인: 조각 1에 토르의 숨, 조각 2에 망치를 손에 쥐고 묠니르가 깨어나지만 토르는 아직 닫힘, 수호자 뒤에 토르로 한 신에 몰기')
   if ((await page.evaluate(() => window.__game.hero.rig.outfit.head)) !== 'thorHelm') throw new Error('외형: 신화를 골랐는데 모습이 그대로입니다.')
