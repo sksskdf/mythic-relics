@@ -2034,3 +2034,10 @@ button.menu-slots__slot {
 .menu-merge__go {
   align-self: flex-start;
 }
+
+/* 비교 카드의 한 줄 결론 (E303-02) */
+.gc__verdict {
+  margin: var(--sp-2) 0 0;
+  font: var(--t-body);
+  color: var(--god);
+}

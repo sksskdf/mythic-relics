@@ -70,7 +70,7 @@ describe('저장 데이터', () => {
     // 옛 순환 기록이 있어도(서리 조각·심장으로 돌려받음) 그 재료를 유물로 세다 멈추지 않는다
     const cycled = parseSave(JSON.stringify({ ...v3, cycle: { essence: { flame: 250 }, ash: 7 } }))!
     expect(cycled.classes.thor).toEqual({ level: 2, xp: 40 })
-    expect(cycled.materials).toMatchObject({ frostShard: 2, giantHeart: 2 })
+    expect(cycled.materials).toMatchObject({ prototype: 2, giantHeart: 2 })
   })
 
   it('읽지 못하는 저장(장비 id가 숫자 등)은 게임을 멈추지 않는다', () => {
@@ -144,7 +144,7 @@ describe('저장 데이터', () => {
     const data = parseSave(JSON.stringify(v5))
     expect(data?.version).toBe(SAVE_VERSION)
     // 결정 400.5 → 서리 조각 4, 재 7 → 거인 왕의 심장 2
-    expect(data?.materials).toEqual({ frostShard: 6, giantHeart: 2 })
+    expect(data?.materials).toEqual({ prototype: 6, giantHeart: 2 })
     expect(data?.threat).toEqual({ level: 1, unlocked: 1, reached: 1, cleared: {}, limitBroken: false })
     expect(data?.conveniences.open).toEqual([])
     // 옛 별자리는 v5 저장에 없으면 0
@@ -165,7 +165,8 @@ describe('저장 v9: 세 축 정리 (E21-07)', () => {
 
   it('신화 고유 재료는 그 신의 신화권 재료로 바꿔 준다 (히든 신화는 북유럽)', () => {
     const data = parseSave(v8({ materials: { thunderShard: 6, boltChip: 3, bladeShard: 2, frostShard: 4, giantHeart: 1 } }))
-    expect(data?.materials).toEqual({ frostShard: 12, olympusMarble: 3, giantHeart: 1 })
+    // v15에서 신화권 재료는 다시 원형으로 하나씩 (12 + 3)
+    expect(data?.materials).toEqual({ prototype: 15, giantHeart: 1 })
   })
 
   it('물려받은 수치·원천 숙련·전투 경험은 버린다', () => {
@@ -282,5 +283,29 @@ describe('저장 사슬 (E301-03)', () => {
     } finally {
       ;(globalThis as { localStorage?: unknown }).localStorage = before
     }
+  })
+})
+
+describe('저장 v15: 원형 (E303-04)', () => {
+  /** 장비 하나 (저장 모양) */
+  const gear = (uid: string, grade: string, tier = 1) => ({ uid, part: 'trinket', base: 'ring', grade, tier, stats: [{ kind: 'damage', value: 0.01 }], source: { id: 'flame', value: 1 } })
+
+  it('신화권 재료는 원형으로 하나씩 바꾸고, 보스 재료는 그대로', () => {
+    const data = parseSave(JSON.stringify({ ...sample, version: 14, materials: { frostShard: 4, olympusMarble: 3, giantHeart: 1 } }))
+    expect(data?.materials).toEqual({ prototype: 7, giantHeart: 1 })
+  })
+
+  it('12칸을 넘친 가방은 낮은 등급 일반 장비부터 녹여 원형으로 (유물은 남긴다)', () => {
+    const items = [...Array.from({ length: 12 }, (_, i) => gear(`g:${i}`, 'rare')), gear('g:low1', 'common'), gear('g:low2', 'good')]
+    const bag = ['lokiMask', ...items.map((g) => g.uid)]
+    const data = parseSave(JSON.stringify({ ...sample, version: 14, ground: [], bag, gear: items, materials: {} }))!
+    expect(data.bag).toHaveLength(12)
+    expect(data.bag).toContain('lokiMask')
+    expect(data.bag).not.toContain('g:low1')
+    expect(data.bag).not.toContain('g:low2')
+    // 하나 더 넘쳐 희귀 하나도 녹는다: 보통 1 + 좋음 3 + 희귀 9
+    expect(data.materials.prototype).toBe(13)
+    expect(data.gear.map((g) => g.uid)).toEqual(expect.arrayContaining(data.bag.filter((id) => id.startsWith('g:'))))
+    expect(data.gear).toHaveLength(11)
   })
 })

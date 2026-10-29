@@ -2,8 +2,11 @@ import { DATA } from '../../data'
 import { REGIONS } from '../../data/regions'
 import { MASTERY_TO_OPEN, XP_TO_PROMOTE } from '../../myth/ClassProgress'
 import { isMythRelic } from '../../gear/mythRelic'
-import { MATERIAL_CAP } from '../../gear/Loadout'
-import { bossMaterial, realmMaterial } from '../../gear/materials'
+import { BAG_SIZE, MATERIAL_CAP } from '../../gear/Loadout'
+import { bossMaterial, MATERIALS, PROTOTYPE, realmMaterial } from '../../gear/materials'
+import { PROTOTYPE_VALUE } from '../../gear/merge'
+import type { GearItem } from '../../gear/roll'
+import { GRADES } from '../../data/gearData'
 import { hiddenUnlocked } from '../../myth/manifest'
 import { relicGods } from '../../relics/model'
 import { type ChapterData, parseChapterData } from '../../progress/Chapters'
@@ -14,7 +17,7 @@ import { type God, godDef, isRelicId, relicDef, type RelicId } from '../../relic
 import type { SaveData } from '../SaveData'
 
 /**
- * 옛 저장 옮기기 (E301-03, `CYCLE.md` 9장): v1~v12를 v13 모양으로 올릴 때만 쓰는 것을 한곳에 모았다.
+ * 옛 저장 옮기기 (E301-03, `CYCLE.md` 9장): 옛 버전을 지금 모양으로 올릴 때만 쓰는 것을 한곳에 모았다.
  * `parseSave`가 버전을 보고 부른다. v14부터는 버전마다 `migrate/v14.ts`처럼 하나씩 둔다
  */
 
@@ -89,6 +92,29 @@ export function refundMythMaterials(materials: Record<string, number>): void {
     const to = realmMaterial(godDef(god).realm) ?? 'frostShard'
     materials[to] = Math.min(MATERIAL_CAP, (materials[to] ?? 0) + n)
   }
+}
+
+/** v14 이하 → v15: 신화권 재료를 원형으로 하나씩 바꿔 준다 (E303-04) */
+export function realmToPrototype(materials: Record<string, number>): void {
+  for (const [id, n] of Object.entries(materials)) {
+    if (MATERIALS[id]?.kind !== 'realm') continue
+    delete materials[id]
+    materials[PROTOTYPE] = Math.min(MATERIAL_CAP, (materials[PROTOTYPE] ?? 0) + n)
+  }
+}
+
+/** v14 이하 → v15: 가방은 12칸이 끝이라 넘친 일반 장비는 낮은 등급부터 녹여 원형으로 (E303-02·04). 남은 가방 */
+export function meltOverflow(bag: readonly string[], gear: ReadonlyMap<string, GearItem>, materials: Record<string, number>): string[] {
+  const over = bag.length - BAG_SIZE
+  if (over <= 0) return [...bag]
+  const melt = new Set(
+    bag
+      .filter((id) => gear.has(id))
+      .sort((a, b) => GRADES.indexOf(gear.get(a)!.grade) - GRADES.indexOf(gear.get(b)!.grade) || gear.get(a)!.tier - gear.get(b)!.tier)
+      .slice(0, over),
+  )
+  for (const id of melt) materials[PROTOTYPE] = Math.min(MATERIAL_CAP, (materials[PROTOTYPE] ?? 0) + PROTOTYPE_VALUE[gear.get(id)!.grade])
+  return bag.filter((id) => !melt.has(id))
 }
 
 /** v9 이하 → v10: 장 진행을 그때까지 한 것에서 짐작한다 (E22) */

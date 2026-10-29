@@ -140,8 +140,8 @@ export interface MenuHost {
   wield(id: RelicId, slot: number): void
   stow(slot: number): void
   drop(slot: number): void
-  /** 일반 장비를 분해해 재료로 (E13-07-3) */
-  salvage(id: string): void
+  /** 일반 장비를 녹여 원형으로 (E303-04) */
+  melt(id: string): void
   /** 가방에서 합칠 수 있는 셋 묶음 (장비 id, E303) */
   mergeable(): string[][]
   /** 셋을 합친다 */

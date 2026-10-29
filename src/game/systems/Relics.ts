@@ -210,7 +210,6 @@ export class RelicSystem {
     return true
   }
 
-  /** 일반 장비를 분해해 그 땅(마을이면 고른 신화의 땅, 없으면 북유럽) 공통 재료로 바꾼다 (E13-07-3) */
   /** 가방의 셋을 합친다 (E303, 어디서나): 한 등급 위 하나가 가방에, 카드로 알린다 */
   merge(uids: readonly string[]): GearItem | null {
     const { powers, bus } = this.ctx
@@ -224,15 +223,15 @@ export class RelicSystem {
     return out
   }
 
-  salvage(id: string): boolean {
-    const { powers, bus, map, build } = this.ctx
-    const realm = map.region.realm ?? (build.chosen ? godDef(build.chosen).realm : 'norse')
+  /** 일반 장비를 녹여 원형으로 (E303-04: 장비 탭의 「녹이기」·자동 녹이기) */
+  melt(id: string): boolean {
+    const { powers, bus } = this.ctx
     const item = powers.loadout.gear.get(id)
-    const done = powers.salvage(id, realm === 'hidden' ? 'norse' : realm)
+    const done = powers.melt(id)
     if (!done || !item) return false
     bus.emit('gearSalvaged', { item })
     if (done.slot >= 0) this.changed(done.change, false)
-    bus.emit('moment', { id: 'salvaged', text: `분해 · ${materialName(done.material)} ×${done.count}` })
+    bus.emit('moment', { id: 'salvaged', text: `녹임 · ${materialName(done.material)} ×${done.count}` })
     bus.emit('progressChanged', {})
     return true
   }
@@ -252,11 +251,11 @@ export class RelicSystem {
       const worn = wornId ? powers.loadout.gear.get(wornId) : undefined
       powers.loadout.addGear(gear)
       bus.emit('gearPicked', { item: gear })
-      // 자동 분해 (E14-05): 흔함 등급이고 그 부위 칸이 이미 차 있으면 바로 재료로
+      // 자동 녹이기 (E14-05): 흔함 등급이고 그 부위 칸이 이미 차 있으면 바로 원형으로
       const filled = powers.loadout.slots.every((s, i) => !powers.loadout.fits(id, i) || s !== null)
       if (this.ctx.conveniences.salvaging && gear.grade === 'common' && filled) {
         powers.loadout.bag.push(id)
-        this.salvage(id)
+        this.melt(id)
         return
       }
       this.equip(id, true)

@@ -45,7 +45,7 @@ const UNKNOWN = ['............', '....aaaa....', '...a....a...', '........a...',
 const GLYPHS: Record<string, readonly string[]> = {
   // 수련 (E236): 뿌리에서 세 갈래로 뻗은 나무
   tree: ['.a...aa...a.', 'aba..aa..aba', '.ab..aa..ba.', '..ab.aa.ba..', '...abaaba...', '....abba....', '.....aa.....', '.....aa.....', '.....aa.....', '....abba....', '...aaaaaa...', '............'],
-  // 분해 (E13-07-3): 망치
+  // 녹이기 (E13-07-3 → E303-04): 망치
   salvage: ['............', '..aaaaaaa...', '..abbbbba...', '..aaaaaaa...', '.....ab.....', '.....ab.....', '.....ab.....', '.....ab.....', '.....ab.....', '.....ab.....', '....aaaa....', '............'],
   // 가방에 넣기
   bag: ['....aaaa....', '...a....a...', '..aaaaaaaa..', '.abbbbbbbba.', '.abbbaabbba.', '.abbbaabbba.', '.abbbbbbbba.', '.abbbbbbbba.', '.abbbbbbbba.', '..aaaaaaaa..', '............', '............'],

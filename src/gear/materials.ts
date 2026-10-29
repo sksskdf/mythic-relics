@@ -5,10 +5,14 @@ import { REALMS } from '../data/classKit'
 import { isRelicId, relicDef, RELIC_IDS } from '../relics/data'
 
 /**
- * 재료 (E13-04 → E21-04, DESIGN.md 4.4·9.3): 둘뿐이다. 신화권 재료 5(그 땅 몬스터)와 보스 재료 5(장 보스).
+ * 재료 (E13-04 → E21-04 → E303-04, `CYCLE.md` 5.5): 둘뿐이다. 원형(신화권을 가리지 않는 재료, 몬스터·녹인 장비)과 보스 재료 5(장 보스).
+ * 신화권 재료 5는 옛 저장을 옮길 때만 쓴다(원형으로 하나씩 바꿔 준다, 저장 v15).
  * 무게 없이 개수만 센다. 재료가 된 유물은 엔딩 뒤에만 떨어지며 같은 주머니에 든다 (히든 신화를 여는 열쇠).
  */
-export type MaterialKind = 'realm' | 'boss'
+export type MaterialKind = 'prototype' | 'realm' | 'boss'
+
+/** 원형의 재료 id */
+export const PROTOTYPE = 'prototype'
 
 export interface MaterialDef {
   id: string
@@ -20,14 +24,14 @@ export interface MaterialDef {
   boss?: string
 }
 
-/** 한 번 잡을 때 재료가 나오는 수 (보스 재료는 그 보스가 늘 하나) */
+/** 한 번 잡을 때 원형이 나오는 수 (보스 재료는 그 보스가 늘 하나). 대장간 값이 셋 배가 되어 셋 배로 (E303) */
 export const MATERIAL_DROPS = {
-  /** 졸개가 그 신화권 재료를 줄 확률 */
-  realm: 0.25,
-  /** 정예가 더 주는 신화권 재료 */
-  elite: 2,
-  /** 보스가 주는 신화권 재료 */
-  boss: 3,
+  /** 졸개가 원형 하나를 줄 확률 */
+  realm: 0.75,
+  /** 정예가 더 주는 원형 */
+  elite: 6,
+  /** 보스가 주는 원형 */
+  boss: 9,
 } as const
 
 export function parseMaterials(raw: unknown, path = 'materials.json'): Record<string, MaterialDef> {
@@ -47,12 +51,13 @@ export function parseMaterials(raw: unknown, path = 'materials.json'): Record<st
       const boss = str(o, 'boss', p)
       if (!bosses.has(boss)) throw new DataError(`${p}.boss`, `enemies.json에 없는 보스입니다 ("${boss}")`)
       def.boss = boss
-    } else throw new DataError(`${p}.kind`, `realm·boss 가운데 하나여야 합니다 ("${String(o.kind)}")`)
+    } else if (kind !== 'prototype') throw new DataError(`${p}.kind`, `prototype·realm·boss 가운데 하나여야 합니다 ("${String(o.kind)}")`)
     out[id] = def
   }
   for (const realm of REALMS.filter((r) => r !== 'hidden')) {
-    if (!Object.values(out).some((m) => m.realm === realm)) throw new DataError(path, `${realm} 신화권 재료가 없습니다`)
+    if (!Object.values(out).some((m) => m.realm === realm)) throw new DataError(path, `${realm} 신화권 재료가 없습니다 (옛 저장 옮기기에 쓴다)`)
   }
+  if (out[PROTOTYPE]?.kind !== 'prototype') throw new DataError(path, '원형(prototype)이 없습니다')
   return out
 }
 
@@ -68,15 +73,14 @@ export const realmMaterial = (realm: string): string | undefined => Object.value
 export const bossMaterial = (boss: string): string | undefined => Object.values(MATERIALS).find((m) => m.kind === 'boss' && m.boss === boss)?.id
 
 /**
- * 몬스터 하나를 잡았을 때 나오는 재료 (E13-04-1 → E21-04).
- * - 그 신화권 재료: 졸개 25%로 하나, 정예 +2, 보스 +3
+ * 몬스터 하나를 잡았을 때 나오는 재료 (E13-04-1 → E21-04 → E303-04).
+ * - 원형: 졸개 75%로 하나, 정예 +6, 보스 +9 (신화권을 가리지 않는다)
  * - 장 보스는 그 보스의 재료 하나
  */
 export function rollMaterials(rng: () => number, kill: { realm?: string; elite: boolean; boss?: string }): { id: string; count: number }[] {
   const out: { id: string; count: number }[] = []
-  const common = kill.realm ? realmMaterial(kill.realm) : undefined
   const count = (rng() < MATERIAL_DROPS.realm ? 1 : 0) + (kill.elite ? MATERIAL_DROPS.elite : 0) + (kill.boss ? MATERIAL_DROPS.boss : 0)
-  if (common && count > 0) out.push({ id: common, count })
+  if (count > 0) out.push({ id: PROTOTYPE, count })
   const boss = kill.boss ? bossMaterial(kill.boss) : undefined
   if (boss) out.push({ id: boss, count: 1 })
   return out

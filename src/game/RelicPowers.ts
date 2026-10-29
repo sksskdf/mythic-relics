@@ -2,7 +2,7 @@ import type * as THREE from 'three'
 
 import { type God, godDef, isRelicId, relicDef, type RelicId } from '../relics/data'
 import { effectScale, RELIC_STAGES, relicAwake } from '../gear/mythRelic'
-import { craft, salvage } from '../gear/forge'
+import { craft, melt } from '../gear/forge'
 import { Loadout } from '../gear/Loadout'
 import type { LoadoutState } from '../myth/manifest'
 import { focusGod, inPantheon, type Pantheon } from '../myth/pantheon'
@@ -151,9 +151,9 @@ export class RelicPowers {
     return { ...made, change: this.refresh() }
   }
 
-  /** 일반 장비를 분해한다 (E13-07-3). 칸에 있던 것이면 바뀐 것도 돌려준다 */
-  salvage(id: string, realm: string): (NonNullable<ReturnType<typeof salvage>> & { change: LoadoutChange }) | null {
-    const done = salvage(this.loadout, id, realm)
+  /** 일반 장비를 녹여 원형으로 (E13-07-3 → E303-04). 칸에 있던 것이면 바뀐 것도 돌려준다 */
+  melt(id: string): (NonNullable<ReturnType<typeof melt>> & { change: LoadoutChange }) | null {
+    const done = melt(this.loadout, id)
     if (!done) return null
     if (done.slot >= 0) {
       this.effects[done.slot]?.dispose()

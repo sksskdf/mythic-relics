@@ -17,7 +17,7 @@ import { type BodyLook, parseBody } from '../looks/body'
 import { isLookId, lookDef, type LookSlot, STARTING_LOOKS, WARDROBE_SLOTS } from '../looks/catalog'
 import type { LookChoice } from '../looks/outfit'
 import { GODS, type God, isRelicId, type RelicId } from '../relics/data'
-import { legacySlots, migrateLooks, oldChapters, oldStars, oldTrainingXp, openOwned, refundCycle, refundMythMaterials } from './migrate/legacy'
+import { legacySlots, migrateLooks, oldChapters, oldStars, oldTrainingXp, meltOverflow, openOwned, realmToPrototype, refundCycle, refundMythMaterials } from './migrate/legacy'
 
 /**
  * 저장 형식 버전. 형식이 바뀌면 올리고, 옛 형식을 옮기는 코드를 둔다.
@@ -42,8 +42,9 @@ import { legacySlots, migrateLooks, oldChapters, oldStars, oldTrainingXp, openOw
  * - v12: 신위 칸 (E237). chosen은 첫째가 주신(고른 신화), 그 뒤가 빌린 신(넷까지). 옛 저장은 주신 하나뿐이라 그대로 읽는다
  * - v13: 신을 깨우는 조각 (E238). 깨우는 신과 모은 조각·사냥한 수. 옛 저장은 깨우는 신 없이 (이미 연 신은 그대로)
  * - v14: 신의 자리 셋 (E302). chosen(주신 + 빌린 신) → pantheon(손·심장·숨). 옛 주신은 손·심장·숨 첫 칸으로(한 신에 몰기), 빌린 신은 숨 칸으로
+ * - v15: 원형 (E303-04). 신화권 재료 → 원형 하나씩, 12칸을 넘친 가방의 일반 장비는 낮은 등급부터 녹여 원형으로
  */
-export const SAVE_VERSION = 14
+export const SAVE_VERSION = 15
 
 export interface SaveData {
   version: typeof SAVE_VERSION
@@ -114,7 +115,7 @@ export function parseSave(text: string | null): SaveData | null {
   }
   if (typeof raw !== 'object' || raw === null) return null
   const data = raw as Record<string, unknown>
-  if (data.version !== SAVE_VERSION && ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13].includes(data.version as number)) return null
+  if (data.version !== SAVE_VERSION && ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14].includes(data.version as number)) return null
   const old = (data.version as number) < 5
 
   // 일반 장비 (v5)
@@ -132,6 +133,7 @@ export function parseSave(text: string | null): SaveData | null {
   }
   if ((data.version as number) < 6) refundCycle(data.cycle, materials)
   if ((data.version as number) < 9) refundMythMaterials(materials)
+  if ((data.version as number) < 15) realmToPrototype(materials)
 
   const seen = new Set<string>()
   /** 칸·가방·땅에 들어갈 수 있는 것: 신화의 유물이나 가진 일반 장비, 한 번씩만 */
@@ -178,7 +180,8 @@ export function parseSave(text: string | null): SaveData | null {
       if (isRelic(id) && isMythRelic(id) && typeof n === 'number' && n >= 2) stages[id] = Math.min(4, Math.round(n))
     }
   }
-  const keep = new Set([...slots, ...bag, ...ground.map((g) => g.id)])
+  const fullBag = meltOverflow([...bag, ...slots.slice(SLOT_PARTS.length).filter((id): id is string => id !== null)], gearById, materials)
+  const keep = new Set([...slots.slice(0, SLOT_PARTS.length), ...fullBag, ...ground.map((g) => g.id)])
   const threat = parseThreat(data.threat)
   const trials = parseTrials(data.trials)
   const rift = parseRift(data.rift, (data.version as number) < 6 ? oldStars(data.cycle) : 0)
@@ -191,7 +194,7 @@ export function parseSave(text: string | null): SaveData | null {
   return {
     version: SAVE_VERSION,
     slots: slots.slice(0, SLOT_PARTS.length),
-    bag: [...bag, ...slots.slice(SLOT_PARTS.length).filter((id): id is string => id !== null)],
+    bag: fullBag,
     gear: [...gearById.values()].filter((g) => keep.has(g.uid)),
     stages,
     materials,

@@ -1,17 +1,18 @@
 import { DATA } from '../data'
-import type { Grade } from '../data/gearData'
 import { type God, godDef, GODS, type RelicId } from '../relics/data'
 import type { Loadout } from './Loadout'
-import { bossMaterial, realmMaterial } from './materials'
+import { bossMaterial, PROTOTYPE } from './materials'
+import { PROTOTYPE_VALUE } from './merge'
 import { mythRelic, RELIC_STAGES } from './mythRelic'
 import { GEAR, landTier } from './roll'
 
 /**
- * 대장간 (E13-05 → E21-04, DESIGN.md 4.4): 제작법은 규칙으로 만든다 (신화마다 손으로 적지 않는다).
- * 유물 단계는 보스가 연다: 단계 s는 (그 신화의 장 + s − 1)번째 장 보스의 재료 하나와 그 장의 신화권 재료.
- * - 1단계(처음 제작): 자기 장 보스 재료 ×1 + 신화권 재료 ×10 (토르: 거인 왕의 심장 + 서리 조각)
- * - 2단계: 다음 장 보스 재료 ×1 + 그 장 재료 ×15 (토르: 키마이라의 불꽃 + 올림포스 대리석)
- * - 3·4단계는 엔딩 뒤 (×20, ×30). 장이 끝나면 첫 장으로 돈다.
+ * 대장간 (E13-05 → E21-04 → E303-04, `CYCLE.md` 5.5): 제작법은 규칙으로 만든다 (신화마다 손으로 적지 않는다).
+ * 유물 단계는 보스가 연다: 단계 s는 (그 신화의 장 + s − 1)번째 장 보스의 재료 하나와 원형.
+ * - 1단계(처음 제작): 자기 장 보스 재료 ×1 + 원형 ×30 (토르: 거인 왕의 심장)
+ * - 2단계: 다음 장 보스 재료 ×1 + 원형 ×60 (토르: 키마이라의 불꽃)
+ * - 3·4단계는 엔딩 뒤 (×120, ×240). 장이 끝나면 첫 장으로 돈다.
+ * 일반 장비는 합치거나, 녹여 원형이 된다 (`melt`: 장비 탭의 「녹이기」·자동 녹이기·귀환)
  */
 export interface Recipe {
   relic: RelicId
@@ -21,8 +22,8 @@ export interface Recipe {
   materials: { id: string; count: number }[]
 }
 
-/** 단계마다 드는 신화권 재료 수 */
-export const RECIPE_REALM_COUNT: readonly number[] = [10, 15, 20, 30]
+/** 단계마다 드는 원형 수 */
+export const RECIPE_REALM_COUNT: readonly number[] = [30, 60, 120, 240]
 
 /** 그 신화권의 장 보스 (enemies.json에서 그 신화권의 보스) */
 function realmBoss(realm: string): string | undefined {
@@ -43,8 +44,7 @@ export function recipeFor(god: God, stage: number): Recipe {
   const boss = realmBoss(realm)
   const bossId = boss ? bossMaterial(boss) : undefined
   if (bossId) materials.push({ id: bossId, count: 1 })
-  const common = realmMaterial(realm)
-  if (common) materials.push({ id: common, count: RECIPE_REALM_COUNT[stage - 1] ?? RECIPE_REALM_COUNT.at(-1)! })
+  materials.push({ id: PROTOTYPE, count: RECIPE_REALM_COUNT[stage - 1] ?? RECIPE_REALM_COUNT.at(-1)! })
   return { relic, stage, materials }
 }
 
@@ -83,21 +83,17 @@ export function craft(loadout: Loadout, god: God, maxStage = RELIC_STAGES): { re
   return { relic: recipe.relic, stage: recipe.stage, slot: loadout.slots.indexOf(recipe.relic) }
 }
 
-/** 분해하면 나오는 그 땅 공통 재료 수 (E13-07-3) */
-export const SALVAGE: Readonly<Record<Grade, number>> = { common: 1, good: 2, rare: 4, hero: 8, legend: 16 }
-
-/** 일반 장비를 분해한다: 칸이나 가방에서 없애고 공통 재료를 준다. 나온 재료와 수 (장비가 아니면 null) */
-export function salvage(loadout: Loadout, id: string, realm: string): { material: string; count: number; slot: number } | null {
+/** 일반 장비를 녹인다 (E303-04): 칸이나 가방에서 없애고 그 등급의 원형 값을 준다 (자동 녹이기, 귀환 E304). 장비가 아니면 null */
+export function melt(loadout: Loadout, id: string): { material: string; count: number; slot: number } | null {
   const item = loadout.gear.get(id)
-  const material = realmMaterial(realm)
-  if (!item || !material || !loadout.has(id)) return null
+  if (!item || !loadout.has(id)) return null
   const slot = loadout.slots.indexOf(id)
   if (slot >= 0) loadout.unequip(slot)
   else loadout.bag.splice(loadout.bag.indexOf(id), 1)
   loadout.gear.delete(id)
-  const count = SALVAGE[item.grade]
-  loadout.addMaterial(material, count)
-  return { material, count, slot }
+  const count = PROTOTYPE_VALUE[item.grade]
+  loadout.addMaterial(PROTOTYPE, count)
+  return { material: PROTOTYPE, count, slot }
 }
 
 /** 지금 바로 벼릴 수 있는가: 재료가 다 찼다 */

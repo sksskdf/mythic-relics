@@ -80,7 +80,7 @@ export class MenuData {
       wield: (id, slot) => relics.wield(id, slot),
       stow: (slot) => relics.stow(slot),
       drop: (slot) => relics.unequip(slot, true),
-      salvage: (id) => relics.salvage(id) && game.menu.refresh(),
+      melt: (id) => relics.melt(id) && game.menu.refresh(),
       mergeable: () => game.powers.loadout.mergeable().map((g) => g.map((i) => i.uid)),
       merge: (uids) => relics.merge(uids) && game.menu.refresh(),
       progress: game.progress,

@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import { allRecipes, craft, forgeReady, missing, nextRecipe, recipeFor, salvage, SALVAGE } from '../src/gear/forge'
+import { allRecipes, craft, forgeReady, missing, nextRecipe, melt, recipeFor } from '../src/gear/forge'
 import { Loadout } from '../src/gear/Loadout'
-import { MATERIALS } from '../src/gear/materials'
+import { MATERIALS, PROTOTYPE } from '../src/gear/materials'
+import { PROTOTYPE_VALUE } from '../src/gear/merge'
 import { DEMO_RELIC_STAGES, effectScale, RELIC_STAT_COUNT, relicStats, relicTier, STAGE_DAMAGE } from '../src/gear/mythRelic'
 import { GEAR, rollGear } from '../src/gear/roll'
 import { GODS } from '../src/relics/data'
@@ -14,18 +15,18 @@ function fill(loadout: Loadout, god: string): void {
 }
 
 describe('대장간 제작법 (E13-05 → E21-04)', () => {
-  it('21신화 × 4단계 모두 제작법이 있고, 재료는 신화권 재료와 보스 재료 둘뿐이다', () => {
+  it('21신화 × 4단계 모두 제작법이 있고, 재료는 보스 재료와 원형 둘뿐이다', () => {
     const recipes = allRecipes()
     expect(recipes.length).toBe(Object.keys(GODS).length * 4)
     for (const r of recipes) {
       const kinds = r.materials.map((m) => MATERIALS[m.id]?.kind)
-      expect(kinds.sort(), `${r.relic} ${r.stage}단계`).toEqual(['boss', 'realm'])
+      expect(kinds.sort(), `${r.relic} ${r.stage}단계`).toEqual(['boss', 'prototype'])
     }
   })
 
   it('유물 단계는 장 보스가 연다: 토르는 1단계 거인 왕, 2단계 키마이라, 제우스는 1단계 키마이라', () => {
-    expect(recipeFor('thor', 1).materials).toEqual([{ id: 'giantHeart', count: 1 }, { id: 'frostShard', count: 10 }])
-    expect(recipeFor('thor', 2).materials).toEqual([{ id: 'chimeraFlame', count: 1 }, { id: 'olympusMarble', count: 15 }])
+    expect(recipeFor('thor', 1).materials).toEqual([{ id: 'giantHeart', count: 1 }, { id: PROTOTYPE, count: 30 }])
+    expect(recipeFor('thor', 2).materials).toEqual([{ id: 'chimeraFlame', count: 1 }, { id: PROTOTYPE, count: 60 }])
     expect(recipeFor('zeus', 1).materials.map((m) => m.id)).toContain('chimeraFlame')
   })
 
@@ -66,16 +67,16 @@ describe('대장간 제작법 (E13-05 → E21-04)', () => {
     expect(nextRecipe(loadout, 'thor')).toBeNull()
   })
 
-  it('분해: 등급만큼 그 땅의 공통 재료가 나오고 장비는 사라진다 (낀 것도)', () => {
+  it('녹이기: 등급의 원형 값(셋 배씩)이 나오고 장비는 사라진다 (낀 것도), 유물은 녹지 않는다', () => {
     const loadout = new Loadout()
     const ring = rollGear(createRng(4), { part: 'trinket', grade: 'rare' })
     loadout.addGear(ring)
     loadout.equip(ring.uid)
-    expect(salvage(loadout, ring.uid, 'greek')).toEqual({ material: 'olympusMarble', count: SALVAGE.rare, slot: 5 })
+    expect(melt(loadout, ring.uid)).toEqual({ material: PROTOTYPE, count: PROTOTYPE_VALUE.rare, slot: 5 })
     expect(loadout.slots[5]).toBeNull()
     expect(loadout.gear.has(ring.uid)).toBe(false)
-    expect(loadout.materials.get('olympusMarble')).toBe(4)
-    expect(salvage(loadout, 'mjolnir', 'greek')).toBeNull()
+    expect(loadout.materials.get(PROTOTYPE)).toBe(9)
+    expect(melt(loadout, 'mjolnir')).toBeNull()
   })
 })
 

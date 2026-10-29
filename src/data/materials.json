@@ -1,4 +1,5 @@
 {
+  "prototype": { "name": "원형", "kind": "prototype" },
   "frostShard": { "name": "서리 조각", "kind": "realm", "realm": "norse" },
   "olympusMarble": { "name": "올림포스 대리석", "kind": "realm", "realm": "greek" },
   "jadeChip": { "name": "옥 조각", "kind": "realm", "realm": "china" },

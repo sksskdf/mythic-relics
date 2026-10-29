@@ -2,7 +2,7 @@ import { GRADE_COLORS } from '../../art/palette'
 import { SLOT_PARTS } from '../../data/gearData'
 import type { SourceId } from '../../data/schema'
 import { materialName } from '../../gear/materials'
-import { nextGrade } from '../../gear/merge'
+import { nextGrade, PROTOTYPE_VALUE } from '../../gear/merge'
 import { GEAR, gearName } from '../../gear/roll'
 import { godDef, relicDef, type RelicId } from '../../relics/data'
 import { classIcon } from '../classIcons'
@@ -157,11 +157,11 @@ export class RelicsTab {
       if (group) detail.append(this.mergeBox(group))
       const b = el('button', 'menu-relics__salvage')
       b.type = 'button'
-      b.append(img(glyph('salvage')), '분해')
-      this.ctx.hintOn(b, '분해하면 그 땅의 신화권 재료가 나온다 (보통 1 · 좋음 2 · 희귀 4 · 영웅 8)')
+      b.append(img(glyph('salvage')), '녹이기')
+      this.ctx.hintOn(b, `녹이면 원형 ${PROTOTYPE_VALUE[gear.grade]}개가 된다 (등급이 하나 오를 때마다 셋 배)`)
       b.addEventListener('click', () => {
         this.hovered = null
-        host.salvage(id)
+        host.melt(id)
       })
       detail.append(b)
       return
