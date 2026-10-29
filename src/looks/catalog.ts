@@ -43,7 +43,8 @@ export interface LookDef {
 }
 
 const list: LookDef[] = [
-  // 기본 모험가: 어느 신도 떠올리지 않는 수수한 모습
+  // 기본 모험가: 어느 신도 떠올리지 않는 수수한 모습. 머리는 쓰개 없이 머리카락이 보인다 (E24-06, 두건은 보관함에서 고를 수 있다)
+  { id: 'adventurerHair', slot: 'head', name: '모험가의 머리' },
   { id: 'adventurerHood', slot: 'head', name: '모험가의 두건' },
   { id: 'adventurerTunic', slot: 'torso', name: '모험가의 웃옷' },
   { id: 'adventurerSleeves', slot: 'arms', name: '모험가의 장갑' },
@@ -84,7 +85,7 @@ export const LOOK_IDS: readonly string[] = list.map((look) => look.id)
 
 /** 처음 모습. 비어 있는 칸(null)은 아무것도 걸치지 않는다. */
 export const BASE_OUTFIT: Readonly<Record<LookSlot, string | null>> = {
-  head: 'adventurerHood',
+  head: 'adventurerHair',
   face: null,
   torso: 'adventurerTunic',
   waist: null,
@@ -95,8 +96,8 @@ export const BASE_OUTFIT: Readonly<Record<LookSlot, string | null>> = {
   mark: null,
 }
 
-/** 처음부터 가진 외형 (기본 모험가) */
-export const STARTING_LOOKS: readonly string[] = Object.values(BASE_OUTFIT).filter((id): id is string => id !== null)
+/** 처음부터 가진 외형 (기본 모험가, 예전 처음 모습이던 두건도) */
+export const STARTING_LOOKS: readonly string[] = [...Object.values(BASE_OUTFIT).filter((id): id is string => id !== null), 'adventurerHood']
 
 export function lookDef(id: string): LookDef {
   const def = LOOKS[id]

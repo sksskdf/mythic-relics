@@ -47,7 +47,8 @@ function pivotFor(slot: LookSlot, grid: VoxelGrid): MeshOptions['pivot'] {
     case 'face':
       return [grid.sizeX / 2, 0, 0]
     case 'torso':
-      return [5, 0, 3.5]
+      // 가운데 원점: 기본 몸(10칸)은 [5, 0, 3.5], 어깨판이 달린 몸(12칸)도 가운데에 (E24-06)
+      return [grid.sizeX / 2, 0, grid.sizeZ / 2]
     case 'waist':
       return [grid.sizeX / 2, 0, grid.sizeZ / 2]
     case 'arms':

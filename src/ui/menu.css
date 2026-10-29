@@ -1864,10 +1864,11 @@ button.menu-slots__slot {
   filter: brightness(1.3);
 }
 
-/* 장비 칸·가방의 일반 장비 (E13): 등급 색 바탕에 부위 글자 */
+/* 장비 칸·가방의 일반 장비 (E13): 등급 색 바탕에 장비 그림. 그림은 16×16이라 꼭 3배로 (E24-06) */
 .menu-relics__slot.is-gear,
 .menu-relics__item.is-gear {
   background-color: color-mix(in srgb, var(--god) 35%, var(--c-bg-1));
+  background-size: 48px;
   box-shadow: inset 0 0 0 2px var(--god);
 }
 .menu-relics__materials {
@@ -1883,6 +1884,11 @@ button.menu-slots__slot {
 .gc__swatch {
   background-color: color-mix(in srgb, var(--god) 45%, var(--c-bg-1));
   box-shadow: inset 0 0 0 2px var(--god);
+}
+/* 장비 그림은 16×16이라 꼭 2배로 (E24-06) */
+.gc__swatch img {
+  width: 32px;
+  height: 32px;
 }
 .gc__stats {
   display: flex;

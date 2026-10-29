@@ -21,7 +21,7 @@ const sample: SaveData = {
   dropMisses: 3,
   divine: 0.5,
   looks: {
-    unlocked: ['adventurerHood', 'adventurerTunic', 'adventurerSleeves', 'adventurerBoots', 'shortSword', 'mjolnirHammer', 'thorCape'],
+    unlocked: ['adventurerHair', 'adventurerTunic', 'adventurerSleeves', 'adventurerBoots', 'shortSword', 'adventurerHood', 'mjolnirHammer', 'thorCape'],
     choices: { weapon: 'shortSword', cape: null },
   },
   body: { skin: 2, hair: 1, cloth: 3 },

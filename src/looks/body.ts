@@ -14,6 +14,7 @@ export const DEFAULT_BODY: BodyLook = { skin: 0, hair: 0, cloth: 0 }
 const SKIN = 0xe2b38c
 const SKIN_SHADE = 0xc28d6a
 const HAIR = 0x4a3222
+const HAIR_SHADE = 0x35231a
 const OLIVE = 0x6b7a4a
 const OLIVE_DARK = 0x4f5c34
 
@@ -25,7 +26,14 @@ export const BODY_OPTIONS = {
     [0xc08a62, 0x9a6a48],
     [0x8a5a3c, 0x6a412a],
   ],
-  hair: [[HAIR], [0x1d1a1c], [0xd9b45a], [0xa8462a], [0xd8dde6]],
+  // 머리카락은 바탕과 그늘 두 색 (E24-06: 쓰개를 벗어 머리카락이 보인다)
+  hair: [
+    [HAIR, HAIR_SHADE],
+    [0x1d1a1c, 0x0f0d0f],
+    [0xd9b45a, 0xa8833a],
+    [0xa8462a, 0x7a2f1c],
+    [0xd8dde6, 0xa3a9b4],
+  ],
   cloth: [
     [OLIVE, OLIVE_DARK],
     [0x3f5f8f, 0x2c4468],

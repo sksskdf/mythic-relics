@@ -231,7 +231,7 @@ try {
     g.dev.teleport(2, -3)
     g.hero.face(0.6)
   })
-  if ((await page.evaluate(() => window.__game.hero.rig.outfit.head)) !== 'adventurerHood') throw new Error('외형: 기본 모습이 모험가가 아닙니다.')
+  if ((await page.evaluate(() => window.__game.hero.rig.outfit.head)) !== 'adventurerHair') throw new Error('외형: 기본 모습이 모험가가 아닙니다.')
   await lookShot('1-base')
 
   // 땅 유물 설명 카드: 떠 있는 모델 위, 빛기둥 중간, 발밑 어디에 커서를 올려도 뜨고, 멀리 떨어지면 사라진다.

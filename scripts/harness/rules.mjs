@@ -61,8 +61,8 @@ export const RULES = [
   },
   {
     id: 'looks',
-    files: /^src\/(looks|voxel\/models)\/|^src\/game\/systems\/Appearance\.ts$/,
-    run: [`${B}node scripts/class-sheet.mjs (찍은 그림을 직접 본다)`],
+    files: /^src\/(looks|voxel\/models)\/|^src\/game\/systems\/Appearance\.ts$|^src\/art\/gearIcons\.ts$/,
+    run: [`${B}node scripts/class-sheet.mjs (찍은 그림을 직접 본다)`, `${B}node scripts/gear-sheet.mjs (일반 장비 그림과 입은 모습, 기본 모습의 머리카락 색)`],
     docs: ['ART.md'],
   },
   {
