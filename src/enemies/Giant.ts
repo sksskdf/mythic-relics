@@ -523,7 +523,7 @@ export class Giant {
           world.hitHero(attack.damage * this.damageScale, this.x, this.z, attack.knockback)
         }
         const reach = area.range * 0.7
-        world.impact(this.x + Math.sin(facing) * reach, this.z + Math.cos(facing) * reach, this.spec.role === 'boss' ? 0.35 : 0.12, ice)
+        world.impact(this.x + Math.sin(facing) * reach, this.z + Math.cos(facing) * reach, this.spec.role === 'boss' || this.spec.role === 'guardian' ? 0.35 : 0.12, ice)
         break
       }
       case 'circle':
@@ -629,7 +629,7 @@ export class Giant {
 
   /** 둘러싸기: 가까워지면 주인공의 정면이 아니라 자기 몫의 옆쪽으로 붙는다 (보스·원거리는 곧장) */
   private approachPoint(hero: { x: number; z: number; radius: number }, dist: number): Point2 {
-    if (this.spec.role === 'boss' || this.spec.keepAway || dist > 6) return hero
+    if (this.spec.role === 'boss' || this.spec.role === 'guardian' || this.spec.keepAway || dist > 6) return hero
     const toMe = Math.atan2(this.x - hero.x, this.z - hero.z)
     const want = toMe + this.flank * 0.6
     const r = this.radius + hero.radius + 0.3

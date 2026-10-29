@@ -117,13 +117,15 @@ describe('복셀 규격과 실루엣 (E9-03)', () => {
     }
   })
 
-  it('크기로 위계가 보인다: 졸개는 주인공의 0.6~1.8배, 보스는 주인공보다 높고 그 땅 졸개보다 크다', () => {
+  it('크기로 위계가 보인다: 졸개는 주인공의 0.6~1.8배, 보스·수호자는 주인공보다 높고 그 땅 졸개보다 크다', () => {
+    const big = (e: (typeof ENEMIES)[string]) => e.role === 'boss' || e.role === 'guardian'
     for (const e of Object.values(ENEMIES)) {
       const b = box(buildEnemyRig(e, 1).root)
       const tallest = Math.max(b.y, b.z * 0.6)
-      if (e.role === 'boss') {
-        expect(b.y, e.id).toBeGreaterThan(hero.y * 1.3)
-        for (const m of Object.values(ENEMIES).filter((x) => x.realm === e.realm && x.role !== 'boss')) {
+      if (big(e)) {
+        // 뱀은 길고 낮다: 높이 대신 몸 길이로 본다
+        expect(e.body.kind === 'serpent' ? Math.max(b.y, b.z * 0.6) : b.y, e.id).toBeGreaterThan(hero.y * 1.3)
+        for (const m of Object.values(ENEMIES).filter((x) => x.realm === e.realm && !big(x))) {
           const mb = box(buildEnemyRig(m, 1).root)
           expect(b.x * b.y * b.z, `${e.id} > ${m.id}`).toBeGreaterThan(mb.x * mb.y * mb.z)
         }

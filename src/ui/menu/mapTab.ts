@@ -22,7 +22,7 @@ const overlaps = (a: Box, b: Box) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 &
 /**
  * 지도 탭 (E15-04): 마을이 가운데, 신화권마다 입구 들판 → 깊은 땅 → 보스의 땅이 한 줄로 뻗는다.
  * 하나로 이어진 세계(E19-05)라 땅은 세계 칸 자리 그대로(화면 방향으로 돌려) 그리고, 내 자리를 점으로 찍는다.
- * 지금 있는 곳은 테두리, 찾은 성소는 채운 점. 워프가 열렸으면 찾은 성소를 눌러 바로 간다.
+ * 지금 있는 곳은 테두리, 켠 성소는 채운 점. 켠 성소와 마을은 눌러 바로 간다 (웨이포인트, E239-05).
  * 다음 목표의 땅은 금빛 고리가 뛰고, 결계로 막힌 땅은 흐리게 (E22-04).
  */
 export function renderMap(ctx: TabContext, body: HTMLElement): void {
@@ -148,7 +148,7 @@ export function renderMap(ctx: TabContext, body: HTMLElement): void {
     label.addEventListener('click', () => world.warp(n.id) && ctx.close())
     ctx.hintOn(label, () => {
       const zone = n.zone === 'entrance' ? '입구 들판' : n.zone === 'deep' ? '깊은 땅 (정예가 많다)' : n.zone === 'boss' ? '보스의 땅' : '마을'
-      const how = n.here ? '지금 여기' : warp ? (n.found ? '누르면 워프' : '성소를 찾으면 워프할 수 있다') : n.found ? '성소를 찾았다' : '아직 성소를 찾지 못했다'
+      const how = n.here ? '지금 여기' : warp ? (n.found ? '누르면 바로 간다' : '성소를 밟으면 켜진다') : n.found ? '성소를 켰다' : '아직 성소를 켜지 않았다'
       const won = n.zone === 'boss' && n.cleared > 0 ? ` · ${n.cleared}단계 이김` : ''
       const seal = n.locked ? '\n결계로 막혀 있다' : ''
       const next = goal?.region === n.id ? `\n다음 목표: ${goal.text}` : ''
@@ -171,8 +171,7 @@ export function renderMap(ctx: TabContext, body: HTMLElement): void {
   const board = el('div', 'menu-map__board')
   board.append(svg, labels)
   wrap.append(board)
-  // 성소 워프는 엔딩 뒤 장치라 그 전에는 말하지 않는다 (E21-06)
-  if (warp) wrap.append(el('div', 'menu-src__text', '찾은 성소를 누르면 워프한다'))
-  else if (ctx.host.afterEnding()) wrap.append(el('div', 'menu-src__text', '성소 워프는 위협 2단계에 열린다 (정보 화면 › 원천 › 편의)'))
+  // 웨이포인트 (E239-05): 처음부터 켠 성소와 마을로 바로 간다
+  if (warp) wrap.append(el('div', 'menu-src__text', '켠 성소나 마을을 누르면 바로 간다'))
   body.append(wrap)
 }

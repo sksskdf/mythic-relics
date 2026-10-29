@@ -1,9 +1,10 @@
 /**
  * 편의 자동화 (E14-05, DESIGN.md 9.4).
  * 같은 일을 여러 번 하면 손이 덜 가게 하나씩 열린다. 싸움 자체는 자동으로 만들지 않는다.
- * 자동 줍기 → 낮은 등급 장비 자동 분해 → 재료 자동 모음 → 고른 신화 빠르게 바꾸기 → 성소 워프
+ * 자동 줍기 → 낮은 등급 장비 자동 분해 → 재료 자동 모음 → 고른 신화 빠르게 바꾸기
  * E21-06: 엔딩 뒤에만 열린다 (그 전에도 세기는 쌓인다). 자동 줍기도 처음부터 켜 두었다가 되돌렸다:
  * 떨어진 장비는 밟거나 눌러서 줍는다 (사용자 의견 2026-10-28 「그냥 장비칸으로 들어오는 것도 별로」).
+ * 성소 워프는 E239-05부터 처음부터 켜 있다 (웨이포인트: 밟아 켠 성소와 마을로 지도에서 바로 간다, MYTHBUILD.md 4장).
  */
 export type ConvenienceId = 'autoPickup' | 'autoSalvage' | 'autoMaterials' | 'quickChoose' | 'warp'
 export type CounterId = 'pickups' | 'salvaged' | 'forged' | 'opened' | 'threat'
@@ -13,7 +14,6 @@ export const CONVENIENCES: readonly { id: ConvenienceId; name: string; text: str
   { id: 'autoSalvage', name: '자동 분해', text: '흔함 등급 장비는 줍자마자 재료로 분해한다 (장비 탭에서 끄고 켠다)', counter: 'salvaged', need: 10 },
   { id: 'autoMaterials', name: '재료 자동 모음', text: '떨어진 재료 유물이 바로 주머니에 들어온다', counter: 'forged', need: 1 },
   { id: 'quickChoose', name: '신화 빠르게 바꾸기', text: '마을·성소가 아니어도 고른 신화를 바꿀 수 있다', counter: 'opened', need: 4 },
-  { id: 'warp', name: '성소 워프', text: '지도에서 마을이나 찾은 성소를 눌러 바로 간다', counter: 'threat', need: 2 },
 ]
 
 /** 자동 줍기 거리 (m) */
@@ -24,12 +24,12 @@ export interface ConvenienceData {
   open: ConvenienceId[]
   /** 자동 분해 켬 (열린 뒤 기본 켬) */
   autoSalvage: boolean
-  /** 성소를 찾은 지역 (워프 목적지, E15-04) */
+  /** 성소를 밟아 켠 지역 (워프 목적지, E15-04·E239-05) */
   visited: string[]
 }
 
-/** 처음부터 켜 있는 편의 (E21-06에는 자동 줍기, 지금은 없음) */
-export const ALWAYS_ON: readonly ConvenienceId[] = []
+/** 처음부터 켜 있는 편의: 성소 워프 (E239-05 웨이포인트. E21-06에는 자동 줍기였다가 되돌렸다) */
+export const ALWAYS_ON: readonly ConvenienceId[] = ['warp']
 
 export class Conveniences {
   readonly counters: Partial<Record<CounterId, number>> = {}

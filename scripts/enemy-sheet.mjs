@@ -43,11 +43,13 @@ try {
   }
   const enemyData = JSON.parse(readFileSync('src/data/enemies.json', 'utf8'))
   const REALM_ORDER = ['norse', 'greek', 'china', 'japan', 'korea']
-  const ROLE = { brute: '근접', charger: '돌격', ranged: '원거리', guard: '방어', summoner: '소환', boss: '보스' }
+  const ROLE = { brute: '근접', charger: '돌격', ranged: '원거리', guard: '방어', summoner: '소환', boss: '보스', guardian: '수호자' }
+  // 보스·수호자는 크게 찍는다
+  const big = (e) => e.role === 'boss' || e.role === 'guardian'
   const BODY = { giant: '거인', beast: '짐승', humanoid: '사람', flyer: '날개', spirit: '혼령', serpent: '뱀' }
   const enemies = Object.entries(enemyData)
     .filter(([id, e]) => !e.extends && (!only || only.split(',').includes(id)))
-    .sort((a, b) => REALM_ORDER.indexOf(a[1].realm) - REALM_ORDER.indexOf(b[1].realm) || (a[1].role === 'boss') - (b[1].role === 'boss'))
+    .sort((a, b) => REALM_ORDER.indexOf(a[1].realm) - REALM_ORDER.indexOf(b[1].realm) || big(a[1]) - big(b[1]))
   const shots = []
   for (const [id, e] of enemies) {
     const row = { name: `${e.name}<br><small style="color:#8d98a6">${ROLE[e.role]} · ${BODY[e.body.kind]}</small>`, images: [] }
@@ -57,20 +59,22 @@ try {
           const g = window.__game
           // 정보 화면을 열어 게임을 멈춘 채로 세운다 (적이 다가오거나 주인공이 치지 않게, 그림만 그린다)
           if (!g.menu.open) {
-            g.dev.teleport(30, 30)
+            // 미드가르드 시작점: 둘레 4m에 소품이 없는 빈 들판 (E239: 마을 밖은 숲 띠라 거기서는 찍지 않는다)
+            g.enterRegion(g.regions.midgard)
+            g.dev.teleport(0, 0)
             g.hero.object.visible = false
             g.menu.toggle(true)
           }
           g.encounter.clearAll()
-          const giant = g.encounter.spawnById(id, { x: 30, z: 30 }, false)
+          const giant = g.encounter.spawnById(id, { x: 0, z: 0 }, false)
           if (elite) giant.makeElite(elite)
           giant.object.rotation.y = Math.PI * 0.6
         },
         { id, elite },
       )
       await wait(4)
-      const crop = e.role === 'boss' ? BOSS_CROP : CROP
-      const p = await page.evaluate((y) => window.__game.screenPoint(30, y, 30), e.role === 'boss' ? 2.4 : 1.2)
+      const crop = big(e) ? BOSS_CROP : CROP
+      const p = await page.evaluate((y) => window.__game.screenPoint(0, y, 0), big(e) ? 2.4 : 1.2)
       const buf = await page.screenshot({ clip: { x: Math.max(0, p.x - crop / 2), y: Math.max(0, p.y - crop * 0.6), width: crop, height: crop } })
       row.images.push(buf.toString('base64'))
     }

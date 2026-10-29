@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 
-import { AWAKEN, AWAKEN_GODS, awakenDef, canWakeMore, GUARDIAN_LEASH, GUARDIAN_RADIUS, GUARDIAN_XP, TRACE_LEASH, TRACE_RADIUS, type TraceState } from '../../data/awaken'
+import { AWAKEN, AWAKEN_GODS, awakenDef, canWakeMore, GUARDIAN_LEASH, GUARDIAN_RADIUS, TRACE_LEASH, TRACE_RADIUS, type TraceState } from '../../data/awaken'
 import { REGIONS } from '../../data/regions'
 import { sceneId } from '../../data/scenes'
 import type { GiantSpec } from '../../data/schema'
@@ -31,38 +31,15 @@ export interface AwakenTarget {
 /** 흔적·수호자 빛기둥의 높이 (m) */
 const BEAM_HEIGHT = 9
 
-/** 그 신의 수호자 몸: 빌린 적의 몸을 키우고 생명·피해·색을 바꾼다 (E239에서 제 모습을 얻을 때까지) */
+/**
+ * 그 신의 수호자 (E239-03): 제 모습과 싸우는 방식은 enemies.json(역할 guardian)에 있다.
+ * 수호자는 그 신의 신화권 적이고(재료·경험치), 물러나는 거리는 수호자 규칙(GUARDIAN_LEASH)을 따른다
+ */
 export function guardianSpec(god: God): GiantSpec | null {
   const def = awakenDef(god)
-  const base = def ? ENEMIES[def.guardian.base] : undefined
-  if (!def || !base) return null
-  const g = def.guardian
-  // 범위는 몸보다 덜 키운다 (크기 2배에 범위 1.4배쯤): 커진 몸에 걸맞게 넓되 피할 틈은 남게
-  const reach = Math.sqrt(g.size)
-  const attacks = base.attacks.map((a) => {
-    const area: Record<string, unknown> = { ...a.area }
-    for (const key of ['range', 'length', 'width', 'radius', 'maxRadius', 'startRadius']) {
-      if (typeof area[key] === 'number') area[key] = area[key] * reach
-    }
-    return { ...a, area: area as unknown as typeof a.area, damage: a.damage * g.damage, reach: a.reach * reach }
-  })
-  return {
-    ...base,
-    id: `guardian:${god}`,
-    name: g.name,
-    // 몸은 빌려도 그 신화권의 적이다 (재료·경험치가 그 땅 것으로)
-    realm: godDef(god).realm,
-    xp: base.xp * GUARDIAN_XP,
-    tint: new THREE.Color(g.tint).getHex(),
-    voxelSize: base.voxelSize * g.size,
-    radius: base.radius * g.size,
-    hp: g.hp,
-    aggroRange: Math.max(base.aggroRange, 14),
-    leashRange: GUARDIAN_LEASH,
-    // 수호자는 맞아도 하던 공격이 끊기지 않는다 (보스처럼)
-    poise: Infinity,
-    attacks,
-  }
+  const enemy = def ? ENEMIES[def.guardian.enemy] : undefined
+  if (!def || !enemy) return null
+  return { ...enemy, realm: godDef(god).realm, leashRange: GUARDIAN_LEASH }
 }
 
 /**

@@ -2,7 +2,7 @@ import { alwaysStage } from '../build/BuildState'
 import { AWAKEN, AWAKEN_GODS } from '../data/awaken'
 import { awakeningLevel } from '../data/awakening'
 import { blessingDef, STARS } from '../data/rift'
-import { REALM_COLORS, worldLayout } from '../data/regions'
+import { REALM_COLORS } from '../data/regions'
 import { CELL, cellOrigin } from '../data/world'
 import { SOURCE_IDS, type SourceId } from '../data/schema'
 import { LIMIT_REALMS, REALM_NAMES } from '../data/threat'
@@ -188,15 +188,14 @@ export class MenuData {
       },
       world: {
         nodes: () => {
-          const layout = worldLayout(game.regions)
           // 세계 칸 자리 그대로 (E19-05): 칸 한 변이 1, 북쪽(다음 줄)이 위
           return Object.values(game.regions).map((r) => ({
             id: r.id,
             name: r.name,
             color: `#${(r.realm ? REALM_COLORS[r.realm] : REALM_COLORS.hub).toString(16).padStart(6, '0')}`,
             zone: r.zone,
-            x: r.cell ? cellOrigin(r.cell).x / CELL : (layout[r.id]?.x ?? 0),
-            y: r.cell ? cellOrigin(r.cell).z / CELL : (layout[r.id]?.y ?? 0),
+            x: r.cell ? cellOrigin(r.cell).x / CELL : 0,
+            y: r.cell ? cellOrigin(r.cell).z / CELL : 0,
             size: (r.halfExtent * 2) / CELL,
             links: r.exits.map((e) => e.to),
             here: r.id === ctx.map.region.id,

@@ -1,9 +1,9 @@
 // 이어진 세계 만들기 (E15-01~03): 입구 들판 다섯을 다듬고(보스를 빼고 깊은 땅으로 가는 문을 냄), 신화권마다 깊은 땅·보스의 땅을 만든다.
 // 같은 시드면 같은 땅이 나온다. 이미 있는 깊은 땅·보스의 땅은 덮어쓴다 (지도 편집기로 고친 것도 사라지니, 처음 한 번 또는 규칙을 바꿀 때만 돌린다).
-// 사용법: node scripts/gen-regions.mjs
+// 북유럽 땅은 gen-north.mjs가 짓는다 (E239). 땅 id를 주면 그 땅만 다시 짓는다 (예: izumo hiikawa).
+// 사용법: node scripts/gen-regions.mjs [땅 id ...] && node scripts/place-world.mjs
 // 만든 뒤 vite로 src/data/regions.ts를 불러 검사하고, 편집기와 같은 모양(formatRegions)으로 다시 쓴다.
 import { readFileSync, writeFileSync } from 'node:fs'
-import { createServer } from 'vite'
 
 const FILE = 'src/data/regions.json'
 const HALF = 40
@@ -11,7 +11,7 @@ const regions = JSON.parse(readFileSync(FILE, 'utf8'))
 
 /** 신화권마다: 입구 들판, 새 땅 둘의 id·이름, 성소 둘레 상징물, 보스 */
 const REALMS = [
-  { realm: 'norse', entrance: 'midgard', deep: ['jotunheim', '요툰헤임 빙하', 'glacier'], boss: ['utgard', '우트가르드', 'utgard'], ring: 'runestone', enemy: undefined },
+  { realm: 'norse', entrance: 'midgard', deep: ['jotunheim', '요툰헤임 빙하', 'glacier'], boss: ['utgard', '우트가르드', 'utgard'], ring: 'runestone', enemy: undefined, own: 'gen-north.mjs' },
   { realm: 'greek', entrance: 'olympus', deep: ['delphi', '델포이 골짜기', 'delphi'], boss: ['lycia', '리키아 화산', 'volcano'], ring: 'column', enemy: 'chimera' },
   { realm: 'china', entrance: 'hwagwasan', deep: ['kunlun', '곤륜산 기슭', 'kunlun'], boss: ['huoyanshan', '화염산', 'flame'], ring: 'spire', enemy: 'bullDemonKing' },
   { realm: 'japan', entrance: 'takamagahara', deep: ['izumo', '이즈모 숲', 'izumo'], boss: ['hiikawa', '히이카와 강변', 'river'], ring: 'lantern', enemy: 'orochi' },
@@ -163,28 +163,26 @@ function makeRegion(def, zone, [id, name, theme], from, onward, dir, seed) {
   }
 }
 
-const out = {}
-for (const [id, region] of Object.entries(regions)) {
-  const def = REALMS.find((d) => d.deep[0] === id || d.boss[0] === id)
-  if (!def) out[id] = region
-}
+/** 다시 지을 땅 (없으면 북유럽 밖 깊은 땅·보스의 땅 모두) */
+const ONLY = process.argv.slice(2)
+const fresh = {}
 REALMS.forEach((def, i) => {
+  if (def.own) return
+  const want = (id) => ONLY.length === 0 || ONLY.includes(id)
+  if (!want(def.deep[0]) && !want(def.boss[0])) return
   const dir = regions[def.entrance].zone === 'entrance' ? edgeDir(regions[def.entrance].exits.find((e) => e.to === def.deep[0])) : trimEntrance(def)
-  out[def.deep[0]] = makeRegion(def, 'deep', def.deep, def.entrance, def.boss[0], dir, 101 + i * 7)
-  out[def.boss[0]] = makeRegion(def, 'boss', def.boss, def.deep[0], null, dir, 203 + i * 7)
+  if (want(def.deep[0])) fresh[def.deep[0]] = makeRegion(def, 'deep', def.deep, def.entrance, def.boss[0], dir, 101 + i * 7)
+  if (want(def.boss[0])) fresh[def.boss[0]] = makeRegion(def, 'boss', def.boss, def.deep[0], null, dir, 203 + i * 7)
 })
-// 마을과 입구 들판을 앞에, 신화권마다 깊은 땅·보스의 땅을 차례로
-const order = ['village', ...REALMS.flatMap((d) => [d.entrance, d.deep[0], d.boss[0]])]
-const sorted = Object.fromEntries([...order.filter((id) => out[id]), ...Object.keys(out).filter((id) => !order.includes(id))].map((id) => [id, out[id]]))
+// 있던 차례 그대로, 새로 지은 땅은 칸(cell)을 이어받는다 (자리는 place-world.mjs가 정한다)
+const sorted = Object.fromEntries(
+  Object.entries(regions).map(([id, region]) => {
+    const made = fresh[id]
+    if (!made) return [id, region]
+    const entries = Object.entries(made)
+    entries.splice(entries.findIndex(([k]) => k === 'theme') + 1, 0, ['cell', region.cell])
+    return [id, Object.fromEntries(entries)]
+  }),
+)
 writeFileSync(FILE, JSON.stringify(sorted, null, 2) + '\n')
-
-// 검사와 편집기 모양으로 다시 쓰기
-const vite = await createServer({ configFile: false, server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' })
-try {
-  const { formatRegions, parseRegions } = await vite.ssrLoadModule('/src/data/regions.ts')
-  parseRegions(sorted)
-  writeFileSync(FILE, formatRegions(sorted))
-  console.log(`지역 ${Object.keys(sorted).length}곳: ${Object.keys(sorted).join(', ')}`)
-} finally {
-  await vite.close()
-}
+console.log(`다시 지은 땅 ${Object.keys(fresh).length}곳: ${Object.keys(fresh).join(', ')}. 이어서 node scripts/place-world.mjs`)

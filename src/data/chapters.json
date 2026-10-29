@@ -10,7 +10,7 @@
     "title": "제1장",
     "name": "서리 거인의 땅",
     "tier": 1,
-    "lands": { "jotunheim": 4.6, "utgard": 6.6 },
+    "lands": { "ironwood": 1.8, "serpentshore": 1.8, "jotunheim": 4.6, "muspel": 5.4, "utgard": 6.6 },
     "steps": [
       { "kind": "awaken", "region": "midgard", "realm": "norse", "n": 1, "goal": "미드가르드에서 신의 흔적을 찾는다" },
       { "kind": "enter", "region": "jotunheim", "goal": "요툰헤임 빙하로" },

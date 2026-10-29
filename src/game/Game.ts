@@ -816,7 +816,7 @@ export class Game {
     return this.menuData.sourceRows()
   }
 
-  /** 성소 워프 (E14-05): 마을이나 가 본 땅의 성소로 */
+  /** 성소 워프 (E14-05, E239-05 처음부터): 마을이나 켠 성소로 */
   warpTo(id: string): boolean {
     if (!this.conveniences.has('warp') || id === this.ctx.map.region.id) return false
     if (this.regions[id]?.kind !== 'hub' && !this.conveniences.visited.has(id)) return false
@@ -1147,11 +1147,11 @@ export class Game {
     this.villagers.update(dt, position, (x, y, z) => this.screenPoint(x, y, z))
     // 말 걸기와 보스 등장 장면 (E15-06)
     this.storyline.update(position)
-    // 성소를 찾았다 (E15-04): 성소 결계 안에 들어서면 그 지역으로 워프할 수 있다
+    // 성소를 켰다 (E15-04, E239-05 웨이포인트): 성소 결계 안에 들어서면 켜지고, 지도에서 그 땅으로 바로 온다
     const sanctuary = this.ctx.map.region.sanctuary
     if (sanctuary && !this.conveniences.visited.has(this.ctx.map.region.id) && Math.hypot(position.x - sanctuary.x, position.z - sanctuary.z) < sanctuary.radius) {
       this.conveniences.visited.add(this.ctx.map.region.id)
-      this.bus.emit('moment', { id: 'shrineFound', text: '성소를 찾았다 · 지도' })
+      this.bus.emit('moment', { id: 'shrineFound', text: '성소를 켰다 · 지도에서 바로 온다' })
       this.bus.emit('progressChanged', {})
     }
     this.minimap.update(dt, {
@@ -1185,7 +1185,7 @@ export class Game {
     })
     for (const giant of shattered) {
       this.fx.shatter(giant)
-      this.view.shake(giant.spec.role === 'boss' ? 0.6 : 0.15)
+      this.view.shake(giant.spec.role === 'boss' || giant.spec.role === 'guardian' ? 0.6 : 0.15)
       this.bus.emit('giantKilled', { giant })
     }
   }

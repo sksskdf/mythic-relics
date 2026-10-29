@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { DataError } from '../src/data/check'
 import regionsText from '../src/data/regions.json?raw'
-import { arrivalSpot, exitColor, formatRegions, nextHop, worldLayout, parseRegions, RAW_REGIONS, REALM_COLORS, REGIONS, SPAWN_CLEAR, START_REGION } from '../src/data/regions'
+import { arrivalSpot, exitColor, formatRegions, nextHop, parseRegions, RAW_REGIONS, REALM_COLORS, REGIONS, SPAWN_CLEAR, START_REGION } from '../src/data/regions'
 import { GRUNT, KING } from '../src/enemies/Giant'
 import { LAND_DAMAGE_EXPONENT } from '../src/data/chapters'
 import { Encounter } from '../src/game/Encounter'
@@ -21,7 +21,6 @@ const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T
 const regions = Object.values(REGIONS)
 /** 신화권 다섯의 땅과 마을 (마지막 무대 빼고) */
 const realmLands = regions.filter((r) => !r.finale)
-const toRealmLand = (id: string) => !REGIONS[id]!.finale
 
 describe.each(regions.map((r) => [r.id, r] as const))('지역 %s', (_id, region) => {
   // 게임과 같은 충돌: 소품·마을 사람에 절벽과 개울까지 (E24-07: 다리 틈이 막히면 개울 건너 출구에 못 간다)
@@ -132,50 +131,64 @@ describe.each(regions.map((r) => [r.id, r] as const))('지역 %s', (_id, region)
 })
 
 describe('세계 (E7, E15)', () => {
-  it('마을 하나와 신화권마다 입구 들판·깊은 땅·보스의 땅, 모두 16곳에 마지막 무대 하나, 마을에서 시작한다 (E15-01, E22)', () => {
+  it('마을 하나에 북유럽 여섯, 다른 신화권마다 입구 들판·깊은 땅·보스의 땅, 마지막 무대 하나, 마을에서 시작한다 (E15-01, E22, E239)', () => {
     const hubs = regions.filter((r) => r.kind === 'hub')
     expect(hubs).toHaveLength(1)
     expect(START_REGION).toBe(hubs[0]!.id)
-    expect(realmLands).toHaveLength(16)
+    expect(realmLands).toHaveLength(19)
     expect(regions.filter((r) => r.finale).map((r) => r.id)).toEqual(['sky'])
     const fields = realmLands.filter((r) => r.kind === 'field')
-    for (const realm of ['china', 'greek', 'japan', 'korea', 'norse']) {
+    for (const realm of ['china', 'greek', 'japan', 'korea']) {
       expect(fields.filter((r) => r.realm === realm).map((r) => r.zone).sort(), realm).toEqual(['boss', 'deep', 'entrance'])
     }
+    // 북유럽: 입구 미드가르드, 둘레의 깊은 땅 넷(철의 숲·바닷가·요툰헤임·무스펠), 가장 북쪽 우트가르드
+    const norse = fields.filter((r) => r.realm === 'norse')
+    expect(norse.map((r) => r.id).sort()).toEqual(['ironwood', 'jotunheim', 'midgard', 'muspel', 'serpentshore', 'utgard'])
+    expect(norse.filter((r) => r.zone === 'deep').map((r) => r.id).sort()).toEqual(['ironwood', 'jotunheim', 'muspel', 'serpentshore'])
     expect(new Set(fields.filter((r) => r.zone === 'entrance').map((r) => r.theme)).size).toBe(5)
   })
 
-  it('마을 → 입구 들판 → 깊은 땅 → 보스의 땅으로 이어지고, 이웃은 서로 오간다', () => {
-    const hub = REGIONS[START_REGION]!
-    const entrances = realmLands.filter((r) => r.zone === 'entrance')
-    expect(hub.exits.map((e) => e.to).sort()).toEqual(entrances.map((r) => r.id).sort())
-    for (const entrance of entrances) {
+  it('마을 밖 길은 미드가르드 하나, 북유럽 → 우트가르드 너머 그리스 → 그 너머 다른 신화권으로 한 줄로 이어지고, 이웃은 서로 오간다 (E239-01)', () => {
+    const to = (id: string) => REGIONS[id]!.exits.map((e) => e.to).sort()
+    expect(to('village')).toEqual(['midgard'])
+    expect(to('midgard')).toEqual(['ironwood', 'jotunheim', 'serpentshore', 'village'])
+    expect(to('ironwood')).toEqual(['midgard'])
+    expect(to('serpentshore')).toEqual(['midgard'])
+    expect(to('jotunheim')).toEqual(['midgard', 'muspel', 'utgard'])
+    expect(to('muspel')).toEqual(['jotunheim', 'utgard'])
+    expect(to('utgard')).toEqual(['jotunheim', 'muspel', 'olympus'])
+    expect(to('olympus')).toEqual(['delphi', 'hwagwasan', 'sky', 'takamagahara', 'utgard'])
+    expect(to('lycia')).toEqual(['delphi', 'sinsi'])
+    // 그리스 너머 신화권은 입구 → 깊은 땅 → 보스의 땅
+    for (const entrance of realmLands.filter((r) => r.zone === 'entrance' && r.realm !== 'norse' && r.realm !== 'greek')) {
       const deep = realmLands.find((r) => r.zone === 'deep' && r.realm === entrance.realm)!
       const boss = realmLands.find((r) => r.zone === 'boss' && r.realm === entrance.realm)!
-      expect(entrance.exits.map((e) => e.to).filter(toRealmLand).sort(), entrance.id).toEqual([deep.id, hub.id].sort())
+      expect(entrance.exits.map((e) => REGIONS[e.to]!.realm), entrance.id).toContain('greek')
+      expect(entrance.exits.map((e) => e.to), entrance.id).toContain(deep.id)
       expect(deep.exits.map((e) => e.to).sort(), deep.id).toEqual([boss.id, entrance.id].sort())
       expect(boss.exits.map((e) => e.to), boss.id).toEqual([deep.id])
     }
     for (const r of regions) for (const e of r.exits) expect(REGIONS[e.to]!.exits.some((back) => back.to === r.id), `${r.id} → ${e.to}`).toBe(true)
   })
 
-  it('마지막 무대는 미드가르드와 올림포스 두 곳에서 걸어 들어간다 (E22)', () => {
-    expect(REGIONS.sky!.exits.map((e) => e.to).sort()).toEqual(['midgard', 'olympus'])
+  it('마지막 무대는 올림포스에서 걸어 들어간다 (E22, E239)', () => {
+    expect(REGIONS.sky!.exits.map((e) => e.to)).toEqual(['olympus'])
     // 마지막 보스는 균열의 우트가르드의 왕과 모습·이름이 같고 세기는 따로 (E22-05)
     expect(REGIONS.sky!.boss?.enemy).toBe('skyKing')
     const into = regions.filter((r) => r.exits.some((e) => e.to === 'sky')).map((r) => r.id)
-    expect(into.sort()).toEqual(['midgard', 'olympus'])
+    expect(into).toEqual(['olympus'])
   })
 
   it('어느 지역에서 어느 지역으로든 이웃을 따라 갈 수 있다 (봇·지도의 다음 이웃)', () => {
     expect(nextHop('village', 'utgard')).toBe('midgard')
     expect(nextHop('midgard', 'utgard')).toBe('jotunheim')
-    expect(nextHop('utgard', 'songdo')).toBe('jotunheim')
+    expect(nextHop('village', 'serpentshore')).toBe('midgard')
+    expect(nextHop('utgard', 'songdo')).toBe('olympus')
     expect(nextHop('village', 'village')).toBeNull()
     for (const a of regions) {
       for (const b of regions) {
         if (a === b) continue
-        // 다음 이웃을 따라가면 16번 안에 닿는다
+        // 다음 이웃을 따라가면 지역 수 안에 닿는다
         let at = a.id
         for (let i = 0; i < regions.length && at !== b.id; i++) at = nextHop(at, b.id)!
         expect(at, `${a.id} → ${b.id}`).toBe(b.id)
@@ -183,20 +196,17 @@ describe('세계 (E7, E15)', () => {
     }
   })
 
-  it('세계 지도: 마을이 가운데, 모든 지역이 서로 다른 자리에, 입구·깊은 땅·보스의 땅 차례로 멀어진다 (E15-04)', () => {
-    const layout = worldLayout()
-    expect(Object.keys(layout).filter(toRealmLand).sort()).toEqual(realmLands.map((r) => r.id).sort())
-    expect(layout[START_REGION]).toEqual({ x: 0, y: 0 })
-    const spots = Object.values(layout).map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`)
-    expect(new Set(spots).size).toBe(spots.length)
-    const far = (id: string) => Math.hypot(layout[id]!.x, layout[id]!.y)
-    for (const r of realmLands.filter((x) => x.zone === 'entrance')) {
-      const deep = realmLands.find((x) => x.zone === 'deep' && x.realm === r.realm)!
-      const boss = realmLands.find((x) => x.zone === 'boss' && x.realm === r.realm)!
-      expect(far(r.id)).toBeCloseTo(1)
-      expect(far(deep.id)).toBeCloseTo(2)
-      expect(far(boss.id)).toBeCloseTo(3)
-    }
+  it('세계 칸: 마을은 남쪽 끝, 북유럽 위에 그리스, 그 위에 다른 신화권 (E239-01)', () => {
+    const row = (id: string) => REGIONS[id]!.cell!.row
+    for (const r of regions) if (r.id !== 'village') expect(row(r.id), r.id).toBeGreaterThan(row('village'))
+    const norse = realmLands.filter((r) => r.realm === 'norse')
+    const greek = realmLands.filter((r) => r.realm === 'greek')
+    const beyond = realmLands.filter((r) => r.realm && !['norse', 'greek'].includes(r.realm))
+    expect(Math.max(...norse.map((r) => r.cell!.row))).toBe(row('utgard'))
+    expect(Math.min(...greek.map((r) => r.cell!.row))).toBeGreaterThan(row('utgard'))
+    for (const r of beyond) expect(r.cell!.row, r.id).toBeGreaterThanOrEqual(row('olympus'))
+    // 첫 신의 수호자 땅(철의 숲·바닷가)은 미드가르드 바로 옆 (걸어서 2~3분)
+    for (const id of ['ironwood', 'serpentshore']) expect(REGIONS.midgard!.exits.map((e) => e.to)).toContain(id)
   })
 
   it('보스는 보스의 땅에만, 깊은 땅은 정예가 더 섞인다', () => {

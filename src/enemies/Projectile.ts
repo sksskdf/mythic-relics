@@ -12,6 +12,9 @@ const LOOKS = {
   water: { color: 0x6ad0f0, size: 0.32, glow: true },
   wind: { color: 0xe8f4ff, size: 0.3, glow: true },
   bone: { color: 0xe4dcc6, size: 0.3, glow: false },
+  // 수호자 (E239): 요르문간드의 독, 스카디의 얼음 화살
+  venom: { color: 0x9ce05a, size: 0.38, glow: true },
+  ice: { color: 0xcdeeff, size: 0.26, glow: true },
 } as const
 
 /**

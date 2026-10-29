@@ -30,12 +30,14 @@ describe('장 데이터 (E22-01)', () => {
     expect(CHAPTERS.at(-1)!.tier).toBe(3)
   })
 
-  it('데모 땅은 여섯 곳과 마지막 무대, 적 지수는 땅마다 오른다 (TIMELINE 4장, E22-06 곡선으로 다시 잡음)', () => {
+  it('데모 땅은 북유럽 여섯·그리스 셋과 마지막 무대, 적 지수는 땅마다 오른다 (TIMELINE 4장, E22-06 곡선, E239 북유럽 여섯)', () => {
     const lands = CHAPTERS.flatMap((c) => Object.entries(c.lands))
-    expect(lands.map(([id]) => id)).toEqual(['midgard', 'jotunheim', 'utgard', 'olympus', 'delphi', 'lycia', 'sky'])
+    expect(lands.map(([id]) => id)).toEqual(['midgard', 'ironwood', 'serpentshore', 'jotunheim', 'muspel', 'utgard', 'olympus', 'delphi', 'lycia', 'sky'])
     const powers = lands.map(([, power]) => power)
     expect(powers[0]).toBe(1)
-    for (let i = 1; i < powers.length; i++) expect(powers[i], lands[i]![0]).toBeGreaterThan(powers[i - 1]!)
+    // 첫 신의 수호자 땅 둘(철의 숲·바닷가)은 같은 세기, 그다음부터는 오른다
+    for (let i = 1; i < powers.length; i++) expect(powers[i], lands[i]![0]).toBeGreaterThanOrEqual(powers[i - 1]!)
+    expect(powers.filter((p, i) => i > 0 && p === powers[i - 1])).toHaveLength(1)
     expect(REGIONS[lands.at(-1)![0]]!.finale).toBe(true)
     expect(chapterOf('olympus')?.id).toBe('greek')
     expect(chapterOf('sinsi')).toBeNull()

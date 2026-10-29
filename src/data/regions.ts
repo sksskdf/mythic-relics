@@ -344,29 +344,6 @@ export function exitColor(to: string): number {
   return region?.realm ? REALM_COLORS[region.realm] : REALM_COLORS.hub
 }
 
-/**
- * 세계 지도 위 자리 (E15-04): 마을이 가운데(0, 0), 마을의 출구 쪽으로 신화권마다 한 줄로 뻗는다.
- * 마을에서 넘는 횟수만큼 떨어진다 (입구 들판 1, 깊은 땅 2, 보스의 땅 3). 화면 오른쪽이 x, 아래가 y
- */
-export function worldLayout(regions: Readonly<Record<string, RegionDef>> = REGIONS): Record<string, { x: number; y: number }> {
-  const hub = Object.values(regions).find((r) => r.kind === 'hub')
-  if (!hub) return {}
-  const out: Record<string, { x: number; y: number }> = { [hub.id]: { x: 0, y: 0 } }
-  for (const exit of hub.exits) {
-    const len = Math.hypot(exit.x, exit.z) || 1
-    const dir = { x: exit.x / len, y: exit.z / len }
-    let at = exit.to
-    let prev = hub.id
-    for (let depth = 1; at && !out[at]; depth++) {
-      out[at] = { x: dir.x * depth, y: dir.y * depth }
-      const next = regions[at]?.exits.find((e) => e.to !== prev && !out[e.to])?.to
-      prev = at
-      at = next as string
-    }
-  }
-  return out
-}
-
 /** from에서 to로 가려면 먼저 넘어갈 이웃 지역 (출구를 따라 가장 적게 넘는 길). 같거나 길이 없으면 null (E15-07) */
 export function nextHop(from: string, to: string, regions: Readonly<Record<string, RegionDef>> = REGIONS): string | null {
   if (from === to || !regions[from] || !regions[to]) return null

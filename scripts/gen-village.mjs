@@ -57,7 +57,7 @@ function plazaStair(edge, at, width = 2.4) {
   return { from: { x: x1 + 3, z: at }, to: { x: x1 - 1.6, z: at }, width }
 }
 
-// 길마다 광장을 나가는 계단 (그 신화권 문 쪽 변)
+// 광장을 나가는 계단: 북서쪽 미드가르드 문으로, 나머지는 아랫마을로 (E24-07에는 신화권마다 문이 있었다)
 const stairs = {
   midgard: plazaStair('n', -7),
   olympus: plazaStair('n', 7),
@@ -79,17 +79,27 @@ village.terraces = [
 ]
 
 // 길: 광장 가운데 → 그 길의 계단 윗끝 → 발치 → 문 → 통로 끝 (문과 바깥 끝은 그대로)
+// 마을 밖 길은 미드가르드 하나 (E239-01). 문이 없는 계단은 아랫마을 골목으로 몇 걸음만 이어진다
 const outer = Object.fromEntries(
   village.exits.map((exit) => {
     const path = village.paths.find((p) => dist(p.points.at(-2), exit) < 0.5)
     return [exit.to, path.points.at(-1)]
   }),
 )
+const lane = (s) => {
+  const dx = s.from.x - s.to.x
+  const dz = s.from.z - s.to.z
+  const len = Math.hypot(dx, dz) || 1
+  return { x: r2(s.from.x + (dx / len) * 3), z: r2(s.from.z + (dz / len) * 3) }
+}
 village.paths = [
   ...village.exits.map((exit) => {
     const s = stairs[exit.to]
     return { points: [CENTER, s.to, s.from, { x: exit.x, z: exit.z }, outer[exit.to]], width: 2.2 }
   }),
+  ...Object.entries(stairs)
+    .filter(([to]) => !village.exits.some((e) => e.to === to))
+    .map(([, s]) => ({ points: [CENTER, s.to, s.from, lane(s)], width: 2 })),
   { points: [CENTER, south.to, south.from, { x: 4, z: 16 }], width: 2 },
   { points: [CENTER, keepStair.from, keepStair.to, { x: 0, z: -9 }], width: 2 },
 ]
@@ -151,8 +161,9 @@ const buildings = [
   { kind: 'fence', x: 4.8, z: 19.2, size: 1, rotation: 0 },
 ]
 
-// 목책: 걸을 수 있는 네모 안쪽 22.5m 둘레를 3.9m 칸으로, 길·개울이 지나는 곳은 비운다. 망루 셋
-const WALL = 22.5
+// 목책: 걸을 수 있는 네모 가장자리(23.4m) 둘레를 3.9m 칸으로, 길·개울이 지나는 곳은 비운다. 망루 셋
+// (E239: 마을 밖 길이 하나뿐이라, 목책과 가장자리 사이에 갇힌 띠가 남지 않게 가장자리에 붙인다)
+const WALL = 23.4
 const SEG = 3.9
 const gaps = [
   ...village.exits.map((e) => ({ x: e.x, z: e.z })),
@@ -177,9 +188,9 @@ for (const [axis, fixed] of [['x', -WALL], ['x', WALL], ['z', -WALL], ['z', WALL
   }
 }
 const towers = [
-  { kind: 'watchtower', x: 20.5, z: 20.5, size: 1, rotation: 0 },
+  { kind: 'watchtower', x: 21.6, z: 21.6, size: 1, rotation: 0 },
   { kind: 'watchtower', x: -20.5, z: 11, size: 1, rotation: r2(Math.PI / 2) },
-  { kind: 'watchtower', x: 4.5, z: -20.5, size: 1, rotation: Math.PI },
+  { kind: 'watchtower', x: -1.5, z: -20.5, size: 1, rotation: Math.PI },
 ]
 
 // 원래 있던 나무·덤불·바위·둔덕 가운데 새 마을과 겹치지 않는 것만 남긴다

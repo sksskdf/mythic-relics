@@ -176,22 +176,14 @@ try {
   const moved = await heroPos()
   console.log(`이동 확인: (${before.x.toFixed(1)}, ${before.z.toFixed(1)}) → (${moved.x.toFixed(1)}, ${moved.z.toFixed(1)})`)
 
-  // 장 흐름 (E22): 처음에는 목표 한 줄이 미드가르드를 가리키고, 아직 안 열린 올림포스로 가는 통로는 결계가 막는다
+  // 장 흐름 (E22, E239): 처음에는 목표 한 줄이 미드가르드를 가리키고, 마을 밖 길은 미드가르드 하나뿐이다 (결계 없음)
   const sealed = await page.evaluate(() => {
     const g = window.__game
-    const exit = g.region.exits.find((e) => e.to === 'olympus')
-    const start = { x: g.hero.object.position.x, z: g.hero.object.position.z }
-    g.dev.teleport(exit.x, exit.z + 3)
-    g.orders.press({ x: exit.x, z: exit.z - 60 }, null)
-    g.advance(6, 1 / 30)
-    const out = { region: g.region.id, z: g.hero.object.position.z, half: g.region.halfExtent, barriers: g.barrierSpots.map((b) => b.to).sort(), goal: document.querySelector('.chapter-goal span')?.textContent ?? '' }
-    g.dev.teleport(start.x, start.z)
-    return out
+    return { exits: g.region.exits.map((e) => e.to), barriers: g.barrierSpots.map((b) => b.to), goal: document.querySelector('.chapter-goal span')?.textContent ?? '' }
   })
   if (sealed.goal !== '미드가르드 설원으로') throw new Error(`장 흐름: 처음 목표 한 줄이 다릅니다 ${JSON.stringify(sealed)}`)
-  if (sealed.region !== 'village' || sealed.z < -sealed.half - 0.6) throw new Error(`장 흐름: 결계가 올림포스로 가는 길을 막지 않습니다 ${JSON.stringify(sealed)}`)
-  if (sealed.barriers.join() !== 'hwagwasan,olympus,sinsi,takamagahara') throw new Error(`장 흐름: 마을의 결계가 다릅니다 ${JSON.stringify(sealed)}`)
-  console.log(`장 흐름 확인: 목표 「${sealed.goal}」, 마을의 결계 넷(${sealed.barriers.join('·')}), 올림포스 쪽 통로에서 걸음이 막힘`)
+  if (sealed.exits.join() !== 'midgard' || sealed.barriers.length > 0) throw new Error(`장 흐름: 마을 밖 길이 미드가르드 하나가 아닙니다 ${JSON.stringify(sealed)}`)
+  console.log(`장 흐름 확인: 목표 「${sealed.goal}」, 마을 밖 길은 미드가르드 하나(결계 없음)`)
 
   // 자동 공격 점검: 멈춰 있는 주인공 바로 앞에 졸개를 세우면, 버튼 없이도 때려서 생명력이 줄어야 한다.
   await page.waitForFunction(() => !window.__game.hero.isMoving, null, { timeout: 20000 })
@@ -738,7 +730,7 @@ try {
       for (const e of g.encounter.alive) if (near(e)) e.takeHit(1e6, 0, 0, 0)
     }
     for (let i = 0; i < 30 && g.chapters.goal; i++) {
-      if (!early && g.chapters.chapter?.id === 'north' && g.chapters.goal?.kind === 'awaken') early = { jotunheim: g.chapters.isOpen('jotunheim'), utgard: g.chapters.isOpen('utgard') }
+      if (!early && g.chapters.chapter?.id === 'north' && g.chapters.goal?.kind === 'awaken') early = { jotunheim: g.chapters.isOpen('jotunheim'), utgard: g.chapters.isOpen('utgard'), ironwood: g.chapters.isOpen('ironwood'), serpentshore: g.chapters.isOpen('serpentshore') }
       if (!woke && g.chapters.goal?.kind === 'awaken' && g.region.id === 'midgard') {
         const target = g.awakening.target('midgard')
         const spot = g.awakening.placed(target)
@@ -751,6 +743,10 @@ try {
         g.advance(1, 1 / 30)
         woke.piece1 = g.awaken.fragments
         woke.lent = g.ctx.build.passives().map((p) => p.god)
+        // 사냥과 수호자는 그 신의 땅에서 (E239: 토르는 세계 뱀의 바닷가, 오딘은 철의 숲)
+        woke.land = g.awakening.target('midgard')?.region ?? null
+        if (woke.land) g.enterRegion(g.regions[woke.land])
+        g.advance(0.5, 1 / 30)
         for (let k = 0; k < 60 && g.awaken.fragments < 2; k++) {
           const p = g.hero.object.position
           g.dev.spawn('grunt', p.x + 3, p.z)
@@ -782,11 +778,12 @@ try {
   await end.close()
   if (!ending.ending || ending.log !== 1 || ending.barriers > 0 || ending.goal) throw new Error(`장 흐름: 끝까지 가도 엔딩이 아닙니다 ${JSON.stringify(ending)}`)
   if (!ending.early || ending.early.jotunheim || ending.early.utgard) throw new Error(`땅 차례: 첫 신을 깨우기 전에 요툰헤임·우트가르드가 열려 있습니다 ${JSON.stringify(ending.early)}`)
+  if (!ending.early.ironwood || !ending.early.serpentshore) throw new Error(`땅 차례: 첫 신의 수호자 땅(철의 숲·바닷가)이 제1장에 열려 있지 않습니다 ${JSON.stringify(ending.early)}`)
   const w = ending.woke
   if (!w || w.pack < 4 || w.piece1 !== 1 || !w.lent.includes(w.god) || w.piece2 !== 2 || !w.relic || !w.guardian || !w.opened.includes(w.god))
     throw new Error(`신의 조각 셋: 흔적 → 사냥 → 수호자로 신이 깨어나지 않습니다 ${JSON.stringify(w)}`)
-  console.log(`신의 조각 확인: 흔적에 다가가면 무리 ${w.pack} → 조각 1(빌린 힘 ${w.god}) → 사냥 → 조각 2(유물) → 수호자 「${w.guardian}」 → ${w.god} 깨어남`)
-  console.log(`엔딩 확인: ${ending.chapters.join(' → ')} → 갈라진 하늘의 왕을 이기면 엔딩, 결계가 모두 풀리고 목표 한 줄이 사라짐 (첫 신을 깨우기 전에는 요툰헤임·우트가르드가 막힘)`)
+  console.log(`신의 조각 확인: 흔적에 다가가면 무리 ${w.pack} → 조각 1(빌린 힘 ${w.god}) → ${w.land}에서 사냥 → 조각 2(유물) → 수호자 「${w.guardian}」 → ${w.god} 깨어남`)
+  console.log(`엔딩 확인: ${ending.chapters.join(' → ')} → 갈라진 하늘의 왕을 이기면 엔딩, 결계가 모두 풀리고 목표 한 줄이 사라짐 (첫 신을 깨우기 전에는 요툰헤임·우트가르드가 막히고 철의 숲·바닷가는 열림)`)
 
   // 휴대폰 (E235): 세로로 든 터치 기기에서 끌기 = 떠다니는 조이스틱으로 걷기, 떼면 멈춤, 톡 = 그곳까지, 두 손가락 = 확대,
   // 가로로 들면 돌려 달라는 안내와 멈춤. 손가락은 캔버스에 포인터 사건을 보내 흉내 낸다
