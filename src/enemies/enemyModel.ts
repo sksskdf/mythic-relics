@@ -139,6 +139,20 @@ function gearGrid(b: BodySpec): { grid: VoxelGrid; pivot: [number, number, numbe
       g.box(0, 1, 12, 2, 1, 15, b.accent)
       return { grid: g, pivot: [1.5, 1.5, 4], left: false }
     }
+    case 'bow': {
+      // 활 (스카디, E239): 왼손에 세워 든 휜 활대와 시위
+      const g = new VoxelGrid(3, 15, 2)
+      for (let y = 0; y < 15; y++) g.set(Math.round(1 + Math.sin((y / 14) * Math.PI) * 1), y, 0, y === 7 ? b.accent : 0x6a4a30)
+      g.box(0, 0, 1, 0, 14, 1, 0xe8e8e8)
+      return { grid: g, pivot: [1.5, 7.5, 1], left: true }
+    }
+    case 'sword': {
+      const g = new VoxelGrid(3, 3, 14)
+      g.box(1, 1, 0, 1, 1, 2, 0x6a4a30)
+      g.box(0, 1, 3, 2, 1, 3, b.dark)
+      g.box(1, 1, 4, 1, 1, 13, b.accent)
+      return { grid: g, pivot: [1.5, 1.5, 1], left: false }
+    }
     case 'club': {
       const g = new VoxelGrid(3, 3, 11)
       g.box(1, 1, 0, 1, 1, 6, 0x6a4a30)
@@ -310,7 +324,7 @@ export function buildEnemyRig(spec: GiantSpec, seed = 1): EnemyRig {
       [FROST_COLORS.furDark]: mix(b.accent, 0x000000, 0.25),
     }
     const head = b.head === 'oneEye' || b.head === 'horns' || b.head === 'bull' ? b.head : 'plain'
-    const gear = b.gear === 'rock' || b.gear === 'none' ? b.gear : 'club'
+    const gear = b.gear === 'rock' || b.gear === 'none' || b.gear === 'sword' ? b.gear : 'club'
     return { ...buildGiantRig({ voxelSize: spec.voxelSize, king: spec.king, seed, head, gear, recolor }), kind: 'giant' }
   }
   const p = parts(spec.voxelSize)
@@ -324,6 +338,6 @@ export function buildEnemyRig(spec: GiantSpec, seed = 1): EnemyRig {
     case 'spirit':
       return spirit(b, p, rng)
     case 'serpent':
-      return serpent(b, p, spec.role === 'boss' ? 3 : 1)
+      return serpent(b, p, spec.role === 'boss' || spec.role === 'guardian' ? 3 : 1)
   }
 }

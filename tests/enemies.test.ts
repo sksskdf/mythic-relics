@@ -205,6 +205,13 @@ describe('적 데이터 규칙 (E8-01)', () => {
           expect(e.boss, e.id).toBeDefined()
           expect(e.attacks.some((a) => a.name === 'roar'), e.id).toBe(true)
           break
+        case 'guardian':
+          // 수호자 (E239-03): 보스처럼 끊기지 않지만 지역 보스가 아니라 보스 재료가 없다. 범위가 셋 넘게 다른 공격을 섞는다
+          // (첫 신의 수호자 둘은 포효로 졸개를 부르지 않는다: 처음 만나는 큰 싸움이 졸개에 묻히지 않게)
+          expect(e.poise, e.id).toBe(Infinity)
+          expect(e.boss, e.id).toBeUndefined()
+          expect(new Set(kinds).size, e.id).toBeGreaterThanOrEqual(3)
+          break
       }
     }
   })
@@ -223,6 +230,8 @@ describe('적 데이터 규칙 (E8-01)', () => {
       for (const camp of region.camps) {
         for (const id of camp.members ?? []) {
           expect(ENEMIES[id], `${region.id}: ${id}`).toBeDefined()
+          // 수호자는 깨우는 길에서만 나온다 (무리에 들어가면 균열 층에도 섞인다)
+          expect(ENEMIES[id]!.role, `${region.id}: ${id}`).not.toBe('guardian')
           if (region.finale) expect(ENEMIES[id]!.role, `${region.id}: ${id}`).not.toBe('boss')
           else expect(ENEMIES[id]!.realm, `${region.id}: ${id}`).toBe(region.realm)
         }
@@ -370,6 +379,21 @@ describe('정예 (E8-05)', () => {
     never.eliteChance = 0
     never.reset(layout, [], 20)
     expect(never.alive.some((g) => g.elite)).toBe(false)
+  })
+})
+
+describe('수호자 (E239)', () => {
+  it('수호자가 부른 졸개는 그 수호자를 기억한다 (수호자가 물러날 때 함께 거둔다)', () => {
+    const encounter = new Encounter({ camps: [], boss: null }, [], 40)
+    const skadi = encounter.spawn(ENEMIES.skadi!, { x: 0, z: 0 }, true)
+    const world = { hero: { x: 6, z: 0, radius: 0.4, alive: true }, area: squareArea(40), staticColliders: [], hitHero: () => {}, impact: () => {}, effects: new THREE.Group() }
+    for (let i = 0; i < 60 * 40 && encounter.alive.length < 2; i++) encounter.update(1 / 60, world)
+    const called = encounter.alive.filter((g) => g !== skadi)
+    expect(called.length).toBeGreaterThan(0)
+    for (const g of called) {
+      expect(g.spec.id).toBe('wolf')
+      expect(g.summoner).toBe(skadi)
+    }
   })
 })
 

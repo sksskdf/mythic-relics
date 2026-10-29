@@ -414,15 +414,18 @@ const DEG = Math.PI / 180
 export const ATTACK_NAMES = ['smash', 'sweep', 'slam', 'roar', 'charge', 'throw', 'summon', 'bite', 'cast'] as const
 export type AttackName = (typeof ATTACK_NAMES)[number]
 
-/** 적 역할 (E8-01): 무리마다 대응이 달라지게 하는 기준. 역할마다 지켜야 할 규칙은 tests/enemies.test.ts */
-export const ENEMY_ROLES = ['brute', 'charger', 'ranged', 'guard', 'summoner', 'boss'] as const
+/**
+ * 적 역할 (E8-01): 무리마다 대응이 달라지게 하는 기준. 역할마다 지켜야 할 규칙은 tests/enemies.test.ts.
+ * 수호자(E239-03)는 신을 깨우는 마지막 조각: 보스처럼 크고 끊기지 않지만 지역 보스가 아니라 보스 재료를 떨어뜨리지 않는다
+ */
+export const ENEMY_ROLES = ['brute', 'charger', 'ranged', 'guard', 'summoner', 'boss', 'guardian'] as const
 export type EnemyRole = (typeof ENEMY_ROLES)[number]
 
 /** 몸 종류 (E8-03): 모양만 보고 행동을 짐작하게 한다 (src/enemies/enemyModel.ts) */
 export const BODY_KINDS = ['giant', 'beast', 'humanoid', 'flyer', 'spirit', 'serpent'] as const
 export type BodyKind = (typeof BODY_KINDS)[number]
 /** 손에 든 것 */
-export const BODY_GEAR = ['club', 'rock', 'shield', 'staff', 'spear', 'none'] as const
+export const BODY_GEAR = ['club', 'rock', 'shield', 'staff', 'spear', 'sword', 'bow', 'none'] as const
 /** 머리 장식 */
 export const BODY_HEADS = ['plain', 'horns', 'crown', 'beak', 'skull', 'hood', 'oneEye', 'bull'] as const
 
@@ -439,7 +442,7 @@ export interface BodySpec {
 }
 
 /** 던진 것이 날아가는 모양 */
-export const PROJECTILE_LOOKS = ['rock', 'fire', 'water', 'wind', 'bone'] as const
+export const PROJECTILE_LOOKS = ['rock', 'fire', 'water', 'wind', 'bone', 'venom', 'ice'] as const
 
 /** 공격이 닿는 범위 */
 export type AttackArea =

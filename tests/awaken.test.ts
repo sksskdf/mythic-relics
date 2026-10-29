@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { computeBuild } from '../src/build/BuildState'
-import { AWAKEN, AWAKEN_GODS, canWakeMore, HUNT_KILLS, TRACE_MODELS } from '../src/data/awaken'
+import { AWAKEN, AWAKEN_GODS, canWakeMore, GUARDIAN_LEASH, HUNT_KILLS, TRACE_MODELS } from '../src/data/awaken'
 import { REGIONS } from '../src/data/regions'
 import { SCENES, sceneId } from '../src/data/scenes'
 import { ENEMIES } from '../src/enemies/Giant'
@@ -27,7 +27,7 @@ describe('신을 깨우는 길 데이터 (E238)', () => {
       }
       expect(REGIONS[path.land]?.realm, god).toBe(godDef(god).realm)
       for (const m of path.pack) expect(ENEMIES[m.enemy], `${god} ${m.enemy}`).toBeDefined()
-      expect(ENEMIES[path.guardian.base], god).toBeDefined()
+      expect(ENEMIES[path.guardian.enemy]?.name, god).toBe(path.guardian.name)
       expect(TRACE_MODELS).toContain(path.trace.model)
       expect(traceGrid(path.trace.model).count(), god).toBeGreaterThan(100)
       // 흔적에서 그 신이 말을 걸고, 수호자는 나타날 때 한마디
@@ -36,25 +36,39 @@ describe('신을 깨우는 길 데이터 (E238)', () => {
     }
   })
 
-  it('미드가르드에 흔적 둘(토르·오딘), 로키·프레이는 더 깊은 요툰헤임에', () => {
+  it('미드가르드에 흔적 둘(토르·오딘), 로키는 요툰헤임·프레이는 무스펠 경계에. 수호자는 그 신의 땅에서 기다린다 (E239)', () => {
     expect(AWAKEN_GODS.filter((g) => AWAKEN[g]!.trace.region === 'midgard').sort()).toEqual(['odin', 'thor'])
-    expect(AWAKEN_GODS.filter((g) => AWAKEN[g]!.trace.region === 'jotunheim').sort()).toEqual(['freyr', 'loki'])
+    expect(AWAKEN.loki!.trace.region).toBe('jotunheim')
+    expect(AWAKEN.freyr!.trace.region).toBe('muspel')
+    const lands = Object.fromEntries(AWAKEN_GODS.map((g) => [g, AWAKEN[g]!.land]))
+    expect(lands).toEqual({ thor: 'serpentshore', odin: 'ironwood', loki: 'jotunheim', freyr: 'muspel' })
+    for (const g of AWAKEN_GODS) expect(AWAKEN[g]!.guardian.region, g).toBe(AWAKEN[g]!.land)
+    // 첫 신 둘의 땅은 미드가르드 바로 옆
+    for (const g of ['thor', 'odin'] as const) expect(REGIONS.midgard!.exits.map((e) => e.to)).toContain(AWAKEN[g]!.land)
   })
 
-  it('수호자는 빌린 몸을 키운 정예: 보스 재료를 떨어뜨리지 않고, 맞아도 끊기지 않으며, 범위는 몸보다 덜 커진다', () => {
-    const spec = guardianSpec('thor')!
-    const base = ENEMIES[AWAKEN.thor!.guardian.base]!
-    expect(spec.name).toBe('요르문간드')
-    expect(spec.boss).toBeUndefined()
-    expect(spec.role).not.toBe('boss')
-    expect(spec.poise).toBe(Infinity)
-    expect(spec.hp).toBe(AWAKEN.thor!.guardian.hp)
-    expect(spec.radius).toBeCloseTo(base.radius * AWAKEN.thor!.guardian.size)
-    const charge = spec.attacks[0]!.area as { length: number }
-    const baseCharge = base.attacks[0]!.area as { length: number }
-    expect(charge.length).toBeGreaterThan(baseCharge.length)
-    expect(charge.length).toBeLessThan(baseCharge.length * AWAKEN.thor!.guardian.size)
-    expect(spec.attacks[0]!.damage).toBeCloseTo(base.attacks[0]!.damage * AWAKEN.thor!.guardian.damage)
+  it('수호자는 제 모습과 싸우는 방식이 있다 (E239-03): 보스 재료를 떨어뜨리지 않고, 맞아도 끊기지 않으며, 넷이 서로 다르게 싸운다', () => {
+    const specs = AWAKEN_GODS.map((g) => guardianSpec(g)!)
+    for (const [i, spec] of specs.entries()) {
+      const god = AWAKEN_GODS[i]!
+      expect(spec.name, god).toBe(AWAKEN[god]!.guardian.name)
+      expect(spec.role, god).toBe('guardian')
+      expect(spec.boss, god).toBeUndefined()
+      expect(spec.poise, god).toBe(Infinity)
+      expect(spec.realm, god).toBe(godDef(god).realm)
+      expect(spec.leashRange, god).toBe(GUARDIAN_LEASH)
+    }
+    // 두 번째 신부터의 수호자(스카디·수르트)만 생명이 반 아래로 떨어지면 포효하며 졸개를 부른다
+    expect(['thor', 'odin', 'loki', 'freyr'].map((g) => guardianSpec(g as 'thor')!.attacks.some((a) => a.name === 'roar'))).toEqual([false, false, true, true])
+    // 몸이 넷 다 다르다 (뱀·짐승·사람·거인)
+    expect(new Set(specs.map((s) => s.body.kind)).size).toBe(4)
+    // 싸우는 방식: 요르문간드는 멀리 독(던지기)과 넓은 꼬리, 펜리르는 돌진과 부르기, 스카디는 물러서며 쏜다, 수르트는 큰 칼과 불덩이
+    const kinds = (g: 'thor' | 'odin' | 'loki' | 'freyr') => guardianSpec(g)!.attacks.map((a) => a.area.kind)
+    expect(guardianSpec('thor')!.attacks.some((a) => a.projectile?.look === 'venom')).toBe(true)
+    expect(kinds('odin')).toContain('line')
+    expect(kinds('odin')).toContain('summon')
+    expect(guardianSpec('loki')!.keepAway).toBeGreaterThan(6)
+    expect(guardianSpec('freyr')!.body.gear).toBe('sword')
     expect(guardianSpec('zeus')).toBeNull()
   })
 
@@ -106,7 +120,9 @@ describe('깨우는 진행 (E238)', () => {
   })
 
   it('저장에서 읽기: 깨우는 길이 없는 신·깨진 값은 처음으로, 사냥한 수는 범위 안으로', () => {
-    expect(parseAwaken({ waking: 'loki', fragments: 1, hunt: 99 })).toEqual({ waking: 'loki', fragments: 1, hunt: HUNT_KILLS })
+    // 사냥 수가 다 찬 옛 저장(E238은 40)은 조각 2로
+    expect(parseAwaken({ waking: 'loki', fragments: 1, hunt: 99 })).toEqual({ waking: 'loki', fragments: 2, hunt: HUNT_KILLS })
+    expect(parseAwaken({ waking: 'loki', fragments: 1, hunt: HUNT_KILLS - 1 })).toEqual({ waking: 'loki', fragments: 1, hunt: HUNT_KILLS - 1 })
     expect(parseAwaken({ waking: 'loki', fragments: 7, hunt: 2 })).toEqual({ waking: 'loki', fragments: 1, hunt: 2 })
     expect(parseAwaken({ waking: 'hades', fragments: 1, hunt: 2 })).toEqual({ waking: null, fragments: 0, hunt: 0 })
     expect(parseAwaken('broken')).toEqual({ waking: null, fragments: 0, hunt: 0 })

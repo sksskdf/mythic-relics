@@ -38,7 +38,7 @@ export interface StepTabDef {
 export const STEP_TAB_DEFS: Readonly<Record<StepTab, StepTabDef>> = {
   relics: { name: '장비', icon: 'relics', text: '주운 장비를 칸에 끼우고, 바꾸면 어떻게 되는지 미리 본다', due: (f) => f.gear },
   training: { name: '수련', icon: 'tree', text: '깨달음으로 마디를 익히면 바로 강해진다. 되돌리기는 무료', due: (f) => f.insights > 0 },
-  map: { name: '지도', icon: 'map', text: '이어진 땅과 다음 목표, 찾은 성소를 본다', due: (f) => f.shrine },
+  map: { name: '지도', icon: 'map', text: '이어진 땅과 다음 목표를 보고, 켠 성소로 바로 간다', due: (f) => f.shrine },
   sources: { name: '원천', icon: 'cycle', text: '장비의 원천이 쌓여 각성했다. 다음 각성까지 본다', due: (f) => f.awakened },
   classes: { name: '신화', icon: 'classes', text: '고른 신화의 단계와 다음 단계로 가는 길을 본다', due: (f) => f.myth },
   looks: { name: '외형', icon: 'looks', text: '얻은 모습을 부위마다 골라 입는다', due: (f) => f.relic },

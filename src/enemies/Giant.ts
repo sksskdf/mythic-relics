@@ -85,6 +85,8 @@ export class Giant {
   gone = false
   /** 이번 프레임에 조각으로 흩어졌다. */
   justShattered = false
+  /** 이 적을 불러낸 적 (포효·부르기). 수호자가 물러날 때 함께 거둔다 (E239) */
+  summoner: Giant | null = null
 
   private stateTime = 0
   private attack: AttackSpec | null = null
@@ -97,7 +99,8 @@ export class Giant {
   private repathTimer = 0
   private walkCycle = Math.random() * 10
   private flash = 0
-  private roared = false
+  /** 생명이 반 아래로 처음 떨어져 포효했는가 (물러났다 다시 나타난 수호자는 기억한 값을 받는다, E239) */
+  roared = false
   /** 돌진 중: 남은 거리와 방향, 이미 쳤는지 */
   private dash: { left: number; dirX: number; dirZ: number; hit: boolean; attack: AttackSpec } | null = null
   /** 날아가는 것들 (던지기) */
@@ -523,7 +526,7 @@ export class Giant {
           world.hitHero(attack.damage * this.damageScale, this.x, this.z, attack.knockback)
         }
         const reach = area.range * 0.7
-        world.impact(this.x + Math.sin(facing) * reach, this.z + Math.cos(facing) * reach, this.spec.role === 'boss' ? 0.35 : 0.12, ice)
+        world.impact(this.x + Math.sin(facing) * reach, this.z + Math.cos(facing) * reach, this.spec.role === 'boss' || this.spec.role === 'guardian' ? 0.35 : 0.12, ice)
         break
       }
       case 'circle':
@@ -629,7 +632,7 @@ export class Giant {
 
   /** 둘러싸기: 가까워지면 주인공의 정면이 아니라 자기 몫의 옆쪽으로 붙는다 (보스·원거리는 곧장) */
   private approachPoint(hero: { x: number; z: number; radius: number }, dist: number): Point2 {
-    if (this.spec.role === 'boss' || this.spec.keepAway || dist > 6) return hero
+    if (this.spec.role === 'boss' || this.spec.role === 'guardian' || this.spec.keepAway || dist > 6) return hero
     const toMe = Math.atan2(this.x - hero.x, this.z - hero.z)
     const want = toMe + this.flank * 0.6
     const r = this.radius + hero.radius + 0.3

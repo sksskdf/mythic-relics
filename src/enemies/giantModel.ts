@@ -44,8 +44,8 @@ export interface GiantOptions {
   seed?: number
   /** 머리 모양 (E8): 외눈(키클롭스), 뿔(오니), 소뿔(우마왕) */
   head?: 'plain' | 'oneEye' | 'horns' | 'bull'
-  /** 손에 든 것 (E8): 몽둥이, 던질 바위, 빈손 */
-  gear?: 'club' | 'rock' | 'none'
+  /** 손에 든 것 (E8): 몽둥이, 던질 바위, 빈손, 불타는 칼 (E239 수르트, 칼날은 recolor의 장식 색) */
+  gear?: 'club' | 'rock' | 'none' | 'sword'
   /** 색 바꾸기 (서리 거인 색 → 다른 거인 색) */
   recolor?: Readonly<Record<number, number>>
 }
@@ -164,6 +164,17 @@ function club(king: boolean): VoxelGrid {
   return g
 }
 
+/** 불타는 칼 (수르트, E239): 손잡이 → 날밑 → 넓고 긴 날. 날 가운데에 불길 (장식 색) */
+function sword(): VoxelGrid {
+  const g = new VoxelGrid(5, 3, 24)
+  g.box(2, 1, 0, 2, 1, 3, FROST.woodDark)
+  g.box(0, 0, 4, 4, 2, 4, FROST.iron)
+  g.box(1, 1, 5, 3, 1, 22, FROST.iron)
+  g.box(2, 0, 6, 2, 2, 21, FROST.fur)
+  g.set(2, 1, 23, FROST.fur)
+  return g
+}
+
 function cape(): VoxelGrid {
   const g = new VoxelGrid(10, 13, 1)
   g.box(0, 0, 0, 9, 12, 0, FROST.cape)
@@ -218,6 +229,11 @@ export function buildGiantRig(options: GiantOptions): GiantRig {
     clubMesh.position.set(0, -9 * s, 0.5 * s)
     clubMesh.rotation.x = 0.7
     rightArm.add(clubMesh)
+  } else if (gear === 'sword') {
+    const swordMesh = mesh(sword(), [2.5, 1.5, 1.5])
+    swordMesh.position.set(0, -9 * s, 0.5 * s)
+    swordMesh.rotation.x = 0.7
+    rightArm.add(swordMesh)
   } else if (gear === 'rock') {
     const rockMesh = mesh(boulder(), [3.5, 3, 3.5])
     rockMesh.position.set(0, -10 * s, 1.5 * s)

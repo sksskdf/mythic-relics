@@ -76,7 +76,8 @@ export function parseAwaken(raw: unknown): AwakenData {
   const o = raw as Record<string, unknown>
   const god = typeof o.waking === 'string' && Object.hasOwn(AWAKEN, o.waking) ? (o.waking as God) : null
   if (!god) return empty
-  const fragments = o.fragments === 2 ? 2 : 1
   const hunt = typeof o.hunt === 'number' && Number.isFinite(o.hunt) ? Math.max(0, Math.min(HUNT_KILLS, Math.round(o.hunt))) : 0
+  // 사냥 수를 줄인 뒤(E238 40 → E239 30) 이미 30을 넘게 잡은 옛 저장은 조각 2로 (유물은 settle이 준다)
+  const fragments = o.fragments === 2 || hunt >= HUNT_KILLS ? 2 : 1
   return { waking: god, fragments, hunt: fragments === 2 ? HUNT_KILLS : hunt }
 }

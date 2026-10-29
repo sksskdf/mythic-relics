@@ -66,7 +66,7 @@ try {
   })
   for (const god of gods) {
     for (const enemy of enemies) {
-      const boss = ENEMIES[enemy]?.role === 'boss'
+      const boss = ENEMIES[enemy]?.role === 'boss' || ENEMIES[enemy]?.role === 'guardian'
       const r = await page.evaluate(
         ({ god, enemy, limit }) => {
           const g = window.__game

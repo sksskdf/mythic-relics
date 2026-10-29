@@ -249,6 +249,322 @@
       }
     ]
   },
+  "varg": {
+    "name": "철의 숲 늑대",
+    "realm": "norse",
+    "role": "charger",
+    "xp": 10,
+    "voxelSize": 0.1,
+    "radius": 0.6,
+    "hp": 60,
+    "speed": 5.4,
+    "aggroRange": 11,
+    "leashRange": 24,
+    "returnRegen": 0.5,
+    "poise": 25,
+    "body": {
+      "kind": "beast",
+      "main": "#5a5e66",
+      "shade": "#45484f",
+      "dark": "#2a2c32",
+      "accent": "#8a8f98",
+      "eye": "#ffb04a"
+    },
+    "attacks": [
+      {
+        "name": "bite",
+        "windup": 0.6,
+        "recover": 0.5,
+        "damage": 6,
+        "knockback": 4,
+        "area": {
+          "kind": "sector",
+          "range": 2,
+          "halfAngleDeg": 50
+        },
+        "reach": 1.8,
+        "cooldown": 1
+      },
+      {
+        "name": "charge",
+        "windup": 0.8,
+        "recover": 0.9,
+        "damage": 8,
+        "knockback": 8,
+        "area": {
+          "kind": "line",
+          "length": 8,
+          "width": 1.3
+        },
+        "reach": 8,
+        "cooldown": 3.6
+      }
+    ]
+  },
+  "ironWitch": {
+    "name": "철의 숲 마녀",
+    "realm": "norse",
+    "role": "summoner",
+    "xp": 16,
+    "voxelSize": 0.09,
+    "radius": 0.55,
+    "hp": 60,
+    "speed": 2.8,
+    "aggroRange": 12,
+    "leashRange": 24,
+    "returnRegen": 0.5,
+    "poise": 20,
+    "keepAway": 8,
+    "body": {
+      "kind": "humanoid",
+      "main": "#4a4038",
+      "shade": "#3a322c",
+      "dark": "#221c18",
+      "accent": "#9aa0a8",
+      "eye": "#ffb04a",
+      "gear": "staff",
+      "head": "hood"
+    },
+    "attacks": [
+      {
+        "name": "summon",
+        "windup": 1.2,
+        "recover": 1,
+        "damage": 0,
+        "knockback": 0,
+        "area": {
+          "kind": "summon",
+          "enemy": "varg",
+          "count": 2
+        },
+        "reach": 14,
+        "cooldown": 10
+      },
+      {
+        "name": "cast",
+        "windup": 0.8,
+        "recover": 0.8,
+        "damage": 7,
+        "knockback": 5,
+        "area": {
+          "kind": "circle",
+          "radius": 1.5
+        },
+        "reach": 12,
+        "cooldown": 3,
+        "projectile": {
+          "speed": 10,
+          "look": "bone"
+        }
+      }
+    ]
+  },
+  "seaSerpent": {
+    "name": "바다뱀",
+    "realm": "norse",
+    "role": "charger",
+    "xp": 11,
+    "voxelSize": 0.1,
+    "radius": 0.65,
+    "hp": 70,
+    "speed": 3.6,
+    "aggroRange": 11,
+    "leashRange": 24,
+    "returnRegen": 0.5,
+    "poise": 25,
+    "body": {
+      "kind": "serpent",
+      "main": "#3e6a72",
+      "shade": "#2e545a",
+      "dark": "#1c3438",
+      "accent": "#a8d0c0",
+      "eye": "#e8ff8a"
+    },
+    "attacks": [
+      {
+        "name": "charge",
+        "windup": 0.8,
+        "recover": 0.9,
+        "damage": 8,
+        "knockback": 8,
+        "area": {
+          "kind": "line",
+          "length": 7.5,
+          "width": 1.2
+        },
+        "reach": 7.5,
+        "cooldown": 3.8
+      },
+      {
+        "name": "bite",
+        "windup": 0.65,
+        "recover": 0.6,
+        "damage": 6,
+        "knockback": 4,
+        "area": {
+          "kind": "sector",
+          "range": 2,
+          "halfAngleDeg": 45
+        },
+        "reach": 1.8,
+        "cooldown": 1.2
+      }
+    ]
+  },
+  "drowned": {
+    "name": "작살 든 망자",
+    "realm": "norse",
+    "role": "ranged",
+    "xp": 12,
+    "voxelSize": 0.09,
+    "radius": 0.6,
+    "hp": 55,
+    "speed": 2.8,
+    "aggroRange": 11,
+    "leashRange": 24,
+    "returnRegen": 0.5,
+    "poise": 20,
+    "keepAway": 7,
+    "body": {
+      "kind": "humanoid",
+      "main": "#5a7a7a",
+      "shade": "#486464",
+      "dark": "#2c3e3e",
+      "accent": "#c8b890",
+      "eye": "#8affe0",
+      "gear": "spear",
+      "head": "skull"
+    },
+    "attacks": [
+      {
+        "name": "throw",
+        "windup": 0.8,
+        "recover": 0.8,
+        "damage": 7,
+        "knockback": 5,
+        "area": {
+          "kind": "circle",
+          "radius": 1.5
+        },
+        "reach": 13,
+        "cooldown": 3,
+        "projectile": {
+          "speed": 13,
+          "look": "water"
+        }
+      },
+      {
+        "name": "smash",
+        "windup": 0.7,
+        "recover": 0.6,
+        "damage": 5,
+        "knockback": 5,
+        "area": {
+          "kind": "sector",
+          "range": 2.2,
+          "halfAngleDeg": 45
+        },
+        "reach": 2,
+        "cooldown": 1.4
+      }
+    ]
+  },
+  "fireGiant": {
+    "name": "불꽃 거인",
+    "realm": "norse",
+    "role": "brute",
+    "xp": 12,
+    "voxelSize": 0.1,
+    "radius": 0.75,
+    "hp": 95,
+    "speed": 3,
+    "aggroRange": 11,
+    "leashRange": 24,
+    "returnRegen": 0.5,
+    "poise": 25,
+    "body": {
+      "kind": "giant",
+      "main": "#7a5a4e",
+      "shade": "#5e4438",
+      "dark": "#3e2a22",
+      "accent": "#ff8a3c",
+      "eye": "#ffd060",
+      "gear": "club",
+      "head": "horns"
+    },
+    "attacks": [
+      {
+        "name": "smash",
+        "windup": 0.75,
+        "recover": 0.6,
+        "damage": 7,
+        "knockback": 6,
+        "area": {
+          "kind": "sector",
+          "range": 3,
+          "halfAngleDeg": 45
+        },
+        "reach": 2.7,
+        "cooldown": 1.2
+      }
+    ]
+  },
+  "emberSpirit": {
+    "name": "불티 정령",
+    "realm": "norse",
+    "role": "ranged",
+    "xp": 9,
+    "voxelSize": 0.08,
+    "radius": 0.5,
+    "hp": 40,
+    "speed": 4,
+    "aggroRange": 11,
+    "leashRange": 24,
+    "returnRegen": 0.5,
+    "poise": 20,
+    "keepAway": 6,
+    "body": {
+      "kind": "spirit",
+      "main": "#ffa04a",
+      "shade": "#e0702a",
+      "dark": "#5a2410",
+      "accent": "#ffe0a0",
+      "eye": "#ffffff"
+    },
+    "attacks": [
+      {
+        "name": "cast",
+        "windup": 0.7,
+        "recover": 0.7,
+        "damage": 6,
+        "knockback": 4,
+        "area": {
+          "kind": "circle",
+          "radius": 1.3
+        },
+        "reach": 11,
+        "cooldown": 2.4,
+        "projectile": {
+          "speed": 11,
+          "look": "fire"
+        }
+      },
+      {
+        "name": "bite",
+        "windup": 0.6,
+        "recover": 0.5,
+        "damage": 4,
+        "knockback": 3,
+        "area": {
+          "kind": "sector",
+          "range": 1.6,
+          "halfAngleDeg": 60
+        },
+        "reach": 1.4,
+        "cooldown": 1
+      }
+    ]
+  },
   "harpy": {
     "name": "하르피이아",
     "realm": "greek",
@@ -1326,6 +1642,364 @@
         "windup": 1,
         "recover": 1.2,
         "damage": 12,
+        "knockback": 10,
+        "area": {
+          "kind": "ring",
+          "speed": 9,
+          "startRadius": 3.6,
+          "maxRadius": 13,
+          "width": 1.2
+        },
+        "reach": 30,
+        "cooldown": 16
+      }
+    ]
+  },
+  "jormungandr": {
+    "name": "요르문간드",
+    "realm": "norse",
+    "role": "guardian",
+    "xp": 160,
+    "voxelSize": 0.22,
+    "radius": 1.9,
+    "hp": 1000,
+    "speed": 2.4,
+    "aggroRange": 16,
+    "leashRange": 30,
+    "returnRegen": 0.005,
+    "superArmor": true,
+    "minion": "seaSerpent",
+    "body": {
+      "kind": "serpent",
+      "main": "#4f7f7a",
+      "shade": "#3c6662",
+      "dark": "#1e3a38",
+      "accent": "#c8e0a0",
+      "eye": "#f0ff8a",
+      "head": "horns"
+    },
+    "attacks": [
+      {
+        "name": "bite",
+        "windup": 0.8,
+        "recover": 0.7,
+        "damage": 9,
+        "knockback": 8,
+        "area": {
+          "kind": "sector",
+          "range": 4.6,
+          "halfAngleDeg": 50
+        },
+        "reach": 4.2,
+        "cooldown": 2.2
+      },
+      {
+        "name": "cast",
+        "windup": 0.9,
+        "recover": 0.6,
+        "damage": 7,
+        "knockback": 4,
+        "area": {
+          "kind": "circle",
+          "radius": 2.4
+        },
+        "reach": 16,
+        "cooldown": 3.4,
+        "projectile": {
+          "speed": 12,
+          "look": "venom"
+        }
+      },
+      {
+        "name": "charge",
+        "windup": 0.9,
+        "recover": 1,
+        "damage": 10,
+        "knockback": 10,
+        "area": {
+          "kind": "line",
+          "length": 10,
+          "width": 2.2
+        },
+        "reach": 10,
+        "cooldown": 5.5
+      },
+      {
+        "name": "sweep",
+        "windup": 1.1,
+        "recover": 1,
+        "damage": 12,
+        "knockback": 14,
+        "area": {
+          "kind": "sector",
+          "range": 6.5,
+          "halfAngleDeg": 110
+        },
+        "reach": 6,
+        "cooldown": 6.5
+      }
+    ]
+  },
+  "fenrir": {
+    "name": "펜리르",
+    "realm": "norse",
+    "role": "guardian",
+    "xp": 140,
+    "voxelSize": 0.22,
+    "radius": 1.5,
+    "hp": 1000,
+    "speed": 5.4,
+    "aggroRange": 16,
+    "leashRange": 30,
+    "returnRegen": 0.005,
+    "superArmor": true,
+    "minion": "varg",
+    "body": {
+      "kind": "beast",
+      "main": "#4e535c",
+      "shade": "#3c4048",
+      "dark": "#22252a",
+      "accent": "#9aa2ac",
+      "eye": "#ffd060"
+    },
+    "attacks": [
+      {
+        "name": "bite",
+        "windup": 0.6,
+        "recover": 0.5,
+        "damage": 7,
+        "knockback": 6,
+        "area": {
+          "kind": "sector",
+          "range": 3.6,
+          "halfAngleDeg": 55
+        },
+        "reach": 3.2,
+        "cooldown": 1.4
+      },
+      {
+        "name": "charge",
+        "windup": 0.8,
+        "recover": 0.8,
+        "damage": 11,
+        "knockback": 12,
+        "area": {
+          "kind": "line",
+          "length": 14,
+          "width": 2.4
+        },
+        "reach": 13,
+        "cooldown": 4
+      },
+      {
+        "name": "slam",
+        "windup": 0.9,
+        "recover": 0.9,
+        "damage": 12,
+        "knockback": 10,
+        "area": {
+          "kind": "circle",
+          "radius": 3
+        },
+        "reach": 10,
+        "cooldown": 6.5
+      },
+      {
+        "name": "summon",
+        "windup": 1,
+        "recover": 0.8,
+        "damage": 0,
+        "knockback": 0,
+        "area": {
+          "kind": "summon",
+          "enemy": "varg",
+          "count": 2
+        },
+        "reach": 18,
+        "cooldown": 20
+      }
+    ]
+  },
+  "skadi": {
+    "name": "스카디",
+    "realm": "norse",
+    "role": "guardian",
+    "xp": 150,
+    "voxelSize": 0.19,
+    "radius": 1.1,
+    "hp": 2000,
+    "speed": 3.8,
+    "aggroRange": 16,
+    "leashRange": 30,
+    "returnRegen": 0.005,
+    "superArmor": true,
+    "keepAway": 9,
+    "minion": "wolf",
+    "body": {
+      "kind": "humanoid",
+      "main": "#dce6f0",
+      "shade": "#b4c4d4",
+      "dark": "#3a4a62",
+      "accent": "#7fd8ff",
+      "eye": "#e8ffff",
+      "gear": "bow",
+      "head": "hood"
+    },
+    "attacks": [
+      {
+        "name": "throw",
+        "windup": 0.6,
+        "recover": 0.4,
+        "damage": 8,
+        "knockback": 4,
+        "area": {
+          "kind": "circle",
+          "radius": 1.6
+        },
+        "reach": 18,
+        "cooldown": 1.8,
+        "projectile": {
+          "speed": 22,
+          "look": "ice"
+        }
+      },
+      {
+        "name": "cast",
+        "windup": 1,
+        "recover": 0.8,
+        "damage": 14,
+        "knockback": 6,
+        "area": {
+          "kind": "circle",
+          "radius": 3.6
+        },
+        "reach": 15,
+        "cooldown": 5.5,
+        "projectile": {
+          "speed": 9,
+          "look": "ice"
+        }
+      },
+      {
+        "name": "smash",
+        "windup": 0.6,
+        "recover": 0.6,
+        "damage": 8,
+        "knockback": 14,
+        "area": {
+          "kind": "sector",
+          "range": 3,
+          "halfAngleDeg": 60
+        },
+        "reach": 2.8,
+        "cooldown": 3
+      },
+      {
+        "name": "summon",
+        "windup": 1,
+        "recover": 0.8,
+        "damage": 0,
+        "knockback": 0,
+        "area": {
+          "kind": "summon",
+          "enemy": "wolf",
+          "count": 2
+        },
+        "reach": 20,
+        "cooldown": 16
+      },
+      {
+        "name": "roar",
+        "windup": 1,
+        "recover": 1.2,
+        "damage": 10,
+        "knockback": 10,
+        "area": {
+          "kind": "ring",
+          "speed": 9,
+          "startRadius": 3.6,
+          "maxRadius": 13,
+          "width": 1.2
+        },
+        "reach": 30,
+        "cooldown": 16
+      }
+    ]
+  },
+  "surtr": {
+    "name": "수르트",
+    "realm": "norse",
+    "role": "guardian",
+    "xp": 160,
+    "voxelSize": 0.22,
+    "radius": 1.9,
+    "hp": 2200,
+    "speed": 2.3,
+    "aggroRange": 16,
+    "leashRange": 30,
+    "returnRegen": 0.005,
+    "superArmor": true,
+    "minion": "fireGiant",
+    "body": {
+      "kind": "giant",
+      "main": "#5a4440",
+      "shade": "#46342e",
+      "dark": "#2a1e1a",
+      "accent": "#ff7a2a",
+      "eye": "#ffd060",
+      "gear": "sword",
+      "head": "horns"
+    },
+    "attacks": [
+      {
+        "name": "sweep",
+        "windup": 0.95,
+        "recover": 0.9,
+        "damage": 16,
+        "knockback": 14,
+        "area": {
+          "kind": "sector",
+          "range": 7,
+          "halfAngleDeg": 80
+        },
+        "reach": 6.2,
+        "cooldown": 3
+      },
+      {
+        "name": "slam",
+        "windup": 1.2,
+        "recover": 1.1,
+        "damage": 20,
+        "knockback": 10,
+        "area": {
+          "kind": "circle",
+          "radius": 3.6
+        },
+        "reach": 10,
+        "cooldown": 5.5
+      },
+      {
+        "name": "throw",
+        "windup": 1,
+        "recover": 0.9,
+        "damage": 13,
+        "knockback": 8,
+        "area": {
+          "kind": "circle",
+          "radius": 2.6
+        },
+        "reach": 16,
+        "cooldown": 4.5,
+        "projectile": {
+          "speed": 11,
+          "look": "fire"
+        }
+      },
+      {
+        "name": "roar",
+        "windup": 1,
+        "recover": 1.2,
+        "damage": 14,
         "knockback": 10,
         "area": {
           "kind": "ring",

@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 
-import { AWAKEN, AWAKEN_GODS, awakenDef, canWakeMore, GUARDIAN_LEASH, GUARDIAN_RADIUS, GUARDIAN_XP, TRACE_LEASH, TRACE_RADIUS, type TraceState } from '../../data/awaken'
+import { AWAKEN, AWAKEN_GODS, awakenDef, canWakeMore, GUARDIAN_LEASH, GUARDIAN_MEND, GUARDIAN_RADIUS, TRACE_LEASH, TRACE_RADIUS, type TraceState } from '../../data/awaken'
 import { REGIONS } from '../../data/regions'
 import { sceneId } from '../../data/scenes'
 import type { GiantSpec } from '../../data/schema'
@@ -31,38 +31,15 @@ export interface AwakenTarget {
 /** 흔적·수호자 빛기둥의 높이 (m) */
 const BEAM_HEIGHT = 9
 
-/** 그 신의 수호자 몸: 빌린 적의 몸을 키우고 생명·피해·색을 바꾼다 (E239에서 제 모습을 얻을 때까지) */
+/**
+ * 그 신의 수호자 (E239-03): 제 모습과 싸우는 방식은 enemies.json(역할 guardian)에 있다.
+ * 수호자는 그 신의 신화권 적이고(재료·경험치), 물러나는 거리는 수호자 규칙(GUARDIAN_LEASH)을 따른다
+ */
 export function guardianSpec(god: God): GiantSpec | null {
   const def = awakenDef(god)
-  const base = def ? ENEMIES[def.guardian.base] : undefined
-  if (!def || !base) return null
-  const g = def.guardian
-  // 범위는 몸보다 덜 키운다 (크기 2배에 범위 1.4배쯤): 커진 몸에 걸맞게 넓되 피할 틈은 남게
-  const reach = Math.sqrt(g.size)
-  const attacks = base.attacks.map((a) => {
-    const area: Record<string, unknown> = { ...a.area }
-    for (const key of ['range', 'length', 'width', 'radius', 'maxRadius', 'startRadius']) {
-      if (typeof area[key] === 'number') area[key] = area[key] * reach
-    }
-    return { ...a, area: area as unknown as typeof a.area, damage: a.damage * g.damage, reach: a.reach * reach }
-  })
-  return {
-    ...base,
-    id: `guardian:${god}`,
-    name: g.name,
-    // 몸은 빌려도 그 신화권의 적이다 (재료·경험치가 그 땅 것으로)
-    realm: godDef(god).realm,
-    xp: base.xp * GUARDIAN_XP,
-    tint: new THREE.Color(g.tint).getHex(),
-    voxelSize: base.voxelSize * g.size,
-    radius: base.radius * g.size,
-    hp: g.hp,
-    aggroRange: Math.max(base.aggroRange, 14),
-    leashRange: GUARDIAN_LEASH,
-    // 수호자는 맞아도 하던 공격이 끊기지 않는다 (보스처럼)
-    poise: Infinity,
-    attacks,
-  }
+  const enemy = def ? ENEMIES[def.guardian.enemy] : undefined
+  if (!def || !enemy) return null
+  return { ...enemy, realm: godDef(god).realm, leashRange: GUARDIAN_LEASH }
 }
 
 /**
@@ -79,6 +56,8 @@ export class AwakeningSystem {
   private traces: { god: God; x: number; z: number; beam: THREE.Mesh }[] = []
   /** 깨어난 지키는 무리 */
   private pack: { god: God; x: number; z: number; giants: Giant[] } | null = null
+  /** 물러난 수호자의 남은 생명 (그 신·비율·물러난 때, E239) */
+  private wound: { god: God; ratio: number; at: number; roared: boolean } | null = null
   /** 수호자 자리 (조각 2를 모았고 그 땅에 있을 때) */
   private lair: { god: God; x: number; z: number; beam: THREE.Mesh } | null = null
   /** 나타난 수호자 */
@@ -136,6 +115,11 @@ export class AwakeningSystem {
   /** 지금 땅의 흔적 자리 (작은 지도·커서 카드) */
   get spots(): readonly { god: God; x: number; z: number; state: TraceState }[] {
     return this.traces.map((t) => ({ god: t.god, x: t.x, z: t.z, state: this.traceState(t.god) }))
+  }
+
+  /** 흔적을 지키는 무리가 깨어나 있나 (봇: 그동안은 흔적으로 걸어가지 않고 싸운다) */
+  get roused(): boolean {
+    return this.pack !== null
   }
 
   /** 수호자 자리 (작은 지도) */
@@ -226,14 +210,17 @@ export class AwakeningSystem {
     if (o.material instanceof THREE.MeshBasicMaterial) o.material.dispose()
   }
 
-  /** 무리의 마지막·수호자의 생명이 다했으면 바로 조각을 준다 (무너지는 0.55초를 기다리지 않는다) */
+  /**
+   * 무리의 마지막·수호자의 생명이 다했으면 바로 조각을 준다 (무너지는 0.55초를 기다리지 않는다).
+   * 쓰러졌는지는 생명으로 본다: 땅을 옮기며(워프) 지운 적도 alive가 꺼지지만 쓰러뜨린 것이 아니다
+   */
   private settleDeaths(): void {
-    if (this.pack && this.pack.giants.every((g) => !g.alive)) {
+    if (this.pack && this.pack.giants.every((g) => g.health.dead)) {
       const god = this.pack.god
       this.pack = null
       this.piece1(god)
     }
-    if (this.guardian && !this.guardian.alive) {
+    if (this.guardian?.health.dead) {
       this.guardian = null
       this.awaken()
     }
@@ -276,7 +263,7 @@ export class AwakeningSystem {
     }
     if (this.guardian) {
       if (!this.guardian.alive) return
-      // 멀리 물러나면 수호자도 물러난다 (다시 다가가면 처음부터)
+      // 멀리 물러나면 수호자도 물러난다 (다시 다가가면 입은 상처는 그대로, E239)
       if (this.lair && Math.hypot(p.x - this.lair.x, p.z - this.lair.z) > GUARDIAN_LEASH) this.dismiss()
     } else if (this.lair && Math.hypot(p.x - this.lair.x, p.z - this.lair.z) <= GUARDIAN_RADIUS) this.summon(this.lair.god)
   }
@@ -310,9 +297,14 @@ export class AwakeningSystem {
     this.pack = null
   }
 
-  /** 수호자가 물러난다 (멀리 달아남·쓰러짐·땅을 옮김): 다시 다가가면 처음부터 */
+  /** 수호자가 물러난다 (멀리 달아남·쓰러짐·땅을 옮김): 다시 다가가면 그동안 조금 아문 만큼으로 돌아온다 */
   private dismiss(): void {
     if (!this.guardian) return
+    // 수호자가 불러낸 졸개도 함께 거둔다 (물러났다 다시 올 때마다 졸개가 쌓이지 않게, E239)
+    const guardian = this.guardian
+    // 깎아 둔 생명은 기억해 둔다 (E239): 다시 나타나면 그동안 조금씩 아문 만큼만
+    if (!guardian.health.dead && this.lair) this.wound = { god: this.lair.god, ratio: guardian.health.ratio, at: this.time, roared: guardian.roared }
+    for (const giant of this.ctx.encounter.alive.filter((g) => g.summoner === guardian)) this.ctx.encounter.remove(giant)
     if (this.guardian.alive) this.ctx.encounter.remove(this.guardian)
     this.guardian = null
     this.ctx.bus.emit('music', { theme: null })
@@ -389,6 +381,14 @@ export class AwakeningSystem {
     const at = { x: this.lair.x, z: this.lair.z }
     this.guardian = this.ctx.encounter.spawn(spec, at, true)
     this.ours.add(this.guardian)
+    const wound = this.wound?.god === god ? this.wound : null
+    if (wound) {
+      const health = this.guardian.health
+      health.hp = health.max * Math.min(1, wound.ratio + (this.time - wound.at) * GUARDIAN_MEND)
+      // 이미 포효했으면 다시 나타나자마자 또 포효하지 않게
+      this.guardian.roared = wound.roared
+    }
+    this.wound = null
     this.ctx.fx.power.burst(this.guardian.object.position, godDef(god).color, 4)
     this.ctx.fx.puffs.burst(this.guardian.object.position, 30, 4)
     this.ctx.view.shake(0.5)

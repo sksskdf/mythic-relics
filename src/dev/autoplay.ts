@@ -187,8 +187,13 @@ export class Autoplayer {
     // 신화 고르기 성소로 가는 길(E22-03)도 떠날 때처럼 예고를 피하지 않고 걸어간다 (쫓아오는 무리를 다 피하면 닿지 못한다)
     const offer = this.game.mythChoice.here
     const toChoose = offer !== null && hp >= 0.5 && !legend.active
+    // 신 깨우기 (E239): 흔적·수호자 자리가 멀면 예고를 피하지 않고 걸어간다 (물러서며 던지는 적이 많은 땅에서 둘레가 비기를 기다리면 닿지 못한다)
+    const wake = this.awakenSpot()
+    const toWake = wake !== null && hp >= 0.6 && !legend.active && dist(here, wake) > 6
+    // 수호자와 싸울 때 (E239): 생명이 넉넉하면 떨어지는 것(독·화살·불덩이)은 맞으며 붙는다. 멀리서 던지는 수호자를 피하기만 하면 끝나지 않는다
+    const guarding = this.game.awakening.fighting !== null && hp > 0.5
     // 1. 예고 범위 안에 있으면 빠져나간다.
-    const dangers = leaving || toChoose ? [] : enemies.flatMap((g) => g.dangers)
+    const dangers = leaving || toChoose || toWake ? [] : enemies.flatMap((g) => g.dangers).filter((d) => !guarding || d.kind !== 'circle')
     if (dangers.some((d) => inDanger(here, d, MARGIN))) {
       const escape = this.findEscape(here, dangers)
       if (escape) hero.moveTo(escape)
@@ -213,8 +218,9 @@ export class Autoplayer {
     }
     // 정한 신이 있으면 그 신화가 열리는 대로 고른다 (사람은 마을·성소에서 고른다)
     if (this.god && powers.manifested !== this.god && this.game.progress.isOpen(this.god)) this.game.dev.choose(this.god)
-    // 고른 신화의 유물이 가방에 있으면 그 부위 칸에 낀다 (대장간에서 만든 유물이 가방으로 들어간 때)
-    const own = powers.manifested ? mythRelic(powers.manifested) : null
+    // 고른 신화의 유물(신을 깨우는 중이면 그 신의 유물, E238 조각 2)이 가방에 있으면 그 부위 칸에 낀다 (대장간에서 만든 유물이 가방으로 들어간 때)
+    const ownGod = powers.manifested ?? powers.loadout.waking
+    const own = ownGod ? mythRelic(ownGod) : null
     if (own && powers.loadout.bag.includes(own)) {
       const slots = powers.loadout.slots.map((_, i) => i).filter((i) => powers.loadout.fits(own, i))
       const target = slots.find((i) => powers.loadout.slots[i] === null) ?? slots.find((i) => !isRelicId(powers.loadout.slots[i] ?? ''))
@@ -291,10 +297,9 @@ export class Autoplayer {
       return
     }
 
-    // 4.7 신 깨우기 (E238): 둘레가 비었고 생명이 넉넉하면 흔적·수호자 자리로 간다 (지키는 무리·수호자와의 싸움은 아래 싸움이 맡고,
-    // 사냥은 그 땅에서 싸우면 찬다)
-    const wake = this.awakenSpot()
-    if (wake && !legend.active && hp > 0.75 && near.length === 0) {
+    // 4.7 신 깨우기 (E238): 생명이 넉넉하면 흔적·수호자 자리로 간다 (지키는 무리·수호자와의 싸움은 아래 싸움이 맡고,
+    // 사냥은 그 땅에서 싸우면 찬다). 멀면 둘레의 적을 달고서라도 가고, 가까우면 둘레가 빌 때 간다
+    if (wake && !legend.active && (toWake || (hp > 0.75 && near.length === 0))) {
       if (dist(here, wake) > 1.5 && (!hero.isMoving || dist(hero.goal ?? here, wake) > 1)) hero.moveTo(wake)
       this.step = 17
       return
@@ -335,9 +340,9 @@ export class Autoplayer {
       this.engage(here, boss)
       return
     }
-    // 신의 수호자 (E238): 나타났으면 둘레의 졸개가 하나쯤 남아도 수호자를 친다
+    // 신의 수호자 (E238): 나타났으면 둘레에 졸개가 있어도 수호자를 친다 (졸개를 쫓다 수호자 자리에서 30m 넘게 멀어지면 수호자가 물러나 처음부터라, E239)
     const guardian = this.game.awakening.fighting
-    if (guardian && !legend.active && hp > 0.5 && near.filter((g) => g !== guardian).length <= 1) {
+    if (guardian && !legend.active && hp > 0.5) {
       this.step = 18
       this.engage(here, guardian)
       return
@@ -384,6 +389,7 @@ export class Autoplayer {
     const target = awakening.target(goal.region)
     if (!target || target.kind === 'hunt' || target.region !== this.game.region.id) return null
     if (target.kind === 'guardian' && awakening.fighting) return null
+    if (target.kind === 'trace' && awakening.roused) return null
     return awakening.placed(target)
   }
 

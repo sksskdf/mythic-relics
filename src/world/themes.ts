@@ -156,14 +156,19 @@ const BASE_THEMES = {
 } satisfies Record<string, ThemeDef>
 
 /** 같은 신화권 땅의 다른 얼굴 (E15): 그 신화권 테마를 바탕으로 땅·물·빛·날림만 바꾼다. 소품 색 바꾸기는 그대로 */
-function variant(base: ThemeDef, patch: { ground?: Partial<ThemeDef['ground']>; water?: Partial<ThemeDef['water']>; light?: Partial<ThemeDef['light']>; particles?: ThemeDef['particles']; border?: readonly string[] }): ThemeDef {
+function variant(
+  base: ThemeDef,
+  patch: { ground?: Partial<ThemeDef['ground']>; water?: Partial<ThemeDef['water']>; scatter?: ThemeDef['scatter']; light?: Partial<ThemeDef['light']>; particles?: ThemeDef['particles']; border?: readonly string[]; recolor?: ThemeDef['recolor'] },
+): ThemeDef {
   return {
     ...base,
     ground: { ...base.ground, ...patch.ground },
     water: { ...base.water, ...patch.water },
+    scatter: patch.scatter ?? base.scatter,
     light: { ...base.light, ...patch.light },
     particles: patch.particles ?? base.particles,
     border: patch.border ?? base.border,
+    recolor: { ...base.recolor, ...patch.recolor },
   }
 }
 
@@ -173,6 +178,36 @@ const DEEP_THEMES = {
   glacier: variant(BASE_THEMES.snow, {
     ground: { base: 0xcfe2ef, shade: 0xa9c4da, alt: 0x93b4cf, path: 0x9fb0bf },
     light: { sky: 0x7f9ab4, hemiSky: 0xa8c8ff, hemiGround: 0x3a4a60, sun: 0xd8e8ff, sunIntensity: 2.7 },
+  }),
+  /** 철의 숲 (E239): 쇳빛 잎의 빽빽한 숲, 녹슨 흙과 낮은 빛 (펜리르의 숲) */
+  ironwood: variant(BASE_THEMES.snow, {
+    ground: { base: 0xa6aab0, shade: 0x8c9098, alt: 0x9a9890, path: 0x8a7a68, earth: 0x6a4a36, stone: 0x5e6268 },
+    water: { surface: 0x5a6e7a, deep: 0x3e4e5a },
+    scatter: { tuft: [0x5a5e52, 0x6a6c5a, 0x4a4e46], pebble: [0x6e7278, 0x55595f] },
+    light: { sky: 0x6e7680, hemiSky: 0xa8b0c0, hemiGround: 0x2a2e34, hemi: 0.75, sun: 0xe8d8c0, sunIntensity: 2.7 },
+    particles: { kind: 'snow', color: 0xb8bcc4 },
+    border: ['pine', 'pine', 'pine', 'pine', 'deadTree', 'deadTree', 'rock'],
+    recolor: { [C.pine]: 0x3c4a48, [C.pineDark]: 0x2a3436, [C.pineLight]: 0x4e5c58, [C.snow]: 0x8a9096, [C.snowShade]: 0x737a82, [C.snowBlue]: 0x646c76 },
+  }),
+  /** 세계 뱀의 바닷가 (E239): 잿빛 자갈 해변과 검푸른 물웅덩이, 바다 안개 (요르문간드가 잠든 바다) */
+  shore: variant(BASE_THEMES.snow, {
+    ground: { base: 0xc2c4bc, shade: 0xa6a9a2, alt: 0xb2aa98, path: 0xd2c8ae, earth: 0x7a6a54, stone: 0x6e747a },
+    water: { surface: 0x3e6e86, deep: 0x24485e, frozen: false },
+    scatter: { tuft: [0x7a8a6a, 0x8a9a72, 0x66765a], pebble: [0x8a8e94, 0x6a6e74] },
+    light: { sky: 0x8aa0b0, hemiSky: 0xc8dcec, hemiGround: 0x3a4650, hemi: 0.85, sun: 0xf0e4d0, sunIntensity: 2.7 },
+    particles: { kind: 'snow', color: 0xdce8f0 },
+    border: ['rock', 'rock', 'rock', 'pine', 'deadTree', 'mound'],
+    recolor: { [C.snow]: 0xb8bcb2, [C.snowShade]: 0x9ea398, [C.snowBlue]: 0x8a9488 },
+  }),
+  /** 무스펠 경계 (E239): 불의 땅과 맞닿은 그을린 돌밭, 용암 웅덩이와 불티 (수르트의 불) */
+  muspel: variant(BASE_THEMES.snow, {
+    ground: { base: 0x9c9490, shade: 0x847c78, alt: 0xa48e84, path: 0x6e5448, earth: 0x8a3a20, stone: 0x3e3836 },
+    water: { surface: 0xe8702a, deep: 0xb0401a, frozen: false },
+    scatter: { tuft: [0x6a5a4a, 0x7a6450, 0x5a4a3e], pebble: [0x4a4440, 0x3a3432] },
+    light: { sky: 0x5a4038, hemiSky: 0xf0c8b0, hemiGround: 0x2a1610, hemi: 0.8, sun: 0xffd0a8, sunIntensity: 2.7 },
+    particles: { kind: 'embers', color: 0xff7a30 },
+    border: ['rock', 'rock', 'deadTree', 'deadTree', 'mound', 'ruin'],
+    recolor: { [C.snow]: 0x5a4a44, [C.snowShade]: 0x4a3c38, [C.snowBlue]: 0x6a3a2a, [C.pine]: 0x3a3430, [C.pineDark]: 0x2a2624, [C.pineLight]: 0x4a423c },
   }),
   /** 우트가르드: 거인의 성터, 어두운 돌과 흐린 빛 */
   utgard: variant(BASE_THEMES.snow, {

@@ -1,7 +1,7 @@
 import { el, type TabContext } from './dom'
 
-/** 지도가 보여 주는 반 폭 (세계 칸 단위) */
-const HALF = 4
+/** 땅을 모두 담은 네모 둘레의 여백 (세계 칸 단위, 이름 자리) */
+const MARGIN = 0.9
 /** 지도 판의 가장 큰 폭 (px, menu.css의 .menu-map__board): 큰 화면에서는 키운다 */
 function boardMax(): number {
   return typeof matchMedia === 'function' && matchMedia('(min-height: 900px) and (min-aspect-ratio: 4/5)').matches ? 620 : 460
@@ -19,10 +19,19 @@ function view(p: { x: number; y: number }): { x: number; y: number } {
 
 const overlaps = (a: Box, b: Box) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1
 
+/** 지도 판: 땅을 모두 담는 네모의 가운데와 반 폭 (돌린 자리). 세계가 마을에서 한쪽으로 뻗어도 판 가운데에 온다 (E239) */
+function frame(points: readonly { x: number; y: number }[]): { cx: number; cy: number; half: number } {
+  if (points.length === 0) return { cx: 0, cy: 0, half: 4 }
+  const xs = points.map((p) => p.x)
+  const ys = points.map((p) => p.y)
+  const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)]
+  return { cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, half: Math.max(x1 - x0, y1 - y0) / 2 + MARGIN }
+}
+
 /**
- * 지도 탭 (E15-04): 마을이 가운데, 신화권마다 입구 들판 → 깊은 땅 → 보스의 땅이 한 줄로 뻗는다.
+ * 지도 탭 (E15-04): 마을에서 신화권마다 입구 들판 → 깊은 땅 → 보스의 땅이 한 줄로 뻗는다 (E239부터 마을은 남쪽 끝).
  * 하나로 이어진 세계(E19-05)라 땅은 세계 칸 자리 그대로(화면 방향으로 돌려) 그리고, 내 자리를 점으로 찍는다.
- * 지금 있는 곳은 테두리, 찾은 성소는 채운 점. 워프가 열렸으면 찾은 성소를 눌러 바로 간다.
+ * 지금 있는 곳은 테두리, 켠 성소는 채운 점. 켠 성소와 마을은 눌러 바로 간다 (웨이포인트, E239-05).
  * 다음 목표의 땅은 금빛 고리가 뛰고, 결계로 막힌 땅은 흐리게 (E22-04).
  */
 export function renderMap(ctx: TabContext, body: HTMLElement): void {
@@ -40,7 +49,8 @@ export function renderMap(ctx: TabContext, body: HTMLElement): void {
   const NS = 'http://www.w3.org/2000/svg'
   const svg = document.createElementNS(NS, 'svg')
   svg.setAttribute('class', 'menu-map__svg')
-  svg.setAttribute('viewBox', `${-HALF} ${-HALF} ${HALF * 2} ${HALF * 2}`)
+  const { cx, cy, half } = frame(nodes)
+  svg.setAttribute('viewBox', `${cx - half} ${cy - half} ${half * 2} ${half * 2}`)
   const byId = new Map(nodes.map((n) => [n.id, n]))
   // 땅의 넓이 (세계 칸 자리 그대로라 돌리면 마름모, E19-05)
   for (const n of nodes) {
@@ -71,7 +81,7 @@ export function renderMap(ctx: TabContext, body: HTMLElement): void {
   // 글자 크기는 px로 정해져 있으니, 지도 판이 좁으면(휴대폰) 지도 단위로는 이름이 더 넓다
   const max = boardMax()
   const boardPx = Math.min(max, (document.documentElement.clientWidth || max) - 60)
-  const unit = (px: number) => px / (boardPx / (HALF * 2))
+  const unit = (px: number) => px / (boardPx / (half * 2))
   const CHAR = unit(11)
   const LINE = unit(16)
   const MARK = unit(17)
@@ -84,12 +94,12 @@ export function renderMap(ctx: TabContext, body: HTMLElement): void {
       [' is-left', { x0: n.x - MARK - w, x1: n.x - MARK, y0: n.y - LINE / 2, y1: n.y + LINE / 2 }],
       [' is-right', { x0: n.x + MARK, x1: n.x + MARK + w, y0: n.y - LINE / 2, y1: n.y + LINE / 2 }],
     ]
-    const inside = (b: Box) => b.x0 > -HALF && b.x1 < HALF && b.y0 > -HALF && b.y1 < HALF
+    const inside = (b: Box) => b.x0 > cx - half && b.x1 < cx + half && b.y0 > cy - half && b.y1 < cy + half
     const [side, box] = options.find(([, b]) => inside(b) && !taken.some((t) => overlaps(t, b))) ?? options[0]!
     taken.push(box)
     return side
   }
-  // 좁은 판(휴대폰)에는 열여섯 이름이 다 들어가지 않는다: 지금 있는 곳·마을·보스의 땅·찾은 성소만 이름을 보이고 나머지는 눌러서 힌트로
+  // 좁은 판(휴대폰)에는 스무 곳 이름이 다 들어가지 않는다: 지금 있는 곳·마을·보스의 땅·찾은 성소만 이름을 보이고 나머지는 눌러서 힌트로
   const narrow = boardPx < 400
   const named = (n: (typeof nodes)[number]) => !narrow || n.here || n.zone === null || n.zone === 'boss' || n.found
   const labels = el('div', 'menu-map__labels')
@@ -140,15 +150,15 @@ export function renderMap(ctx: TabContext, body: HTMLElement): void {
     // 이름은 HTML로 얹는다 (갈무리 글꼴, 정해진 크기)
     const label = el('button', `menu-map__label${sides.get(n.id)}${n.here ? ' is-here' : ''}${named(n) ? '' : ' is-quiet'}${n.locked ? ' is-locked' : ''}${goal?.region === n.id ? ' is-goal' : ''}`)
     label.type = 'button'
-    label.style.left = `${((n.x + HALF) / (HALF * 2)) * 100}%`
-    label.style.top = `${((n.y + HALF) / (HALF * 2)) * 100}%`
+    label.style.left = `${((n.x - cx + half) / (half * 2)) * 100}%`
+    label.style.top = `${((n.y - cy + half) / (half * 2)) * 100}%`
     label.append(el('span', '', n.name))
     if (n.zone === 'boss' && n.cleared > 0) label.append(el('small', '', `${n.cleared}단계 이김`))
     label.disabled = !(warp && n.found && !n.here)
     label.addEventListener('click', () => world.warp(n.id) && ctx.close())
     ctx.hintOn(label, () => {
       const zone = n.zone === 'entrance' ? '입구 들판' : n.zone === 'deep' ? '깊은 땅 (정예가 많다)' : n.zone === 'boss' ? '보스의 땅' : '마을'
-      const how = n.here ? '지금 여기' : warp ? (n.found ? '누르면 워프' : '성소를 찾으면 워프할 수 있다') : n.found ? '성소를 찾았다' : '아직 성소를 찾지 못했다'
+      const how = n.here ? '지금 여기' : warp ? (n.found ? '누르면 바로 간다' : '성소를 밟으면 켜진다') : n.found ? '성소를 켰다' : '아직 성소를 켜지 않았다'
       const won = n.zone === 'boss' && n.cleared > 0 ? ` · ${n.cleared}단계 이김` : ''
       const seal = n.locked ? '\n결계로 막혀 있다' : ''
       const next = goal?.region === n.id ? `\n다음 목표: ${goal.text}` : ''
@@ -171,8 +181,7 @@ export function renderMap(ctx: TabContext, body: HTMLElement): void {
   const board = el('div', 'menu-map__board')
   board.append(svg, labels)
   wrap.append(board)
-  // 성소 워프는 엔딩 뒤 장치라 그 전에는 말하지 않는다 (E21-06)
-  if (warp) wrap.append(el('div', 'menu-src__text', '찾은 성소를 누르면 워프한다'))
-  else if (ctx.host.afterEnding()) wrap.append(el('div', 'menu-src__text', '성소 워프는 위협 2단계에 열린다 (정보 화면 › 원천 › 편의)'))
+  // 웨이포인트 (E239-05): 처음부터 켠 성소와 마을로 바로 간다
+  if (warp) wrap.append(el('div', 'menu-src__text', '켠 성소나 마을을 누르면 바로 간다'))
   body.append(wrap)
 }
