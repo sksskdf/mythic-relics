@@ -33,7 +33,8 @@ export class TabSystem {
       shrine: conveniences.visited.size > 0,
       // 빌드 상태는 통째로 새로 계산하니, 원천 탭이 열린 뒤에는 보지 않는다 (적을 잡을 때마다 불린다)
       awakened: !tabs.has('sources') && Object.values(build.state.awakening).some((level) => level >= 1),
-      myth: progress.opened.length > 0,
+      // 신화 탭은 첫 신의 흔적(조각 1)부터 (E238)
+      myth: progress.opened.length > 0 || this.ctx.awaken.fragments >= 1,
       relic: loadout.ownedRelics.some(isMythRelic),
     }
   }

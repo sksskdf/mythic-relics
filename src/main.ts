@@ -92,6 +92,7 @@ async function boot(): Promise<Game> {
     touch,
     suspended: () => rotateHint.shown,
     allTabs: testRun,
+    relicsOpenMyths: testRun,
   })
   game.start()
   ;(window as unknown as { __game: Game }).__game = game

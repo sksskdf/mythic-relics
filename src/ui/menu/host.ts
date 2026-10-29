@@ -87,6 +87,8 @@ export interface WorldMapHost {
   nodes(): { id: string; name: string; color: string; zone: string | null; x: number; y: number; size: number; links: string[]; here: boolean; found: boolean; cleared: number; locked: boolean }[]
   /** 다음 목표: 가야 할 땅과 목표 한 줄 (E22-04). 엔딩 뒤이거나 다 했으면 null */
   goal(): { region: string; text: string } | null
+  /** 아직 깨우지 않은 신의 흔적 (E238): 있는 땅, 이름, 그 신의 색, 깨우는 중인가 */
+  traces(): { region: string; name: string; color: string; waking: boolean }[]
   /** 지도 위 내 자리 (세계 칸 단위). 세계 밖(균열)이면 null */
   me(): { x: number; y: number } | null
   /** 성소 워프가 열렸나 */
@@ -148,6 +150,8 @@ export interface MenuHost {
     slots(): { count: number; gods: readonly God[]; locked: readonly string[] }
     /** 빌린 칸에 넣거나 뺀다 (마을·성소에서만) */
     lend(god: God, on: boolean): boolean
+    /** 깨우는 중인 신 (E238): 모은 조각과 다음 할 일 한 줄. 없으면 null */
+    waking(): { god: God; fragments: number; next: string } | null
     /** 성좌판에서 별을 밝힌 신화의 수치 단계 (밝히지 않았으면 0, 엔딩 뒤) */
     star(god: God): number
   }

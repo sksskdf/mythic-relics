@@ -293,19 +293,31 @@ try {
   if (gearTabs.join() !== 'relics') throw new Error(`탭 차례: 장비를 주운 뒤 열린 탭이 장비 하나가 아닙니다 (${gearTabs.join()})`)
   console.log('탭 차례 확인: 새 판에는 상태 탭만, 장비를 주우면 장비 탭과 카드')
   await lookShot('2-gear')
-  // 유물 점검: 신화의 유물(묠니르) 위에 서면 줍고, 그 신화가 열려 바로 고른 신화가 된다 (E12-04, E13-03).
+  // 신을 깨우는 조각 셋 (E238): 흔적(조각 1: 대표 힘을 빌림) → 사냥(조각 2: 묠니르가 발밑에) → 수호자(깨어나 주신이 됨).
+  // 데모에서는 유물을 주워도 신화가 열리지 않는다
   await page.evaluate(() => {
     const g = window.__game
-    const p = g.hero.object.position
-    g.pickups.drop('mjolnir', p.x, p.z)
+    g.dev.awaken('thor')
+    g.dev.awaken()
   })
+  const relicAt = await page.evaluate(() => window.__game.pickups.list.find((i) => i.id === 'mjolnir') ?? null)
+  if (!relicAt) throw new Error('신의 조각: 조각 2를 모았는데 묠니르가 떨어지지 않았습니다.')
+  await page.evaluate(({ x, z }) => window.__game.hero.teleport(x, z), relicAt)
   await page.waitForFunction(() => window.__game.powers.loadout.slots[0] === 'mjolnir', null, { timeout: 15000 }).catch(() => {
     throw new Error('유물: 묠니르를 주워 무기 칸에 끼지 못했습니다.')
   })
   if ((await page.evaluate(() => window.__game.hero.rig.outfit.weapon)) !== 'mjolnirHammer') throw new Error('외형: 묠니르를 줍자마자 망치가 보이지 않습니다.')
+  const asleep = await page.evaluate(() => {
+    const g = window.__game
+    return { open: g.progress.isOpen('thor'), manifested: g.powers.manifested, lent: g.ctx.build.passives().map((p) => p.god), awake: g.powers.awake('mjolnir') }
+  })
+  if (asleep.open || asleep.manifested) throw new Error(`신의 조각: 수호자 전에 토르가 열렸습니다 ${JSON.stringify(asleep)}`)
+  if (!asleep.lent.includes('thor') || !asleep.awake) throw new Error(`신의 조각: 조각 2인데 토르의 힘을 빌리지 않거나 묠니르가 잠들어 있습니다 ${JSON.stringify(asleep)}`)
+  await page.evaluate(() => window.__game.dev.awaken())
   const manifested = await page.evaluate(() => window.__game.powers.manifested)
-  if (manifested !== 'thor') throw new Error(`신화 고르기 실패: 토르 유물을 주웠는데 고른 신화가 ${manifested}입니다.`)
-  if (!(await page.evaluate(() => window.__game.progress.isOpen('thor')))) throw new Error('신화 개방: 토르 유물을 주웠는데 토르 신화가 열리지 않았습니다.')
+  if (manifested !== 'thor') throw new Error(`신화 고르기 실패: 토르의 수호자를 쓰러뜨렸는데 주신이 ${manifested}입니다.`)
+  if (!(await page.evaluate(() => window.__game.progress.isOpen('thor')))) throw new Error('신화 개방: 토르의 수호자를 쓰러뜨렸는데 토르 신화가 열리지 않았습니다.')
+  console.log('신의 조각 확인: 조각 1에 토르의 힘을 빌리고, 조각 2의 묠니르는 깨어나지만 토르는 아직 닫힘, 수호자 뒤에 토르가 주신')
   if ((await page.evaluate(() => window.__game.hero.rig.outfit.head)) !== 'thorHelm') throw new Error('외형: 신화를 골랐는데 모습이 그대로입니다.')
   // 재료가 된 유물(메긴교르드)은 칸이 아니라 재료로 (E13-03)
   await page.evaluate(() => {
@@ -424,7 +436,7 @@ try {
   // 보관함에서 무기를 짧은 검으로 고르면 묠니르를 껴도 검을 든다. (새로 고침 뒤에도 유지되는지 아래에서 확인)
   await page.evaluate(() => window.__game.appearance.choose('weapon', 'shortSword'))
   if ((await page.evaluate(() => window.__game.hero.rig.outfit.weapon)) !== 'shortSword') throw new Error('외형: 보관함 선택이 적용되지 않습니다.')
-  console.log('장비·유물 확인: 장화 줍기와 발 칸, 묠니르 줍기로 토르 신화 열기·고르기, 메긴교르드는 재료, 장비 탭 칸 7, 대장간에서 각성한 묠니르 (test-results/look-*.png)')
+  console.log('장비·유물 확인: 장화 줍기와 발 칸, 조각 셋으로 토르 깨우기(묠니르는 조각 2), 메긴교르드는 재료, 장비 탭 칸 7, 대장간에서 각성한 묠니르 (test-results/look-*.png)')
 
   // 지역 (E7): 새로 시작하면 마을. 마을 사람 곁에 가면 말풍선, 출구를 밟으면 암전 뒤 그 땅으로 넘어간다.
   if ((await page.evaluate(() => window.__game.region.id)) !== 'village') throw new Error('지역: 새로 시작했는데 마을이 아닙니다.')
@@ -721,25 +733,63 @@ try {
   const ending = await end.evaluate(() => {
     const g = window.__game
     const chapters = []
-    // 땅 차례 (E236-01): 제1장에서 신화를 고르기 전에는 요툰헤임·우트가르드가 막혀 있다
+    // 땅 차례 (E236-01): 제1장에서 첫 신을 깨우기 전에는 요툰헤임·우트가르드가 막혀 있다
     let early = null
+    // 첫 신은 건너뛰지 않고 깨운다 (E238): 흔적에 다가가면 무리 → 조각 1(빌린 힘) → 사냥 → 조각 2(유물) → 수호자 → 깨어남
+    let woke = null
+    const kill = (near) => {
+      for (const e of g.encounter.alive) if (near(e)) e.takeHit(1e6, 0, 0, 0)
+    }
     for (let i = 0; i < 30 && g.chapters.goal; i++) {
-      if (!early && g.chapters.chapter?.id === 'north' && g.chapters.goal?.kind === 'choose') early = { jotunheim: g.chapters.isOpen('jotunheim'), utgard: g.chapters.isOpen('utgard') }
+      if (!early && g.chapters.chapter?.id === 'north' && g.chapters.goal?.kind === 'awaken') early = { jotunheim: g.chapters.isOpen('jotunheim'), utgard: g.chapters.isOpen('utgard') }
+      if (!woke && g.chapters.goal?.kind === 'awaken' && g.region.id === 'midgard') {
+        const target = g.awakening.target('midgard')
+        const spot = g.awakening.placed(target)
+        woke = { god: target.god }
+        g.hero.teleport(spot.x + 1.5, spot.z + 1)
+        g.advance(0.5, 1 / 30)
+        woke.pack = g.encounter.alive.filter((e) => Math.hypot(e.x - spot.x, e.z - spot.z) < 8).length
+        kill((e) => Math.hypot(e.x - spot.x, e.z - spot.z) < 10)
+        // 쓰러진 적은 무너지는 동안(0.55초) 기다렸다가 잡은 것으로 센다
+        g.advance(1, 1 / 30)
+        woke.piece1 = g.awaken.fragments
+        woke.lent = g.ctx.build.passives().map((p) => p.god)
+        for (let k = 0; k < 60 && g.awaken.fragments < 2; k++) {
+          const p = g.hero.object.position
+          g.dev.spawn('grunt', p.x + 3, p.z)
+          g.advance(0.1, 1 / 30)
+          kill(() => true)
+          g.advance(0.1, 1 / 30)
+        }
+        woke.piece2 = g.awaken.fragments
+        woke.relic = g.pickups.list.some((it) => it.id === 'mjolnir' || it.id === 'gungnir') || g.powers.loadout.ownedRelics.length > 0
+        const lair = g.awakening.lairSpot
+        if (lair) g.hero.teleport(lair.x + 4, lair.z + 3)
+        g.advance(0.5, 1 / 30)
+        woke.guardian = g.awakening.fighting?.spec.name ?? null
+        g.awakening.fighting?.takeHit(1e6, 0, 0, 0)
+        g.advance(1, 1 / 30)
+        woke.opened = [...g.progress.opened]
+      }
       const id = g.chapters.chapter?.id
       if (chapters.at(-1) !== id) chapters.push(id)
       g.skipGoal()
       g.advance(2, 1 / 30)
     }
     g.advance(1, 1 / 30)
-    return { chapters, early, ending: g.ending.reached, region: g.region.id, barriers: g.barrierSpots.length, log: g.log.filter((e) => e.type === 'ending').length, frame: g.frame }
+    return { chapters, early, woke, ending: g.ending.reached, region: g.region.id, barriers: g.barrierSpots.length, log: g.log.filter((e) => e.type === 'ending').length, frame: g.frame }
   })
   // 목표 한 줄은 화면을 그릴 때 바뀐다
   await end.waitForFunction((f) => window.__game.frame > f + 2, ending.frame, { timeout: 60000 })
   ending.goal = await end.evaluate(() => !document.querySelector('.chapter-goal').hidden)
   await end.close()
   if (!ending.ending || ending.log !== 1 || ending.barriers > 0 || ending.goal) throw new Error(`장 흐름: 끝까지 가도 엔딩이 아닙니다 ${JSON.stringify(ending)}`)
-  if (!ending.early || ending.early.jotunheim || ending.early.utgard) throw new Error(`땅 차례: 신화를 고르기 전에 요툰헤임·우트가르드가 열려 있습니다 ${JSON.stringify(ending.early)}`)
-  console.log(`엔딩 확인: ${ending.chapters.join(' → ')} → 갈라진 하늘의 왕을 이기면 엔딩, 결계가 모두 풀리고 목표 한 줄이 사라짐 (신화를 고르기 전에는 요툰헤임·우트가르드가 막힘)`)
+  if (!ending.early || ending.early.jotunheim || ending.early.utgard) throw new Error(`땅 차례: 첫 신을 깨우기 전에 요툰헤임·우트가르드가 열려 있습니다 ${JSON.stringify(ending.early)}`)
+  const w = ending.woke
+  if (!w || w.pack < 4 || w.piece1 !== 1 || !w.lent.includes(w.god) || w.piece2 !== 2 || !w.relic || !w.guardian || !w.opened.includes(w.god))
+    throw new Error(`신의 조각 셋: 흔적 → 사냥 → 수호자로 신이 깨어나지 않습니다 ${JSON.stringify(w)}`)
+  console.log(`신의 조각 확인: 흔적에 다가가면 무리 ${w.pack} → 조각 1(빌린 힘 ${w.god}) → 사냥 → 조각 2(유물) → 수호자 「${w.guardian}」 → ${w.god} 깨어남`)
+  console.log(`엔딩 확인: ${ending.chapters.join(' → ')} → 갈라진 하늘의 왕을 이기면 엔딩, 결계가 모두 풀리고 목표 한 줄이 사라짐 (첫 신을 깨우기 전에는 요툰헤임·우트가르드가 막힘)`)
 
   // 휴대폰 (E235): 세로로 든 터치 기기에서 끌기 = 떠다니는 조이스틱으로 걷기, 떼면 멈춤, 톡 = 그곳까지, 두 손가락 = 확대,
   // 가로로 들면 돌려 달라는 안내와 멈춤. 손가락은 캔버스에 포인터 사건을 보내 흉내 낸다

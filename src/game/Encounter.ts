@@ -395,12 +395,21 @@ export class Encounter {
     return spec ? this.spawn(spec, home, alert) : null
   }
 
-  /** 거인을 바로 지운다. (승급 전설에 실패했을 때) */
+  /** 거인을 바로 지운다. (승급 전설에 실패했을 때, 흔적의 무리·수호자가 물러날 때) 앞 땅에 세워 둔 것이어도 */
   remove(giant: Giant): void {
     const index = this.giants.indexOf(giant)
-    if (index < 0) return
-    giant.dispose()
-    this.giants.splice(index, 1)
+    if (index >= 0) {
+      giant.dispose()
+      this.giants.splice(index, 1)
+      return
+    }
+    for (const { giants } of this.parked.values()) {
+      const parked = giants.indexOf(giant)
+      if (parked < 0) continue
+      giant.dispose()
+      giants.splice(parked, 1)
+      return
+    }
   }
 
   /** 덩치에 맞는 길찾기 격자: 큰 적은 거인 왕 격자, 나머지는 졸개 격자 */

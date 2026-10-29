@@ -51,6 +51,10 @@ export interface GameEvents {
    * quiet면 신화마다 카드·장면을 띄우지 않는다 (장 보스가 여럿을 한꺼번에 열 때 한 장으로 알린다)
    */
   mythOpened: { god: God; quiet?: boolean }
+  /** 신을 깨우는 조각을 얻었다 (E238): 1 흔적, 2 사냥(유물), 3 수호자(깨어남) */
+  fragment: { god: God; piece: 1 | 2 | 3 }
+  /** 신의 수호자가 나타났다 (E238): 처음이면 수호자의 한마디 */
+  guardianAppeared: { god: God }
   /** 수련의 깨달음을 얻었다 (E236): 새로 얻은 수와 쓰지 않은 수 */
   insightGained: { count: number; unspent: number }
   /** 주인공이 맞았다. */

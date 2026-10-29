@@ -32,6 +32,7 @@ const sample: SaveData = {
   chapters: { entered: ['village', 'midgard', 'olympus'], bosses: ['utgard'] },
   training: { xp: 1500, taken: ['awaken', 'edge'] },
   tabs: ['relics', 'training'],
+  awaken: { waking: 'odin', fragments: 1, hunt: 7 },
   region: { id: 'olympus', x: 3.5, z: -12 },
   scenes: ['opening'],
 }
@@ -232,5 +233,19 @@ describe('저장 v11: 연 탭 (E236-05)', () => {
 
   it('옛 저장(탭 기록이 없던 때)은 탭을 모두 연 것으로 친다', () => {
     expect(parseSave(JSON.stringify({ ...sample, version: 10, tabs: undefined }))?.tabs).toEqual([...STEP_TABS])
+  })
+})
+
+describe('저장 v13: 신을 깨우는 조각 (E238)', () => {
+  it('깨우는 신과 조각·사냥한 수는 그대로, 조각 2면 사냥 막대는 찬 것으로', () => {
+    expect(parseSave(JSON.stringify(sample))?.awaken).toEqual({ waking: 'odin', fragments: 1, hunt: 7 })
+    expect(parseSave(JSON.stringify({ ...sample, awaken: { waking: 'odin', fragments: 2, hunt: 3 } }))?.awaken).toEqual({ waking: 'odin', fragments: 2, hunt: 20 })
+  })
+
+  it('옛 저장(v12)·깨우는 길이 없는 신·이미 연 신이면 깨우는 신 없이', () => {
+    const empty = { waking: null, fragments: 0, hunt: 0 }
+    expect(parseSave(JSON.stringify({ ...sample, version: 12, awaken: undefined }))?.awaken).toEqual(empty)
+    expect(parseSave(JSON.stringify({ ...sample, awaken: { waking: 'zeus', fragments: 1, hunt: 2 } }))?.awaken).toEqual(empty)
+    expect(parseSave(JSON.stringify({ ...sample, awaken: { waking: 'thor', fragments: 1, hunt: 2 } }))?.awaken).toEqual(empty)
   })
 })

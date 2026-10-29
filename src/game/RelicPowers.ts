@@ -43,7 +43,13 @@ export class RelicPowers {
 
   /** 유물의 힘(지속·행동 효과)은 그 신화를 골랐을 때만 깨어난다 (E21-04). 고르지 않은 신화의 유물은 기본 수치만 낸다 */
   awake(id: string | null): boolean {
-    return !!id && isRelicId(id) && relicAwake(id, this.loadout.chosen, this.loadout.borrowed)
+    return !!id && isRelicId(id) && relicAwake(id, this.loadout.chosen, this.awakeBorrowed)
+  }
+
+  /** 유물이 깨어나는 빌린 신: 빌린 칸과, 조각 2를 모은 깨우는 신 (E238) */
+  get awakeBorrowed(): readonly God[] {
+    const { borrowed, waking } = this.loadout
+    return waking && !borrowed.includes(waking) ? [...borrowed, waking] : borrowed
   }
 
   /** 지금 도는 유물 효과 (잠든 유물과 시련으로 막힌 칸은 뺀다) */

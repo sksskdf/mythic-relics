@@ -10,6 +10,9 @@ import type { PixelRenderer } from '../render/PixelRenderer'
 import { worldToScreen } from '../render/picking'
 import type { QuarterViewCamera } from '../render/QuarterViewCamera'
 import { gearCard } from '../ui/gearCard'
+import { traceCard, type TraceCardContext } from '../ui/traceCard'
+import type { TraceState } from '../data/awaken'
+import type { God } from '../relics/data'
 import type { Nameplates, PlateTarget } from '../ui/Nameplates'
 import type { RelicCardContext } from '../ui/relicCard'
 import { RelicTooltip } from '../ui/RelicTooltip'
@@ -30,7 +33,16 @@ export interface HoverCardsParts {
   hovered(): unknown
   /** 월드 좌표가 화면 어디에 보이는가 (CSS 픽셀) */
   screenPoint(x: number, y: number, z: number): { x: number; y: number }
+  /** 지금 땅의 신의 흔적 (E238) */
+  traces(): readonly { god: God; x: number; z: number; state: TraceState }[]
+  /** 흔적 카드에 보일 깨우는 진행 */
+  traceContext(): Omit<TraceCardContext, 'state'>
+  /** 보스 막대에 이름이 뜨는 수호자 (머리 위 이름표는 띄우지 않는다) */
+  guardian(): unknown
 }
+
+/** 흔적 모형의 높이 (m): 커서가 이 기둥 안이면 흔적 카드 */
+const TRACE_TOP = 3.4
 
 /**
  * 커서 아래의 설명 카드와 몬스터 이름표 (E12-09):
@@ -76,6 +88,7 @@ export class HoverCards {
     }
     const { pointer } = input
     const near = this.pickupUnderPointer(pointer)
+    let trace: { god: God; state: TraceState } | null = null
     const nearGear = near ? pickups.gearOf(near.id) : undefined
     if (near && nearGear) {
       // 땅의 일반 장비: 같은 부위에 지금 낀 장비와 비교한 카드
@@ -91,6 +104,12 @@ export class HoverCards {
       const preview = free >= 0 ? { before: powers.state, after: powers.loadout.preview(free, near.id) } : undefined
       this.tooltip.show(relicDef(near.id), { ...cardContext(near.id, preview), place }, pointer.x, pointer.y)
       this.groundTooltip = true
+    } else if ((trace = this.traceUnderPointer(pointer))) {
+      // 신의 흔적 (E238): 무엇을 고르는지 알고 고르게 그 신의 무기·빌려주는 힘
+      const now = { ...this.parts.traceContext(), state: trace.state }
+      const found = trace
+      this.tooltip.showCard(`trace:${found.god}`, `${found.god}|${now.state}|${now.fragments}|${now.hunt}`, () => traceCard(found.god, now), pointer.x, pointer.y)
+      this.groundTooltip = true
     } else if (this.groundTooltip) {
       this.tooltip.hide()
       this.groundTooltip = false
@@ -103,7 +122,7 @@ export class HoverCards {
     const { legend, encounter, orders, combat } = ctx
     const plates: PlateTarget[] = []
     // 보스 막대가 떠 있는 보스는 막대에 이름이 있으니 머리 위에는 띄우지 않는다
-    const barBoss = legend.boss?.alive ? legend.boss : encounter.bossEngaged ? encounter.boss : null
+    const barBoss = legend.boss?.alive ? legend.boss : encounter.bossEngaged ? encounter.boss : this.parts.guardian()
     const add = (target: unknown) => {
       if (!(target instanceof Giant) || !target.alive || target === barBoss) return
       const top = heightAt(target.x, target.z) + Math.max(1.6, target.radius * 3.6) + 0.6
@@ -114,6 +133,23 @@ export class HoverCards {
       add(orders.attackTarget ?? combat.target)
     }
     nameplates.update(plates)
+  }
+
+  /** 커서 아래의 신의 흔적: 흔적 모형(발밑 ~ 꼭대기)과 커서 사이의 화면 거리로 고른다 */
+  private traceUnderPointer(pointer: { x: number; y: number }): { god: God; state: TraceState } | null {
+    const { container, pixel, view } = this.parts
+    const height = container.clientHeight
+    const size = pixel.size
+    const { camera, subpixel } = view
+    const items = this.parts.traces().map((t) => {
+      const y = heightAt(t.x, t.z)
+      return {
+        item: t,
+        base: worldToScreen(new THREE.Vector3(t.x, y, t.z), height, size, camera, subpixel),
+        top: worldToScreen(new THREE.Vector3(t.x, y + TRACE_TOP, t.z), height, size, camera, subpixel),
+      }
+    })
+    return itemUnderPointer(items, pointer, Math.max(36, size.scale * 16))
   }
 
   /** 화면 자리(px) 아래 땅에 떨어진 것의 자리 (누르면 그리로 걸어가 줍는다) */

@@ -15,6 +15,7 @@ import { parseTrials, type TrialData } from '../progress/Trials'
 import { parseRift, type RiftData } from '../progress/Rift'
 import { parseTraining, type TrainingData } from '../progress/Training'
 import { parseTabs } from '../progress/Tabs'
+import { type AwakenData, parseAwaken } from '../progress/Awakening'
 import { type BodyLook, parseBody } from '../looks/body'
 import { isLookId, lookDef, type LookSlot, STARTING_LOOKS, WARDROBE_SLOTS } from '../looks/catalog'
 import type { LookChoice } from '../looks/outfit'
@@ -41,8 +42,9 @@ import { GODS, godDef, type God, isRelicId, relicDef, type RelicId } from '../re
  * - v11: 수련 (E236). 모은 경험치와 익힌 마디. 옛 저장은 신화 경험치에서 모은 경험치를 짐작하고 마디는 비워 둔다 (깨달음은 그대로 쓸 수 있다).
  *   차례로 연 정보 화면 탭(E236-05). 옛 저장은 탭을 모두 연 것으로 친다
  * - v12: 신위 칸 (E237). chosen은 첫째가 주신(고른 신화), 그 뒤가 빌린 신(넷까지). 옛 저장은 주신 하나뿐이라 그대로 읽는다
+ * - v13: 신을 깨우는 조각 (E238). 깨우는 신과 모은 조각·사냥한 수. 옛 저장은 깨우는 신 없이 (이미 연 신은 그대로)
  */
-export const SAVE_VERSION = 12
+export const SAVE_VERSION = 13
 
 /** v8 이하의 신화 고유 재료 → 그 신 (E21-04에서 없앰. 그 신의 신화권 재료로 하나씩 바꿔 준다, 히든은 북유럽) */
 export const OLD_MYTH_MATERIALS: Readonly<Record<string, God>> = {
@@ -114,6 +116,8 @@ export interface SaveData {
   training: TrainingData
   /** 차례로 연 정보 화면 탭 (E236-05) */
   tabs: string[]
+  /** 신을 깨우는 진행 (E238): 깨우는 신과 모은 조각 */
+  awaken: AwakenData
   /** 지금 있는 지역과 자리 (E7). 옛 저장이거나 모르는 지역이면 null (마을에서 시작) */
   region: { id: string; x: number; z: number } | null
   /** 본 대화 장면 (E12-10). 옛 저장에는 없어서 빈 목록 */
@@ -139,7 +143,7 @@ export function parseSave(text: string | null): SaveData | null {
   }
   if (typeof raw !== 'object' || raw === null) return null
   const data = raw as Record<string, unknown>
-  if (data.version !== SAVE_VERSION && ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].includes(data.version as number)) return null
+  if (data.version !== SAVE_VERSION && ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].includes(data.version as number)) return null
   const old = (data.version as number) < 5
 
   // 일반 장비 (v5)
@@ -234,9 +238,15 @@ export function parseSave(text: string | null): SaveData | null {
     chapters,
     training: parseTraining(data.training, (data.version as number) < 11 ? oldTrainingXp(myths) : 0),
     tabs: parseTabs(data.tabs, (data.version as number) < 11),
+    awaken: openedAwaken(parseAwaken(data.awaken), myths),
     region,
     scenes: Array.isArray(data.scenes) ? [...new Set(data.scenes.filter((s): s is string => typeof s === 'string' && s.length < 40))] : [],
   }
+}
+
+/** 깨우는 신이 이미 열린 신이면 (어긋난 저장) 처음으로 */
+function openedAwaken(awaken: AwakenData, classes: SaveData['classes']): AwakenData {
+  return awaken.waking && (classes[awaken.waking]?.level ?? 0) >= 1 ? { waking: null, fragments: 0, hunt: 0 } : awaken
 }
 
 /** v10 이하 → v11: 모은 경험치를 신화 경험치로 짐작한다 (E236). 신화마다 연 문턱·단계 문턱·지금 경험치의 합 가운데 가장 큰 것 */

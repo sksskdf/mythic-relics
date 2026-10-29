@@ -2,6 +2,7 @@ import type { Build } from '../build/Build'
 import type { Conveniences } from '../progress/Conveniences'
 import type { ChapterProgress } from '../progress/Chapters'
 import type { TrainingProgress } from '../progress/Training'
+import type { AwakenProgress } from '../progress/Awakening'
 import type { TabUnlocks } from '../progress/Tabs'
 import type { Ending } from '../progress/Ending'
 import type { ThreatProgress } from '../progress/Threat'
@@ -90,6 +91,8 @@ export interface GameContext {
   readonly chapters: ChapterProgress
   /** 수련: 경험치로 얻은 깨달음과 익힌 마디 (E236) */
   readonly training: TrainingProgress
+  /** 신을 깨우는 진행: 깨우는 신과 모은 조각 (E238) */
+  readonly awaken: AwakenProgress
   /** 차례로 연 정보 화면 탭 (E236-05) */
   readonly tabs: TabUnlocks
   /** 외형 보관함 (얻은 외형, 칸마다 고른 것) */

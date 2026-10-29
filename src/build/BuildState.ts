@@ -24,6 +24,8 @@ export interface BuildInputs {
   open: ReadonlyMap<God, number>
   /** 신위 칸 (E237): 첫째가 주신(고른 신화), 그 뒤는 빌린 신. 없으면 빈 목록 */
   chosen: readonly God[]
+  /** 깨우는 중인 신 (E238): 조각 2부터 그 신의 유물이 깨어난다. 칸에는 들지 않는다 */
+  waking?: God | null
   /** 칸에 낀 유물 (빈 칸과 일반 장비는 null) */
   gear: readonly (RelicId | null)[]
   /** 칸에 낀 일반 장비 (E13-02): 수치는 상시 효과 수치와 같은 종류끼리 더한다 */
@@ -144,7 +146,8 @@ export function computeBuild(inputs: BuildInputs): BuildState {
   // 유물의 지속 효과는 그 신화를 골랐을 때만 깨어난다 (E21-04). 시련으로 신화를 막아도 고른 신화는 그대로 본다
   const picked = inputs.chosen[0] ?? null
   const borrowed = rules.noMyth ? [] : inputs.chosen.slice(1)
-  const modifiers = gearModifiers(inputs.gear.map((id) => (id && relicAwake(id, picked, inputs.chosen.slice(1)) ? id : null)))
+  const lent = inputs.waking && !rules.noMyth ? [...inputs.chosen.slice(1), inputs.waking] : inputs.chosen.slice(1)
+  const modifiers = gearModifiers(inputs.gear.map((id) => (id && relicAwake(id, picked, lent) ? id : null)))
   return {
     chosen,
     borrowed,

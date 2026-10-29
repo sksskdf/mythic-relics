@@ -139,6 +139,8 @@ export class Autoplayer {
     const { chapters, powers } = this.game
     const goal = chapters.goal
     if (!goal) return null
+    // 신 깨우기 (E238): 깨우는 신의 다음 조각을 하는 땅, 없으면 응답하는 흔적의 땅
+    if (goal.kind === 'awaken') return this.game.awakening.target(goal.region)?.region ?? goal.region
     if (goal.kind !== 'forge') return goal.region
     const god = powers.manifested
     if (!god || forgeReady(powers.loadout, god, powers.maxStage())) return goal.region
@@ -284,6 +286,15 @@ export class Autoplayer {
       return
     }
 
+    // 4.7 신 깨우기 (E238): 둘레가 비었고 생명이 넉넉하면 흔적·수호자 자리로 간다 (지키는 무리·수호자와의 싸움은 아래 싸움이 맡고,
+    // 사냥은 그 땅에서 싸우면 찬다)
+    const wake = this.awakenSpot()
+    if (wake && !legend.active && hp > 0.75 && near.length === 0) {
+      if (dist(here, wake) > 1.5 && (!hero.isMoving || dist(hero.goal ?? here, wake) > 1)) hero.moveTo(wake)
+      this.step = 17
+      return
+    }
+
     // 4.8 신화 고르기 (E22-03): 카드가 떠 있으면 정한 신(없으면 첫 신화)을 고르고, 아니면 성소 가운데로 간다
     if (offer && this.game.mythPickerOpen) {
       this.game.mythChoice.pick(this.god && offer.gods.includes(this.god) ? this.god : offer.gods[0]!)
@@ -319,6 +330,13 @@ export class Autoplayer {
       this.engage(here, boss)
       return
     }
+    // 신의 수호자 (E238): 나타났으면 둘레의 졸개가 하나쯤 남아도 수호자를 친다
+    const guardian = this.game.awakening.fighting
+    if (guardian && !legend.active && hp > 0.5 && near.filter((g) => g !== guardian).length <= 1) {
+      this.step = 18
+      this.engage(here, guardian)
+      return
+    }
     // 위협 단계를 올리는 봇: 2단계 뒤에는 열린 가장 높은 단계의 문지기(지역 보스)를 찾아간다 (E14-07)
     const threat = this.game.threat
     if (this.climb && !legend.active && progress.promotions >= 1 && threat.unlocked === threat.reached && threat.level === threat.reached && boss?.alive && hp > 0.6) {
@@ -351,6 +369,17 @@ export class Autoplayer {
     }
     this.step = 99
     this.engage(here, target)
+  }
+
+  /** 신 깨우기 목표에서 걸어갈 자리 (지금 땅의 흔적, 수호자가 아직 안 나온 수호자 자리). 장 흐름을 따르지 않거나 사냥이면 null */
+  private awakenSpot(): Point2 | null {
+    const goal = this.chapters ? this.game.chapters.goal : null
+    if (goal?.kind !== 'awaken') return null
+    const { awakening } = this.game
+    const target = awakening.target(goal.region)
+    if (!target || target.kind === 'hunt' || target.region !== this.game.region.id) return null
+    if (target.kind === 'guardian' && awakening.fighting) return null
+    return awakening.placed(target)
   }
 
   /** 사거리 안까지 다가가 멈춘다. 멈추면 기본 공격이 자동으로 나간다. */

@@ -1,4 +1,5 @@
 import { alwaysStage } from '../build/BuildState'
+import { AWAKEN, AWAKEN_GODS } from '../data/awaken'
 import { awakeningLevel } from '../data/awakening'
 import { blessingDef, STARS } from '../data/rift'
 import { REALM_COLORS, worldLayout } from '../data/regions'
@@ -85,6 +86,7 @@ export class MenuData {
         choose: (god) => game.chooseMyth(god),
         slots: () => game.mythSlots(),
         lend: (god, on) => game.lendMyth(god, on),
+        waking: () => game.wakingMyth(),
         star: (god) => (game.rift.lit.has(god) ? alwaysStage(game.progress.level(god), powers.loadout.relics.some((id) => id !== null && relicDef(id).god === god), true) : 0),
       },
       cardContext: (id, preview) => this.cardContext(id, preview),
@@ -205,8 +207,21 @@ export class MenuData {
         },
         goal: () => {
           const goal = ctx.chapters.goal
-          return goal ? { region: goal.region, text: goal.goal } : null
+          if (!goal) return null
+          // 신 깨우기 (E238): 깨우는 신의 다음 조각을 하는 땅(없으면 응답하는 흔적의 땅)과 그 조각의 한 줄
+          if (goal.kind === 'awaken') {
+            const target = game.awakening.target(goal.region)
+            return { region: target?.region ?? goal.region, text: game.chapterSystem.goalView()?.text ?? goal.goal }
+          }
+          return { region: goal.region, text: goal.goal }
         },
+        traces: () =>
+          AWAKEN_GODS.filter((g) => ['open', 'waking'].includes(game.awakening.traceState(g))).map((g) => ({
+            region: AWAKEN[g]!.trace.region,
+            name: AWAKEN[g]!.trace.name,
+            color: godDef(g).color,
+            waking: game.awakening.traceState(g) === 'waking',
+          })),
         me: () => {
           const cell = ctx.map.region.cell
           if (!cell) return null
