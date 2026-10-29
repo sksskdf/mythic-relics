@@ -8,6 +8,8 @@ import { type GearItem, isGearUid } from './roll'
 
 /** 장비 칸 수 (E13: 무기·머리·몸·손·발·장신구 둘) */
 export const SLOT_COUNT = SLOT_PARTS.length
+/** 가방 칸 수 (E303, 휴대폰 세로 4×3). 가방이 차면 새 장비는 땅에 남는다 */
+export const BAG_SIZE = 12
 /** 재료 하나를 가질 수 있는 수 (저장을 읽을 때도 이만큼에서 자른다) */
 export const MATERIAL_CAP = 9999
 
@@ -129,6 +131,16 @@ export class Loadout {
     const previous = this.stow(slot)
     this.slots[slot] = id
     return previous
+  }
+
+  /** 가방이 찼는가 */
+  get bagFull(): boolean {
+    return this.bag.length >= BAG_SIZE
+  }
+
+  /** 그 부위의 장비를 더 들 수 있는가: 그 부위 빈 칸이 있거나 가방에 자리가 있다 */
+  canTake(part: GearPart): boolean {
+    return !this.bagFull || this.slots.some((s, i) => s === null && SLOT_PARTS[i] === part)
   }
 
   /** 가방에서 합칠 수 있는 셋 묶음 (E303, 낀 것은 먹이에서 빠진다) */

@@ -31,6 +31,8 @@ export class RelicSystem {
   /** 로키의 환영 분신. 거인은 가까이 있으면 주인공 대신 이것을 쫓는다. */
   decoy: { x: number; z: number; radius: number } | null = null
   private readonly lastWalk = new THREE.Vector2()
+  /** 가방이 찼다는 알림을 다시 띄울 때까지 (초) */
+  private fullWarned = 0
   /** 이번 프레임에 걸은 거리 (고유 효과 「회오리 걸음」이 읽는다) */
   walked = 0
   /** 주운 것 이름을 띄울 자리 (프레임마다 새로 만들지 않게) */
@@ -287,6 +289,7 @@ export class RelicSystem {
 
   update(dt: number): void {
     this.burstCooldown = Math.max(0, this.burstCooldown - dt)
+    this.fullWarned = Math.max(0, this.fullWarned - dt)
     const { hero, combat, powers, pickups, encounter, skills, feel } = this.ctx
     const position = hero.object.position
     skills.enemies = encounter.alive
@@ -308,7 +311,16 @@ export class RelicSystem {
         dt,
         position.x,
         position.z,
-        (id) => !powers.loadout.has(id),
+        // 가방이 차면(E303) 새 장비는 땅에 남는다: 합쳐서 자리를 비우거나 두고 간다
+        (id, gear) => {
+          if (powers.loadout.has(id)) return false
+          if (!gear || powers.loadout.canTake(gear.part)) return true
+          if (this.fullWarned <= 0) {
+            this.ctx.bus.emit('moment', { id: 'bagFull', text: '가방이 찼다 · 셋을 합치면 자리가 난다' })
+            this.fullWarned = 8
+          }
+          return false
+        },
         // 편의 자동화 (E14-05): 둘레 장비는 걸어가지 않아도, 재료 유물은 어디서나
         (id, gear) => (gear ? (conv.has('autoPickup') ? AUTO_PICKUP_RADIUS : 0) : !isMythRelic(id) && conv.has('autoMaterials') ? Infinity : 0),
       )
