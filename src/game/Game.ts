@@ -591,7 +591,7 @@ export class Game {
       training: this.training,
       awakening: this.awakening,
     })
-    this.audio = new AudioEngine(this.settings.volume)
+    this.audio = new AudioEngine(this.settings.volume, { mobile: this.touch })
     this.attackFx = new AttackFx({ fx: this.fx, hero: this.hero, combat: this.combat, build: this.ctx.build, audio: this.audio })
     this.sound = new SoundSystem(this.ctx, this.audio)
     this.applySettings(this.settings)
@@ -1006,6 +1006,9 @@ export class Game {
         this.audio.suspend()
       } else this.audio.resume()
     })
+    // 아이폰은 다른 앱에서 돌아올 때 visibilitychange 없이 pageshow·focus만 오기도 한다
+    addEventListener('pageshow', () => !document.hidden && this.audio.resume())
+    addEventListener('focus', () => !document.hidden && this.audio.resume())
     addEventListener('blur', () => this.autoPause())
   }
 
