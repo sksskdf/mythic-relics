@@ -1010,6 +1010,12 @@ button.menu-slots__slot {
   font-weight: normal;
   color: var(--c-ink-1);
 }
+.menu-status__layers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-top: var(--sp-4);
+}
 .menu-status__powers {
   display: flex;
   flex-direction: column;

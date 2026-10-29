@@ -5,7 +5,7 @@ import { parseThreat } from '../src/progress/Threat'
 import { parseTrials } from '../src/progress/Trials'
 import { parseRift } from '../src/progress/Rift'
 import { STEP_TABS } from '../src/progress/Tabs'
-import { parseSave, SAVE_VERSION, type SaveData } from '../src/save/SaveData'
+import { parseSave, SAVE_VERSION, type SaveData, saveStorage } from '../src/save/SaveData'
 import { HUNT_KILLS } from '../src/data/awaken'
 
 const sample: SaveData = {
@@ -248,5 +248,32 @@ describe('저장 v13: 신을 깨우는 조각 (E238)', () => {
     expect(parseSave(JSON.stringify({ ...sample, version: 12, awaken: undefined }))?.awaken).toEqual(empty)
     expect(parseSave(JSON.stringify({ ...sample, awaken: { waking: 'zeus', fragments: 1, hunt: 2 } }))?.awaken).toEqual(empty)
     expect(parseSave(JSON.stringify({ ...sample, awaken: { waking: 'thor', fragments: 1, hunt: 2 } }))?.awaken).toEqual(empty)
+  })
+})
+
+describe('저장 사슬 (E301-03)', () => {
+  it('옛 버전 저장을 처음 옮길 때 원본을 그 버전 이름으로 한 번 남기고, 지금 버전이면 남기지 않는다', () => {
+    const store = new Map<string, string>()
+    const fake = { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v), removeItem: (k: string) => void store.delete(k) }
+    const before = (globalThis as { localStorage?: unknown }).localStorage
+    ;(globalThis as { localStorage?: unknown }).localStorage = fake
+    try {
+      const keys = () => [...store.keys()].filter((k) => k.endsWith('.bak'))
+      const old = JSON.stringify({ version: 12, slots: [], bag: [] })
+      store.set('mythic-relics/save/0', old)
+      expect(saveStorage.load(0)).not.toBeNull()
+      expect(keys()).toHaveLength(1)
+      expect(store.get(keys()[0]!)).toBe(old)
+      // 두 번째 읽기는 남긴 것을 덮지 않는다
+      store.set('mythic-relics/save/0', JSON.stringify({ version: 12, slots: [], bag: [], divine: 0.5 }))
+      saveStorage.load(0)
+      expect(store.get(keys()[0]!)).toBe(old)
+      store.clear()
+      store.set('mythic-relics/save/0', JSON.stringify({ version: SAVE_VERSION, slots: [], bag: [] }))
+      saveStorage.load(0)
+      expect(keys()).toHaveLength(0)
+    } finally {
+      ;(globalThis as { localStorage?: unknown }).localStorage = before
+    }
   })
 })

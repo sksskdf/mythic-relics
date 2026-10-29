@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { describe, expect, it } from 'vitest'
 
 import { Build } from '../src/build/Build'
+import { activeLayers, layerProduct } from '../src/build/layers'
 import { alwaysStage, computeBuild, gearModifiers, statAt, TOP_STAGE } from '../src/build/BuildState'
 import { RelicPowers } from '../src/game/RelicPowers'
 import { relicAwake } from '../src/gear/mythRelic'
@@ -193,5 +194,38 @@ describe('빌드 상태 다시 쓰기', () => {
       expect(build.state).toBe(next)
       last = next
     }
+  })
+})
+
+describe('빌드 층 목록 (E301-01)', () => {
+  /** 층 목록으로 바꾸기 전의 식: 단계 곱 × (1 + 피해 수치 합 + 수집) × 고른 신화 */
+  const legacy = (s: ReturnType<typeof computeBuild>, promotions: number) => PER_PROMOTION.damage ** promotions * (1 + s.stats.damage + s.collected * PER_OPENED.damage) * (s.chosen ? godDef(s.chosen).passive.damageScale : 1)
+
+  it('피해 배율은 바꾸기 전 식과 소수 넷째 자리까지 같고, 층을 곱한 값과 같다', () => {
+    const gearItems = [{ stats: [{ kind: 'damage' as const, value: 0.08 }], source: { id: 'flame' as const, value: 3 } }]
+    const relicItems = [{ stats: [{ kind: 'damage' as const, value: 0.05 }], source: { id: 'flame' as const, value: 0 } }]
+    const samples: Parameters<typeof computeBuild>[0][] = [
+      { open: new Map(), chosen: [], gear: [], promotions: 0 },
+      { open: new Map([['thor', 1]]), chosen: ['thor'], gear: ['mjolnir'], promotions: 0 },
+      { open: new Map([['thor', 3], ['loki', 2]]), chosen: ['thor', 'loki'], gear: ['mjolnir'], gearItems, relicItems, promotions: 3 },
+      { open: new Map([['zeus', 2]]), chosen: ['zeus'], gear: [], gearItems, promotions: 1, bonus: { trials: { damage: 0.1 }, training: { damage: 0.12, maxHp: 10 }, blessings: { damage: 0.05 } } },
+      { open: new Map([['odin', 4], ['thor', 2]]), chosen: [], gear: ['mjolnir'], promotions: 4, starred: new Set(['odin', 'thor']) },
+      { open: new Map([['artemis', 2]]), chosen: ['artemis'], waking: 'loki', gear: [], relicItems, promotions: 1 },
+    ]
+    for (const input of samples) {
+      const state = computeBuild(input)
+      expect(state.damageScale).toBeCloseTo(legacy(state, input.promotions), 4)
+      expect(layerProduct(state.layers)).toBe(state.damageScale)
+    }
+  })
+
+  it('덧셈 층은 출처마다 피해 몫을 따로 센다', () => {
+    const state = computeBuild({ open: new Map([['thor', 2]]), chosen: ['thor'], gear: [], promotions: 2, bonus: { trials: { damage: 0.1 }, training: { damage: 0.2 } } })
+    const by = Object.fromEntries(state.layers.map((l) => [l.id, l.value]))
+    expect(by.trials).toBeCloseTo(0.1)
+    expect(by.training).toBeCloseTo(0.2)
+    expect(by.collection).toBeCloseTo(PER_OPENED.damage)
+    expect(by.promotion).toBeCloseTo(PER_PROMOTION.damage ** 2)
+    expect(activeLayers(state.layers).map((l) => l.id)).not.toContain('gear')
   })
 })

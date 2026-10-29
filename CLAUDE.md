@@ -73,7 +73,7 @@
 
 | 폴더 | 내용 |
 | --- | --- |
-| `src/data/` | **게임 데이터**: `relics.json`(유물), `gods.json`(신·클래스), `enemies.json`(적), `classes.json`(클래스 트리, `CLASSES.md`와 같아야 함), `schema.ts`(형식과 검사), `classKit.ts`(클래스 부품: 패시브·궁극기·전설 종류), `chapters.json`·`chapters.ts`(장 흐름 E22: 장·땅·적 지수·땅 단계·할 일과 목표 한 줄), `regions.json`·`regions.ts`(지역 19곳(북유럽 여섯, E239; 계단식 땅 `terraces`, E24-07)과 마지막 무대 「갈라진 하늘」(`finale`, `scripts/gen-finale.mjs`): 자리(입구·깊은 땅·보스)·세계 칸·시작점·성소·무리·보스·출구·소품, 검사와 저장 모양, 다음 이웃 `nextHop`), `world.ts`(하나로 이어진 세계: 벽돌 칸·세계 좌표·이웃 통로·갈 수 있는 곳, E19), `scenes.json`(대화 장면), `moments.ts`(순간의 크기 E23: 사건 → 등급 표). 숫자는 여기서 고친다 |
+| `src/data/` | **게임 데이터**: `relics.json`(유물), `gods.json`(신·클래스), `enemies.json`(적), `classes.json`(클래스 트리, `CLASSES.md`와 같아야 함), `schema/`(형식과 검사: 신 `gods`·유물 `relics`·적 `enemies`·클래스 트리 `classTree`, E301-04), `classKit.ts`(클래스 부품: 패시브·궁극기·전설 종류), `chapters.json`·`chapters.ts`(장 흐름 E22: 장·땅·적 지수·땅 단계·할 일과 목표 한 줄), `regions.json`·`regions.ts`(지역 19곳(북유럽 여섯, E239; 계단식 땅 `terraces`, E24-07)과 마지막 무대 「갈라진 하늘」(`finale`, `scripts/gen-finale.mjs`): 자리(입구·깊은 땅·보스)·세계 칸·시작점·성소·무리·보스·출구·소품, 검사와 저장 모양, 다음 이웃 `nextHop`), `world.ts`(하나로 이어진 세계: 벽돌 칸·세계 좌표·이웃 통로·갈 수 있는 곳, E19), `scenes.json`(대화 장면), `moments.ts`(순간의 크기 E23: 사건 → 등급 표). 숫자는 여기서 고친다 |
 | `src/game/` | `Game.ts`(조립과 메인 루프), `MenuData`(정보 화면에 보일 값·할 일, 능력치, 설명 카드 상태), `Storyline`(대화 장면을 여는 때·미루기·말 걸기), `AttackFx`(휘두른 궤적·원거리 공격 모습), `HoverCards`(커서 아래 카드·몬스터 이름표), `World`(지역 들어가기 `enter`·출구 이동 `travelTo`·암전, Game에도 같은 이름의 위임이 있음), `TitleBackdrop`(시작 화면 뒤 장면), `Villagers`(마을 사람과 말풍선), `events.ts`(이벤트 버스), `context.ts`(시스템 공용 상태), `Stage`(빛·맵), `HeroController`(이동), `HeroOrders`(클릭 → 지시), `PlayerCombat`(자동 공격), `Encounter`(적 무리·보스), `Legend`(승급 전설), `RelicPowers`(장착한 유물 효과) |
 | `src/game/systems/` | 규칙: `Damage`(피해), `Relics`(줍기·장착·발현), `Progression`(경험치·드랍·승급), `HeroLife`(쓰러짐·부활), `Persistence`(저장), `PlayerInput`(클릭, 휴대폰의 톡·조이스틱·두 손가락), `Effects`(연출), `Sound`(소리), `Threat`(위협 단계·편의 자동화 세기·한계를 깸, 엔딩 뒤), `Trials`(시련 진행: 제약·난이도·기록), `Rift`(균열: 층·축복·다음 층 문·끝), `Chapters`(장 진행 알림·목표 한 줄, E22), `MythChoice`(성소에서 신화 고르기·장 보스가 신화권을 엶, E22), `Moments`(순간 네 등급: 작은 알림·카드·큰 카드·장면, 느린 동작·장면 뒤 카드, E23), `Tabs`(정보 화면 탭을 쓸 일이 생길 때 하나씩 열고 카드, E236-05). 시스템끼리는 버스로만 주고받는다 |
 | `src/enemies/` | 적 AI(`Giant.ts`: 상태, 공격 예고, 돌진·던지기·막기·부르기·거리 유지·둘러싸기), 날아가는 것(`Projectile.ts`), 정예(`elite.ts`), 모델 생성기(`enemyModel.ts`: 몸 종류 여섯, 거인은 `giantModel.ts`) |
@@ -104,7 +104,7 @@
 - 로드맵 패널(모드)은 `ROADMAP.md`를 직접 읽어 계획 탭에 보여 준다. 문서를 고치면 패널도 바뀐다. 할 일 목록 항목 이름을 `E1 ...`처럼 마일스톤 ID로 시작하게 두면 계획 탭의 마일스톤에 상태(○ ▶ ✓)가 붙는다. 상태는 MCP `roadmap` 도구로 바꾼다.
 - 코드 주석과 테스트 이름은 한국어. 주변 코드의 말투와 밀도를 따른다.
 - 수치는 `src/data/*.json`에서 바꾸고, 바꾸면 `BALANCE.md`와 봇 결과(`PLAYTEST.md`)를 함께 고친다.
-- 새 유물은 `relics.json`에 기존 종류(충전·터지는 때·하는 일)를 조합해 넣는다. 새로운 "하는 일"이 필요할 때만 `actions.ts`와 `schema.ts`의 ACTION_PARAMS에 더한다.
+- 새 유물은 `relics.json`에 기존 종류(충전·터지는 때·하는 일)를 조합해 넣는다. 새로운 "하는 일"이 필요할 때만 `actions.ts`와 `schema/relics.ts`의 ACTION_PARAMS에 더한다.
 - 사람이 한 플레이 의견은 `PLAYTEST.md` 6장과 로드맵 해당 마일스톤에 반영한다.
 
 ## 하네스 (`.claude/`, `scripts/harness/`)

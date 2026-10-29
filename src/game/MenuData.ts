@@ -1,4 +1,5 @@
 import { alwaysStage } from '../build/BuildState'
+import { activeLayers, LAYER_NAMES } from '../build/layers'
 import { AWAKEN, AWAKEN_GODS } from '../data/awaken'
 import { awakeningLevel } from '../data/awakening'
 import { blessingDef, STARS } from '../data/rift'
@@ -281,6 +282,7 @@ export class MenuData {
       divine: game.combat.divine,
       promotions: game.progress.promotions,
       collected: build.collected,
+      layers: activeLayers(build.layers).map((l) => ({ name: LAYER_NAMES[l.id], text: l.kind === 'mul' ? `×${l.value.toFixed(2)}` : `${l.value > 0 ? '+' : '−'}${Math.round(Math.abs(l.value) * 100)}%` })),
       powers,
     }
   }

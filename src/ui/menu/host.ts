@@ -24,6 +24,8 @@ export interface HeroStats {
   promotions: number
   /** 열린 신화 수 (수집 보너스, E21-02) */
   collected: number
+  /** 주는 피해가 어디서 오나 (E301-01): 그대로가 아닌 층마다 이름과 몫(×1.35, +12%) */
+  layers: { name: string; text: string }[]
   /** 지금 걸린 힘: 발현, 가호, 낀 유물의 지속 효과 */
   powers: { kind: 'god' | 'relic'; name: string; color: string; label: string; what: string }[]
 }

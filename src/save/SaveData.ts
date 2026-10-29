@@ -1,13 +1,10 @@
-import { DATA } from '../data'
 import { REGIONS } from '../data/regions'
-import { CHOSEN_SLOTS, MASTERY_TO_OPEN, XP_TO_PROMOTE } from '../myth/ClassProgress'
+import { CHOSEN_SLOTS } from '../myth/ClassProgress'
 import { SLOT_PARTS } from '../data/gearData'
 import { isMythRelic } from '../gear/mythRelic'
 import { type GearItem, parseGearItem } from '../gear/roll'
 import { MATERIAL_CAP } from '../gear/Loadout'
-import { bossMaterial, realmMaterial } from '../gear/materials'
-import { hiddenUnlocked, legacyManifest } from '../myth/manifest'
-import { relicGods } from '../relics/model'
+import { legacyManifest } from '../myth/manifest'
 import { type ChapterData, parseChapterData } from '../progress/Chapters'
 import { type ConvenienceData, parseConveniences } from '../progress/Conveniences'
 import { parseThreat, type ThreatData } from '../progress/Threat'
@@ -19,7 +16,8 @@ import { type AwakenData, parseAwaken } from '../progress/Awakening'
 import { type BodyLook, parseBody } from '../looks/body'
 import { isLookId, lookDef, type LookSlot, STARTING_LOOKS, WARDROBE_SLOTS } from '../looks/catalog'
 import type { LookChoice } from '../looks/outfit'
-import { GODS, godDef, type God, isRelicId, relicDef, type RelicId } from '../relics/data'
+import { GODS, type God, isRelicId, type RelicId } from '../relics/data'
+import { legacySlots, migrateLooks, oldChapters, oldStars, oldTrainingXp, openOwned, refundCycle, refundMythMaterials } from './migrate/legacy'
 
 /**
  * 저장 형식 버전. 형식이 바뀌면 올리고, 옛 형식을 옮기는 코드를 둔다.
@@ -45,34 +43,6 @@ import { GODS, godDef, type God, isRelicId, relicDef, type RelicId } from '../re
  * - v13: 신을 깨우는 조각 (E238). 깨우는 신과 모은 조각·사냥한 수. 옛 저장은 깨우는 신 없이 (이미 연 신은 그대로)
  */
 export const SAVE_VERSION = 13
-
-/** v8 이하의 신화 고유 재료 → 그 신 (E21-04에서 없앰. 그 신의 신화권 재료로 하나씩 바꿔 준다, 히든은 북유럽) */
-export const OLD_MYTH_MATERIALS: Readonly<Record<string, God>> = {
-  thunderShard: 'thor',
-  shadowThread: 'loki',
-  runeChip: 'odin',
-  goldenBristle: 'freyr',
-  boltChip: 'zeus',
-  seaSalt: 'poseidon',
-  underworldAsh: 'hades',
-  silverFeather: 'artemis',
-  monkeyHair: 'wukong',
-  osmanthusLeaf: 'change',
-  pearlDust: 'longwang',
-  lotusPetal: 'nezha',
-  sunBead: 'amaterasu',
-  moonDew: 'tsukuyomi',
-  thunderCloud: 'raijin',
-  stormSand: 'susanoo',
-  crowFeather: 'haemosu',
-  flowerSeed: 'bari',
-  goblinEmber: 'dokkaebi',
-  mountainStone: 'mago',
-  bladeShard: 'asura',
-}
-
-/** 옛 순환 성장 → 재료 (E14-06) */
-export const CYCLE_REFUND = { essencePer: 100, essenceTo: 'frostShard', essenceMax: 300, ashPer: 3, ashTo: 'giantHeart', ashMax: 20 } as const
 
 export interface SaveData {
   version: typeof SAVE_VERSION
@@ -249,78 +219,6 @@ function openedAwaken(awaken: AwakenData, classes: SaveData['classes']): AwakenD
   return awaken.waking && (classes[awaken.waking]?.level ?? 0) >= 1 ? { waking: null, fragments: 0, hunt: 0 } : awaken
 }
 
-/** v10 이하 → v11: 모은 경험치를 신화 경험치로 짐작한다 (E236). 신화마다 연 문턱·단계 문턱·지금 경험치의 합 가운데 가장 큰 것 */
-function oldTrainingXp(classes: SaveData['classes']): number {
-  let best = 0
-  for (const record of Object.values(classes)) {
-    if (!record) continue
-    const spent = record.level >= 1 ? MASTERY_TO_OPEN + XP_TO_PROMOTE.slice(0, record.level - 1).reduce((a, b) => a + b, 0) : 0
-    best = Math.max(best, spent + record.xp)
-  }
-  return best
-}
-
-/** v5 이하 → v6: 원천 결정과 윤회의 재를 재료로 바꿔 준다 */
-function refundCycle(raw: unknown, materials: Record<string, number>): void {
-  if (typeof raw !== 'object' || raw === null) return
-  const o = raw as Record<string, unknown>
-  const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : 0)
-  const essence = typeof o.essence === 'object' && o.essence !== null ? Object.values(o.essence as Record<string, unknown>).reduce<number>((a, v) => a + n(v), 0) : 0
-  const r = CYCLE_REFUND
-  const shards = Math.min(r.essenceMax, Math.floor(essence / r.essencePer))
-  const hearts = Math.min(r.ashMax, Math.floor(n(o.ash) / r.ashPer))
-  if (shards > 0) materials[r.essenceTo] = Math.min(9999, (materials[r.essenceTo] ?? 0) + shards)
-  if (hearts > 0) materials[r.ashTo] = Math.min(9999, (materials[r.ashTo] ?? 0) + hearts)
-}
-
-/** v5 이하의 별자리(E4.5)에서 밝힌 별 수 → 성좌판의 별 (E17-05) */
-function oldStars(raw: unknown): number {
-  if (typeof raw !== 'object' || raw === null) return 0
-  const stars = (raw as Record<string, unknown>).stars
-  if (typeof stars !== 'object' || stars === null) return 0
-  return Object.values(stars as Record<string, unknown>).reduce<number>((s, v) => s + (typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.min(10, Math.round(v)) : 0), 0)
-}
-
-/** v8 이하 → v9: 신화 고유 재료를 그 신의 신화권 재료로 하나씩 바꿔 준다 (E21-04) */
-function refundMythMaterials(materials: Record<string, number>): void {
-  for (const [id, god] of Object.entries(OLD_MYTH_MATERIALS)) {
-    const n = materials[id]
-    if (!n) continue
-    delete materials[id]
-    const to = realmMaterial(godDef(god).realm) ?? 'frostShard'
-    materials[to] = Math.min(MATERIAL_CAP, (materials[to] ?? 0) + n)
-  }
-}
-
-/** v9 이하 → v10: 장 진행을 그때까지 한 것에서 짐작한다 (E22) */
-function oldChapters(region: SaveData['region'], conveniences: ConvenienceData, threat: ThreatData, materials: Record<string, number>, owned: readonly RelicId[]): ChapterData {
-  const entered = new Set<string>([...(region ? [region.id] : []), ...conveniences.visited])
-  const beaten = (realm: string) => {
-    const boss = Object.values(DATA.enemies).find((e) => e.boss && e.realm === realm && e.role === 'boss')?.boss
-    const material = boss ? bossMaterial(boss) : undefined
-    return (threat.cleared[realm] ?? 0) > 0 || (material !== undefined && (materials[material] ?? 0) > 0) || owned.some((id) => isMythRelic(id) && godDef(relicDef(id).god).realm === realm)
-  }
-  const bosses = Object.values(REGIONS)
-    .filter((r) => r.zone === 'boss' && r.boss && !r.finale && r.realm && beaten(r.realm))
-    .map((r) => r.id)
-  for (const id of bosses) entered.add(id)
-  return parseChapterData({ entered: [...entered], bosses })
-}
-
-/** 옛 저장의 칸 그대로 (1차 발현 규칙으로 고른 신화를 정할 때) */
-function legacySlots(raw: unknown): (RelicId | null)[] {
-  return (Array.isArray(raw) ? raw : []).map((id) => (isRelic(id) ? id : null))
-}
-
-/** v3 → v4: 가진 유물의 신화를 1단계로 연다 (E12-04 규칙: 그 신 유물을 손에 넣으면 열린다. 히든은 유물 수) */
-function openOwned(classes: SaveData['classes'], owned: readonly (RelicId | null)[]): SaveData['classes'] {
-  const out: SaveData['classes'] = { ...classes }
-  const gods = new Set<God>(hiddenUnlocked(owned))
-  for (const id of owned) if (id) for (const god of relicGods(relicDef(id))) if (!godDef(god).hidden) gods.add(god)
-  for (const god of gods) if ((out[god]?.level ?? 0) < 1) out[god] = { level: 1, xp: 0 }
-  return out
-}
-
 /** 고른 신화: 열린 신화만. 없으면(옛 저장) 칸의 유물로 1차 스프린트 발현 규칙을 따른다 */
 function parseChosen(raw: unknown, slots: readonly (RelicId | null)[], classes: SaveData['classes']): God[] {
   const open = (god: God) => (classes[god]?.level ?? 0) >= 1
@@ -336,14 +234,6 @@ function parseRegion(raw: unknown): SaveData['region'] {
   if (!region) return null
   const h = region.halfExtent
   return { id: region.id, x: num(r.x, -h, h, region.spawn.x), z: num(r.z, -h, h, region.spawn.z) }
-}
-
-/** v1 → v2: 그때까지 가진 유물과 발현해 본 클래스의 외형을 얻은 것으로 친다. 고른 것은 모두 "자동" */
-function migrateLooks(slots: (RelicId | null)[], bag: RelicId[], classes: SaveData['classes']): SaveData['looks'] {
-  const unlocked = new Set(STARTING_LOOKS)
-  for (const id of [...slots, ...bag]) if (id) unlocked.add(relicDef(id).look)
-  for (const god of Object.keys(classes)) for (const look of Object.values(godDef(god).looks)) unlocked.add(look)
-  return { unlocked: [...unlocked], choices: {} }
 }
 
 function parseLooks(raw: unknown): SaveData['looks'] {
@@ -375,6 +265,21 @@ function read(key: string): string | null {
     return localStorage.getItem(key)
   } catch {
     return null
+  }
+}
+
+/**
+ * 옛 버전 저장을 처음 옮길 때 원본을 그 버전 이름으로 한 번 남긴다 (E301-03, 예: `…:v13.bak`).
+ * 순환 재편으로 저장 모양이 크게 바뀌므로, 옮기기가 잘못되어도 되살릴 수 있게
+ */
+function keepOld(key: string, text: string): void {
+  const version = Number(/"version"\s*:\s*(\d+)/.exec(text)?.[1])
+  if (!Number.isInteger(version) || version >= SAVE_VERSION) return
+  const backup = `${key}:v${version}.bak`
+  try {
+    if (localStorage.getItem(backup) === null) localStorage.setItem(backup, text)
+  } catch {
+    // 남기지 못해도 옮기기는 그대로 한다
   }
 }
 
@@ -413,7 +318,9 @@ export const saveStorage = {
     const key = slotKey(slot ?? saveStorage.slot)
     const text = read(key)
     try {
-      return parseSave(text)
+      const data = parseSave(text)
+      if (data && text) keepOld(key, text)
+      return data
     } catch (e) {
       // 읽지 못하는 저장 때문에 게임이 뜨지 않으면 안 된다: 빈 슬롯처럼 다루고, 원본은 옆에 남겨 둔다 (새 게임이 덮어써도 되살릴 수 있게)
       console.warn('저장을 읽지 못했습니다', e)

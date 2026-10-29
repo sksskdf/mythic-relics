@@ -84,6 +84,14 @@ export function renderStatus(ctx: TabContext, body: HTMLElement): void {
   row('promote', '올린 단계', `${stats.promotions}`, `올린 단계\n어느 신화든 개방 단계를 하나 올릴 때마다 최대 생명 +${Math.round(PER_PROMOTION.maxHpPct * 100)}%, 모든 피해 ×${PER_PROMOTION.damage}. 다른 신화로 바꿔도 남는다.`)
   right.append(grid)
 
+  // 주는 피해가 어디서 오나 (E301-01): 곱하는 층과 더하는 층, 합은 「주는 피해」 줄
+  if (stats.layers.length > 0) {
+    const list = el('div', 'menu-status__layers')
+    for (const layer of stats.layers) list.append(el('span', 'ui-tag', `${layer.name} ${layer.text}`))
+    ctx.hintOn(list, `주는 피해 ×${stats.damage.toFixed(2)}\n×는 서로 곱하고, +는 모두 더한 뒤 곱한다.`)
+    right.append(list)
+  }
+
   // 수집 보너스 (E21-02): 열린 신화 하나마다 같은 덧셈
   if (stats.collected > 0 || stats.powers.length > 0) {
     const list = el('div', 'menu-status__powers')

@@ -97,7 +97,7 @@ describe('성좌판 (E17-05)', () => {
     expect(plain.stats[odin.kind]).toBe(0)
     expect(starred.stats[odin.kind] - (odin.kind === thor.kind ? thor.value[0] : 0)).toBeCloseTo(odin.value[1] * 1.5)
     expect(starred.stats[thor.kind] - (odin.kind === thor.kind ? odin.value[1] * 1.5 : 0)).toBeCloseTo(thor.value[0])
-    const blessed = computeBuild({ ...base, bonus: { damage: 0.12 }, awakenBonus: { stone: 2 } })
+    const blessed = computeBuild({ ...base, bonus: { blessings: { damage: 0.12 } }, awakenBonus: { stone: 2 } })
     expect(blessed.stats.damage).toBeCloseTo(plain.stats.damage + 0.12)
     expect(blessed.awakening.stone).toBe(2)
     expect(BLESSINGS.length).toBe(20)

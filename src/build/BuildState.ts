@@ -7,6 +7,7 @@ import { relicAwake, relicSource } from '../gear/mythRelic'
 import { PER_OPENED, PER_PROMOTION } from '../myth/ClassProgress'
 import { type God, godDef, relicDef, type RelicId } from '../relics/data'
 import { type Modifiers, NO_MODIFIERS } from '../skills/Skill'
+import { type DamageLayer, layerProduct } from './layers'
 
 /**
  * 빌드 상태 (E11-04, DESIGN.md 4.6).
@@ -29,13 +30,15 @@ export interface BuildInputs {
   /** 칸에 낀 유물 (빈 칸과 일반 장비는 null) */
   gear: readonly (RelicId | null)[]
   /** 칸에 낀 일반 장비 (E13-02): 수치는 상시 효과 수치와 같은 종류끼리 더한다 */
-  gearItems?: readonly { stats: readonly { kind: StatKind; value: number }[]; source: { id: SourceId; value: number } }[]
+  gearItems?: readonly GearItemStats[]
+  /** 칸에 낀 신화 유물의 기본 수치 (E21-04): 일반 장비와 같이 더하고, 층은 따로 센다 */
+  relicItems?: readonly GearItemStats[]
   /** 유물 단계 (E13-03, 없으면 1) */
   stage?: (id: RelicId) => number
   /** 올린 개방 단계의 합 */
   promotions: number
-  /** 시련 보상 (E16): 수치 종류마다 더한다 */
-  bonus?: Partial<Record<StatKind, number>>
+  /** 시련 보상(E16)·수련 마디(E236)·균열의 축복(E17): 출처마다 수치 종류별로 더한다 */
+  bonus?: Partial<Record<BonusFrom, Partial<Record<StatKind, number>>>>
   /** 균열의 축복이 올린 각성 단계 (E17, 원천마다) */
   awakenBonus?: Partial<Record<SourceId, number>>
   /** 성좌판에서 밝힌 별 (E17): 그 신화의 상시 효과가 한 단계 위 */
@@ -43,6 +46,16 @@ export interface BuildInputs {
   /** 시련 중 제약 (E16): 고른 신화 없이·최대 생명·이동 속도 등. 장비 칸 제한은 재료를 모을 때 거른다 */
   rules?: TrialRules
 }
+
+/** 일반 장비 하나의 수치와 원천 */
+export interface GearItemStats {
+  stats: readonly { kind: StatKind; value: number }[]
+  source: { id: SourceId; value: number }
+}
+
+/** 더하는 수치의 출처 (층 이름과 같다) */
+export type BonusFrom = 'trials' | 'training' | 'blessings'
+const BONUS_FROM: readonly BonusFrom[] = ['trials', 'training', 'blessings']
 
 /** 기본 최대 생명 */
 export const BASE_HP = 100
@@ -72,8 +85,10 @@ export interface BuildState {
   borrowed: readonly God[]
   /** 고른 신화의 개방 단계 (없으면 0) */
   level: number
-  /** 기본 공격과 스킬에 공통으로 곱하는 피해 배율 */
+  /** 기본 공격과 스킬에 공통으로 곱하는 피해 배율 (= 층 목록의 곱) */
   damageScale: number
+  /** 피해 배율의 층 목록 (E301-01): 어디서 얼마나 오는지 */
+  layers: readonly DamageLayer[]
   /** 장비한 유물들의 지속 효과 수치를 곱한 값 */
   modifiers: Modifiers
   /** 받는 피해 배율 */
@@ -117,32 +132,48 @@ export function computeBuild(inputs: BuildInputs): BuildState {
   // 수치: 같은 종류는 더하고, 다른 종류끼리는 아래에서 곱한다
   const worn = new Set(inputs.gear.filter((id): id is RelicId => id !== null).map((id) => relicDef(id).god))
   const stats = Object.fromEntries(STAT_KINDS.map((k) => [k, 0])) as Record<StatKind, number>
-  let collected = 0
-  for (const [id, level] of inputs.open) {
-    if (level <= 0) continue
-    collected += 1
-    // 별을 밝힌 신화만 그 신화의 수치를 낸다 (성좌판, 엔딩 뒤)
-    if (inputs.starred?.has(id)) stats[godDef(id).always.stat.kind] += statAt(godDef(id).always.stat, alwaysStage(level, worn.has(id), true))
+  const layers: DamageLayer[] = []
+  /** 덧셈 층 하나: 그 출처의 수치를 더하고 피해 몫을 층으로 남긴다 */
+  const addFrom = (id: DamageLayer['id'], add: (into: Record<StatKind, number>) => void) => {
+    const before = stats.damage
+    add(stats)
+    layers.push({ id, kind: 'add', value: stats.damage - before })
   }
+  let collected = 0
+  addFrom('stars', () => {
+    for (const [id, level] of inputs.open) {
+      if (level <= 0) continue
+      collected += 1
+      // 별을 밝힌 신화만 그 신화의 수치를 낸다 (성좌판, 엔딩 뒤)
+      if (inputs.starred?.has(id)) stats[godDef(id).always.stat.kind] += statAt(godDef(id).always.stat, alwaysStage(level, worn.has(id), true))
+    }
+  })
   // 일반 장비 수치 (E13-02)와 원천 수치
   const sources = Object.fromEntries(SOURCE_IDS.map((s) => [s, 0])) as Record<SourceId, number>
-  for (const item of inputs.gearItems ?? []) {
-    for (const s of item.stats) stats[s.kind] += s.value
-    sources[item.source.id] += item.source.value
+  const addItems = (items: readonly GearItemStats[] | undefined) => {
+    for (const item of items ?? []) {
+      for (const s of item.stats) stats[s.kind] += s.value
+      sources[item.source.id] += item.source.value
+    }
   }
+  addFrom('gear', () => addItems(inputs.gearItems))
+  addFrom('relics', () => addItems(inputs.relicItems))
   for (const id of inputs.gear) {
     if (!id) continue
     const source = relicSource(id, inputs.stage?.(id) ?? 1)
     sources[source.id] += source.value
   }
-  for (const [kind, value] of Object.entries(inputs.bonus ?? {}) as [StatKind, number][]) stats[kind] += value
-  const awakening = Object.fromEntries(SOURCE_IDS.map((s) => [s, Math.min(3, awakeningLevel(sources[s]) + (inputs.awakenBonus?.[s] ?? 0))])) as Record<SourceId, number>
-  // 신화 단계(큰 걸음)는 곱하고, 수집 보너스는 다른 피해 수치와 더한다
-  let damageScale = PER_PROMOTION.damage ** inputs.promotions * (1 + stats.damage + collected * PER_OPENED.damage)
-  if (god) {
-    // 고른 신화의 패시브 (천둥의 신: 거인 특효)
-    damageScale *= god.passive.damageScale
+  for (const from of BONUS_FROM) {
+    addFrom(from, () => {
+      for (const [kind, value] of Object.entries(inputs.bonus?.[from] ?? {}) as [StatKind, number][]) stats[kind] += value
+    })
   }
+  const awakening = Object.fromEntries(SOURCE_IDS.map((s) => [s, Math.min(3, awakeningLevel(sources[s]) + (inputs.awakenBonus?.[s] ?? 0))])) as Record<SourceId, number>
+  // 신화 단계(큰 걸음)는 곱하고, 수집 보너스는 다른 피해 수치와 더한다. 고른 신화의 패시브(천둥의 신: 거인 특효)는 곱한다
+  layers.unshift({ id: 'promotion', kind: 'mul', value: PER_PROMOTION.damage ** inputs.promotions })
+  layers.push({ id: 'collection', kind: 'add', value: collected * PER_OPENED.damage })
+  layers.push({ id: 'myth', kind: 'mul', value: god ? god.passive.damageScale : 1 })
+  const damageScale = layerProduct(layers)
   // 유물의 지속 효과는 그 신화를 골랐을 때만 깨어난다 (E21-04). 시련으로 신화를 막아도 고른 신화는 그대로 본다
   const picked = inputs.chosen[0] ?? null
   const borrowed = rules.noMyth ? [] : inputs.chosen.slice(1)
@@ -153,6 +184,7 @@ export function computeBuild(inputs: BuildInputs): BuildState {
     borrowed,
     level: chosen ? (inputs.open.get(chosen) ?? 0) : 0,
     damageScale,
+    layers,
     modifiers,
     // 받는 피해 줄이기를 많이 겹쳐도 0이나 음수(맞으면 회복)가 되지 않게
     damageTaken: modifiers.damageTaken * Math.max(0.1, 1 + stats.damageTaken),
