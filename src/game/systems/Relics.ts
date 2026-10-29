@@ -35,6 +35,8 @@ export class RelicSystem {
   private readonly labelAt = new THREE.Vector3()
   /** 신화를 고를 때 터지는 충격을 다시 쓸 수 있을 때까지 (초) */
   private burstCooldown = 0
+  /** 새 부품의 자리가 차 있을 때 두 갈래 카드를 띄운다 (E302-03, 게임이 정한다). 없으면 그대로 둔다 */
+  offerSwap: ((part: 'hand' | 'heart', incoming: God, current: God, choose: (take: boolean) => void) => void) | null = null
   /** 신화의 유물을 손에 넣으면 그 신화가 열리나 (E238: 데모에서는 깨우는 길이 있는 신은 수호자를 쓰러뜨려야 연다. 게임이 정한다) */
   relicsOpenMyths: () => boolean = () => true
 
@@ -47,14 +49,17 @@ export class RelicSystem {
       this.decoy = null
     })
     // 조각 2 (E302): 그 신의 손 부품. 손이 비었으면(낡은 검) 저절로 쥔다: 동작이 바뀌는 순간
+    // 조각 3 (수호자): 그 신의 심장 부품. 심장이 차 있으면 두 갈래 카드
     ctx.bus.on('fragment', ({ god, piece }) => {
-      if (piece === 2 && !ctx.progress.pantheon.hand) this.fill(god, ['hand'])
+      if (piece === 2) this.offer(god, 'hand')
+      if (piece === 3) this.offer(god, 'heart')
     })
     // 처음 깨어난 신: 자리가 비었으면 손·심장·숨을 모두 그 신으로 (E12-04 → E302). 있으면 빈 자리에 저절로 넣는다
     ctx.bus.on('mythOpened', ({ god, quiet }) => {
       if (!ctx.progress.pantheon.hand && !ctx.progress.pantheon.heart) this.choose(god, true)
       // 한꺼번에 열린 것(장 보스)은 신화권 카드가 함께 알린다
-      else if (this.fill(god, ['hand', 'heart', 'breath']).length && !quiet) {
+      // 장 보스·개발 지름길로 한꺼번에 열린 신은 카드 없이 빈 자리에만 (두 갈래는 조각으로 깨울 때만)
+      else if (this.fill(god, ['heart', 'breath']).length && !quiet) {
         const def = godDef(god)
         ctx.bus.emit('moment', {
           id: 'mythLent',
@@ -111,6 +116,19 @@ export class RelicSystem {
     const { next, placed } = autoFill(this.ctx.progress.pantheon, god, parts, this.slots)
     if (placed.length) this.apply(next, false)
     return placed
+  }
+
+  /**
+   * 새 신의 손·심장 부품이 왔다 (E302-03): 비었으면 저절로 넣고, 차 있으면 두 갈래 카드. 저절로 넣었으면 1
+   */
+  private offer(god: God, part: 'hand' | 'heart'): number {
+    const current = this.ctx.progress.pantheon[part]
+    if (current === god) return 0
+    if (!current) return this.fill(god, [part]).length
+    this.offerSwap?.(part, god, current, (take) => {
+      if (take) this.apply(withPart(this.ctx.progress.pantheon, part, god, this.slots), false)
+    })
+    return 0
   }
 
   /** 자리를 바꿔 낀다: 기록·힘·연출을 함께 맞춘다 */

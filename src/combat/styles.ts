@@ -34,6 +34,31 @@ export const ATTACK_STYLES = [
 ] as const
 export type AttackStyle = (typeof ATTACK_STYLES)[number]
 
+/** 기본 공격 동작의 무기 이름 (E302: 손 자리·두 갈래 카드) */
+export const ATTACK_NAMES: Readonly<Record<AttackStyle, string>> = {
+  blade: '짧은 검',
+  hammer: '망치',
+  spear: '창',
+  bow: '활',
+  staff: '지팡이',
+  twin: '쌍검',
+  pole: '봉',
+  bolt: '벼락',
+  fan: '부채',
+  mirror: '거울',
+  drum: '북',
+  club: '방망이',
+  sixarm: '여섯 팔',
+  katana: '칼',
+  greatsword: '큰 칼',
+  trident: '삼지창',
+  chakram: '고리',
+  pearl: '구슬',
+  blossom: '꽃잎',
+  crescent: '초승달 날',
+  boulder: '바위',
+}
+
 /** 3연타 진행: wind 젖히기(0→1), strike 휘두르기(0→1), settle 돌아오기(0→1) */
 export interface SwingPhase {
   index: number

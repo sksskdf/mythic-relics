@@ -306,6 +306,12 @@ export class Autoplayer {
       return
     }
 
+    // 두 갈래 카드 (E302-03): 새 신의 손·심장이 왔는데 자리가 차 있으면, 정한 신이면 새 것을, 아니면 지금 그대로
+    if (!offer && this.game.mythPickerOpen) {
+      const incoming = document.querySelector<HTMLElement>('.myth-pick__card')?.dataset.god
+      this.game.answerSwap(!!this.god && incoming === this.god)
+      return
+    }
     // 4.8 신화 고르기 (E22-03): 카드가 떠 있으면 정한 신(없으면 첫 신화)을 고르고, 아니면 성소 가운데로 간다
     if (offer && this.game.mythPickerOpen) {
       this.game.mythChoice.pick(this.god && offer.gods.includes(this.god) ? this.god : offer.gods[0]!)

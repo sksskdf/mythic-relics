@@ -524,6 +524,8 @@ export class Game {
     this.chapterSystem = new ChapterSystem(this.ctx)
     this.mythPicker = new MythPicker(this.hud.root)
     this.mythChoice = new MythChoiceSystem(this.ctx, this.mythPicker)
+    // 새 신의 손·심장 부품이 왔는데 자리가 차 있으면 두 갈래 카드 (E302-03)
+    this.relics.offerSwap = (part, incoming, current, choose) => this.mythPicker.swap(part, incoming, current, choose)
     this.awakening = new AwakeningSystem(
       this.ctx,
       (p) => this.nav.nearestFree(p),
@@ -968,6 +970,14 @@ export class Game {
   }
 
   /** 신화 고르기 카드가 떠 있나 (봇·점검용) */
+  /** 두 갈래 카드에 답한다 (봇·점검용): 그 카드의 「새 것으로」나 「지금 그대로」를 누른다 */
+  answerSwap(take: boolean): boolean {
+    const card = document.querySelectorAll<HTMLButtonElement>('.myth-pick__card')[take ? 0 : 1]
+    if (!this.mythPicker.open || !card) return false
+    card.click()
+    return true
+  }
+
   get mythPickerOpen(): boolean {
     return this.mythPicker.open
   }

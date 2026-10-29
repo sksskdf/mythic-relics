@@ -1,3 +1,4 @@
+import { ATTACK_NAMES } from '../../combat/styles'
 import { DATA } from '../../data'
 import { collectionText, starText } from '../../myth/alwaysText'
 import { allLevelGains, lendText, levelGains } from '../../myth/levelGains'
@@ -5,31 +6,6 @@ import { type God, godDef } from '../../relics/data'
 import { classIcon } from '../classIcons'
 import { glyph, SOURCE_COLORS, sourceSigil, unknownSigil } from '../sigils'
 import { el, img, pips, type TabContext } from './dom'
-
-/** 기본 공격 동작 이름 (손 자리) */
-const ATTACK_NAME: Readonly<Record<string, string>> = {
-  blade: '짧은 검',
-  hammer: '망치',
-  spear: '창',
-  bow: '활',
-  staff: '지팡이',
-  twin: '쌍검',
-  pole: '봉',
-  bolt: '벼락',
-  fan: '부채',
-  mirror: '거울',
-  drum: '북',
-  club: '방망이',
-  sixarm: '여섯 팔',
-  katana: '칼',
-  greatsword: '큰 칼',
-  trident: '삼지창',
-  chakram: '고리',
-  pearl: '구슬',
-  blossom: '꽃잎',
-  crescent: '초승달 날',
-  boulder: '바위',
-}
 
 /** 신화권 이름 (숙련 안내) */
 const REALM_NAME: Readonly<Record<string, string>> = { norse: '북유럽', greek: '그리스', china: '중국', japan: '일본', korea: '한국' }
@@ -198,9 +174,11 @@ export class MythTab {
       card.append(box)
     }
     const damage = levelGains(god, 1).filter((g) => g.kind === 'damage').map((g) => g.text)
-    part('손에 쥐면', inHand, [`기본 공격: ${ATTACK_NAME[def.attack] ?? def.attack}`, ...damage])
+    part('손에 쥐면', inHand, [`기본 공격: ${ATTACK_NAMES[def.attack]}`, ...damage])
     part('심장에 두면', inHeart, [`궁극기 「${def.ultimate.name}」`])
-    part('숨에 넣으면', inBreath, [lendText(god, Math.max(1, level)), ...levelGains(god, 1).filter((g) => g.kind === 'power').map((g) => g.text), '이 신의 유물이 깨어난다'])
+    // 공격 동작은 손의 몫이라 빼고, 대표 힘과 겹치는 줄은 한 번만
+    const breathLines = [lendText(god, Math.max(1, level)), ...levelGains(god, 1).filter((g) => g.kind === 'power' && !g.text.startsWith('공격')).map((g) => g.text)]
+    part('숨에 넣으면', inBreath, [...new Set(breathLines), '이 신의 유물이 깨어난다'])
     if (view.focus !== god && level > 0) card.append(el('p', 'menu-myth__hint', '손·심장·숨을 모두 이 신으로 채우면 한 신에 몰기: 효과 단계 +1, 이 신의 모습'))
 
     // 자리 바꾸기 (E302): 어디서나, 전설 중에는 못 바꾼다
