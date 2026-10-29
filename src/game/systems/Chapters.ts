@@ -93,7 +93,7 @@ export class ChapterSystem {
   }
 }
 
-/** 장 제목 띠의 색: 그 장 첫 땅의 신화권 (땅이 없는 막간은 마을 빛) */
+/** 장 제목 띠의 색: 그 장 첫 땅의 신화권 (땅이 없는 장은 마을 빛) */
 export function chapterColor(chapter: ChapterDef): string {
   const first = Object.keys(chapter.lands)[0]
   return `var(--c-realm-${(first && REGIONS[first]?.realm) || 'hub'})`

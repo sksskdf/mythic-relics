@@ -87,7 +87,7 @@ export interface WorldMapHost {
   nodes(): { id: string; name: string; color: string; zone: string | null; x: number; y: number; size: number; links: string[]; here: boolean; found: boolean; cleared: number; locked: boolean }[]
   /** 다음 목표: 가야 할 땅과 목표 한 줄 (E22-04). 엔딩 뒤이거나 다 했으면 null */
   goal(): { region: string; text: string } | null
-  /** 아직 깨우지 않은 신의 흔적 (E238): 있는 땅, 이름, 그 신의 색, 깨우는 중인가 */
+  /** 아직 깨우지 않은 신의 흔적 (E238): 있는 땅, 이름, 그 신의 색, 지금 응답하지 않는가(깨우는 중·주신이 더 자라야 함) */
   traces(): { region: string; name: string; color: string; waking: boolean }[]
   /** 지도 위 내 자리 (세계 칸 단위). 세계 밖(균열)이면 null */
   me(): { x: number; y: number } | null

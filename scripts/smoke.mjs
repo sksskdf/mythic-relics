@@ -293,20 +293,17 @@ try {
   if (gearTabs.join() !== 'relics') throw new Error(`탭 차례: 장비를 주운 뒤 열린 탭이 장비 하나가 아닙니다 (${gearTabs.join()})`)
   console.log('탭 차례 확인: 새 판에는 상태 탭만, 장비를 주우면 장비 탭과 카드')
   await lookShot('2-gear')
-  // 신을 깨우는 조각 셋 (E238): 흔적(조각 1: 대표 힘을 빌림) → 사냥(조각 2: 묠니르가 발밑에) → 수호자(깨어나 주신이 됨).
-  // 데모에서는 유물을 주워도 신화가 열리지 않는다
+  // 신을 깨우는 조각 셋 (E238): 흔적(조각 1: 대표 힘을 빌림) → 사냥(조각 2: 묠니르가 손에 들어옴) → 수호자(깨어나 주신이 됨).
+  // 데모에서는 유물을 가져도 신화가 열리지 않는다
   await page.evaluate(() => {
     const g = window.__game
     g.dev.awaken('thor')
     g.dev.awaken()
   })
-  const relicAt = await page.evaluate(() => window.__game.pickups.list.find((i) => i.id === 'mjolnir') ?? null)
-  if (!relicAt) throw new Error('신의 조각: 조각 2를 모았는데 묠니르가 떨어지지 않았습니다.')
-  await page.evaluate(({ x, z }) => window.__game.hero.teleport(x, z), relicAt)
   await page.waitForFunction(() => window.__game.powers.loadout.slots[0] === 'mjolnir', null, { timeout: 15000 }).catch(() => {
-    throw new Error('유물: 묠니르를 주워 무기 칸에 끼지 못했습니다.')
+    throw new Error('신의 조각: 조각 2를 모았는데 묠니르가 무기 칸에 들어오지 않았습니다.')
   })
-  if ((await page.evaluate(() => window.__game.hero.rig.outfit.weapon)) !== 'mjolnirHammer') throw new Error('외형: 묠니르를 줍자마자 망치가 보이지 않습니다.')
+  if ((await page.evaluate(() => window.__game.hero.rig.outfit.weapon)) !== 'mjolnirHammer') throw new Error('외형: 묠니르를 얻자마자 망치가 보이지 않습니다.')
   const asleep = await page.evaluate(() => {
     const g = window.__game
     return { open: g.progress.isOpen('thor'), manifested: g.powers.manifested, lent: g.ctx.build.passives().map((p) => p.god), awake: g.powers.awake('mjolnir') }

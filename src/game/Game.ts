@@ -483,7 +483,7 @@ export class Game {
       hovered: () => this.playerInput.hovered,
       screenPoint: (x, y, z) => this.screenPoint(x, y, z),
       traces: () => this.awakening.spots,
-      traceContext: () => ({ waking: this.awaken.waking, fragments: this.awaken.fragments, hunt: this.awaken.hunt }),
+      traceContext: () => ({ waking: this.awaken.waking, fragments: this.awaken.fragments, hunt: this.awaken.hunt, sealedUntil: this.awakening.sealedUntil }),
       guardian: () => this.awakening.fighting,
     })
     // 새 외형은 메뉴 단추의 점으로만 알린다. (유물 이름 알림과 겹치지 않게, 외형 탭이 열린 뒤에만)
@@ -526,7 +526,13 @@ export class Game {
     this.chapterSystem = new ChapterSystem(this.ctx)
     this.mythPicker = new MythPicker(this.hud.root)
     this.mythChoice = new MythChoiceSystem(this.ctx, this.mythPicker)
-    this.awakening = new AwakeningSystem(this.ctx, (p) => this.nav.nearestFree(p))
+    this.awakening = new AwakeningSystem(
+      this.ctx,
+      (p) => this.nav.nearestFree(p),
+      (relic, announce) => this.relics.equip(relic, announce),
+      // 점검용 실행(?relics=)에서는 흔적이 응답하지 않는다: 봇·점검 스크립트의 신화에 다른 신의 힘이 섞이지 않게
+      () => options.relicsOpenMyths ?? false,
+    )
     // 데모에서는 신화의 유물을 손에 넣어도 신화가 열리지 않는다: 신을 깨워야 연다 (E238). 점검용 실행과 엔딩 뒤에는 예전처럼
     this.relics.relicsOpenMyths = () => (options.relicsOpenMyths ?? false) || this.ending.reached
     // 다음 장이 열리면 그 땅으로 가는 결계가 풀리고(E22-02) 장 제목 띠가 지나간다 (E22-04)

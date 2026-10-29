@@ -86,7 +86,7 @@ describe('땅 세기 (E22-02)', () => {
     expect(landScale(4).hp).toBe(4)
     expect(landScale(4).damage).toBeGreaterThan(1)
     expect(landScale(4).damage).toBeLessThan(4)
-    expect(TOP_POWER).toBe(14)
+    expect(TOP_POWER).toBe(17)
   })
 })
 
@@ -121,7 +121,7 @@ describe('장 진행 (E22-01)', () => {
     expect(goals).toEqual(['enter', 'level', 'awaken', 'enter', 'boss'])
   })
 
-  it('지금 장의 땅은 할 일 차례로 열린다: 요툰헤임은 첫 신을 깨운 뒤, 우트가르드는 두 번째 신 뒤 (E236-01, E238)', () => {
+  it('지금 장의 땅은 할 일 차례로 열린다: 요툰헤임은 첫 신을 깨운 뒤, 우트가르드는 2단계 전설과 두 번째 신 뒤 (E236-01, E238)', () => {
     const w = world()
     const chapters = new ChapterProgress(w)
     chapters.enter('midgard')
@@ -135,16 +135,6 @@ describe('장 진행 (E22-01)', () => {
     w.lv = 2
     expect(chapters.isOpen('utgard')).toBe(false)
     w.awake.set('norse', 2)
-    expect(chapters.isOpen('utgard')).toBe(true)
-  })
-
-  it('미드가르드에서 두 신을 다 깨웠으면 요툰헤임 전설은 지나간 것으로 친다', () => {
-    const w = world()
-    const chapters = new ChapterProgress(w)
-    chapters.enter('midgard')
-    w.awake.set('norse', 2)
-    expect(chapters.goal?.kind).toBe('enter')
-    expect(chapters.goal?.region).toBe('utgard')
     expect(chapters.isOpen('utgard')).toBe(true)
   })
 
@@ -224,7 +214,7 @@ describe('장 진행 (E22-01)', () => {
   it('땅의 세기와 단계: 장 흐름의 땅은 장 데이터, 그 밖의 들판(엔딩 뒤)은 가장 센 땅만큼, 균열은 1', () => {
     const chapters = new ChapterProgress(world())
     expect(chapters.power('midgard')).toBe(1)
-    expect(chapters.power('lycia')).toBe(11.5)
+    expect(chapters.power('lycia')).toBe(14)
     expect(chapters.power('sinsi')).toBe(TOP_POWER)
     expect(chapters.power('rift')).toBe(1)
     expect(chapters.power('village')).toBe(1)

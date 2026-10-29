@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { computeBuild } from '../src/build/BuildState'
-import { AWAKEN, AWAKEN_GODS, HUNT_KILLS, TRACE_MODELS } from '../src/data/awaken'
+import { AWAKEN, AWAKEN_GODS, canWakeMore, HUNT_KILLS, TRACE_MODELS } from '../src/data/awaken'
 import { REGIONS } from '../src/data/regions'
 import { SCENES, sceneId } from '../src/data/scenes'
 import { ENEMIES } from '../src/enemies/Giant'
@@ -70,6 +70,15 @@ describe('신을 깨우는 길 데이터 (E238)', () => {
 })
 
 describe('깨우는 진행 (E238)', () => {
+  it('신을 하나 더 깨우려면 주신이 그만큼 자라야 한다: 첫 신은 언제나, 두 번째 신은 주신 2단계부터 (미드가르드에서 둘을 깨워 전설을 건너뛰지 않게)', () => {
+    expect(canWakeMore(0, 0)).toBe(true)
+    expect(canWakeMore(1, 1)).toBe(false)
+    expect(canWakeMore(1, 2)).toBe(true)
+    expect(canWakeMore(2, 2)).toBe(false)
+    expect(canWakeMore(2, 3)).toBe(true)
+    expect(canWakeMore(3, 1, true)).toBe(true)
+  })
+
   it('흔적 → 사냥 → 수호자: 조각마다 하나씩, 깨어나면 처음으로', () => {
     const a = new AwakenProgress()
     expect(a.addKill()).toBe(false)

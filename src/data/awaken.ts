@@ -29,11 +29,19 @@ export interface AwakenDef {
   lore: string
 }
 
-/** 흔적이 지금 어떤가: 깨어남(이미 연 신)·깨우는 중·다른 신을 깨우는 중·응답함 */
-export type TraceState = 'awake' | 'waking' | 'busy' | 'open'
+/** 흔적이 지금 어떤가: 깨어남(이미 연 신)·깨우는 중·다른 신을 깨우는 중·주신이 더 자라야 함·응답함 */
+export type TraceState = 'awake' | 'waking' | 'busy' | 'sealed' | 'open'
+
+/**
+ * 신을 하나 더 깨울 수 있나: 깨운 신이 주신 단계보다 적어야 한다 (첫 신은 언제나). 주신 2단계 전설을 깨야 두 번째 신이 응답한다.
+ * 큰 체크포인트(신 깨우기)가 신 단계(전설) 사이에 하나씩 놓여 몰리지 않게 (MYTHBUILD.md 2장). 엔딩 뒤에는 막지 않는다
+ */
+export function canWakeMore(awakened: number, mainLevel: number, afterEnding = false): boolean {
+  return afterEnding || awakened < Math.max(1, mainLevel)
+}
 
 /** 조각 2까지 잡아야 하는 적 수 (그 신의 땅에서) */
-export const HUNT_KILLS = 20
+export const HUNT_KILLS = 40
 /** 흔적에 이만큼(m) 다가가면 지키는 무리가 깨어난다 */
 export const TRACE_RADIUS = 3
 /** 지키는 무리가 깨어난 뒤 이만큼(m) 넘게 멀어지면 무리가 흩어지고 처음부터 */
@@ -53,14 +61,14 @@ export const AWAKEN: Readonly<Partial<Record<God, AwakenDef>>> = {
       { enemy: 'stoneThrower', count: 1 },
     ],
     land: 'midgard',
-    guardian: { region: 'midgard', x: 24, z: -14, name: '요르문간드', base: 'imugi', size: 2.2, hp: 420, damage: 1.4, tint: '#5f8f86' },
+    guardian: { region: 'midgard', x: 24, z: -14, name: '요르문간드', base: 'imugi', size: 2.2, hp: 800, damage: 1.4, tint: '#5f8f86' },
     lore: '천둥이 내리친 자리. 아직 나무 속에서 번개가 운다.',
   },
   odin: {
     trace: { region: 'midgard', x: -20, z: 16, name: '룬 돌과 까마귀', model: 'runeRaven' },
     pack: [{ enemy: 'wolf', count: 5 }],
     land: 'midgard',
-    guardian: { region: 'midgard', x: -28, z: -6, name: '펜리르', base: 'wolf', size: 2.4, hp: 380, damage: 1.5, tint: '#7d8794' },
+    guardian: { region: 'midgard', x: -28, z: -6, name: '펜리르', base: 'wolf', size: 2.4, hp: 720, damage: 1.5, tint: '#7d8794' },
     lore: '외눈의 신이 새긴 룬. 까마귀 한 마리가 아직 떠나지 않았다.',
   },
   loki: {
@@ -70,7 +78,7 @@ export const AWAKEN: Readonly<Partial<Record<God, AwakenDef>>> = {
       { enemy: 'frostWitch', count: 1 },
     ],
     land: 'jotunheim',
-    guardian: { region: 'jotunheim', x: 30, z: -18, name: '스카디', base: 'stoneThrower', size: 2, hp: 300, damage: 1.3, tint: '#c9d6e8' },
+    guardian: { region: 'jotunheim', x: 30, z: -18, name: '스카디', base: 'stoneThrower', size: 2, hp: 760, damage: 1.3, tint: '#c9d6e8' },
     lore: '사슬로 묶였던 바위. 그릇에 독이 아직 고여 있다.',
   },
   freyr: {
@@ -81,7 +89,7 @@ export const AWAKEN: Readonly<Partial<Record<God, AwakenDef>>> = {
       { enemy: 'stoneThrower', count: 1 },
     ],
     land: 'jotunheim',
-    guardian: { region: 'jotunheim', x: 8, z: -32, name: '수르트', base: 'grunt', size: 2.3, hp: 320, damage: 1.4, tint: '#d8643a' },
+    guardian: { region: 'jotunheim', x: 8, z: -32, name: '수르트', base: 'grunt', size: 2.3, hp: 800, damage: 1.4, tint: '#d8643a' },
     lore: '풍요의 신이 아끼던 멧돼지가 잠든 무덤. 흙이 아직 따뜻하다.',
   },
 }

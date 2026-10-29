@@ -6,6 +6,7 @@ import { parseTrials } from '../src/progress/Trials'
 import { parseRift } from '../src/progress/Rift'
 import { STEP_TABS } from '../src/progress/Tabs'
 import { parseSave, SAVE_VERSION, type SaveData } from '../src/save/SaveData'
+import { HUNT_KILLS } from '../src/data/awaken'
 
 const sample: SaveData = {
   version: SAVE_VERSION,
@@ -239,7 +240,7 @@ describe('저장 v11: 연 탭 (E236-05)', () => {
 describe('저장 v13: 신을 깨우는 조각 (E238)', () => {
   it('깨우는 신과 조각·사냥한 수는 그대로, 조각 2면 사냥 막대는 찬 것으로', () => {
     expect(parseSave(JSON.stringify(sample))?.awaken).toEqual({ waking: 'odin', fragments: 1, hunt: 7 })
-    expect(parseSave(JSON.stringify({ ...sample, awaken: { waking: 'odin', fragments: 2, hunt: 3 } }))?.awaken).toEqual({ waking: 'odin', fragments: 2, hunt: 20 })
+    expect(parseSave(JSON.stringify({ ...sample, awaken: { waking: 'odin', fragments: 2, hunt: 3 } }))?.awaken).toEqual({ waking: 'odin', fragments: 2, hunt: HUNT_KILLS })
   })
 
   it('옛 저장(v12)·깨우는 길이 없는 신·이미 연 신이면 깨우는 신 없이', () => {

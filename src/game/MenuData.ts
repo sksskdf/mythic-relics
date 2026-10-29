@@ -216,11 +216,12 @@ export class MenuData {
           return { region: goal.region, text: goal.goal }
         },
         traces: () =>
-          AWAKEN_GODS.filter((g) => ['open', 'waking'].includes(game.awakening.traceState(g))).map((g) => ({
+          AWAKEN_GODS.filter((g) => game.awakening.traceState(g) !== 'awake').map((g) => ({
             region: AWAKEN[g]!.trace.region,
             name: AWAKEN[g]!.trace.name,
             color: godDef(g).color,
-            waking: game.awakening.traceState(g) === 'waking',
+            // 응답하는 흔적은 채운 마름모, 깨우는 중·아직 잠잠한 흔적은 테만
+            waking: game.awakening.traceState(g) !== 'open',
           })),
         me: () => {
           const cell = ctx.map.region.cell

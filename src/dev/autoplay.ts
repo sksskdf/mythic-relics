@@ -84,6 +84,8 @@ export class Autoplayer {
 
   /** 벼리기에 실패한 신화 (재료가 늘면 다시 해 본다) */
   private readonly forgeBlocked = new Set<God>()
+  /** 줍으러 간 것과 처음 간 때 (게임 초): 20초 넘게 닿지 못하면(막힌 자리에 떨어진 것) 버려 둔다 */
+  private readonly pickupSince = new Map<string, number>()
   private forgeMaterials = 0
 
   /** 봇이 벼릴 신화: 고른 신화, 그다음 열린 신화 (실패한 것은 재료가 늘 때까지 빼고) */
@@ -238,8 +240,11 @@ export class Autoplayer {
     }
     // 칸이 차 있어도 줍는다 (가방에 들어가고, 모이면 바꿔 낀다)
     if (!legend.active) {
-      const pickup = nearest(pickups.list.filter((i) => !powers.loadout.has(i.id) && (i.gear !== undefined || !this.god || relicDef(i.id).god === this.god)), here)
+      const t = this.game.time
+      const reachable = (id: string) => t - (this.pickupSince.get(id) ?? t) < 20
+      const pickup = nearest(pickups.list.filter((i) => !powers.loadout.has(i.id) && reachable(i.id) && (i.gear !== undefined || !this.god || relicDef(i.id).god === this.god)), here)
       if (pickup && near.length < 3) {
+        if (!this.pickupSince.has(pickup.id)) this.pickupSince.set(pickup.id, t)
         hero.moveTo(pickup)
         this.step = 6
         return

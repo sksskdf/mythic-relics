@@ -261,7 +261,7 @@ export class MythTab {
       const info = el('div', 'menu-classes__info')
       info.append(el('div', 'menu-classes__title', '이름 없는 모험가'))
       // 처음 여는 사람도 무엇을 하면 되는지 바로 알게 (체크리스트 QA, 2026-10-27). 신은 조각 셋으로 깨운다 (E238)
-      info.append(el('p', 'menu-classes__how', '신의 흔적을 지키는 것들을 물리치면 그 신을 깨우기 시작한다. 흔적·사냥·수호자, 조각 셋을 모으면 신이 깨어난다.'))
+      info.append(el('p', 'menu-classes__how', '신의 흔적·사냥·수호자, 조각 셋을 모으면 그 신이 깨어난다.'))
       now.append(info)
       this.ctx.hintOn(now, '흔적에 커서를 올리면 그 신이 무엇을 주는지 보인다.')
     }
