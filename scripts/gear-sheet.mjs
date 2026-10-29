@@ -80,6 +80,8 @@ try {
         await page.evaluate(
           ({ part, name, grade }) => {
             const g = window.__game
+            // 같은 칸에 끼던 것은 빼야 새것이 칸에 들어간다 (아니면 가방으로)
+            g.dev.unequipAll()
             g.dev.wear(part, grade, 1, name)
             g.hero.face(Math.PI * 0.25)
           },
