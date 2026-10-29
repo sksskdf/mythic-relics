@@ -5,6 +5,8 @@ import { REGIONS } from '../data/regions'
 export interface ChapterWorld {
   /** 그 신화권 신화를 하나라도 열었나 */
   chose(realm: string): boolean
+  /** 그 신화권에서 깨운(연) 신의 수 (E238) */
+  awakened(realm: string): number
   /** 열린 신화 가운데 가장 높은 단계 */
   level(): number
   /** 가진 유물 가운데 가장 높은 단계 (없으면 0) */
@@ -22,7 +24,7 @@ export interface ChapterData {
  * 장 진행 (E22-01, TIMELINE.md 4·7장).
  * - 지금 장: 마지막 할 일을 아직 못 한 첫 장. 지난 장의 땅과 들어서 본 땅이 열려 있다 (마을은 늘)
  * - 지금 장의 땅은 할 일 차례로 열린다 (E236-01): 그 땅에 들어서는 할 일 바로 앞까지 했을 때.
- *   요툰헤임은 첫 신화를 고른 뒤, 우트가르드는 2단계 전설 뒤 (준비가 되기 전에 거인 왕을 만나지 않게)
+ *   요툰헤임은 첫 신을 깨운 뒤, 우트가르드는 두 번째 신과 2단계 전설 뒤 (준비가 되기 전에 거인 왕을 만나지 않게)
  * - 지금 목표: 지금 장에서 아직 못 한 첫 할 일. 뒤의 할 일을 먼저 했으면 앞의 것은 지나간 것으로 친다
  * - 엔딩 뒤에는 모든 땅이 열리고 목표가 없다
  */
@@ -44,6 +46,8 @@ export class ChapterProgress {
         return this.entered.has(step.region)
       case 'choose':
         return world.chose(step.realm!)
+      case 'awaken':
+        return world.awakened(step.realm!) >= step.n!
       case 'level':
         return world.level() >= step.n!
       case 'boss':

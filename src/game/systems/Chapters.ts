@@ -2,8 +2,9 @@ import type { ChapterDef, ChapterStep } from '../../data/chapters'
 import { REGIONS } from '../../data/regions'
 import { sceneId } from '../../data/scenes'
 import { missing, nextRecipe } from '../../gear/forge'
-import { MASTERY_TO_OPEN } from '../../myth/ClassProgress'
-import { GODS } from '../../relics/data'
+import { awakenDef, HUNT_KILLS } from '../../data/awaken'
+import { godDef } from '../../relics/data'
+import { josa } from '../../ui/josa'
 import type { GoalView } from '../../ui/ChapterHud'
 import type { GameContext } from '../context'
 
@@ -57,17 +58,21 @@ export class ChapterSystem {
 
   /**
    * HUD 목표 한 줄 (E22-04): 지금 목표의 글과, 채워야 하는 목표면 그 비율.
-   * 첫 신화(그 신화권 경험치)·신화 단계(고른 신화 경험치)·벼리기(재료)는 차기 전까지 막대로 보인다
+   * 신 깨우기(E238)는 깨우는 신이 있으면 그 조각의 할 일(사냥 막대·수호자), 신화 단계(고른 신화 경험치)·벼리기(재료)는 차기 전까지 막대로 보인다
    */
   goalView(): GoalView | null {
-    const { chapters, progress, build, powers } = this.ctx
+    const { chapters, progress, build, powers, awaken } = this.ctx
     const goal = chapters.goal
     if (!goal) return null
     let ratio: number | null = null
-    if (goal.kind === 'choose' && progress.opened.length === 0) {
-      const xp = Math.max(0, ...Object.values(GODS).filter((g) => g.realm === goal.realm && !g.hidden).map((g) => progress.xpOf(g.id)))
-      ratio = xp / MASTERY_TO_OPEN
-    } else if (goal.kind === 'level' && build.chosen && progress.level(build.chosen) < goal.n!) {
+    const waking = awaken.waking && !progress.isOpen(awaken.waking) ? awaken.waking : null
+    if (goal.kind === 'awaken' && waking) {
+      const path = awakenDef(waking)!
+      const name = godDef(waking).name
+      if (awaken.fragments >= 2) return { text: `${josa(path.guardian.name, '을')} 쓰러뜨려 ${josa(name, '을')} 깨운다`, ratio: null }
+      return { text: `${REGIONS[path.land]?.name ?? path.land}에서 사냥한다 ${awaken.hunt}/${HUNT_KILLS}`, ratio: awaken.huntRatio }
+    }
+    if (goal.kind === 'level' && build.chosen && progress.level(build.chosen) < goal.n!) {
       ratio = progress.xpRatio(build.chosen)
     } else if (goal.kind === 'forge' && build.chosen) {
       const recipe = nextRecipe(powers.loadout, build.chosen, powers.maxStage())
@@ -88,7 +93,7 @@ export class ChapterSystem {
   }
 }
 
-/** 장 제목 띠의 색: 그 장 첫 땅의 신화권 (땅이 없는 막간은 마을 빛) */
+/** 장 제목 띠의 색: 그 장 첫 땅의 신화권 (땅이 없는 장은 마을 빛) */
 export function chapterColor(chapter: ChapterDef): string {
   const first = Object.keys(chapter.lands)[0]
   return `var(--c-realm-${(first && REGIONS[first]?.realm) || 'hub'})`

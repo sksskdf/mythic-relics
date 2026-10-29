@@ -24,6 +24,8 @@ export const MOMENTS = {
   riftEnded: 1,
   blessingPicked: 1,
   insight: 1,
+  traceRoused: 1,
+  traceBusy: 1,
   // 2 카드: 장비를 칸에 낌·가방에 더 좋은 장비, 신화가 열림·바뀜, 장치가 처음 열림
   gearWorn: 2,
   gearBetter: 2,
@@ -36,12 +38,15 @@ export const MOMENTS = {
   trialCleared: 2,
   riftCleared: 2,
   tabOpened: 2,
-  // 3 큰 카드: 신화 단계, 유물 벼리기 (엔딩 뒤에는 한계를 깸도)
+  // 3 큰 카드: 신화 단계, 유물 벼리기, 신의 조각 2(유물)와 두 번째 신부터 깨어남 (엔딩 뒤에는 한계를 깸도)
   mythLevel: 3,
   forged: 3,
   limitBroken: 3,
-  // 4 장면: 첫 신화 고르기, 장 보스 처치, 장 넘어가기, 엔딩
+  fragmentRelic: 3,
+  godAwakened: 3,
+  // 4 장면: 첫 신이 깨어남(주신), 신의 흔적(조각 1), 장 보스 처치, 장 넘어가기, 엔딩
   mythChosen: 4,
+  fragment: 4,
   chapterBoss: 4,
   chapterChanged: 4,
   ending: 4,

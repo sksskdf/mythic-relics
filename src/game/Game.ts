@@ -51,6 +51,7 @@ import { Stage } from './Stage'
 import { AppearanceSystem } from './systems/Appearance'
 import { chapterColor, ChapterSystem } from './systems/Chapters'
 import { MythChoiceSystem, realmGods } from './systems/MythChoice'
+import { AwakeningSystem } from './systems/Awakening'
 import { DamageSystem } from './systems/Damage'
 import { Effects } from './systems/Effects'
 import { HeroLife } from './systems/HeroLife'
@@ -66,6 +67,8 @@ import { DialogBox } from '../ui/DialogBox'
 import { DevTools } from '../dev/DevTools'
 import { ChapterProgress } from '../progress/Chapters'
 import { TrainingProgress } from '../progress/Training'
+import { AwakenProgress } from '../progress/Awakening'
+import { awakenDef, HUNT_KILLS } from '../data/awaken'
 import { TabUnlocks } from '../progress/Tabs'
 import { TabSystem } from './systems/Tabs'
 import { Barriers } from '../world/Barriers'
@@ -107,6 +110,8 @@ export interface GameOptions {
   suspended?: () => boolean
   /** 정보 화면 탭을 처음부터 모두 연다 (점검용 실행, E236-05) */
   allTabs?: boolean
+  /** 신화의 유물을 손에 넣으면 그 신화가 열린다 (점검용 실행. 데모에서는 신을 깨워야 열린다, E238) */
+  relicsOpenMyths?: boolean
 }
 
 /** 성소에서 이만큼 가까우면 고른 신화를 바꿀 수 있다 */
@@ -124,7 +129,7 @@ const ENDING_CARD: MomentCard = {
 export interface PlayEvent {
   /** 게임 시간 (초) */
   t: number
-  type: 'relic' | 'manifest' | 'open' | 'forge' | 'gear' | 'kill' | 'bossKill' | 'death' | 'legendStart' | 'legendFail' | 'promote' | 'hurt' | 'threat' | 'region' | 'trial' | 'rift' | 'chapter' | 'ending'
+  type: 'relic' | 'manifest' | 'open' | 'fragment' | 'forge' | 'gear' | 'kill' | 'bossKill' | 'death' | 'legendStart' | 'legendFail' | 'promote' | 'hurt' | 'threat' | 'region' | 'trial' | 'rift' | 'chapter' | 'ending'
   detail?: string
 }
 
@@ -168,6 +173,7 @@ export class Game {
   readonly chapters = new ChapterProgress(
     {
       chose: (realm) => this.progress.opened.some((god) => godDef(god).realm === realm),
+      awakened: (realm) => this.progress.opened.filter((god) => godDef(god).realm === realm).length,
       level: () => Math.max(0, ...this.progress.opened.map((god) => this.progress.level(god))),
       forged: () => Math.max(0, ...this.powers.loadout.ownedRelics.filter(isMythRelic).map((id) => this.powers.loadout.stage(id))),
     },
@@ -176,6 +182,10 @@ export class Game {
   readonly chapterSystem: ChapterSystem
   /** 수련 (E236): 경험치로 얻은 깨달음과 익힌 마디 */
   readonly training = new TrainingProgress()
+  /** 신을 깨우는 진행 (E238): 깨우는 신과 모은 조각 */
+  readonly awaken = new AwakenProgress()
+  /** 신을 깨우는 길 (E238): 흔적·사냥·수호자 */
+  readonly awakening: AwakeningSystem
   /** 연 정보 화면 탭 (E236-05): 쓸 일이 생길 때 하나씩 열린다 */
   readonly tabs = new TabUnlocks()
   readonly tabSystem: TabSystem
@@ -421,7 +431,8 @@ export class Game {
       chapters: this.chapters,
       training: this.training,
       tabs: this.tabs,
-      build: new Build({ powers: this.powers, progress: this.progress, threat: this.threat, trials: this.trials, trial: () => this.trialSystem?.active?.id ?? null, rift: this.rift, blessings: () => this.riftSystem?.blessings ?? [], training: this.training }),
+      awaken: this.awaken,
+      build: new Build({ powers: this.powers, progress: this.progress, threat: this.threat, trials: this.trials, trial: () => this.trialSystem?.active?.id ?? null, rift: this.rift, blessings: () => this.riftSystem?.blessings ?? [], training: this.training, awaken: this.awaken }),
       skills,
     }
     this.damage = new DamageSystem(this.ctx)
@@ -471,6 +482,9 @@ export class Game {
       cardContext: (id, preview) => this.menuData.cardContext(id, preview),
       hovered: () => this.playerInput.hovered,
       screenPoint: (x, y, z) => this.screenPoint(x, y, z),
+      traces: () => this.awakening.spots,
+      traceContext: () => ({ waking: this.awaken.waking, fragments: this.awaken.fragments, hunt: this.awaken.hunt, sealedUntil: this.awakening.sealedUntil }),
+      guardian: () => this.awakening.fighting,
     })
     // 새 외형은 메뉴 단추의 점으로만 알린다. (유물 이름 알림과 겹치지 않게, 외형 탭이 열린 뒤에만)
     this.bus.on('looksUnlocked', () => {
@@ -512,6 +526,15 @@ export class Game {
     this.chapterSystem = new ChapterSystem(this.ctx)
     this.mythPicker = new MythPicker(this.hud.root)
     this.mythChoice = new MythChoiceSystem(this.ctx, this.mythPicker)
+    this.awakening = new AwakeningSystem(
+      this.ctx,
+      (p) => this.nav.nearestFree(p),
+      (relic, announce) => this.relics.equip(relic, announce),
+      // 점검용 실행(?relics=)에서는 흔적이 응답하지 않는다: 봇·점검 스크립트의 신화에 다른 신의 힘이 섞이지 않게
+      () => options.relicsOpenMyths ?? false,
+    )
+    // 데모에서는 신화의 유물을 손에 넣어도 신화가 열리지 않는다: 신을 깨워야 연다 (E238). 점검용 실행과 엔딩 뒤에는 예전처럼
+    this.relics.relicsOpenMyths = () => (options.relicsOpenMyths ?? false) || this.ending.reached
     // 다음 장이 열리면 그 땅으로 가는 결계가 풀리고(E22-02) 장 제목 띠가 지나간다 (E22-04)
     this.chapterHud = new ChapterHud(this.hud.root)
     // 장 넘어가기는 장면 (E23-02): 그 장의 한마디 뒤에 장 제목 띠
@@ -566,8 +589,9 @@ export class Game {
       skills: this.ctx.skills,
       encounter: this.encounter,
       training: this.training,
+      awakening: this.awakening,
     })
-    this.audio = new AudioEngine(this.settings.volume)
+    this.audio = new AudioEngine(this.settings.volume, { mobile: this.touch })
     this.attackFx = new AttackFx({ fx: this.fx, hero: this.hero, combat: this.combat, build: this.ctx.build, audio: this.audio })
     this.sound = new SoundSystem(this.ctx, this.audio)
     this.applySettings(this.settings)
@@ -607,6 +631,9 @@ export class Game {
       this.chapterSystem.sync()
       this.world.refreshLinks(false)
     }
+    // 신의 흔적과 수호자 자리 (E238): 처음 선 땅은 들어서는 사건 없이 지었으니 여기서 세운다
+    this.awakening.settle()
+    this.awakening.refresh()
 
     this.view.jumpTo(rig.root.position)
     this.resize()
@@ -651,6 +678,7 @@ export class Game {
     const { bus } = this
     bus.on('relicPicked', ({ id }) => record('relic', id))
     bus.on('mythOpened', ({ god }) => record('open', god))
+    bus.on('fragment', ({ god, piece }) => record('fragment', `${god}:${piece}`))
     bus.on('forged', ({ relic, stage }) => record('forge', `${relic}:${stage}`))
     bus.on('gearPicked', ({ item }) => record('gear', item.grade))
     bus.on('manifested', ({ god }) => record('manifest', god))
@@ -868,6 +896,13 @@ export class Game {
     const goal = this.chapters.goal
     const region = this.ctx.map.region
     if (!goal || region.kind === 'rift') return null
+    // 신 깨우기 (E238): 깨우는 신의 다음 조각(사냥하는 땅·수호자 자리), 없으면 응답하는 흔적
+    if (goal.kind === 'awaken') {
+      const target = this.awakening.target(goal.region)
+      if (!target) return null
+      if (target.region !== region.id) return this.world.wayTo(target.region)
+      return this.awakening.placed(target)
+    }
     if (goal.region !== region.id) return this.world.wayTo(goal.region)
     if (goal.kind === 'boss') return region.boss
     if (goal.kind === 'forge') return region.npcs.find((n) => n.name === '대장장이') ?? null
@@ -892,6 +927,10 @@ export class Game {
         if (god && this.progress.open(god)) this.bus.emit('mythOpened', { god })
         break
       }
+      case 'awaken':
+        // 조각을 하나씩 (흔적 → 사냥 → 수호자) 그 할 일을 마칠 때까지
+        for (let i = 0; i < 12 && this.chapters.goal === goal; i++) if (!this.awakening.skip(this.awakening.target(goal.region)?.god)) break
+        break
       case 'level':
         if (!this.ctx.build.chosen) break
         while (this.progress.level(this.ctx.build.chosen) < goal.n!) this.dev.promote()
@@ -967,6 +1006,9 @@ export class Game {
         this.audio.suspend()
       } else this.audio.resume()
     })
+    // 아이폰은 다른 앱에서 돌아올 때 visibilitychange 없이 pageshow·focus만 오기도 한다
+    addEventListener('pageshow', () => !document.hidden && this.audio.resume())
+    addEventListener('focus', () => !document.hidden && this.audio.resume())
     addEventListener('blur', () => this.autoPause())
   }
 
@@ -1015,6 +1057,15 @@ export class Game {
       locked.push(`${josa(ENEMIES[boss?.enemy ?? 'king']?.name ?? '장 보스', '을')} 이기면`)
     }
     return { count, gods: this.progress.chosen.slice(0, Math.max(1, count)), locked: locked.slice(0, Math.max(0, MAX_SLOTS - Math.max(1, count))) }
+  }
+
+  /** 깨우는 중인 신 (E238): 모은 조각과 다음 할 일 (정보 화면 신화 탭) */
+  wakingMyth(): { god: string; fragments: number; next: string } | null {
+    const { waking, fragments, hunt } = this.awaken
+    const path = waking ? awakenDef(waking) : undefined
+    if (!waking || !path || this.progress.isOpen(waking)) return null
+    const next = fragments >= 2 ? `${josa(path.guardian.name, '을')} 쓰러뜨린다` : `${REGIONS[path.land]?.name ?? path.land}에서 사냥한다 (${hunt}/${HUNT_KILLS})`
+    return { god: waking, fragments, next }
   }
 
   /** 정보 화면에서 신위 칸의 빌린 칸에 넣거나 뺀다 (E237). 마을·성소에서만 */
@@ -1083,6 +1134,7 @@ export class Game {
     this.updateEnemies(dt)
     this.growth.update(dt)
     this.mythChoice.update()
+    this.awakening.update(dt)
     this.trialSystem.update(dt)
     this.riftSystem.update(dt)
     this.life.update(dt)
@@ -1102,7 +1154,14 @@ export class Game {
       this.bus.emit('moment', { id: 'shrineFound', text: '성소를 찾았다 · 지도' })
       this.bus.emit('progressChanged', {})
     }
-    this.minimap.update(dt, { hero: position, relics: this.pickups.list, sanctuaryReady: this.legend.present && (this.growth.sanctuaryOpen || this.mythChoice.here !== null), goal: this.goalSpot() })
+    this.minimap.update(dt, {
+      hero: position,
+      relics: this.pickups.list,
+      sanctuaryReady: this.legend.present && (this.growth.sanctuaryOpen || this.mythChoice.here !== null),
+      goal: this.goalSpot(),
+      // 신의 흔적 (E238): 응답하는 흔적만 그 신의 색으로
+      traces: this.awakening.spots.filter((t) => t.state === 'open').map((t) => ({ x: t.x, z: t.z, color: godDef(t.god).color })),
+    })
     // 이웃 땅 조각과 이웃 무리는 한 프레임에 하나씩만 짓는다 (조각이 먼저)
     if (!this.stage.update(this.elapsed)) this.encounter.buildStep()
     this.stage.follow(position)
@@ -1149,7 +1208,9 @@ export class Game {
               ? this.legend.boss.health.ratio
               : boss && this.encounter.bossEngaged
                 ? boss.health.ratio
-                : null,
+                : this.awakening.fighting
+                  ? this.awakening.fighting.health.ratio
+                  : null,
         bossName:
           this.legend.betProgress !== null
             ? null
@@ -1157,7 +1218,7 @@ export class Game {
               ? this.legend.boss.spec.name
               : boss && this.encounter.bossEngaged
                 ? boss.spec.name
-                : null,
+                : (this.awakening.fighting?.spec.name ?? null),
         slots: this.powers.hudSlots(),
         ultimate: manifested !== null,
         xp: manifested ? this.progress.xpRatio(manifested) : null,
@@ -1176,7 +1237,7 @@ export class Game {
     // 장면과 신화 고르기에는 위아래 검은 띠 (E23-02)
     this.letterbox.classList.toggle('is-on', this.scenes.active || this.mythPicker.open)
     // 목표 한 줄 (E22-04): 보스 막대가 서거나 전설·대화 중이면 잠깐 감춘다
-    const fighting = this.legend.active || (boss !== null && this.encounter.bossEngaged)
+    const fighting = this.legend.active || (boss !== null && this.encounter.bossEngaged) || this.awakening.fighting !== null
     this.chapterHud.setGoal(this.chapterSystem.goalView(), fighting || this.scenes.active || this.world.traveling)
   }
 

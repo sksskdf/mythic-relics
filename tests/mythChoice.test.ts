@@ -16,6 +16,7 @@ function setup() {
   const chapters = new ChapterProgress(
     {
       chose: (realm) => progress.opened.some((g) => godDef(g).realm === realm),
+      awakened: (realm) => progress.opened.filter((g) => godDef(g).realm === realm).length,
       level: () => Math.max(0, ...progress.opened.map((g) => progress.level(g))),
       forged: () => 0,
     },
@@ -61,64 +62,74 @@ describe('신화 고르기 (E22-03)', () => {
     expect(progress.addXp('thor', 1)).toBe('opened')
   })
 
-  it('첫 신화: 북유럽 경험치가 문턱까지 차야 미드가르드 성소에서 넷 가운데 하나를 고른다', () => {
-    const { progress, chapters, system, shown, ctx } = setup()
-    chapters.enter('midgard')
-    expect(system.offer()).toBeNull()
-    for (const god of realmGods('norse')) progress.addXp(god, MASTERY_TO_OPEN)
-    const offer = system.offer()
-    expect(offer?.region).toBe('midgard')
-    expect(offer?.first).toBe(true)
-    expect(offer?.gods).toEqual(['thor', 'loki', 'odin', 'freyr'])
-    // 성소 가운데에 서면 카드가 뜨고 빛기둥이 선다
-    system.update()
-    expect(ctx.legend.beacon).toBe(true)
-    expect(shown).toHaveLength(1)
-    expect(system.restText('norse')).toBe('거인 왕을 쓰러뜨리면')
-    expect(system.restText('greek')).toBe('키마이라를 쓰러뜨리면')
-    expect(system.pick('zeus')).toBe(false)
-    expect(system.pick('odin')).toBe(true)
-    expect(progress.opened).toEqual(['odin'])
-    expect(system.offer()).toBeNull()
+  /** 북유럽 두 신을 깨우고 거인 왕을 이긴 데까지 (E238: 북유럽은 성소에서 고르지 않고 신을 깨운다) */
+  function toGreece(s: ReturnType<typeof setup>) {
+    s.progress.open('thor')
+    s.progress.open('odin')
+    s.progress.record('thor').level = 2
+    for (const id of ['midgard', 'jotunheim', 'utgard', 'olympus']) s.chapters.enter(id)
+    s.chapters.bossDefeated('utgard')
+  }
+
+  it('북유럽에는 성소 고르기가 없다 (신을 깨워 연다, E238)', () => {
+    const s = setup()
+    s.chapters.enter('midgard')
+    for (const god of realmGods('norse')) s.progress.addXp(god, MASTERY_TO_OPEN)
+    expect(s.system.offer()).toBeNull()
+    expect(s.system.restText('norse')).toBeNull()
+  })
+
+  it('그리스는 올림포스 성소에서 넷 가운데 하나를 연다 (경험치 없이)', () => {
+    const s = setup()
+    toGreece(s)
+    const offer = s.system.offer()
+    expect(offer?.region).toBe('olympus')
+    expect(offer?.first).toBe(false)
+    expect(offer?.gods).toEqual(['zeus', 'poseidon', 'hades', 'artemis'])
+    s.ctx.map.region = REGIONS.olympus!
+    s.system.update()
+    expect(s.ctx.legend.beacon).toBe(true)
+    expect(s.shown).toHaveLength(1)
+    expect(s.system.restText('greek')).toBe('키마이라를 쓰러뜨리면')
+    expect(s.system.pick('thor')).toBe(false)
+    expect(s.system.pick('hades')).toBe(true)
+    expect(s.progress.isOpen('hades')).toBe(true)
+    expect(s.system.offer()).toBeNull()
   })
 
   it('다른 땅의 성소에서는 열리지 않는다', () => {
-    const { progress, chapters, system, ctx, shown } = setup()
-    chapters.enter('midgard')
-    for (const god of realmGods('norse')) progress.addXp(god, MASTERY_TO_OPEN)
-    ctx.map.region = REGIONS.jotunheim!
-    expect(system.here).toBeNull()
-    system.update()
-    expect(shown).toHaveLength(0)
+    const s = setup()
+    toGreece(s)
+    s.ctx.map.region = REGIONS.delphi!
+    expect(s.system.here).toBeNull()
+    s.system.update()
+    expect(s.shown).toHaveLength(0)
   })
 
-  it('거인 왕을 이기면 북유럽 나머지가 모두 열리고, 그리스는 올림포스에서 경험치 없이 하나를 연다', async () => {
-    const { progress, chapters, system, listeners, ctx, events } = setup()
-    chapters.enter('midgard')
-    progress.open('thor')
-    ctx.map.region = REGIONS.utgard!
-    chapters.bossDefeated('utgard')
-    for (const fn of listeners.get('giantKilled') ?? []) fn({ giant: { spec: { role: 'boss' } } })
+  it('거인 왕은 북유럽을 한꺼번에 열지 않고(E238), 키마이라는 그리스 나머지를 모두 연다', async () => {
+    const s = setup()
+    toGreece(s)
+    const fire = () => {
+      for (const fn of s.listeners.get('giantKilled') ?? []) fn({ giant: { spec: { role: 'boss' } } })
+    }
+    s.ctx.map.region = REGIONS.utgard!
+    fire()
+    await Promise.resolve()
+    expect(s.progress.opened.sort()).toEqual(['odin', 'thor'])
+    s.progress.open('zeus')
+    s.ctx.map.region = REGIONS.lycia!
+    s.chapters.bossDefeated('lycia')
+    fire()
     // 장 진행이 이긴 보스를 적은 뒤(한 박자 늦게) 연다 (E237: 신위 칸이 그 보스로 늘어난 채)
     await Promise.resolve()
-    expect(progress.opened.sort()).toEqual(['freyr', 'loki', 'odin', 'thor'])
-    expect(events.filter((e) => e.name === 'mythOpened').every((e) => (e.payload as { quiet?: boolean }).quiet)).toBe(true)
-    // 대장간에서 벼리기 전에는 그리스가 아직이다
-    expect(system.offer()).toBeNull()
-    progress.record('thor').level = 1
-    const forged = new ChapterProgress({ chose: () => true, level: () => 1, forged: () => 1 })
-    forged.load(chapters.toData())
-    ;(ctx as { chapters: ChapterProgress }).chapters = forged
-    const offer = system.offer()
-    expect(offer?.region).toBe('olympus')
-    expect(offer?.first).toBe(false)
+    expect(s.progress.opened.filter((g) => godDef(g).realm === 'greek').sort()).toEqual(['artemis', 'hades', 'poseidon', 'zeus'])
+    expect(s.events.filter((e) => e.name === 'mythOpened').every((e) => (e.payload as { quiet?: boolean }).quiet)).toBe(true)
   })
 
   it('엔딩 뒤에는 고르기가 없다 (경험치·유물로 연다)', () => {
-    const { progress, chapters, system, end } = setup()
-    chapters.enter('midgard')
-    for (const god of realmGods('norse')) progress.addXp(god, MASTERY_TO_OPEN)
-    end()
-    expect(system.offer()).toBeNull()
+    const s = setup()
+    toGreece(s)
+    s.end()
+    expect(s.system.offer()).toBeNull()
   })
 })

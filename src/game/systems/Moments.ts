@@ -159,7 +159,8 @@ export class MomentSystem {
   /** 장면 뒤: 곡을 땅의 곡으로 돌리고, 얻은 것 카드와 할 일 */
   private finish(m: MomentShow): void {
     if (m.music) this.ctx.bus.emit('music', { theme: null })
-    if (m.card) this.card(m.card, m.id === 'ending' || m.id === 'mythChosen' ? 'big' : 'card')
+    // 첫 신·신의 흔적(E238)·엔딩은 장면 뒤에 큰 카드
+    if (m.card) this.card(m.card, m.id === 'ending' || m.id === 'mythChosen' || m.id === 'fragment' ? 'big' : 'card')
     if (m.after) {
       m.after()
       // 장 제목 띠 같은 것이 지나가는 동안 다음 장면·짧은 대화가 HUD를 숨기지 않게

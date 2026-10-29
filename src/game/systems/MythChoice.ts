@@ -2,7 +2,6 @@ import { realmInk } from '../../art/palette'
 import { REGIONS } from '../../data/regions'
 import { REALM_NAMES } from '../../data/threat'
 import { ENEMIES } from '../../enemies/Giant'
-import { MASTERY_TO_OPEN } from '../../myth/ClassProgress'
 import { collectionText } from '../../myth/alwaysText'
 import { type God, godDef, GODS } from '../../relics/data'
 import { classIcon } from '../../ui/classIcons'
@@ -34,9 +33,9 @@ export function realmGods(realm: string): God[] {
 
 /**
  * 신화 고르기 (E22-03, TIMELINE.md 5.1): 데모에서는 신화가 경험치로 저절로 열리지 않는다.
- * - 첫 신화: 경험치가 문턱까지 차면 미드가르드 성소에 빛기둥이 서고, 가운데에 서면 북유럽 넷 가운데 하나를 고른다
- * - 다음 신화권: 그 장에 들어서면 그 입구 성소에서 하나를 연다 (고른 신화는 그대로)
- * - 장 보스를 이기면 그 신화권의 나머지가 모두 열린다 (장 데이터의 opens)
+ * - 북유럽: 성소에서 고르지 않고 신을 하나씩 깨운다 (흔적·사냥·수호자, E238 `systems/Awakening`)
+ * - 그리스: 그 장에 들어서면 그 입구 성소에서 하나를 연다 (주신은 그대로). E241에서 깨우는 길로 바꾼다
+ * - 장 보스를 이기면 그 신화권의 나머지가 모두 열린다 (장 데이터의 opens, 지금은 키마이라만)
  * 엔딩 뒤에는 예전처럼 경험치·유물로 연다.
  */
 export class MythChoiceSystem {
@@ -65,10 +64,7 @@ export class MythChoiceSystem {
       if (step.kind !== 'choose' || !step.realm) continue
       const gods = realmGods(step.realm)
       if (gods.some((g) => progress.isOpen(g))) continue
-      const first = progress.opened.length === 0
-      // 첫 신화는 그 신화권 경험치가 문턱까지 찼을 때
-      if (first && !gods.some((g) => progress.xpOf(g) >= MASTERY_TO_OPEN)) return null
-      return { realm: step.realm, region: step.region, gods, first }
+      return { realm: step.realm, region: step.region, gods, first: progress.opened.length === 0 }
     }
     return null
   }

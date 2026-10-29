@@ -14,10 +14,42 @@ const DUCKED = 0.35
 /** 환경음(바람) 크기: 효과음 음량에 곱한다 */
 const AMBIENT = 0.5
 
+/** 휴대폰에서 소리를 다루는 방법 */
+export interface AudioOptions {
+  /** 터치 기기 (휴대폰): 버퍼를 넉넉히 잡아 끊기지 않게(latencyHint playback), 아이폰 무음 스위치를 켜도 게임 소리가 나게 */
+  mobile?: boolean
+}
+
+/** 0.1초짜리 무음 WAV (옛 아이폰: HTML 소리를 함께 틀어 두면 무음 스위치를 켜도 Web Audio가 들린다) */
+function silentWav(): string {
+  const rate = 8000
+  const samples = rate / 10
+  const bytes = new Uint8Array(44 + samples)
+  const view = new DataView(bytes.buffer)
+  const text = (at: number, s: string) => [...s].forEach((c, i) => view.setUint8(at + i, c.charCodeAt(0)))
+  text(0, 'RIFF')
+  view.setUint32(4, 36 + samples, true)
+  text(8, 'WAVEfmt ')
+  view.setUint32(16, 16, true)
+  view.setUint16(20, 1, true)
+  view.setUint16(22, 1, true)
+  view.setUint32(24, rate, true)
+  view.setUint32(28, rate, true)
+  view.setUint16(32, 1, true)
+  view.setUint16(34, 8, true)
+  text(36, 'data')
+  view.setUint32(40, samples, true)
+  // 8비트 소리의 0은 128
+  bytes.fill(128, 44)
+  return URL.createObjectURL(new Blob([bytes], { type: 'audio/wav' }))
+}
+
 /**
  * 오디오 시스템 (E5-01): 음악·효과음·환경음 세 갈래를 섞어 내보낸다.
  * - 브라우저는 사용자가 누르기 전에 소리를 막으므로 첫 클릭·키 입력에 켠다(unlock). 그 전의 소리는 조용히 버린다.
  * - 효과음은 주인공과의 거리만큼 작아지고(distanceGain), 너무 많이 겹치면 버린다(VoiceLimiter).
+ * - 휴대폰(사용자 의견 2026-10-29 「모바일에서 오디오 재생 문제」): 아이폰은 무음 스위치를 켜면 Web Audio를 끄고,
+ *   전화·다른 앱을 다녀오면 소리가 'interrupted'로 멈춘 채 깨어나지 않는다. 소리 세션을 재생용으로 두고, 멈춘 소리는 다음 손길에 깨운다.
  */
 export class AudioEngine {
   private ctx: AudioContext | null = null
@@ -32,7 +64,13 @@ export class AudioEngine {
   /** 주인공 자리: 효과음의 거리를 여기서 잰다 */
   readonly listener = { x: 0, z: 0 }
 
-  constructor(private volumes: Volumes) {}
+  /** 옛 아이폰용 무음 HTML 소리 (소리 세션 API가 없을 때) */
+  private keepAlive: HTMLAudioElement | null = null
+
+  constructor(
+    private volumes: Volumes,
+    private readonly options: AudioOptions = {},
+  ) {}
 
   get unlocked(): boolean {
     return this.ctx !== null
@@ -50,13 +88,16 @@ export class AudioEngine {
   /** 첫 사용자 입력에 부른다. 오디오를 못 쓰는 환경이면 아무 소리 없이 지나간다 */
   unlock(): void {
     if (this.ctx) {
-      if (this.ctx.state === 'suspended' && !document.hidden) void this.ctx.resume()
+      // 아이폰의 'interrupted'(전화·앱 전환 뒤)도 손길이 닿으면 다시 깨운다
+      if (!document.hidden) this.wake()
       return
     }
     const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
     if (!Ctor) return
+    if (this.options.mobile) this.playThroughSilentSwitch()
     try {
-      const ctx = new Ctor()
+      // 휴대폰은 버퍼를 넉넉히: 화면이 바쁠 때 소리가 지지직 끊기지 않게 (효과음이 몇십 ms 늦는 것은 괜찮다)
+      const ctx = new Ctor(this.options.mobile ? { latencyHint: 'playback' } : undefined)
       this.ctx = ctx
       this.master = ctx.createGain()
       // 여러 소리가 겹쳐도 깨지지 않게 마지막에 눌러 준다
@@ -136,13 +177,44 @@ export class AudioEngine {
     this.music?.play(id)
   }
 
+  /** 아이폰: 무음 스위치를 켜도 게임 소리가 나게 한다 (Safari 17 소리 세션, 그 전에는 무음 HTML 소리를 함께 튼다) */
+  private playThroughSilentSwitch(): void {
+    const session = (navigator as unknown as { audioSession?: { type: string } }).audioSession
+    if (session) {
+      try {
+        session.type = 'playback'
+        return
+      } catch {
+        // 바꿀 수 없으면 아래 방법으로
+      }
+    }
+    try {
+      const el = new Audio(silentWav())
+      el.loop = true
+      el.setAttribute('playsinline', '')
+      void el.play().catch(() => {})
+      this.keepAlive = el
+    } catch {
+      this.keepAlive = null
+    }
+  }
+
+  /** 멈춘 소리를 깨운다 (suspended·아이폰의 interrupted) */
+  private wake(): void {
+    const ctx = this.ctx
+    if (ctx && ctx.state !== 'running' && ctx.state !== 'closed') void ctx.resume().catch(() => {})
+    if (this.keepAlive?.paused) void this.keepAlive.play().catch(() => {})
+  }
+
   /** 창이 가려지면 소리를 통째로 멈춘다 */
   suspend(): void {
     if (this.ctx?.state === 'running') void this.ctx.suspend()
+    this.keepAlive?.pause()
   }
 
+  /** 창이 다시 보이면 깨운다. 아이폰은 손길 없이는 못 깨울 때가 있어, 그때는 다음 손길(unlock)이 깨운다 */
   resume(): void {
-    if (this.ctx?.state === 'suspended') void this.ctx.resume()
+    this.wake()
   }
 
   /**

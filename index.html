@@ -9,7 +9,11 @@
     <style>
       html, body { margin: 0; height: 100%; background: #0d0f14; overflow: hidden; overscroll-behavior: none; }
       #app { position: fixed; inset: 0; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
-      canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+      /* 아이폰 사파리는 user-scalable=no를 무시해서, 두 번 눌러 확대는 모든 요소의 touch-action으로 막는다 (창·대화 상자·HUD 단추 위에서도) */
+      html, body, #app, #app * { touch-action: manipulation; }
+      canvas { display: block; width: 100%; height: 100%; }
+      /* 게임 화면은 손가락 몸짓(조이스틱·두 손가락 확대)을 게임이 직접 받는다 */
+      #app canvas { touch-action: none; }
     </style>
   </head>
   <body>

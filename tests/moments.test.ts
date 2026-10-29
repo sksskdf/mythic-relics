@@ -57,10 +57,10 @@ describe('순간의 크기 (E23-01)', () => {
     expect(tiers(1)).toEqual(expect.arrayContaining(['gearPicked', 'materialPicked', 'bossMaterial', 'salvaged', 'insight']))
     // 2 카드: 장비를 칸에 낌·가방에 더 좋은 장비, 장치가 처음 열림
     expect(tiers(2)).toEqual(expect.arrayContaining(['gearWorn', 'gearBetter', 'convenience', 'realmOpened', 'mythOpened', 'tabOpened']))
-    // 3 큰 카드: 신화 단계, 유물 벼리기
-    expect(tiers(3)).toEqual(expect.arrayContaining(['mythLevel', 'forged']))
-    // 4 장면: 첫 신화 고르기, 장 보스 처치, 장 넘어가기, 엔딩
-    expect(tiers(4).sort()).toEqual(['chapterBoss', 'chapterChanged', 'ending', 'mythChosen'])
+    // 3 큰 카드: 신화 단계, 유물 벼리기, 신의 조각 2(유물)와 두 번째 신부터 깨어남 (E238)
+    expect(tiers(3)).toEqual(expect.arrayContaining(['mythLevel', 'forged', 'fragmentRelic', 'godAwakened']))
+    // 4 장면: 첫 신이 깨어남, 신의 흔적(조각 1, E238), 장 보스 처치, 장 넘어가기, 엔딩
+    expect(tiers(4).sort()).toEqual(['chapterBoss', 'chapterChanged', 'ending', 'fragment', 'mythChosen'])
   })
 
   it('장 넘어가기와 장 보스(마지막 보스는 엔딩)의 장면이 모두 있다 (E23-02)', () => {
@@ -106,16 +106,16 @@ describe('순간의 크기 (E23-01)', () => {
     // 게임에서 보내는 차례: 재료 알림, 장 보스(장 진행), 장 넘어가기(장 진행), 신화권 카드(신화 고르기)
     emit({ id: 'bossMaterial', text: '거인의 증표' })
     emit({ id: 'chapterBoss', scene: 'downKing' })
-    emit({ id: 'chapterChanged', scene: 'chapterInterlude', after: () => calls.push('장 제목 띠') })
-    emit({ id: 'realmOpened', card: card('북유럽 신화 3') })
+    emit({ id: 'chapterChanged', scene: 'chapterGreek', after: () => calls.push('장 제목 띠') })
+    emit({ id: 'realmOpened', card: card('그리스 신화 3') })
     run(0.1)
     expect(calls).toEqual(['알림:거인의 증표', '장면:downKing'])
     endScene()
     run(0.1)
-    expect(calls.at(-1)).toBe('장면:chapterInterlude')
+    expect(calls.at(-1)).toBe('장면:chapterGreek')
     endScene()
     run(0.1)
-    expect(calls.slice(2)).toEqual(['장면:chapterInterlude', '장 제목 띠', '카드:북유럽 신화 3'])
+    expect(calls.slice(2)).toEqual(['장면:chapterGreek', '장 제목 띠', '카드:그리스 신화 3'])
   })
 
   it('벼린 큰 카드가 먼저, 그 뒤에 열린 장의 장면 (카드가 보일 시간을 기다린다)', () => {

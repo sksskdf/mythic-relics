@@ -37,6 +37,8 @@ export interface DevParts {
   encounter: Encounter
   /** 수련 (E236) */
   training: TrainingProgress
+  /** 신을 깨우는 길 (E238): 다음 조각을 바로 얻는다 */
+  awakening: { skip(god?: string): boolean }
 }
 
 /**
@@ -185,6 +187,11 @@ export class DevTools {
     const gained = training.gain(need)
     if (gained > 0) bus.emit('insightGained', { count: gained, unspent: training.unspent })
     bus.emit('progressChanged', {})
+  }
+
+  /** 신을 깨우는 다음 조각을 바로 얻는다 (E238): 깨우는 신이 없으면 god(없으면 응답하는 첫 흔적)부터. 얻었으면 true */
+  awaken(god?: string): boolean {
+    return this.parts.awakening.skip(god)
   }
 
   /** 수련 마디를 찍는다 (점검 스크립트·봇) */

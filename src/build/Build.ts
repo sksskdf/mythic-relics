@@ -8,6 +8,7 @@ import { type TrialId, trialRules } from '../data/trials'
 import type { ThreatProgress } from '../progress/Threat'
 import type { TrialProgress } from '../progress/Trials'
 import type { TrainingProgress } from '../progress/Training'
+import type { AwakenProgress } from '../progress/Awakening'
 import { isMythRelic, relicStats } from '../gear/mythRelic'
 import { isGearUid } from '../gear/roll'
 import type { ClassPassive } from '../data/classKit'
@@ -20,7 +21,7 @@ import { type BuildInputs, type BuildState, computeBuild } from './BuildState'
  * 피해·능력치를 쓰는 곳(Damage, Relics, 정보 화면)은 여기서 값을 읽는다.
  */
 export class Build {
-  constructor(private readonly from: { powers: RelicPowers; progress: ClassProgress; threat: ThreatProgress; trials?: TrialProgress; trial?: () => TrialId | null; rift?: RiftProgress; blessings?: () => readonly string[]; training?: TrainingProgress }) {}
+  constructor(private readonly from: { powers: RelicPowers; progress: ClassProgress; threat: ThreatProgress; trials?: TrialProgress; trial?: () => TrialId | null; rift?: RiftProgress; blessings?: () => readonly string[]; training?: TrainingProgress; awaken?: AwakenProgress }) {}
 
   /** 지금의 재료 */
   inputs(): BuildInputs {
@@ -39,6 +40,8 @@ export class Build {
       open,
       // 신위 칸 (E237): 주신 다음에 빌린 신
       chosen: powers.manifested ? [powers.manifested, ...powers.loadout.borrowed] : [],
+      // 깨우는 신 (E238): 조각 2부터 유물이 깨어난다
+      waking: loadout.waking,
       gear: relics,
       gearItems: [...gearItems, ...relicItems],
       ...this.blessed(),
@@ -74,12 +77,24 @@ export class Build {
     return this.from.powers.loadout.borrowed
   }
 
-  /** 도는 패시브: 주신의 패시브 전부(주신 단계), 빌린 신마다 대표 패시브 하나(그 신 단계) */
+  /**
+   * 깨우는 중인 신 (E238): 조각 1(흔적)부터 그 신의 대표 힘을 빌린다. 칸이 없어도 켜지고, 깨어나면 칸으로 옮긴다.
+   * 시련 「신화 없이」에서는 없음
+   */
+  get waking(): God | null {
+    const awaken = this.from.awaken
+    if (!awaken?.waking || awaken.fragments < 1 || this.from.trial?.() === 'noMyth') return null
+    return this.from.progress.isOpen(awaken.waking) ? null : awaken.waking
+  }
+
+  /** 도는 패시브: 주신의 패시브 전부(주신 단계), 빌린 신마다 대표 패시브 하나(그 신 단계), 깨우는 신의 대표 패시브(1단계) */
   passives(): { god: God; passive: ClassPassive; level: number; main: boolean }[] {
     const { progress } = this.from
     const main = this.chosen
-    if (!main) return []
-    return [{ god: main, passive: godDef(main).passive, level: progress.level(main), main: true }, ...this.borrowed.map((god) => ({ god, passive: lentPassive(god), level: progress.level(god), main: false }))]
+    const out = main ? [{ god: main, passive: godDef(main).passive, level: progress.level(main), main: true }, ...this.borrowed.map((god) => ({ god, passive: lentPassive(god), level: progress.level(god), main: false }))] : []
+    const waking = this.waking
+    if (waking) out.push({ god: waking, passive: lentPassive(waking), level: 1, main: false })
+    return out
   }
 
   /** 고른 신화의 개방 단계 (없으면 0) */

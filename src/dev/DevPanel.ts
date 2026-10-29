@@ -203,6 +203,11 @@ export class DevPanel {
         button('레벨 초기화', () => g.dev.resetMyths()),
         button('이 신화권 경험치', () => g.dev.gainMastery()),
         button('깨달음 하나', () => g.dev.insight()),
+        // 신의 조각 (E238): 깨우는 신의 다음 조각 (흔적 → 사냥 → 수호자)
+        button('다음 조각', () => {
+          g.dev.awaken()
+          g.menu.refresh()
+        }),
         // 신위 칸 (E237): 북유럽 넷을 열고 빈 빌린 칸을 채운다 (칸 수는 장 진행 그대로)
         button('빌린 칸 채우기', () => {
           g.dev.lend('thor', 'loki', 'odin', 'freyr')

@@ -30,6 +30,7 @@ export function renderMap(ctx: TabContext, body: HTMLElement): void {
   const nodes = world.nodes().map((n) => ({ ...n, ...view(n) }))
   const warp = world.canWarp()
   const goal = world.goal()
+  const traces = world.traces()
   const wrap = el('div', 'menu-map')
   if (goal) {
     const line = el('div', 'menu-map__goal-line')
@@ -120,6 +121,21 @@ export function renderMap(ctx: TabContext, body: HTMLElement): void {
       ring.setAttribute('class', 'menu-map__goal')
       g.append(ring)
     }
+    // 신의 흔적 (E238): 그 땅 둘레에 그 신의 색 작은 마름모 (깨우는 중이면 테만)
+    const marks = traces.filter((t) => t.region === n.id)
+    marks.forEach((t, i) => {
+      const mark = document.createElementNS(NS, 'rect')
+      const x = n.x + 0.3 + i * 0.16
+      const y = n.y - 0.3
+      mark.setAttribute('x', String(x - 0.06))
+      mark.setAttribute('y', String(y - 0.06))
+      mark.setAttribute('width', '0.12')
+      mark.setAttribute('height', '0.12')
+      mark.setAttribute('transform', `rotate(45 ${x} ${y})`)
+      mark.setAttribute('class', `menu-map__trace${t.waking ? ' is-waking' : ''}`)
+      mark.style.setProperty('--god', t.color)
+      g.append(mark)
+    })
     svg.append(g)
     // 이름은 HTML로 얹는다 (갈무리 글꼴, 정해진 크기)
     const label = el('button', `menu-map__label${sides.get(n.id)}${n.here ? ' is-here' : ''}${named(n) ? '' : ' is-quiet'}${n.locked ? ' is-locked' : ''}${goal?.region === n.id ? ' is-goal' : ''}`)
@@ -136,7 +152,8 @@ export function renderMap(ctx: TabContext, body: HTMLElement): void {
       const won = n.zone === 'boss' && n.cleared > 0 ? ` · ${n.cleared}단계 이김` : ''
       const seal = n.locked ? '\n결계로 막혀 있다' : ''
       const next = goal?.region === n.id ? `\n다음 목표: ${goal.text}` : ''
-      return `${n.name}\n${zone}${won} · ${how}${seal}${next}`
+      const found = marks.length ? `\n신의 흔적: ${marks.map((t) => t.name).join('·')}` : ''
+      return `${n.name}\n${zone}${won} · ${how}${seal}${next}${found}`
     })
     labels.append(label)
   }

@@ -20,6 +20,21 @@ const params = new URLSearchParams(location.search)
 // 컴퓨터에서는 ?touch 로 켜 본다
 const touch = detectTouch(location.search, coarsePointer())
 document.documentElement.classList.toggle('is-touch', touch)
+// 아이폰 사파리의 두 손가락 확대(창·HUD 위에서)는 touch-action으로 막히지 않아 사파리 몸짓 사건을 막는다.
+// 게임 화면의 두 손가락 확대·축소는 포인터 사건으로 따로 받는다 (E235)
+for (const type of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(type, (e) => e.preventDefault(), { passive: false })
+// touch-action을 따르지 않는 옛 사파리: 0.3초 안에 두 번째로 뗀 손가락은 기본 동작(두 번 눌러 확대)을 막는다.
+// 대화 상자·게임 화면은 포인터 사건으로 받아 영향이 없고, 글 입력 칸은 그대로 둔다
+let lastTouchEnd = 0
+document.addEventListener(
+  'touchend',
+  (e) => {
+    const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement
+    if (!typing && e.timeStamp - lastTouchEnd < 300) e.preventDefault()
+    lastTouchEnd = e.timeStamp
+  },
+  { passive: false },
+)
 const rotateHint = new RotateHint(document.body, touch)
 const resParam = Number(params.get('res'))
 const viewParam = Number(params.get('view'))
@@ -92,6 +107,7 @@ async function boot(): Promise<Game> {
     touch,
     suspended: () => rotateHint.shown,
     allTabs: testRun,
+    relicsOpenMyths: testRun,
   })
   game.start()
   ;(window as unknown as { __game: Game }).__game = game

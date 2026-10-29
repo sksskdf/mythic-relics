@@ -65,6 +65,23 @@ export class MythTab {
     return box
   }
 
+  /** 깨우는 중인 신 (E238): 조각 셋 가운데 모은 것, 빌린 힘, 다음 할 일 */
+  private wakingBox(): HTMLElement | null {
+    const waking = this.ctx.host.myths.waking()
+    if (!waking) return null
+    const def = godDef(waking.god)
+    const box = el('section', 'menu-waking')
+    box.style.setProperty('--god', def.color)
+    box.append(img(classIcon(def.name), 'menu-slots__emblem'))
+    const words = el('div', 'menu-waking__words')
+    words.append(el('small', '', `깨우는 신 · 조각 ${waking.fragments}/3`), el('b', '', def.name))
+    const pieces = el('div', 'menu-waking__pieces')
+    for (const [i, name] of ['흔적', '사냥', '수호자'].entries()) pieces.append(el('span', i < waking.fragments ? 'is-have' : i === waking.fragments ? 'is-now' : '', name))
+    words.append(pieces, el('p', '', `빌린 힘: ${lendText(waking.god, 1)}`), el('p', 'menu-waking__next', `다음: ${waking.next}`))
+    box.append(words)
+    return box
+  }
+
   /**
    * 신위 칸 (E237): 주신·빌린 힘·빈 칸·잠긴 칸(열리는 때). 칸을 누르면 그 신의 카드
    */
@@ -243,12 +260,14 @@ export class MythTab {
       now.append(img(unknownSigil(), 'menu-classes__emblem'))
       const info = el('div', 'menu-classes__info')
       info.append(el('div', 'menu-classes__title', '이름 없는 모험가'))
-      // 처음 여는 사람도 무엇을 하면 되는지 바로 알게 (체크리스트 QA, 2026-10-27)
-      info.append(el('p', 'menu-classes__how', '몬스터를 잡아 그 신화권의 경험치를 채우거나, 보스가 떨어뜨린 신의 유물을 주우면 신화가 열린다.'))
+      // 처음 여는 사람도 무엇을 하면 되는지 바로 알게 (체크리스트 QA, 2026-10-27). 신은 조각 셋으로 깨운다 (E238)
+      info.append(el('p', 'menu-classes__how', '신의 흔적·사냥·수호자, 조각 셋을 모으면 그 신이 깨어난다.'))
       now.append(info)
-      this.ctx.hintOn(now, '한 신의 유물을 손에 넣으면 그 신의 힘이 깨어난다.')
+      this.ctx.hintOn(now, '흔적에 커서를 올리면 그 신이 무엇을 주는지 보인다.')
     }
     wrap.append(now)
+    const waking = this.wakingBox()
+    if (waking) wrap.append(waking)
     if (current) wrap.append(this.slotRow())
 
     // 눌러 본 신화(없으면 고른 신화)의 카드: 상시·추가 효과, 다음 단계, 고르기 (E12-06)

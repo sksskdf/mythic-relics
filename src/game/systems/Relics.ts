@@ -16,6 +16,7 @@ import type { GameContext } from '../context'
 import type { LoadoutChange } from '../RelicPowers'
 import { godMoment } from './godMoments'
 import { SLOT_BOSSES, slotCount, withLent, withMain, withoutLent } from '../../myth/slots'
+import { awakenDef } from '../../data/awaken'
 
 /** 클래스가 발현되는 순간 주변 적을 밀어내는 범위와 피해 */
 const MANIFEST_RADIUS = 4
@@ -34,6 +35,8 @@ export class RelicSystem {
   private readonly labelAt = new THREE.Vector3()
   /** 신화를 고를 때 터지는 충격을 다시 쓸 수 있을 때까지 (초) */
   private burstCooldown = 0
+  /** 신화의 유물을 손에 넣으면 그 신화가 열리나 (E238: 데모에서는 깨우는 길이 있는 신은 수호자를 쓰러뜨려야 연다. 게임이 정한다) */
+  relicsOpenMyths: () => boolean = () => true
 
   constructor(private readonly ctx: GameContext) {
     ctx.bus.on('targetKilled', ({ target }) => {
@@ -112,6 +115,8 @@ export class RelicSystem {
     // 신화의 유물(E13-03)을 손에 넣으면 그 신화가 열린다. 히든 신화도 그 유물이 열쇠다
     const myth = relicMyth(id)
     if (!myth) return
+    // 깨우는 길(흔적·사냥·수호자)이 있는 신은 유물로 열리지 않는다 (E238). 유물은 조각 2로 먼저 손에 들어온다
+    if (awakenDef(myth) && !this.relicsOpenMyths()) return
     for (const god of [myth]) {
       if (!progress.open(god)) continue
       bus.emit('progressChanged', {})

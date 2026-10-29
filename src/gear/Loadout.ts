@@ -31,6 +31,8 @@ export class Loadout {
   chosen: God | null = null
   /** 신위 칸의 빌린 신들 (E237): 그 신의 유물이 깨어난다 */
   borrowed: God[] = []
+  /** 깨우는 중인 신 (E238): 조각 2(그 신의 유물)부터 그 신의 유물이 빌린 칸처럼 깨어난다 */
+  waking: God | null = null
 
   get state(): LoadoutState {
     return resolveLoadout(this.relics, this.chosen)

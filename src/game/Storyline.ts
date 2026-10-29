@@ -37,6 +37,8 @@ export class Storyline {
     bus.on('manifested', ({ god }) => this.play(sceneId('myth', god)))
     bus.on('forged', ({ stage }) => stage === 1 && this.play('forgeFirst'))
     bus.on('limitBroken', () => this.play('limitBreak'))
+    // 신의 수호자 (E238): 처음 나타나면 한마디 (보스 등장과 같이)
+    bus.on('guardianAppeared', ({ god }) => this.play(sceneId('guardian', god)))
     bus.on('threatChanged', () => threat.level === threat.reached && threat.reached >= 2 && this.play('threatUp'))
   }
 
