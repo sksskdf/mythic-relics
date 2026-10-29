@@ -2,9 +2,8 @@ import { createRng } from '../../world/rng'
 import { VoxelGrid } from '../VoxelGrid'
 import { CLASS_LOOK_MODELS } from './classLooks'
 import { asuraKatar } from './mythWeapons'
-import { gearGrid } from './gearLooks'
+import { gearGrid, hairOf } from './gearLooks'
 import { GEAR_LOOKS, parseGearLook } from '../../looks/gearLooks'
-import { GRADE_COLORS } from '../../art/palette'
 import { HERO_COLORS, heroCape, heroTorso } from './hero'
 
 /**
@@ -47,6 +46,14 @@ function face(g: VoxelGrid): void {
 }
 
 // ───────────────────────────── 기본 모험가 ─────────────────────────────
+
+/** 모험가의 머리 (E24-06): 쓰개 없이 짧게 흐트러진 머리카락. 캐릭터 만들기에서 고른 머리카락 색이 그대로 보인다 */
+export function adventurerHair(): VoxelGrid {
+  const g = new VoxelGrid(12, 12, 9)
+  face(g)
+  hairOf(g)
+  return g
+}
 
 /** 모험가의 두건: 얼굴만 내놓은 갈색 두건, 앞머리가 살짝 나온다. */
 export function adventurerHood(): VoxelGrid {
@@ -498,6 +505,7 @@ export function asuraBladeGreaves(): VoxelGrid {
 
 /** 외형 id → 모델. 표식은 발현 레벨(1~4)을 받는다 */
 export const LOOK_MODELS: Readonly<Record<string, (level?: number) => VoxelGrid>> = {
+  adventurerHair,
   adventurerHood,
   adventurerTunic,
   adventurerSleeves,
@@ -530,7 +538,7 @@ export const LOOK_MODELS: Readonly<Record<string, (level?: number) => VoxelGrid>
   ...Object.fromEntries(
     GEAR_LOOKS.map((look) => {
       const [part, base, grade] = parseGearLook(look.id)!
-      return [look.id, () => gearGrid(part, base, GRADE_COLORS[grade], grade === 'hero')]
+      return [look.id, () => gearGrid(part, base, grade)]
     }),
   ),
 }

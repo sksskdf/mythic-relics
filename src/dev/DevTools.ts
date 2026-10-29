@@ -2,7 +2,8 @@ import type { QuarterViewCamera } from '../render/QuarterViewCamera'
 import type { GearPart, Grade } from '../data/gearData'
 import type { Pickups } from '../gear/Pickups'
 import { nextRecipe } from '../gear/forge'
-import { rollGear } from '../gear/roll'
+import { type GearItem, rollGear } from '../gear/roll'
+import { gearIcon } from '../ui/gearCard'
 import { GODS, type RelicId } from '../relics/data'
 import { type ClassProgress, MASTERY_TO_OPEN } from '../myth/ClassProgress'
 import type { EventBus, GameEvents } from '../game/events'
@@ -64,14 +65,21 @@ export class DevTools {
     return item.uid
   }
 
-  /** 일반 장비 하나를 바로 낀다 (체크리스트 QA·개발 패널). 장비 id를 돌려준다 */
-  wear(part: GearPart, grade?: Grade, tier = 1): string {
-    const { powers, bus } = this.parts
+  /** 일반 장비 하나를 바로 낀다 (체크리스트 QA·개발 패널·장비 모음). 바탕 이름을 주면 그 모양으로. 장비 id를 돌려준다 */
+  wear(part: GearPart, grade?: Grade, tier = 1, base?: string): string {
+    const { powers, relics, bus } = this.parts
     const item = rollGear(Math.random, { part, ...(grade ? { grade } : {}), tier })
+    if (base) item.base = base
     powers.loadout.addGear(item)
-    powers.loadout.equip(item.uid)
+    // 줍기와 같은 길로 껴야 모습이 바뀐다 (loadoutChanged)
+    relics.equip(item.uid, false)
     bus.emit('progressChanged', {})
     return item.uid
+  }
+
+  /** 일반 장비의 그림 주소 (장비 모음 `scripts/gear-sheet.mjs`) */
+  gearIcon(part: GearPart, base: string, grade: Grade): string {
+    return gearIcon({ part, base, grade } as GearItem)
   }
 
   /** 적을 그 자리에 세운다 (점검 스크립트). 없는 id면 졸개 */

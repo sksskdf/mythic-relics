@@ -66,7 +66,7 @@ export class Pickups {
     if (gear) {
       // 일반 장비: 부위·바탕 모양에 등급 색 장식 (끼면 몸에 보이는 것과 같은 모델, E18-04-5)
       const parts = GEAR.parts[gear.part]
-      const grid = gearGrid(gear.part, Math.max(0, parts.bases.indexOf(gear.base)), GRADE_COLORS[gear.grade], gear.grade === 'hero', false)
+      const grid = gearGrid(gear.part, Math.max(0, parts.bases.indexOf(gear.base)), gear.grade, false)
       // 몸 칸 격자는 커서 작게 줄여 놓는다 (머리·몸 0.5m 안팎)
       const scale = { weapon: 1.2, head: 0.7, body: 0.75, hands: 1.1, feet: 1.1, trinket: 1.6 }[gear.part]
       model = voxelMesh(grid, { voxelSize: RELIC_VOXEL * scale })

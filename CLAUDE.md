@@ -57,6 +57,7 @@
 - `npm run build && node scripts/bench.mjs [적 수=40] [화질=normal|low|high]`: 적에 둘러싸인 싸움의 게임 갱신 시간·그리기 호출·삼각형 수 (`test-results/bench.json`). 모델·맵·연출을 바꾸면 재 본다. 이 환경은 소프트웨어 렌더링이라 fps는 사용자에게 확인을 부탁한다 (개발 패널 오른쪽 위에 fps).
 - `npm run build && node scripts/enemy-sheet.mjs [파일.png] [적 id,...]`: 모든 적을 보통·정예로 세운 모습 모음. 적 모델을 바꾸면 찍어 본다.
 - `npm run build && node scripts/class-sheet.mjs [파일.png] [신 id,...]`: 모든 클래스를 자기 유물로 발현시킨 Lv1·Lv4 모습 모음. 클래스·외형을 바꾸면 찍어 본다.
+- `npm run build && node scripts/gear-sheet.mjs [파일.png]`: 일반 장비 바탕마다 그림(16×16, 등급 넷)과 주인공이 입은 모습, 맨 위 줄은 기본 모습의 머리카락 색 다섯 (E24-06). 장비 모델·그림을 바꾸면 찍어 본다.
 - `npm run build && node scripts/motion-sheet.mjs [파일.png] [신 id,...]`: 신화마다 1타·2타·마지막 타·유물 행동·궁극기를 게임을 멈춘 채 찍어 신화권별로 모은다 (E18). 동작·유물 행동·궁극기를 바꾸면 찍어 보고, 겹치지 않는지는 `tests/identity.test.ts`와 `ART.md` 9장.
 - `npm run build && node scripts/ui-sheet.mjs [폴더] [크기,...]`: 중반쯤 상태를 꾸며 정보 화면 탭 여덟과 HUD를 화면 크기마다 찍는다(기본 1280×720·960×540·390×844, 세로 크기는 터치 기기로 연다). UI를 바꾸면 찍어 보고, 좁은 화면에서 잘리는지 본다. 화면 밖이나 잘라 내는 상자 밖으로 나간 요소를 세어 `cut.json`에 남긴다(E235, 0이 기준). 무작위는 씨앗 고정이라, `UI_DOM=1`을 붙이면 탭마다 DOM(`.html`)도 남겨 코드를 나누기 전후를 diff로 견줄 수 있다.
 - `npm run build && node scripts/shot.mjs <파일.png> "<주소 뒤 값>" "<게임 안 코드>" [프레임]`: 원하는 상태의 스크린숏. 화면이 바뀌는 작업은 스크린숏을 직접 보고 확인한다. 휴대폰으로 찍으려면 앞에 `SHOT_SIZE=390x844 SHOT_TOUCH=1`.

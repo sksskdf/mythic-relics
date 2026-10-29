@@ -1,3 +1,4 @@
+import { gearIconRows } from '../art/gearIcons'
 import { GRADE_COLORS } from '../art/palette'
 import { DATA } from '../data'
 import { AWAKEN_AT } from '../data/awakening'
@@ -17,13 +18,16 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, te
 
 const icons = new Map<string, string>()
 
-/** 일반 장비의 12×12 그림 (사용자 의견 2026-10-28 「장비창에서 모양이 없다」): 땅에 떨어진 모델과 같은 격자를 옆에서 본 모습 */
+/**
+ * 일반 장비의 그림 (사용자 의견 2026-10-28 「장비창에서 모양이 없다」, 2026-10-29 「개성과 특징이 분명하게」):
+ * 바탕마다 손으로 찍은 16×16 그림(art/gearIcons.ts), 등급은 색과 장식으로. 그림이 없는 바탕은 땅에 떨어진 모델을 옆에서 본 모습
+ */
 export function gearIcon(item: GearItem): string {
   const key = `${item.part}:${item.base}:${item.grade}`
   let icon = icons.get(key)
   if (!icon) {
     const base = Math.max(0, GEAR.parts[item.part].bases.indexOf(item.base))
-    const { rows, colors } = iconFromGrid(gearGrid(item.part, base, GRADE_COLORS[item.grade], item.grade === 'hero', false))
+    const { rows, colors } = gearIconRows(item.part, base, item.grade) ?? iconFromGrid(gearGrid(item.part, base, item.grade, false))
     icon = pixelIcon(rows, colors)
     icons.set(key, icon)
   }

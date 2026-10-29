@@ -25,8 +25,8 @@ describe('외형 목록', () => {
     for (const id of LOOK_IDS) if (lookDef(id).slot === 'mark') expect(lookDef(id).aura, id).toBeDefined()
   })
 
-  it('처음 모습은 토르를 떠올리지 않는 모험가다 (뿔·날개 투구, 붉은 망토 없음)', () => {
-    expect(BASE_OUTFIT.head).toBe('adventurerHood')
+  it('처음 모습은 토르를 떠올리지 않는 모험가다 (쓰개 없이 머리카락, 붉은 망토 없음)', () => {
+    expect(BASE_OUTFIT.head).toBe('adventurerHair')
     expect(BASE_OUTFIT.cape).toBeNull()
     expect(BASE_OUTFIT.weapon).toBe('shortSword')
   })
@@ -63,22 +63,35 @@ describe('일반 장비 외형 (E18-04-5)', () => {
     return `${g.sizeX}×${g.sizeY}×${g.sizeZ}:${Array.from(g.cells, (c) => (c ? 1 : 0)).join('')}`
   }
 
-  it('부위·바탕·등급마다 외형이 있고, 머리·몸·손·발은 그 칸의 기본 외형과 격자 크기가 같다 (같은 원점에 끼운다)', () => {
+  it('부위·바탕·등급마다 외형이 있고, 머리·발은 그 칸의 기본 외형과 격자 크기가 같다 (원점이 정해져 있다. 몸·손은 가운데 원점이라 더 넓어도 된다)', () => {
     const parts = ['weapon', 'head', 'body', 'hands', 'feet'] as const
     expect(GEAR_LOOKS.length).toBe(parts.reduce((n, p) => n + GEAR.parts[p].bases.length, 0) * 4)
     for (const look of GEAR_LOOKS) {
       expect(LOOK_MODELS[look.id], look.id).toBeTypeOf('function')
       expect(parseGearLook(look.id), look.id).not.toBeNull()
       const slot = lookDef(look.id).slot
-      if (slot !== 'weapon') expect(size(look.id), look.id).toBe(size(BASE_OUTFIT[slot]!))
+      if (slot === 'head' || slot === 'legs') expect(size(look.id), look.id).toBe(size(BASE_OUTFIT[slot]!))
     }
   })
 
-  it('같은 부위의 바탕끼리는 실루엣이 다르고, 등급은 색만 다르다', () => {
+  it('같은 부위의 바탕끼리는 실루엣이 다르고, 등급이 오르면 모양은 두고 장식만 더한다 (E24-06)', () => {
+    const cells = (id: string) => {
+      const g = LOOK_MODELS[id]!()
+      return { size: `${g.sizeX}×${g.sizeY}×${g.sizeZ}`, filled: Array.from(g.cells, (c) => c > 0) }
+    }
     for (const part of ['weapon', 'head', 'body', 'hands', 'feet'] as const) {
       const bases = GEAR.parts[part].bases.map((_, i) => occupancy(`gear-${part}-${i}-common`))
       expect(new Set(bases).size, part).toBe(bases.length)
-      expect(occupancy(`gear-${part}-0-rare`), part).toBe(bases[0])
+      GEAR.parts[part].bases.forEach((_, i) => {
+        const steps = (['common', 'good', 'rare', 'hero'] as const).map((grade) => cells(`gear-${part}-${i}-${grade}`))
+        for (let k = 1; k < steps.length; k++) {
+          const [lower, upper] = [steps[k - 1]!, steps[k]!]
+          expect(upper.size, `${part}-${i}`).toBe(lower.size)
+          // 낮은 등급에 있던 칸은 모두 그대로 있고, 영웅은 보통보다 칸이 많다
+          expect(lower.filled.every((f, n) => !f || upper.filled[n]), `${part}-${i} ${k}`).toBe(true)
+        }
+        expect(steps[3]!.filled.filter(Boolean).length, `${part}-${i}`).toBeGreaterThan(steps[0]!.filled.filter(Boolean).length)
+      })
     }
   })
 
