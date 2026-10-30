@@ -23,11 +23,11 @@ export const PROP_KINDS = [
 ] as const
 export type PropKind = (typeof PROP_KINDS)[number]
 
-/** 지역 종류: 싸우는 필드 / 적이 없는 마을 (E7-04) / 균열 층 (E17, 데이터에는 없고 그때그때 만든다) */
-export const REGION_KINDS = ['field', 'hub', 'rift'] as const
+/** 지역 종류: 싸우는 필드 / 적이 없는 마을 (E7-04) / 끝없는 원정의 층 (E17·E305, 데이터에는 없고 그때그때 만든다) */
+export const REGION_KINDS = ['field', 'hub', 'endless'] as const
 export type RegionKind = (typeof REGION_KINDS)[number]
 
-/** 필드의 자리 (E15-01): 입구 들판(마을과 이어짐) → 깊은 땅(정예·전설 성소) → 보스의 땅(신화 보스 무대) */
+/** 필드의 자리 (E15-01): 입구 들판(마을과 이어짐) → 깊은 땅(정예·성소, E305-03에서 성소 전설은 걷음) → 보스의 땅(신화 보스 무대) */
 export const REGION_ZONES = ['entrance', 'deep', 'boss'] as const
 export type RegionZone = (typeof REGION_ZONES)[number]
 
@@ -71,7 +71,7 @@ export interface RegionDef {
   /** 이 지역에서 주로 떨어지는 유물의 신화권 (마을은 없음) */
   realm: FieldRealm | null
   theme: RegionTheme
-  /** 하나로 이어진 세계의 칸 (E19, `src/data/world.ts`). 세계 밖의 균열 층은 null */
+  /** 하나로 이어진 세계의 칸 (E19, `src/data/world.ts`). 세계 밖의 끝없는 원정 층은 null */
   cell: Cell | null
   /** 움직일 수 있는 범위 (한 변의 절반, m) */
   halfExtent: number

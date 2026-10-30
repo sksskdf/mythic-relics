@@ -1,85 +1,54 @@
 import { describe, expect, it } from 'vitest'
 
-import { ClassProgress, DEMO_MAX_LEVEL, MASTERY_TO_OPEN, masteryShares, XP_TO_PROMOTE } from '../src/myth/ClassProgress'
+import { ClassProgress, DEMO_MAX_LEVEL } from '../src/myth/ClassProgress'
 import { DATA } from '../src/data'
 import { DEFAULT_DROPS, DropTable, representatives } from '../src/gear/DropTable'
 import { MATERIAL_RELICS, MYTH_RELICS } from '../src/gear/mythRelic'
 import { godDef, type RelicId, relicDef } from '../src/relics/data'
 import { createRng } from '../src/world/rng'
 
-describe('신화 성장 (E12-02)', () => {
-  it('숙련이 문턱을 넘으면 신화가 열리고, 한 번 열면 영구다', () => {
+describe('신화 성장 (E12-02 → E305-03: 신화 경험치 없이 승천으로)', () => {
+  it('신은 깨어나면 1단계로 열리고, 한 번 열면 영구다', () => {
     const progress = new ClassProgress()
     expect(progress.level('thor')).toBe(0)
     expect(progress.title('thor')).toBe('천둥의 신')
-    expect(progress.addXp('thor', MASTERY_TO_OPEN - 1)).toBeNull()
     expect(progress.isOpen('thor')).toBe(false)
-    expect(progress.readyToPromote('thor')).toBe(false)
-    expect(progress.addXp('thor', 1)).toBe('opened')
+    expect(progress.open('thor')).toBe(true)
     expect(progress.level('thor')).toBe(1)
     expect(progress.opened).toEqual(['thor'])
-    // 다시 숙련을 쌓아도 다시 열리지 않는다
-    expect(progress.addXp('thor', 10)).toBeNull()
+    // 다시 열어도 그대로
+    expect(progress.open('thor')).toBe(false)
+    expect(progress.level('thor')).toBe(1)
   })
 
-  it('숙련 바가 가득 차야 전설로 단계가 오르고, 가득 찬 뒤에는 더 쌓이지 않는다', () => {
+  it('단계는 승천으로만 오른다: 열린 신만, 한 번에 하나씩', () => {
     const progress = new ClassProgress()
+    expect(progress.ascend('thor')).toBe(false)
     progress.open('thor')
-    progress.addXp('thor', 100)
-    expect(progress.promote('thor')).toBe(false)
-    progress.addXp('thor', 99999)
-    expect(progress.record('thor').xp).toBe(XP_TO_PROMOTE[0])
-    expect(progress.readyToPromote('thor')).toBe(true)
-    expect(progress.promote('thor')).toBe(true)
+    expect(progress.ascend('thor')).toBe(true)
     expect(progress.title('thor')).toBe('천둥군주')
-    expect(progress.record('thor').xp).toBe(0)
-  })
-
-  it('열릴 때 남은 숙련은 다음 바로 넘어간다', () => {
-    const progress = new ClassProgress()
-    expect(progress.addXp('odin', MASTERY_TO_OPEN + 50)).toBe('opened')
-    expect(progress.record('odin').xp).toBe(50)
-    progress.addXp('loki', 1e9)
-    expect(progress.readyToPromote('loki')).toBe(true)
+    expect(progress.level('thor')).toBe(2)
+    expect(progress.record('thor')).toEqual({ level: 2 })
   })
 
   it('승급하면 총 승급 횟수가 오른다. 못 연 신화는 세지 않는다', () => {
     const progress = new ClassProgress()
-    progress.addXp('zeus', 10)
-    progress.addXp('thor', 1e9)
-    progress.promote('thor')
+    progress.record('zeus')
+    progress.open('thor')
+    progress.ascend('thor')
     expect(progress.promotions).toBe(1)
   })
 
-  it('경험치는 고른 신화만 받는다 (E21-01: 나눠 주기 없음)', () => {
-    const gods = Object.values(DATA.gods)
-    const shares = masteryShares(20, 'norse', 'thor', gods)
-    expect([...shares]).toEqual([['thor', 20]])
-    // 고른 신화가 다른 신화권이어도 고른 신화만 받는다
-    expect([...masteryShares(20, 'greek', 'thor', gods)]).toEqual([['thor', 20]])
-    // 고른 신화가 없으면 그 신화권 신들이 전부 받는다 (첫 신화가 빨리 열린다, E13)
-    expect(masteryShares(20, 'norse', null, gods).get('odin')).toBe(20)
-    // 히든 신화는 몬스터로 쌓이지 않는다 (고르면 받는다)
-    expect(masteryShares(20, 'norse', null, gods).has('asura')).toBe(false)
-    expect(masteryShares(20, undefined, null, gods).size).toBe(0)
-  })
-
-  it('데모는 3단계가 끝: 3단계에서는 경험치가 더 차지 않고 전설도 열리지 않는다 (E21-01)', () => {
+  it('데모는 3단계가 끝: 3단계에서는 승천해도 오르지 않고, 엔딩 뒤에는 4로 풀린다 (E21-01)', () => {
     let afterEnding = false
     const progress = new ClassProgress(() => afterEnding)
     progress.open('thor')
-    for (let i = 1; i < DEMO_MAX_LEVEL; i++) {
-      progress.addXp('thor', 1e9)
-      expect(progress.promote('thor')).toBe(true)
-    }
+    for (let i = 1; i < DEMO_MAX_LEVEL; i++) expect(progress.ascend('thor')).toBe(true)
     expect(progress.level('thor')).toBe(DEMO_MAX_LEVEL)
-    expect(progress.xpNeeded('thor')).toBe(0)
-    progress.addXp('thor', 1e9)
-    expect(progress.readyToPromote('thor')).toBe(false)
-    // 엔딩 뒤(한계를 깸)에는 끝이 4로 풀린다
+    expect(progress.ascend('thor')).toBe(false)
     afterEnding = true
-    progress.addXp('thor', 1e9)
-    expect(progress.promote('thor')).toBe(true)
+    expect(progress.ascend('thor')).toBe(true)
+    expect(progress.level('thor')).toBe(DEMO_MAX_LEVEL + 1)
   })
 })
 

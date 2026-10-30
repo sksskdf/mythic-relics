@@ -19,10 +19,10 @@ export const RAIN_STYLES = ['arrow', 'spear', 'fire', 'star', 'petal', 'stone', 
 export const WAVE_STYLES = ['bloom', 'tide', 'ripple', 'night', 'gale', 'spirit'] as const
 /** 칼춤의 모양 (E18): 여섯 칼, 불꽃 */
 export const BLADE_STYLES = ['six', 'fire'] as const
-/** 승급 전설 종류: 무리 뒤 보스 / 시간 안에 처치 수 / 시간 동안 버티기 */
-export const LEGEND_KINDS = ['boss', 'tally', 'survive'] as const
 /** 신화권 (hidden은 히든 클래스) */
 export const REALMS = ['norse', 'greek', 'china', 'japan', 'korea', 'hidden'] as const
+/** 신화권 이름 (화면 글·개발 패널) */
+export const REALM_NAMES: Readonly<Record<(typeof REALMS)[number], string>> = { norse: '북유럽', greek: '그리스', china: '중국', japan: '일본', korea: '한국', hidden: '히든' }
 
 export type SkyStyle = (typeof SKY_STYLES)[number]
 export type CompanionLook = (typeof COMPANION_LOOKS)[number]
@@ -31,7 +31,6 @@ export type UltimateKind = (typeof ULTIMATE_KINDS)[number]
 export type RainStyle = (typeof RAIN_STYLES)[number]
 export type WaveStyle = (typeof WAVE_STYLES)[number]
 export type BladeStyle = (typeof BLADE_STYLES)[number]
-export type LegendKind = (typeof LEGEND_KINDS)[number]
 export type Realm = (typeof REALMS)[number]
 
 /** 패시브 부품마다 공통: 화면에 보일 이름, 열리는 레벨 */
@@ -89,11 +88,6 @@ export interface UltimateDef {
   style?: SkyStyle | CompanionLook | RainStyle | WaveStyle | BladeStyle
   /** 쓰는 순간 회복 (생명) */
   heal?: number
-}
-
-export interface LegendDef {
-  name: string
-  kind: LegendKind
 }
 
 function part(o: Obj, path: string, keys: readonly string[]): PartBase {
@@ -267,14 +261,6 @@ export function parseUltimate(raw: unknown, p: string): UltimateDef {
   if (styles.length > 0) def.style = oneOf(o, 'style', p, styles) as UltimateDef['style']
   else if (o.style !== undefined) throw new DataError(`${p}.style`, `${kind}에는 모양을 쓰지 않습니다`)
   return def
-}
-
-/** gods.json의 legend (없으면 그 신의 승급 전설은 아직 없다) */
-export function parseLegend(raw: unknown, p: string): LegendDef | undefined {
-  if (raw === undefined) return undefined
-  const o = obj(raw, p)
-  onlyKeys(o, p, ['name', 'kind'])
-  return { name: str(o, 'name', p), kind: oneOf(o, 'kind', p, LEGEND_KINDS) }
 }
 
 /** 동료 수처럼 레벨이 오르면 늘어야 하는 값이 줄지 않는지 (데이터 실수를 막는다) */

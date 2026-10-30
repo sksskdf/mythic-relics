@@ -11,7 +11,7 @@ import { worldToScreen } from '../render/picking'
 import type { QuarterViewCamera } from '../render/QuarterViewCamera'
 import { gearCard } from '../ui/gearCard'
 import { traceCard, type TraceCardContext } from '../ui/traceCard'
-import type { TraceState } from '../data/awaken'
+import type { TraceState } from '../data/wake'
 import type { God } from '../relics/data'
 import type { Nameplates, PlateTarget } from '../ui/Nameplates'
 import type { RelicCardContext } from '../ui/relicCard'
@@ -105,7 +105,7 @@ export class HoverCards {
       // 신의 흔적 (E238): 무엇을 고르는지 알고 고르게 그 신의 무기·빌려주는 힘
       const now = { ...this.parts.traceContext(), state: trace.state }
       const found = trace
-      this.tooltip.showCard(`trace:${found.god}`, `${found.god}|${now.state}|${now.fragments}|${now.hunt}|${now.sealedUntil}`, () => traceCard(found.god, now), pointer.x, pointer.y)
+      this.tooltip.showCard(`trace:${found.god}`, `${found.god}|${now.state}|${now.fragments}|${now.hunt}|${now.sealedText}`, () => traceCard(found.god, now), pointer.x, pointer.y)
       this.groundTooltip = true
     } else if (this.groundTooltip) {
       this.tooltip.hide()
@@ -116,10 +116,10 @@ export class HoverCards {
   /** 이름표: 커서를 올린 몬스터와 지금 공격 중인 몬스터. shown이 false면(창이 열렸거나 대화 중) 모두 숨긴다 */
   plates(shown: boolean): void {
     const { ctx, hovered, screenPoint, nameplates } = this.parts
-    const { legend, encounter, orders, combat } = ctx
+    const { encounter, orders, combat } = ctx
     const plates: PlateTarget[] = []
     // 보스 막대가 떠 있는 보스는 막대에 이름이 있으니 머리 위에는 띄우지 않는다
-    const barBoss = legend.boss?.alive ? legend.boss : encounter.bossEngaged ? encounter.boss : this.parts.guardian()
+    const barBoss = encounter.bossEngaged ? encounter.boss : this.parts.guardian()
     const add = (target: unknown) => {
       if (!(target instanceof Giant) || !target.alive || target === barBoss) return
       const top = heightAt(target.x, target.z) + Math.max(1.6, target.radius * 3.6) + 0.6

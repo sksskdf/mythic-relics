@@ -1,5 +1,4 @@
 import { VFX } from '../../art/palette'
-import { isMythRelic } from '../../gear/mythRelic'
 import { STEP_TAB_DEFS, STEP_TABS, type StepTab, type TabFacts, tabsDue } from '../../progress/Tabs'
 import { glyph } from '../../ui/sigils'
 import type { GameContext } from '../context'
@@ -8,7 +7,7 @@ import type { GameContext } from '../context'
 const CARD_COLOR = `#${VFX.guide.toString(16).padStart(6, '0')}`
 
 /**
- * 정보 화면 탭을 차례로 연다 (E236-05): 장비를 줍고, 깨달음을 얻고, 성소를 찾고… 쓸 일이 생길 때 그 탭을 열고
+ * 정보 화면 탭을 차례로 연다 (E236-05, E305-04): 장비를 줍고, 깨달음을 얻고, 신의 흔적을 찾고, 귀환하고… 쓸 일이 생길 때 그 탭을 열고
  * 무엇을 하는 곳인지 한 줄짜리 카드를 띄운다. 연 탭은 저장한다 (`progress/Tabs`).
  */
 export class TabSystem {
@@ -20,22 +19,19 @@ export class TabSystem {
 
   constructor(private readonly ctx: GameContext) {
     const check = () => this.check()
-    for (const name of ['gearPicked', 'loadoutChanged', 'mythOpened', 'forged', 'progressChanged'] as const) ctx.bus.on(name, check)
+    for (const name of ['gearPicked', 'loadoutChanged', 'mythOpened', 'expeditionReturned', 'progressChanged'] as const) ctx.bus.on(name, check)
   }
 
   /** 탭을 여는 때를 가리는 지금 상태 */
   facts(): TabFacts {
-    const { powers, training, conveniences, progress, build, tabs } = this.ctx
-    const loadout = powers.loadout
+    const { powers, training, waypoints, progress, awaken, expedition } = this.ctx
     return {
-      gear: loadout.owned.length > 0,
+      gear: powers.loadout.owned.length > 0,
       insights: training.insights,
-      shrine: conveniences.visited.size > 0,
-      // 빌드 상태는 통째로 새로 계산하니, 원천 탭이 열린 뒤에는 보지 않는다 (적을 잡을 때마다 불린다)
-      awakened: !tabs.has('sources') && Object.values(build.state.awakening).some((level) => level >= 1),
-      // 신화 탭은 첫 신의 흔적(조각 1)부터 (E238)
-      myth: progress.opened.length > 0 || this.ctx.awaken.fragments >= 1,
-      relic: loadout.ownedRelics.some(isMythRelic),
+      shrine: waypoints.size > 0,
+      // 신 탭은 첫 신의 흔적(조각 1)부터 (E238)
+      myth: progress.opened.length > 0 || awaken.fragments >= 1,
+      returns: expedition.returns,
     }
   }
 

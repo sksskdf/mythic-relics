@@ -3,8 +3,8 @@ import { relicGods } from '../relics/model'
 
 /**
  * 신화 판정 (E12-04, DESIGN.md 4.2).
- * - 지금 신화(코드 이름 manifested) = 고른 신화. 열린 신화 가운데 플레이어가 고른다. 유물 수로 정하지 않는다.
- * - 장비한 유물의 다른 신들은 가호(blessings)로 센다. 그 유물은 잠들어 기본 수치만 낸다 (E21-04).
+ * - 지금 신화(코드 이름 manifested) = 손에 쥔 신 (E302). 유물 수로 정하지 않는다.
+ * - 가호(자리에 없는 신의 유물을 따로 세던 표시)는 E305-04에서 없앴다: 유물은 그 신이 자리에 들면 깨어날 뿐이다.
  * - 1차 스프린트 규칙(같은 신 유물 셋이면 발현)은 히든 신화 열기와 옛 저장 옮기기에만 쓴다 (`legacyManifest`).
  */
 
@@ -12,10 +12,8 @@ import { relicGods } from '../relics/model'
 export const MANIFEST_COUNT = 3
 
 export interface LoadoutState {
-  /** 고른 신화. 없으면 null */
+  /** 손에 쥔 신. 없으면 null */
   manifested: God | null
-  /** 가호로 붙은 신들 */
-  blessings: God[]
 }
 
 /** 유물들을 신마다 센다. 두 신이 함께 쓰는 유물(쿠사나기 등)은 두 신 모두에게 센다 */
@@ -28,10 +26,9 @@ export function countByGod(relics: readonly (RelicId | null)[]): Map<God, number
   return counts
 }
 
-/** 고른 신화와 장착한 유물로 지금 신화와 가호를 정한다. */
-export function resolveLoadout(relics: readonly (RelicId | null)[], chosen: God | null): LoadoutState {
-  const blessings = [...countByGod(relics).keys()].filter((god) => god !== chosen)
-  return { manifested: chosen, blessings }
+/** 손에 쥔 신으로 지금 신화를 정한다 */
+export function resolveLoadout(chosen: God | null): LoadoutState {
+  return { manifested: chosen }
 }
 
 /**
@@ -62,8 +59,6 @@ function legacyResolve(relics: readonly (RelicId | null)[]): LoadoutState {
       tie = true
     }
   }
-  const manifested = best && !tie ? best : null
-  const blessings = [...counts.keys()].filter((god) => god !== manifested)
-  return { manifested, blessings }
+  return { manifested: best && !tie ? best : null }
 }
 

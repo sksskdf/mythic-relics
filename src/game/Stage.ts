@@ -59,7 +59,7 @@ export class Stage {
     this.sun.castShadow = on
   }
 
-  /** 지역을 바꾼다(처음·워프·균열·편집기): 맵을 다시 짓고 하늘빛을 그 테마로. 이웃 조각은 다음 프레임부터 하나씩 */
+  /** 지역을 바꾼다(처음·워프·끝없는 원정·편집기): 맵을 다시 짓고 하늘빛을 그 테마로. 이웃 조각은 다음 프레임부터 하나씩 */
   load(region: RegionDef, regions: Regions = this.regions): void {
     this.regions = regions
     const o = region.cell ? cellOrigin(region.cell) : { x: 0, z: 0 }

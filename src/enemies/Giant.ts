@@ -118,7 +118,7 @@ export class Giant {
   blocked = 0
   /** 정예 배율 (E8-05): 피해 */
   damageScale = 1
-  /** 위협 단계 배율 (E14-03): 생명력·피해 */
+  /** 깊이 배율 (E14-03·E305-03): 생명력·피해 */
   private threat = { hp: 1, damage: 1 }
   /** 정예 종류 (없으면 보통) */
   elite: EliteKind | null = null
@@ -168,7 +168,7 @@ export class Giant {
     return this.spec.radius * this.size
   }
 
-  /** 위협 단계 배율을 건다 (세울 때 한 번, 정예로 만들 때도 이어진다) */
+  /** 깊이 배율을 건다 (세울 때 한 번, 정예로 만들 때도 이어진다) */
   applyThreat(scale: { hp: number; damage: number }): void {
     this.threat = { ...scale }
     this.damageScale = (this.elite ? ELITES[this.elite].damage : 1) * scale.damage

@@ -1,6 +1,5 @@
 import { DATA } from '../../data'
 import { REGIONS } from '../../data/regions'
-import { MASTERY_TO_OPEN, XP_TO_PROMOTE } from '../../myth/ClassProgress'
 import { isMythRelic } from '../../gear/mythRelic'
 import { BAG_SIZE, MATERIAL_CAP } from '../../gear/Loadout'
 import { bossMaterial, MATERIALS, PROTOTYPE, realmMaterial } from '../../gear/materials'
@@ -10,15 +9,13 @@ import { GRADES, SLOT_PARTS } from '../../data/gearData'
 import { hiddenUnlocked } from '../../myth/manifest'
 import { relicGods } from '../../relics/model'
 import { type ChapterData, parseChapterData } from '../../progress/Chapters'
-import type { ConvenienceData } from '../../progress/Conveniences'
-import type { ThreatData } from '../../progress/Threat'
 import { STARTING_LOOKS } from '../../looks/catalog'
 import { type God, godDef, isRelicId, relicDef, type RelicId } from '../../relics/data'
 import type { SaveData } from '../SaveData'
 
 /**
- * 옛 저장 옮기기 (E301-03, `CYCLE.md` 9장): 옛 버전을 지금 모양으로 올릴 때만 쓰는 것을 한곳에 모았다.
- * `parseSave`가 버전을 보고 부른다. v14부터는 버전마다 `migrate/v14.ts`처럼 하나씩 둔다
+ * 옛 저장 옮기기 (E301-03, `CYCLE.md` 9장): 옛 버전을 v16 모양까지 올릴 때만 쓰는 것을 한곳에 모았다.
+ * `parseSave`가 버전을 보고 부른다. 맹세·깊이·자동화·끝없는 원정으로 바꾸는 v17 옮기기는 `migrate/v17.ts`
  */
 
 const isRelic = isRelicId
@@ -51,13 +48,23 @@ export const OLD_MYTH_MATERIALS: Readonly<Record<string, God>> = {
 /** 옛 순환 성장 → 재료 (E14-06) */
 export const CYCLE_REFUND = { essencePer: 100, essenceTo: 'frostShard', essenceMax: 300, ashPer: 3, ashTo: 'giantHeart', ashMax: 20 } as const
 
-/** v10 이하 → v11: 모은 경험치를 신화 경험치로 짐작한다 (E236). 신화마다 연 문턱·단계 문턱·지금 경험치의 합 가운데 가장 큰 것 */
-export function oldTrainingXp(classes: SaveData['classes']): number {
+/**
+ * 옛 신화 경험치의 문턱 (E236 기준, E305-03에서 신화 경험치를 없앰): 1단계를 연 문턱과 단계마다 다음 단계까지.
+ * v10 이하 저장의 수련 경험치를 짐작할 때만 쓴다
+ */
+export const LEGACY_OPEN_XP = 600
+export const LEGACY_PROMOTE_XP: readonly number[] = [1500, 3000, 5000]
+
+/**
+ * v10 이하 → v11: 모은 경험치를 신화 경험치로 짐작한다 (E236). 신화마다 연 문턱·단계 문턱·지금 경험치의 합 가운데 가장 큰 것.
+ * 신화 경험치는 저장에서 내보내지 않으니(v17) 원본에서 읽은 값을 따로 받는다
+ */
+export function oldTrainingXp(classes: SaveData['classes'], xp: Partial<Record<God, number>>): number {
   let best = 0
-  for (const record of Object.values(classes)) {
+  for (const [god, record] of Object.entries(classes)) {
     if (!record) continue
-    const spent = record.level >= 1 ? MASTERY_TO_OPEN + XP_TO_PROMOTE.slice(0, record.level - 1).reduce((a, b) => a + b, 0) : 0
-    best = Math.max(best, spent + record.xp)
+    const spent = record.level >= 1 ? LEGACY_OPEN_XP + LEGACY_PROMOTE_XP.slice(0, record.level - 1).reduce((a, b) => a + b, 0) : 0
+    best = Math.max(best, spent + (xp[god] ?? 0))
   }
   return best
 }
@@ -134,13 +141,27 @@ export function fillEmptySlots(slots: (string | null)[], bag: readonly string[],
   return rest
 }
 
+/**
+ * v9 이하의 위협 단계 (E14-03): 열린 가장 높은 단계와 신화권마다 이긴 단계. 지금은 깊이(`progress/Depth.ts`)로 바뀌어
+ * 엔딩 뒤로 칠지(v8 이하)와 장 진행 짐작(v9 이하)에만 읽는다 (E305-03)
+ */
+export function oldThreat(raw: unknown): { unlocked: number; cleared: Record<string, number> } {
+  const o = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
+  const int = (v: unknown, min: number, max: number, fallback: number) => (typeof v === 'number' && Number.isFinite(v) ? Math.round(Math.min(max, Math.max(min, v))) : fallback)
+  const cleared: Record<string, number> = {}
+  if (typeof o.cleared === 'object' && o.cleared !== null) {
+    for (const [realm, n] of Object.entries(o.cleared as Record<string, unknown>)) if (realm.length < 20) cleared[realm] = int(n, 0, 99, 0)
+  }
+  return { unlocked: int(o.unlocked, 1, 99, 1), cleared }
+}
+
 /** v9 이하 → v10: 장 진행을 그때까지 한 것에서 짐작한다 (E22) */
-export function oldChapters(region: SaveData['region'], conveniences: ConvenienceData, threat: ThreatData, materials: Record<string, number>, owned: readonly RelicId[]): ChapterData {
-  const entered = new Set<string>([...(region ? [region.id] : []), ...conveniences.visited])
+export function oldChapters(region: SaveData['region'], visited: readonly string[], cleared: Readonly<Record<string, number>>, materials: Record<string, number>, owned: readonly RelicId[]): ChapterData {
+  const entered = new Set<string>([...(region ? [region.id] : []), ...visited])
   const beaten = (realm: string) => {
     const boss = Object.values(DATA.enemies).find((e) => e.boss && e.realm === realm && e.role === 'boss')?.boss
     const material = boss ? bossMaterial(boss) : undefined
-    return (threat.cleared[realm] ?? 0) > 0 || (material !== undefined && (materials[material] ?? 0) > 0) || owned.some((id) => isMythRelic(id) && godDef(relicDef(id).god).realm === realm)
+    return (cleared[realm] ?? 0) > 0 || (material !== undefined && (materials[material] ?? 0) > 0) || owned.some((id) => isMythRelic(id) && godDef(relicDef(id).god).realm === realm)
   }
   const bosses = Object.values(REGIONS)
     .filter((r) => r.zone === 'boss' && r.boss && !r.finale && r.realm && beaten(r.realm))
@@ -159,7 +180,7 @@ export function openOwned(classes: SaveData['classes'], owned: readonly (RelicId
   const out: SaveData['classes'] = { ...classes }
   const gods = new Set<God>(hiddenUnlocked(owned))
   for (const id of owned) if (id) for (const god of relicGods(relicDef(id))) if (!godDef(god).hidden) gods.add(god)
-  for (const god of gods) if ((out[god]?.level ?? 0) < 1) out[god] = { level: 1, xp: 0 }
+  for (const god of gods) if ((out[god]?.level ?? 0) < 1) out[god] = { level: 1 }
   return out
 }
 

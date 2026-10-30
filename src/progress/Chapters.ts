@@ -1,16 +1,14 @@
-import { CHAPTERS, type ChapterDef, type ChapterStep, chapterOf, TOP_POWER } from '../data/chapters'
+import { CHAPTERS, type ChapterDef, type ChapterStep, chapterOf, conquestsOf, TOP_POWER } from '../data/chapters'
 import { REGIONS } from '../data/regions'
 
 /** 장 진행이 게임에서 읽는 것 (신화·장비는 따로 저장되니 여기서는 묻기만 한다) */
 export interface ChapterWorld {
-  /** 그 신화권 신화를 하나라도 열었나 */
-  chose(realm: string): boolean
   /** 그 신화권에서 깨운(연) 신의 수 (E238) */
   awakened(realm: string): number
-  /** 열린 신화 가운데 가장 높은 단계 */
-  level(): number
   /** 가진 유물 가운데 가장 높은 단계 (없으면 0) */
   forged(): number
+  /** 귀환한 횟수 (E304) */
+  returns(): number
 }
 
 export interface ChapterData {
@@ -44,17 +42,20 @@ export class ChapterProgress {
     switch (step.kind) {
       case 'enter':
         return this.entered.has(step.region)
-      case 'choose':
-        return world.chose(step.realm!)
       case 'awaken':
         return world.awakened(step.realm!) >= step.n!
-      case 'level':
-        return world.level() >= step.n!
       case 'boss':
         return this.bosses.has(step.region)
       case 'forge':
         return world.forged() >= step.n!
+      case 'return':
+        return world.returns() >= step.n!
     }
+  }
+
+  /** 정복한 장의 수 (E305-02): 장 정복 보스(거인 왕·키마이라) 가운데 이긴 수. 엔딩 뒤 신화권 보스는 세지 않는다 */
+  get conquered(): number {
+    return conquestsOf(this.chapters).filter((r) => this.bosses.has(r)).length
   }
 
   /** 끝낸 장의 수 (지금 장의 차례). 모두 끝냈으면 장의 수 */
@@ -75,10 +76,14 @@ export class ChapterProgress {
     return chapter.steps[this.lastDone(chapter) + 1] ?? null
   }
 
-  /** 그 장에서 한 마지막 할 일의 차례 (하나도 안 했으면 -1). 뒤의 것을 했으면 앞의 것은 지나간 것으로 친다 */
+  /**
+   * 그 장에서 한 마지막 할 일의 차례 (하나도 안 했으면 -1). 뒤의 것을 했으면 앞의 것은 지나간 것으로 친다.
+   * 귀환(`return`)은 장 밖에서도 쌓이는 수라(앞 장에서 귀환을 더 했을 때) 건너뛰는 근거로 쓰지 않고, 바로 앞까지 했을 때만 이어 센다
+   */
   private lastDone(chapter: ChapterDef): number {
     let last = -1
-    chapter.steps.forEach((s, i) => this.done(s) && (last = i))
+    chapter.steps.forEach((s, i) => s.kind !== 'return' && this.done(s) && (last = i))
+    while (last + 1 < chapter.steps.length && this.done(chapter.steps[last + 1]!)) last += 1
     return last
   }
 
@@ -98,7 +103,7 @@ export class ChapterProgress {
     return enter <= 0 || this.lastDone(chapter) >= enter - 1
   }
 
-  /** 그 땅 보통 적의 세기 (처음 땅 = 1). 장 흐름 밖의 들판(엔딩 뒤)은 가장 센 땅만큼, 균열·마을은 1 (균열은 층이 세기를 정한다) */
+  /** 그 땅 보통 적의 세기 (처음 땅 = 1). 장 흐름 밖의 들판(엔딩 뒤)은 가장 센 땅만큼, 끝없는 원정·마을은 1 (끝없는 원정은 층이 세기를 정한다) */
   power(region: string): number {
     const chapter = chapterOf(region, this.chapters)
     if (chapter) return chapter.lands[region]!

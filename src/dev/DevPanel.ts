@@ -1,11 +1,12 @@
 import { THEME_IDS, type ThemeId } from '../audio/music'
+import { CONQUESTS } from '../data/chapters'
+import { AUTOMATION } from '../data/cycle'
 import { SOUND_CUES } from '../audio/sounds'
-import { type Realm, REALMS } from '../data/classKit'
+import { type Realm, REALM_NAMES, REALMS } from '../data/classKit'
 import { REGIONS } from '../data/regions'
 import type { EliteKind } from '../enemies/elite'
 import { ENEMIES, type GiantSpec, GRUNT } from '../enemies/Giant'
 import type { Game } from '../game/Game'
-import { BET } from '../game/Legend'
 import { LOOK_IDS, WARDROBE_SLOTS } from '../looks/catalog'
 import { type God, godDef, GODS, RELIC_IDS, relicDef } from '../relics/data'
 import { relicGods } from '../relics/model'
@@ -127,7 +128,6 @@ export class DevPanel {
     const g = this.game
     // 신화권 → 신화 → 유물 그림 칸. 그림을 누르면 끼고 빼기(낀 것은 밝게), 신화 이름을 누르면 그 묶음을 끼고 그 신화를 고른다.
     // 함께 쓰는 유물(쿠사나기·토츠카)은 스사노오와 아수라왕 양쪽에 보인다.
-    const REALM_NAMES: Record<string, string> = { norse: '북유럽', greek: '그리스', china: '중국', japan: '일본', korea: '한국', hidden: '히든' }
     const wearSet = (god: God) => {
       g.dev.unequipAll()
       for (const id of RELIC_IDS.filter((r) => relicGods(relicDef(r)).includes(god)).slice(0, 4)) g.dev.equip(id)
@@ -195,20 +195,15 @@ export class DevPanel {
     const g = this.game
     page.append(
       row(
-        button('경험치 가득', () => {
-          const god = g.powers.manifested
-          if (god) g.progress.addXp(god, 1e9)
-        }),
         button('단계 올리기', () => g.dev.promote()),
         button('레벨 초기화', () => g.dev.resetMyths()),
-        button('이 신화권 경험치', () => g.dev.gainMastery()),
         button('깨달음 하나', () => g.dev.insight()),
         // 신의 조각 (E238): 깨우는 신의 다음 조각 (흔적 → 사냥 → 수호자)
         button('다음 조각', () => {
           g.dev.awaken()
           g.menu.refresh()
         }),
-        // 신위 칸 (E237): 북유럽 넷을 열고 빈 빌린 칸을 채운다 (칸 수는 장 진행 그대로)
+        // 신의 자리 (E237 → E302): 북유럽 넷을 열고 빈 빌린 칸을 채운다 (칸 수는 장 진행 그대로)
         button('빌린 칸 채우기', () => {
           g.dev.lend('thor', 'loki', 'odin', 'freyr')
           g.menu.refresh()
@@ -229,7 +224,7 @@ export class DevPanel {
         button('대장간 재료', () => g.dev.fillForge()),
       ),
       row(
-        button('궁극기 충전', () => (g.combat.divine = 1)),
+        button('궁극기 충전', () => (g.combat.heartGauge = 1)),
         button('유물 행동', () => g.dev.fireRelic()),
         button('외형 모두 얻기', () => {
           g.wardrobe.unlock(LOOK_IDS)
@@ -239,7 +234,8 @@ export class DevPanel {
           for (const slot of WARDROBE_SLOTS) g.appearance.choose(slot, 'auto')
         }),
       ),
-      row(button('전설 시작', () => this.startLegend())),
+      // 귀환 (E304): 원정을 무르익게(2분·기세 8) 하고 성소 화로에 선다 (빛기둥이 서고 귀환 카드가 뜬다)
+      row(button('귀환 준비', () => this.readyReturn())),
       // 장 흐름 (E22): 지금 목표를 한 것으로, 장 하나를 통째로
       row(
         button('목표 건너뛰기', () => {
@@ -249,6 +245,12 @@ export class DevPanel {
         button('장 건너뛰기', () => {
           const at = g.chapters.index
           for (let i = 0; i < 12 && g.chapters.index === at && g.chapters.goal; i++) g.skipGoal()
+          g.menu.refresh()
+        }),
+        // 장 정복 (E305-02): 다음 장 보스를 이긴 것으로 (숨 칸·신 단계 상한·명성 지수와 카드)
+        button('장 정복', () => {
+          const region = CONQUESTS.find((r) => !g.chapters.bosses.has(r))
+          if (region) g.chapterSystem.bossDown(region)
           g.menu.refresh()
         }),
       ),
@@ -269,50 +271,56 @@ export class DevPanel {
           }),
         ),
       ),
-      // 엔딩 뒤 장치 (E21-06)·위협 단계·편의 (E14)
+      // 엔딩 뒤 장치 (E21-06)·깊이·자동화 (E305-03)
       row(
         button('엔딩 뒤로', () => {
           g.reachEnding()
           g.menu.refresh()
         }),
-        button('위협 단계 열기', () => {
-          g.threat.unlocked = Math.min(10, g.threat.unlocked + 1)
+        // 깊이 (E305-03): 귀환 카드의 「+1」처럼 한 걸음 더 깊이 (엔딩 뒤 장치라 엔딩 뒤로 넘긴다)
+        button('깊이 +1', () => {
+          if (!g.ending.reached) g.reachEnding()
+          g.depthSystem.choose(Math.min(g.depth.max, g.depth.level + 1))
           g.menu.refresh()
         }),
-        button('시련 열기', () => {
-          Object.assign(g.threat, { unlocked: Math.max(3, g.threat.unlocked), reached: Math.max(3, g.threat.reached) })
+        // 맹세 (E305-01): 아직 못 지킨 것 하나를 걸고, 건 맹세를 지킨 것으로
+        button('맹세 걸기', () => {
+          g.oathSystem.swear(g.oathSystem.available().find((id) => !g.oaths.has(id)) ?? null)
+          g.menu.refresh()
+        }),
+        button('맹세 지킴', () => {
+          g.oathSystem.keepNow()
           g.menu.refresh()
         }),
         button('한계를 깸', () => {
-          for (const realm of ['norse', 'greek', 'china', 'japan', 'korea']) g.threat.cleared[realm] = 10
-          Object.assign(g.threat, { unlocked: 10, reached: 10, level: 10 })
-          g.threatSystem.breakLimit()
+          if (!g.ending.reached) g.reachEnding()
+          g.dev.depth(10)
+          g.depthSystem.breakLimit()
           g.menu.refresh()
         }),
-        button('별 +5', () => {
-          g.rift.stars += 5
+        // 끝없는 원정 (E305-03): 기록만 더한다. 나서려면 「한계를 깸」 뒤 마을의 끝없는 원정 탭
+        button('끝없는 원정 기록 +5층', () => {
+          g.endless.best += 5
           g.menu.refresh()
         }),
-        button('편의 모두', () => {
-          for (const id of ['autoPickup', 'autoSalvage', 'autoMaterials', 'quickChoose', 'warp'] as const) g.conveniences.open.add(id)
+        // 자동화 (E305-03): 귀환 3까지 마친 것으로(원정 번호를 덮어씀), 자동 줍기 세기도 채움 (자동 줍기는 엔딩 뒤)
+        button('자동화 모두', () => {
+          g.expedition.count = Math.max(g.expedition.count, 1 + AUTOMATION.endingReturns)
+          g.automation.pickups = Math.max(g.automation.pickups, AUTOMATION.pickup.need)
           g.menu.refresh()
         }),
       ),
     )
   }
 
-  /** 승급 전설을 바로 시작한다. 지금 발현한 신에게 전설이 있으면 그 전설, 없으면 토르로 발현해 우트가르드 원정 */
-  private startLegend(): void {
+  /** 귀환 준비: 원정을 무르익게 하고 이 땅의 성소 화로에 선다 (성소가 없는 땅이면 미드가르드로) */
+  private readyReturn(): void {
     const g = this.game
-    let god = g.powers.manifested
-    if (!god || !godDef(god).legend) {
-      g.dev.unequipAll()
-      for (const id of ['mjolnir', 'megingjord', 'jarngreipr'] as const) g.dev.equip(id)
-      god = 'thor'
-      g.dev.choose(god)
-    }
-    g.progress.addXp(god, 1e9)
-    g.dev.teleport(g.legend.center.x, g.legend.center.z)
+    const midgard = g.regions.midgard
+    if (!g.sanctuary.present && midgard) g.enterRegion(midgard)
+    g.expedition.elapsed = Math.max(g.expedition.elapsed, 300)
+    g.training.xp = Math.max(g.training.xp, 5000)
+    g.dev.teleport(g.sanctuary.center.x, g.sanctuary.center.z)
   }
 
   // ───────────── 세계 ─────────────
@@ -370,7 +378,7 @@ export class DevPanel {
       else if (place === 'boss') {
         if (spots.boss) g.dev.teleport(spots.boss.x - 7, spots.boss.z + 7)
       }
-      else if (place === 'sanctuary') g.dev.teleport(g.legend.center.x + 4, g.legend.center.z + 4)
+      else if (place === 'sanctuary') g.dev.teleport(g.sanctuary.center.x + 4, g.sanctuary.center.z + 4)
       else {
         const camp = spots.camps[Number(place.slice(4))]
         if (camp) g.dev.teleport(camp.x - 5, camp.z - 5)
@@ -381,12 +389,11 @@ export class DevPanel {
     // 적 데이터(enemies.json)에 있는 적을 고르고 몇 마리 부를지 정한다. 여럿이면 주인공을 둘러싼다.
     // 신화권 순서로 늘어놓고, 이름 앞에 신화권과 역할을 붙인다
     const REALM_ORDER = ['norse', 'greek', 'china', 'japan', 'korea']
-    const REALM_SHORT: Record<string, string> = { norse: '북유럽', greek: '그리스', china: '중국', japan: '일본', korea: '한국' }
     const ROLE_NAMES: Record<string, string> = { brute: '근접', charger: '돌진', ranged: '원거리', guard: '방패', summoner: '부르기', boss: '보스', guardian: '수호자' }
     const enemies = Object.values(ENEMIES)
       .slice()
       .sort((a, b) => REALM_ORDER.indexOf(a.realm ?? '') - REALM_ORDER.indexOf(b.realm ?? ''))
-      .map((spec) => [spec.id, `${REALM_SHORT[spec.realm ?? ''] ?? '-'} · ${spec.name} (${ROLE_NAMES[spec.role]})`] as const)
+      .map((spec) => [spec.id, `${(REALM_NAMES as Readonly<Record<string, string>>)[spec.realm ?? ''] ?? '-'} · ${spec.name} (${ROLE_NAMES[spec.role]})`] as const)
     let count = 1
     let elite: EliteKind | null = null
     const call = (spec: GiantSpec, at: { x: number; z: number }) => {
@@ -481,11 +488,11 @@ export class DevPanel {
     const g = this.game
     const p = g.hero.object.position
     const god = g.powers.manifested
-    const cls = god ? `${godDef(god).titles[g.progress.level(god) - 1]} ${g.progress.level(god)}단계 ${Math.round(g.progress.xpRatio(god) * 100)}%` : '신화 개방 없음'
+    const cls = god ? `${godDef(god).titles[g.progress.level(god) - 1]} ${g.progress.level(god)}단계` : '신화 개방 없음'
     return [
       `${Math.floor(g.time / 60)}:${String(Math.floor(g.time % 60)).padStart(2, '0')} · (${p.x.toFixed(0)}, ${p.z.toFixed(0)}) · ${g.view.viewHeight.toFixed(0)}m`,
-      `♥${Math.round(g.combat.health.hp)}/${g.combat.health.max} ✦${Math.round(g.combat.divine * 100)}% · ${cls}`,
-      `적 ${g.encounter.alive.length} · 땅 유물 ${g.pickups.list.length} · 전설 ${g.legend.phase}${g.legend.phase === 'bet' ? ` ${g.legend.kills}/${BET.kills} ${g.legend.betSeconds.toFixed(0)}초` : ''}`,
+      `♥${Math.round(g.combat.health.hp)}/${g.combat.health.max} ✦${Math.round(g.combat.heartGauge * 100)}% · ${cls}`,
+      `적 ${g.encounter.alive.length} · 땅 유물 ${g.pickups.list.length} · 성소 ${g.sanctuary.present ? (g.sanctuary.lit ? '빛기둥' : '있음') : '없음'}`,
       `소리 ${g.audio.unlocked ? `${g.audio.voices}개` : '꺼짐(누르면 켜짐)'} · 곡 ${g.audio.theme ?? '없음'}`,
     ].join('\n')
   }

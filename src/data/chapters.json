@@ -14,7 +14,7 @@
     "steps": [
       { "kind": "awaken", "region": "midgard", "realm": "norse", "n": 1, "goal": "미드가르드에서 신의 흔적을 찾는다" },
       { "kind": "enter", "region": "jotunheim", "goal": "요툰헤임 빙하로" },
-      { "kind": "level", "region": "jotunheim", "n": 2, "goal": "요툰헤임 성소의 전설을 깬다" },
+      { "kind": "return", "region": "jotunheim", "n": 1, "goal": "요툰헤임 성소 화로에서 원정을 마친다" },
       { "kind": "awaken", "region": "jotunheim", "realm": "norse", "n": 2, "goal": "두 번째 신을 깨운다" },
       { "kind": "enter", "region": "utgard", "goal": "우트가르드로" },
       { "kind": "boss", "region": "utgard", "goal": "거인 왕을 쓰러뜨린다" }
@@ -27,11 +27,11 @@
     "lands": { "olympus": 7.5, "delphi": 8.8, "lycia": 14 },
     "steps": [
       { "kind": "enter", "region": "olympus", "goal": "올림포스 기슭으로" },
-      { "kind": "choose", "region": "olympus", "realm": "greek", "goal": "올림포스 성소에서 그리스 신화를 연다" },
+      { "kind": "awaken", "region": "olympus", "realm": "greek", "n": 1, "goal": "올림포스에서 신의 흔적을 찾는다" },
       { "kind": "enter", "region": "delphi", "goal": "델포이 골짜기로" },
-      { "kind": "level", "region": "delphi", "n": 3, "goal": "델포이 성소의 전설을 깬다" },
+      { "kind": "return", "region": "delphi", "n": 2, "goal": "델포이 성소 화로에서 원정을 마친다" },
       { "kind": "enter", "region": "lycia", "goal": "리키아 화산으로" },
-      { "kind": "boss", "region": "lycia", "opens": "greek", "goal": "키마이라를 쓰러뜨린다" }
+      { "kind": "boss", "region": "lycia", "goal": "키마이라를 쓰러뜨린다" }
     ]
   },
   "finale": {

@@ -1,7 +1,6 @@
-import { AUTO_PICKUP_RADIUS } from '../../progress/Conveniences'
 import * as THREE from 'three'
 
-import { SLOT_PARTS } from '../../data/gearData'
+import { AUTOMATION } from '../../data/cycle'
 import { type God, godDef, isRelicId, relicDef, type RelicId } from '../../relics/data'
 import { effectScale, isMythRelic, relicMyth, stageName } from '../../gear/mythRelic'
 import { GRADE_COLORS } from '../../art/palette'
@@ -16,8 +15,7 @@ import { delta, gearIcon } from '../../ui/gearCard'
 import type { GameContext } from '../context'
 import type { LoadoutChange } from '../RelicPowers'
 import { godMoment } from './godMoments'
-import { autoFill, BREATH_BOSSES, breathCount, fitBreath, inPantheon, type PartKind, withoutBreath, withPart } from '../../myth/pantheon'
-import { awakenDef } from '../../data/awaken'
+import { autoFill, breathSlots, fitBreath, inPantheon, oathPantheon, type PartKind, withoutBreath, withPart } from '../../myth/pantheon'
 
 /** 클래스가 발현되는 순간 주변 적을 밀어내는 범위와 피해 */
 const MANIFEST_RADIUS = 4
@@ -42,8 +40,6 @@ export class RelicSystem {
   private burstCooldown = 0
   /** 새 부품의 자리가 차 있을 때 두 갈래 카드를 띄운다 (E302-03, 게임이 정한다). 없으면 그대로 둔다 */
   offerSwap: ((part: 'hand' | 'heart', incoming: God, current: God, choose: (take: boolean) => void) => void) | null = null
-  /** 신화의 유물을 손에 넣으면 그 신화가 열리나 (E238: 데모에서는 깨우는 길이 있는 신은 수호자를 쓰러뜨려야 연다. 게임이 정한다) */
-  relicsOpenMyths: () => boolean = () => true
 
   constructor(private readonly ctx: GameContext) {
     ctx.bus.on('targetKilled', ({ target }) => {
@@ -59,6 +55,8 @@ export class RelicSystem {
       if (piece === 2) this.offer(god, 'hand')
       if (piece === 3) this.offer(god, 'heart')
     })
+    // 장 정복 (E305-02): 숨 칸이 늘면 아직 숨에 없는 깨어난 신 하나를 빈 칸에 넣는다 (카드는 장 보스 장면 뒤에 함께)
+    ctx.bus.on('chapterConquered', () => this.fillBreath())
     // 처음 깨어난 신: 손·심장·숨을 모두 그 신으로 (E12-04 → E302). 있으면 빈 자리에 저절로 넣는다
     ctx.bus.on('mythOpened', ({ god, quiet }) => {
       // 심장이 비었으면 첫 신이다 (손은 조각 2에 이미 쥐었을 수 있다): 세 자리에 몰고 깨어나는 장면
@@ -91,10 +89,9 @@ export class RelicSystem {
     return true
   }
 
-  /** 숨 칸 수 (E302): 깨어난 신 수와 이긴 장 보스(거인 왕·키마이라)로 정한다 */
+  /** 숨 칸 수 (E302): 깨어난 신 수, 정복한 장(E305-02), 지킨 홀로의 맹세(E305-01)로 정한다. 끝은 데모 4, 엔딩 뒤 5 */
   get slots(): number {
-    const { progress, chapters } = this.ctx
-    return breathCount(progress.opened.length, BREATH_BOSSES.filter((r) => chapters.bosses.has(r)).length)
+    return breathSlots(this.ctx)
   }
 
   /** 그 자리에 그 신을 낀다 (정보 화면 신 탭, 어디서나). 숨은 빈 칸이 있어야 한다 */
@@ -115,6 +112,13 @@ export class RelicSystem {
     if (next === progress.pantheon) return false
     this.apply(next, false)
     return true
+  }
+
+  /** 숨 칸이 늘었다 (장 정복·홀로의 맹세): 아직 숨에 없는 깨어난 신 하나를 빈 칸에 넣는다 */
+  fillBreath(): void {
+    const p = this.ctx.progress.pantheon
+    const god = this.ctx.progress.opened.find((g) => !p.breath.includes(g))
+    if (god) this.fill(god, ['breath'])
   }
 
   /** 새로 얻은 부품을 빈 자리에 저절로 넣는다 (E302-03). 들어간 자리를 돌려준다 */
@@ -141,7 +145,7 @@ export class RelicSystem {
   private apply(next: typeof this.ctx.progress.pantheon, announce: boolean): void {
     const { progress, powers, bus } = this.ctx
     progress.pantheon = fitBreath(next, Math.max(1, this.slots))
-    const change = powers.setPantheon(progress.pantheon)
+    const change = powers.setPantheon(this.running(progress.pantheon))
     bus.emit('progressChanged', {})
     this.changed(change, announce)
   }
@@ -156,9 +160,21 @@ export class RelicSystem {
     // 개발 지름길은 숨 칸 수를 장 진행에 맞추지 않는다
     if (anyBreath) {
       progress.pantheon = next
-      this.changed(this.ctx.powers.setPantheon(next), false)
+      this.changed(this.ctx.powers.setPantheon(this.running(next)), false)
       this.ctx.bus.emit('progressChanged', {})
     } else this.apply(next, false)
+  }
+
+  /** 도는 자리: 맹세를 건 동안 빈 손이면 손을 비우고, 홀로면 숨을 하나만 (저장되는 자리는 그대로) */
+  private running(p: typeof this.ctx.progress.pantheon): typeof this.ctx.progress.pantheon {
+    return oathPantheon(p, this.ctx.build.rules)
+  }
+
+  /** 맹세를 걸거나 풀었다 (E305-01): 저장된 자리 그대로 도는 자리만 다시 맞춘다 */
+  reapply(): void {
+    const { powers, progress, bus } = this.ctx
+    this.changed(powers.setPantheon(this.running(progress.pantheon)), false)
+    bus.emit('progressChanged', {})
   }
 
   /** 그 신이 자리에 들었나 */
@@ -167,16 +183,13 @@ export class RelicSystem {
   }
 
   /**
-   * 유물을 손에 넣었다: 그 신의 신화가 아직 닫혀 있으면 1단계로 연다 (E12-04, 첫 신화는 유물 하나로).
-   * 히든 신화는 그 신 유물을 발현 수만큼 모아야 열린다.
+   * 유물을 손에 넣었다 (엔딩 뒤에만): 그 신의 신화가 아직 닫혀 있으면 1단계로 연다 (E12-04). 히든 신화도 그 유물이 열쇠다.
+   * 데모에서는 신을 깨워야(흔적·사냥·수호자) 열린다 (E238, E305-03: 그리스도 제우스를 깨운다). 점검용 실행은 Game이 따로 연다
    */
   private unlock(id: RelicId, announce: boolean): void {
-    const { progress, bus } = this.ctx
-    // 신화의 유물(E13-03)을 손에 넣으면 그 신화가 열린다. 히든 신화도 그 유물이 열쇠다
+    const { progress, bus, ending } = this.ctx
     const myth = relicMyth(id)
-    if (!myth) return
-    // 깨우는 길(흔적·사냥·수호자)이 있는 신은 유물로 열리지 않는다 (E238). 유물은 조각 2로 먼저 손에 들어온다
-    if (awakenDef(myth) && !this.relicsOpenMyths()) return
+    if (!myth || !ending.has('realms')) return
     for (const god of [myth]) {
       if (!progress.open(god)) continue
       bus.emit('progressChanged', {})
@@ -229,7 +242,6 @@ export class RelicSystem {
     const item = powers.loadout.gear.get(id)
     const done = powers.melt(id)
     if (!done || !item) return false
-    bus.emit('gearSalvaged', { item })
     if (done.slot >= 0) this.changed(done.change, false)
     bus.emit('moment', { id: 'salvaged', text: `녹임 · ${materialName(done.material)} ×${done.count}` })
     bus.emit('progressChanged', {})
@@ -251,13 +263,6 @@ export class RelicSystem {
       const worn = wornId ? powers.loadout.gear.get(wornId) : undefined
       powers.loadout.addGear(gear)
       bus.emit('gearPicked', { item: gear })
-      // 자동 녹이기 (E14-05): 흔함 등급이고 그 부위 칸이 이미 차 있으면 바로 원형으로
-      const filled = powers.loadout.slots.every((s, i) => !powers.loadout.fits(id, i) || s !== null)
-      if (this.ctx.conveniences.salvaging && gear.grade === 'common' && filled) {
-        powers.loadout.bag.push(id)
-        this.melt(id)
-        return
-      }
       this.equip(id, true)
       // 빈 칸에 끼었으면 카드, 가방으로 갔는데 지금 낀 것보다 좋으면 견준 카드, 아니면 작은 알림 (E23-01)
       const card = { title: gearName(gear), color: GRADE_COLORS[gear.grade], icon: gearIcon(gear) }
@@ -305,7 +310,8 @@ export class RelicSystem {
     this.lastWalk.set(position.x, position.z)
 
     if (combat.alive) {
-      const conv = this.ctx.conveniences
+      // 자동 줍기 (E305-03, 엔딩 뒤 자동화): 둘레 장비는 걸어가지 않아도, 재료 유물은 어디서나
+      const auto = this.ctx.automation.now.autoPickup
       const picked = pickups.update(
         dt,
         position.x,
@@ -314,16 +320,13 @@ export class RelicSystem {
         (id, gear) => {
           if (powers.loadout.has(id)) return false
           if (!gear || powers.loadout.canTake(gear.part)) return true
-          // 자동 녹이기(엔딩 뒤 편의)가 받을 흔함 장비는 가방이 차도 줍는다 (줍자마자 녹는다)
-          if (conv.salvaging && gear.grade === 'common' && powers.loadout.slots.every((s, i) => SLOT_PARTS[i] !== gear.part || s !== null)) return true
           if (this.fullWarned <= 0) {
             this.ctx.bus.emit('moment', { id: 'bagFull', text: '가방이 찼다 · 셋을 합치면 자리가 난다' })
             this.fullWarned = 8
           }
           return false
         },
-        // 편의 자동화 (E14-05): 둘레 장비는 걸어가지 않아도, 재료 유물은 어디서나
-        (id, gear) => (gear ? (conv.has('autoPickup') ? AUTO_PICKUP_RADIUS : 0) : !isMythRelic(id) && conv.has('autoMaterials') ? Infinity : 0),
+        (id, gear) => (!auto ? 0 : gear ? AUTOMATION.pickup.radius : !isMythRelic(id) ? Infinity : 0),
       )
       for (const { id, gear } of picked) this.take(id, gear)
       powers.update(dt, skills)
@@ -334,12 +337,12 @@ export class RelicSystem {
       powers.update(dt, skills)
     }
 
-    // 궁극기: 발현 상태에서 신위 게이지가 가득 차고, 쓸 만한 때가 오면 저절로 나간다.
+    // 궁극기: 심장에 신이 있고 심장 게이지가 가득 차고, 쓸 만한 때가 오면 저절로 나간다.
     const boss = encounter.boss
     const bossNear = !!boss && boss.alive && Math.hypot(boss.x - position.x, boss.z - position.z) < 10
     const ultimate = powers.ultimate
-    if (combat.alive && ultimate && combat.divine >= 1 && !powers.ultimateActive && !this.ctx.build.state.noUltimate && ultimate.worthUsing(skills, bossNear)) {
-      combat.divine = 0
+    if (combat.alive && ultimate && combat.heartGauge >= 1 && !powers.ultimateActive && !this.ctx.build.state.noUltimate && ultimate.worthUsing(skills, bossNear)) {
+      combat.heartGauge = 0
       ultimate.start(skills)
       this.ctx.bus.emit('ultimateCast', {})
       feel.stop(0.12)
@@ -361,7 +364,7 @@ export class RelicSystem {
     combat.bonusRegen = build.noHeal ? 0 : stats.regen
     // 장비·별·수련(불굴)을 겹쳐도 피해를 아예 안 받게 되지는 않게 (받는 피해와 같은 하한)
     combat.lowHpTakenScale = Math.max(0.1, 1 + stats.lowHpGuard)
-    combat.divineScale = 1 + stats.ultCharge
+    combat.heartScale = 1 + stats.ultCharge
     skills.area = 1 + stats.areaSize
     const awakening = this.ctx.powers.awakening
     awakening.levels = build.awakening

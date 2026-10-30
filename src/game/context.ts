@@ -1,14 +1,16 @@
 import type { Build } from '../build/Build'
 import type { UniqueState } from '../skills/uniques'
-import type { Conveniences } from '../progress/Conveniences'
+import type { AutomationProgress } from '../progress/Automation'
+import type { Waypoints } from '../progress/Waypoints'
 import type { ChapterProgress } from '../progress/Chapters'
+import type { ExpeditionProgress } from '../progress/Expedition'
 import type { TrainingProgress } from '../progress/Training'
-import type { AwakenProgress } from '../progress/Awakening'
+import type { WakeProgress } from '../progress/Wake'
 import type { TabUnlocks } from '../progress/Tabs'
 import type { Ending } from '../progress/Ending'
-import type { ThreatProgress } from '../progress/Threat'
-import type { TrialProgress } from '../progress/Trials'
-import type { RiftProgress } from '../progress/Rift'
+import type { DepthProgress } from '../progress/Depth'
+import type { OathProgress } from '../progress/Oaths'
+import type { EndlessProgress } from '../progress/Endless'
 import type * as THREE from 'three'
 
 import type { Wardrobe } from '../looks/outfit'
@@ -24,7 +26,7 @@ import type { Encounter } from './Encounter'
 import type { EventBus, GameEvents } from './events'
 import type { HeroController } from './HeroController'
 import type { HeroOrders } from './HeroOrders'
-import type { UtgardLegend } from './Legend'
+import type { Sanctuary } from './Sanctuary'
 import type { PlayerCombat } from './PlayerCombat'
 import type { RelicPowers } from './RelicPowers'
 import type { Effects } from './systems/Effects'
@@ -73,27 +75,31 @@ export interface GameContext {
   readonly combat: PlayerCombat
   readonly orders: HeroOrders
   readonly encounter: Encounter
-  readonly legend: UtgardLegend
+  readonly sanctuary: Sanctuary
   readonly powers: RelicPowers
   readonly pickups: Pickups
   readonly progress: ClassProgress
   readonly drops: DropTable
-  /** 세계 위협 단계와 원천 숙련 (E14-03·04) */
-  readonly threat: ThreatProgress
-  /** 균열 기록과 성좌판 (E17) */
-  readonly rift: RiftProgress
-  /** 시련 기록과 영구 보상 (E16) */
-  readonly trials: TrialProgress
-  /** 편의 자동화 (E14-05) */
-  readonly conveniences: Conveniences
+  /** 깊이 (E305-03, 옛 위협 단계 E14-03) */
+  readonly depth: DepthProgress
+  /** 끝없는 원정 기록 (E17 균열 → E305-03) */
+  readonly endless: EndlessProgress
+  /** 맹세 기록과 영구 보상 (E305-01) */
+  readonly oaths: OathProgress
+  /** 자동화 세기 (E305-03: 귀환 횟수·엔딩·주운 수로 켜진다) */
+  readonly automation: AutomationProgress
+  /** 웨이포인트: 밟아 켠 성소 (E239-05) */
+  readonly waypoints: Waypoints
   /** 첫 엔딩을 보았나: 엔딩 뒤 장치를 연다 (E21-06) */
   readonly ending: Ending
   /** 장 진행: 지금 장·목표·열린 땅 (E22) */
   readonly chapters: ChapterProgress
   /** 수련: 경험치로 얻은 깨달음과 익힌 마디 (E236) */
   readonly training: TrainingProgress
+  /** 원정 (E304) */
+  readonly expedition: ExpeditionProgress
   /** 신을 깨우는 진행: 깨우는 신과 모은 조각 (E238) */
-  readonly awaken: AwakenProgress
+  readonly awaken: WakeProgress
   /** 차례로 연 정보 화면 탭 (E236-05) */
   readonly tabs: TabUnlocks
   /** 외형 보관함 (얻은 외형, 칸마다 고른 것) */

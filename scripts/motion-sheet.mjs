@@ -77,14 +77,14 @@ try {
         g.dev.teleport(0, -6)
         g.hero.stop()
         g.hero.face(Math.PI * 0.25)
-        g.combat.divine = 0
+        g.combat.heartGauge = 0
         // 고르고 올린 빛기둥이 가라앉을 때까지 흘린다
         g.advance(3, 1 / 30)
         g.encounter.clearAll()
         // 앞에 하나 (오른쪽 아래): 3연타는 이 적을 친다
         const p = g.hero.object.position
         g.dev.spawn('grunt', p.x + 1.4, p.z + 1.4)
-        g.combat.divine = 0
+        g.combat.heartGauge = 0
       },
       { id, relic: god.relic },
     )
@@ -127,7 +127,7 @@ try {
       g.encounter.clearAll()
       const p = g.hero.object.position
       for (const [dx, dz] of [[2.2, 2.2], [3.2, 0.8], [0.8, 3.2], [4, 4]]) g.dev.spawn('grunt', p.x + dx, p.z + dz)
-      g.combat.divine = 1
+      g.combat.heartGauge = 1
       g.advance(0.9, 1 / 60)
     })
     images.push(await shoot())

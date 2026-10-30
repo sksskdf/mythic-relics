@@ -187,7 +187,7 @@ button {
   border-color: var(--c-gold);
   background: #3a3220;
 }
-/* 다 채운 것 (균열의 신화권 10/10 등) */
+/* 다 채운 것 (신화권 10/10 등) */
 .ui-pill.is-done {
   color: var(--c-good);
   border-color: var(--c-good);

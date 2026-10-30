@@ -46,7 +46,8 @@ export class Persistence {
   snapshot(): SaveData {
     const { progress, powers, pickups, drops, combat, wardrobe } = this.ctx
     const classes: SaveData['classes'] = {}
-    for (const [god, record] of progress.records) classes[god] = { ...record }
+    // 신화 경험치는 E305-03에서 없앴다: 단계만 쓴다 (v17)
+    for (const [god, record] of progress.records) classes[god] = { level: record.level }
     return {
       version: SAVE_VERSION,
       slots: [...powers.loadout.slots],
@@ -61,16 +62,19 @@ export class Persistence {
       classes,
       pantheon: { ...progress.pantheon, breath: [...progress.pantheon.breath] },
       dropMisses: drops.misses,
-      divine: combat.divine,
+      heartGauge: combat.heartGauge,
       looks: { unlocked: [...wardrobe.unlocked], choices: Object.fromEntries(wardrobe.choices) },
       body: { ...wardrobe.body },
-      threat: this.ctx.threat.toData(),
-      conveniences: this.ctx.conveniences.toData(),
-      trials: this.ctx.trials.toData(),
-      rift: this.ctx.rift.toData(),
+      depth: this.ctx.depth.toData(),
+      // 자동화 세기: 주운 수만 (나머지 자동화는 귀환 횟수·엔딩에서 셈한다)
+      automation: this.ctx.automation.toData(),
+      waypoints: this.ctx.waypoints.toData(),
+      oaths: this.ctx.oaths.toData(),
+      endless: this.ctx.endless.toData(),
       ending: this.ctx.ending.reached,
       chapters: this.ctx.chapters.toData(),
       training: this.ctx.training.toData(),
+      expedition: this.ctx.expedition.toData(),
       tabs: this.ctx.tabs.toData(),
       awaken: this.ctx.awaken.toData(),
       region: { id: this.ctx.map.region.id, x: this.ctx.hero.object.position.x, z: this.ctx.hero.object.position.z },
@@ -86,17 +90,17 @@ export class Persistence {
     this.ctx.ending.reached = data.ending
     this.ctx.chapters.load(data.chapters)
     this.ctx.training.load(data.training)
+    this.ctx.expedition.load(data.expedition)
     this.ctx.tabs.load(data.tabs)
     this.ctx.awaken.load(data.awaken)
-    this.ctx.threat.load(data.threat)
-    this.ctx.conveniences.load(data.conveniences)
-    this.ctx.trials.load(data.trials)
-    this.ctx.rift.load(data.rift)
+    this.ctx.depth.load(data.depth)
+    this.ctx.automation.load(data.automation)
+    this.ctx.waypoints.load(data.waypoints)
+    this.ctx.oaths.load(data.oaths)
+    this.ctx.endless.load(data.endless)
     for (const [slot, choice] of Object.entries(data.looks.choices) as [LookSlot, string | null][]) wardrobe.choose(slot, choice)
     host.applyLooks()
-    for (const [god, record] of Object.entries(data.classes) as [God, { level: number; xp: number }][]) {
-      Object.assign(progress.record(god), record)
-    }
+    for (const [god, record] of Object.entries(data.classes) as [God, { level: number }][]) progress.record(god).level = record.level
     // 자리 셋을 먼저 정해 두어야, 유물을 끼울 때 처음 연 신화를 저절로 고르지 않는다
     host.pantheon(data.pantheon)
     host.applyStats()
@@ -113,7 +117,7 @@ export class Persistence {
     powers.loadout.bag.push(...data.bag)
     for (const item of data.ground) pickups.drop(item.id, item.x, item.z, true, gear.get(item.id))
     drops.misses = data.dropMisses
-    combat.divine = data.divine
+    combat.heartGauge = data.heartGauge
     for (const id of data.scenes) this.ctx.scenesSeen.add(id)
     // 저장한 지역에서 시작했으면 그 자리로 (지역은 Game이 저장을 보고 골라 둔다)
     if (data.region && data.region.id === this.ctx.map.region.id) this.ctx.hero.teleport(data.region.x, data.region.z)

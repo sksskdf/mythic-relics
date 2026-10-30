@@ -23,24 +23,24 @@ export interface GameEvents {
   relicPicked: { id: RelicId }
   /** 대장간에서 유물을 만들거나 올렸다 (E13-05) */
   forged: { relic: RelicId; stage: number }
-  /** 일반 장비를 녹였다 (E13-07-3 → E303-04) */
-  gearSalvaged: { item: GearItem }
   /** 셋을 합쳐 한 등급 위가 나왔다 (E303) */
   gearMerged: { item: GearItem }
+  /** 원정을 마치고 귀환했다 (E304): 마친 원정 번호, 받은 명성, 새 배율, 고른 갈래, 마친 원정에서 깊이 한계 보스를 이겼나 (E305-03) */
+  expeditionReturned: { count: number; renown: number; mult: number; branch: string; deepWin: boolean }
   /** 궁극기가 나갔다 (E303: 고유 효과 「신의 숨결」) */
   ultimateCast: Record<string, never>
-  /** 시련이 끝났다 (E16): 이겼나, 걸린 시간 */
-  trialEnded: { id: string; level: number; win: boolean; seconds: number }
+  /** 맹세가 끝났다 (E305-01): 지켰나(깨졌나), 떠난 뒤 걸린 시간 */
+  oathEnded: { id: string; win: boolean; seconds: number }
   /** 한계를 깼다 (E17-01) */
   limitBroken: Record<string, never>
-  /** 균열 층에 들어갔다 / 균열에서 나왔다 (E17) */
-  riftFloor: { depth: number }
-  riftEnded: { depth: number; reason: 'left' | 'fell' }
-  /** 위협 단계가 바뀌었다 (E14-03) */
-  threatChanged: { level: number }
+  /** 끝없는 원정의 층에 들어갔다 / 끝없는 원정을 마쳤다 (E17 균열 → E305-03) */
+  endlessFloor: { depth: number }
+  endlessEnded: { depth: number; reason: 'left' | 'fell' }
+  /** 깊이가 바뀌었다 (E305-03, 귀환 카드의 「+1」) */
+  depthChanged: { level: number }
   /** 일반 장비를 주웠다 (E13-02) */
   gearPicked: { item: GearItem }
-  /** 신위 칸의 빌린 칸에 신을 넣었다 (E237) */
+  /** 숨 칸에 신을 넣었다 (E237 → E302) */
   mythLent: { god: God }
   /** 주운 장비가 가방으로 갔는데 지금 낀 것보다 좋다 (메뉴 단추로 장비 탭을 부른다) */
   gearBetter: { item: GearItem }
@@ -71,11 +71,10 @@ export interface GameEvents {
   regionEntered: { id: string }
   /** 다음 장이 열렸다 (E22): 그 장의 땅이 열린다. 마지막 장을 끝냈으면 chapter가 null */
   chapterChanged: { chapter: ChapterDef | null; index: number }
+  /** 장을 정복했다 (E305-02): 장 보스(거인 왕·키마이라)를 처음 이겼다. 숨 칸·신 단계 상한·명성 지수가 오른다 */
+  chapterConquered: { region: string; conquered: number }
   /** 지금 목표가 바뀌었다 (E22): HUD 한 줄과 지도 표시. 엔딩 뒤이거나 다 했으면 null */
   goalChanged: { goal: ChapterStep | null }
-  /** 승급 전설이 시작됐다 / 실패했다. */
-  legendStarted: Record<string, never>
-  legendFailed: Record<string, never>
   /** 새 외형을 얻었다. */
   looksUnlocked: { ids: string[] }
   /** 주인공의 모습이 바뀌었다. (장착이나 보관함 선택) */

@@ -51,9 +51,8 @@ export class SoundSystem {
 
   /** 지금 흐를 곡 */
   theme(): ThemeId {
-    const { legend, encounter, map } = this.ctx
+    const { encounter, map } = this.ctx
     if (this.scene) return this.scene
-    if (legend.active) return 'legend'
     if (encounter.boss?.alive && encounter.bossEngaged) return 'boss'
     return themeForRegion(map.region)
   }

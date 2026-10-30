@@ -1,47 +1,44 @@
 import { smallSigilRing } from './emblem'
 import { renderMap } from './menu/mapTab'
-import { MythTab } from './menu/mythTab'
 import { RelicsTab } from './menu/relicsTab'
-import { renderRift } from './menu/riftTab'
+import { renderEndless } from './menu/endlessTab'
+import { GodsTab } from './menu/godsTab'
 import { renderSources } from './menu/sourcesTab'
 import { renderStatus } from './menu/statusTab'
-import { renderTrials } from './menu/trialsTab'
+import { renderOaths } from './menu/oathsTab'
 import { TrainingTab } from './menu/trainingTab'
 import { el, img, type TabContext } from './menu/dom'
 import type { MenuHost } from './menu/host'
 import { glyph } from './sigils'
-import { WardrobePane } from './WardrobePane'
 import './menu.css'
 
-export type MenuTab = 'status' | 'sources' | 'relics' | 'classes' | 'training' | 'trials' | 'rift' | 'map' | 'looks'
+export type MenuTab = 'status' | 'relics' | 'training' | 'gods' | 'sources' | 'map' | 'oaths' | 'endless'
 
-/** 탭: 그림과 이름 (좁은 화면에서는 고른 탭만 이름), 올리면 힌트 */
+/** 탭 일곱과 엔딩 뒤 하나 (E305-04, `CYCLE.md` 7장): 그림과 이름 (좁은 화면에서는 고른 탭만 이름), 올리면 힌트 */
 const TABS: readonly [MenuTab, Parameters<typeof glyph>[0], string][] = [
   ['status', 'status', '상태'],
-  ['sources', 'cycle', '원천'],
   ['relics', 'relics', '장비'],
-  ['classes', 'classes', '신화'],
   ['training', 'tree', '수련'],
-  ['trials', 'scroll', '시련'],
-  ['rift', 'star', '균열'],
+  ['gods', 'classes', '신'],
+  ['sources', 'cycle', '원천'],
   ['map', 'map', '지도'],
-  ['looks', 'looks', '외형'],
+  ['oaths', 'scroll', '맹세'],
+  ['endless', 'star', '끝없는 원정'],
 ]
 
 /** 엔딩 뒤에만 보이는 탭 (E21-06) */
-const ENDING_TABS: readonly MenuTab[] = ['trials', 'rift']
+const ENDING_TABS: readonly MenuTab[] = ['endless']
 
 /** 탭에 올리면 나오는 설명 */
 const TAB_HINTS: Record<MenuTab, string> = {
-  status: '상태\n지금 내 능력치와 걸려 있는 힘',
-  sources: '원천\n장비의 원천이 쌓여 각성한 힘 (엔딩 뒤에는 세계의 위협 단계와 손이 덜 가는 편의도)',
-  relics: '유물\n낀 유물과 가방. 눌러서 바꿔 끼고, 바꾸면 어떻게 되는지 미리 본다',
-  trials: '시련\n제약을 건 전설. 깨면 그 제약과 이어진 힘이 영구히 붙는다',
-  rift: '균열\n한계를 깨면 열리는 끝없는 층과, 별을 밝히는 성좌판',
-  map: '지도\n마을에서 북쪽으로 한 줄로 이어진 땅. 켠 성소와 마을은 눌러서 바로 간다',
-  classes: '신화\n지금 신화의 개방 단계와 다음 단계로 가는 법, 만난 신들',
+  status: '상태\n지금 내 능력치와 무엇으로 얼마나 강해졌나',
+  relics: '장비\n낀 장비와 가방. 같은 것 셋은 합치고, 바꾸면 어떻게 되는지 미리 본다. 마을에서는 대장간',
   training: '수련\n적을 잡아 얻은 깨달음으로 힘·몸·손 갈래의 마디를 익힌다. 언제든 무료로 되돌린다',
-  looks: '외형\n부위마다 보이는 모습을 고른다',
+  gods: '신\n손·심장·숨에 넣은 신, 유물표, 깨우는 신. 외형도 여기서 고른다',
+  sources: '원천\n명성과 원정 기록, 원천 각성, 귀환이 여는 자동화 (엔딩 뒤에는 깊이도)',
+  map: '지도\n마을에서 북쪽으로 한 줄로 이어진 땅. 켠 성소와 마을은 눌러서 바로 간다',
+  oaths: '맹세\n다시 떠날 때 거는 제약. 그 원정에서 장 보스나 수호자를 이기면 지킨 것이고, 짝을 이룬 힘이 영구히 붙는다',
+  endless: '끝없는 원정\n한계를 깨면 마을에서 나서는 끝없는 층, 깊이 기록',
 }
 
 /**
@@ -54,14 +51,13 @@ export class GameMenu {
   private readonly window: HTMLElement
   private readonly body: HTMLElement
   private readonly tabButtons = new Map<MenuTab, HTMLButtonElement>()
-  private readonly wardrobe: WardrobePane
   private tab: MenuTab = 'status'
   /** 탭이 쓰는 것 (게임, 힌트, 다시 그리기, 닫기) */
   private readonly ctx: TabContext
   /** 장비 탭 (고른 칸·커서를 올린 것을 기억한다) */
   private readonly relics: RelicsTab
-  /** 신화 탭 (눌러 본 신화를 기억한다) */
-  private readonly myths: MythTab
+  /** 신 탭 (눌러 본 신·자리와 외형 중 보던 쪽을 기억한다) */
+  readonly gods: GodsTab
   /** 수련 탭 (손가락으로 한 번 누른 마디를 기억한다) */
   private readonly training: TrainingTab
   /** 힌트 말풍선 */
@@ -72,7 +68,7 @@ export class GameMenu {
   constructor(parent: HTMLElement, host: MenuHost) {
     this.ctx = { host, hintOn: (target, text) => this.hintOn(target, text), render: () => this.render(), close: () => this.toggle(false) }
     this.relics = new RelicsTab(this.ctx)
-    this.myths = new MythTab(this.ctx)
+    this.gods = new GodsTab(this.ctx)
     this.training = new TrainingTab(this.ctx)
     this.button = el('button', 'menu-button')
     this.button.type = 'button'
@@ -136,7 +132,6 @@ export class GameMenu {
     })
     this.window.addEventListener('wheel', (e) => e.stopPropagation())
     this.body.addEventListener('scroll', () => (this.hint.hidden = true))
-    this.wardrobe = new WardrobePane(host.wardrobe, (target, text) => this.hintOn(target, text))
     parent.append(this.button, this.window)
   }
 
@@ -161,7 +156,7 @@ export class GameMenu {
   show(tab: MenuTab, slot?: number): void {
     this.tab = tab
     this.fresh.delete(tab)
-    if (tab === 'looks' || tab === this.pendingTab) this.button.classList.remove('has-new')
+    if (tab === this.pendingTab) this.button.classList.remove('has-new')
     if (tab === this.pendingTab) this.pendingTab = null
     if (slot !== undefined) this.relics.selectedSlot = slot
     if (!this.open) this.toggle(true)
@@ -188,9 +183,11 @@ export class GameMenu {
     else this.render()
   }
 
-  /** 새 외형을 얻었다: 단추에 표시 */
+  /** 새 외형을 얻었다: 단추(누르면 신 탭부터)와 신 탭의 「외형」 알약에 표시 (외형을 보고 있으면 그대로) */
   markNew(): void {
-    if (!(this.open && this.tab === 'looks')) this.button.classList.add('has-new')
+    if (this.open && this.tab === 'gods' && this.gods.view === 'looks') return
+    this.gods.looksNew = true
+    this.markTab('gods')
   }
 
   /** 게임 상태가 바뀌었다: 열려 있으면 다시 그린다. */
@@ -226,13 +223,13 @@ export class GameMenu {
   private tabShown(tab: MenuTab): boolean {
     const { host } = this.ctx
     if (tab === 'status') return true
-    if (ENDING_TABS.includes(tab)) return host.afterEnding()
+    if (ENDING_TABS.includes(tab)) return host.afterEnding('endless')
     return host.tabOpen(tab)
   }
 
   private render(): void {
     this.hint.hidden = true
-    // 아직 열리지 않은 탭은 숨긴다: 시련·균열은 엔딩 뒤(E21-06), 나머지는 쓸 일이 생길 때 하나씩(E236-05)
+    // 아직 열리지 않은 탭은 숨긴다: 끝없는 원정은 엔딩 뒤(E21-06), 나머지는 쓸 일이 생길 때 하나씩(E236-05)
     if (!this.tabShown(this.tab)) this.tab = 'status'
     for (const [id, b] of this.tabButtons) {
       b.classList.toggle('is-on', id === this.tab)
@@ -242,13 +239,12 @@ export class GameMenu {
     this.body.replaceChildren()
     const { ctx, body } = this
     if (this.tab === 'status') renderStatus(ctx, body)
-    else if (this.tab === 'sources') renderSources(ctx, body)
     else if (this.tab === 'relics') this.relics.render(body)
-    else if (this.tab === 'classes') this.myths.render(body)
     else if (this.tab === 'training') this.training.render(body)
+    else if (this.tab === 'gods') this.gods.render(body)
+    else if (this.tab === 'sources') renderSources(ctx, body)
     else if (this.tab === 'map') renderMap(ctx, body)
-    else if (this.tab === 'trials') renderTrials(ctx, body)
-    else if (this.tab === 'rift') renderRift(ctx, body)
-    else this.wardrobe.render(body)
+    else if (this.tab === 'oaths') renderOaths(ctx, body)
+    else renderEndless(ctx, body)
   }
 }

@@ -10,7 +10,7 @@ import { companionBody } from './ClassPassives'
 import { enemiesWithin, type SkillContext } from './Skill'
 
 /**
- * 궁극기 (E6-09): 신위 게이지가 가득 차고 쓸 만한 때가 오면 저절로 나간다.
+ * 궁극기 (E6-09): 심장 게이지가 가득 차고 쓸 만한 때가 오면 저절로 나간다.
  * 종류 다섯(하늘 폭격·군단·난무·파도·비)에 클래스마다 이름·색·숫자·모양을 gods.json에서 준다. (DESIGN.md 5.1.1)
  * 종류+모양은 신화마다 다르다 (E18, ART.md 9장).
  */

@@ -1,0 +1,79 @@
+/* 두 갈래 카드 (E302-03): 새 신의 손·심장 부품이 왔는데 자리가 차 있을 때 카드 둘 (옛 신화 고르기 E22-03의 틀) */
+.swap-card {
+  position: fixed;
+  /* 가운데에 두되 너비는 카드만큼 (left 50%로 옮기면 화면 반 너비에서 줄이 꺾인다) */
+  inset: 0;
+  margin: auto;
+  width: fit-content;
+  height: fit-content;
+  /* 정보 화면(40)·일시 정지(45) 아래 */
+  z-index: 35;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-4);
+  max-width: calc(100vw - var(--sp-7));
+  padding: var(--sp-6);
+  background: var(--c-veil);
+  box-shadow: 0 0 0 2px var(--c-groove);
+  font-family: var(--font-body);
+  pointer-events: auto;
+}
+.swap-card[hidden] {
+  display: none;
+}
+.swap-card__title {
+  font: var(--t-title);
+  color: var(--c-moon);
+}
+.swap-card__note {
+  font: var(--t-small);
+  color: var(--c-ink-2);
+  text-align: center;
+}
+.swap-card__row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--sp-4);
+}
+.swap-card__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 150px;
+  padding: var(--sp-5) var(--sp-4);
+  border: 0;
+  border-top: 2px solid var(--glow);
+  background: var(--c-stone-hi);
+  box-shadow: var(--stone-raised);
+  color: var(--c-ink-1);
+  cursor: pointer;
+}
+.swap-card__card img {
+  width: 48px;
+  height: 48px;
+  image-rendering: pixelated;
+}
+.swap-card__card b {
+  font: var(--t-body);
+  font-weight: normal;
+  color: var(--glow);
+}
+.swap-card__card span {
+  font: var(--t-small);
+  color: var(--c-gold-soft);
+}
+.swap-card__card ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font: var(--t-small);
+  color: var(--c-ink-2);
+  text-align: center;
+}
+.swap-card__card:hover {
+  background: var(--c-stone-hover);
+  outline: 1px solid var(--glow);
+}

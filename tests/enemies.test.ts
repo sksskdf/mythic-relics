@@ -132,7 +132,7 @@ describe('주인공 자동 공격', () => {
     const { combat, dummy, taken, hooks } = setup()
     for (let i = 0; i < 90; i++) combat.update(1 / 60, [dummy], hooks)
     expect(taken.length).toBeGreaterThanOrEqual(2)
-    expect(combat.divine).toBeGreaterThan(0)
+    expect(combat.heartGauge).toBeGreaterThan(0)
   })
 
   it('사거리 밖의 적은 때리지 않는다', () => {
@@ -230,7 +230,7 @@ describe('적 데이터 규칙 (E8-01)', () => {
       for (const camp of region.camps) {
         for (const id of camp.members ?? []) {
           expect(ENEMIES[id], `${region.id}: ${id}`).toBeDefined()
-          // 수호자는 깨우는 길에서만 나온다 (무리에 들어가면 균열 층에도 섞인다)
+          // 수호자는 깨우는 길에서만 나온다 (무리에 들어가면 끝없는 원정 층에도 섞인다)
           expect(ENEMIES[id]!.role, `${region.id}: ${id}`).not.toBe('guardian')
           if (region.finale) expect(ENEMIES[id]!.role, `${region.id}: ${id}`).not.toBe('boss')
           else expect(ENEMIES[id]!.realm, `${region.id}: ${id}`).toBe(region.realm)

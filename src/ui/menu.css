@@ -230,21 +230,11 @@
   background: color-mix(in srgb, var(--god) 12%, transparent);
   cursor: help;
 }
-.menu-relics__manifest img,
-.menu-relics__blessing img {
+.menu-relics__manifest img {
   /* 클래스 아이콘은 16픽셀 그림이라 정수배로만 키운다 */
   width: 32px;
   height: 32px;
   image-rendering: pixelated;
-}
-.menu-relics__blessing {
-  display: inline-grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border: 1px dashed var(--god);
-  opacity: 0.8;
-  cursor: help;
 }
 .menu-relics__slots,
 .menu-relics__bag {
@@ -347,7 +337,7 @@
   border-style: dashed;
   border-color: var(--c-line-2);
 }
-/* 신위 칸 (E237): 주신·빌린 힘·빈 칸·잠긴 칸이 한 줄로 */
+/* 신의 자리 (E237 → E302): 손·심장·숨·빈 칸·잠긴 칸이 한 줄로 */
 .menu-slots {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1406,34 +1396,6 @@ button.menu-slots__slot {
   .menu-classes__sources { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-/* 성좌판 (E17-05) */
-.menu-stars {
-  width: min(100%, 360px);
-  aspect-ratio: 1;
-  align-self: center;
-}
-.menu-stars__link {
-  stroke: var(--c-line-2);
-  stroke-width: 0.015;
-}
-.menu-stars__link.is-lit {
-  stroke: var(--c-gold-soft);
-}
-.menu-stars__star {
-  --realm: var(--c-moon);
-  fill: var(--c-bg-1);
-  stroke: var(--realm);
-  stroke-width: 0.02;
-}
-.menu-stars__star.is-lit {
-  fill: var(--realm);
-}
-.menu-stars__star.can-light {
-  stroke: var(--c-gold-soft);
-  stroke-width: 0.04;
-  cursor: pointer;
-}
-
 /* 수련 (E236-03): 깨달음과 공용 트리 (뿌리에서 힘·몸·손 세 갈래) */
 .menu-train {
   display: grid;
@@ -1726,7 +1688,7 @@ button.menu-slots__slot {
   color: var(--c-ink-1);
 }
 
-/* 원천 (E14): 각성·위협 단계·공명·편의 */
+/* 원천 (E14): 각성·귀환이 여는 것·깊이 */
 .menu-src {
   display: flex;
   flex-direction: column;
@@ -1865,7 +1827,8 @@ button.menu-slots__slot {
   color: var(--c-ink-4);
 }
 .menu-src__conv b {
-  min-width: 96px;
+  flex: none;
+  min-width: 56px;
   font-weight: normal;
 }
 .menu-src__conv.is-on {
@@ -1873,14 +1836,6 @@ button.menu-slots__slot {
 }
 .menu-src__conv.is-on b {
   color: var(--c-ink-1);
-}
-.menu-src__conv .ui-pill {
-  margin-left: auto;
-}
-.menu-src__warps {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-2);
 }
 .ui-pill img {
   width: 12px;
@@ -1892,14 +1847,14 @@ button.menu-slots__slot {
   align-items: center;
   gap: var(--sp-2);
 }
-.menu-trials {
+.menu-oaths {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--sp-3);
 }
 @media (max-width: 700px) {
   .menu-src__sources,
-  .menu-trials { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .menu-oaths { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 /* 설정 단추 (일시 정지 메뉴의 설정을 연다) */
@@ -2101,4 +2056,28 @@ button.menu-slots__slot {
   margin: var(--sp-2) 12px 0;
   font: var(--t-body);
   color: var(--god);
+}
+
+/* 신 탭 (E305-04): 「자리 · 외형」 알약 둘, 맨 아래 접힌 신들의 지도 */
+.menu-gods__views {
+  display: flex;
+  gap: var(--sp-3);
+}
+.menu-gods__views .ui-pill.is-new::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  background: var(--c-gold);
+}
+.menu-gods__atlas {
+  margin-top: var(--sp-5);
+}
+.menu-gods__atlas > summary {
+  font: var(--t-strong);
+  color: var(--c-ink-2);
+  padding: var(--sp-2) 0;
+  cursor: pointer;
+}
+.menu-gods__atlas > summary:hover {
+  color: var(--c-ink-1);
 }

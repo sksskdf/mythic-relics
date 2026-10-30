@@ -33,7 +33,7 @@ export interface EncounterLayout {
   boss: { x: number; z: number; enemy?: string } | null
   /** 정예 확률에 더하는 값 (깊은 땅, E15) */
   elite?: number
-  /** 무리와 보스가 다시 나타나는가 (균열 층은 한 번뿐, E17) */
+  /** 무리와 보스가 다시 나타나는가 (끝없는 원정의 층은 한 번뿐, E17) */
   respawn?: boolean
 }
 
@@ -79,12 +79,7 @@ export class Encounter {
   private bossRespawn = 0
   private readonly navs = new Map<GiantSpec, NavGrid>()
   private seed = 1
-  private readonly pendingSummons: { point: Point2; spec: GiantSpec; ward: boolean; owner: Giant }[] = []
-  /**
-   * 닫힌 결계 (승급 전설·시련): 결계 안에 세운 적(members)과 그 적이 부른 졸개만 주인공을 본다. 나머지 적은 결계 안의
-   * 주인공을 알아채지 못하고, 쫓던 적은 제자리로 돌아간다 (성소 둘레 무리가 몰려와 전설이 들쭉날쭉하지 않게)
-   */
-  ward: { members: Set<Giant> } | null = null
+  private readonly pendingSummons: { point: Point2; spec: GiantSpec; owner: Giant }[] = []
   /** 이 지역의 보스 */
   private bossSpec: GiantSpec = KING
   /** 무리 하나에 정예가 섞일 확률 (점검할 때 0이나 1로 바꾼다) */
@@ -97,10 +92,10 @@ export class Encounter {
   private regionPower = 1
   /** 땅 id → 그 땅 적의 세기 (장 데이터의 적 지수, E22-02). 생명은 그만큼, 피해는 landScale을 따른다 */
   landPower: (id: string | undefined) => number = () => 1
-  /** 위협 단계 배율 (E14-03): 새로 세우는 적에 건다 */
+  /** 깊이 배율 (E305-03, 옛 위협 단계라 이름은 threat): 새로 세우는 적에 건다 */
   threat = { hp: 1, damage: 1 }
-  /** 결계 안(전설·시련)에 따로 세우는 적의 배율. 없으면 threat (시련 난이도가 결계 밖 무리·보스에 번지지 않게) */
-  arenaThreat: { hp: number; damage: number } | null = null
+  /** 무리 크기 배율 (맹세 「두 배의 무리」, E305-01): 새로 채우는 무리에 건다 */
+  crowd = 1
   /** 정예를 고를 때 쓰는 난수 (점검할 때 바꿔 끼운다) */
   rng: () => number = Math.random
   /** 지금 땅 (E19) */
@@ -335,7 +330,7 @@ export class Encounter {
   }
 
   /** 보스가 싸움에 끼어들었는지 (HUD 표시용) */
-  /** 무리와 보스가 모두 쓰러졌다 (균열 층을 깼다, E17) */
+  /** 무리와 보스가 모두 쓰러졌다 (끝없는 원정의 층을 깼다, E17) */
   get cleared(): boolean {
     return this.camps.every((c) => c.giants.every((g) => !g.alive)) && !this.boss?.alive && this.giants.every((g) => !g.alive)
   }
@@ -348,17 +343,13 @@ export class Encounter {
   update(dt: number, base: WorldBase): Giant[] {
     for (const parked of this.parked.values()) for (const giant of parked.giants) giant.rest(dt)
     const shattered: Giant[] = []
-    const ward = this.ward
-    // 결계 밖의 적에게는 주인공(과 분신)이 없는 것처럼 보인다
-    const unseen = ward ? { ...base, hero: { ...base.hero, alive: false }, decoy: null } : base
     for (const giant of this.giants) {
       const nav = this.navFor(giant.spec)
-      const member = ward?.members.has(giant) ?? false
       giant.update(dt, {
-        ...(ward && !member ? unseen : base),
+        ...base,
         nav,
         giants: this.giants,
-        summon: (x, z, count, enemy) => this.queueSummon(giant, x, z, count, enemy, member),
+        summon: (x, z, count, enemy) => this.queueSummon(giant, x, z, count, enemy),
       })
       if (!giant.alive && !this.fellIn.has(giant)) this.fellIn.set(giant, this.region)
       if (giant.justShattered) shattered.push(giant)
@@ -378,7 +369,7 @@ export class Encounter {
     return { camps: this.camps.map((c) => c.center), boss: this.bossHome }
   }
 
-  /** 모든 거인을 지우고 무리와 거인 왕을 처음처럼 다시 세운다 (위협 단계가 바뀌었을 때·개발 패널). 이웃 땅의 무리도 다시 세운다 */
+  /** 모든 거인을 지우고 무리와 거인 왕을 처음처럼 다시 세운다 (깊이가 바뀌었을 때·개발 패널). 이웃 땅의 무리도 다시 세운다 */
   resetAll(): void {
     for (const giant of [...this.giants]) this.remove(giant)
     for (const camp of this.camps) {
@@ -398,10 +389,10 @@ export class Encounter {
     this.boss = null
   }
 
-  /** 승급 전설 등에서 거인을 따로 세운다. alert면 바로 주인공을 쫓는다. 시련 배율이 없으면 그 땅의 세기를 건다 */
+  /** 승급 전설 등에서 거인을 따로 세운다. alert면 바로 주인공을 쫓는다. 그 땅의 세기를 건다 */
   spawn(spec: GiantSpec, home: Point2, alert: boolean): Giant {
     const nav = this.navFor(spec)
-    const giant = this.addGiant(spec, nav.nearestFree(home) ?? home, this.arenaThreat ?? this.scaled(this.regionPower))
+    const giant = this.addGiant(spec, nav.nearestFree(home) ?? home, this.scaled(this.regionPower))
     if (alert) giant.alert()
     return giant
   }
@@ -434,28 +425,26 @@ export class Encounter {
     return this.navs.get(spec) ?? this.navs.get(spec.radius >= 1.2 ? KING : GRUNT)!
   }
 
-  /** ward: 결계 안의 적이 부른 졸개 (그 졸개도 결계 안에서 싸운다) */
-  private queueSummon(owner: Giant, x: number, z: number, count: number, enemy?: string, ward = false): void {
+  private queueSummon(owner: Giant, x: number, z: number, count: number, enemy?: string): void {
     const spec = (enemy && ENEMIES[enemy]) || GRUNT
     const room = SUMMON_CAP - this.giants.filter((g) => g.alive).length - this.pendingSummons.length
     count = Math.min(count, room)
     for (let i = 0; i < count; i++) {
       const angle = (i / count) * Math.PI * 2 + Math.random()
-      this.pendingSummons.push({ point: { x: x + Math.sin(angle) * 4, z: z + Math.cos(angle) * 4 }, spec, ward, owner })
+      this.pendingSummons.push({ point: { x: x + Math.sin(angle) * 4, z: z + Math.cos(angle) * 4 }, spec, owner })
     }
   }
 
   private flushSummons(): void {
-    for (const { point, spec, ward, owner } of this.pendingSummons.splice(0)) {
+    for (const { point, spec, owner } of this.pendingSummons.splice(0)) {
       const spot = this.navFor(spec).nearestFree(point) ?? point
       const giant = this.addGiant(spec, spot)
       giant.summoner = owner
       giant.alert()
-      if (ward) this.ward?.members.add(giant)
     }
   }
 
-  /** 위협 단계 배율에 그 땅의 세기를 곱한다 (E22-02) */
+  /** 깊이 배율에 그 땅의 세기를 곱한다 (E22-02) */
   private scaled(power: number): { hp: number; damage: number } {
     const land = landScale(power)
     return { hp: this.threat.hp * land.hp, damage: this.threat.damage * land.damage }
@@ -481,8 +470,9 @@ export class Encounter {
    */
   private fillCamp(camp: Camp, elite = this.regionElite, free: (p: Point2) => Point2 | null = (p) => this.navs.get(GRUNT)!.nearestFree(p), into: Giant[] | null = null, power = this.regionPower): void {
     const threat = this.scaled(power)
-    for (let i = 0; i < camp.count; i++) {
-      const angle = (i / camp.count) * Math.PI * 2
+    const count = Math.round(camp.count * this.crowd)
+    for (let i = 0; i < count; i++) {
+      const angle = (i / count) * Math.PI * 2
       const around = { x: camp.center.x + Math.sin(angle) * 2.2, z: camp.center.z + Math.cos(angle) * 2.2 }
       const spot = free(around)
       const spec = camp.members.length > 0 ? camp.members[i % camp.members.length]! : GRUNT

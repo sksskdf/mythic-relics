@@ -2034,5 +2034,23 @@
     "hp": 1000,
     "aggroRange": 18,
     "leashRange": 40
+  },
+  "typhon": {
+    "extends": "surtr",
+    "name": "티폰",
+    "realm": "greek",
+    "minion": "harpy",
+    "hp": 800,
+    "xp": 170,
+    "body": {
+      "kind": "giant",
+      "main": "#4a5a6a",
+      "shade": "#3a4858",
+      "dark": "#1e2632",
+      "accent": "#9ad8ff",
+      "eye": "#e8f4ff",
+      "gear": "none",
+      "head": "horns"
+    }
   }
 }

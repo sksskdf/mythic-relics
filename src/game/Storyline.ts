@@ -18,7 +18,7 @@ export interface StorylineParts {
 const TALK_REACH = 2.6
 
 /**
- * 대화 장면을 언제 여는가 (E15-06): 처음 보는 일(신화 개방·첫 벼리기·한계를 깸·위협 단계 오름·보스 등장)의 짧은 장면과,
+ * 대화 장면을 언제 여는가 (E15-06): 처음 보는 일(신화 개방·첫 벼리기·한계를 깸·보스 등장)의 짧은 장면과,
  * 누른 마을 사람에게 걸어가 말 걸기. 창이 열려 있거나 다른 장면 중이면 미뤘다가 차례로 연다.
  */
 export class Storyline {
@@ -30,7 +30,7 @@ export class Storyline {
   private readonly pending: string[] = []
 
   constructor(private readonly parts: StorylineParts) {
-    const { bus, threat } = parts.ctx
+    const { bus } = parts.ctx
     // 신화 개방: 숙련으로 여럿이 함께 열리면(아직 고른 신화가 없을 때 그 신화권 신 넷) 장면이 줄줄이 서지 않게,
     // 이미 다른 신화의 장면이 떠 있거나 기다리면 미루고 그 신화를 처음 고를 때 연다
     bus.on('mythOpened', ({ god, quiet }) => !quiet && !this.mythBusy() && this.play(sceneId('myth', god)))
@@ -39,7 +39,6 @@ export class Storyline {
     bus.on('limitBroken', () => this.play('limitBreak'))
     // 신의 수호자 (E238): 처음 나타나면 한마디 (보스 등장과 같이)
     bus.on('guardianAppeared', ({ god }) => this.play(sceneId('guardian', god)))
-    bus.on('threatChanged', () => threat.level === threat.reached && threat.reached >= 2 && this.play('threatUp'))
   }
 
   /**
@@ -89,6 +88,6 @@ export class Storyline {
     }
     // 보스 등장: 처음 싸움이 붙으면 한마디
     const boss = ctx.encounter.boss
-    if (boss?.alive && ctx.encounter.bossEngaged && !ctx.legend.active) this.play(sceneId('boss', boss.spec.id))
+    if (boss?.alive && ctx.encounter.bossEngaged) this.play(sceneId('boss', boss.spec.id))
   }
 }

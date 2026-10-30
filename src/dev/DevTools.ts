@@ -5,7 +5,7 @@ import { nextRecipe } from '../gear/forge'
 import { type GearItem, rollGear } from '../gear/roll'
 import { gearIcon } from '../ui/gearCard'
 import { GODS, isRelicId, type RelicId } from '../relics/data'
-import { type ClassProgress, MASTERY_TO_OPEN } from '../myth/ClassProgress'
+import type { ClassProgress } from '../myth/ClassProgress'
 import type { EventBus, GameEvents } from '../game/events'
 import type { HeroController } from '../game/HeroController'
 import type { HeroOrders } from '../game/HeroOrders'
@@ -16,7 +16,11 @@ import type { RelicSystem } from '../game/systems/Relics'
 import type { Encounter } from '../game/Encounter'
 import { ENEMIES, GRUNT } from '../enemies/Giant'
 import { insightsAt, SAMPLE_ORDER } from '../data/training'
+import type { DepthProgress } from '../progress/Depth'
 import type { TrainingProgress } from '../progress/Training'
+import type { ChapterProgress } from '../progress/Chapters'
+import type { ExpeditionProgress } from '../progress/Expedition'
+import type { Build } from '../build/Build'
 import type { SkillContext } from '../skills/Skill'
 
 /** 개발 도구가 손대는 게임의 부품 */
@@ -31,15 +35,25 @@ export interface DevParts {
   orders: HeroOrders
   view: QuarterViewCamera
   pickups: Pickups
-  /** 지금 지역의 신화권 (마을은 없음) */
-  region: () => string | undefined
   /** 스킬이 세계와 주고받는 것 (유물 행동을 바로 터뜨릴 때) */
   skills: SkillContext
   encounter: Encounter
   /** 수련 (E236) */
   training: TrainingProgress
-  /** 신을 깨우는 길 (E238): 다음 조각을 바로 얻는다 */
-  awakening: { skip(god?: string): boolean }
+  /** 신을 깨우는 길 (E238): 다음 조각을 바로 얻는다. target은 그 신화권에서 깨울 신 */
+  awakening: { skip(god?: string): boolean; target(prefer?: string): { god: string } | null }
+  /** 깊이 (E305-03): 바로 정하고 배율을 다시 건다 */
+  depth: DepthProgress
+  applyDepth(): void
+  /** 장 진행 (E22): 지금 목표를 한 것으로 할 때 (`skipGoal`) */
+  chapters: ChapterProgress
+  chapterSystem: { bossDown(region: string): void; check(): void }
+  /** 들어설 땅으로 넘어간다 */
+  world: { travelTo(id: string): void }
+  /** 원정 (E304): 귀환 목표를 바로 채운다 */
+  expedition: ExpeditionProgress
+  expeditionSystem: { branches(): readonly { id: string }[]; returnNow(id: string): number }
+  build: Build
 }
 
 /**
@@ -49,7 +63,7 @@ export interface DevParts {
 export class DevTools {
   constructor(private readonly parts: DevParts) {}
 
-  /** 유물을 끼운다. 신화 개방 연출도 그대로 나온다. */
+  /** 유물을 유물표에 켠다. 엔딩 뒤에는 그 신화가 열리는 연출도 그대로 나온다 (데모에서는 신을 깨워야 열린다: 신이 필요하면 `choose`) */
   equip(id: RelicId): void {
     const { powers, relics, bus } = this.parts
     // 유물은 유물표에 켜니 칸이 차 있어도 된다 (E303-04)
@@ -98,7 +112,7 @@ export class DevTools {
     return true
   }
 
-  /** 한계를 깬 무렵의 빌드 (균열 시험, E17-07): 영웅 장비 여섯을 끼고, 고른 신화를 최고 단계로, 같은 신화권 신화를 모두 연다. 수련은 엔딩 무렵만큼(깨달음 스물, E236) */
+  /** 한계를 깬 무렵의 빌드 (끝없는 원정 시험, E17-07): 영웅 장비 여섯을 끼고, 고른 신화를 최고 단계로, 같은 신화권 신화를 모두 연다. 수련은 엔딩 무렵만큼(깨달음 스물, E236) */
   endgame(): void {
     const { powers, progress, bus } = this.parts
     this.insight(Math.max(0, 20 - insightsAt(this.parts.training.xp)))
@@ -113,6 +127,20 @@ export class DevTools {
     for (const g of Object.values(GODS)) if (g.realm === realm && !g.hidden) progress.open(g.id)
     for (let i = 0; i < 4; i++) this.promote()
     bus.emit('progressChanged', {})
+  }
+
+  /**
+   * 깊이를 바로 정한다 (점검 스크립트 `--depth`, 개발 패널). 귀환 카드 없이, 가 본 곳도 함께 올리고 이미 세운 적도 새 배율로 다시 세운다.
+   * 엔딩 뒤 장치라 부르는 쪽이 먼저 엔딩 뒤로 넘긴다 (`game.reachEnding()`)
+   */
+  depth(level: number): void {
+    const { depth, encounter } = this.parts
+    const to = Math.max(1, Math.min(depth.max, Math.round(level)))
+    depth.reached = Math.max(depth.reached, to)
+    depth.level = to
+    this.parts.applyDepth()
+    encounter.resetAll()
+    this.parts.bus.emit('progressChanged', {})
   }
 
   /** 그 신화(없으면 고른 신화)의 다음 제작 재료를 채운다 (대장간 시험) */
@@ -190,22 +218,16 @@ export class DevTools {
     }
   }
 
-  /** 지금 신화의 경험치를 채우고 바로 다음 개방 단계로 올린다. 데모 끝 단계(3)도 넘긴다 */
+  /** 지금 신화를 바로 다음 개방 단계로 올린다 (승천과 같은 길). 데모 끝 단계(3)·장 정복 상한도 넘긴다 */
   promote(): void {
     const { powers, progress, growth } = this.parts
     const god = powers.manifested
     if (!god) return
     if (progress.level(god) >= progress.levelCap) progress.uncapped = true
-    progress.addXp(god, 1e9)
     growth.promote(god)
   }
 
-  /** 이 지역 신화권의 신들에게 숙련을 준다 (신화 개방 시험). 신화권이 없는 마을이면 북유럽 */
-  gainMastery(amount = MASTERY_TO_OPEN * 4): void {
-    this.parts.growth.gainMastery(amount, this.parts.region() ?? 'norse')
-  }
-
-  /** 수련 경험치만 준다 (깨달음 시험). 신화 경험치는 그대로 */
+  /** 수련 경험치만 준다 (깨달음 시험) */
   insight(count = 1): void {
     const { training, bus } = this.parts
     const target = insightsAt(training.xp) + count
@@ -214,6 +236,49 @@ export class DevTools {
     const gained = training.gain(need)
     if (gained > 0) bus.emit('insightGained', { count: gained, unspent: training.unspent })
     bus.emit('progressChanged', {})
+  }
+
+  /**
+   * 지금 목표를 한 것으로 한다 (E22, 개발 패널·점검 스크립트). 들어설 땅이면 그리로 가고, 깨우기는 조각을 차례로,
+   * 귀환은 승천으로, 보스는 이긴 것으로, 벼리기는 재료를 채워 벼린다
+   */
+  skipGoal(): void {
+    const { chapters, world, awakening, progress, expedition, expeditionSystem, chapterSystem, build } = this.parts
+    const goal = chapters.goal
+    if (!goal) return
+    switch (goal.kind) {
+      case 'enter':
+        // 걸어 넘어가는 동안 기다리지 않게 들어선 것으로 먼저 적는다
+        chapters.enter(goal.region)
+        world.travelTo(goal.region)
+        break
+      case 'awaken':
+        // 조각을 하나씩 (흔적 → 사냥 → 수호자) 그 할 일을 마칠 때까지
+        for (let i = 0; i < 12 && chapters.goal === goal; i++) if (!awakening.skip(awakening.target(goal.region)?.god)) break
+        break
+      case 'return': {
+        // 귀환 (E304): 떠난 지 2분이 안 됐어도 손의 신 승천(없으면 불꽃 불씨)으로 바로
+        const hand = progress.pantheon.hand
+        while (expedition.returns < goal.n!) {
+          const ids = expeditionSystem.branches().map((b) => b.id)
+          expeditionSystem.returnNow(ids.find((id) => id === `ascend:${hand}`) ?? 'flame:flame')
+        }
+        break
+      }
+      case 'boss':
+        chapterSystem.bossDown(goal.region)
+        break
+      case 'forge': {
+        const god = build.chosen
+        if (!god) break
+        for (let i = 0; i < goal.n! && chapters.goal === goal; i++) {
+          this.fillForge(god)
+          this.forge(god)
+        }
+        break
+      }
+    }
+    chapterSystem.check()
   }
 
   /** 신을 깨우는 다음 조각을 바로 얻는다 (E238): 깨우는 신이 없으면 god(없으면 응답하는 첫 흔적)부터. 얻었으면 true */

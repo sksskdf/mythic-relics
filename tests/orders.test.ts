@@ -154,16 +154,6 @@ describe('클릭 지시', () => {
     expect(hits.length).toBeGreaterThan(0)
   })
 
-  it('결계 밖을 누르면 결계 가장자리에서 멈춘다 (승급 전설)', () => {
-    const { hero, orders, step } = setup([])
-    hero.arena = { x: 0, z: 0, radius: 6 }
-    orders.press({ x: 0, z: 15 }, null)
-    step(3)
-    expect(Math.hypot(hero.object.position.x, hero.object.position.z)).toBeLessThanOrEqual(6)
-    expect(hero.isMoving).toBe(false)
-    expect(orders.order).toBeNull()
-  })
-
   it('쓰러진 동안에는 회복 효과가 들어와도 되살아나지 않는다', () => {
     const { combat } = setup([])
     combat.takeHit(1e6, 0, 1, 0)

@@ -1,0 +1,69 @@
+/* 귀환 카드 (E304): 고르는 카드 틀(pickCard.css)에 명성·남는 것·지워지는 것 줄을 더한다 */
+.return-card {
+  top: 18%;
+  max-width: calc(100vw - 2 * var(--sp-4));
+  box-sizing: border-box;
+}
+.return-card__mult {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-1);
+}
+.return-card__mult b {
+  font: var(--t-title);
+  font-weight: normal;
+  color: var(--c-gold-soft);
+}
+.return-card__mult small,
+.return-card__line,
+.return-card__ask {
+  font: var(--t-small);
+  color: var(--c-ink-2);
+  text-align: center;
+}
+.return-card__line.is-keep {
+  color: var(--c-good);
+}
+.return-card__line.is-clear {
+  color: var(--c-bad);
+}
+.return-card .pick-card__card {
+  --god: var(--c-line-2);
+  width: 132px;
+  box-shadow: var(--stone-raised), inset 0 -3px 0 var(--god);
+}
+@media (max-width: 480px) {
+  /* 세로 화면: 카드를 화면 폭에 맞춰 두 줄씩 */
+  .return-card {
+    /* 오른쪽 위 작은 지도(세로 화면에서 위 4분의 1쯤) 아래로 */
+    top: 26%;
+    width: calc(100vw - 2 * var(--sp-4));
+    padding: var(--sp-4) var(--sp-3);
+  }
+  .return-card .pick-card__card {
+    width: calc(50% - var(--sp-2));
+    padding: var(--sp-3) var(--sp-2);
+  }
+}
+/* 출발 카드 (E305-01): 지킨 맹세는 기록을, 아니면 지키면 얻는 것을 */
+.oath-card__reward {
+  color: var(--c-gold-soft);
+}
+.oath-card .pick-card__card.is-kept .oath-card__reward {
+  color: var(--c-good);
+}
+/* 다음 원정의 깊이 (E305-03, 엔딩 뒤): 「그대로 / +1」 알약 둘 */
+.return-card__depth {
+  display: flex;
+  gap: var(--sp-2);
+  justify-content: center;
+}
+.return-card__depth .ui-pill:disabled {
+  color: var(--c-ink-3);
+  cursor: default;
+}
+/* 지난번 갈래 그대로 (E305-03, 엔딩 뒤 자동화): 맨 앞 갈래 위에 작은 꼬리표 */
+.return-card .pick-card__card .return-card__again {
+  color: var(--c-good);
+}

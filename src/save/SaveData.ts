@@ -6,18 +6,22 @@ import { GEAR, type GearItem, parseGearItem } from '../gear/roll'
 import { MATERIAL_CAP } from '../gear/Loadout'
 import { legacyManifest } from '../myth/manifest'
 import { type ChapterData, parseChapterData } from '../progress/Chapters'
-import { type ConvenienceData, parseConveniences } from '../progress/Conveniences'
-import { parseThreat, type ThreatData } from '../progress/Threat'
-import { parseTrials, type TrialData } from '../progress/Trials'
-import { parseRift, type RiftData } from '../progress/Rift'
+import { type AutomationData, parseAutomation } from '../progress/Automation'
+import { parseWaypoints } from '../progress/Waypoints'
+import { type DepthData, parseDepth } from '../progress/Depth'
+import { type OathData, parseOaths } from '../progress/Oaths'
+import { parseEndless, type EndlessData } from '../progress/Endless'
 import { parseTraining, type TrainingData } from '../progress/Training'
+import { type ExpeditionData, parseExpedition } from '../progress/Expedition'
 import { parseTabs } from '../progress/Tabs'
-import { type AwakenData, parseAwaken } from '../progress/Awakening'
+import { type WakeData, parseWake } from '../progress/Wake'
 import { type BodyLook, parseBody } from '../looks/body'
 import { isLookId, lookDef, type LookSlot, STARTING_LOOKS, WARDROBE_SLOTS } from '../looks/catalog'
 import type { LookChoice } from '../looks/outfit'
-import { GODS, type God, isRelicId, type RelicId } from '../relics/data'
-import { legacySlots, migrateLooks, oldChapters, oldStars, oldTrainingXp, fillEmptySlots, meltOverflow, openOwned, realmToPrototype, refundCycle, refundMythMaterials } from './migrate/legacy'
+import { godDef, GODS, type God, isRelicId, type RelicId } from '../relics/data'
+import { legacySlots, migrateLooks, oldChapters, oldThreat, oldTrainingXp, fillEmptySlots, meltOverflow, openOwned, realmToPrototype, refundCycle, refundMythMaterials } from './migrate/legacy'
+import { estimateExpeditions, legacyStarRenown, legacyTrialRenown, oathsFromTrials, oldAutomation, oldVisited } from './migrate/v17'
+import { CONQUESTS } from '../data/chapters'
 
 /**
  * 저장 형식 버전. 형식이 바뀌면 올리고, 옛 형식을 옮기는 코드를 둔다.
@@ -44,8 +48,19 @@ import { legacySlots, migrateLooks, oldChapters, oldStars, oldTrainingXp, fillEm
  * - v14: 신의 자리 셋 (E302). chosen(주신 + 빌린 신) → pantheon(손·심장·숨). 옛 주신은 손·심장·숨 첫 칸으로(한 신에 몰기), 빌린 신은 숨 칸으로
  * - v15: 원형과 유물표 (E303-04). 신화권 재료 → 원형 셋씩(대장간 값 ×3), 12칸을 넘친 가방의 일반 장비는 낮은 등급부터 녹여 원형으로.
  *   칸·가방의 신화 유물은 유물표(lit)로 옮기고 빈 칸은 가방의 가장 좋은 장비로 채운다. 가진 장비의 고유 효과도 유물표에 켠다
+ * - v16: 원정 (E304). 원정 번호·명성·원천 불씨·기록·가보. 옛 저장은 첫 원정에서 이어 간다(신 단계는 그대로라 명성 없이도 힘이 같다)
+ * - v17: 원정 순환 정리 (E305, `migrate/v17.ts`). 옛 키는 버전이 아니라 키가 있는지로 알아본다 (E305 도중의 v17 개발판도 옛 모양을 들고 있다).
+ *   옮긴 저장은 새 키로만 쓰니 한 번만 하는 일(명성 돌려주기)이 두 번 붙지 않는다
+ *   - 시련(trials) → 맹세(oaths): 한 단계라도 깬 시련은 짝인 맹세를 지킨 것으로. 시련 보상의 모든 피해 몫은 명성으로. 원정에 건 맹세(expedition.oath),
+ *     출발 카드를 아직 고르지 않음(expedition.oathPending: 불러오면 카드를 다시 띄운다)
+ *   - 균열(rift) → 끝없는 원정(endless {best}): 성좌판의 밝힌 별과 남은 별 하나마다 명성 20
+ *   - 위협 단계(threat) → 깊이(depth {level, reached, limitBroken}): 열린 단계·신화권마다 이긴 단계는 버린다(v9 이하 옮기기만 `oldThreat`로 읽는다).
+ *     이번 원정에서 깊이 10의 장 보스·수호자를 이긴 일(expedition.deepWin)
+ *   - 편의(conveniences) → 자동화 세기(automation {counters:{pickups}}): 자동화는 귀환 횟수·엔딩에서 다시 셈하고, 켠 성소(visited)는 waypoints로. 지난번 갈래(expedition.lastBranch)
+ *   - 신위 게이지(divine) → 심장 게이지(heartGauge). 신화 경험치(classes[*].xp)는 내보내지 않는다 (v10 이하 수련 짐작만 원본에서 읽는다)
+ *   - 연 탭: classes·looks → gods, trials → oaths. 원정 기록이 없던 저장(v15 이하)은 원정 번호를 장 진행이 지나온 할 일 「귀환」으로 짐작한다
  */
-export const SAVE_VERSION = 15
+export const SAVE_VERSION = 17
 
 export interface SaveData {
   version: typeof SAVE_VERSION
@@ -65,36 +80,40 @@ export interface SaveData {
   materials: Record<string, number>
   /** 땅에 떨어져 있던 유물·장비 */
   ground: { id: string; x: number; z: number }[]
-  /** 신화별 개방 단계(0~4)와 신화 숙련 */
-  classes: Partial<Record<God, { level: number; xp: number }>>
+  /** 신마다 단계 (0~4, 1부터 깨어남). 옛 신화 경험치는 v17에서 내보내지 않는다 */
+  classes: Partial<Record<God, { level: number }>>
   /** 신의 자리 셋 (E302): 손·심장·숨에 낀 신. 열린 신만 */
   pantheon: Pantheon
   /** 불운 보정: 마지막 유물 뒤로 놓친 횟수 */
   dropMisses: number
-  /** 신위 게이지 */
-  divine: number
+  /** 심장 게이지 (궁극기 충전, E305-04 D11: 옛 키 `divine`) */
+  heartGauge: number
   /** 외형 보관함: 얻은 외형과 칸마다 고른 것 ('auto', 외형 id, 비우기 null) */
   looks: { unlocked: string[]; choices: Partial<Record<LookSlot, LookChoice>> }
   /** 처음에 고른 기본 모습. 옛 저장에는 없어서 기본값 */
   body: BodyLook
-  /** 세계 위협 단계와 원천 숙련 (E14). 옛 저장에는 없어서 1단계 */
-  threat: ThreatData
-  /** 편의 자동화 (E14-05) */
-  conveniences: ConvenienceData
-  /** 시련: 깬 난이도와 기록 (E16) */
-  trials: TrialData
-  /** 균열 기록과 성좌판 (E17) */
-  rift: RiftData
+  /** 깊이 (E305-03, v16 이하는 옛 위협 단계 `threat`). 옛 저장에는 없어서 1 */
+  depth: DepthData
+  /** 자동화 세기 (E305-03, v16 이하는 옛 편의 `conveniences`): 주운 수만. 나머지 자동화는 귀환 횟수·엔딩에서 셈한다 */
+  automation: AutomationData
+  /** 웨이포인트: 밟아 켠 성소의 땅 (E239-05, E305-03에서 편의에서 뗌). 없으면 옛 편의의 visited에서 */
+  waypoints: string[]
+  /** 맹세: 지킨 맹세와 기록 (E305-01, v16 이하는 시련 기록에서) */
+  oaths: OathData
+  /** 끝없는 원정 기록 (E305-03, v16 이하는 옛 균열 `rift`. 성좌판은 걷음) */
+  endless: EndlessData
   /** 첫 엔딩을 보았나 (E21-06): 엔딩 뒤 장치를 연다 */
   ending: boolean
   /** 장 진행 (E22): 들어서 본 땅, 보스를 이긴 땅 */
   chapters: ChapterData
   /** 수련 (E236): 모은 경험치와 찍은 마디 */
   training: TrainingData
+  /** 원정 (E304): 원정 번호·명성·원천 불씨·기록·가보. 옛 저장은 첫 원정 */
+  expedition: ExpeditionData
   /** 차례로 연 정보 화면 탭 (E236-05) */
   tabs: string[]
   /** 신을 깨우는 진행 (E238): 깨우는 신과 모은 조각 */
-  awaken: AwakenData
+  awaken: WakeData
   /** 지금 있는 지역과 자리 (E7). 옛 저장이거나 모르는 지역이면 null (마을에서 시작) */
   region: { id: string; x: number; z: number } | null
   /** 본 대화 장면 (E12-10). 옛 저장에는 없어서 빈 목록 */
@@ -120,7 +139,7 @@ export function parseSave(text: string | null): SaveData | null {
   }
   if (typeof raw !== 'object' || raw === null) return null
   const data = raw as Record<string, unknown>
-  if (data.version !== SAVE_VERSION && ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14].includes(data.version as number)) return null
+  if (data.version !== SAVE_VERSION && ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16].includes(data.version as number)) return null
   const old = (data.version as number) < 5
 
   // 일반 장비 (v5)
@@ -180,12 +199,15 @@ export function parseSave(text: string | null): SaveData | null {
     .map((g) => ({ id: g.id, x: num(g.x, -100, 100, 0), z: num(g.z, -100, 100, 0) }))
 
   const classes: SaveData['classes'] = {}
+  // 옛 신화 경험치: v10 이하 수련 경험치를 짐작할 때만 읽고 내보내지 않는다 (v17)
+  const oldXp: Partial<Record<God, number>> = {}
   if (typeof data.classes === 'object' && data.classes !== null) {
     for (const [god, value] of Object.entries(data.classes as Record<string, unknown>)) {
       if (!isGod(god) || typeof value !== 'object' || value === null) continue
       const record = value as Record<string, unknown>
-      // 개방 단계 0은 숙련만 쌓이고 아직 못 연 신화 (E12-02)
-      classes[god] = { level: Math.round(num(record.level, 0, 4, 1)), xp: num(record.xp, 0, 1e6, 0) }
+      // 단계 0은 옛 신화 숙련만 쌓이고 아직 못 연 신화 (E12-02)
+      classes[god] = { level: Math.round(num(record.level, 0, 4, 1)) }
+      oldXp[god] = num(record.xp, 0, 1e6, 0)
     }
   }
 
@@ -205,15 +227,19 @@ export function parseSave(text: string | null): SaveData | null {
   // 12칸을 넘친 가방은 옛 저장에서만 녹인다 (지금은 가방이 차면 더 넣지 않는다)
   if ((data.version as number) < 15) fullBag = meltOverflow(fullBag, gearById, materials)
   const keep = new Set([...slots.slice(0, SLOT_PARTS.length), ...fullBag, ...ground.map((g) => g.id)])
-  const threat = parseThreat(data.threat)
-  const trials = parseTrials(data.trials)
-  const rift = parseRift(data.rift, (data.version as number) < 6 ? oldStars(data.cycle) : 0)
-  // 엔딩 뒤 장치를 해 본 옛 저장은 엔딩 뒤로 친다 (E21-06)
-  const tried = threat.limitBroken || threat.unlocked > 1 || Object.values(trials.cleared).some((n) => (n ?? 0) > 0) || rift.best > 0
+  // v17 옮기기 (`migrate/v17.ts`): 옛 키는 새 키가 없을 때만 읽는다 (E305 도중의 v17 개발판도 옛 모양을 들고 있다)
+  const has = (key: string) => Object.hasOwn(data, key)
+  const depth = parseDepth(has('depth') ? data.depth : data.threat)
+  const oaths = has('oaths') ? parseOaths(data.oaths) : oathsFromTrials(data.trials)
+  const endless = parseEndless(has('endless') ? data.endless : data.rift)
+  // 엔딩 뒤 장치를 해 본 옛 저장은 엔딩 뒤로 친다 (E21-06). 옛 위협 단계는 열린 단계(unlocked)까지 본다
+  const oldDanger = (data.version as number) < 10 ? oldThreat(data.threat) : null
+  const tried = depth.limitBroken || (oldDanger?.unlocked ?? 1) > 1 || oaths.kept.length > 0 || endless.best > 0
   const region = parseRegion(data.region)
-  const conveniences = parseConveniences(data.conveniences)
-  const chapters = (data.version as number) < 10 ? oldChapters(region, conveniences, threat, materials, relicsOwned) : parseChapterData(data.chapters)
-  const awaken = openedAwaken(parseAwaken(data.awaken), myths)
+  // 웨이포인트는 키가 있는지로 옛 모양을 알아본다 (E305-03 전의 v17 개발판도 편의에 담았다)
+  const waypoints = Array.isArray(data.waypoints) ? parseWaypoints(data.waypoints) : oldVisited(data.conveniences)
+  const chapters = oldDanger ? oldChapters(region, waypoints, oldDanger.cleared, materials, relicsOwned) : parseChapterData(data.chapters)
+  const awaken = openedAwaken(parseWake(data.awaken), myths)
   return {
     version: SAVE_VERSION,
     slots: slots.slice(0, SLOT_PARTS.length),
@@ -227,21 +253,42 @@ export function parseSave(text: string | null): SaveData | null {
     classes: myths,
     pantheon: (data.version as number) < 14 ? fromChosen(parseChosen(data.chosen, legacySlots(data.slots), myths)) : parsePantheon(data.pantheon, myths, awaken.fragments >= 2 ? awaken.waking : null),
     dropMisses: Math.round(num(data.dropMisses, 0, 1000, 0)),
-    divine: num(data.divine, 0, 1, 0),
+    // 옛 키 divine은 키가 있는지로 알아본다 (v16 이하와 E305-04 전의 v17 개발판)
+    heartGauge: num(data.heartGauge ?? data.divine, 0, 1, 0),
     looks: data.version === 1 ? migrateLooks(legacySlots(data.slots), legacySlots(data.bag) as RelicId[], classes) : parseLooks(data.looks),
     body: parseBody(data.body),
-    threat,
-    conveniences,
-    trials,
-    rift,
+    depth,
+    automation: has('automation') ? parseAutomation(data.automation) : oldAutomation(data.conveniences),
+    waypoints,
+    oaths,
+    endless,
     ending: data.ending === true || ((data.version as number) < 9 && tried),
     chapters,
-    training: parseTraining(data.training, (data.version as number) < 11 ? oldTrainingXp(myths) : 0),
+    expedition: oldExpedition(data, chapters, myths, stages),
+    training: parseTraining(data.training, (data.version as number) < 11 ? oldTrainingXp(myths, oldXp) : 0),
     tabs: parseTabs(data.tabs, (data.version as number) < 11),
     awaken,
     region,
     scenes: Array.isArray(data.scenes) ? [...new Set(data.scenes.filter((s): s is string => typeof s === 'string' && s.length < 40))] : [],
   }
+}
+
+/**
+ * 원정 기록 (v17 옮기기는 키가 있는지로): 원정 기록이 없던 저장(v15 이하)은 원정 번호를 짐작하고,
+ * 성좌판의 별(끝없는 원정 키가 없을 때)과 옛 시련 보상의 피해 몫(맹세 키가 없을 때)은 명성으로 한 번 돌려준다
+ */
+function oldExpedition(data: Record<string, unknown>, chapters: ChapterData, classes: SaveData['classes'], stages: SaveData['stages']): ExpeditionData {
+  const has = (key: string) => Object.hasOwn(data, key)
+  const expedition = parseExpedition(data.expedition)
+  if (!has('expedition')) {
+    const awakened = (realm: string) => Object.entries(classes).filter(([god, r]) => (r?.level ?? 0) >= 1 && godDef(god).realm === realm).length
+    expedition.count = estimateExpeditions(chapters, awakened, Math.max(1, ...Object.values(stages).filter((n): n is number => typeof n === 'number')))
+  }
+  let refund = 0
+  if (!has('endless')) refund += legacyStarRenown(data.rift, data.cycle, data.version as number)
+  if (!has('oaths')) refund += legacyTrialRenown(data.trials, CONQUESTS.filter((r) => chapters.bosses.includes(r)).length)
+  expedition.renown = Math.min(1e7, expedition.renown + refund)
+  return expedition
 }
 
 /** 유물표의 고유 효과: 있는 것만 한 번씩. 옛 저장은 가진 장비의 고유 효과로 (E303-04) */
@@ -253,7 +300,7 @@ function parseUniques(raw: unknown, owned: readonly GearItem[]): string[] {
 }
 
 /** 깨우는 신이 이미 열린 신이면 (어긋난 저장) 처음으로 */
-function openedAwaken(awaken: AwakenData, classes: SaveData['classes']): AwakenData {
+function openedAwaken(awaken: WakeData, classes: SaveData['classes']): WakeData {
   return awaken.waking && (classes[awaken.waking]?.level ?? 0) >= 1 ? { waking: null, fragments: 0, hunt: 0 } : awaken
 }
 

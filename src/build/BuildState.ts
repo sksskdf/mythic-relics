@@ -1,12 +1,13 @@
 import type { AttackStyle } from '../combat/styles'
 import { awakeningLevel } from '../data/awakening'
-import { NO_RULES, type TrialRules } from '../data/trials'
+import { NO_RULES, type OathRules } from '../data/oaths'
 import { type MythAlways, STAT_KINDS, type StatKind } from '../data/mythAlways'
 import { SOURCE_IDS, type SourceId } from '../data/schema'
 import { relicAwake } from '../gear/mythRelic'
 import { PER_LIT, PER_OPENED, PER_PROMOTION } from '../myth/ClassProgress'
 import { type God, godDef, relicDef, type RelicId } from '../relics/data'
 import { type Modifiers, NO_MODIFIERS } from '../skills/Skill'
+import { FLAME, renownMultiplier } from '../data/cycle'
 import { type DamageLayer, layerProduct } from './layers'
 
 /**
@@ -16,7 +17,6 @@ import { type DamageLayer, layerProduct } from './layers'
  * - 열린 신화는 하나마다 최대 생명 +5, 유물표에 켠 칸은 하나마다 모든 피해 +1% (E303-04)
  * - 승급(신화 단계)은 큰 걸음(E21-01): 한 번마다 모든 피해 ×1.35, 최대 생명 +25%
  * - 장비 = 일반 장비(유물은 E303-04에서 유물표로, 기본 수치·원천 없음), 원천 = 장비의 원천 수치 (E14에서 각성, 원천 숙련은 E21-05에서 없앰)
- * - 성좌판에서 별을 밝힌 신화는 그 신화의 수치를 낸다 (엔딩 뒤, E17)
  */
 
 /** 빌드 상태를 만드는 재료 */
@@ -39,14 +39,16 @@ export interface BuildInputs {
   stage?: (id: RelicId) => number
   /** 올린 개방 단계의 합 */
   promotions: number
-  /** 시련 보상(E16)·수련 마디(E236)·균열의 축복(E17): 출처마다 수치 종류별로 더한다 */
+  /** 맹세 보상(E305-01)·수련 마디(E236): 출처마다 수치 종류별로 더한다 */
   bonus?: Partial<Record<BonusFrom, Partial<Record<StatKind, number>>>>
-  /** 균열의 축복이 올린 각성 단계 (E17, 원천마다) */
-  awakenBonus?: Partial<Record<SourceId, number>>
-  /** 성좌판에서 밝힌 별 (E17): 그 신화의 상시 효과가 한 단계 위 */
-  starred?: ReadonlySet<God>
+  /** 누적 명성 (E304): 배율 1 + 0.1·√명성을 곱한다 */
+  renown?: number
+  /** 정복한 장의 수 (E305-02): 명성 배율의 지수 */
+  conquered?: number
+  /** 원천 불씨 (E304): 원천마다 고른 횟수. 원천 +2씩과 원천마다 다른 배율 */
+  flames?: Partial<Record<SourceId, number>>
   /** 시련 중 제약 (E16): 고른 신화 없이·최대 생명·이동 속도 등. 장비 칸 제한은 재료를 모을 때 거른다 */
-  rules?: TrialRules
+  rules?: OathRules
 }
 
 /** 일반 장비 하나의 수치와 원천 */
@@ -56,21 +58,13 @@ export interface GearItemStats {
 }
 
 /** 더하는 수치의 출처 (층 이름과 같다) */
-export type BonusFrom = 'trials' | 'training' | 'blessings'
-const BONUS_FROM: readonly BonusFrom[] = ['trials', 'training', 'blessings']
+export type BonusFrom = 'oaths' | 'training'
+const BONUS_FROM: readonly BonusFrom[] = ['oaths', 'training']
 
 /** 기본 최대 생명 */
 export const BASE_HP = 100
-/** 별 수치 단계의 끝: 4단계 신화에 그 신화 유물을 끼면 5 */
+/** 신화 수치 단계의 끝 (성좌판은 E305-03에서 걷었다. 숨 칸 3단계에서 다시 쓸 자리) */
 export const TOP_STAGE = 5
-
-/**
- * 별을 밝힌 신화의 수치가 작동하는 단계 (E17-04, E21에서 성좌판만): 개방 단계 + 별 하나,
- * 그 신화 유물을 끼면 한 단계 위
- */
-export function alwaysStage(level: number, wearsRelic: boolean, starred = false): number {
-  return level <= 0 ? 0 : Math.min(TOP_STAGE, level + (wearsRelic ? 1 : 0) + (starred ? 1 : 0))
-}
 
 /** 그 단계의 수치 (3단계 value[0], 4단계 value[1], 5단계 ×1.5, 그 아래는 0) */
 export function statAt(stat: MythAlways['stat'], stage: number): number {
@@ -105,7 +99,7 @@ export interface BuildState {
   collected: number
   /** 유물표에 켠 칸 수 (하나마다 모든 피해 +1%, E303-04) */
   lit: number
-  /** 수치: 일반 장비·시련 보상·별을 밝힌 신화의 같은 종류 수치를 더한 값 (없으면 0) */
+  /** 수치: 일반 장비·맹세 보상·수련의 같은 종류 수치를 더한 값 (없으면 0) */
   stats: Readonly<Record<StatKind, number>>
   /** 최대 생명 */
   maxHp: number
@@ -131,10 +125,9 @@ export function gearModifiers(gear: readonly (RelicId | null)[]): Modifiers {
 /** 재료에서 빌드 상태를 계산한다. (부수 효과 없음) */
 export function computeBuild(inputs: BuildInputs): BuildState {
   const rules = inputs.rules ?? NO_RULES
-  const chosen = rules.noMyth ? null : inputs.hand
+  const chosen = inputs.hand
   const god = chosen ? godDef(chosen) : null
   // 수치: 같은 종류는 더하고, 다른 종류끼리는 아래에서 곱한다
-  const worn = new Set(inputs.gear.filter((id): id is RelicId => id !== null).map((id) => relicDef(id).god))
   const stats = Object.fromEntries(STAT_KINDS.map((k) => [k, 0])) as Record<StatKind, number>
   const layers: DamageLayer[] = []
   /** 덧셈 층 하나: 그 출처의 수치를 더하고 피해 몫을 층으로 남긴다 */
@@ -143,15 +136,9 @@ export function computeBuild(inputs: BuildInputs): BuildState {
     add(stats)
     layers.push({ id, kind: 'add', value: stats.damage - before })
   }
+  // 열린 신화 수 (하나마다 최대 생명 +5)
   let collected = 0
-  addFrom('stars', () => {
-    for (const [id, level] of inputs.open) {
-      if (level <= 0) continue
-      collected += 1
-      // 별을 밝힌 신화만 그 신화의 수치를 낸다 (성좌판, 엔딩 뒤)
-      if (inputs.starred?.has(id)) stats[godDef(id).always.stat.kind] += statAt(godDef(id).always.stat, alwaysStage(level, worn.has(id), true))
-    }
-  })
+  for (const level of inputs.open.values()) if (level > 0) collected += 1
   // 일반 장비 수치 (E13-02)와 원천 수치
   const sources = Object.fromEntries(SOURCE_IDS.map((s) => [s, 0])) as Record<SourceId, number>
   const addItems = (items: readonly GearItemStats[] | undefined) => {
@@ -161,21 +148,30 @@ export function computeBuild(inputs: BuildInputs): BuildState {
     }
   }
   addFrom('gear', () => addItems(inputs.gearItems))
+  // 원천 불씨 (E304): 원천마다 +2
+  const flames = inputs.flames ?? {}
+  for (const s of SOURCE_IDS) sources[s] += (flames[s] ?? 0) * FLAME.points
   for (const from of BONUS_FROM) {
     addFrom(from, () => {
       for (const [kind, value] of Object.entries(inputs.bonus?.[from] ?? {}) as [StatKind, number][]) stats[kind] += value
     })
   }
-  const awakening = Object.fromEntries(SOURCE_IDS.map((s) => [s, Math.min(3, awakeningLevel(sources[s]) + (inputs.awakenBonus?.[s] ?? 0))])) as Record<SourceId, number>
+  const awakening = Object.fromEntries(SOURCE_IDS.map((s) => [s, Math.min(3, awakeningLevel(sources[s]))])) as Record<SourceId, number>
   // 신화 단계(큰 걸음)는 곱하고, 유물표는 다른 피해 수치와 더한다. 고른 신화의 패시브(천둥의 신: 거인 특효)는 곱한다
   layers.unshift({ id: 'promotion', kind: 'mul', value: PER_PROMOTION.damage ** inputs.promotions })
   layers.push({ id: 'collection', kind: 'add', value: (inputs.lit ?? 0) * PER_LIT })
   layers.push({ id: 'myth', kind: 'mul', value: god ? god.passive.damageScale : 1 })
+  // 원정 (E304): 명성 배율, 불꽃 불씨의 피해
+  const renown = renownMultiplier(inputs.renown ?? 0)
+  layers.push({ id: 'renown', kind: 'mul', value: renown })
+  // 장 정복 (E305-02): 명성 배율 M을 M^(1 + 0.1·정복)으로. 늘어난 몫만 따로 한 층
+  layers.push({ id: 'conquest', kind: 'mul', value: renownMultiplier(inputs.renown ?? 0, inputs.conquered ?? 0) / renown })
+  layers.push({ id: 'flames', kind: 'mul', value: FLAME.flame.damage ** (flames.flame ?? 0) })
   const damageScale = layerProduct(layers)
   // 유물의 지속 효과는 그 신이 자리에 들었을 때만 깨어난다 (E21-04 → E302). 시련으로 신화를 막아도 자리는 그대로 본다
   const present = inputs.present ?? (inputs.hand ? [inputs.hand] : [])
-  const borrowed = rules.noMyth ? [] : present.filter((g) => g !== inputs.hand)
-  const lent = inputs.waking && !rules.noMyth ? [...present, inputs.waking] : present
+  const borrowed = present.filter((g) => g !== inputs.hand)
+  const lent = inputs.waking ? [...present, inputs.waking] : present
   const modifiers = gearModifiers(inputs.gear.map((id) => (id && relicAwake(id, inputs.hand, lent) ? id : null)))
   return {
     chosen,
@@ -185,16 +181,16 @@ export function computeBuild(inputs: BuildInputs): BuildState {
     layers,
     modifiers,
     // 받는 피해 줄이기를 많이 겹쳐도 0이나 음수(맞으면 회복)가 되지 않게
-    damageTaken: modifiers.damageTaken * Math.max(0.1, 1 + stats.damageTaken),
-    moveSpeed: modifiers.moveSpeed * (1 + stats.moveSpeed) * rules.moveScale,
-    attackSpeed: (god ? god.passive.attackSpeed : 1) * (1 + stats.attackSpeed),
+    damageTaken: modifiers.damageTaken * Math.max(0.1, 1 + stats.damageTaken) * FLAME.stone.taken ** (flames.stone ?? 0),
+    moveSpeed: modifiers.moveSpeed * (1 + stats.moveSpeed) * rules.moveScale * FLAME.wind.speed ** (flames.wind ?? 0),
+    attackSpeed: (god ? god.passive.attackSpeed : 1) * (1 + stats.attackSpeed) * FLAME.wind.speed ** (flames.wind ?? 0),
     attack: god ? god.attack : 'blade',
     collected,
     lit: inputs.lit ?? 0,
     stats,
     sources,
     awakening,
-    maxHp: Math.round((BASE_HP + collected * PER_OPENED.maxHp + stats.maxHp) * (1 + inputs.promotions * PER_PROMOTION.maxHpPct + stats.maxHpPct) * rules.maxHpScale),
+    maxHp: Math.round((BASE_HP + collected * PER_OPENED.maxHp + stats.maxHp) * (1 + inputs.promotions * PER_PROMOTION.maxHpPct + stats.maxHpPct) * rules.maxHpScale * FLAME.stone.maxHp ** (flames.stone ?? 0)),
     noHeal: rules.noHeal,
     noUltimate: rules.noUltimate,
   }

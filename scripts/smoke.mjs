@@ -327,21 +327,22 @@ try {
   await lookShot('4-manifest', 12)
   // 왼쪽 위 상태: 발현한 클래스 초상과 레벨 보석
   if ((await page.locator('.hud__portrait.is-empty').count()) !== 0) throw new Error('상태: 발현했는데 초상이 비어 있습니다.')
-  // 신화의 유물(묠니르)을 주워 신화가 열리면 신화·외형 탭도 열린다. 아래 점검은 탭을 모두 연 채로 한다
+  // 신의 흔적(조각 1)을 찾으면 신 탭(자리·유물표·외형, E305-04)이 열린다. 원천·맹세는 귀환해야 열린다. 아래 점검은 탭을 모두 연 채로 한다
   const mythTabs = await page.evaluate(() => [...window.__game.tabs.opened])
-  if (!['relics', 'classes', 'looks'].every((t) => mythTabs.includes(t))) throw new Error(`탭 차례: 묠니르로 신화를 열었는데 신화·외형 탭이 닫혀 있습니다 (${mythTabs.join()})`)
+  if (!['relics', 'gods'].every((t) => mythTabs.includes(t)) || mythTabs.includes('sources') || mythTabs.includes('oaths')) throw new Error(`탭 차례: 토르를 깨웠는데 신 탭이 닫혀 있거나, 귀환 전에 원천·맹세 탭이 열렸습니다 (${mythTabs.join()})`)
   await page.evaluate(() => window.__game.tabs.openAll())
   // 정보 화면(E4): 문장 단추로 열면 게임이 멈춘다. 새로 열린 탭이 있으면 그 탭부터 보이니(E236-05) 상태 탭을 누른다
   await page.click('.menu-button')
   if (!(await page.evaluate(() => window.__game.paused))) throw new Error('정보 화면: 열었는데 게임이 멈추지 않습니다.')
   const firstShown = await page.evaluate(() => window.__game.menu.currentTab)
   if (firstShown === 'status') throw new Error('정보 화면: 새로 열린 탭이 있는데 상태 탭부터 보입니다.')
-  await page.locator('.menu__tab').first().click()
+  const tab = (name) => page.locator('.menu__tab', { hasText: name })
+  await tab('상태').click()
   const statRows = await page.locator('.menu-status__stat').count()
   if (statRows !== 8) throw new Error(`상태 탭: 능력치 줄이 ${statRows}개입니다.`)
   await page.screenshot({ path: 'test-results/menu-status.png' })
   // 장비 탭 (E13): 칸 7. 장화를 가방에 넣고, 가방에서 누르면 비교 카드가 뜨고 다시 발 칸에 낀다. 고른 신화는 그대로다 (E12-04).
-  await page.locator('.menu__tab').nth(2).click()
+  await tab('장비').click()
   if ((await page.locator('.menu-relics__slot').count()) !== 7) throw new Error('장비 탭: 칸이 7개가 아닙니다.')
   await page.locator('.menu-relics__slot').nth(4).click()
   await page.getByRole('button', { name: '가방에 넣기' }).click()
@@ -356,14 +357,14 @@ try {
   if ((await page.evaluate((uid) => window.__game.powers.loadout.slots[4] === uid, bootsUid)) !== true) throw new Error('정보 화면: 가방의 장비를 발 칸에 다시 끼지 못했습니다.')
   // 대장간 (E13-05): 마을에서 재료가 차면 「벼리기」로 묠니르를 2단계로 올린다
   await page.evaluate(() => window.__game.dev.fillForge('thor'))
-  await page.locator('.menu__tab').nth(1).click()
-  await page.locator('.menu__tab').nth(2).click()
-  const forgeRow = page.locator('.menu-forge__row', { hasText: '각성한 묠니르' })
+  await tab('수련').click()
+  await tab('장비').click()
+  const forgeRow = page.locator('.menu-forge__row', { hasText: '벼린 묠니르' })
   if (!(await forgeRow.count())) throw new Error('대장간: 묠니르를 올리는 제작법이 보이지 않습니다.')
   await forgeRow.getByRole('button', { name: '벼리기' }).click()
   if ((await page.evaluate(() => window.__game.powers.loadout.stage('mjolnir'))) !== 2) throw new Error('대장간: 벼렸는데 묠니르가 2단계가 아닙니다.')
-  await page.click('.menu__tab:nth-child(4)')
-  if (!(await page.locator('.menu-classes__now').textContent()).includes('천둥의 신')) throw new Error('정보 화면: 신화 탭에 지금 신화가 없습니다.')
+  await tab('신').click()
+  if (!(await page.locator('.menu-classes__now').textContent()).includes('천둥의 신')) throw new Error('정보 화면: 신 탭에 지금 신이 없습니다.')
   // 신화 카드 (E12-06, E21-02, E302): 열린 신화·손·심장·숨에 끼면 얻는 것과 한 신에 몰기 표시
   const myth = await page.locator('.menu-myth').textContent()
   // 유물표 (E303-04): 묠니르 칸이 켜져 깨어 있고, 못 켠 칸은 실루엣
@@ -375,7 +376,7 @@ try {
   await page.evaluate(() => {
     const g = window.__game
     g.progress.open('loki')
-    g.menu.myths.selected = 'loki'
+    g.menu.gods.selected = 'loki'
     g.menu.refresh()
   })
   await page.locator('.menu-myth__choose', { hasText: '숨에 넣기' }).click()
@@ -390,36 +391,41 @@ try {
     window.__game.placeMyth('hand', 'thor')
     window.__game.unplaceMyth('loki')
   })
+  // 신 탭의 「외형」 알약 (E305-04): 외형 탭을 신 탭에 합쳤다. 보관함이 뜨고, 「자리」로 돌아온다
+  await page.locator('.menu-gods__views .ui-pill', { hasText: '외형' }).click()
+  if (!(await page.locator('.wardrobe').isVisible())) throw new Error('신 탭: 「외형」을 눌렀는데 보관함이 없습니다.')
+  await page.locator('.menu-gods__views .ui-pill', { hasText: '자리' }).click()
+  if (!(await page.locator('.menu-slots').isVisible())) throw new Error('신 탭: 「자리」로 돌아왔는데 신의 자리가 없습니다.')
   // 수련 탭 (E236): 깨달음을 얻으면 메뉴 단추에 표시, 뿌리 마디를 누르면 찍히고 피해가 오른다
   const trainBefore = await page.evaluate(() => {
     const g = window.__game
     g.dev.insight(1)
     return { damage: g.ctx.build.state.damageScale, marked: g.menu.button.classList.contains('has-new'), unspent: g.training.unspent }
   })
-  await page.click('.menu__tab:nth-child(5)')
+  await tab('수련').click()
   await page.click('.menu-train__node[data-node="awaken"]')
   const trained = await page.evaluate(() => ({ taken: [...window.__game.training.taken], unspent: window.__game.training.unspent, damage: window.__game.ctx.build.state.damageScale, on: document.querySelector('.menu-train__node[data-node="awaken"]')?.classList.contains('is-taken') }))
   if (!trainBefore.marked || trained.taken.join() !== 'awaken' || trained.unspent !== trainBefore.unspent - 1 || !trained.on || !(trained.damage > trainBefore.damage)) throw new Error(`수련: 깨달음으로 뿌리 마디를 찍지 못했습니다 ${JSON.stringify({ trainBefore, trained })}`)
   console.log(`수련 확인: 깨달음을 얻으면 메뉴 단추 표시, 뿌리 마디를 찍으면 피해 ×${(trained.damage / trainBefore.damage).toFixed(2)}`)
   await page.keyboard.press('Escape')
   if (await page.evaluate(() => window.__game.paused)) throw new Error('정보 화면: 닫았는데 게임이 멈춰 있습니다.')
-  // 원천 탭 (E14, E21-06): 엔딩 전에는 각성 카드 넷만, 시련·균열 탭은 숨김. 엔딩 뒤에는 위협 단계를 골라 오른다
-  await page.evaluate(() => (window.__game.threat.unlocked = 2))
+  // 원천 탭 (E14, E21-06, E305-03): 엔딩 전에는 각성 카드 넷만, 끝없는 원정 탭은 숨김. 엔딩 뒤에는 깊이 한 줄(읽기만, 고르기는 귀환 카드)
   await page.click('.menu-button')
-  await page.locator('.menu__tab').nth(1).click()
+  await tab('원천').click()
   if ((await page.locator('.menu-src__source').count()) !== 4) throw new Error('원천 탭: 각성 카드가 넷이 아닙니다.')
-  const demo = await page.evaluate(() => ({ levels: document.querySelectorAll('.menu-src__level').length, tabs: [...document.querySelectorAll('.menu__tab')].filter((b) => !b.hidden).length }))
-  if (demo.levels !== 0 || demo.tabs !== 7) throw new Error(`엔딩 전: 위협 단계나 시련·균열 탭이 보입니다 (${JSON.stringify(demo)})`)
+  if (!(await page.locator('.menu-src__expedition').textContent()).includes('명성')) throw new Error('원천 탭: 원정 기록(명성·원정 수)이 없습니다.')
+  const srcView = () => ({ depth: document.querySelectorAll('.menu-src__depth').length, levels: document.querySelectorAll('.menu-src__level').length, tabs: [...document.querySelectorAll('.menu__tab')].filter((b) => !b.hidden).length })
+  const demo = await page.evaluate(srcView)
+  if (demo.depth !== 0 || demo.levels !== 0 || demo.tabs !== 7) throw new Error(`엔딩 전: 깊이나 끝없는 원정 탭이 보입니다 (${JSON.stringify(demo)})`)
   await page.evaluate(() => {
     window.__game.reachEnding()
     window.__game.menu.refresh()
   })
-  await page.locator('.menu-src__level', { hasText: '2' }).first().click()
-  const climbed = await page.evaluate(() => ({ level: window.__game.threat.level, reached: window.__game.threat.reached, tabs: [...document.querySelectorAll('.menu__tab')].filter((b) => !b.hidden).length }))
-  if (climbed.level !== 2 || climbed.reached !== 2 || climbed.tabs !== 9) throw new Error(`엔딩 뒤: 위협 2단계로 오르지 못했거나 탭이 아홉이 아닙니다 (${JSON.stringify(climbed)})`)
+  const after = await page.evaluate(srcView)
+  if (after.depth !== 1 || after.levels !== 0 || after.tabs !== 8) throw new Error(`엔딩 뒤: 깊이 한 줄이 없거나(고르는 단추는 없어야 함) 탭이 여덟이 아닙니다 (${JSON.stringify(after)})`)
   await page.keyboard.press('Escape')
-  console.log('원천 확인: 엔딩 전에는 각성 카드 넷과 탭 일곱, 엔딩 뒤에는 탭 아홉과 위협 2단계 고르기')
-  console.log('정보 화면 확인: 상태 탭 능력치 8줄, 열면 멈춤, 가방에 넣기·다시 끼기와 미리 보기, 신화 탭, Esc로 닫기')
+  console.log('원천 확인: 원정 기록, 엔딩 전에는 각성 카드 넷과 탭 일곱, 엔딩 뒤에는 끝없는 원정까지 탭 여덟과 깊이 한 줄(고르기는 귀환 카드)')
+  console.log('정보 화면 확인: 상태 탭 능력치 8줄, 열면 멈춤, 가방에 넣기·다시 끼기와 미리 보기, 신 탭(자리·외형), Esc로 닫기')
 
   // 일시 정지(E5): 창이 없을 때 Esc를 누르면 멈추고, 멈춘 동안 게임 시간이 흐르지 않는다.
   await page.keyboard.press('Escape')
@@ -442,7 +448,7 @@ try {
   // 보관함에서 무기를 짧은 검으로 고르면 묠니르를 껴도 검을 든다. (새로 고침 뒤에도 유지되는지 아래에서 확인)
   await page.evaluate(() => window.__game.appearance.choose('weapon', 'shortSword'))
   if ((await page.evaluate(() => window.__game.hero.rig.outfit.weapon)) !== 'shortSword') throw new Error('외형: 보관함 선택이 적용되지 않습니다.')
-  console.log('장비·유물 확인: 장화 줍기와 발 칸, 조각 셋으로 토르 깨우기(묠니르는 조각 2), 메긴교르드는 재료, 장비 탭 칸 7, 대장간에서 각성한 묠니르 (test-results/look-*.png)')
+  console.log('장비·유물 확인: 장화 줍기와 발 칸, 조각 셋으로 토르 깨우기(묠니르는 조각 2), 메긴교르드는 재료, 장비 탭 칸 7, 대장간에서 벼린 묠니르 (test-results/look-*.png)')
 
   // 지역 (E7): 새로 시작하면 마을. 마을 사람 곁에 가면 말풍선, 출구를 밟으면 암전 뒤 그 땅으로 넘어간다.
   if ((await page.evaluate(() => window.__game.region.id)) !== 'village') throw new Error('지역: 새로 시작했는데 마을이 아닙니다.')
@@ -514,8 +520,7 @@ try {
   // 세계 지도와 성소 워프 (E15-04): 지도 탭에 모든 땅 (E22: 마지막 무대까지 열일곱 곳), 찾은 성소를 누르면 그 땅으로
   await page.evaluate(() => {
     const g = window.__game
-    g.conveniences.open.add('warp')
-    g.conveniences.visited.add('jotunheim')
+    g.waypoints.light('jotunheim')
   })
   await page.click('.minimap')
   const mapLabels = await page.locator('.menu-map__label').count()
@@ -528,20 +533,12 @@ try {
   await page.waitForFunction(() => getComputedStyle(document.querySelector('.region-fade')).opacity === '0', null, { timeout: 15000 })
   await page.evaluate(() => window.__game.enterRegion(window.__game.regions.midgard))
 
-  // 승급 전설 점검: 경험치 바를 채우고 성소에 서면 「우트가르드 원정」이 시작된다.
-  await page.evaluate(() => {
-    const g = window.__game
-    g.progress.addXp('thor', 9999)
-    g.hero.teleport(g.legend.center.x, g.legend.center.z)
-  })
-  await page.waitForFunction(() => window.__game.legend.phase === 'wave', null, { timeout: 15000 })
-  console.log('전설 확인: 성소에서 시작')
 
   // 저장 점검: 새로 고침해도 주운 유물을 그대로 끼고 이어 한다.
   // 저장 왕복: 로키를 빌린 칸에 넣고, 정보 화면을 열어 멈춘 채(창을 닫을 때 다시 저장해도 같게) 저장한다
   const keep = () => {
     const d = window.__game.snapshot()
-    return { pantheon: d.pantheon, waking: d.awaken.waking, fragments: d.awaken.fragments, slots: d.slots, bag: d.bag, stages: d.stages, taken: d.training.taken, ending: d.ending, threat: d.threat.reached, open: d.conveniences.open.filter((id) => id !== 'warp'), visited: d.conveniences.visited }
+    return { pantheon: d.pantheon, waking: d.awaken.waking, fragments: d.awaken.fragments, slots: d.slots, bag: d.bag, stages: d.stages, taken: d.training.taken, ending: d.ending, depth: d.depth.reached, pickups: d.automation.counters.pickups ?? 0, waypoints: d.waypoints, lastBranch: d.expedition.lastBranch }
   }
   await page.evaluate(() => {
     window.__game.relics.place('breath', 'loki')
@@ -573,7 +570,36 @@ try {
   // 세계 자리 (E19-05): 지역 id + 지역 안 좌표가 곧 이어진 세계의 자리다
   const back = await page.evaluate(() => ({ x: window.__game.hero.object.position.x, z: window.__game.hero.object.position.z }))
   if (Math.hypot(back.x - savedAt.x, back.z - savedAt.z) > 1) throw new Error(`이어서 플레이 실패: 저장한 자리가 아닙니다 ${JSON.stringify({ savedAt, back })}`)
-  console.log('저장 확인: 새로 고침하면 단추 없이 바로 이어서, 유물·일반 장비·재료와 고른 외형, 신의 자리·조각·단계·수련·위협·웨이포인트, 있던 지역과 자리 유지')
+  console.log('저장 확인: 새로 고침하면 단추 없이 바로 이어서, 유물·일반 장비·재료와 고른 외형, 신의 자리·조각·단계·수련·깊이·자동화 세기·웨이포인트, 있던 지역과 자리 유지')
+  // 귀환 점검 (E304): 원정이 무르익어(2분·기세 8) 성소 화로에 서면 귀환 카드. 승천을 고르면 명성·단계가 오르고 일반 장비는 가보 하나만 남는다
+  await page.evaluate(() => {
+    const g = window.__game
+    g.expedition.elapsed = 300
+    // 원정이 무르익게 (기세 레벨 8)
+    g.training.xp = Math.max(g.training.xp, 5000)
+    g.hero.teleport(g.sanctuary.center.x, g.sanctuary.center.z)
+  })
+  await page.waitForFunction(() => window.__game.returnCardOpen, null, { timeout: 15000 }).catch(() => {
+    throw new Error('귀환: 성소 화로에 섰는데 귀환 카드가 뜨지 않았습니다.')
+  })
+  // 원정이 무르익으면 성소에 빛기둥이 선다 (E305-03: 전설 판 대신 귀환을 빛으로 알린다)
+  if (!(await page.evaluate(() => window.__game.sanctuary.lit))) throw new Error('귀환: 원정이 무르익었는데 성소 빛기둥이 서지 않습니다.')
+  // 깊이 (E305-03, 엔딩 뒤): 귀환 카드 갈래 위에 「그대로 / +1」, 기본은 그대로. +1을 누르고 갈래를 고르면 다음 원정이 깊이 2
+  const pills = await page.locator('.return-card__depth .ui-pill').allTextContents()
+  if (pills.length !== 2 || !(await page.locator('.return-card__depth .ui-pill.is-on').textContent())?.includes('그대로')) throw new Error(`귀환: 엔딩 뒤 귀환 카드에 깊이 「그대로 / +1」이 없습니다 (${pills.join(', ')})`)
+  await page.locator('.return-card__depth .ui-pill', { hasText: '+1' }).click()
+  await lookShot('5-return')
+  const returned = await page.evaluate(() => {
+    const g = window.__game
+    const before = { level: g.progress.level('thor'), gear: g.powers.loadout.gear.size, depth: g.depth.level }
+    document.querySelector('.return-card .pick-card__card').click()
+    return { before, after: { level: g.progress.level('thor'), gear: g.powers.loadout.gear.size, heirloom: g.expedition.heirloom.length, count: g.expedition.count, renown: g.expedition.renown, open: g.returnCardOpen, depth: g.depth.level, reached: g.depth.reached, foeHp: g.encounter.threat.hp, lastBranch: g.expedition.lastBranch } }
+  })
+  if (returned.before.depth !== 1 || returned.after.depth !== 2 || returned.after.reached !== 2 || !(returned.after.foeHp > 1)) throw new Error(`귀환: 「+1」을 골랐는데 다음 원정이 깊이 2가 아닙니다 ${JSON.stringify(returned)}`)
+  if (returned.after.lastBranch !== 'ascend:thor') throw new Error(`귀환: 고른 갈래가 지난번 갈래로 남지 않았습니다 ${JSON.stringify(returned)}`)
+  if (returned.after.count !== 2 || !(returned.after.renown > 0) || returned.after.open) throw new Error(`귀환: 갈래를 눌렀는데 원정이 넘어가지 않았습니다 ${JSON.stringify(returned)}`)
+  if (returned.after.level !== returned.before.level + 1 || returned.after.gear !== returned.after.heirloom || returned.after.heirloom > 1) throw new Error(`귀환: 승천·장비 지우기가 맞지 않습니다 ${JSON.stringify(returned)}`)
+  console.log(`귀환 확인: 성소 화로에서 빛기둥과 카드, 토르 승천 ${returned.before.level} → ${returned.after.level}, 명성 ${returned.after.renown}, 장비 ${returned.before.gear} → 가보 ${returned.after.heirloom}, 「+1」로 깊이 1 → ${returned.after.depth}(적 생명 ×${returned.after.foeHp.toFixed(1)})`)
 
   // 처음 화면으로: 정보 화면의 단추를 두 번 누르면 저장하고 슬롯 고르기로 돌아가고, 그 슬롯을 누르면 이어 간다.
   await page.click('.menu-button')
@@ -585,71 +611,103 @@ try {
   if (!(await page.evaluate(() => window.__game.powers.loadout.has('mjolnir')))) throw new Error('처음 화면에서 슬롯을 골랐는데 유물이 없습니다.')
   console.log('처음 화면 확인: 정보 화면에서 처음 화면으로, 슬롯을 골라 그대로 이어 감')
 
-  // 시련 (E16): 위협 3단계가 되면 필드 성소 결계 안에서 시련 탭의 난이도를 눌러 바로 연다. 제약은 시련 중에만 걸린다
+  // 맹세 (E305-01): 귀환 2에 다시 떠날 때 출발 카드에서 건다. 건 동안 제약이 돌고, 그 원정에서 수호자·장 보스를 이기면 지킨다
   await page.evaluate(() => {
     const g = window.__game
-    g.reachEnding()
-    Object.assign(g.threat, { unlocked: 3, reached: 3 })
-    // 진행 중인 전설이 있으면 그만두고(지역을 다시 지을 수 있게), 둘레 적이 밀어내거나 쓰러뜨리지 않게 치우고 성소 가운데 곁에 선다
-    if (g.legend.active) g.legend.abort(g.encounter, g.growth.legendHost())
     g.enterRegion(g.regions.midgard)
     g.encounter.clearAll()
     if (!g.combat.alive) g.dev.revive()
     g.orders.clear()
-    g.hero.teleport(g.legend.center.x + 4, g.legend.center.z)
+    // 귀환 1을 마친 원정이 무르익었다: 성소 화로에서 귀환하면 귀환 2
+    Object.assign(g.expedition, { count: 2, elapsed: 300, lastBranch: 'flame:stone' })
+    g.training.xp = 5000
+    g.hero.teleport(g.sanctuary.center.x, g.sanctuary.center.z)
     g.hero.stop()
   })
-  const trialBlocked = await page.evaluate(() => {
+  await page.waitForFunction(() => window.__game.returnCardOpen, null, { timeout: 15000 })
+  // 지난번 갈래 그대로 (E305-03, 엔딩 뒤 자동화): 지난 귀환의 갈래가 맨 앞에 꼬리표와 함께
+  const sameBranch = await page.evaluate(() => {
+    const first = document.querySelector('.return-card:not(.oath-card) .pick-card__card')
+    return { tag: first?.querySelector('.return-card__again')?.textContent ?? null, name: first?.querySelector('b')?.textContent ?? null }
+  })
+  if (sameBranch.tag !== '지난번 그대로' || sameBranch.name !== '바위 불씨') throw new Error(`귀환: 엔딩 뒤 귀환 카드 맨 앞에 지난번 갈래(바위 불씨)가 없습니다 ${JSON.stringify(sameBranch)}`)
+  await page.locator('.return-card:not(.oath-card) .pick-card__card').last().click()
+  await page.waitForFunction(() => window.__game.oathCardOpen, null, { timeout: 15000 })
+  const oathCards = await page.locator('.oath-card .pick-card__card').count()
+  if (oathCards < 3) throw new Error(`맹세: 출발 카드의 맹세가 셋보다 적습니다 (${oathCards})`)
+  await page.locator('.oath-card .pick-card__card').filter({ hasText: '침묵의 맹세' }).click()
+  const sworn = await page.evaluate(() => ({ oath: window.__game.expedition.oath, noUltimate: window.__game.ctx.build.state.noUltimate }))
+  if (sworn.oath !== 'silence' || !sworn.noUltimate) throw new Error(`맹세: 침묵의 맹세가 걸리지 않습니다 ${JSON.stringify(sworn)}`)
+  const oathKept = await page.evaluate(() => {
     const g = window.__game
     const p = g.hero.object.position
-    return g.trialSystem.blocked() && { why: g.trialSystem.blocked(), phase: g.legend.phase, d: Math.hypot(p.x - g.legend.center.x, p.z - g.legend.center.z), trial: g.trialSystem.active, region: g.region.id }
+    g.dev.spawn('fenrir', p.x + 3, p.z)
+    const guardian = g.encounter.alive.find((e) => e.spec.role === 'guardian')
+    guardian?.takeHit(1e6, 0, 0, 0)
+    g.advance(2, 1 / 30)
+    // 맹세 기록의 명성 배율이 원정 명성에 걸린다 (맹세 탭에 보이는 값과 같다)
+    return { spawned: !!guardian, oath: g.expedition.oath, kept: g.oaths.has('silence'), noUltimate: g.ctx.build.state.noUltimate, charge: g.ctx.build.state.stats.ultCharge, scale: g.oaths.renownScale(), wired: g.expedition.oathScale() }
   })
-  if (trialBlocked) throw new Error(`시련: 성소 곁인데 열 수 없습니다 ${JSON.stringify(trialBlocked)}`)
-  await page.click('.menu-button')
-  await page.locator('.menu__tab', { hasText: '시련' }).click()
-  if ((await page.locator('.menu-trials .menu-src__source').count()) !== 8) throw new Error('시련: 시련 카드가 여덟이 아닙니다.')
-  await page.locator('.menu-trials .menu-src__source').filter({ hasText: '유리 몸' }).getByRole('button', { name: '1', exact: true }).click()
-  const trial = await page.evaluate(() => ({ id: window.__game.trialSystem.active?.id, legend: window.__game.legend.active, maxHp: window.__game.combat.health.max }))
-  if (trial.id !== 'glass' || !trial.legend) throw new Error(`시련: 유리 몸 1단계가 열리지 않습니다 ${JSON.stringify(trial)}`)
-  console.log(`시련 확인: 성소에서 시련 탭으로 유리 몸 1단계를 열고 전설이 시작됨 (최대 생명 ${trial.maxHp})`)
+  if (!oathKept.spawned || oathKept.oath !== null || !oathKept.kept || oathKept.noUltimate || !(oathKept.charge >= 0.3)) throw new Error(`맹세: 수호자를 이겨도 지키지 못했습니다 ${JSON.stringify(oathKept)}`)
+  if (!(oathKept.scale > 1) || oathKept.wired !== oathKept.scale) throw new Error(`맹세: 맹세 기록의 명성 배율이 원정 명성에 걸리지 않습니다 ${JSON.stringify(oathKept)}`)
+  console.log(`맹세 확인: 귀환 2에 출발 카드 ${oathCards}장, 침묵의 맹세를 걸면 궁극기가 막히고, 수호자를 이기면 지켜 심장 충전 +${Math.round(oathKept.charge * 100)}%, 명성 ×${oathKept.wired.toFixed(3)}`)
 
-  // 균열 (E17): 한계를 깨면 마을의 균열 탭에서 들어가고, 층을 깨면 축복을 골라 다음 층 문으로 내려가며, 나가는 문으로 나오면 끝
-  await page.evaluate(() => {
+  // 한계를 깸 (E305-03, D8): 깊이 10 원정에서 수호자(장 보스)를 이기고 귀환하면 깊이의 끝이 사라지고 끝없는 원정이 열린다
+  const broke = await page.evaluate(() => {
     const g = window.__game
-    if (g.legend.active) g.legend.abort(g.encounter, g.growth.legendHost())
     g.reachEnding()
-    for (const realm of ['norse', 'greek', 'china', 'japan', 'korea']) g.threat.cleared[realm] = 10
-    Object.assign(g.threat, { unlocked: 10, reached: 10 })
     // 새로 고친 뒤라 대화 장면이 다시 켜져 있다 (한계를 깸 장면이 메뉴를 가리지 않게)
     g.storyScenes = false
-    g.threatSystem.breakLimit()
+    g.enterRegion(g.regions.midgard)
+    g.encounter.clearAll()
+    if (!g.combat.alive) g.dev.revive()
+    g.dev.depth(9)
+    // 깊이 9에서 이겨도 깨지 않는다
+    const p = g.hero.object.position
+    const win = () => {
+      g.dev.spawn('fenrir', p.x + 3, p.z)
+      g.encounter.alive.find((e) => e.spec.role === 'guardian')?.takeHit(1e6, 0, 0, 0)
+      g.advance(2, 1 / 30)
+      g.expeditionSystem.returnNow('flame:flame')
+      g.hideCards()
+    }
+    win()
+    const shallow = g.depth.limitBroken
+    g.dev.depth(10)
+    win()
+    return { shallow, broken: g.depth.limitBroken, max: g.depth.max, open: g.endlessSystem.open }
+  })
+  if (broke.shallow || !broke.broken || broke.max <= 10 || !broke.open) throw new Error(`한계를 깸: 깊이 10 원정에서 수호자를 이기고 귀환했는데 깨지 않았거나 깊이 9에서 깼습니다 ${JSON.stringify(broke)}`)
+  console.log('한계를 깸 확인: 깊이 9에서 이기고 귀환하면 그대로, 깊이 10에서 이기고 귀환하면 깊이의 끝이 사라지고 끝없는 원정이 열림')
+  // 끝없는 원정 (E17 균열 → E305-03): 한계를 깨면 마을의 끝없는 원정 탭에서 나서고, 층을 깨면 다음 층 문이 열려 내려가며, 나가는 문으로 나오면 끝
+  await page.evaluate(() => {
+    const g = window.__game
     g.enterRegion(g.regions.village)
     if (!g.combat.alive) g.dev.revive()
   })
-  if ((await page.evaluate(() => window.__game.threat.unlocked)) !== 11) throw new Error('균열: 한계를 깼는데 위협 11단계가 열리지 않습니다.')
   if (!(await page.locator('.menu').isVisible())) await page.click('.menu-button')
-  await page.locator('.menu__tab', { hasText: '균열' }).click()
-  await page.getByRole('button', { name: '균열에 들어가기' }).click()
-  const floor1 = await page.evaluate(() => ({ region: window.__game.region.id, depth: window.__game.riftSystem.run?.depth }))
-  if (floor1.region !== 'rift' || floor1.depth !== 1) throw new Error(`균열: 1층에 들어가지 않습니다 ${JSON.stringify(floor1)}`)
-  await page.evaluate(() => {
+  await page.locator('.menu__tab', { hasText: '끝없는 원정' }).click()
+  await page.getByRole('button', { name: '끝없는 원정에 나서기' }).click()
+  const floor1 = await page.evaluate(() => ({ region: window.__game.region.id, depth: window.__game.endlessSystem.run?.depth }))
+  if (floor1.region !== 'endless' || floor1.depth !== 1) throw new Error(`끝없는 원정: 1층에 들어가지 않습니다 ${JSON.stringify(floor1)}`)
+  const opened = await page.evaluate(() => {
     window.__game.encounter.clearAll()
-    window.__game.riftSystem.update(0.1)
+    window.__game.endlessSystem.update(0.1)
+    return window.__game.endlessSystem.run?.cleared === true
   })
-  await page.waitForSelector('.blessing button', { timeout: 5000 })
-  await page.locator('.blessing button').first().click()
+  if (!opened) throw new Error('끝없는 원정: 층의 적을 모두 쓰러뜨렸는데 다음 층 문이 열리지 않습니다.')
   const floor2 = await page.evaluate(() => {
     const g = window.__game
-    const p = g.riftSystem.run.floor.portal
+    const p = g.endlessSystem.run.floor.portal
     g.hero.teleport(p.x, p.z)
-    g.riftSystem.update(0.1)
+    g.endlessSystem.update(0.1)
     g.stage.flush()
     g.encounter.flushNeighbors()
-    // 균열은 세계 밖 따로 된 공간 (E19-06): 이웃 땅 조각·무리·통로가 없다
-    return { depth: g.riftSystem.run?.depth, blessings: g.riftSystem.run?.blessings.length, region: g.region.id, chunks: g.stage.others.size, parked: g.encounter.parkedGiants.length, links: g.world.links.length }
+    // 끝없는 원정은 세계 밖 따로 된 공간 (E19-06): 이웃 땅 조각·무리·통로가 없다
+    return { depth: g.endlessSystem.run?.depth, region: g.region.id, chunks: g.stage.others.size, parked: g.encounter.parkedGiants.length, links: g.world.links.length }
   })
-  if (floor2.depth !== 2 || floor2.blessings !== 1) throw new Error(`균열: 축복을 고르고 문에 닿았는데 2층이 아닙니다 ${JSON.stringify(floor2)}`)
-  if (floor2.chunks || floor2.parked || floor2.links) throw new Error(`균열: 세계 밖인데 이웃 땅이 붙어 있습니다 ${JSON.stringify(floor2)}`)
+  if (floor2.depth !== 2) throw new Error(`끝없는 원정: 층을 깨고 문에 닿았는데 2층이 아닙니다 ${JSON.stringify(floor2)}`)
+  if (floor2.chunks || floor2.parked || floor2.links) throw new Error(`끝없는 원정: 세계 밖인데 이웃 땅이 붙어 있습니다 ${JSON.stringify(floor2)}`)
   // 나가는 문: 밀려서(걸어가던 곳이 아닌데) 밟으면 그대로, 문으로 걸어가면 나간다
   const pushed = await page.evaluate(() => {
     const g = window.__game
@@ -659,9 +717,9 @@ try {
     g.advance(0.2, 1 / 30)
     g.hero.teleport(exit.x, exit.z)
     g.advance(0.5, 1 / 30)
-    return { region: g.region.id, traveling: g.world.traveling, run: g.riftSystem.run !== null }
+    return { region: g.region.id, traveling: g.world.traveling, run: g.endlessSystem.run !== null }
   })
-  if (pushed.region !== 'rift' || pushed.traveling || !pushed.run) throw new Error(`균열: 걸어가지 않았는데 나가는 문이 열립니다 ${JSON.stringify(pushed)}`)
+  if (pushed.region !== 'endless' || pushed.traveling || !pushed.run) throw new Error(`끝없는 원정: 걸어가지 않았는데 나가는 문이 열립니다 ${JSON.stringify(pushed)}`)
   // 땅을 누른 이동이 아니면(문 곁의 적을 쫓을 때 등) 문 위를 지나가도 나가지 않는다
   const chased = await page.evaluate(() => {
     const g = window.__game
@@ -671,9 +729,9 @@ try {
     g.orders.clear()
     g.hero.moveTo(exit)
     g.advance(3, 1 / 30)
-    return { region: g.region.id, traveling: g.world.traveling, run: g.riftSystem.run !== null }
+    return { region: g.region.id, traveling: g.world.traveling, run: g.endlessSystem.run !== null }
   })
-  if (chased.region !== 'rift' || chased.traveling || !chased.run) throw new Error(`균열: 땅을 누르지 않았는데 나가는 문이 열립니다 ${JSON.stringify(chased)}`)
+  if (chased.region !== 'endless' || chased.traveling || !chased.run) throw new Error(`끝없는 원정: 땅을 누르지 않았는데 나가는 문이 열립니다 ${JSON.stringify(chased)}`)
   const left = await page.evaluate(() => {
     const g = window.__game
     const exit = g.region.exits[0]
@@ -681,10 +739,10 @@ try {
     g.advance(0.2, 1 / 30)
     g.orders.press({ x: exit.x, z: exit.z }, null)
     g.advance(3, 1 / 30)
-    return { run: g.riftSystem.run, best: g.rift.best, region: g.region.id }
+    return { run: g.endlessSystem.run, best: g.endless.best, region: g.region.id }
   })
-  if (left.run || left.best < 1 || left.region !== 'village') throw new Error(`균열: 나가는 문으로 걸어갔는데 끝나지 않았습니다 ${JSON.stringify(left)}`)
-  console.log('균열 확인: 한계를 깨고 마을에서 들어가, 1층을 깨 축복을 고르고 2층으로, 밀려 밟거나 적을 쫓다 밟은 나가는 문은 닫혀 있고 땅을 눌러 걸어가면 나와 끝')
+  if (left.run || left.best < 1 || left.region !== 'village') throw new Error(`끝없는 원정: 나가는 문으로 걸어갔는데 끝나지 않았습니다 ${JSON.stringify(left)}`)
+  console.log('끝없는 원정 확인: 한계를 깨고 마을에서 나서, 1층을 깨면 열린 문으로 2층에, 밀려 밟거나 적을 쫓다 밟은 나가는 문은 닫혀 있고 땅을 눌러 걸어가면 나와 끝')
 
   // 개발 패널: ?dev 는 평소 플레이에 오른쪽 아래 패널만 더한다 (저장 없이 보려고 점검용 실행 ?relics= 와 함께). 단추로 유물·적·전설을 바로 바꿔 본다.
   await page.goto(`${URL}?dev&relics=&region=midgard`)
@@ -733,11 +791,20 @@ try {
   await page.waitForFunction((n) => window.__game.region.props.length === n, beforeEdit.props, { timeout: 15000 })
   await devButton('편집').click()
   console.log('지도 편집기 확인: 편집 켜고 소품 놓기(이동 지시 없음), 되돌리기')
+  // 성소 (E305-03): 「귀환 준비」를 누르면 원정이 무르익어 화로에 서고, 빛기둥이 서고 귀환 카드가 뜬다
   await devTab('신화')
-  await devButton('전설 시작').click()
-  await page.waitForFunction(() => window.__game.legend.phase === 'wave', null, { timeout: 15000 })
+  await devButton('귀환 준비').click()
+  await page.waitForFunction(() => window.__game.returnCardOpen, null, { timeout: 15000 }).catch(() => {
+    throw new Error('개발 패널: 「귀환 준비」를 눌렀는데 성소 화로에서 귀환 카드가 뜨지 않았습니다.')
+  })
+  const hearth = await page.evaluate(() => {
+    const g = window.__game
+    const p = g.hero.object.position
+    return { lit: g.sanctuary.lit, present: g.sanctuary.present, near: Math.hypot(p.x - g.sanctuary.center.x, p.z - g.sanctuary.center.z) }
+  })
+  if (!hearth.present || !hearth.lit || hearth.near > 2.5) throw new Error(`개발 패널: 성소 화로가 맞지 않습니다 ${JSON.stringify(hearth)}`)
   await page.screenshot({ path: 'test-results/devpanel.png' }).catch(() => {})
-  console.log('개발 패널 확인: 오른쪽 아래에 접힌 채 시작·펴기, 신화권·신화별 유물 묶음, 적 소환·제거, 충돌·길찾기 보기, 전설 바로 시작')
+  console.log('개발 패널 확인: 오른쪽 아래에 접힌 채 시작·펴기, 신화권·신화별 유물 묶음, 적 소환·제거, 충돌·길찾기 보기, 귀환 준비(성소 빛기둥·귀환 카드)')
 
   mkdirSync('test-results', { recursive: true })
   await page.screenshot({ path: 'test-results/smoke.png' })
@@ -827,14 +894,18 @@ try {
       g.skipGoal()
       g.advance(2, 1 / 30)
     }
+    // 밀린 순간(장면·큰 카드)이 차례로 지나가야 엔딩 장면이 열린다 (E305-03: 제우스를 깨우는 조각 셋도 순간이 셋)
+    for (let k = 0; k < 60 && !g.ending.reached; k++) g.advance(1, 1 / 30)
     g.advance(1, 1 / 30)
-    return { chapters, early, woke, ending: g.ending.reached, region: g.region.id, barriers: g.barrierSpots.length, log: g.log.filter((e) => e.type === 'ending').length, frame: g.frame }
+    return { chapters, early, woke, greek: g.progress.opened.filter((god) => ['zeus', 'poseidon', 'hades', 'artemis'].includes(god)), ending: g.ending.reached, region: g.region.id, barriers: g.barrierSpots.length, log: g.log.filter((e) => e.type === 'ending').length, frame: g.frame }
   })
   // 목표 한 줄은 화면을 그릴 때 바뀐다
   await end.waitForFunction((f) => window.__game.frame > f + 2, ending.frame, { timeout: 60000 })
   ending.goal = await end.evaluate(() => !document.querySelector('.chapter-goal').hidden)
   await end.close()
   if (!ending.ending || ending.log !== 1 || ending.barriers > 0 || ending.goal) throw new Error(`장 흐름: 끝까지 가도 엔딩이 아닙니다 ${JSON.stringify(ending)}`)
+  // 그리스는 성소에서 고르지 않고 제우스를 깨운다 (E305-03): 키마이라도 신화권을 통째로 열지 않는다
+  if (ending.greek.join() !== 'zeus') throw new Error(`장 흐름: 그리스에서 제우스 하나만 깨어나야 합니다 ${JSON.stringify(ending.greek)}`)
   if (!ending.early || ending.early.jotunheim || ending.early.utgard) throw new Error(`땅 차례: 첫 신을 깨우기 전에 요툰헤임·우트가르드가 열려 있습니다 ${JSON.stringify(ending.early)}`)
   if (!ending.early.ironwood || !ending.early.serpentshore) throw new Error(`땅 차례: 첫 신의 수호자 땅(철의 숲·바닷가)이 제1장에 열려 있지 않습니다 ${JSON.stringify(ending.early)}`)
   const w = ending.woke
@@ -843,7 +914,7 @@ try {
   if (!w || w.pack < 4 || w.piece1 !== 1 || !w.lent.includes(w.god) || w.piece2 !== 2 || !w.relic || !w.guardian || !w.opened.includes(w.god))
     throw new Error(`신의 조각 셋: 흔적 → 사냥 → 수호자로 신이 깨어나지 않습니다 ${JSON.stringify(w)}`)
   console.log(`신의 조각 확인: 흔적에 다가가면 무리 ${w.pack} → 조각 1(빌린 힘 ${w.god}) → ${w.land}에서 사냥 → 조각 2(유물) → 수호자 「${w.guardian}」 → ${w.god} 깨어남 (싸우다 워프하면 조각 없음, 수호자 상처 ${Math.round(w.wound * 100)}%로 기억, 요툰헤임 결계에서 걸음이 막힘)`)
-  console.log(`엔딩 확인: ${ending.chapters.join(' → ')} → 갈라진 하늘의 왕을 이기면 엔딩, 결계가 모두 풀리고 목표 한 줄이 사라짐 (첫 신을 깨우기 전에는 요툰헤임·우트가르드가 막히고 철의 숲·바닷가는 열림)`)
+  console.log(`엔딩 확인: ${ending.chapters.join(' → ')} → 갈라진 하늘의 왕을 이기면 엔딩(그리스는 제우스 하나를 깨움), 결계가 모두 풀리고 목표 한 줄이 사라짐 (첫 신을 깨우기 전에는 요툰헤임·우트가르드가 막히고 철의 숲·바닷가는 열림)`)
 
   // 휴대폰 (E235): 세로로 든 터치 기기에서 끌기 = 떠다니는 조이스틱으로 걷기, 떼면 멈춤, 톡 = 그곳까지, 두 손가락 = 확대,
   // 가로로 들면 돌려 달라는 안내와 멈춤. 손가락은 캔버스에 포인터 사건을 보내 흉내 낸다

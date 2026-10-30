@@ -83,7 +83,7 @@ export function gearCard(item: GearItem, worn?: GearItem | null, sources?: Reado
   const name = source?.name ?? item.source.id
   const total = sources?.[item.source.id]
   const next = total === undefined ? undefined : AWAKEN_AT.find((at) => total < at)
-  const until = total === undefined ? '' : next === undefined ? ' · 모두 깨어남' : ` · ${name} 각성까지 ${next - total}`
+  const until = total === undefined ? '' : next === undefined ? ' · 모두 각성' : ` · ${name} 각성까지 ${next - total}`
   list.append(el('li', 'gc__source', `원천 ${name} +${item.source.value}${until}`))
   section.append(list)
   card.append(section)

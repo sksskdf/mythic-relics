@@ -1,6 +1,4 @@
-import { statAt } from '../build/BuildState'
 import type { StatKind } from '../data/mythAlways'
-import { type God, godDef } from '../relics/data'
 import { PER_OPENED } from './ClassProgress'
 
 /** 수치 종류의 화면 이름 */
@@ -43,10 +41,4 @@ export function statText(kind: StatKind, value: number): string {
 /** 열린 신화 하나마다 더하는 것 한 줄 (E21-02 → E303-04: 피해는 유물표로 옮겼다) */
 export function collectionText(): string {
   return `최대 생명 +${PER_OPENED.maxHp}`
-}
-
-/** 성좌판에서 별을 밝힌 신화의 수치 한 줄 (엔딩 뒤, E17-04). stage는 별 수치 단계 (3부터 작동) */
-export function starText(god: God, stage: number): string {
-  const { stat } = godDef(god).always
-  return statText(stat.kind, stage >= 3 ? statAt(stat, stage) : stat.value[0])
 }

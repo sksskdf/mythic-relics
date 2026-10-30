@@ -6,7 +6,6 @@ import { arrivalSpot, exitColor, formatRegions, nextHop, parseRegions, RAW_REGIO
 import { GRUNT, KING } from '../src/enemies/Giant'
 import { LAND_DAMAGE_EXPONENT } from '../src/data/chapters'
 import { Encounter } from '../src/game/Encounter'
-import { UtgardLegend } from '../src/game/Legend'
 import { CROSS_MARGIN, crossingAt, regionLinks, walkRects } from '../src/data/world'
 import { walkArea } from '../src/world/colliders'
 import { collidersFor, streamColliders } from '../src/world/regionMap'
@@ -173,7 +172,7 @@ describe('세계 (E7, E15)', () => {
 
   it('마지막 무대는 올림포스에서 걸어 들어간다 (E22, E239)', () => {
     expect(REGIONS.sky!.exits.map((e) => e.to)).toEqual(['olympus'])
-    // 마지막 보스는 균열의 우트가르드의 왕과 모습·이름이 같고 세기는 따로 (E22-05)
+    // 마지막 보스는 끝없는 원정의 우트가르드의 왕과 모습·이름이 같고 세기는 따로 (E22-05)
     expect(REGIONS.sky!.boss?.enemy).toBe('skyKing')
     const into = regions.filter((r) => r.exits.some((e) => e.to === 'sky')).map((r) => r.id)
     expect(into).toEqual(['olympus'])
@@ -333,21 +332,6 @@ describe('지역을 바꿔 다시 짓기', () => {
     expect(encounter.boss).toBeNull()
     encounter.update(30, { hero: { x: 0, z: 0, radius: 0.4, alive: true } } as never)
     expect(encounter.giants).toHaveLength(0)
-  })
-
-  it('성소가 없는 지역이면 성소를 감추고 전설이 열리지 않는다', () => {
-    const legend = new UtgardLegend({ x: 0, z: 0 }, 11)
-    legend.moveTo(null)
-    expect(legend.present).toBe(false)
-    expect(legend.object.visible).toBe(false)
-  })
-
-  it('성소를 옮기면 결계 중심과 반지름이 바뀐다 (전설이 진행 중이면 그대로)', () => {
-    const legend = new UtgardLegend({ x: 0, z: 0 }, 11)
-    legend.moveTo({ x: 5, z: -5 }, 8)
-    expect(legend.center).toEqual({ x: 5, z: -5 })
-    expect(legend.radius).toBe(8)
-    expect(legend.object.position.x).toBe(5)
   })
 })
 

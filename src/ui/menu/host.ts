@@ -2,6 +2,7 @@ import type { ClassProgress } from '../../myth/ClassProgress'
 import type { SourceId } from '../../data/schema'
 import type { GearItem } from '../../gear/roll'
 import type { LoadoutState } from '../../myth/manifest'
+import type { EndingFeature } from '../../progress/Ending'
 import type { God, RelicId } from '../../relics/data'
 import type { RelicCardContext } from '../relicCard'
 import type { WardrobeHost } from '../WardrobePane'
@@ -18,8 +19,8 @@ export interface HeroStats {
   knockbackDealt: number
   /** 받는 밀침 배율 (낮을수록 잘 버틴다) */
   knockbackTaken: number
-  /** 신위 게이지 0~1 */
-  divine: number
+  /** 심장 게이지 0~1 (궁극기 충전) */
+  heartGauge: number
   /** 총 승급 횟수 */
   promotions: number
   /** 열린 신화 수 (하나마다 최대 생명) */
@@ -32,39 +33,27 @@ export interface HeroStats {
   powers: { kind: 'god' | 'relic'; name: string; color: string; label: string; what: string }[]
 }
 
-/** 시련 탭이 게임에서 읽고 부르는 것 (E16-04) */
-export interface TrialsHost {
-  /** 위협 3단계에 열린다 */
-  open(): boolean
-  /** 지금 시련을 열 수 없는 까닭 (열 수 있으면 null) */
-  blocked(): string | null
-  /** 시련마다: 이름, 제약, 보상(한 단계마다), 깬 난이도, 난이도마다 가장 빠른 기록(초) */
-  list(): { id: string; name: string; rule: string; reward: string; per: string; cleared: number; best: (number | null)[] }[]
-  /** 깬 난이도의 합과 마일스톤 */
-  total(): number
-  milestones(): { at: number; name: string; text: string }[]
-  /** 균열 보상 배율 (E17) */
-  riftScale(): number
-  start(id: string, level: number): boolean
+/** 맹세 탭이 게임에서 읽는 것 (E305-01) */
+export interface OathsHost {
+  /** 지금 건 맹세 이름 (없으면 null) */
+  current(): string | null
+  /** 고를 수 있는 맹세마다: 이름, 제약, 지키면 얻는 것, 지켰나, 가장 빠른 기록(분:초) */
+  list(): { id: string; name: string; rule: string; reward: string; kept: boolean; best: string | null }[]
+  /** 맹세 기록이 더하는 명성 배율 */
+  renownScale(): number
 }
 
-/** 균열 탭이 게임에서 읽고 부르는 것 (E17) */
-export interface RiftMenuHost {
-  /** 한계를 깼나 (균열이 열렸다) */
+/** 끝없는 원정 탭이 게임에서 읽고 부르는 것 (E17 균열 → E305-03) */
+export interface EndlessMenuHost {
+  /** 한계를 깼나 (끝없는 원정이 열렸다) */
   open(): boolean
-  /** 한계를 깨는 길: 신화권마다 이긴 가장 높은 위협 단계 */
-  progress(): { name: string; cleared: number }[]
+  /** 한계를 깨는 길: 가 본 가장 깊은 곳과 한계 전 끝 (E305-03) */
+  depth(): { reached: number; limit: number }
   canEnter(): boolean
   enter(): boolean
-  /** 진행 중인 균열: 층과 고른 축복 이름 */
-  run(): { depth: number; blessings: string[] } | null
+  /** 진행 중인 끝없는 원정의 층 */
+  run(): { depth: number } | null
   best(): number
-  stars(): number
-  /** 균열 보상 배율 (시련 기록) */
-  scale(): number
-  /** 성좌판: 별마다 신화 이름·색·자리·이웃, 밝혔나, 지금 밝힐 수 있나 */
-  chart(): { god: string; name: string; color: string; x: number; y: number; neighbors: string[]; lit: boolean; can: boolean }[]
-  light(god: string): boolean
 }
 
 /** 수련 탭이 게임에서 읽고 부르는 것 (E236-03) */
@@ -86,34 +75,31 @@ export interface TrainingHost {
 export interface WorldMapHost {
   /**
    * 지역마다: 이름, 신화권 색, 자리(입구·깊은 땅·보스), 지도 위 자리(세계 칸, 북쪽이 위), 땅의 너비(칸 한 변 = 1),
-   * 이웃, 지금 여기인가, 성소를 찾았나, 그 신화권 보스를 이긴 가장 높은 위협 단계, 결계로 막혔나 (E22)
+   * 이웃, 지금 여기인가, 성소를 찾았나, 그 땅의 장 보스를 이겼나, 결계로 막혔나 (E22)
    */
-  nodes(): { id: string; name: string; color: string; zone: string | null; x: number; y: number; size: number; links: string[]; here: boolean; found: boolean; cleared: number; locked: boolean }[]
+  nodes(): { id: string; name: string; color: string; zone: string | null; x: number; y: number; size: number; links: string[]; here: boolean; found: boolean; /** 그 땅의 장 보스를 이겼다 */ beaten: boolean; locked: boolean }[]
   /** 다음 목표: 가야 할 땅과 목표 한 줄 (E22-04). 엔딩 뒤이거나 다 했으면 null */
   goal(): { region: string; text: string } | null
   /** 아직 깨우지 않은 신의 흔적 (E238): 있는 땅, 이름, 그 신의 색, 지금 응답하지 않는가(깨우는 중·주신이 더 자라야 함) */
   traces(): { region: string; name: string; color: string; waking: boolean }[]
-  /** 지도 위 내 자리 (세계 칸 단위). 세계 밖(균열)이면 null */
+  /** 지도 위 내 자리 (세계 칸 단위). 세계 밖(끝없는 원정)이면 null */
   me(): { x: number; y: number } | null
-  /** 성소 워프가 열렸나 */
-  canWarp(): boolean
+  /** 마을이나 켠 성소로 바로 간다 (웨이포인트, 처음부터) */
   warp(id: string): boolean
 }
 
 /** 원천 탭이 게임에서 읽고 부르는 것 */
 export interface SourcesHost {
   /** 원천마다: 장비의 합과 각성 단계 */
-  rows(): { id: SourceId; total: number; level: number }[]
-  readonly threat: { level: number; unlocked: number; reached: number; max: number }
-  /** 단계를 고를 수 있는 곳인가 (마을) */
-  here(): boolean
-  choose(level: number): boolean
-  /** 편의: 이름, 설명, 열렸나, 진행 */
-  conveniences(): { id: string; name: string; text: string; open: boolean; have: number; need: number }[]
-  autoSalvage: boolean
-  /** 성소 워프: 갈 수 있는 곳 (열리지 않았으면 빈 목록) */
-  warps(): { id: string; name: string }[]
-  warp(id: string): boolean
+  rows(): { id: SourceId; total: number; level: number; /** 원천 불씨 몫 (E304, 합에 들어 있다) */ flames: number }[]
+  /** 깊이 (E305-03, 엔딩 뒤): 지금 원정의 깊이, 가 본 가장 깊은 곳, 한계를 깼나. 고르기는 귀환 카드에서 */
+  readonly depth: { level: number; reached: number; limitBroken: boolean }
+  /** 귀환이 여는 것 (E305-03): 차례(귀환 1·2·3·엔딩)마다 이름, 켜지는 것, 켜졌나 */
+  automation(): { name: string; lines: readonly string[]; on: boolean }[]
+  /** 귀환한 횟수 */
+  returns(): number
+  /** 원정 기록 (E305-04, `CYCLE.md` 7장 원천(갈래) 탭): 지금 원정 번호, 누적 명성과 배율, 끝난 원정마다 걸린 초, 가보 칸 */
+  expedition(): { count: number; renown: number; multiplier: number; times: readonly number[]; heirloomSlots: number }
 }
 
 /** 메뉴가 게임에서 읽고 부르는 것 */
@@ -137,8 +123,6 @@ export interface MenuHost {
     make(god: God): boolean
   }
   readonly loadout: LoadoutState
-  /** slot에 id를 끼우면(null이면 비우면) 어떻게 되는지 */
-  preview(slot: number, id: RelicId | null): LoadoutState
   wield(id: RelicId, slot: number): void
   stow(slot: number): void
   drop(slot: number): void
@@ -149,22 +133,20 @@ export interface MenuHost {
   /** 셋을 합친다 */
   merge(uids: readonly string[]): void
   readonly progress: ClassProgress
-  /** 신화 탭 (E12-06): 고르기와 별 수치 */
-  readonly myths: {
-    /** 지금 신의 자리를 바꿀 수 있는가 (E302: 어디서나, 전설 중에는 못 바꾼다) */
-    canChoose(): boolean
+  /** 신 탭 (E12-06 신화 탭 → E305-04): 신의 자리와 유물표 */
+  readonly gods: {
+    /** 지금 신의 자리를 바꿀 수 있는가 (E302: 어디서나) */
+    canSwap(): boolean
     /** 한 신에 몰아 고른다 (손·심장·숨 첫 칸) */
     choose(god: God): boolean
-    /** 신의 자리 셋 (E302): 손·심장·숨, 숨 칸 수, 잠긴 숨 칸마다 열리는 때, 한 신에 몰았으면 그 신 */
-    pantheon(): { hand: God | null; heart: God | null; breath: readonly God[]; count: number; locked: readonly string[]; focus: God | null }
+    /** 신의 자리 셋 (E302): 손·심장·숨, 숨 칸 수, 잠긴 숨 칸마다 열리는 때, 한 신에 몰았으면 그 신, 빈 손의 맹세를 걸었나 (E305-01) */
+    pantheon(): { hand: God | null; heart: God | null; breath: readonly God[]; count: number; locked: readonly string[]; focus: God | null; emptyHand: boolean }
     /** 그 자리에 낀다 (손·심장은 바꿔 끼고, 숨은 빈 칸에) */
     place(part: 'hand' | 'heart' | 'breath', god: God): boolean
     /** 숨 칸에서 뺀다 */
     unplace(god: God): boolean
     /** 깨우는 중인 신 (E238): 모은 조각과 다음 할 일 한 줄. 없으면 null */
     waking(): { god: God; fragments: number; next: string } | null
-    /** 성좌판에서 별을 밝힌 신화의 수치 단계 (밝히지 않았으면 0, 엔딩 뒤) */
-    star(god: God): number
     /** 유물표 (E303-04): 신화의 유물과 고유 효과 칸, 켰는지·깨어났는지 */
     table(): { relics: { id: RelicId; lit: boolean; awake: boolean; stage: number }[]; uniques: { id: string; name: string; text: string; lit: boolean }[] }
   }
@@ -174,11 +156,13 @@ export interface MenuHost {
   stats(): HeroStats
   readonly sources: SourcesHost
   readonly world: WorldMapHost
-  readonly trials: TrialsHost
-  readonly rift: RiftMenuHost
+  readonly oaths: OathsHost
+  readonly endless: EndlessMenuHost
   readonly training: TrainingHost
-  /** 첫 엔딩을 보았나: 엔딩 뒤 장치(위협 단계·편의·시련·균열)를 보인다 (E21-06) */
-  afterEnding(): boolean
+  /** 그 엔딩 뒤 장치가 열렸나 (E21-06, 엔딩 문 `AFTER_ENDING`) */
+  afterEnding(feature: EndingFeature): boolean
+  /** 신 단계 상한을 올려 줄 다음 장 보스의 이름 (E305-02, 데모 끝까지 다 정복했으면 null) */
+  nextConquest(): string | null
   /** 연 탭인가 (E236-05: 상태 탭 말고는 쓸 일이 생길 때 하나씩 열린다) */
   tabOpen(tab: string): boolean
   /** 저장하고 처음 화면(슬롯 고르기)으로 */

@@ -87,7 +87,7 @@ describe('데이터에만 넣은 시험용 유물', () => {
     powers.equip('testRelic')
     powers.equip('mjolnir')
     const change = powers.equip('megingjord')
-    expect(change?.after.blessings).toEqual(['thor'])
+    expect(change?.after.manifested).toBeNull()
     expect(powers.awake('testRelic')).toBe(false)
     powers.setPantheon({ hand: 'thor', heart: 'thor', breath: ['thor'] })
     expect(powers.awake('testRelic')).toBe(true)

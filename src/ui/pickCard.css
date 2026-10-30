@@ -1,0 +1,56 @@
+/* 고르는 카드 틀 (귀환·맹세 출발, E304·E305-01. 옛 균열의 축복 고르기 E17-03에서 왔다) */
+.pick-card {
+  position: fixed;
+  left: 50%;
+  top: 30%;
+  transform: translateX(-50%);
+  /* 정보 화면(40)·일시 정지(45) 아래: 멈춘 동안 누를 수 없고 창을 가리지 않게 */
+  z-index: 35;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-5);
+  background: var(--c-veil);
+  box-shadow: 0 0 0 2px var(--c-groove);
+  font-family: var(--font-body);
+  pointer-events: auto;
+}
+.pick-card[hidden] {
+  display: none;
+}
+.pick-card__title {
+  font: var(--t-title);
+  color: var(--c-moon);
+}
+.pick-card__row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--sp-3);
+}
+.pick-card__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 150px;
+  padding: var(--sp-4) var(--sp-3);
+  border: 0;
+  background: var(--c-stone-hi);
+  box-shadow: var(--stone-raised);
+  color: var(--c-ink-1);
+  cursor: pointer;
+}
+.pick-card__card b {
+  font: var(--t-body);
+  font-weight: normal;
+  color: var(--c-gold-soft);
+}
+.pick-card__card small {
+  font: var(--t-small);
+  color: var(--c-ink-2);
+}
+.pick-card__card:hover {
+  background: var(--c-stone-hover);
+}

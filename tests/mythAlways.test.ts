@@ -18,7 +18,7 @@ function broken(edit: (g: any) => void): () => unknown {
   return () => parseGameData({ gods: g, relics: clone(relics), enemies: clone(enemies), classes: clone(classes) }, MODELS)
 }
 
-describe('신화 수치 (E12-01, E21에서 성좌판만)', () => {
+describe('신화 수치 (E12-01, 숨 칸 3단계에서 다시 쓸 자리)', () => {
   const all = Object.values(DATA.gods)
 
   it('21신화 모두 수치를 갖고, 메아리는 없다 (E21-02)', () => {

@@ -2,14 +2,15 @@
 // 1) 봇이 처음부터 플레이하며 2분마다 저장(snapshot)을 남긴다.
 // 2) 저장마다 새 창에서 그 저장을 불러, 같은 표준 적에게 20초 동안 준 피해(공격)와 표준 한 대에 깎이는 생명(방어)을 재고,
 //    그때 그 땅의 적 생명·한 대 피해로 "그 자리 적 하나를 잡는 시간"과 "몇 대 맞으면 쓰러지나"를 구한다.
-// 사용법: npm run build && node scripts/power-curve.mjs [분=40] [--threat=N]   결과: test-results/power-curve.json
+// 사용법: npm run build && node scripts/power-curve.mjs [분=40] [--depth=N]   결과: test-results/power-curve.json
+// --depth=N: 엔딩 뒤에서 원정이 무르익을 때마다 귀환하며 깊이를 하나씩 내려가 N까지 (E305-03, 옛 --threat)
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { chromium } from 'playwright-core'
 
 const args = process.argv.slice(2).filter((a) => !a.startsWith('--'))
 const LIMIT_MIN = Number(args[0] ?? 40)
-const THREAT = Number(process.argv.find((a) => a.startsWith('--threat='))?.slice(9) ?? 0)
+const DEPTH = Number(process.argv.find((a) => a.startsWith('--depth='))?.slice(8) ?? 0)
 const EVERY = 120
 const PORT = 4199
 const BASE = `http://localhost:${PORT}/`
@@ -38,10 +39,10 @@ try {
   const page = await browser.newPage({ viewport: { width: 640, height: 360 } })
   await page.goto(`${BASE}?fresh&autoplay`)
   await page.waitForFunction(() => window.__autoplay && window.__game.frame > 2, null, { timeout: 60000 })
-  if (THREAT > 0) await page.evaluate(() => {
-    // 위협 단계는 엔딩 뒤 장치 (E21-06)
+  if (DEPTH > 0) await page.evaluate(() => {
+    // 깊이는 엔딩 뒤 장치 (E21-06): 귀환 카드에서 「+1」
     window.__game.reachEnding()
-    Object.assign(window.__autoplay, { climb: true })
+    Object.assign(window.__autoplay, { deepen: true })
   })
   // 처음부터 하는 판은 장 흐름의 목표를 따라 엔딩까지 (E22-06)
   else await page.evaluate(() => (window.__autoplay.chapters = true))
@@ -51,16 +52,16 @@ try {
     const s = await page.evaluate((every) => {
       window.__autoplay.run(every)
       const g = window.__game
-      return { t: g.time, save: g.snapshot(), region: g.region.id, threat: g.threat.level, reached: g.threat.reached, chosen: g.powers.manifested, opened: g.progress.opened.length, level: g.powers.manifested ? g.progress.level(g.powers.manifested) : 0, chapter: g.chapters.chapter?.id ?? 'end', ending: g.ending.reached }
+      return { t: g.time, save: g.snapshot(), region: g.region.id, depth: g.depth.level, reached: g.depth.reached, chosen: g.powers.manifested, opened: g.progress.opened.length, level: g.powers.manifested ? g.progress.level(g.powers.manifested) : 0, chapter: g.chapters.chapter?.id ?? 'end', ending: g.ending.reached }
     }, EVERY)
     if (s.t >= next) {
       snaps.push(s)
       next += EVERY
-      console.log(`저장 ${fmt(s.t)} ${s.chapter} ${s.region} 위협 ${s.threat} 신화 ${s.opened}(${s.chosen ?? '-'} ${s.level}단계)`)
+      console.log(`저장 ${fmt(s.t)} ${s.chapter} ${s.region} 깊이 ${s.depth} 신화 ${s.opened}(${s.chosen ?? '-'} ${s.level}단계)`)
     }
-    if (s.t > LIMIT_MIN * 60 || (THREAT > 0 && s.reached >= THREAT) || (THREAT === 0 && s.ending)) break
+    if (s.t > LIMIT_MIN * 60 || (DEPTH > 0 && s.reached >= DEPTH) || (DEPTH === 0 && s.ending)) break
   }
-  const log = await page.evaluate(() => window.__game.log.filter((e) => ['open', 'promote', 'forge', 'gear', 'bossKill', 'threat', 'region', 'death', 'chapter', 'ending'].includes(e.type)))
+  const log = await page.evaluate(() => window.__game.log.filter((e) => ['open', 'promote', 'forge', 'gear', 'bossKill', 'depth', 'region', 'death', 'chapter', 'ending'].includes(e.type)))
   await page.close()
 
   // 2) 저장마다 힘 재기
@@ -111,7 +112,7 @@ try {
     rows.push({
       t: Math.round(s.t),
       region: s.region,
-      threat: s.threat,
+      depth: s.depth,
       opened: s.opened,
       chosen: s.chosen,
       level: s.level,
@@ -134,8 +135,8 @@ try {
   await browser.close()
   mkdirSync('test-results', { recursive: true })
   writeFileSync('test-results/power-curve.json', JSON.stringify({ every: EVERY, rows, log }, null, 2))
-  console.log('\n시간   땅            위협 신화 단계  공격  방어  적 잡는 초  맞고 버티는 대')
-  for (const r of rows) console.log(`${fmt(r.t).padStart(5)}  ${r.region.padEnd(13)} ${String(r.threat).padStart(2)}  ${String(r.opened).padStart(3)}  ${String(r.level).padStart(3)}  ${String(r.attack).padStart(5)} ${String(r.defense).padStart(5)}  ${String(r.killSeconds ?? '-').padStart(8)}  ${String(r.hitsToDie ?? '-').padStart(8)}`)
+  console.log('\n시간   땅            깊이 신화 단계  공격  방어  적 잡는 초  맞고 버티는 대')
+  for (const r of rows) console.log(`${fmt(r.t).padStart(5)}  ${r.region.padEnd(13)} ${String(r.depth).padStart(2)}  ${String(r.opened).padStart(3)}  ${String(r.level).padStart(3)}  ${String(r.attack).padStart(5)} ${String(r.defense).padStart(5)}  ${String(r.killSeconds ?? '-').padStart(8)}  ${String(r.hitsToDie ?? '-').padStart(8)}`)
 } finally {
   stop()
 }

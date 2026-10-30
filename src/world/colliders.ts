@@ -63,7 +63,7 @@ export function walkArea(rects: readonly Rect[]): WalkArea {
   return { rects, reach }
 }
 
-/** 가운데가 원점인 네모 하나 (균열 층·점검용) */
+/** 가운데가 원점인 네모 하나 (끝없는 원정 층·점검용) */
 export function squareArea(halfExtent: number): WalkArea {
   return walkArea([{ minX: -halfExtent, maxX: halfExtent, minZ: -halfExtent, maxZ: halfExtent }])
 }

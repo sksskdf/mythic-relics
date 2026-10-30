@@ -1,11 +1,14 @@
-import type { ChapterDef, ChapterStep } from '../../data/chapters'
+import { CONQUESTS, type ChapterDef, type ChapterStep } from '../../data/chapters'
+import { ENEMIES } from '../../enemies/Giant'
+import { breathSlots } from '../../myth/pantheon'
 import { REGIONS } from '../../data/regions'
 import { sceneId } from '../../data/scenes'
 import { missing, nextRecipe } from '../../gear/forge'
-import { awakenDef, HUNT_KILLS } from '../../data/awaken'
+import { wakeDef, HUNT_KILLS, mayWake } from '../../data/wake'
 import { godDef } from '../../relics/data'
 import { josa } from '../../ui/josa'
 import type { GoalView } from '../../ui/ChapterHud'
+import { RETURN_MIN_LEVEL, RETURN_MIN_SECONDS, RETURN_SIGNAL } from '../../data/cycle'
 import type { GameContext } from '../context'
 
 /**
@@ -21,25 +24,50 @@ export class ChapterSystem {
     this.index = chapters.index
     this.goal = chapters.goal
     bus.on('regionEntered', ({ id }) => {
-      if (ctx.map.region.kind === 'rift') return
+      if (ctx.map.region.kind === 'endless') return
       if (chapters.enter(id)) this.check()
     })
     bus.on('giantKilled', ({ giant }) => {
       // 무너지는 동안 통로를 넘었으면 지금 땅이 아니라 쓰러진 땅의 처치로 적는다
       const fell = ctx.encounter.fellRegion(giant)
       const region = fell && fell !== ctx.map.region.id ? (REGIONS[fell] ?? ctx.map.region) : ctx.map.region
-      // 땅의 보스만 (성소의 전설·시련·균열 층의 보스는 세지 않는다)
-      if (giant.spec.role !== 'boss' || !region.boss || ctx.legend.active || region.kind === 'rift') return
-      if (!chapters.bossDefeated(region.id)) return
-      // 장 보스를 처음 이겼다 (E23-02): 느린 동작 → 쓰러지며 하는 한마디. 마지막 보스는 엔딩 장면이 대신한다
-      const last = chapters.chapters.at(-1)?.steps.at(-1)
-      const step = chapters.chapters.flatMap((c) => c.steps).find((s) => s.kind === 'boss' && s.region === region.id)
-      if (step && step !== last) bus.emit('moment', { id: 'chapterBoss', scene: sceneId('down', giant.spec.id), slow: true })
-      this.check()
+      // 땅의 보스만 (끝없는 원정 층의 보스는 세지 않는다)
+      if (giant.spec.role !== 'boss' || !region.boss || region.kind === 'endless') return
+      this.bossDown(region.id, giant.spec.id)
     })
     bus.on('mythOpened', () => this.check())
     bus.on('promoted', () => this.check())
     bus.on('forged', () => this.check())
+    // 귀환도 할 일이다 (불씨 갈래는 promoted를 내지 않는다): 목표와 결계를 바로 맞춘다
+    bus.on('expeditionReturned', () => this.check())
+  }
+
+  /**
+   * 그 땅의 보스를 이겼다 (싸움과 개발 지름길이 함께 부른다). 처음이면 장 보스 장면(E23-02: 느린 동작 → 쓰러지며 하는 한마디),
+   * 장 정복 보스(E305-02)면 그 카드와 `chapterConquered`. 마지막 보스는 엔딩 장면이 대신한다
+   */
+  bossDown(region: string, enemy = REGIONS[region]?.boss?.enemy ?? ''): void {
+    const { bus, chapters, progress, expedition } = this.ctx
+    // 숨 칸은 자리와 같은 셈으로 (지킨 홀로의 맹세와 엔딩 전 끝 4까지 넣어, 늘지 않았으면 줄을 뺀다)
+    const before = { breath: breathSlots(this.ctx), cap: progress.levelCap, mult: expedition.multiplier }
+    if (!chapters.bossDefeated(region)) return
+    const last = chapters.chapters.at(-1)?.steps.at(-1)
+    const step = chapters.chapters.flatMap((c) => c.steps).find((s) => s.kind === 'boss' && s.region === region)
+    const conquest = CONQUESTS.includes(region)
+    if (step && step !== last) {
+      const breath = breathSlots(this.ctx)
+      const lines = conquest
+        ? [
+            ...(breath > before.breath ? [`숨 칸 ${before.breath} → ${breath}`] : []),
+            ...(progress.levelCap > before.cap ? [`신 단계 끝 ${before.cap} → ${progress.levelCap}`] : []),
+            `명성 배율 ×${before.mult.toFixed(2)} → ×${expedition.multiplier.toFixed(2)}`,
+          ]
+        : []
+      const name = ENEMIES[enemy]?.name ?? '장 보스'
+      bus.emit('moment', { id: 'chapterBoss', scene: sceneId('down', enemy), slow: true, ...(conquest ? { card: { kind: '장 정복', title: name, color: '#ffd27a', lines } } : {}) })
+    }
+    if (conquest) bus.emit('chapterConquered', { region, conquered: chapters.conquered })
+    this.check()
   }
 
   /** 지금 장과 목표를 다시 본다 (불러온 뒤, 개발 지름길 뒤에도) */
@@ -66,18 +94,30 @@ export class ChapterSystem {
     const { chapters, progress, build, powers, awaken } = this.ctx
     const goal = chapters.goal
     if (!goal) return null
+    // 귀환 (E304): 귀환이 할 일이면 떠난 지 2분까지 막대, 그 뒤는 받을 배율. 첫 귀환 뒤로는 받을 배율이 넉넉하면 귀환을 알린다
+    const { expedition } = this.ctx
+    const p = expedition.preview()
+    const mult = ` (×${p.next.toFixed(2)})`
+    const level = this.ctx.training.insights
+    const ripe = p.seconds >= RETURN_MIN_SECONDS && level >= RETURN_MIN_LEVEL
+    // 무르익기 전에는 기세 막대(깨달음 n/8), 무르익으면 받을 배율
+    const toReturn = (text: string): GoalView => (ripe ? { text: text + mult, ratio: null } : { text: `기세를 모은다 ${Math.min(level, RETURN_MIN_LEVEL)}/${RETURN_MIN_LEVEL}`, ratio: Math.min(1, level / RETURN_MIN_LEVEL) })
+    if (goal.kind === 'return') return toReturn(goal.goal)
+    // 깨울 신의 흔적이 잠잠하다 (E305-03: 신을 더 깨우려면 귀환이나 장 정복을 더 해야 함): 깨우기 대신 귀환을 안내한다
+    if (this.awaitsReturn()) return toReturn('성소 화로에서 원정을 마친다')
+    if (expedition.returns >= 1 && ripe && p.seconds >= RETURN_SIGNAL.after && p.next >= p.now * RETURN_SIGNAL.gain) return { text: `성소 화로에서 원정을 마친다${mult}`, ratio: null }
     let ratio: number | null = null
     const waking = awaken.waking && !progress.isOpen(awaken.waking) ? awaken.waking : null
     if (goal.kind === 'awaken' && waking) {
-      const path = awakenDef(waking)!
+      const path = wakeDef(waking)!
       const name = godDef(waking).name
       if (awaken.fragments >= 2) return { text: `${josa(path.guardian.name, '을')} 쓰러뜨려 ${josa(name, '을')} 깨운다`, ratio: null }
       return { text: `${REGIONS[path.land]?.name ?? path.land}에서 사냥한다 ${awaken.hunt}/${HUNT_KILLS}`, ratio: awaken.huntRatio }
     }
-    if (goal.kind === 'level' && build.chosen && progress.level(build.chosen) < goal.n!) {
-      ratio = progress.xpRatio(build.chosen)
-    } else if (goal.kind === 'forge' && build.chosen) {
-      const recipe = nextRecipe(powers.loadout, build.chosen, powers.maxStage())
+    // 벼리기는 저장된 자리의 손 신 유물로 (빈 손의 맹세 동안에도 막대가 보이게)
+    const hand = progress.pantheon.hand ?? build.chosen
+    if (goal.kind === 'forge' && hand) {
+      const recipe = nextRecipe(powers.loadout, hand, powers.maxStage())
       if (recipe) {
         const lack = missing(powers.loadout, recipe)
         const need = recipe.materials.reduce((a, m) => a + m.count, 0)
@@ -86,6 +126,14 @@ export class ChapterSystem {
     }
     // 다 찼으면 막대 없이 할 일만
     return { text: goal.goal, ratio: ratio !== null && ratio < 1 ? ratio : null }
+  }
+
+  /** 목표가 신 깨우기인데 깨우는 신이 없고 흔적이 잠잠한가 (귀환해야 다음 신이 응답한다). HUD 한 줄과 작은 지도의 목표 자리가 읽는다 */
+  awaitsReturn(): boolean {
+    const { chapters, progress, awaken, expedition, ending } = this.ctx
+    if (chapters.goal?.kind !== 'awaken') return false
+    if (awaken.waking && !progress.isOpen(awaken.waking)) return false
+    return !mayWake(progress.opened.length, expedition.returns, chapters.conquered, ending.has('realms'))
   }
 
   /** 불러온 뒤: 알리지 않고 지금 장과 목표를 맞춘다 */

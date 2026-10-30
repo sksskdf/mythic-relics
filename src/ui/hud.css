@@ -137,7 +137,7 @@ button.hud__slot--empty {
   filter: grayscale(1);
 }
 
-/* 궁극기: 마름모. 신위가 차는 만큼 둘레의 금빛 고리가 채워진다 */
+/* 궁극기: 마름모. 심장 게이지가 차는 만큼 둘레의 금빛 고리가 채워진다 */
 .hud__ult {
   --charge: 0;
   position: relative;

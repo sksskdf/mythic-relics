@@ -1,4 +1,6 @@
-import { atCount, AUTOMATION, FLAME, renownFor, renownMultiplier } from '../data/cycle'
+import { FLAME, NEW_FIRE, renownFor, renownMultiplier } from '../data/cycle'
+import { type Automation, automationAt } from './Automation'
+import { OATH_IDS, type OathId } from '../data/oaths'
 import { SOURCE_IDS, type SourceId } from '../data/schema'
 
 /** 저장되는 원정 기록 */
@@ -23,6 +25,14 @@ export interface ExpeditionData {
   bestXp: number
   /** 가보: 귀환해도 남기는 일반 장비 id */
   heirloom: string[]
+  /** 이번 원정에 건 맹세 (E305-01, 지켰거나 없으면 null) */
+  oath: OathId | null
+  /** 출발 카드를 아직 고르지 않았다 (귀환 2부터): 카드가 떠 있을 때 저장했으면 불러온 뒤 다시 띄운다 */
+  oathPending: boolean
+  /** 지난 귀환에서 고른 갈래 (`ascend:신`·`flame:원천`, E305-03: 엔딩 뒤 귀환 카드 맨 앞에 「지난번 그대로」). 없으면 null */
+  lastBranch: string | null
+  /** 이번 원정에서 깊이 10(한계 전 끝)의 장 보스나 수호자를 이겼다 (엔딩 뒤): 귀환하면 한계를 깬다 */
+  deepWin: boolean
 }
 
 /** 귀환 카드에 보일 것 */
@@ -52,6 +62,18 @@ export class ExpeditionProgress {
   lastTaken: string[] = []
   bestXp = 0
   heirloom: string[] = []
+  oath: OathId | null = null
+  oathPending = false
+  lastBranch: string | null = null
+  deepWin = false
+  /** 새 불길이 남은 초 (저장하지 않는다) */
+  fire = 0
+  /** 정복한 장의 수 (E305-02, 장 진행에서 읽는다): 명성 배율에 지수가 붙는다 */
+  conquests: () => number = () => 0
+  /** 맹세 기록이 더하는 명성 배율 (E305-01, 맹세 기록에서 읽는다) */
+  oathScale: () => number = () => 1
+  /** 지금 켜진 자동화 (E305-03, 자동화 세기에서 읽는다: 엔딩을 봤으면 귀환 3 이상으로 친다). 없으면 귀환 횟수만으로 */
+  automation: () => Automation = () => automationAt(this.returns, false, 0)
 
   /** 귀환한 횟수 */
   get returns(): number {
@@ -60,7 +82,7 @@ export class ExpeditionProgress {
 
   /** 지금 명성 배율 */
   get multiplier(): number {
-    return renownMultiplier(this.renown)
+    return renownMultiplier(this.renown, this.conquests())
   }
 
   /** 사냥 불씨가 키운 명성 배율 */
@@ -70,11 +92,11 @@ export class ExpeditionProgress {
 
   /** 이번 원정의 명성 몫 */
   get gain(): number {
-    return Math.round(renownFor(this.deepest, this.bosses) * this.renownScale)
+    return Math.round(renownFor(this.deepest, this.bosses) * this.renownScale * this.oathScale())
   }
 
   preview(): ReturnPreview {
-    return { gain: this.gain, now: this.multiplier, next: renownMultiplier(this.renown + this.gain), seconds: this.elapsed, last: this.best.at(-1) ?? null }
+    return { gain: this.gain, now: this.multiplier, next: renownMultiplier(this.renown + this.gain, this.conquests()), seconds: this.elapsed, last: this.best.at(-1) ?? null }
   }
 
   /** 원천 불씨가 더하는 원천 수치 */
@@ -84,23 +106,23 @@ export class ExpeditionProgress {
 
   /** 가보 칸 수 */
   get heirloomSlots(): number {
-    return atCount(AUTOMATION.heirloom, this.returns)
+    return this.automation().heirloomSlots
   }
 
   /** 다음 원정의 기세 출발 경험치 */
   get headStart(): number {
-    return Math.round(this.bestXp * atCount(AUTOMATION.head, this.returns))
+    return Math.round(this.bestXp * this.automation().headShare)
   }
 
   /** 마디를 저절로 다시 찍는가 */
   get retakes(): boolean {
-    return this.returns >= AUTOMATION.retake
+    return this.automation().retake
   }
 
   /** 그 등급까지 저절로 합치는가 (보통은 좋음 문턱과 함께) */
   autoMerges(grade: 'common' | 'good' | 'rare'): boolean {
-    const need = grade === 'rare' ? AUTOMATION.autoMerge.rare : AUTOMATION.autoMerge.good
-    return this.returns >= need
+    const merge = this.automation().autoMerge
+    return grade === 'rare' ? merge.rare : merge.good
   }
 
   /** 이긴 수호자·장 보스 */
@@ -116,6 +138,7 @@ export class ExpeditionProgress {
   /** 시간이 흐른다 */
   tick(dt: number): void {
     this.elapsed += dt
+    this.fire = Math.max(0, this.fire - dt)
   }
 
   /**
@@ -135,11 +158,32 @@ export class ExpeditionProgress {
     this.bosses = 0
     this.deepest = 1
     this.heirloom = this.heirloom.slice(0, this.heirloomSlots)
+    // 지키지 못한 맹세는 벌 없이 풀린다 (출발 카드는 맹세 시스템이 다시 연다)
+    this.oath = null
+    this.oathPending = false
+    // 깊이 한계 보스를 이긴 일은 귀환 알림(`expeditionReturned`의 deepWin)에 실려 간다
+    this.deepWin = false
+    this.fire = NEW_FIRE.seconds
     return gain
   }
 
   toData(): ExpeditionData {
-    return { count: this.count, renown: this.renown, flames: { ...this.flames }, best: [...this.best], elapsed: Math.round(this.elapsed), bosses: this.bosses, deepest: this.deepest, lastTaken: [...this.lastTaken], bestXp: this.bestXp, heirloom: [...this.heirloom] }
+    return {
+      count: this.count,
+      renown: this.renown,
+      flames: { ...this.flames },
+      best: [...this.best],
+      elapsed: Math.round(this.elapsed),
+      bosses: this.bosses,
+      deepest: this.deepest,
+      lastTaken: [...this.lastTaken],
+      bestXp: this.bestXp,
+      heirloom: [...this.heirloom],
+      oath: this.oath,
+      oathPending: this.oathPending,
+      lastBranch: this.lastBranch,
+      deepWin: this.deepWin,
+    }
   }
 
   load(data: ExpeditionData): void {
@@ -167,5 +211,10 @@ export function parseExpedition(raw: unknown): ExpeditionData {
     lastTaken: strings(o.lastTaken, 40),
     bestXp: num(o.bestXp, 0, 1e7, 0),
     heirloom: strings(o.heirloom, 4),
+    oath: OATH_IDS.includes(o.oath as OathId) ? (o.oath as OathId) : null,
+    // 맹세를 걸었으면 출발 카드는 이미 고른 것이다
+    oathPending: o.oathPending === true && !OATH_IDS.includes(o.oath as OathId),
+    lastBranch: typeof o.lastBranch === 'string' && /^(ascend|flame):[a-z]{1,20}$/i.test(o.lastBranch) ? o.lastBranch : null,
+    deepWin: o.deepWin === true,
   }
 }

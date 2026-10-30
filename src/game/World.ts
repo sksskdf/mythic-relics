@@ -11,6 +11,7 @@ import type { QuarterViewCamera } from '../render/QuarterViewCamera'
 import type { Hud } from '../ui/Hud'
 import type { Minimap } from '../ui/Minimap'
 import type { Barriers } from '../world/Barriers'
+import type { Waypoints } from '../progress/Waypoints'
 import { realmSigil } from '../ui/sigils'
 import type { NavGrid } from '../world/navGrid'
 import { THEMES } from '../world/themes'
@@ -18,7 +19,7 @@ import type { Encounter, NeighborLayout } from './Encounter'
 import type { EventBus, GameEvents } from './events'
 import type { HeroController } from './HeroController'
 import type { HeroOrders } from './HeroOrders'
-import type { UtgardLegend } from './Legend'
+import type { Sanctuary } from './Sanctuary'
 import type { PlayerCombat } from './PlayerCombat'
 import type { Stage } from './Stage'
 import type { Effects } from './systems/Effects'
@@ -43,7 +44,7 @@ export interface WorldParts {
   stage: Stage
   nav: NavGrid
   encounter: Encounter
-  legend: UtgardLegend
+  sanctuary: Sanctuary
   villagers: Villagers
   minimap: Minimap
   fx: Effects
@@ -56,6 +57,8 @@ export interface WorldParts {
   drops: DropTable
   /** 막힌 땅으로 가는 통로의 결계 (E22-02) */
   barriers: Barriers
+  /** 밟아 켠 성소 (E239-05): 마을과 켠 성소로만 워프한다 */
+  waypoints: Waypoints
   /** 그 땅에 들어갈 수 있나 (장 진행, E22-02) */
   isOpen: (id: string) => boolean
 }
@@ -127,7 +130,7 @@ export class World {
     if (!announce) this.placeBarriers(region)
   }
 
-  /** 지금 땅 둘레에 그려지는 땅들의 적 배치와, 지금 땅 좌표로 옮길 만큼 (E19). 세계 칸이 없는 균열이면 없음 */
+  /** 지금 땅 둘레에 그려지는 땅들의 적 배치와, 지금 땅 좌표로 옮길 만큼 (E19). 세계 칸이 없는 끝없는 원정이면 없음 */
   neighborLayouts(region: RegionDef): NeighborLayout[] {
     return this.neighborLands(region).map(({ region: r, offset }) => ({
       id: r.id,
@@ -199,19 +202,18 @@ export class World {
    * 지도 편집기가 고친 지역을 바로 보여 줄 때도 쓴다. 다른 지역으로 가면 땅에 떨어진 유물은 사라진다.
    */
   enter(region: RegionDef, at: { x: number; z: number } = region.spawn): void {
-    const { stage, nav, encounter, legend, hero, orders, view, pickups, bus } = this.parts
-    if (legend.active) return
-    // 균열은 층마다 id가 같지만 새 땅이다 (앞 층의 물건을 치우고 「균열 N층」을 띄운다)
-    const moved = region.id !== this.region.id || region.kind === 'rift'
+    const { stage, nav, encounter, sanctuary, hero, orders, view, pickups, bus } = this.parts
+    // 끝없는 원정은 층마다 id가 같지만 새 땅이다 (앞 층의 물건을 치우고 「끝없는 원정 N층」을 띄운다)
+    const moved = region.id !== this.region.id || region.kind === 'endless'
     if (moved) pickups.clear()
     stage.load(region, this.regions)
     this.dress(region)
     const colliders = stage.map.colliders
     const area = this.areaOf(region)
     nav.rebuild(area, colliders)
-    encounter.reset({ ...region, respawn: region.kind !== 'rift' }, colliders, area)
+    encounter.reset({ ...region, respawn: region.kind !== 'endless' }, colliders, area)
     encounter.setNeighbors(this.neighborLayouts(region))
-    legend.moveTo(region.sanctuary && (nav.nearestFree(region.sanctuary) ?? region.sanctuary), region.sanctuary?.radius)
+    sanctuary.moveTo(region.sanctuary && (nav.nearestFree(region.sanctuary) ?? region.sanctuary), region.sanctuary?.radius)
     hero.area = area
     orders.clear()
     // 도착 자리가 바위·나무에 걸리면 가까운 빈 곳에 선다
@@ -237,7 +239,7 @@ export class World {
   private cross(link: RegionLink): void {
     const to = this.regions[link.to]
     if (!to) return
-    const { stage, nav, encounter, legend, hero, orders, view, pickups, bus } = this.parts
+    const { stage, nav, encounter, sanctuary, hero, orders, view, pickups, bus } = this.parts
     const { x: dx, z: dz } = link.shift
     hero.shift(dx, dz)
     view.shift(dx, dz)
@@ -251,7 +253,7 @@ export class World {
     // 적: 앞 땅의 무리는 그 자리에 남기고, 넘어간 땅에 미리 세워 둔 무리를 깨운다. 쫓아오던 적은 그대로 쫓는다
     encounter.cross({ ...to, respawn: true }, link.shift, colliders, area)
     encounter.setNeighbors(this.neighborLayouts(to))
-    legend.moveTo(to.sanctuary && (nav.nearestFree(to.sanctuary) ?? to.sanctuary), to.sanctuary?.radius)
+    sanctuary.moveTo(to.sanctuary && (nav.nearestFree(to.sanctuary) ?? to.sanctuary), to.sanctuary?.radius)
     hero.area = area
     // 길찾기를 넘어간 땅 것으로 바꾼 뒤에 가던 곳까지 다시 길을 찾는다
     orders.shift(dx, dz)
@@ -262,21 +264,56 @@ export class World {
   /** 출구로 다른 지역에 간다: 잠깐 어두워졌다가 그 지역의 돌아오는 출구 앞에서 밝아진다 (E7-02) */
   travelTo(id: string): void {
     const to = this.regions[id]
-    if (!to || this.travel || this.parts.legend.active) return
+    if (!to || this.travel) return
     this.parts.orders.clear()
     this.travel = { to, at: arrivalSpot(to, this.region.id), t: 0, switched: false }
   }
 
   /**
-   * 성소 워프 (E14-05): 그 지역의 성소(마을이면 시작점)로 암전과 함께 바로 간다.
-   * 성소 한가운데는 전설이 시작되는 자리라, 시작점 쪽으로 몇 걸음 떨어진 곳에 선다.
+   * 성소 워프 (E14-05, E239-05 웨이포인트라 처음부터): 마을이나 켠 성소(마을이면 시작점)로 암전과 함께 바로 간다.
+   * 성소 한가운데는 귀환 화로라(서면 귀환 카드가 뜬다), 시작점 쪽으로 몇 걸음 떨어진 곳에 선다.
    */
   warpTo(id: string): boolean {
+    if (id === this.region.id) return false
+    if (this.regions[id]?.kind !== 'hub' && !this.parts.waypoints.has(id)) return false
     const to = this.regions[id]
-    if (!to || this.travel || this.parts.legend.active) return false
+    if (!to || this.travel) return false
     this.parts.orders.clear()
     this.travel = { to, at: to.sanctuary ? besideSanctuary(to.sanctuary, to.spawn) : to.spawn, t: 0, switched: false }
     return true
+  }
+
+  /** 성소를 켰다 (E15-04, E239-05 웨이포인트): 성소 결계 안에 들어서면 켜지고, 지도에서 그 땅으로 바로 온다 */
+  lightWaypoint(): void {
+    const { hero, waypoints, bus } = this.parts
+    const region = this.region
+    const sanctuary = region.sanctuary
+    const position = hero.object.position
+    if (sanctuary && !waypoints.has(region.id) && Math.hypot(position.x - sanctuary.x, position.z - sanctuary.z) < sanctuary.radius) {
+      waypoints.light(region.id)
+      bus.emit('moment', { id: 'shrineFound', text: '성소를 켰다 · 지도에서 바로 온다' })
+      bus.emit('progressChanged', {})
+    }
+  }
+
+  /**
+   * 불러온 자리가 막혔거나 시작점까지 길이 없으면 가까운 빈 곳이나 시작점에 세운다 (E24-07: 마을을 다시 지어
+   * 옛 저장의 자리가 새 건물·절벽 안일 수 있다). 막힌 곳에 떨어져 있던 물건도 가까운 빈 곳으로 옮긴다
+   */
+  settleLoaded(): void {
+    const { hero, nav, pickups } = this.parts
+    const p = hero.object.position
+    const spawn = this.region.spawn
+    const free = nav.nearestFree({ x: p.x, z: p.z }, 4)
+    if (!free || nav.findPath(free, spawn).length === 0) hero.teleport(spawn.x, spawn.z)
+    else if (free.x !== p.x || free.z !== p.z) hero.teleport(free.x, free.z)
+    for (const item of [...pickups.list]) {
+      if (!nav.isBlocked(item)) continue
+      const to = nav.nearestFree(item) ?? spawn
+      const gear = item.gear
+      pickups.remove(item.id)
+      pickups.drop(item.id, to.x, to.z, true, gear)
+    }
   }
 
   /** 출구 밟기와 넘어가는 동안의 암전 (실제 시간으로 흐른다) */
@@ -296,8 +333,8 @@ export class World {
       }
       return
     }
-    const { combat, legend, hero, orders } = this.parts
-    if (!combat.alive || legend.active || this.exitsLocked) return
+    const { combat, hero, orders } = this.parts
+    if (!combat.alive || this.exitsLocked) return
     const p = hero.object.position
     // 하나로 이어진 세계 (E19): 통로를 반 넘게 지나면 이웃 땅으로 넘어간다. 문은 통로 입구의 표시일 뿐이다
     if (this.region.cell) {
@@ -306,13 +343,13 @@ export class World {
       return
     }
     let nearest = Infinity
-    // 균열의 나가는 문은 땅을 눌러 그 문으로 걸어가던 중일 때만 연다:
-    // 밀려나거나, 문 곁의 적을 눌러 다가가다 밟아 축복을 잃지 않게
-    const goal = this.region.kind === 'rift' && orders.order?.kind === 'move' ? hero.goal : null
+    // 끝없는 원정의 나가는 문은 땅을 눌러 그 문으로 걸어가던 중일 때만 연다:
+    // 밀려나거나, 문 곁의 적을 눌러 다가가다 밟아 그 판을 잃지 않게
+    const goal = this.region.kind === 'endless' && orders.order?.kind === 'move' ? hero.goal : null
     for (const exit of this.region.exits) {
       const d = Math.hypot(exit.x - p.x, exit.z - p.z)
       nearest = Math.min(nearest, d)
-      if (this.region.kind === 'rift' && (!goal || Math.hypot(exit.x - goal.x, exit.z - goal.z) > EXIT_RADIUS * 1.5)) continue
+      if (this.region.kind === 'endless' && (!goal || Math.hypot(exit.x - goal.x, exit.z - goal.z) > EXIT_RADIUS * 1.5)) continue
       if (this.exitArmed && d < EXIT_RADIUS) return this.travelTo(exit.to)
     }
     if (nearest > EXIT_RADIUS * 2) this.exitArmed = true

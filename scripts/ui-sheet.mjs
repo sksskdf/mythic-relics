@@ -1,6 +1,6 @@
 // 정보 화면·HUD 모음 (QA): 중반쯤의 상태를 꾸민 뒤 정보 화면 탭마다, 화면 크기마다 찍는다.
 // 사용법: npm run build && node scripts/ui-sheet.mjs [저장 폴더=test-results/ui] [크기=1280x720,960x540,390x844]
-// 결과: <폴더>/<크기>-<탭>.png, <크기>-hud.png (탭 아홉). 글이 넘치거나 잘리는지, 좁은 화면에서 깨지는지 직접 본다.
+// 결과: <폴더>/<크기>-<탭>.png, <크기>-hud.png (탭 여덟, 신 탭은 자리·외형 둘). 글이 넘치거나 잘리는지, 좁은 화면에서 깨지는지 직접 본다.
 // UI_DOM=1 이면 탭마다 정보 화면의 DOM도 <크기>-<탭>.html로 남긴다 (코드를 나눈 뒤 화면이 그대로인지 diff로 견줄 때)
 // 세로 크기(가로 < 세로)는 터치 기기로 연다. 화면마다 잘린 요소(화면 밖이나 잘라 내는 상자 밖으로 가로·세로가 나간 것)를 세어
 // <폴더>/cut.json에 남긴다 (E235: 휴대폰에서 어느 화면도 잘리지 않는다)
@@ -11,7 +11,8 @@ import { chromium } from 'playwright-core'
 const [dir = 'test-results/ui', sizesArg = '1280x720,960x540,390x844'] = process.argv.slice(2)
 const PORT = 4194
 const BROWSER = process.env.CHROMIUM_PATH ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'
-const TABS = ['status', 'sources', 'relics', 'classes', 'training', 'trials', 'rift', 'map', 'looks']
+// 탭 일곱과 엔딩 뒤 하나 (E305-04), 신 탭은 「자리」와 「외형」을 따로 찍는다
+const TABS = ['status', 'relics', 'training', 'gods', 'gods-looks', 'sources', 'map', 'oaths', 'endless']
 const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'ignore', detached: true })
 const stop = () => {
   try {
@@ -80,7 +81,7 @@ try {
     })
     await page.goto(`http://localhost:${PORT}/?fresh&relics=&region=village&noscenes`)
     await page.waitForFunction(() => (window.__game?.frame ?? 0) > 3, null, { timeout: 60000 })
-    // 중반쯤: 토르를 고르고 신화 셋을 열고, 장비 몇 개와 재료, 위협 3단계, 시련 몇 개, 한계를 깬 뒤 별 셋
+    // 중반쯤: 토르를 고르고 신화 셋을 열고, 장비 몇 개와 재료, 위협 3단계, 지킨 맹세 몇 개, 한계를 깬 뒤 끝없는 원정 기록 15층
     await page.evaluate(() => {
       const g = window.__game
       g.dev.equip('mjolnir')
@@ -93,15 +94,12 @@ try {
       // 수련 (E236): 깨달음 여덟, 힘 갈래 넷과 손 갈래 둘을 찍고 둘은 남긴다
       g.dev.insight(8)
       for (const id of ['awaken', 'edge', 'fury', 'cleave', 'quick', 'stride']) g.dev.train(id)
-      // 위협 단계·시련·균열은 엔딩 뒤 장치라 엔딩 뒤로 넘겨 모든 탭을 찍는다 (E21-06)
+      // 깊이·끝없는 원정은 엔딩 뒤 장치라 엔딩 뒤로 넘겨 모든 탭을 찍는다 (E21-06): 깊이 10에서 한계를 깼다 (E305-03)
       g.reachEnding()
-      Object.assign(g.threat, { unlocked: 3, reached: 3, level: 3 })
-      for (const id of ['noMyth', 'glass', 'crowd']) g.trials.win(id, 2, 95)
-      for (const realm of ['norse', 'greek', 'china', 'japan', 'korea']) g.threat.cleared[realm] = 10
-      Object.assign(g.threat, { unlocked: 10, reached: 10 })
-      g.threatSystem.breakLimit()
-      g.rift.reach(15, 5)
-      g.threatSystem.apply()
+      for (const id of ['silence', 'glass', 'crowd']) g.oaths.keep(id, 420)
+      g.dev.depth(10)
+      g.depthSystem.breakLimit()
+      g.endless.reach(15)
       g.bus.emit('progressChanged', {})
     })
     const wait = async (frames = 3) => {
@@ -114,9 +112,9 @@ try {
     for (const tab of TABS) {
       await page.evaluate((tab) => {
         const g = window.__game
-        g.menu.toggle(true)
-        g.menu.tab = tab
-        g.menu.refresh()
+        const [id, view] = tab.split('-')
+        g.menu.gods.view = view ?? 'slots'
+        g.menu.show(id)
       }, tab)
       await wait()
       await page.screenshot({ path: `${dir}/${size}-${tab}.png` })

@@ -15,10 +15,10 @@ const regions = JSON.parse(readFileSync(FILE, 'utf8'))
 
 // 흔적과 수호자 자리는 신을 깨우는 길 데이터에서 (소품·무리를 비켜 둔다)
 const vite = await createServer({ configFile: false, server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' })
-const { AWAKEN } = await vite.ssrLoadModule('/src/data/awaken.ts')
+const { WAKE } = await vite.ssrLoadModule('/src/data/wake.ts')
 await vite.close()
-const traces = (id) => Object.values(AWAKEN).filter((a) => a.trace.region === id).map((a) => a.trace)
-const lairs = (id) => Object.values(AWAKEN).filter((a) => a.guardian.region === id).map((a) => a.guardian)
+const traces = (id) => Object.values(WAKE).filter((a) => a.trace.region === id).map((a) => a.trace)
+const lairs = (id) => Object.values(WAKE).filter((a) => a.guardian.region === id).map((a) => a.guardian)
 
 /** 같은 시드면 같은 수 (mulberry32) */
 function rng(seed) {

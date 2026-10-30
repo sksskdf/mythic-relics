@@ -32,9 +32,7 @@ function setup(region = 'midgard') {
     bus,
     scenesSeen: seen,
     map: { region: { id: region } },
-    threat: { level: 1, reached: 1 },
     encounter: { boss: null, bossEngaged: false },
-    legend: { active: false },
   } as unknown as GameContext
   const story = new Storyline({ ctx, scenes: scenes as unknown as DialogScene, villagers: {} as Villagers, paused: () => paused, holding: () => holding })
   const finish = () => {

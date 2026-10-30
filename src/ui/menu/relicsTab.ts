@@ -32,24 +32,16 @@ export class RelicsTab {
     const left = el('div', 'menu-relics__left')
     const detail = el('div', 'menu-relics__detail')
 
-    // 지금 상태: 고른 신화는 크게, 잠든 유물(다른 신화의 것)은 작게. 신의 색 문장으로만 보여 준다.
+    // 지금 상태: 손에 쥔 신을 그 신의 색 문장으로 (가호 표시는 E305-04에서 없앰)
     const state = el('div', 'menu-relics__state')
-    const { manifested, blessings } = host.loadout
+    const { manifested } = host.loadout
     if (manifested) {
       const god = godDef(manifested)
       const badge = el('span', 'menu-relics__manifest', god.title)
       badge.style.setProperty('--god', god.color)
       badge.prepend(img(classIcon(god.name)))
-      this.ctx.hintOn(badge, `${god.name}의 신화 개방`)
+      this.ctx.hintOn(badge, `손에 쥔 신 ${god.name}`)
       state.append(badge)
-    }
-    for (const g of blessings) {
-      const god = godDef(g)
-      const chip = el('span', 'menu-relics__blessing')
-      chip.style.setProperty('--god', god.color)
-      chip.append(img(classIcon(god.name)))
-      this.ctx.hintOn(chip, `${god.name}의 유물\n그 신이 자리에 있으면 유물의 힘이 깨어난다.`)
-      state.append(chip)
     }
     left.append(state)
 

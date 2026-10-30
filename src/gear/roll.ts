@@ -53,7 +53,7 @@ export function roundStat(kind: StatKind, value: number): number {
   return Math.round(value * 1000) / 1000
 }
 
-/** 등급을 굴린다. min보다 낮으면 min으로 올린다 (보스). chances가 있으면 데이터 확률 대신 (위협 단계, E14-03) */
+/** 등급을 굴린다. min보다 낮으면 min으로 올린다 (보스). chances가 있으면 데이터 확률 대신 (깊이, E14-03·E305-03) */
 export function rollGrade(rng: () => number, min: Grade = 'common', data: GearData = GEAR, chances?: Readonly<Record<Grade, number>>): Grade {
   let r = rng()
   let grade: Grade = 'common'

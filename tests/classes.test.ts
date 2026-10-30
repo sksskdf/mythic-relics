@@ -193,10 +193,9 @@ describe.each(gods)('클래스 %s', (god) => {
     }
   })
 
-  it('공격 모션·궁극기·전설 데이터가 올바르다', () => {
+  it('공격 모션·궁극기 데이터가 올바르다', () => {
     expect(ATTACK_STYLES).toContain(def.attack)
     expect(def.ultimate.name.length).toBeGreaterThan(0)
-    if (!def.hidden) expect(def.legend, '숨김이 아닌 클래스는 Lv2 승급 전설이 있다').toBeDefined()
   })
 })
 

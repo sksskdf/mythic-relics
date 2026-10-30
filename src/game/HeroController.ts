@@ -24,15 +24,6 @@ export const DEFAULT_TUNING: HeroTuning = {
   repathInterval: 0.12,
 }
 
-/** 점을 원 안으로 넣는다. */
-export function clampToCircle(point: Point2, circle: { x: number; z: number; radius: number }): Point2 {
-  const dx = point.x - circle.x
-  const dz = point.z - circle.z
-  const dist = Math.hypot(dx, dz)
-  if (dist <= circle.radius) return point
-  return { x: circle.x + (dx / dist) * circle.radius, z: circle.z + (dz / dist) * circle.radius }
-}
-
 /** 이동 방향을 바라보는 회전값(y축)을 구한다. */
 export function facingAngle(dx: number, dz: number): number {
   return Math.atan2(dx, dz)
@@ -53,8 +44,6 @@ export class HeroController {
   locked = false
   /** 길을 막고 선 거인처럼 움직이는 장애물. 부딪혀 제자리걸음하지 않게 옆으로 비켜 간다. */
   obstacles: () => readonly CircleCollider[] = () => []
-  /** 움직일 수 있는 원형 범위 (승급 전설의 결계 안 등). 없으면 맵 전체 */
-  arena: { x: number; z: number; radius: number } | null = null
 
   readonly object: THREE.Object3D
   private readonly knock = new THREE.Vector2()
@@ -120,12 +109,11 @@ export class HeroController {
 
   /**
    * 지정한 지점으로 길을 찾아 걷기 시작한다.
-   * 맵 밖이나 결계 밖을 누르면 갈 수 있는 가장자리까지만 간다.
+   * 맵 밖을 누르면 갈 수 있는 가장자리까지만 간다.
    */
   moveTo(target: Point2): void {
     const position = this.object.position
-    let goal = clampToArea(target, this.area, HERO_RADIUS)
-    if (this.arena) goal = clampToCircle(goal, { ...this.arena, radius: Math.max(0, this.arena.radius - HERO_RADIUS) })
+    const goal = clampToArea(target, this.area, HERO_RADIUS)
     this.path = this.nav.findPath({ x: position.x, z: position.z }, goal)
     this.repathTimer = this.tuning.repathInterval
   }
@@ -221,7 +209,6 @@ export class HeroController {
     let next = { x: position.x + dx, z: position.z + dz }
     next = pushOut(next, HERO_RADIUS, this.colliders())
     next = clampToArea(next, this.area)
-    if (this.arena) next = clampToCircle(next, this.arena)
     position.x = next.x
     position.z = next.z
     position.y = heightAt(next.x, next.z)

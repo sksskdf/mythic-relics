@@ -1,20 +1,22 @@
-import { alwaysStage } from '../build/BuildState'
 import { activeLayers, LAYER_NAMES } from '../build/layers'
-import { AWAKEN, AWAKEN_GODS } from '../data/awaken'
+import { HUNT_KILLS, WAKE, WAKE_GODS, wakeDef } from '../data/wake'
 import { awakeningLevel } from '../data/awakening'
-import { blessingDef, STARS } from '../data/rift'
-import { REALM_COLORS } from '../data/regions'
+import { REALM_COLORS, REGIONS } from '../data/regions'
+import { CONQUESTS } from '../data/chapters'
+import { ENEMIES } from '../enemies/Giant'
 import { CELL, cellOrigin } from '../data/world'
 import { SOURCE_IDS, type SourceId } from '../data/schema'
-import { LIMIT_REALMS, REALM_NAMES } from '../data/threat'
-import { TRIAL_IDS, TRIAL_MILESTONES, type TrialId, TRIALS } from '../data/trials'
+import { DEPTH_LIMIT } from '../data/depth'
+import { OATHS } from '../data/oaths'
 import { nextRecipe } from '../gear/forge'
 import { materialName } from '../gear/materials'
 import { MYTH_RELICS, mythRelic, relicMyth, stageName } from '../gear/mythRelic'
 import { GEAR } from '../gear/roll'
 import { TRAINING_UNIQUES } from '../skills/uniques'
 import { levelGains } from '../myth/levelGains'
-import { CONVENIENCES } from '../progress/Conveniences'
+import { breathCap, focusGod } from '../myth/pantheon'
+import { josa } from '../ui/josa'
+import { AUTOMATION_STEPS } from '../progress/Automation'
 import { BRANCHES, insightProgress, TRAINING_NODES } from '../data/training'
 import { statText } from '../myth/alwaysText'
 import type { StatKind } from '../data/mythAlways'
@@ -43,7 +45,7 @@ export class MenuData {
   /** 정보 화면이 읽고 부르는 것 */
   host(): MenuHost {
     const { game, ctx, relics } = this.parts
-    const { powers, conveniences, bus, appearance } = game
+    const { powers, waypoints, appearance } = game
     return {
       get slots() {
         return powers.loadout.slots
@@ -78,7 +80,6 @@ export class MenuData {
       get loadout() {
         return powers.state
       },
-      preview: (slot, id) => powers.loadout.preview(slot, id),
       wield: (id, slot) => relics.wield(id, slot),
       stow: (slot) => relics.stow(slot),
       drop: (slot) => relics.unequip(slot, true),
@@ -86,14 +87,14 @@ export class MenuData {
       mergeable: () => game.powers.loadout.mergeable().map((g) => g.map((i) => i.uid)),
       merge: (uids) => relics.merge(uids) && game.menu.refresh(),
       progress: game.progress,
-      myths: {
-        canChoose: () => game.canChooseMyth,
-        choose: (god) => game.chooseMyth(god),
-        pantheon: () => game.pantheonView(),
-        place: (part, god) => game.placeMyth(part, god),
-        unplace: (god) => game.unplaceMyth(god),
-        waking: () => game.wakingMyth(),
-        star: (god) => (game.rift.lit.has(god) ? alwaysStage(game.progress.level(god), powers.loadout.relics.some((id) => id !== null && relicDef(id).god === god), true) : 0),
+      gods: {
+        // 신의 자리는 어디서나 바꾼다 (E302, 막던 전설 판은 E305-03에서 걷음)
+        canSwap: () => true,
+        choose: (god) => relics.choose(god, true),
+        pantheon: () => this.pantheonView(),
+        place: (part, god) => relics.place(part, god),
+        unplace: (god) => relics.unplace(god),
+        waking: () => this.wakingView(),
         table: () => ({
           relics: MYTH_RELICS.filter((id) => !godDef(relicMyth(id)!).hidden || powers.loadout.lit.includes(id)).map((id) => ({ id, lit: powers.loadout.lit.includes(id), awake: powers.awake(id), stage: powers.loadout.stage(id) })),
           uniques: Object.entries(GEAR.uniques).map(([id, u]) => ({ id, name: u.name, text: u.text, lit: powers.loadout.uniquesSeen.has(id) })),
@@ -101,7 +102,12 @@ export class MenuData {
       },
       cardContext: (id) => this.cardContext(id),
       stats: () => this.heroStats(),
-      afterEnding: () => game.ending.reached,
+      afterEnding: (feature) => game.ending.has(feature),
+      nextConquest: () => {
+        const region = CONQUESTS.find((r) => !game.chapters.bosses.has(r))
+        // 엔딩 뒤에는 신 단계가 4까지 열려 장 정복의 상한이 뜻이 없다
+        return region && !game.ending.has('mythStage4') ? (ENEMIES[REGIONS[region]?.boss?.enemy ?? '']?.name ?? null) : null
+      },
       tabOpen: (tab) => game.tabs.has(tab),
       toTitle: () => game.toTitle(),
       openSettings: () => {
@@ -110,39 +116,23 @@ export class MenuData {
       },
       sources: {
         rows: () => this.sourceRows(),
-        threat: this.threatView(),
-        here: () => game.threatSystem.here,
-        choose: (level) => game.threatSystem.choose(level),
-        conveniences: () => CONVENIENCES.map((c) => ({ id: c.id, name: c.name, text: c.text, open: conveniences.has(c.id), have: conveniences.counters[c.counter] ?? 0, need: c.need })),
-        get autoSalvage() {
-          return conveniences.autoSalvage
+        depth: this.depthView(),
+        // 귀환이 여는 것 (E305-03, `CYCLE.md` 3.5): 엔딩 전에도 보인다. 엔딩을 봤으면 귀환 3 이상으로 친다
+        automation: () => {
+          const returns = game.expedition.returns
+          const ending = game.ending.has('autoPickup')
+          return AUTOMATION_STEPS.map((s) => ({ name: s.name, lines: s.lines, on: s.at === null ? ending : ending || returns >= s.at }))
         },
-        set autoSalvage(on: boolean) {
-          conveniences.autoSalvage = on
-          // 바꾼 설정도 저장한다
-          bus.emit('progressChanged', {})
+        returns: () => game.expedition.returns,
+        expedition: () => {
+          const e = game.expedition
+          return { count: e.count, renown: e.renown, multiplier: e.multiplier, times: [...e.best], heirloomSlots: e.heirloomSlots }
         },
-        warps: () => {
-          if (!conveniences.has('warp')) return []
-          return Object.values(game.regions)
-            .filter((r) => r.id !== ctx.map.region.id && (r.kind === 'hub' || conveniences.visited.has(r.id)))
-            .map((r) => ({ id: r.id, name: r.name }))
-        },
-        warp: (id) => game.warpTo(id),
       },
-      trials: {
-        open: () => game.trialSystem.open,
-        blocked: () => game.trialSystem.blocked(),
-        list: () =>
-          TRIAL_IDS.map((id) => {
-            const def = TRIALS[id]
-            const per = def.reward.per < 1 ? `+${Math.round(def.reward.per * 100)}%` : `+${def.reward.per}`
-            return { id, name: def.name, rule: def.rule, reward: def.reward.text, per, cleared: game.trials.cleared[id] ?? 0, best: [1, 2, 3, 4, 5].map((n) => game.trials.best[`${id}:${n}`] ?? null) }
-          }),
-        total: () => game.trials.total,
-        milestones: () => [...TRIAL_MILESTONES],
-        riftScale: () => game.trials.riftScale(),
-        start: (id, level) => game.trialSystem.start(id as TrialId, level),
+      oaths: {
+        current: () => (game.expedition.oath ? OATHS[game.expedition.oath].name : null),
+        list: () => game.oathSystem.view().oaths.map((o) => ({ ...o })),
+        renownScale: () => game.oaths.renownScale(),
       },
       training: {
         insights: () => ({ total: ctx.training.insights, unspent: ctx.training.unspent, ...insightProgress(ctx.training.xp) }),
@@ -165,36 +155,16 @@ export class MenuData {
         take: (id) => game.growth.train(id),
         reset: () => game.growth.untrain(),
       },
-      rift: {
-        open: () => game.riftSystem.open,
-        progress: () => LIMIT_REALMS.map((realm) => ({ name: REALM_NAMES[realm] ?? realm, cleared: game.threat.cleared[realm] ?? 0 })),
-        canEnter: () => game.riftSystem.canEnter,
-        enter: () => game.riftSystem.enter(),
+      endless: {
+        open: () => game.endlessSystem.open,
+        depth: () => ({ reached: game.depth.reached, limit: DEPTH_LIMIT }),
+        canEnter: () => game.endlessSystem.canEnter,
+        enter: () => game.endlessSystem.enter(),
         run: () => {
-          const run = game.riftSystem.run
-          return run ? { depth: run.depth, blessings: run.blessings.map((id) => blessingDef(id)?.name ?? id) } : null
+          const run = game.endlessSystem.run
+          return run ? { depth: run.depth } : null
         },
-        best: () => game.rift.best,
-        stars: () => game.rift.stars,
-        scale: () => game.trials.riftScale(),
-        chart: () => {
-          const isOpen = (god: string) => game.progress.isOpen(god)
-          return Object.values(STARS).map((star) => ({
-            god: star.god,
-            name: godDef(star.god).name,
-            color: godDef(star.god).color,
-            x: star.x,
-            y: star.y,
-            neighbors: star.neighbors,
-            lit: game.rift.lit.has(star.god),
-            can: game.rift.canLight(star.god, isOpen),
-          }))
-        },
-        light: (god) => {
-          const ok = game.rift.light(god, (g) => game.progress.isOpen(g))
-          if (ok) bus.emit('progressChanged', {})
-          return ok
-        },
+        best: () => game.endless.best,
       },
       world: {
         nodes: () => {
@@ -209,8 +179,8 @@ export class MenuData {
             size: (r.halfExtent * 2) / CELL,
             links: r.exits.map((e) => e.to),
             here: r.id === ctx.map.region.id,
-            found: r.kind === 'hub' || conveniences.visited.has(r.id),
-            cleared: r.realm ? (game.threat.cleared[r.realm] ?? 0) : 0,
+            found: r.kind === 'hub' || waypoints.has(r.id),
+            beaten: ctx.chapters.bosses.has(r.id),
             locked: !ctx.chapters.isOpen(r.id),
           }))
         },
@@ -225,9 +195,9 @@ export class MenuData {
           return { region: goal.region, text: goal.goal }
         },
         traces: () =>
-          AWAKEN_GODS.filter((g) => game.awakening.traceState(g) !== 'awake').map((g) => ({
-            region: AWAKEN[g]!.trace.region,
-            name: AWAKEN[g]!.trace.name,
+          WAKE_GODS.filter((g) => game.awakening.traceState(g) !== 'awake').map((g) => ({
+            region: WAKE[g]!.trace.region,
+            name: WAKE[g]!.trace.name,
             color: godDef(g).color,
             // 응답하는 흔적은 채운 마름모, 깨우는 중·아직 잠잠한 흔적은 테만
             waking: game.awakening.traceState(g) !== 'open',
@@ -239,8 +209,7 @@ export class MenuData {
           const p = ctx.hero.object.position
           return { x: (o.x + p.x) / CELL, y: (o.z + p.z) / CELL }
         },
-        canWarp: () => conveniences.has('warp'),
-        warp: (id) => game.warpTo(id),
+        warp: (id) => game.world.warpTo(id),
       },
       wardrobe: {
         wardrobe: game.wardrobe,
@@ -257,7 +226,7 @@ export class MenuData {
     const { game, ctx } = this.parts
     const build = ctx.build.state
     const mods = build.modifiers
-    const { manifested, blessings } = game.powers.state
+    const { manifested } = game.powers.state
     const powers: HeroStats['powers'] = []
     if (manifested) {
       const god = godDef(manifested)
@@ -269,10 +238,6 @@ export class MenuData {
       for (let lv = 2; lv <= level; lv++) for (const g of levelGains(manifested, lv)) if (g.kind === 'power') what.push(g.text)
       what.push(`궁극기 「${god.ultimate.name}」`)
       powers.push({ kind: 'god', name: god.name, color: god.color, label: game.progress.title(manifested), what: what.join(' · ') })
-    }
-    for (const g of blessings) {
-      const god = godDef(g)
-      powers.push({ kind: 'god', name: god.name, color: god.color, label: `${god.name}의 유물`, what: '잠듦: 그 신화를 고르면 유물의 힘이 깨어난다' })
     }
     for (const id of game.powers.loadout.relics) {
       if (!id) continue
@@ -288,7 +253,7 @@ export class MenuData {
       moveSpeed: mods.moveSpeed,
       knockbackDealt: mods.knockbackDealt,
       knockbackTaken: mods.knockbackTaken,
-      divine: game.combat.divine,
+      heartGauge: game.combat.heartGauge,
       promotions: game.progress.promotions,
       collected: build.collected,
       lit: build.lit,
@@ -316,27 +281,54 @@ export class MenuData {
   }
 
   /** 원천마다: 장비의 합과 각성 단계 (HUD·정보 화면) */
-  sourceRows(): { id: SourceId; total: number; level: number }[] {
-    const state = this.parts.ctx.build.state
-    return SOURCE_IDS.map((id) => ({ id, total: state.sources[id], level: awakeningLevel(state.sources[id]) }))
+  sourceRows(): { id: SourceId; total: number; level: number; flames: number }[] {
+    const { build, expedition } = this.parts.ctx
+    const state = build.state
+    // 원천 불씨 (E304): 귀환 갈래로 쌓은 영구 몫 (합에 이미 들어 있다)
+    const flames = expedition.flamePoints()
+    return SOURCE_IDS.map((id) => ({ id, total: state.sources[id], level: awakeningLevel(state.sources[id]), flames: flames[id] }))
   }
 
-  /** 정보 화면에 보일 위협 단계 (읽을 때마다 지금 값) */
-  private threatView(): SourcesHost['threat'] {
-    const { game } = this.parts
-    const threat = game.threat
+  /** 신의 자리 셋 (E302): 손·심장·숨, 숨 칸 수, 잠긴 숨 칸마다 열리는 때, 한 신에 몰았으면 그 신 (신 탭) */
+  private pantheonView(): ReturnType<MenuHost['gods']['pantheon']> {
+    const { ctx, relics } = this.parts
+    const { progress, chapters, ending, build } = ctx
+    const count = relics.slots
+    const locked: string[] = []
+    if (progress.opened.length < 2) locked.push('두 번째 신이 깨어나면')
+    for (const region of CONQUESTS) {
+      if (chapters.bosses.has(region)) continue
+      const boss = REGIONS[region]?.boss
+      locked.push(`${josa(ENEMIES[boss?.enemy ?? 'king']?.name ?? '장 보스', '을')} 이기면`)
+    }
+    const p = progress.pantheon
+    // 잠긴 칸은 지금 끝(엔딩 전 4)까지만: 홀로의 맹세로 끝에 닿았으면 남은 장 보스는 칸을 더 주지 않는다
+    const cap = breathCap(ending.has('oaths'))
+    return { hand: p.hand, heart: p.heart, breath: p.breath, count, locked: locked.slice(0, Math.max(0, cap - Math.max(1, count))), focus: focusGod(p), emptyHand: build.rules.emptyHand }
+  }
+
+  /** 깨우는 중인 신 (E238): 모은 조각과 다음 할 일 (신 탭) */
+  private wakingView(): { god: string; fragments: number; next: string } | null {
+    const { progress, awaken } = this.parts.ctx
+    const { waking, fragments, hunt } = awaken
+    const path = waking ? wakeDef(waking) : undefined
+    if (!waking || !path || progress.isOpen(waking)) return null
+    const next = fragments >= 2 ? `${josa(path.guardian.name, '을')} 쓰러뜨린다` : `${REGIONS[path.land]?.name ?? path.land}에서 사냥한다 (${hunt}/${HUNT_KILLS})`
+    return { god: waking, fragments, next }
+  }
+
+  /** 정보 화면에 보일 깊이 (읽을 때마다 지금 값) */
+  private depthView(): SourcesHost['depth'] {
+    const depth = this.parts.game.depth
     return {
       get level() {
-        return threat.level
-      },
-      get unlocked() {
-        return threat.unlocked
+        return depth.level
       },
       get reached() {
-        return threat.reached
+        return depth.reached
       },
-      get max() {
-        return threat.max
+      get limitBroken() {
+        return depth.limitBroken
       },
     }
   }

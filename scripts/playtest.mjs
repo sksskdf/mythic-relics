@@ -2,8 +2,9 @@
 // 사용법: npm run build && node scripts/playtest.mjs [반복 횟수=3] [제한 시간(분)=45]
 // --gate 를 붙이면 승급하지 못했거나 오류가 난 판이 있을 때 실패로 끝난다. (CI)
 // --god=loki 를 붙이면 그 신 유물만 끼고 승급까지 간다.
-// --threat=N 을 붙이면 첫 엔딩 무렵의 빌드(묠니르 2단계·토르 3단계·깨달음 스물)로 지역 보스를 잡고 위협 단계를 올리며, N단계에 오를 때까지 단계마다 시간·쓰러짐·피격을 잰다 (E14-07, E236).
-// --threat·--trials·--rift는 엔딩 뒤 장치라, 시작할 때 엔딩 뒤로 넘긴다 (E21-06).
+// --depth=N 을 붙이면 첫 엔딩 무렵의 빌드(묠니르 2단계·토르 3단계·깨달음 스물)로 원정이 무르익을 때마다 성소 화로에서 귀환하며
+//   귀환 카드에서 「+1」을 골라 깊이 N에 이를 때까지 깊이마다 시간·쓰러짐·피격을 잰다 (E305-03, 옛 --threat). --depth-at=N 이면 귀환 없이 깊이 N에 고정해 제한 시간 동안 잰다.
+// --depth·--endless는 엔딩 뒤 장치라, 시작할 때 엔딩 뒤로 넘긴다 (E21-06).
 // --ending 을 붙이면 장 흐름을 따라 엔딩까지 가고, 장마다 들어선 시각을 잰다 (E22-06).
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -13,13 +14,18 @@ const args = process.argv.slice(2).filter((a) => !a.startsWith('--'))
 const GATE = process.argv.includes('--gate')
 const RUNS = Number(args[0] ?? 3)
 const LIMIT_MIN = Number(args[1] ?? 45)
-const THREAT = Number(process.argv.find((a) => a.startsWith('--threat='))?.slice(9) ?? 0)
+const DEPTH = Number(process.argv.find((a) => a.startsWith('--depth='))?.slice(8) ?? 0)
+/** --depth-at=N: 귀환 없이 깊이 N에 고정 (지름길 dev.depth, 깊이마다 세기를 따로 잴 때) */
+const DEPTH_AT = Number(process.argv.find((a) => a.startsWith('--depth-at='))?.slice(11) ?? 0)
 /** --stack=stone 처럼 붙이면 그 원천 +4짜리 영웅 장비 여섯을 끼고(원천 24, 각성 3단계) 시작한다 (원천 빌드 비교, scripts/source-trial.mjs) */
 const STACK = process.argv.find((a) => a.startsWith('--stack='))?.slice(8) ?? null
-/** --trials 를 붙이면 위협 3단계·토르 2단계(묠니르)로 시작해 시련 1단계 여덟을 차례로 깬다 (E16-05). --relics=mjolnir --region=midgard 와 함께 쓴다 */
-const TRIALS = process.argv.includes('--trials')
-/** --rift 를 붙이면 신화권 다섯을 10단계까지 깬 셈(한계를 깸)으로 마을에서 시작해 균열을 10층까지 내려간다 (E17-07). --relics=mjolnir 와 함께 쓴다 */
-const RIFT = process.argv.includes('--rift')
+/**
+ * --oaths 를 붙이면 장 흐름을 따라가며 데모 맹세 셋을 차례로 건다 (E305-01): 맹세가 없으면(처음·지킨 뒤) 아직 못 지킨 맹세를 개발 지름길로 걸고,
+ * 그 원정의 수호자·장 보스를 이기면 지킨 것. 셋을 다 지키면 끝
+ */
+const OATHS = process.argv.includes('--oaths')
+/** --endless 를 붙이면 깊이 10에서 한계를 깬 셈으로 마을에서 시작해 끝없는 원정을 10층까지 내려간다 (E17-07 균열 → E305-03). --relics=mjolnir 와 함께 쓴다 */
+const ENDLESS = process.argv.includes('--endless')
 /** --ending 을 붙이면 장 흐름을 따라 첫 엔딩까지 간다 (E22-06) */
 const ENDING = process.argv.includes('--ending')
 /** --god=loki 처럼 붙이면 봇이 그 신 유물만 끼고 승급까지 간다 (E6-08) */
@@ -70,11 +76,11 @@ try {
     try {
       await page.goto(URL)
       await page.waitForFunction(() => window.__autoplay && window.__game.frame > 2, null, { timeout: 30000 })
-      if (THREAT > 0 || TRIALS || RIFT) await page.evaluate(() => window.__game.reachEnding())
-      // 위협 단계는 첫 엔딩 뒤의 장치라 첫 엔딩 무렵의 빌드로 시작한다 (E236: 땅이 수련만큼 세져 벼린 유물 없이는 우트가르드의 거인 왕을 못 넘는다)
+      if (DEPTH > 0 || DEPTH_AT > 0 || ENDLESS) await page.evaluate(() => window.__game.reachEnding())
+      // 깊이는 첫 엔딩 뒤의 장치라 첫 엔딩 무렵의 빌드로 시작한다 (E236: 땅이 수련만큼 세져 벼린 유물 없이는 우트가르드의 거인 왕을 못 넘는다)
       // 묠니르 2단계(처음 벼리면 토르가 열림)·토르 3단계·깨달음 스물(봇이 찍는다)
-      if (THREAT > 0)
-        await page.evaluate(() => {
+      if (DEPTH > 0 || DEPTH_AT > 0)
+        await page.evaluate((at) => {
           const g = window.__game
           for (let i = 0; i < 2; i++) {
             g.dev.fillForge('thor')
@@ -83,34 +89,26 @@ try {
           g.dev.promote()
           g.dev.promote()
           g.dev.insight(20)
-          Object.assign(window.__autoplay, { climb: true })
-        })
+          if (at > 0) g.dev.depth(at)
+          else Object.assign(window.__autoplay, { deepen: true })
+        }, DEPTH_AT)
       if (GOD) await page.evaluate((god) => (window.__autoplay.god = god), GOD)
       if (PANTHEON) {
         const spec = Object.fromEntries(PANTHEON.split(';').map((kv) => kv.split(':')))
         await page.evaluate((s) => window.__game.dev.pantheon({ hand: s.hand || null, heart: s.heart || null, breath: s.breath ? s.breath.split('+') : [] }), spec)
       }
-      if (TRIALS)
+      if (OATHS) await page.evaluate(() => Object.assign(window.__autoplay, { oaths: true }))
+      if (ENDLESS)
         await page.evaluate(() => {
           const g = window.__game
-          Object.assign(g.threat, { unlocked: 3, reached: 3, level: 3 })
-          g.threatSystem.apply()
-          g.dev.promote()
-          Object.assign(window.__autoplay, { trials: true })
-        })
-      if (RIFT)
-        await page.evaluate(() => {
-          const g = window.__game
-          for (const realm of ['norse', 'greek', 'china', 'japan', 'korea']) g.threat.cleared[realm] = 10
-          Object.assign(g.threat, { unlocked: 10, reached: 10, level: 10 })
-          g.threatSystem.breakLimit()
-          g.threat.level = 10
-          g.threatSystem.apply()
+          // 깊이 10에서 한계를 깼다
+          g.dev.depth(10)
+          g.depthSystem.breakLimit()
           g.dev.endgame()
-          // 한계를 깬 무렵이면 시련 여덟을 2단계쯤 깼다
-          for (const id of ['noMyth', 'fewSlots', 'noHeal', 'crowd', 'timed', 'glass', 'slow', 'noUltimate']) g.trials.win(id, 2, 90)
+          // 한계를 깬 무렵이면 맹세 여덟을 지켰다
+          for (const id of ['silence', 'emptyHand', 'alone', 'noHeal', 'crowd', 'timed', 'glass', 'slow']) g.oaths.keep(id, 600)
           g.bus.emit('progressChanged', {})
-          window.__autoplay.rift = true
+          window.__autoplay.endless = true
         })
       if (STACK)
         await page.evaluate((source) => {
@@ -124,23 +122,26 @@ try {
         }, STACK)
       if (REGION) await page.evaluate(() => (window.__autoplay.stay = true))
       // 처음부터 하는 판은 장 흐름의 목표를 따라간다 (E22-06)
-      if (!REGION && !RELICS && !THREAT && !TRIALS && !RIFT) await page.evaluate(() => (window.__autoplay.chapters = true))
+      if (!REGION && !RELICS && !DEPTH && !DEPTH_AT && !ENDLESS) await page.evaluate(() => (window.__autoplay.chapters = true))
       let done = false
       while (!done) {
         const state = await page.evaluate(() => {
-          window.__autoplay.run(30)
+          const bot = window.__autoplay
           const g = window.__game
-          return { t: g.time, promoted: g.progress.promotions >= 1, reached: g.threat.reached, trialsLeft: window.__autoplay.trialsLeft(), depth: window.__game.rift.best, ending: g.ending.reached }
+          // 맹세 봇: 걸린 맹세가 없으면 아직 못 지킨 것을 건다 (출발 카드를 기다리지 않고)
+          if (bot.oaths && !g.expedition.oath && bot.oathsLeft()) g.oathSystem.swear(g.oathSystem.available().find((id) => !g.oaths.has(id)))
+          bot.run(30)
+          return { t: g.time, promoted: g.progress.promotions >= 1, reached: g.depth.reached, oathsLeft: bot.oathsLeft(), depth: window.__game.endless.best, ending: g.ending.reached }
         })
-        done = (ENDING ? state.ending : RIFT ? state.depth >= 10 : TRIALS ? !state.trialsLeft : RELICS ? false : THREAT > 0 ? state.reached >= THREAT : state.promoted) || state.t > LIMIT_MIN * 60
+        done = (ENDING ? state.ending : ENDLESS ? state.depth >= 10 : OATHS ? !state.oathsLeft : RELICS || DEPTH_AT > 0 ? false : DEPTH > 0 ? state.reached >= DEPTH : state.promoted) || state.t > LIMIT_MIN * 60
       }
-      const climbs = await page.evaluate(() => [...window.__autoplay.climbs])
+      const depths = await page.evaluate(() => [...window.__autoplay.depths])
       // 끝났을 때 봇이 어디서 무엇을 하고 있었나 (멈춤을 찾을 때)
       const last = await page.evaluate(() => {
         const g = window.__game
         const p = g.hero.object.position
         const a = window.__autoplay
-        return { step: a.step, want: a.wantRegion(), gods: a.forgeGods(), locked: g.hero.locked, armed: g.world.exitArmed, traveling: g.world.traveling, mats: Object.fromEntries(g.powers.loadout.materials), bag: g.powers.loadout.bag, slots: g.powers.loadout.slots, picks: g.pickups.list.map((i) => i.id), t: Math.round(g.time), region: g.region.id, x: Math.round(p.x), z: Math.round(p.z), hp: Math.round(g.combat.health.ratio * 100) / 100, moving: g.hero.isMoving, enemies: g.encounter.alive.length, chosen: g.powers.manifested, ready: g.progress.readyToPromote(g.powers.manifested ?? 'thor'),
+        return { step: a.step, want: a.wantRegion(), gods: a.forgeGods(), locked: g.hero.locked, armed: g.world.exitArmed, traveling: g.world.traveling, mats: Object.fromEntries(g.powers.loadout.materials), bag: g.powers.loadout.bag, slots: g.powers.loadout.slots, picks: g.pickups.list.map((i) => i.id), t: Math.round(g.time), region: g.region.id, x: Math.round(p.x), z: Math.round(p.z), hp: Math.round(g.combat.health.ratio * 100) / 100, moving: g.hero.isMoving, enemies: g.encounter.alive.length, chosen: g.powers.manifested, ripe: g.expeditionSystem.ripe,
           // 멈춘 판을 풀 실마리: 살아 있는 적의 자리·상태, 길찾기에서 막힌 칸인지, 갈 수 있는 곳 안인지 (E19)
           foes: g.encounter.alive.map((e) => ({ id: e.spec.id, x: Math.round(e.x * 10) / 10, z: Math.round(e.z * 10) / 10, state: e.state, home: [Math.round(e.home.x), Math.round(e.home.z)], blocked: g.nav.isBlocked({ x: e.x, z: e.z }), inArea: g.nav.area.rects.some((r) => e.x >= r.minX && e.x <= r.maxX && e.z >= r.minZ && e.z <= r.maxZ), dangers: e.dangers.length })),
           // 피하려는 예고 (E239: 봇이 끝나지 않는 예고를 피하느라 구석에 멈춘 판)
@@ -163,7 +164,6 @@ try {
         gear: count('gear'),
         forged: log.filter((e) => e.type === 'forge').map((e) => ({ t: e.t, what: e.detail })),
         bossKill: first('bossKill', 'giantKing'),
-        legendStart: first('legendStart'),
         promote: first('promote'),
         kills: count('kill'),
         // 발현한 뒤(또는 처음부터 낀 뒤) 1분에 쓰러뜨린 수: 클래스끼리 비교한다
@@ -176,14 +176,13 @@ try {
         deaths: count('death'),
         hurt: count('hurt'),
         damageTaken: log.filter((e) => e.type === 'hurt').reduce((s, e) => s + Number(e.detail), 0),
-        legendFails: count('legendFail'),
         end: log.at(-1)?.t,
-        climbs,
+        depths,
         // 시련 (E16-05): 시련:난이도:결과:초
-        trials: log.filter((e) => e.type === 'trial').map((e) => e.detail),
-        // 균열 (E17-07): 층마다 들어간 때, 끝난 까닭
-        rift: log.filter((e) => e.type === 'rift').map((e) => `${e.detail}@${Math.round(e.t)}`),
-        riftFloors: await page.evaluate(() => [...window.__autoplay.riftFloors]),
+        oaths: log.filter((e) => e.type === 'oath').map((e) => e.detail),
+        // 끝없는 원정 (E17-07): 층마다 들어간 때, 끝난 까닭
+        endless: log.filter((e) => e.type === 'endless').map((e) => `${e.detail}@${Math.round(e.t)}`),
+        endlessFloors: await page.evaluate(() => [...window.__autoplay.endlessFloors]),
         // 장 흐름 (E22-06): 장마다 열린 때와 엔딩
         chapters: log.filter((e) => e.type === 'chapter').map((e) => ({ id: e.detail, t: e.t })),
         ending: first('ending'),
@@ -191,11 +190,11 @@ try {
         // 지역 이동 (E15-07): 처음 들어간 때, 보스의 땅에 처음 닿은 때
         regions: log.filter((e, i) => e.type === 'region' && log.findIndex((x) => x.type === 'region' && x.detail === e.detail) === i).map((e) => ({ id: e.detail, t: e.t })),
         bossLand: log.find((e) => e.type === 'region' && ['utgard', 'lycia', 'huoyanshan', 'hiikawa', 'songdo'].includes(e.detail))?.t,
-        // 위협 단계마다 (그 단계에 오른 뒤 다음 단계에 오르기까지): 걸린 시간, 처치, 쓰러짐, 피격
-        threat: [0, ...climbs].map((from, i) => {
-          const to = climbs[i] ?? log.at(-1)?.t ?? from
+        // 깊이마다 (그 깊이로 떠난 뒤 다음 깊이로 떠나기까지): 걸린 시간, 처치, 쓰러짐, 피격
+        depth: [0, ...depths].map((from, i) => {
+          const to = depths[i] ?? log.at(-1)?.t ?? from
           const inside = (e) => e.t >= from && e.t < to
-          return { level: i + 1, time: Math.round(to - from), kills: log.filter((e) => e.type === 'kill' && inside(e)).length, deaths: log.filter((e) => e.type === 'death' && inside(e)).length, hurt: log.filter((e) => e.type === 'hurt' && inside(e)).length }
+          return { level: (DEPTH_AT || 1) + i, time: Math.round(to - from), kills: log.filter((e) => e.type === 'kill' && inside(e)).length, deaths: log.filter((e) => e.type === 'death' && inside(e)).length, hurt: log.filter((e) => e.type === 'hurt' && inside(e)).length }
         }),
         sources: await page.evaluate(() => window.__game.sourceRows()),
         last,
@@ -206,12 +205,12 @@ try {
       console.log(
         `#${run} 2단계 ${fmt(result.promote)} | 첫 신화 ${fmt(result.manifest)} | 신화 둘 ${fmt(result.opened[1]?.t)} (연 신화 ${result.opened.length}: ${result.opened.map((o) => o.god).join(', ')}) | 거인 왕 ${fmt(result.bossKill)} | 장비 ${result.gear}, 첫 제작 ${fmt(result.forged[0]?.t)}${result.forged[0] ? ` (${result.forged[0].what})` : ''} | ` +
           `유물 ${Object.entries(result.relics).map(([k, v]) => `${k} ${fmt(v)}`).join(', ')} | ` +
-          `처치 ${result.kills}(첫 신화 뒤 분당 ${result.killRate}), 쓰러짐 ${result.deaths}, 피격 ${result.hurt}, 전설 실패 ${result.legendFails}` +
+          `처치 ${result.kills}(첫 신화 뒤 분당 ${result.killRate}), 쓰러짐 ${result.deaths}, 피격 ${result.hurt}` +
           (ENDING ? ` | 조각 ${result.fragments.map((f) => `${f.what} ${fmt(f.t)}`).join(', ')}` : '') +
           (ENDING ? ` | 장 ${result.chapters.map((c) => `${c.id} ${fmt(c.t)}`).join(' → ')} | 엔딩 ${fmt(result.ending)} | 단계 ${result.levels.map((l) => fmt(l.t)).join(', ')} | 제작 ${result.forged.map((f) => `${f.what} ${fmt(f.t)}`).join(', ')}` : '') +
-          (RIFT ? ` | 균열 ${result.riftFloors.map((f) => `${f.depth}층 ${fmt(f.t)}`).join(', ')} | ${result.rift.filter((x) => !x.startsWith('floor')).join(', ')}` : '') +
-          (TRIALS ? ` | 시련 ${result.trials.join(', ')}` : '') +
-          (THREAT > 0 ? ` | 보스의 땅 ${fmt(result.bossLand)} | 위협 ${result.threat.map((x) => `${x.level}단계 ${fmt(x.time)}·쓰러짐 ${x.deaths}·피격 ${x.hurt}`).join(' → ')} | 원천 ${result.sources.map((x) => `${x.id} ${x.total}(${x.level})`).join(' ')}` : '') +
+          (ENDLESS ? ` | 끝없는 원정 ${result.endlessFloors.map((f) => `${f.depth}층 ${fmt(f.t)}`).join(', ')} | ${result.endless.filter((x) => !x.startsWith('floor')).join(', ')}` : '') +
+          (OATHS ? ` | 맹세 ${result.oaths.join(', ')}` : '') +
+          (DEPTH > 0 || DEPTH_AT > 0 ? ` | 깊이 ${result.depth.map((x) => `${x.level} ${fmt(x.time)}·처치 ${x.kills}·쓰러짐 ${x.deaths}·피격 ${x.hurt}`).join(' → ')} | 원천 ${result.sources.map((x) => `${x.id} ${x.total}(${x.level})`).join(' ')}` : '') +
           (errors.length ? ` | 오류 ${errors.length}` : ''),
       )
     } catch (e) {

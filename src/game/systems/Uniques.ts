@@ -65,13 +65,12 @@ export class UniqueSystem {
     }
   }
 
-  /** 도는 고유 효과: 쓸 수 있는 칸(시련 「세 칸의 짐」이면 그 칸만)의 장비와 익힌 큰 마디 */
+  /** 도는 고유 효과: 낀 장비와 익힌 큰 마디 */
   private collect(): Set<string> {
     const { powers, training } = this.ctx
-    const allow = this.ctx.build.rules.slots
     const out = new Set<string>()
-    powers.loadout.slots.forEach((uid, i) => {
-      const g = uid && (!allow || allow.includes(i)) ? powers.loadout.gear.get(uid) : undefined
+    powers.loadout.slots.forEach((uid) => {
+      const g = uid ? powers.loadout.gear.get(uid) : undefined
       if (g?.unique) out.add(g.unique)
       if (g?.unique2) out.add(g.unique2)
     })
