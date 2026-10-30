@@ -7,6 +7,7 @@ import { relicAwake } from '../gear/mythRelic'
 import { PER_LIT, PER_OPENED, PER_PROMOTION } from '../myth/ClassProgress'
 import { type God, godDef, relicDef, type RelicId } from '../relics/data'
 import { type Modifiers, NO_MODIFIERS } from '../skills/Skill'
+import { FLAME, renownMultiplier } from '../data/cycle'
 import { type DamageLayer, layerProduct } from './layers'
 
 /**
@@ -45,6 +46,10 @@ export interface BuildInputs {
   awakenBonus?: Partial<Record<SourceId, number>>
   /** 성좌판에서 밝힌 별 (E17): 그 신화의 상시 효과가 한 단계 위 */
   starred?: ReadonlySet<God>
+  /** 누적 명성 (E304): 배율 1 + 0.1·√명성을 곱한다 */
+  renown?: number
+  /** 원천 불씨 (E304): 원천마다 고른 횟수. 원천 +2씩과 원천마다 다른 배율 */
+  flames?: Partial<Record<SourceId, number>>
   /** 시련 중 제약 (E16): 고른 신화 없이·최대 생명·이동 속도 등. 장비 칸 제한은 재료를 모을 때 거른다 */
   rules?: TrialRules
 }
@@ -161,6 +166,9 @@ export function computeBuild(inputs: BuildInputs): BuildState {
     }
   }
   addFrom('gear', () => addItems(inputs.gearItems))
+  // 원천 불씨 (E304): 원천마다 +2
+  const flames = inputs.flames ?? {}
+  for (const s of SOURCE_IDS) sources[s] += (flames[s] ?? 0) * FLAME.points
   for (const from of BONUS_FROM) {
     addFrom(from, () => {
       for (const [kind, value] of Object.entries(inputs.bonus?.[from] ?? {}) as [StatKind, number][]) stats[kind] += value
@@ -171,6 +179,9 @@ export function computeBuild(inputs: BuildInputs): BuildState {
   layers.unshift({ id: 'promotion', kind: 'mul', value: PER_PROMOTION.damage ** inputs.promotions })
   layers.push({ id: 'collection', kind: 'add', value: (inputs.lit ?? 0) * PER_LIT })
   layers.push({ id: 'myth', kind: 'mul', value: god ? god.passive.damageScale : 1 })
+  // 원정 (E304): 명성 배율, 불꽃 불씨의 피해
+  layers.push({ id: 'renown', kind: 'mul', value: renownMultiplier(inputs.renown ?? 0) })
+  layers.push({ id: 'flames', kind: 'mul', value: FLAME.flame.damage ** (flames.flame ?? 0) })
   const damageScale = layerProduct(layers)
   // 유물의 지속 효과는 그 신이 자리에 들었을 때만 깨어난다 (E21-04 → E302). 시련으로 신화를 막아도 자리는 그대로 본다
   const present = inputs.present ?? (inputs.hand ? [inputs.hand] : [])
@@ -185,16 +196,16 @@ export function computeBuild(inputs: BuildInputs): BuildState {
     layers,
     modifiers,
     // 받는 피해 줄이기를 많이 겹쳐도 0이나 음수(맞으면 회복)가 되지 않게
-    damageTaken: modifiers.damageTaken * Math.max(0.1, 1 + stats.damageTaken),
-    moveSpeed: modifiers.moveSpeed * (1 + stats.moveSpeed) * rules.moveScale,
-    attackSpeed: (god ? god.passive.attackSpeed : 1) * (1 + stats.attackSpeed),
+    damageTaken: modifiers.damageTaken * Math.max(0.1, 1 + stats.damageTaken) * FLAME.stone.taken ** (flames.stone ?? 0),
+    moveSpeed: modifiers.moveSpeed * (1 + stats.moveSpeed) * rules.moveScale * FLAME.wind.speed ** (flames.wind ?? 0),
+    attackSpeed: (god ? god.passive.attackSpeed : 1) * (1 + stats.attackSpeed) * FLAME.wind.speed ** (flames.wind ?? 0),
     attack: god ? god.attack : 'blade',
     collected,
     lit: inputs.lit ?? 0,
     stats,
     sources,
     awakening,
-    maxHp: Math.round((BASE_HP + collected * PER_OPENED.maxHp + stats.maxHp) * (1 + inputs.promotions * PER_PROMOTION.maxHpPct + stats.maxHpPct) * rules.maxHpScale),
+    maxHp: Math.round((BASE_HP + collected * PER_OPENED.maxHp + stats.maxHp) * (1 + inputs.promotions * PER_PROMOTION.maxHpPct + stats.maxHpPct) * rules.maxHpScale * FLAME.stone.maxHp ** (flames.stone ?? 0)),
     noHeal: rules.noHeal,
     noUltimate: rules.noUltimate,
   }

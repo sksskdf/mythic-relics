@@ -69,6 +69,7 @@ import { DialogBox } from '../ui/DialogBox'
 import { DevTools } from '../dev/DevTools'
 import { ChapterProgress } from '../progress/Chapters'
 import { TrainingProgress } from '../progress/Training'
+import { ExpeditionProgress } from '../progress/Expedition'
 import { AwakenProgress } from '../progress/Awakening'
 import { awakenDef, HUNT_KILLS } from '../data/awaken'
 import { TabUnlocks } from '../progress/Tabs'
@@ -87,6 +88,8 @@ import { TrialProgress } from '../progress/Trials'
 import { RiftProgress } from '../progress/Rift'
 import { RiftSystem } from './systems/Rift'
 import { BlessingPicker } from '../ui/BlessingPicker'
+import { ReturnCard } from '../ui/ReturnCard'
+import { ExpeditionSystem } from './systems/Expedition'
 import { Build } from '../build/Build'
 
 export interface GameOptions {
@@ -176,12 +179,15 @@ export class Game {
       awakened: (realm) => this.progress.opened.filter((god) => godDef(god).realm === realm).length,
       level: () => Math.max(0, ...this.progress.opened.map((god) => this.progress.level(god))),
       forged: () => Math.max(0, ...this.powers.loadout.ownedRelics.filter(isMythRelic).map((id) => this.powers.loadout.stage(id))),
+      returns: () => this.expedition.returns,
     },
     () => this.ending.reached,
   )
   readonly chapterSystem: ChapterSystem
   /** 수련 (E236): 경험치로 얻은 깨달음과 익힌 마디 */
   readonly training = new TrainingProgress()
+  /** 원정 (E304): 원정 번호·명성·원천 불씨·기록 */
+  readonly expedition = new ExpeditionProgress()
   /** 신을 깨우는 진행 (E238): 깨우는 신과 모은 조각 */
   readonly awaken = new AwakenProgress()
   /** 신을 깨우는 길 (E238): 흔적·사냥·수호자 */
@@ -195,6 +201,9 @@ export class Game {
   readonly mythChoice: MythChoiceSystem
   private readonly mythPicker: MythPicker
   private readonly uniqueSystem: UniqueSystem
+  /** 원정과 귀환 (E304) */
+  readonly expeditionSystem: ExpeditionSystem
+  private readonly returnCard: ReturnCard
   /** 목표 한 줄과 장 제목 띠 (E22-04) */
   readonly chapterHud: ChapterHud
   /** 순간의 크기 (E23-01): 사건을 등급에 맞는 크기(작은 알림·카드·큰 카드·장면)로 보인다 */
@@ -431,10 +440,11 @@ export class Game {
       ending: this.ending,
       chapters: this.chapters,
       training: this.training,
+      expedition: this.expedition,
       tabs: this.tabs,
       awaken: this.awaken,
       uniques: new UniqueState(),
-      build: new Build({ powers: this.powers, progress: this.progress, threat: this.threat, trials: this.trials, trial: () => this.trialSystem?.active?.id ?? null, rift: this.rift, blessings: () => this.riftSystem?.blessings ?? [], training: this.training, awaken: this.awaken }),
+      build: new Build({ powers: this.powers, progress: this.progress, threat: this.threat, trials: this.trials, trial: () => this.trialSystem?.active?.id ?? null, rift: this.rift, blessings: () => this.riftSystem?.blessings ?? [], training: this.training, awaken: this.awaken, expedition: this.expedition }),
       skills,
     }
     this.damage = new DamageSystem(this.ctx)
@@ -552,6 +562,12 @@ export class Game {
     this.bus.on('goalChanged', () => this.world.refreshLinks())
     this.trialSystem = new TrialSystem(this.ctx, this.growth, this.threatSystem)
     this.blessingPicker = new BlessingPicker(this.hud.root)
+    this.returnCard = new ReturnCard(this.hud.root)
+    this.expeditionSystem = new ExpeditionSystem(this.ctx, {
+      offer: (view, pick, later) => this.returnCard.show(view, pick, later),
+      offering: () => this.returnCard.open,
+      ascend: (god) => this.growth.promote(god, true),
+    })
     this.riftSystem = new RiftSystem(
       this.ctx,
       this.threatSystem,
@@ -797,9 +813,15 @@ export class Game {
     this.world.exitsLocked = locked
   }
 
+  /** 귀환 카드가 떠 있다 (E304, 봇) */
+  get returnCardOpen(): boolean {
+    return this.returnCard.open
+  }
+
   /** 축복 고르기 창을 닫는다 (봇이 대신 골랐을 때) */
   hideBlessings(): void {
     this.blessingPicker.hide()
+    this.returnCard.hide()
   }
 
   /** 처음 보는 일의 짧은 대화 장면을 연다 (창이 열려 있으면 미룬다, `Storyline.play`) */
@@ -940,6 +962,15 @@ export class Game {
         if (!this.ctx.build.chosen) break
         while (this.progress.level(this.ctx.build.chosen) < goal.n!) this.dev.promote()
         break
+      case 'return': {
+        // 귀환 (E304): 떠난 지 2분이 안 됐어도 손의 신 승천(없으면 불꽃 불씨)으로 바로
+        const hand = this.progress.pantheon.hand
+        while (this.expedition.returns < goal.n!) {
+          const ids = this.expeditionSystem.branches().map((b) => b.id)
+          this.expeditionSystem.returnNow(ids.find((id) => id === `ascend:${hand}`) ?? 'flame:flame')
+        }
+        break
+      }
       case 'boss': {
         this.chapters.bossDefeated(goal.region)
         if (goal.opens) this.mythChoice.openRealm(goal.opens)
@@ -1149,6 +1180,7 @@ export class Game {
     this.combat.targetScale = this.targetScale
     this.updateEnemies(dt)
     this.growth.update(dt)
+    this.expeditionSystem.update(dt)
     this.mythChoice.update()
     this.awakening.update(dt)
     this.trialSystem.update(dt)

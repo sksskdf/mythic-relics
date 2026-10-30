@@ -1,0 +1,48 @@
+/* 귀환 카드 (E304): 축복 고르기 틀에 명성·남는 것·지워지는 것 줄을 더한다 */
+.return-card {
+  top: 18%;
+  max-width: calc(100vw - 2 * var(--sp-4));
+  box-sizing: border-box;
+}
+.return-card__mult {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-1);
+}
+.return-card__mult b {
+  font: var(--t-title);
+  font-weight: normal;
+  color: var(--c-gold-soft);
+}
+.return-card__mult small,
+.return-card__line,
+.return-card__ask {
+  font: var(--t-small);
+  color: var(--c-ink-2);
+  text-align: center;
+}
+.return-card__line.is-keep {
+  color: var(--c-good);
+}
+.return-card__line.is-clear {
+  color: var(--c-bad);
+}
+.return-card .blessing__card {
+  --god: var(--c-line-2);
+  width: 132px;
+  box-shadow: var(--stone-raised), inset 0 -3px 0 var(--god);
+}
+@media (max-width: 480px) {
+  /* 세로 화면: 카드를 화면 폭에 맞춰 두 줄씩 */
+  .return-card {
+    /* 오른쪽 위 작은 지도(세로 화면에서 위 4분의 1쯤) 아래로 */
+    top: 26%;
+    width: calc(100vw - 2 * var(--sp-4));
+    padding: var(--sp-4) var(--sp-3);
+  }
+  .return-card .blessing__card {
+    width: calc(50% - var(--sp-2));
+    padding: var(--sp-3) var(--sp-2);
+  }
+}

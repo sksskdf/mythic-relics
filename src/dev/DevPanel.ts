@@ -312,6 +312,7 @@ export class DevPanel {
       g.dev.choose(god)
     }
     g.progress.addXp(god, 1e9)
+    g.growth.devLegend = true
     g.dev.teleport(g.legend.center.x, g.legend.center.z)
   }
 

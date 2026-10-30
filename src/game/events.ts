@@ -27,6 +27,8 @@ export interface GameEvents {
   gearSalvaged: { item: GearItem }
   /** 셋을 합쳐 한 등급 위가 나왔다 (E303) */
   gearMerged: { item: GearItem }
+  /** 원정을 마치고 귀환했다 (E304): 마친 원정 번호, 받은 명성, 새 배율, 고른 갈래 */
+  expeditionReturned: { count: number; renown: number; mult: number; branch: string }
   /** 궁극기가 나갔다 (E303: 고유 효과 「신의 숨결」) */
   ultimateCast: Record<string, never>
   /** 시련이 끝났다 (E16): 이겼나, 걸린 시간 */

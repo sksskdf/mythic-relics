@@ -11,6 +11,8 @@ export interface ChapterWorld {
   level(): number
   /** 가진 유물 가운데 가장 높은 단계 (없으면 0) */
   forged(): number
+  /** 귀환한 횟수 (E304) */
+  returns(): number
 }
 
 export interface ChapterData {
@@ -54,6 +56,8 @@ export class ChapterProgress {
         return this.bosses.has(step.region)
       case 'forge':
         return world.forged() >= step.n!
+      case 'return':
+        return world.returns() >= step.n!
     }
   }
 

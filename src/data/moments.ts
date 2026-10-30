@@ -19,6 +19,7 @@ export const MOMENTS = {
   salvaged: 1,
   // 합치기 (E303): 보통·좋음·희귀는 카드, 영웅·전설은 큰 카드
   merged: 2,
+  returned: 3,
   bagFull: 1,
   mergedHigh: 3,
   shrineFound: 1,

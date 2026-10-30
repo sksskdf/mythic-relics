@@ -11,16 +11,18 @@ import { walkArea } from '../src/world/colliders'
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T
 
 /** 시험용 세계: 고른 신화권·깨운 신 수·신화 단계·유물 단계를 손으로 정한다 */
-function world(): ChapterWorld & { realms: Set<string>; awake: Map<string, number>; lv: number; stage: number } {
+function world(): ChapterWorld & { realms: Set<string>; awake: Map<string, number>; lv: number; stage: number; ret: number } {
   const w = {
     realms: new Set<string>(),
     awake: new Map<string, number>(),
     lv: 0,
+    ret: 0,
     stage: 0,
     chose: (realm: string) => w.realms.has(realm) || (w.awake.get(realm) ?? 0) > 0,
     awakened: (realm: string) => w.awake.get(realm) ?? 0,
     level: () => w.lv,
     forged: () => w.stage,
+    returns: () => w.ret,
   }
   return w
 }
@@ -105,7 +107,7 @@ describe('장 진행 (E22-01)', () => {
     expect(chapters.isOpen('sky')).toBe(false)
   })
 
-  it('미드가르드에 들어서면 제1장: 목표는 첫 신 깨우기 → 요툰헤임 → 전설 → 두 번째 신 → 우트가르드 → 거인 왕', () => {
+  it('미드가르드에 들어서면 제1장: 목표는 첫 신 깨우기 → 요툰헤임 → 귀환 → 두 번째 신 → 우트가르드 → 거인 왕', () => {
     const w = world()
     const chapters = new ChapterProgress(w)
     chapters.enter('midgard')
@@ -119,13 +121,13 @@ describe('장 진행 (E22-01)', () => {
     expect(chapters.goal?.kind).toBe('awaken')
     next(() => w.awake.set('norse', 1))
     next(() => chapters.enter('jotunheim'))
-    next(() => (w.lv = 2))
+    next(() => (w.ret = 1))
     next(() => w.awake.set('norse', 2))
     next(() => chapters.enter('utgard'))
-    expect(goals).toEqual(['enter', 'level', 'awaken', 'enter', 'boss'])
+    expect(goals).toEqual(['enter', 'return', 'awaken', 'enter', 'boss'])
   })
 
-  it('지금 장의 땅은 할 일 차례로 열린다: 요툰헤임은 첫 신을 깨운 뒤, 우트가르드는 2단계 전설과 두 번째 신 뒤 (E236-01, E238)', () => {
+  it('지금 장의 땅은 할 일 차례로 열린다: 요툰헤임은 첫 신을 깨운 뒤, 우트가르드는 첫 귀환과 두 번째 신 뒤 (E236-01, E238)', () => {
     const w = world()
     const chapters = new ChapterProgress(w)
     chapters.enter('midgard')
@@ -136,13 +138,13 @@ describe('장 진행 (E22-01)', () => {
     expect(chapters.isOpen('jotunheim')).toBe(true)
     expect(chapters.isOpen('utgard')).toBe(false)
     chapters.enter('jotunheim')
-    w.lv = 2
+    w.ret = 1
     expect(chapters.isOpen('utgard')).toBe(false)
     w.awake.set('norse', 2)
     expect(chapters.isOpen('utgard')).toBe(true)
   })
 
-  it('그리스와 마지막 무대도 차례로: 델포이는 그리스 신화를 연 뒤, 리키아는 3단계 뒤, 갈라진 하늘은 유물 2단계 뒤', () => {
+  it('그리스와 마지막 무대도 차례로: 델포이는 그리스 신화를 연 뒤, 리키아는 둘째 귀환 뒤, 갈라진 하늘은 유물 2단계 뒤', () => {
     const w = world()
     const chapters = new ChapterProgress(w)
     chapters.enter('midgard')
@@ -153,7 +155,7 @@ describe('장 진행 (E22-01)', () => {
     w.realms.add('greek')
     expect(chapters.isOpen('delphi')).toBe(true)
     expect(chapters.isOpen('lycia')).toBe(false)
-    w.lv = 3
+    w.ret = 2
     expect(chapters.isOpen('lycia')).toBe(true)
     chapters.bossDefeated('lycia')
     expect(chapters.isOpen('sky')).toBe(false)
@@ -161,14 +163,14 @@ describe('장 진행 (E22-01)', () => {
     expect(chapters.isOpen('sky')).toBe(true)
   })
 
-  it('뒤의 할 일을 먼저 했으면 앞의 것은 지나간 것으로 친다 (전설을 건너뛰고 우트가르드로)', () => {
+  it('뒤의 할 일을 먼저 했으면 앞의 것은 지나간 것으로 친다 (귀환을 건너뛰고 우트가르드로)', () => {
     const w = world()
     const chapters = new ChapterProgress(w)
     chapters.enter('midgard')
     chapters.enter('utgard')
     expect(chapters.goal?.kind).toBe('boss')
     // 신화 단계가 다음 장 목표(3단계)에 먼저 닿아도 장은 건너뛰지 않는다
-    w.lv = 3
+    w.ret = 2
     expect(chapters.chapter?.id).toBe('north')
   })
 

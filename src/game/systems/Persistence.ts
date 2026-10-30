@@ -71,6 +71,7 @@ export class Persistence {
       ending: this.ctx.ending.reached,
       chapters: this.ctx.chapters.toData(),
       training: this.ctx.training.toData(),
+      expedition: this.ctx.expedition.toData(),
       tabs: this.ctx.tabs.toData(),
       awaken: this.ctx.awaken.toData(),
       region: { id: this.ctx.map.region.id, x: this.ctx.hero.object.position.x, z: this.ctx.hero.object.position.z },
@@ -86,6 +87,7 @@ export class Persistence {
     this.ctx.ending.reached = data.ending
     this.ctx.chapters.load(data.chapters)
     this.ctx.training.load(data.training)
+    this.ctx.expedition.load(data.expedition)
     this.ctx.tabs.load(data.tabs)
     this.ctx.awaken.load(data.awaken)
     this.ctx.threat.load(data.threat)

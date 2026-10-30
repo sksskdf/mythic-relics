@@ -1,3 +1,4 @@
+import { NEW_FIRE } from '../../data/cycle'
 import { THREAT, threatGrades } from '../../data/threat'
 import type { Giant } from '../../enemies/Giant'
 import { ELITE_REWARD } from '../../enemies/elite'
@@ -29,6 +30,8 @@ const HEAL_PER_BOSS = 30
 export class ProgressionSystem {
   /** 지금 승급 전설에 도전하는 신 */
   private challenger: God | null = null
+  /** 개발 패널이 데모에서도 성소 전설을 연다 (E304 뒤 전설은 엔딩 뒤 장치) */
+  devLegend = false
 
   constructor(private readonly ctx: GameContext) {
     ctx.bus.on('giantKilled', ({ giant }) => this.onGiantKilled(giant))
@@ -41,6 +44,8 @@ export class ProgressionSystem {
     const god = build.chosen
     const legend = god ? godDef(god).legend : undefined
     if (!god || !legend || !progress.readyToPromote(god)) return null
+    // 데모에서는 신 단계를 귀환의 승천으로 올린다 (E304). 성소 전설은 엔딩 뒤에만 (개발 패널 「전설 시작」은 언제나)
+    if (!this.ctx.ending.reached && !this.devLegend) return null
     // 엔딩 뒤에는 지역 성소가 그 신화권 클래스의 전설만 연다 (E7-07). 시련 마일스톤 「열린 성소」면 어디서나 (E16).
     // 데모(엔딩 전)에서는 장 흐름이 정한 성소(요툰헤임·델포이)에서 고른 신화의 전설을 연다 (E22)
     const realm = this.ctx.map.region.realm
@@ -131,7 +136,9 @@ export class ProgressionSystem {
     const boss = giant.spec.boss !== undefined
     const { region } = this.ctx.map
     const land = region.zone ? GEAR.lands[region.zone] : null
-    const chance = (boss ? GEAR.drop.boss : giant.elite ? GEAR.drop.elite : GEAR.drop.grunt) * (land?.rate ?? 1) * THREAT.gearDrop ** (level - 1)
+    // 새 불길 (E304): 다시 떠난 뒤 잠시 장비가 더 떨어진다
+    const fire = this.ctx.expedition.fire > 0 ? NEW_FIRE.drop : 1
+    const chance = (boss ? GEAR.drop.boss : giant.elite ? GEAR.drop.elite : GEAR.drop.grunt) * (land?.rate ?? 1) * THREAT.gearDrop ** (level - 1) * fire
     if (Math.random() < chance) {
       const chances = threatGrades(landChances(region.zone), level)
       const tier = this.ctx.chapters.tier(region.id) ?? landTier(region.realm ?? giant.spec.realm)
@@ -167,11 +174,12 @@ export class ProgressionSystem {
   }
 
   /** 승급: 칭호가 바뀌고, 스킬이 강해지고, 원천 숙련과 기본 능력치가 오른다. */
-  promote(god: God): void {
+  promote(god: God, ascend = false): void {
     const { progress, combat, hero, fx, view, feel, bus } = this.ctx
     const hpBefore = this.ctx.build.state.maxHp
     const dmgBefore = PER_PROMOTION.damage ** progress.promotions
-    if (!progress.promote(god)) return
+    // 승천 (E304): 귀환 갈래로 경험치 막대·전설 없이 오른다
+    if (!(ascend ? progress.ascend(god) : progress.promote(god))) return
     bus.emit('promoted', { god, title: progress.title(god) })
     bus.emit('progressChanged', {})
     this.applyStats()

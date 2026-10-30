@@ -1,6 +1,6 @@
 import { blessingDef } from '../data/rift'
 import type { StatKind } from '../data/mythAlways'
-import type { SourceId } from '../data/schema'
+import { SOURCE_IDS, type SourceId } from '../data/schema'
 import type { RiftProgress } from '../progress/Rift'
 import type { RelicPowers } from '../game/RelicPowers'
 import type { ClassProgress } from '../myth/ClassProgress'
@@ -9,6 +9,7 @@ import type { ThreatProgress } from '../progress/Threat'
 import type { TrialProgress } from '../progress/Trials'
 import type { TrainingProgress } from '../progress/Training'
 import type { AwakenProgress } from '../progress/Awakening'
+import type { ExpeditionProgress } from '../progress/Expedition'
 import { isGearUid } from '../gear/roll'
 import type { ClassPassive } from '../data/classKit'
 import { breathPassive, focusGod, partLevel, pantheonGods } from '../myth/pantheon'
@@ -21,7 +22,7 @@ import { type BuildInputs, type BuildState, computeBuild } from './BuildState'
  * 피해·능력치를 쓰는 곳(Damage, Relics, 정보 화면)은 여기서 값을 읽는다.
  */
 export class Build {
-  constructor(private readonly from: { powers: RelicPowers; progress: ClassProgress; threat: ThreatProgress; trials?: TrialProgress; trial?: () => TrialId | null; rift?: RiftProgress; blessings?: () => readonly string[]; training?: TrainingProgress; awaken?: AwakenProgress }) {}
+  constructor(private readonly from: { powers: RelicPowers; progress: ClassProgress; threat: ThreatProgress; trials?: TrialProgress; trial?: () => TrialId | null; rift?: RiftProgress; blessings?: () => readonly string[]; training?: TrainingProgress; awaken?: AwakenProgress; expedition?: ExpeditionProgress }) {}
 
   /** 지금의 재료 */
   inputs(): BuildInputs {
@@ -45,6 +46,9 @@ export class Build {
       gear: loadout.relics,
       lit: loadout.litCount,
       gearItems,
+      // 원정 (E304): 명성과 원천 불씨
+      renown: this.from.expedition?.renown ?? 0,
+      flames: this.from.expedition?.flames ?? {},
       ...this.blessed(),
       starred: this.from.rift?.lit,
       rules,
@@ -197,6 +201,8 @@ export class Build {
     progress.records.forEach((record, god) => out.push(god, record.level))
     if (trials) for (const id of TRIAL_IDS) out.push(trials.cleared[id] ?? 0)
     out.push(training?.stats())
+    const expedition = this.from.expedition
+    if (expedition) out.push(expedition.renown, ...SOURCE_IDS.map((s) => expedition.flames[s] ?? 0))
     const blessings = this.from.blessings?.() ?? []
     out.push(blessings.length)
     for (const id of blessings) out.push(id)

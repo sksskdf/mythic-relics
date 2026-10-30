@@ -1,4 +1,4 @@
-import { atCount, AUTOMATION, FLAME, renownFor, renownMultiplier } from '../data/cycle'
+import { atCount, AUTOMATION, FLAME, NEW_FIRE, renownFor, renownMultiplier } from '../data/cycle'
 import { SOURCE_IDS, type SourceId } from '../data/schema'
 
 /** 저장되는 원정 기록 */
@@ -52,6 +52,8 @@ export class ExpeditionProgress {
   lastTaken: string[] = []
   bestXp = 0
   heirloom: string[] = []
+  /** 새 불길이 남은 초 (저장하지 않는다) */
+  fire = 0
 
   /** 귀환한 횟수 */
   get returns(): number {
@@ -116,6 +118,7 @@ export class ExpeditionProgress {
   /** 시간이 흐른다 */
   tick(dt: number): void {
     this.elapsed += dt
+    this.fire = Math.max(0, this.fire - dt)
   }
 
   /**
@@ -135,6 +138,7 @@ export class ExpeditionProgress {
     this.bosses = 0
     this.deepest = 1
     this.heirloom = this.heirloom.slice(0, this.heirloomSlots)
+    this.fire = NEW_FIRE.seconds
     return gain
   }
 

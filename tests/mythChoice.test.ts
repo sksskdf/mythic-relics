@@ -19,6 +19,7 @@ function setup() {
       awakened: (realm) => progress.opened.filter((g) => godDef(g).realm === realm).length,
       level: () => Math.max(0, ...progress.opened.map((g) => progress.level(g))),
       forged: () => 0,
+      returns: () => 0,
     },
     () => ending,
   )

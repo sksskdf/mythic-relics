@@ -112,7 +112,8 @@ export class Autoplayer {
       const goal = this.chapterRegion()
       if (goal) return goal
     }
-    if (manifested && godDef(manifested).legend && progress.readyToPromote(manifested)) return fieldOf(manifested) ?? region.id
+    // 성소 전설은 엔딩 뒤에만 (E304: 데모의 단계는 귀환 승천)
+    if (this.game.ending.reached && manifested && godDef(manifested).legend && progress.readyToPromote(manifested)) return fieldOf(manifested) ?? region.id
     // 벼릴 재료가 차면 마을 대장간으로 (E13-08)
     const hub = Object.values(regions).find((r) => r.kind === 'hub')?.id ?? region.id
     if (this.forgeGods().some((god) => forgeReady(powers.loadout, god, powers.maxStage()))) return hub
@@ -313,9 +314,22 @@ export class Autoplayer {
       return
     }
 
+    // 4.9 귀환 (E304): 장 목표가 귀환이면 성소 화로로 가서, 카드가 뜨면 손의 신 승천(없으면 불꽃 불씨)을 고른다
+    const goalNow = this.chapters ? this.game.chapters.goal : null
+    if (goalNow?.kind === 'return' && goalNow.region === this.game.region.id && legend.present && this.game.expeditionSystem.canReturn && hp > 0.5) {
+      if (this.game.returnCardOpen) {
+        const ids = this.game.expeditionSystem.branches().map((b) => b.id)
+        const hand = progress.pantheon.hand
+        this.game.hideBlessings()
+        this.game.expeditionSystem.returnNow(ids.find((id) => id === `ascend:${hand}`) ?? ids.find((id) => id.startsWith('ascend:')) ?? 'flame:flame')
+      } else if (dist(here, legend.center) > 1.2 && (!hero.isMoving || dist(hero.goal ?? here, legend.center) > 1)) hero.moveTo(legend.center)
+      this.step = 16
+      return
+    }
+
     // 5. 승급 준비가 되면 성소로 간다.
     const manifested = powers.manifested
-    if (!legend.active && legend.present && manifested && godDef(manifested).legend && progress.readyToPromote(manifested) && hp > 0.8) {
+    if (this.game.ending.reached && !legend.active && legend.present && manifested && godDef(manifested).legend && progress.readyToPromote(manifested) && hp > 0.8) {
       hero.moveTo(legend.center)
       this.step = 8
       return

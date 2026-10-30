@@ -5,7 +5,7 @@
  */
 
 /** 층 이름 (출처) */
-export type LayerId = 'promotion' | 'collection' | 'stars' | 'gear' | 'trials' | 'training' | 'blessings' | 'myth'
+export type LayerId = 'promotion' | 'collection' | 'stars' | 'gear' | 'trials' | 'training' | 'blessings' | 'myth' | 'renown' | 'flames'
 
 export interface DamageLayer {
   id: LayerId
@@ -25,6 +25,8 @@ export const LAYER_NAMES: Readonly<Record<LayerId, string>> = {
   training: '수련',
   blessings: '균열의 축복',
   myth: '신화의 힘',
+  renown: '명성',
+  flames: '불꽃 불씨',
 }
 
 /** 층 목록의 피해 배율: 곱 층의 곱 × (1 + 덧셈 층의 합) */

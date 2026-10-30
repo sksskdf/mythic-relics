@@ -11,6 +11,7 @@ import { parseThreat, type ThreatData } from '../progress/Threat'
 import { parseTrials, type TrialData } from '../progress/Trials'
 import { parseRift, type RiftData } from '../progress/Rift'
 import { parseTraining, type TrainingData } from '../progress/Training'
+import { type ExpeditionData, parseExpedition } from '../progress/Expedition'
 import { parseTabs } from '../progress/Tabs'
 import { type AwakenData, parseAwaken } from '../progress/Awakening'
 import { type BodyLook, parseBody } from '../looks/body'
@@ -44,8 +45,9 @@ import { legacySlots, migrateLooks, oldChapters, oldStars, oldTrainingXp, fillEm
  * - v14: 신의 자리 셋 (E302). chosen(주신 + 빌린 신) → pantheon(손·심장·숨). 옛 주신은 손·심장·숨 첫 칸으로(한 신에 몰기), 빌린 신은 숨 칸으로
  * - v15: 원형과 유물표 (E303-04). 신화권 재료 → 원형 셋씩(대장간 값 ×3), 12칸을 넘친 가방의 일반 장비는 낮은 등급부터 녹여 원형으로.
  *   칸·가방의 신화 유물은 유물표(lit)로 옮기고 빈 칸은 가방의 가장 좋은 장비로 채운다. 가진 장비의 고유 효과도 유물표에 켠다
+ * - v16: 원정 (E304). 원정 번호·명성·원천 불씨·기록·가보. 옛 저장은 첫 원정에서 이어 간다(신 단계는 그대로라 명성 없이도 힘이 같다)
  */
-export const SAVE_VERSION = 15
+export const SAVE_VERSION = 16
 
 export interface SaveData {
   version: typeof SAVE_VERSION
@@ -91,6 +93,8 @@ export interface SaveData {
   chapters: ChapterData
   /** 수련 (E236): 모은 경험치와 찍은 마디 */
   training: TrainingData
+  /** 원정 (E304): 원정 번호·명성·원천 불씨·기록·가보. 옛 저장은 첫 원정 */
+  expedition: ExpeditionData
   /** 차례로 연 정보 화면 탭 (E236-05) */
   tabs: string[]
   /** 신을 깨우는 진행 (E238): 깨우는 신과 모은 조각 */
@@ -120,7 +124,7 @@ export function parseSave(text: string | null): SaveData | null {
   }
   if (typeof raw !== 'object' || raw === null) return null
   const data = raw as Record<string, unknown>
-  if (data.version !== SAVE_VERSION && ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14].includes(data.version as number)) return null
+  if (data.version !== SAVE_VERSION && ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].includes(data.version as number)) return null
   const old = (data.version as number) < 5
 
   // 일반 장비 (v5)
@@ -236,6 +240,7 @@ export function parseSave(text: string | null): SaveData | null {
     rift,
     ending: data.ending === true || ((data.version as number) < 9 && tried),
     chapters,
+    expedition: parseExpedition(data.expedition),
     training: parseTraining(data.training, (data.version as number) < 11 ? oldTrainingXp(myths) : 0),
     tabs: parseTabs(data.tabs, (data.version as number) < 11),
     awaken,
