@@ -135,7 +135,9 @@ export class GodsTab {
       })
       row.append(b)
     }
-    slot('손', view.hand, '낡은 검', '기본 공격 동작·리듬·무기')
+    // 빈 손의 맹세 (E305-01): 저장된 손은 그대로 두고, 건 동안은 낡은 검으로 싸운다
+    if (view.emptyHand) slot('손 · 맹세', null, '낡은 검', `빈 손의 맹세를 건 동안 손이 빈다${view.hand ? `\n지키면 ${josa(godDef(view.hand).name, '이')} 손에 돌아온다` : ''}`)
+    else slot('손', view.hand, '낡은 검', '기본 공격 동작·리듬·무기')
     slot('심장', view.heart, '비었음', '궁극기')
     for (const god of view.breath) slot('숨', god, '', lendText(god, Math.max(1, this.ctx.host.progress.level(god))))
     for (let i = view.breath.length; i < view.count; i++) slot('숨', null, '빈 칸', '깨운 신의 카드에서 「숨에 넣기」')
@@ -267,9 +269,10 @@ export class GodsTab {
 
   /** 지금 신: 문장, 칭호, 단계 점, 다음 단계로 오르는 길 */
   private nowBox(): HTMLElement {
-    const { progress, loadout } = this.ctx.host
+    const { progress } = this.ctx.host
     const now = el('section', 'menu-classes__now')
-    const current = loadout.manifested
+    // 저장된 자리의 손 (빈 손의 맹세 동안에도)
+    const current = progress.pantheon.hand
     if (current) {
       const god = godDef(current)
       const level = progress.level(current)
@@ -426,7 +429,8 @@ export class GodsTab {
     wrap.append(this.nowBox())
     const waking = this.wakingBox()
     if (waking) wrap.append(waking)
-    const current = this.ctx.host.loadout.manifested
+    // 자리 줄은 저장된 자리로 (빈 손의 맹세 동안에도 심장·숨을 보고 바꾼다)
+    const current = this.ctx.host.progress.pantheon.hand
     if (current) wrap.append(this.slotRow())
     wrap.append(this.relicTable())
     // 눌러 본 신(없으면 손의 신)의 카드: 자리마다 얻는 것, 자리 바꾸기, 다음 단계

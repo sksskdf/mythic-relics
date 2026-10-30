@@ -14,7 +14,7 @@ import { MYTH_RELICS, mythRelic, relicMyth, stageName } from '../gear/mythRelic'
 import { GEAR } from '../gear/roll'
 import { TRAINING_UNIQUES } from '../skills/uniques'
 import { levelGains } from '../myth/levelGains'
-import { focusGod, MAX_BREATH } from '../myth/pantheon'
+import { breathCap, focusGod } from '../myth/pantheon'
 import { josa } from '../ui/josa'
 import { AUTOMATION_STEPS } from '../progress/Automation'
 import { BRANCHES, insightProgress, TRAINING_NODES } from '../data/training'
@@ -292,7 +292,7 @@ export class MenuData {
   /** 신의 자리 셋 (E302): 손·심장·숨, 숨 칸 수, 잠긴 숨 칸마다 열리는 때, 한 신에 몰았으면 그 신 (신 탭) */
   private pantheonView(): ReturnType<MenuHost['gods']['pantheon']> {
     const { ctx, relics } = this.parts
-    const { progress, chapters } = ctx
+    const { progress, chapters, ending, build } = ctx
     const count = relics.slots
     const locked: string[] = []
     if (progress.opened.length < 2) locked.push('두 번째 신이 깨어나면')
@@ -302,7 +302,9 @@ export class MenuData {
       locked.push(`${josa(ENEMIES[boss?.enemy ?? 'king']?.name ?? '장 보스', '을')} 이기면`)
     }
     const p = progress.pantheon
-    return { hand: p.hand, heart: p.heart, breath: p.breath, count, locked: locked.slice(0, Math.max(0, MAX_BREATH - Math.max(1, count))), focus: focusGod(p) }
+    // 잠긴 칸은 지금 끝(엔딩 전 4)까지만: 홀로의 맹세로 끝에 닿았으면 남은 장 보스는 칸을 더 주지 않는다
+    const cap = breathCap(ending.has('oaths'))
+    return { hand: p.hand, heart: p.heart, breath: p.breath, count, locked: locked.slice(0, Math.max(0, cap - Math.max(1, count))), focus: focusGod(p), emptyHand: build.rules.emptyHand }
   }
 
   /** 깨우는 중인 신 (E238): 모은 조각과 다음 할 일 (신 탭) */

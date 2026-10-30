@@ -1,5 +1,6 @@
 import './pickCard.css'
 import './return.css'
+import { josa } from './josa'
 
 /** 귀환 카드의 갈래 하나 */
 export interface ReturnBranch {
@@ -55,7 +56,7 @@ export class ReturnCard {
       return e
     }
     this.root.replaceChildren()
-    this.root.append(el('div', 'pick-card__title', `원정 ${view.count}을 마친다`))
+    this.root.append(el('div', 'pick-card__title', `${josa(`원정 ${view.count}`, '을')} 마친다`))
     const mult = el('div', 'return-card__mult')
     mult.append(el('b', '', `×${view.now.toFixed(2)} → ×${view.next.toFixed(2)}`), el('small', '', `명성 +${view.gain}`))
     this.root.append(mult)

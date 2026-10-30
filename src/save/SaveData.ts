@@ -51,9 +51,11 @@ import { CONQUESTS } from '../data/chapters'
  * - v16: 원정 (E304). 원정 번호·명성·원천 불씨·기록·가보. 옛 저장은 첫 원정에서 이어 간다(신 단계는 그대로라 명성 없이도 힘이 같다)
  * - v17: 원정 순환 정리 (E305, `migrate/v17.ts`). 옛 키는 버전이 아니라 키가 있는지로 알아본다 (E305 도중의 v17 개발판도 옛 모양을 들고 있다).
  *   옮긴 저장은 새 키로만 쓰니 한 번만 하는 일(명성 돌려주기)이 두 번 붙지 않는다
- *   - 시련(trials) → 맹세(oaths): 한 단계라도 깬 시련은 짝인 맹세를 지킨 것으로. 시련 보상의 모든 피해 몫은 명성으로. 원정에 건 맹세(expedition.oath)
+ *   - 시련(trials) → 맹세(oaths): 한 단계라도 깬 시련은 짝인 맹세를 지킨 것으로. 시련 보상의 모든 피해 몫은 명성으로. 원정에 건 맹세(expedition.oath),
+ *     출발 카드를 아직 고르지 않음(expedition.oathPending: 불러오면 카드를 다시 띄운다)
  *   - 균열(rift) → 끝없는 원정(endless {best}): 성좌판의 밝힌 별과 남은 별 하나마다 명성 20
- *   - 위협 단계(threat) → 깊이(depth {level, reached, limitBroken}): 열린 단계·신화권마다 이긴 단계는 버린다(v9 이하 옮기기만 `oldThreat`로 읽는다)
+ *   - 위협 단계(threat) → 깊이(depth {level, reached, limitBroken}): 열린 단계·신화권마다 이긴 단계는 버린다(v9 이하 옮기기만 `oldThreat`로 읽는다).
+ *     이번 원정에서 깊이 10의 장 보스·수호자를 이긴 일(expedition.deepWin)
  *   - 편의(conveniences) → 자동화 세기(automation {counters:{pickups}}): 자동화는 귀환 횟수·엔딩에서 다시 셈하고, 켠 성소(visited)는 waypoints로. 지난번 갈래(expedition.lastBranch)
  *   - 신위 게이지(divine) → 심장 게이지(heartGauge). 신화 경험치(classes[*].xp)는 내보내지 않는다 (v10 이하 수련 짐작만 원본에서 읽는다)
  *   - 연 탭: classes·looks → gods, trials → oaths. 원정 기록이 없던 저장(v15 이하)은 원정 번호를 장 진행이 지나온 할 일 「귀환」으로 짐작한다

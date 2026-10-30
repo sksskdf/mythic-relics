@@ -645,10 +645,12 @@ try {
     const guardian = g.encounter.alive.find((e) => e.spec.role === 'guardian')
     guardian?.takeHit(1e6, 0, 0, 0)
     g.advance(2, 1 / 30)
-    return { spawned: !!guardian, oath: g.expedition.oath, kept: g.oaths.has('silence'), noUltimate: g.ctx.build.state.noUltimate, charge: g.ctx.build.state.stats.ultCharge }
+    // 맹세 기록의 명성 배율이 원정 명성에 걸린다 (맹세 탭에 보이는 값과 같다)
+    return { spawned: !!guardian, oath: g.expedition.oath, kept: g.oaths.has('silence'), noUltimate: g.ctx.build.state.noUltimate, charge: g.ctx.build.state.stats.ultCharge, scale: g.oaths.renownScale(), wired: g.expedition.oathScale() }
   })
   if (!oathKept.spawned || oathKept.oath !== null || !oathKept.kept || oathKept.noUltimate || !(oathKept.charge >= 0.3)) throw new Error(`맹세: 수호자를 이겨도 지키지 못했습니다 ${JSON.stringify(oathKept)}`)
-  console.log(`맹세 확인: 귀환 2에 출발 카드 ${oathCards}장, 침묵의 맹세를 걸면 궁극기가 막히고, 수호자를 이기면 지켜 심장 충전 +${Math.round(oathKept.charge * 100)}%`)
+  if (!(oathKept.scale > 1) || oathKept.wired !== oathKept.scale) throw new Error(`맹세: 맹세 기록의 명성 배율이 원정 명성에 걸리지 않습니다 ${JSON.stringify(oathKept)}`)
+  console.log(`맹세 확인: 귀환 2에 출발 카드 ${oathCards}장, 침묵의 맹세를 걸면 궁극기가 막히고, 수호자를 이기면 지켜 심장 충전 +${Math.round(oathKept.charge * 100)}%, 명성 ×${oathKept.wired.toFixed(3)}`)
 
   // 한계를 깸 (E305-03, D8): 깊이 10 원정에서 수호자(장 보스)를 이기고 귀환하면 깊이의 끝이 사라지고 끝없는 원정이 열린다
   const broke = await page.evaluate(() => {

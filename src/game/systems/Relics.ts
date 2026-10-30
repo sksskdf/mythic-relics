@@ -15,7 +15,7 @@ import { delta, gearIcon } from '../../ui/gearCard'
 import type { GameContext } from '../context'
 import type { LoadoutChange } from '../RelicPowers'
 import { godMoment } from './godMoments'
-import { autoFill, breathCount, DEMO_BREATH, fitBreath, inPantheon, MAX_BREATH, oathPantheon, type PartKind, withoutBreath, withPart } from '../../myth/pantheon'
+import { autoFill, breathSlots, fitBreath, inPantheon, oathPantheon, type PartKind, withoutBreath, withPart } from '../../myth/pantheon'
 
 /** 클래스가 발현되는 순간 주변 적을 밀어내는 범위와 피해 */
 const MANIFEST_RADIUS = 4
@@ -91,8 +91,7 @@ export class RelicSystem {
 
   /** 숨 칸 수 (E302): 깨어난 신 수, 정복한 장(E305-02), 지킨 홀로의 맹세(E305-01)로 정한다. 끝은 데모 4, 엔딩 뒤 5 */
   get slots(): number {
-    const { progress, chapters, oaths, ending } = this.ctx
-    return breathCount(progress.opened.length, chapters.conquered, oaths.breath, ending.has('oaths') ? MAX_BREATH : DEMO_BREATH)
+    return breathSlots(this.ctx)
   }
 
   /** 그 자리에 그 신을 낀다 (정보 화면 신 탭, 어디서나). 숨은 빈 칸이 있어야 한다 */

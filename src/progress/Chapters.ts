@@ -76,10 +76,14 @@ export class ChapterProgress {
     return chapter.steps[this.lastDone(chapter) + 1] ?? null
   }
 
-  /** 그 장에서 한 마지막 할 일의 차례 (하나도 안 했으면 -1). 뒤의 것을 했으면 앞의 것은 지나간 것으로 친다 */
+  /**
+   * 그 장에서 한 마지막 할 일의 차례 (하나도 안 했으면 -1). 뒤의 것을 했으면 앞의 것은 지나간 것으로 친다.
+   * 귀환(`return`)은 장 밖에서도 쌓이는 수라(앞 장에서 귀환을 더 했을 때) 건너뛰는 근거로 쓰지 않고, 바로 앞까지 했을 때만 이어 센다
+   */
   private lastDone(chapter: ChapterDef): number {
     let last = -1
-    chapter.steps.forEach((s, i) => this.done(s) && (last = i))
+    chapter.steps.forEach((s, i) => s.kind !== 'return' && this.done(s) && (last = i))
+    while (last + 1 < chapter.steps.length && this.done(chapter.steps[last + 1]!)) last += 1
     return last
   }
 

@@ -37,7 +37,8 @@ export class HudFeed {
     this.updateCoach()
     const { encounter, awakening, progress } = game
     const boss = encounter.boss
-    const manifested = build.chosen
+    // 저장된 자리의 손 (빈 손의 맹세 동안 도는 손은 비지만, 기세 막대·초상·귀환 빛은 그대로 보인다)
+    const manifested = progress.pantheon.hand
     game.hud.update(
       {
         life: game.combat.health.ratio,
@@ -90,6 +91,8 @@ export class HudFeed {
     if (!goal || region.kind === 'endless') return null
     // 신 깨우기 (E238): 깨우는 신의 다음 조각(사냥하는 땅·수호자 자리), 없으면 응답하는 흔적
     if (goal.kind === 'awaken') {
+      // 흔적이 잠잠하면(귀환해야 다음 신이 응답) 성소 화로
+      if (this.parts.game.chapterSystem.awaitsReturn()) return region.sanctuary
       const target = awakening.target(goal.region)
       if (!target) return null
       if (target.region !== region.id) return world.wayTo(target.region)

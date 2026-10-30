@@ -170,6 +170,8 @@ export class ExpeditionSystem {
     if (kind !== 'ascend' && kind !== 'flame') return -1
     const flame = kind === 'flame' && SOURCE_IDS.includes(what as SourceId) ? (what as SourceId) : undefined
     const before = expedition.multiplier
+    // 마친 원정에서 깊이 한계 보스를 이겼나 (저장되는 원정 기록, 귀환하면 지워지니 먼저 읽는다)
+    const deepWin = expedition.deepWin
     const gain = expedition.return({ ...(flame ? { flame } : {}) }, training.xp, [...training.taken])
     expedition.lastBranch = id
     // 가보 (귀환 1부터): 낀 일반 장비 가운데 가장 좋은 것을 칸 수만큼 남긴다 (고르는 단추 없이)
@@ -189,7 +191,7 @@ export class ExpeditionSystem {
     for (const item of [...pickups.list]) if (item.gear) pickups.remove(item.id)
     if (kind === 'ascend') this.parts.ascend(what)
     this.declined = true
-    bus.emit('expeditionReturned', { count: expedition.count - 1, renown: gain, mult: expedition.multiplier, branch: id })
+    bus.emit('expeditionReturned', { count: expedition.count - 1, renown: gain, mult: expedition.multiplier, branch: id, deepWin })
     // 다음 원정의 깊이: 지난 원정의 한계를 깸(DepthSystem이 expeditionReturned에서 본다) 뒤에 바꾼다
     if (depth !== undefined && depth !== this.ctx.depth.level) this.parts.deepen(depth)
     const heirlooms = expedition.heirloom.map((uid) => loadout.gear.get(uid)).filter((g) => g !== undefined)

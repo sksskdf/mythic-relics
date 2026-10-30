@@ -5,6 +5,10 @@ import { GRADES } from '../src/data/gearData'
 import { GEAR } from '../src/gear/roll'
 import { DepthProgress, parseDepth } from '../src/progress/Depth'
 import { oldThreat } from '../src/save/migrate/legacy'
+import { ExpeditionProgress, parseExpedition } from '../src/progress/Expedition'
+import { EventBus, type GameEvents } from '../src/game/events'
+import type { GameContext } from '../src/game/context'
+import { DepthSystem } from '../src/game/systems/Depth'
 
 describe('깊이 (E305-03, 옛 위협 단계 E14-03)', () => {
   it('깊을수록 적이 세지고 정예가 늘며, 좋은 등급이 잘 나온다 (확률 합은 1)', () => {
@@ -66,5 +70,36 @@ describe('깊이 (E305-03, 옛 위협 단계 E14-03)', () => {
     expect(parseDepth({ level: 9, reached: 5 })).toEqual({ level: 5, reached: 5, limitBroken: false })
     expect(parseDepth({ level: 40, reached: 40, limitBroken: true })).toEqual({ level: 40, reached: 40, limitBroken: true })
     expect(parseDepth(undefined)).toEqual({ level: 1, reached: 1, limitBroken: false })
+  })
+
+  it('깊이 10에서 장 보스를 이긴 일은 원정 기록에 남아, 다시 불러온 뒤 귀환해도 한계를 깬다', () => {
+    const play = (expedition: ExpeditionProgress, depth: DepthProgress) => {
+      const bus = new EventBus<GameEvents>()
+      const ctx = {
+        bus,
+        depth,
+        expedition,
+        ending: { has: (k: string) => k === 'depth' },
+        map: { region: { kind: 'field' } },
+        encounter: { threat: null, eliteChance: 0, resetAll: () => {} },
+        view: { shake: () => {} },
+      } as unknown as GameContext
+      new DepthSystem(ctx)
+      return bus
+    }
+    const depth = new DepthProgress()
+    for (let n = 2; n <= DEPTH_LIMIT; n++) depth.choose(n)
+    const first = new ExpeditionProgress()
+    play(first, depth).emit('giantKilled', { giant: { spec: { id: 'king', role: 'boss' } } as never })
+    expect(first.deepWin).toBe(true)
+    // 저장하고 다시 불러온 판에서 귀환한다 (ExpeditionSystem.returnNow처럼 지우기 전에 읽어 알림에 싣는다)
+    const loaded = new ExpeditionProgress()
+    loaded.load(parseExpedition(JSON.parse(JSON.stringify(first.toData()))))
+    const bus = play(loaded, depth)
+    const deepWin = loaded.deepWin
+    loaded.return({}, 0, [])
+    expect(loaded.deepWin).toBe(false)
+    bus.emit('expeditionReturned', { count: 1, renown: 0, mult: 1, branch: 'flame:stone', deepWin })
+    expect(depth.limitBroken).toBe(true)
   })
 })

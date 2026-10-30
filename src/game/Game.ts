@@ -152,7 +152,7 @@ export class Game {
   /** 수련 (E236): 경험치로 얻은 깨달음과 익힌 마디 */
   readonly training = new TrainingProgress()
   /** 원정 (E304): 원정 번호·명성·원천 불씨·기록 */
-  readonly expedition = Object.assign(new ExpeditionProgress(), { conquests: (): number => this.chapters.conquered, automation: () => this.automation.now })
+  readonly expedition = Object.assign(new ExpeditionProgress(), { conquests: (): number => this.chapters.conquered, automation: () => this.automation.now, oathScale: (): number => this.oaths.renownScale() })
   /** 신을 깨우는 진행 (E238): 깨우는 신과 모은 조각 */
   readonly awaken = new WakeProgress()
   /** 신을 깨우는 길 (E238): 흔적·사냥·수호자 */
@@ -508,6 +508,8 @@ export class Game {
       if (this.depth.level > 1) this.encounter.resetAll()
       // 건 맹세 (E305-01): 빈 손·홀로의 도는 자리와 무리 크기
       this.oathSystem.sync()
+      // 출발 카드를 고르기 전에 저장된 판: 카드를 다시 띄운다
+      this.oathSystem.resume()
       this.chapterSystem.sync()
       this.world.refreshLinks(false)
       // 마지막 보스를 이긴 뒤 엔딩이 끝나기 전에 저장된 판: 엔딩을 다시 보인다 (안 그러면 엔딩 뒤 장치가 영영 닫힌다)

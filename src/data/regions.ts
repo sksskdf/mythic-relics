@@ -27,7 +27,7 @@ export type PropKind = (typeof PROP_KINDS)[number]
 export const REGION_KINDS = ['field', 'hub', 'endless'] as const
 export type RegionKind = (typeof REGION_KINDS)[number]
 
-/** 필드의 자리 (E15-01): 입구 들판(마을과 이어짐) → 깊은 땅(정예·전설 성소) → 보스의 땅(신화 보스 무대) */
+/** 필드의 자리 (E15-01): 입구 들판(마을과 이어짐) → 깊은 땅(정예·성소, E305-03에서 성소 전설은 걷음) → 보스의 땅(신화 보스 무대) */
 export const REGION_ZONES = ['entrance', 'deep', 'boss'] as const
 export type RegionZone = (typeof REGION_ZONES)[number]
 

@@ -47,7 +47,7 @@ const sample: SaveData = {
   ending: true,
   chapters: { entered: ['village', 'midgard', 'olympus'], bosses: ['utgard'] },
   training: { xp: 1500, taken: ['awaken', 'edge'] },
-  expedition: { count: 2, renown: 20, flames: { stone: 1 }, best: [900], elapsed: 30, bosses: 0, deepest: 1, lastTaken: ['awaken'], bestXp: 1200, heirloom: [], oath: 'silence', lastBranch: 'ascend:thor' },
+  expedition: { count: 2, renown: 20, flames: { stone: 1 }, best: [900], elapsed: 30, bosses: 0, deepest: 1, lastTaken: ['awaken'], bestXp: 1200, heirloom: [], oath: 'silence', oathPending: false, lastBranch: 'ascend:thor', deepWin: true },
   tabs: ['relics', 'training'],
   awaken: { waking: 'odin', fragments: 1, hunt: 7 },
   region: { id: 'olympus', x: 3.5, z: -12 },
@@ -56,11 +56,11 @@ const sample: SaveData = {
 
 /**
  * 옛 모양 (v16 이하): 새 키(깊이·자동화·끝없는 원정·맹세·웨이포인트·심장 게이지)를 옛 키로 되돌린다.
- * 원정 기록은 v16부터, 건 맹세·지난번 갈래는 v17부터라 뺀다
+ * 원정 기록은 v16부터, 건 맹세·출발 카드·지난번 갈래·깊이 한계 보스는 v17부터라 뺀다
  */
 function asOld(data: SaveData, version: number): Record<string, unknown> {
   const { depth, automation, endless, oaths: _oaths, expedition, waypoints, heartGauge, ...rest } = data
-  const { oath: _oath, lastBranch: _branch, ...v16 } = expedition
+  const { oath: _oath, oathPending: _pending, lastBranch: _branch, deepWin: _deep, ...v16 } = expedition
   return {
     ...rest,
     version,
@@ -425,6 +425,15 @@ describe('저장 v17: 맹세·깊이·자동화·끝없는 원정 (E305)', () =>
     const data = parseSave(JSON.stringify(sample))
     expect(data?.oaths).toEqual({ kept: ['glass', 'slow'], best: { glass: 371 } })
     expect(data?.expedition.oath).toBe('silence')
+  })
+
+  it('출발 카드를 고르기 전(oathPending)과 깊이 한계 보스를 이긴 일(deepWin)은 저장 왕복에 남고, 키가 없으면 둘 다 거짓', () => {
+    const pending = { ...sample, expedition: { ...sample.expedition, oath: null, oathPending: true } }
+    expect(parseSave(JSON.stringify(pending))?.expedition).toMatchObject({ oath: null, oathPending: true, deepWin: true })
+    // 맹세를 걸었으면 카드는 이미 고른 것
+    expect(parseSave(JSON.stringify({ ...sample, expedition: { ...sample.expedition, oathPending: true } }))?.expedition.oathPending).toBe(false)
+    const { oathPending: _p, deepWin: _d, ...older } = sample.expedition
+    expect(parseSave(JSON.stringify({ ...sample, expedition: older }))?.expedition).toMatchObject({ oathPending: false, deepWin: false })
   })
 
   it('옛 키는 새 키로만 쓴다: 깊이(threat → depth)·자동화(conveniences → automation)·끝없는 원정(rift → endless)·심장 게이지(divine → heartGauge)', () => {

@@ -139,8 +139,8 @@ export interface MenuHost {
     canSwap(): boolean
     /** 한 신에 몰아 고른다 (손·심장·숨 첫 칸) */
     choose(god: God): boolean
-    /** 신의 자리 셋 (E302): 손·심장·숨, 숨 칸 수, 잠긴 숨 칸마다 열리는 때, 한 신에 몰았으면 그 신 */
-    pantheon(): { hand: God | null; heart: God | null; breath: readonly God[]; count: number; locked: readonly string[]; focus: God | null }
+    /** 신의 자리 셋 (E302): 손·심장·숨, 숨 칸 수, 잠긴 숨 칸마다 열리는 때, 한 신에 몰았으면 그 신, 빈 손의 맹세를 걸었나 (E305-01) */
+    pantheon(): { hand: God | null; heart: God | null; breath: readonly God[]; count: number; locked: readonly string[]; focus: God | null; emptyHand: boolean }
     /** 그 자리에 낀다 (손·심장은 바꿔 끼고, 숨은 빈 칸에) */
     place(part: 'hand' | 'heart' | 'breath', god: God): boolean
     /** 숨 칸에서 뺀다 */

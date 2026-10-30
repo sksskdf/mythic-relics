@@ -7,9 +7,39 @@ import { DEMO_OATHS, NO_RULES, OATH, OATH_IDS, type OathId, oathRules, OATHS } f
 import { RelicPowers } from '../src/game/RelicPowers'
 import { rollGear } from '../src/gear/roll'
 import { ClassProgress } from '../src/myth/ClassProgress'
-import { oathPantheon } from '../src/myth/pantheon'
+import { MAX_BREATH, oathPantheon } from '../src/myth/pantheon'
 import { OathProgress, parseOaths } from '../src/progress/Oaths'
+import { ExpeditionProgress, type ExpeditionData, parseExpedition } from '../src/progress/Expedition'
 import { oathsFromTrials } from '../src/save/migrate/v17'
+import { EventBus, type GameEvents } from '../src/game/events'
+import type { GameContext } from '../src/game/context'
+import { OathSystem } from '../src/game/systems/Oaths'
+
+/** 맹세 시스템만 도는 작은 판: 원정 기록(불러온 것이면 data)과 출발 카드를 띄운 횟수. 깨운 신 둘·정복 하나가 기본 */
+function oathGame(data?: ExpeditionData, world = { opened: ['thor', 'loki'], conquered: 1 }) {
+  const bus = new EventBus<GameEvents>()
+  const expedition = new ExpeditionProgress()
+  if (data) expedition.load(data)
+  let offers = 0
+  const ctx = {
+    bus,
+    expedition,
+    oaths: new OathProgress(),
+    progress: { opened: world.opened },
+    chapters: { conquered: world.conquered },
+    ending: { has: () => false },
+    encounter: { crowd: 1 },
+    map: { region: { kind: 'field' } },
+  } as unknown as GameContext
+  const system = new OathSystem(ctx, { offer: () => (offers += 1), reapply: () => {}, fillBreath: () => {} })
+  const returned = () => {
+    expedition.return({}, 0, [])
+    bus.emit('expeditionReturned', { count: expedition.returns, renown: 0, mult: 1, branch: 'flame:stone', deepWin: false })
+  }
+  /** 저장했다 다시 불러온 판 */
+  const reload = () => oathGame(parseExpedition(JSON.parse(JSON.stringify(expedition.toData()))))
+  return { expedition, system, returned, reload, offers: () => offers, ctx }
+}
 
 /** 토르를 손·심장·숨에 몰고 일반 장비 여섯 칸을 낀 상태 (맹세는 sworn이 정한다, 도는 자리는 시스템처럼 맞춘다) */
 function geared(sworn: () => OathId | null) {
@@ -63,6 +93,37 @@ describe('맹세 제약 (E305-01)', () => {
   it('규칙 없음은 아무것도 바꾸지 않는다', () => {
     const base = { open: new Map([['thor', 2]]), hand: 'thor', gear: [], promotions: 1 }
     expect(computeBuild({ ...base, rules: NO_RULES })).toEqual(computeBuild(base))
+  })
+
+  it('출발 카드는 귀환 2부터 뜨고, 고르기 전에 저장했다 불러오면 다시 뜬다 (고른 뒤에는 뜨지 않는다)', () => {
+    const a = oathGame()
+    a.returned()
+    expect(a.offers()).toBe(0)
+    a.returned()
+    expect(a.offers()).toBe(1)
+    expect(a.expedition.oathPending).toBe(true)
+    // 카드가 떠 있을 때 탭이 닫혔다
+    const b = a.reload()
+    b.system.resume()
+    expect(b.offers()).toBe(1)
+    b.system.swear(null)
+    expect(b.expedition.oathPending).toBe(false)
+    const c = b.reload()
+    c.system.resume()
+    expect(c.offers()).toBe(0)
+    // 맹세를 건 판도 다시 띄우지 않는다
+    const d = a.reload()
+    d.system.swear('silence')
+    const e = d.reload()
+    e.system.resume()
+    expect([e.offers(), e.expedition.oath]).toEqual([0, 'silence'])
+  })
+
+  it('엔딩 전에 숨 칸이 이미 끝(4)이면 홀로의 보상은 「엔딩 뒤 숨 칸 5」로 적는다 (D4)', () => {
+    const reward = (g: ReturnType<typeof oathGame>) => g.system.view().oaths.find((o) => o.id === 'alone')!.reward
+    expect(reward(oathGame())).toBe(OATHS.alone.reward.text)
+    const full = oathGame(undefined, { opened: ['thor', 'loki', 'odin'], conquered: 2 })
+    expect(reward(full)).toBe(`엔딩 뒤 숨 칸 ${MAX_BREATH}`)
   })
 
   it('데모 맹세는 셋(침묵·빈 손·홀로), 나머지 다섯은 엔딩 뒤', () => {

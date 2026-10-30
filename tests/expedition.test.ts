@@ -6,6 +6,8 @@ import { layerProduct } from '../src/build/layers'
 import { DEMO_MAX_LEVEL, MAX_LEVEL } from '../src/myth/ClassProgress'
 import { ClassProgress } from '../src/myth/ClassProgress'
 import { ExpeditionProgress, parseExpedition } from '../src/progress/Expedition'
+import { OathProgress } from '../src/progress/Oaths'
+import { OATH_IDS } from '../src/data/oaths'
 
 describe('원정과 귀환 (E304)', () => {
   it('명성 배율은 1 + 0.1·√명성, 한 원정 몫은 장 깊이와 이긴 보스로', () => {
@@ -52,6 +54,20 @@ describe('원정과 귀환 (E304)', () => {
     const before = e.gain
     e.flames.hunt = 1
     expect(e.gain).toBe(Math.round(before * 1.25))
+  })
+
+  it('맹세 기록의 명성 배율이 한 원정 몫에 곱해진다 (E305-01, 맹세 탭의 「지금 ×N」과 같은 값)', () => {
+    const oaths = new OathProgress()
+    const e = Object.assign(new ExpeditionProgress(), { oathScale: () => oaths.renownScale() })
+    e.reach(2)
+    e.beatBoss()
+    e.beatBoss()
+    const before = e.gain
+    for (const id of OATH_IDS) oaths.keep(id, 60)
+    expect(oaths.renownScale()).toBeCloseTo(1.05)
+    expect(e.gain).toBe(Math.round(renownFor(2, 2) * 1.05))
+    expect(e.gain).toBeGreaterThan(before)
+    expect(e.preview().gain).toBe(e.gain)
   })
 
   it('저장했다 읽어도 같고, 깨진 값은 바로잡는다', () => {

@@ -1,10 +1,14 @@
 import { DEMO_OATHS, OATH, OATH_IDS, type OathId, OATHS } from '../../data/oaths'
 import { isBossLike } from '../../enemies/grade'
+import { breathCap, breathSlots, MAX_BREATH } from '../../myth/pantheon'
 import { josa } from '../../ui/josa'
 import type { OathView } from '../../ui/OathCard'
 import type { GameContext } from '../context'
 
 const clock = (s: number): string => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`
+
+/** 엔딩 전에 숨 칸이 이미 끝(4)에 닿았을 때 홀로의 맹세 보상 글 (D4: 그 한 칸은 엔딩 뒤 다섯째 칸으로 남는다) */
+const ALONE_AFTER_ENDING = `엔딩 뒤 숨 칸 ${MAX_BREATH}`
 
 /** 게임이 맹세 시스템에 넘기는 것 */
 export interface OathParts {
@@ -32,11 +36,19 @@ export class OathSystem {
       if (!oath || ctx.map.region.kind === 'endless') return
       if (giant.spec.boss !== undefined || isBossLike(giant.spec)) this.keep(oath)
     })
-    // 귀환하면 그 자리에서 다시 떠난다: 맹세가 열렸으면 출발 카드
+    // 귀환하면 그 자리에서 다시 떠난다: 맹세가 열렸으면 출발 카드 (고를 때까지 원정 기록에 남겨, 다시 불러와도 카드가 뜬다)
     ctx.bus.on('expeditionReturned', () => {
       this.sync()
-      if (this.unlocked) this.offer()
+      if (!this.unlocked) return
+      ctx.expedition.oathPending = true
+      this.offer()
     })
+  }
+
+  /** 불러온 뒤: 출발 카드를 고르기 전에 저장된 판이면 카드를 다시 띄운다 */
+  resume(): void {
+    const { expedition } = this.ctx
+    if (expedition.oathPending && !expedition.oath && this.unlocked) this.offer()
   }
 
   /** 맹세를 고를 수 있나: 귀환 2부터 (엔딩 뒤는 언제나) */
@@ -56,9 +68,16 @@ export class OathSystem {
       oaths: this.available().map((id) => {
         const def = OATHS[id]
         const best = oaths.best[id]
-        return { id, name: def.name, rule: def.rule, reward: def.reward.text, kept: oaths.has(id), best: best === undefined ? null : clock(best) }
+        return { id, name: def.name, rule: def.rule, reward: this.rewardText(id), kept: oaths.has(id), best: best === undefined ? null : clock(best) }
       }),
     }
+  }
+
+  /** 지키면 얻는 것 (출발 카드·건 순간): 엔딩 전에 숨 칸이 이미 끝이면 홀로의 숨 칸은 엔딩 뒤에야 는다 */
+  private rewardText(id: OathId): string {
+    const { ctx } = this
+    if (id === 'alone' && breathSlots(ctx) >= breathCap(ctx.ending.has('oaths'))) return ALONE_AFTER_ENDING
+    return OATHS[id].reward.text
   }
 
   private offer(): void {
@@ -69,8 +88,9 @@ export class OathSystem {
   swear(id: OathId | null): void {
     const { expedition, bus } = this.ctx
     expedition.oath = id
+    expedition.oathPending = false
     this.sync()
-    if (id) bus.emit('moment', { id: 'oathSworn', card: { kind: '맹세', title: OATHS[id].name, color: '#c9a24a', lines: [OATHS[id].rule, '장 보스나 수호자를 이기면 지킨다', `지키면: ${OATHS[id].reward.text}`] } })
+    if (id) bus.emit('moment', { id: 'oathSworn', card: { kind: '맹세', title: OATHS[id].name, color: '#c9a24a', lines: [OATHS[id].rule, '장 보스나 수호자를 이기면 지킨다', `지키면: ${this.rewardText(id)}`] } })
     bus.emit('progressChanged', {})
   }
 
@@ -83,12 +103,15 @@ export class OathSystem {
   private keep(id: OathId): void {
     const { expedition, oaths, bus } = this.ctx
     const seconds = expedition.elapsed
+    const breath = breathSlots(this.ctx)
     const { first, record } = oaths.keep(id, seconds)
     expedition.oath = null
     this.sync()
     if (id === 'alone' && first) this.parts.fillBreath()
     bus.emit('oathEnded', { id, win: true, seconds })
-    const lines = [first ? OATHS[id].reward.text : '이미 지킨 맹세', `기록 ${clock(seconds)}${record && !first ? ' (가장 빠름)' : ''}`]
+    // 홀로: 숨 칸이 끝(엔딩 전 4)에 닿아 늘지 않았으면 그 한 칸은 엔딩 뒤 다섯째로 (D4)
+    const reward = id === 'alone' && breathSlots(this.ctx) <= breath ? ALONE_AFTER_ENDING : OATHS[id].reward.text
+    const lines = [first ? reward : '이미 지킨 맹세', `기록 ${clock(seconds)}${record && !first ? ' (가장 빠름)' : ''}`]
     bus.emit('moment', { id: 'oathKept', card: { kind: '맹세를 지켰다', title: OATHS[id].name, color: '#c9a24a', lines } })
     bus.emit('progressChanged', {})
   }

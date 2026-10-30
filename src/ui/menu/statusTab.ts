@@ -24,7 +24,8 @@ export function renderStatus(ctx: TabContext, body: HTMLElement): void {
   const layout = el('div', 'menu-status')
 
   const who = el('section', 'menu-status__who')
-  const current = host.loadout.manifested
+  // 저장된 자리의 손 (빈 손의 맹세 동안에도 지금의 나는 그 신이다)
+  const current = host.progress.pantheon.hand
   const portrait = el('div', 'ui-portrait ui-portrait--large')
   if (current) {
     const god = godDef(current)

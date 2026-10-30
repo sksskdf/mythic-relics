@@ -141,7 +141,7 @@ describe('장 진행 (E22-01)', () => {
     expect(chapters.isOpen('utgard')).toBe(true)
   })
 
-  it('그리스와 마지막 무대도 차례로: 델포이는 제우스를 깨운 뒤, 리키아는 둘째 귀환 뒤, 갈라진 하늘은 유물 2단계 뒤', () => {
+  it('그리스와 마지막 무대도 차례로: 델포이는 제우스를 깨운 뒤, 리키아는 델포이에 닿고 둘째 귀환 뒤, 갈라진 하늘은 유물 2단계 뒤', () => {
     const w = world()
     const chapters = new ChapterProgress(w)
     chapters.enter('midgard')
@@ -152,7 +152,10 @@ describe('장 진행 (E22-01)', () => {
     w.awake.set('greek', 1)
     expect(chapters.isOpen('delphi')).toBe(true)
     expect(chapters.isOpen('lycia')).toBe(false)
+    // 귀환 2를 델포이에 닿기 전에 했으면 델포이에 닿을 때 이어 센다 (리키아는 델포이 너머라 그 전에 열 까닭이 없다)
     w.ret = 2
+    expect(chapters.isOpen('lycia')).toBe(false)
+    chapters.enter('delphi')
     expect(chapters.isOpen('lycia')).toBe(true)
     chapters.bossDefeated('lycia')
     expect(chapters.isOpen('sky')).toBe(false)
@@ -169,6 +172,30 @@ describe('장 진행 (E22-01)', () => {
     // 귀환이 다음 장 목표(델포이 귀환 2)에 먼저 닿아도 장은 건너뛰지 않는다
     w.ret = 2
     expect(chapters.chapter?.id).toBe('north')
+  })
+
+  it('제1장에서 귀환을 두 번 했어도 그리스 장은 올림포스·제우스·델포이부터 차례로 (귀환 2를 건너뛰는 근거로 쓰지 않는다)', () => {
+    const w = world()
+    const chapters = new ChapterProgress(w)
+    chapters.enter('midgard')
+    w.awake.set('norse', 2)
+    chapters.enter('jotunheim')
+    chapters.enter('utgard')
+    w.ret = 2
+    chapters.bossDefeated('utgard')
+    expect(chapters.chapter?.id).toBe('greek')
+    expect(chapters.goal?.goal).toBe('올림포스 기슭으로')
+    expect(chapters.isOpen('delphi')).toBe(false)
+    expect(chapters.isOpen('lycia')).toBe(false)
+    chapters.enter('olympus')
+    expect(chapters.goal?.kind).toBe('awaken')
+    expect(chapters.isOpen('lycia')).toBe(false)
+    w.awake.set('greek', 1)
+    expect(chapters.goal?.goal).toBe('델포이 골짜기로')
+    // 델포이에 닿으면 이미 한 귀환 2는 지나가고 리키아가 열린다
+    chapters.enter('delphi')
+    expect(chapters.goal?.goal).toBe('리키아 화산으로')
+    expect(chapters.isOpen('lycia')).toBe(true)
   })
 
   it('거인 왕을 이기면 바로 제2장: 그리스 땅이 열린다', () => {

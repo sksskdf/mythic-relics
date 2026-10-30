@@ -30,6 +30,22 @@ export function breathCount(awakened: number, conquered: number, oath = 0, cap =
   return Math.min(cap, 1 + (awakened >= 2 ? 1 : 0) + conquered + oath)
 }
 
+/** 지금 숨 칸의 끝: 엔딩 전 4, 엔딩 뒤(맹세 여덟이 열린 뒤) 5 */
+export const breathCap = (afterEnding: boolean): number => (afterEnding ? MAX_BREATH : DEMO_BREATH)
+
+/** 게임에서 숨 칸 수를 세는 데 읽는 것 */
+export interface BreathState {
+  readonly progress: { readonly opened: readonly unknown[] }
+  readonly chapters: { readonly conquered: number }
+  readonly oaths: { readonly breath: number }
+  readonly ending: { has(feature: 'oaths'): boolean }
+}
+
+/** 지금 숨 칸 수 (자리·장 정복 카드·맹세 카드·신 탭이 함께 쓴다): 깨어난 신·정복한 장·지킨 홀로의 맹세, 끝은 엔딩 전 4·엔딩 뒤 5 */
+export function breathSlots(s: BreathState): number {
+  return breathCount(s.progress.opened.length, s.chapters.conquered, s.oaths.breath, breathCap(s.ending.has('oaths')))
+}
+
 /**
  * 맹세를 건 동안 도는 자리 (E305-01): 저장되는 자리는 그대로 두고, 빈 손이면 손을 비우고(낡은 검) 홀로면 숨을 앞에서 그만큼만.
  * 원본은 바꾸지 않는다

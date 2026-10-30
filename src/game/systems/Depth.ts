@@ -10,20 +10,17 @@ import type { GameContext } from '../context'
  * - 한계를 깸 (D8): 깊이 10 원정에서 장 보스나 수호자를 이기고 귀환하면 깊이의 끝이 사라지고 끝없는 원정이 열린다
  */
 export class DepthSystem {
-  /** 이번 원정에서 깊이 10(한계 전 끝)의 장 보스나 수호자를 이겼다: 귀환하면 한계를 깬다 */
-  private deepWin = false
-
   constructor(private readonly ctx: GameContext) {
     const { bus, depth } = ctx
     this.apply()
+    // 깊이 10(한계 전 끝)의 장 보스나 수호자를 이긴 일은 원정 기록에 저장한다 (다시 불러온 뒤 귀환해도 한계를 깨게)
     bus.on('giantKilled', ({ giant }) => {
       // 끝없는 원정 층의 보스는 세지 않는다 (층 세기가 깊이와 따로라)
       if (depth.limitBroken || depth.level < DEPTH_LIMIT || !ctx.ending.has('depth') || ctx.map.region.kind === 'endless') return
-      if (giant.spec.boss !== undefined || isBossLike(giant.spec)) this.deepWin = true
+      if (giant.spec.boss !== undefined || isBossLike(giant.spec)) ctx.expedition.deepWin = true
     })
-    bus.on('expeditionReturned', () => {
-      if (this.deepWin && !depth.limitBroken) this.breakLimit()
-      this.deepWin = false
+    bus.on('expeditionReturned', ({ deepWin }) => {
+      if (deepWin && !depth.limitBroken) this.breakLimit()
     })
   }
 

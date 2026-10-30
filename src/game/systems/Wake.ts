@@ -324,7 +324,7 @@ export class WakeSystem {
   private killed(giant: Giant): void {
     const { awaken, map, bus } = this.ctx
     if (this.ours.has(giant)) return
-    // 사냥: 그 신의 땅에서 잡을 때마다 (성소의 전설·시련 싸움은 빼고)
+    // 사냥: 그 신의 땅에서 잡을 때마다 (흔적을 지키는 무리·수호자는 빼고)
     const waking = this.waking
     if (!waking || awaken.fragments !== 1 || map.region.id !== wakeDef(waking)?.land) return
     if (awaken.addKill()) this.piece2(waking)

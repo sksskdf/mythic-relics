@@ -35,7 +35,7 @@ export class TrainingTab {
     const fill = el('i', '')
     fill.style.width = `${Math.round((insight.have / insight.need) * 100)}%`
     bar.append(fill)
-    this.ctx.hintOn(bar, `다음 깨달음까지\n경험치 ${Math.floor(insight.have)} / ${insight.need}. 적을 잡으면 쌓인다 (정예·전설·보스는 더 많이)`)
+    this.ctx.hintOn(bar, `다음 깨달음까지\n경험치 ${Math.floor(insight.have)} / ${insight.need}. 적을 잡으면 쌓인다 (정예·수호자·보스는 더 많이)`)
     info.append(head, bar)
     const totals = training.totals()
     info.append(el('div', 'menu-src__text', totals.length ? totals.join(' · ') : '마디를 익히면 바로 강해진다. 앞 마디를 익혀야 다음 마디를 익힐 수 있다'))
