@@ -102,7 +102,7 @@ export class AwakeningSystem {
     return canWakeMore(progress.opened.length, build.level, ending.reached) ? 'open' : 'sealed'
   }
 
-  /** 다음 신이 응답하는 주신 단계 (주신 단계가 모자라 흔적이 잠잠할 때) */
+  /** 다음 신이 응답하는 손의 신 단계 (단계가 모자라 흔적이 잠잠할 때. E304에서 승천으로 바뀐다) */
   get sealedUntil(): number {
     return this.ctx.progress.opened.length + 1
   }
@@ -256,7 +256,7 @@ export class AwakeningSystem {
         else if ((state === 'busy' || state === 'sealed') && this.told !== t.god) {
           this.told = t.god
           const waking = this.waking
-          const text = waking ? `${josa(godDef(waking).name, '이')} 깨어난 뒤에 응답한다` : `주신이 ${this.sealedUntil}단계가 되면 응답한다`
+          const text = waking ? `${josa(godDef(waking).name, '이')} 깨어난 뒤에 응답한다` : `손에 쥔 신이 ${this.sealedUntil}단계가 되면 응답한다`
           this.ctx.bus.emit('moment', { id: 'traceBusy', text })
         }
       }
@@ -409,12 +409,12 @@ export class AwakeningSystem {
     powers.loadout.waking = null
     if (!god || !progress.open(god)) return
     const first = progress.opened.length === 1
-    // 첫 신은 RelicSystem이 주신으로 고르며 장면을 띄운다. 그다음 신은 빈 칸에 조용히 들어가고 여기서 큰 카드 (번쩍임·빛기둥은 큰 카드가)
+    // 첫 신은 RelicSystem이 손·심장·숨에 몰아 넣으며 장면을 띄운다. 그다음 신은 빈 칸에 조용히 들어가고 여기서 큰 카드 (번쩍임·빛기둥은 큰 카드가)
     bus.emit('mythOpened', { god, quiet: !first })
     if (!first) {
       const def = godDef(god)
-      const lent = progress.chosen.includes(god)
-      const lines = [`빌린 힘: ${lendText(god, progress.level(god))}`, lent ? `빌린 칸에 들어갔다 · 신위 칸 ${progress.chosen.length}` : '마을이나 성소에서 신위 칸에 넣는다', `${josa(relicDef(def.relic).name, '이')} 깨어난다`]
+      const placed = progress.pantheon.breath.includes(god)
+      const lines = [`숨: ${lendText(god, progress.level(god))}`, placed ? `숨 칸에 들어갔다 · 숨 ${progress.pantheon.breath.length}` : '신 탭에서 손·심장·숨 자리에 낀다', `${josa(relicDef(def.relic).name, '이')} 깨어난다`]
       bus.emit('moment', { id: 'godAwakened', card: { kind: '신이 깨어남', title: progress.title(god), color: def.color, icon: classIcon(def.name), lines } })
     }
     bus.emit('fragment', { god, piece: 3 })

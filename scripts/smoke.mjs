@@ -285,28 +285,34 @@ try {
   if (gearTabs.join() !== 'relics') throw new Error(`탭 차례: 장비를 주운 뒤 열린 탭이 장비 하나가 아닙니다 (${gearTabs.join()})`)
   console.log('탭 차례 확인: 새 판에는 상태 탭만, 장비를 주우면 장비 탭과 카드')
   await lookShot('2-gear')
-  // 신을 깨우는 조각 셋 (E238): 흔적(조각 1: 대표 힘을 빌림) → 사냥(조각 2: 묠니르가 손에 들어옴) → 수호자(깨어나 주신이 됨).
+  // 신을 깨우는 조각 셋 (E238 → E302): 흔적(조각 1: 숨) → 사냥(조각 2: 손과 묠니르) → 수호자(심장, 깨어나 한 신에 몰기).
   // 데모에서는 유물을 가져도 신화가 열리지 않는다
   await page.evaluate(() => {
     const g = window.__game
     g.dev.awaken('thor')
     g.dev.awaken()
   })
-  await page.waitForFunction(() => window.__game.powers.loadout.slots[0] === 'mjolnir', null, { timeout: 15000 }).catch(() => {
-    throw new Error('신의 조각: 조각 2를 모았는데 묠니르가 무기 칸에 들어오지 않았습니다.')
+  await page.waitForFunction(() => window.__game.powers.loadout.lit.includes('mjolnir'), null, { timeout: 15000 }).catch(() => {
+    throw new Error('신의 조각: 조각 2를 모았는데 묠니르가 유물표에 켜지지 않았습니다.')
   })
+  if ((await page.evaluate(() => window.__game.powers.loadout.slots.includes('mjolnir')))) throw new Error('유물표: 묠니르가 장비 칸에 들어갔습니다 (유물은 칸을 떠났다, E303-04).')
   if ((await page.evaluate(() => window.__game.hero.rig.outfit.weapon)) !== 'mjolnirHammer') throw new Error('외형: 묠니르를 얻자마자 망치가 보이지 않습니다.')
   const asleep = await page.evaluate(() => {
     const g = window.__game
-    return { open: g.progress.isOpen('thor'), manifested: g.powers.manifested, lent: g.ctx.build.passives().map((p) => p.god), awake: g.powers.awake('mjolnir') }
+    return { open: g.progress.isOpen('thor'), hand: g.progress.pantheon.hand, heart: g.progress.pantheon.heart, lent: g.ctx.build.passives().map((p) => p.god), awake: g.powers.awake('mjolnir') }
   })
-  if (asleep.open || asleep.manifested) throw new Error(`신의 조각: 수호자 전에 토르가 열렸습니다 ${JSON.stringify(asleep)}`)
+  if (asleep.open || asleep.heart) throw new Error(`신의 조각: 수호자 전에 토르가 열렸습니다 ${JSON.stringify(asleep)}`)
+  if (asleep.hand !== 'thor') throw new Error(`신의 조각: 조각 2인데 토르의 망치를 손에 쥐지 않았습니다 ${JSON.stringify(asleep)}`)
   if (!asleep.lent.includes('thor') || !asleep.awake) throw new Error(`신의 조각: 조각 2인데 토르의 힘을 빌리지 않거나 묠니르가 잠들어 있습니다 ${JSON.stringify(asleep)}`)
   await page.evaluate(() => window.__game.dev.awaken())
-  const manifested = await page.evaluate(() => window.__game.powers.manifested)
-  if (manifested !== 'thor') throw new Error(`신화 고르기 실패: 토르의 수호자를 쓰러뜨렸는데 주신이 ${manifested}입니다.`)
+  const woke = await page.evaluate(() => ({ ...window.__game.progress.pantheon, focus: window.__game.ctx.build.focus }))
+  if (woke.heart !== 'thor' || woke.focus !== 'thor') throw new Error(`신화 고르기 실패: 토르의 수호자를 쓰러뜨렸는데 한 신에 몰리지 않았습니다 ${JSON.stringify(woke)}`)
+  // 손은 조각 2에 이미 쥐었어도 깨어나는 순간(장면·큰 카드)은 수호자 뒤에 온다
+  await page.waitForFunction(() => window.__game.moments.shown.some((m) => m.id === 'mythChosen'), null, { timeout: 90000 }).catch(() => {
+    throw new Error('신화 고르기: 토르가 깨어났는데 깨어나는 순간(mythChosen)이 없습니다.')
+  })
   if (!(await page.evaluate(() => window.__game.progress.isOpen('thor')))) throw new Error('신화 개방: 토르의 수호자를 쓰러뜨렸는데 토르 신화가 열리지 않았습니다.')
-  console.log('신의 조각 확인: 조각 1에 토르의 힘을 빌리고, 조각 2의 묠니르는 깨어나지만 토르는 아직 닫힘, 수호자 뒤에 토르가 주신')
+  console.log('신의 조각 확인: 조각 1에 토르의 숨, 조각 2에 망치를 손에 쥐고 묠니르가 깨어나지만 토르는 아직 닫힘, 수호자 뒤에 토르로 한 신에 몰기')
   if ((await page.evaluate(() => window.__game.hero.rig.outfit.head)) !== 'thorHelm') throw new Error('외형: 신화를 골랐는데 모습이 그대로입니다.')
   // 재료가 된 유물(메긴교르드)은 칸이 아니라 재료로 (E13-03)
   await page.evaluate(() => {
@@ -358,21 +364,32 @@ try {
   if ((await page.evaluate(() => window.__game.powers.loadout.stage('mjolnir'))) !== 2) throw new Error('대장간: 벼렸는데 묠니르가 2단계가 아닙니다.')
   await page.click('.menu__tab:nth-child(4)')
   if (!(await page.locator('.menu-classes__now').textContent()).includes('천둥의 신')) throw new Error('정보 화면: 신화 탭에 지금 신화가 없습니다.')
-  // 신화 카드 (E12-06, E21-02, E237): 수집 보너스·주신일 때·빌린 힘일 때와 주신 표시
+  // 신화 카드 (E12-06, E21-02, E302): 열린 신화·손·심장·숨에 끼면 얻는 것과 한 신에 몰기 표시
   const myth = await page.locator('.menu-myth').textContent()
-  if (!myth.includes('수집 보너스') || !myth.includes('주신일 때') || !myth.includes('빌린 힘일 때') || !myth.includes('주신')) throw new Error(`정보 화면: 신화 카드가 모자랍니다 (${myth.slice(0, 60)})`)
-  // 신위 칸 (E237): 둘째 신이 깨어나면 빌린 칸이 생기고, 그 신의 카드에서 「빌린 칸에 넣기」를 누르면 빌린 힘이 돈다
+  // 유물표 (E303-04): 묠니르 칸이 켜져 깨어 있고, 못 켠 칸은 실루엣
+  const table = await page.evaluate(() => ({ lit: document.querySelectorAll('.menu-table__cell.is-lit').length, awake: document.querySelectorAll('.menu-table__cell.is-awake').length, all: document.querySelectorAll('.menu-table__cell').length, head: document.querySelector('.menu-table__head')?.textContent ?? '' }))
+  if (table.lit < 1 || table.awake < 1 || table.all < 20 || !table.head.includes('+')) throw new Error(`유물표: 묠니르 칸이 켜지지 않았습니다 ${JSON.stringify(table)}`)
+  console.log(`유물표 확인: ${table.head}, 칸 ${table.all}`)
+  if (!['열린 신화', '손에 쥐면', '심장에 두면', '숨에 넣으면', '한 신에 몰기'].every((w) => myth.includes(w))) throw new Error(`정보 화면: 신화 카드가 모자랍니다 (${myth.slice(0, 60)})`)
+  // 신의 자리 셋 (E302): 둘째 신이 깨어나면 숨 칸이 둘, 그 신의 카드에서 「숨에 넣기」를 누르면 그 신의 패시브가 돈다
   await page.evaluate(() => {
     const g = window.__game
     g.progress.open('loki')
     g.menu.myths.selected = 'loki'
     g.menu.refresh()
   })
-  await page.locator('.menu-myth__choose', { hasText: '빌린 칸에 넣기' }).click()
-  const lent = await page.evaluate(() => ({ borrowed: [...window.__game.ctx.build.borrowed], slots: [...document.querySelectorAll('.menu-slots__slot')].map((e) => e.textContent), awake: window.__game.powers.awake('lokiMask') }))
-  if (lent.borrowed.join() !== 'loki' || !lent.slots[1]?.includes('로키')) throw new Error(`신위 칸: 로키를 빌린 칸에 넣지 못했습니다 ${JSON.stringify(lent)}`)
-  console.log(`신위 칸 확인: 칸 ${lent.slots.length}개(${lent.slots.join(' / ')}), 빌린 힘 로키`)
-  await page.evaluate(() => window.__game.lendMyth('loki', false))
+  await page.locator('.menu-myth__choose', { hasText: '숨에 넣기' }).click()
+  const lent = await page.evaluate(() => ({ borrowed: [...window.__game.ctx.build.borrowed], breath: window.__game.ctx.build.passives().map((p) => p.god), slots: [...document.querySelectorAll('.menu-slots__slot')].map((e) => e.textContent) }))
+  if (lent.borrowed.join() !== 'loki' || !lent.breath.includes('loki') || !lent.slots.some((t) => t.includes('숨') && t.includes('로키'))) throw new Error(`신의 자리: 로키를 숨에 넣지 못했습니다 ${JSON.stringify(lent)}`)
+  // 손을 로키로 바꾸면 공격 동작이 바뀐다 (어디서나)
+  await page.locator('.menu-myth__choose', { hasText: '손에 쥐기' }).click()
+  const swapped = await page.evaluate(() => ({ hand: window.__game.progress.pantheon.hand, attack: window.__game.ctx.build.state.attack }))
+  if (swapped.hand !== 'loki' || swapped.attack === 'hammer') throw new Error(`신의 자리: 손을 로키로 바꿨는데 동작이 그대로입니다 ${JSON.stringify(swapped)}`)
+  console.log(`신의 자리 확인: ${lent.slots.join(' / ')}, 숨에 로키, 손을 로키로 바꾸면 동작 ${swapped.attack}`)
+  await page.evaluate(() => {
+    window.__game.placeMyth('hand', 'thor')
+    window.__game.unplaceMyth('loki')
+  })
   // 수련 탭 (E236): 깨달음을 얻으면 메뉴 단추에 표시, 뿌리 마디를 누르면 찍히고 피해가 오른다
   const trainBefore = await page.evaluate(() => {
     const g = window.__game
@@ -521,6 +538,16 @@ try {
   console.log('전설 확인: 성소에서 시작')
 
   // 저장 점검: 새로 고침해도 주운 유물을 그대로 끼고 이어 한다.
+  // 저장 왕복: 로키를 빌린 칸에 넣고, 정보 화면을 열어 멈춘 채(창을 닫을 때 다시 저장해도 같게) 저장한다
+  const keep = () => {
+    const d = window.__game.snapshot()
+    return { pantheon: d.pantheon, waking: d.awaken.waking, fragments: d.awaken.fragments, slots: d.slots, bag: d.bag, stages: d.stages, taken: d.training.taken, ending: d.ending, threat: d.threat.reached, open: d.conveniences.open.filter((id) => id !== 'warp'), visited: d.conveniences.visited }
+  }
+  await page.evaluate(() => {
+    window.__game.relics.place('breath', 'loki')
+    window.__game.menu.toggle(true)
+  })
+  const kept = await page.evaluate(keep)
   const savedAt = await page.evaluate(() => {
     window.__game.saveNow()
     const p = window.__game.hero.object.position
@@ -534,15 +561,19 @@ try {
   // 유물·일반 장비·재료가 모두 그대로 (E13-06)
   const restored = await page.evaluate((uid) => {
     const l = window.__game.powers.loadout
-    return { relic: l.slots[0] === 'mjolnir', gear: l.slots[4] === uid && l.gear.get(uid)?.grade === 'rare', material: l.materials.get('megingjord') === 1 }
+    return { relic: l.lit.includes('mjolnir') && !!window.__game.powers.effectOf('mjolnir'), gear: l.slots[4] === uid && l.gear.get(uid)?.grade === 'rare', material: l.materials.get('megingjord') === 1 }
   }, bootsUid)
   if (!restored.relic || !restored.gear || !restored.material) throw new Error(`이어서 플레이 실패: 저장한 장비가 없습니다 ${JSON.stringify(restored)}`)
+  // 주신·빌린 신·깨우는 신·조각·장비 칸·가방·단계·수련·엔딩·위협·웨이포인트가 저장 전과 같다 (Persistence 저장·되살리기 왕복)
+  const again = await page.evaluate(keep)
+  await page.evaluate(() => window.__game.relics.unplace('loki'))
+  if (JSON.stringify(again) !== JSON.stringify(kept) || kept.pantheon.breath.join() !== 'thor,loki') throw new Error(`이어서 플레이 실패: 되살린 상태가 저장 전과 다릅니다 ${JSON.stringify({ kept, again })}`)
   if ((await page.evaluate(() => window.__game.hero.rig.outfit.weapon)) !== 'shortSword') throw new Error('이어서 플레이 실패: 고른 외형이 없습니다.')
   if ((await page.evaluate(() => window.__game.region.id)) !== 'midgard') throw new Error('이어서 플레이 실패: 있던 지역(미드가르드)이 아닙니다.')
   // 세계 자리 (E19-05): 지역 id + 지역 안 좌표가 곧 이어진 세계의 자리다
   const back = await page.evaluate(() => ({ x: window.__game.hero.object.position.x, z: window.__game.hero.object.position.z }))
   if (Math.hypot(back.x - savedAt.x, back.z - savedAt.z) > 1) throw new Error(`이어서 플레이 실패: 저장한 자리가 아닙니다 ${JSON.stringify({ savedAt, back })}`)
-  console.log('저장 확인: 새로 고침하면 단추 없이 바로 이어서, 유물·일반 장비·재료와 고른 외형, 있던 지역과 자리 유지')
+  console.log('저장 확인: 새로 고침하면 단추 없이 바로 이어서, 유물·일반 장비·재료와 고른 외형, 신의 자리·조각·단계·수련·위협·웨이포인트, 있던 지역과 자리 유지')
 
   // 처음 화면으로: 정보 화면의 단추를 두 번 누르면 저장하고 슬롯 고르기로 돌아가고, 그 슬롯을 누르면 이어 간다.
   await page.click('.menu-button')

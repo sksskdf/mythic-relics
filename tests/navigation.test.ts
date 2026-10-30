@@ -43,4 +43,18 @@ describe('NavGrid', () => {
     expect(nav.isBlocked(end)).toBe(false)
     expect(Math.hypot(end.x, end.z)).toBeLessThan(2)
   })
+
+  it('작업 배열을 되써도 길이 없던 찾기 뒤에 같은 길을 찾는다', () => {
+    // 가운데를 가로막은 벽: 왼쪽 위 칸에서는 오른쪽으로 갈 수 없다
+    const sealed = Array.from({ length: 41 }, (_, i) => ({ x: 0, z: -10 + i * 0.5, radius: 0.6 }))
+    const nav = new NavGrid(10, 0.5, wall, 0.4)
+    const first = nav.findPath({ x: -4, z: 0 }, { x: 4, z: 0 })
+    const closed = new NavGrid(10, 0.5, sealed, 0.4)
+    expect(closed.findPath({ x: -4, z: 0 }, { x: 4, z: 0 })).toEqual([])
+    expect(closed.findPath({ x: -4, z: 0 }, { x: 4, z: 0 })).toEqual([])
+    // 같은 격자로 거듭 찾아도, 다시 짜도 결과가 같다
+    for (let i = 0; i < 3; i++) expect(nav.findPath({ x: -4, z: 0 }, { x: 4, z: 0 })).toEqual(first)
+    nav.rebuild(10, wall)
+    expect(nav.findPath({ x: -4, z: 0 }, { x: 4, z: 0 })).toEqual(first)
+  })
 })

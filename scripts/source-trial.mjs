@@ -12,17 +12,32 @@ const rows = []
 for (const source of ['none', 'flame', 'hunt', 'wind', 'stone']) {
   const args = ['scripts/playtest.mjs', runs, minutes, '--relics=mjolnir', '--god=thor', '--region=midgard']
   if (source !== 'none') args.push(`--stack=${source}`)
-  execFileSync('node', args, { stdio: 'ignore' })
-  const results = JSON.parse(readFileSync('test-results/playtest.json', 'utf8'))
+  // 봇이 끊겨도 원인을 보이고 다음 원천으로 간다 (지난 결과 파일을 이 원천 것으로 읽지 않게)
+  try {
+    execFileSync('node', args, { stdio: ['ignore', 'ignore', 'inherit'] })
+  } catch (e) {
+    rows.push({ source, rates: [], mean: 0, hurt: [], deaths: [], damageTaken: [], errors: [String(e?.message ?? e)], failed: true })
+    console.error(`${NAMES[source]}: 봇 실패`)
+    continue
+  }
+  // 끊긴 판(crashed)은 재지 않고 오류만 모은다
+  const all = JSON.parse(readFileSync('test-results/playtest.json', 'utf8'))
+  const results = all.filter((r) => !r.crashed)
+  if (results.length === 0) {
+    rows.push({ source, rates: [], mean: 0, hurt: [], deaths: [], damageTaken: [], errors: all.flatMap((r) => r.errors), failed: true })
+    console.error(`${NAMES[source]}: 판이 모두 끊겼다`)
+    continue
+  }
   const rates = results.map((r) => r.killRate)
   const mean = Math.round((rates.reduce((s, v) => s + v, 0) / rates.length) * 10) / 10
   const hurt = results.map((r) => r.hurt)
   const deaths = results.map((r) => r.deaths)
-  rows.push({ source, rates, mean, hurt, deaths, damageTaken: results.map((r) => r.damageTaken), errors: results.flatMap((r) => r.errors) })
+  rows.push({ source, rates, mean, hurt, deaths, damageTaken: results.map((r) => r.damageTaken), errors: all.flatMap((r) => r.errors) })
   console.log(`${NAMES[source]}: 1분당 처치 ${rates.join(' / ')} (평균 ${mean}), 피격 ${hurt.join(' / ')}, 받은 피해 ${results.map((r) => r.damageTaken).join(' / ')}, 쓰러짐 ${deaths.join(' / ')}`)
 }
 
-const four = rows.filter((r) => r.source !== 'none')
+// 봇이 실패한 원천은 평균에서 뺀다
+const four = rows.filter((r) => r.source !== 'none' && !r.failed)
 const avg = four.reduce((s, r) => s + r.mean, 0) / four.length
 const outside = four.filter((r) => Math.abs(r.mean - avg) > avg * 0.25)
 console.log(`원천 넷 평균 ${avg.toFixed(1)}, ±25% ${(avg * 0.75).toFixed(1)}~${(avg * 1.25).toFixed(1)}`)

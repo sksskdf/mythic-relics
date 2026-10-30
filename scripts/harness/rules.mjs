@@ -20,7 +20,7 @@ export const RULES = [
     files: /^src\/data\/(gods|relics)\.json$|^src\/data\/classKit\.ts$|^src\/(myth|build)\/|^src\/skills\/(index|actions|Ultimate)\.ts$|^src\/game\/RelicPowers\.ts$/,
     run: [`${B}node scripts/myth-trial.mjs (중앙값 ±20%)`],
     docs: ['BALANCE.md', 'PLAYTEST.md 7장'],
-    note: '새 유물은 relics.json에 기존 종류를 조합한다. 새 "하는 일"이 필요할 때만 actions.ts와 schema.ts의 ACTION_PARAMS에 더한다.',
+    note: '새 유물은 relics.json에 기존 종류를 조합한다. 새 "하는 일"이 필요할 때만 actions.ts와 schema/relics.ts의 ACTION_PARAMS에 더한다.',
   },
   {
     id: 'classes',

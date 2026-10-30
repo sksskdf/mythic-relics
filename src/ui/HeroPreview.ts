@@ -47,7 +47,7 @@ export class HeroPreview {
     this.rig.setBody(body)
   }
 
-  /** 화면에 붙었을 때 돌기 시작한다. 떼어지면 저절로 멈춘다. */
+  /** 화면에 붙었을 때 돌기 시작한다. 떼어지거나 숨으면 저절로 멈춘다. */
   start(): void {
     if (this.frame) return
     if (!this.renderer) {
@@ -62,7 +62,8 @@ export class HeroPreview {
     }
     this.last = performance.now()
     const tick = (now: number) => {
-      if (!this.canvas.isConnected) {
+      // 떼어졌거나 숨었으면(정보 화면을 닫으면 창만 숨기고 캔버스는 붙어 있다) 멈춘다. 다시 열면 start가 다시 돌린다
+      if (!this.canvas.isConnected || this.canvas.offsetParent === null) {
         this.frame = 0
         return
       }

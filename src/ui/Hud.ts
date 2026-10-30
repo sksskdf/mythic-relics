@@ -1,3 +1,4 @@
+import type { RelicId } from '../relics/data'
 import { classIcon } from './classIcons'
 import './hud.css'
 import { BOLT_ICON, pixelIcon } from './pixelIcon'
@@ -10,8 +11,8 @@ export interface HudSlot {
   icon: string | null
   /** 행동 연동 효과의 충전 정도 0~1 (1이면 다 참) */
   charge: number
-  /** 이 유물이 있는 장비 칸 번호 (빈 칸이면 null) */
-  slot: number | null
+  /** 이 칸의 유물 (빈 칸이면 null) */
+  relic: RelicId | null
   /** 그 신화를 고르지 않아 유물의 힘이 잠들어 있다 (E21-04) */
   asleep?: boolean
 }
@@ -252,8 +253,8 @@ export class Hud {
       this.xpFill.style.width = `${(state.xp * 100).toFixed(1)}%`
       this.xpFill.style.background = state.xpColor
       this.xpFill.style.color = state.xpColor
-      // 가득 차면 깜빡여서 승급 전설에 들어갈 수 있음을 알린다.
-      this.xpBar.classList.toggle('is-full', state.xp >= 1)
+      // 다음 단계를 올릴 수 있을 때만 깜빡여서 승급 전설에 들어갈 수 있음을 알린다 (단계 끝이면 가득 찬 채 멈춘다)
+      this.xpBar.classList.toggle('is-full', state.promote)
     }
 
     this.ultimate.style.setProperty('--charge', state.ultimate ? state.divine.toFixed(3) : '0')

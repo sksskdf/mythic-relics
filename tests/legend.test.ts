@@ -138,3 +138,17 @@ describe('승급 전설 「대장장이들의 내기」 (E6-04)', () => {
     expect(encounter.alive.filter((g) => g.spec.boss !== 'giantKing').length).toBe(0)
   })
 })
+
+describe('승급 전설이 끝날 때', () => {
+  it('결계 안에서 불려 나온 졸개(전설이 셈하지 않는 것)도 함께 거둔다', () => {
+    const { encounter, legend, host, state } = setup()
+    legend.update(1 / 60, encounter, host)
+    // 우트가르드의 왕이 포효로 부른 졸개처럼: 결계 명단에만 들어 있다
+    const minion = encounter.spawnGrunt(2, 0)
+    encounter.ward!.members.add(minion)
+    state.alive = false
+    legend.update(1 / 60, encounter, host)
+    expect(encounter.giants).not.toContain(minion)
+    expect(encounter.giants.length).toBe(1)
+  })
+})

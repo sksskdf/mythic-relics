@@ -3,7 +3,8 @@ import { GRADE_COLORS } from '../art/palette'
 import { DATA } from '../data'
 import { AWAKEN_AT } from '../data/awakening'
 import type { SourceId } from '../data/schema'
-import { type GearItem, GEAR, gearName } from '../gear/roll'
+import { type GearItem, GEAR, gearName, gearScore } from '../gear/roll'
+import { GRADES } from '../data/gearData'
 import { statText } from '../myth/alwaysText'
 import { iconFromGrid } from '../voxel/iconFromGrid'
 import { gearGrid } from '../voxel/models/gearLooks'
@@ -62,6 +63,8 @@ export function gearCard(item: GearItem, worn?: GearItem | null, sources?: Reado
   names.append(el('div', 'rc__name', gearName(item)), el('div', 'rc__type', `${item.tier}단계 · ${GEAR.grades[item.grade].name} 장비 · ${GEAR.parts[item.part].name}`))
   head.append(swatch, names)
   card.append(head)
+  // 한 줄 결론 (E303-02): 지금 낀 것보다 얼마나 좋은가, 등급이 다르면 몇 칸 위·아래
+  if (worn && worn.uid !== item.uid) card.append(el('div', 'gc__verdict', verdict(item, worn)))
 
   const section = el('section', 'rc__section')
   section.append(el('div', 'rc__label', worn && worn.uid !== item.uid ? '수치 (지금 낀 것과 비교)' : '수치'))
@@ -85,13 +88,22 @@ export function gearCard(item: GearItem, worn?: GearItem | null, sources?: Reado
   section.append(list)
   card.append(section)
 
-  if (item.unique) {
-    const u = GEAR.uniques[item.unique]
-    if (u) {
-      const unique = el('section', 'rc__section')
-      unique.append(el('div', 'rc__label', `영웅 고유 효과 · ${u.name}`), el('p', 'rc__text', u.text))
-      card.append(unique)
-    }
+  for (const id of [item.unique, item.unique2]) {
+    const u = id ? GEAR.uniques[id] : undefined
+    if (!u) continue
+    const unique = el('section', 'rc__section')
+    unique.append(el('div', 'rc__label', `${GEAR.grades[item.grade].name} 고유 효과 · ${u.name}`), el('p', 'rc__text', u.text))
+    card.append(unique)
   }
   return card
+}
+
+/** 비교 카드의 한 줄 결론: 「지금 것보다 +12% · 한 칸 위」 */
+export function verdict(item: GearItem, worn: GearItem): string {
+  const a = gearScore(item)
+  const b = gearScore(worn)
+  const pct = b > 0 ? Math.round(((a - b) / b) * 100) : 100
+  const steps = GRADES.indexOf(item.grade) - GRADES.indexOf(worn.grade)
+  const grade = steps > 0 ? ` · ${steps === 1 ? '한' : steps === 2 ? '두' : `${steps}`} 칸 위` : steps < 0 ? ` · ${-steps === 1 ? '한' : -steps === 2 ? '두' : `${-steps}`} 칸 아래` : ''
+  return `${pct === 0 ? '지금 것과 비슷' : `지금 것보다 ${pct > 0 ? '+' : '−'}${Math.abs(pct)}%`}${grade}`
 }

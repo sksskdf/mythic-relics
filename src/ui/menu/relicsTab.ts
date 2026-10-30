@@ -1,9 +1,11 @@
 import { GRADE_COLORS } from '../../art/palette'
 import { SLOT_PARTS } from '../../data/gearData'
+import { BAG_SIZE } from '../../gear/Loadout'
 import type { SourceId } from '../../data/schema'
 import { materialName } from '../../gear/materials'
+import { nextGrade, PROTOTYPE_VALUE } from '../../gear/merge'
 import { GEAR, gearName } from '../../gear/roll'
-import { godDef, relicDef, type RelicId } from '../../relics/data'
+import { godDef, isRelicId, relicDef } from '../../relics/data'
 import { classIcon } from '../classIcons'
 import { gearCard, gearIcon } from '../gearCard'
 import { josa } from '../josa'
@@ -15,8 +17,8 @@ import { el, img, type TabContext } from './dom'
 export class RelicsTab {
   /** 고른 칸 */
   selectedSlot = 0
-  /** 커서를 올린 가방 유물 */
-  hovered: RelicId | null = null
+  /** 커서를 올린 가방 장비 */
+  hovered: string | null = null
   /** 휴대폰에서 한 번 누른 가방 유물: 한 번 더 누르면 낀다 (E235) */
   private picked: string | null = null
 
@@ -46,7 +48,7 @@ export class RelicsTab {
       const chip = el('span', 'menu-relics__blessing')
       chip.style.setProperty('--god', god.color)
       chip.append(img(classIcon(god.name)))
-      this.ctx.hintOn(chip, `잠든 ${god.name}의 유물\n${god.name}의 신화를 고르면 유물의 힘이 깨어난다. 지금은 기본 수치만 낸다.`)
+      this.ctx.hintOn(chip, `${god.name}의 유물\n그 신이 자리에 있으면 유물의 힘이 깨어난다.`)
       state.append(chip)
     }
     left.append(state)
@@ -76,7 +78,8 @@ export class RelicsTab {
       const b = el('button', 'ui-btn menu-relics__action')
       b.type = 'button'
       b.setAttribute('aria-label', label)
-      b.disabled = !selected
+      // 가방이 찼으면 가방에 넣지 못한다 (E303: 12칸)
+      b.disabled = !selected || (name === 'bag' && host.bag.length >= BAG_SIZE)
       b.append(img(glyph(name)))
       b.addEventListener('click', run)
       this.ctx.hintOn(b, label)
@@ -89,8 +92,10 @@ export class RelicsTab {
     // 가방: 누르면 그 부위 칸에 낀다 (고른 칸이 맞는 부위면 그 칸, 아니면 비어 있는 칸부터)
     const bag = el('div', 'menu-relics__bag')
     bag.style.backgroundImage = `url(${glyph('bag', '#222a36', '#141a24')})`
+    // 합칠 수 있는 셋 (E303): 그 칸이 빛난다
+    const mergeable = new Set(host.mergeable().flat())
     for (const id of host.bag) {
-      const b = el('button', 'menu-relics__item')
+      const b = el('button', `menu-relics__item${mergeable.has(id) ? ' is-mergeable' : ''}`)
       b.type = 'button'
       this.paintItem(b, id)
       b.setAttribute('aria-label', this.itemName(id))
@@ -150,21 +155,48 @@ export class RelicsTab {
       const wornId = host.slotsFor(id).map((i) => host.slots[i]).find((x) => x && x !== id && host.gearOf(x))
       const totals = Object.fromEntries(host.sources.rows().map((r) => [r.id, r.total])) as Record<SourceId, number>
       detail.append(gearCard(gear, wornId ? host.gearOf(wornId) : null, totals))
+      const group = host.mergeable().find((g) => g.includes(id))
+      if (group) detail.append(this.mergeBox(group))
       const b = el('button', 'menu-relics__salvage')
       b.type = 'button'
-      b.append(img(glyph('salvage')), '분해')
-      this.ctx.hintOn(b, '분해하면 그 땅의 신화권 재료가 나온다 (보통 1 · 좋음 2 · 희귀 4 · 영웅 8)')
+      b.append(img(glyph('salvage')), '녹이기')
+      this.ctx.hintOn(b, `녹이면 원형 ${PROTOTYPE_VALUE[gear.grade]}개가 된다 (등급이 하나 오를 때마다 셋 배)`)
       b.addEventListener('click', () => {
         this.hovered = null
-        host.salvage(id)
+        host.melt(id)
       })
       detail.append(b)
       return
     }
-    // 미리보기는 누르면 실제로 낄 칸으로 본다
-    const target = this.hovered ? this.wieldSlot(this.hovered) : undefined
-    const preview = this.hovered && target !== undefined ? { before: host.loadout, after: host.preview(target, this.hovered) } : undefined
-    detail.append(relicCard(relicDef(id), host.cardContext(id, preview)))
+    if (isRelicId(id)) detail.append(relicCard(relicDef(id), host.cardContext(id)))
+  }
+
+  /** 합치기 상자 (E303): 셋의 그림 → 결과 등급, 「합치기」 단추 */
+  private mergeBox(group: readonly string[]): HTMLElement {
+    const { host } = this.ctx
+    const items = group.map((id) => host.gearOf(id)!).filter(Boolean)
+    const next = nextGrade(items[0]!.grade)!
+    const box = el('section', 'menu-merge')
+    box.style.setProperty('--god', GRADE_COLORS[next])
+    const row = el('div', 'menu-merge__row')
+    for (const item of items) {
+      const icon = el('span', 'menu-merge__icon')
+      icon.style.backgroundImage = `url(${gearIcon(item)})`
+      icon.style.setProperty('--god', GRADE_COLORS[item.grade])
+      row.append(icon)
+    }
+    row.append(el('b', 'menu-merge__arrow', `→ ${GEAR.grades[next].name}`))
+    box.append(row)
+    const note = next === 'hero' ? '고유 효과 하나가 붙는다' : next === 'legend' ? '고유 효과 둘 (하나는 물려받음)' : '가장 좋은 수치 하나를 이어받는다'
+    box.append(el('small', '', note))
+    const b = el('button', 'ui-btn menu-merge__go', '합치기')
+    b.type = 'button'
+    b.addEventListener('click', () => {
+      this.hovered = null
+      host.merge(group)
+    })
+    box.append(b)
+    return box
   }
 
   /** 가방의 것을 누르면 낄 칸: 고른 칸이 맞는 부위면 그 칸, 아니면 비어 있는 맞는 칸부터 */

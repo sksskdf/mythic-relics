@@ -20,7 +20,7 @@ export const GEAR_LOOKS: readonly LookDef[] = (Object.keys(GEAR_LOOK_PARTS) as G
 
 /** 이 외형 id가 장비 외형이면 [부위, 바탕 번호, 등급] */
 export function parseGearLook(id: string): [GearLookPart, number, Grade] | null {
-  const m = /^gear-(weapon|head|body|hands|feet)-(\d+)-(common|good|rare|hero)$/.exec(id)
+  const m = new RegExp(`^gear-(weapon|head|body|hands|feet)-(\\d+)-(${GRADES.join('|')})$`).exec(id)
   return m ? [m[1] as GearLookPart, Number(m[2]), m[3] as Grade] : null
 }
 

@@ -1,4 +1,6 @@
 import * as THREE from 'three'
+import { UniqueState } from '../skills/uniques'
+import { UniqueSystem } from './systems/Uniques'
 
 import { AudioEngine } from '../audio/AudioEngine'
 import { Input } from '../input/Input'
@@ -15,7 +17,7 @@ import { Pickups } from '../gear/Pickups'
 import { DEMO_RELIC_STAGES, isMythRelic, RELIC_STAGES } from '../gear/mythRelic'
 import type { SaveData } from '../save/SaveData'
 import { ClassProgress } from '../myth/ClassProgress'
-import { MAX_SLOTS, SLOT_BOSSES } from '../myth/slots'
+import { BREATH_BOSSES, focusGod, MAX_BREATH, type PartKind } from '../myth/pantheon'
 import type { SkillContext } from '../skills/Skill'
 import { DamageNumbers } from '../ui/DamageNumbers'
 import { Hud } from '../ui/Hud'
@@ -114,8 +116,6 @@ export interface GameOptions {
   relicsOpenMyths?: boolean
 }
 
-/** 성소에서 이만큼 가까우면 고른 신화를 바꿀 수 있다 */
-const CHOOSE_NEAR_SANCTUARY = 6
 
 /** 첫 엔딩의 큰 카드 (E22-05): 엔딩 장면 뒤에 무엇이 열렸는지 */
 const ENDING_CARD: MomentCard = {
@@ -194,6 +194,7 @@ export class Game {
   /** 성소에서 신화 고르기 (E22-03) */
   readonly mythChoice: MythChoiceSystem
   private readonly mythPicker: MythPicker
+  private readonly uniqueSystem: UniqueSystem
   /** 목표 한 줄과 장 제목 띠 (E22-04) */
   readonly chapterHud: ChapterHud
   /** 순간의 크기 (E23-01): 사건을 등급에 맞는 크기(작은 알림·카드·큰 카드·장면)로 보인다 */
@@ -432,11 +433,13 @@ export class Game {
       training: this.training,
       tabs: this.tabs,
       awaken: this.awaken,
+      uniques: new UniqueState(),
       build: new Build({ powers: this.powers, progress: this.progress, threat: this.threat, trials: this.trials, trial: () => this.trialSystem?.active?.id ?? null, rift: this.rift, blessings: () => this.riftSystem?.blessings ?? [], training: this.training, awaken: this.awaken }),
       skills,
     }
     this.damage = new DamageSystem(this.ctx)
     this.relics = new RelicSystem(this.ctx)
+    this.uniqueSystem = new UniqueSystem(this.ctx)
     this.appearance = new AppearanceSystem(this.ctx)
     this.menuData = new MenuData({ game: this, ctx: this.ctx, relics: this.relics })
     this.menu = new GameMenu(this.hud.root, this.menuData.host())
@@ -479,7 +482,7 @@ export class Game {
       pixel: this.pixel,
       view: this.view,
       nameplates: this.nameplates,
-      cardContext: (id, preview) => this.menuData.cardContext(id, preview),
+      cardContext: (id) => this.menuData.cardContext(id),
       hovered: () => this.playerInput.hovered,
       screenPoint: (x, y, z) => this.screenPoint(x, y, z),
       traces: () => this.awakening.spots,
@@ -515,17 +518,18 @@ export class Game {
     })
     this.bus.on('outfitChanged', () => this.menu.refresh())
     this.bus.on('loadoutChanged', () => this.menu.refresh())
-    // HUD 유물 칸: 커서를 올리면 설명 카드, 누르면 유물 화면
-    // HUD 칸 i → 그 유물이 있는 장비 칸
-    const equipSlot = (i: number | null) => (i === null ? null : (this.powers.hudSlots()[i]?.slot ?? null))
-    this.hud.onSlotClick = (i) => this.menu.show('relics', equipSlot(i) ?? 0)
-    this.hud.onSlotHover = (i, anchor) => this.hover.slot(equipSlot(i), anchor)
+    // HUD 유물 칸: 커서를 올리면 설명 카드, 누르면 신 탭(유물표)
+    const hudRelic = (i: number | null) => (i === null ? null : (this.powers.hudSlots()[i]?.relic ?? null))
+    this.hud.onSlotClick = () => this.menu.show('classes')
+    this.hud.onSlotHover = (i, anchor) => this.hover.slot(hudRelic(i), anchor)
     this.growth = new ProgressionSystem(this.ctx)
     this.life = new HeroLife(this.ctx)
     this.threatSystem = new ThreatSystem(this.ctx)
     this.chapterSystem = new ChapterSystem(this.ctx)
     this.mythPicker = new MythPicker(this.hud.root)
     this.mythChoice = new MythChoiceSystem(this.ctx, this.mythPicker)
+    // 새 신의 손·심장 부품이 왔는데 자리가 차 있으면 두 갈래 카드 (E302-03)
+    this.relics.offerSwap = (part, incoming, current, choose) => this.mythPicker.swap(part, incoming, current, choose)
     this.awakening = new AwakeningSystem(
       this.ctx,
       (p) => this.nav.nearestFree(p),
@@ -571,6 +575,8 @@ export class Game {
       this.input.frameEnd.push(() => touch.gestures.endFrame())
     }
     this.playerInput.onZoom = (viewHeight, end) => {
+      // 대화 장면의 시야는 장면이 정한다 (휠과 같이)
+      if (this.scenes.active) return
       if (viewHeight !== this.view.viewHeight) this.setViewHeight(viewHeight)
       if (end) this.settings = settingsStorage.update({ viewHeight: this.view.viewHeight })
     }
@@ -605,8 +611,7 @@ export class Game {
     if (options.load) {
       this.persistence.restore(options.load, {
         equip: (id) => this.relics.equip(id, false),
-        choose: (god) => this.relics.choose(god, false),
-        lend: (god) => this.relics.lend(god),
+        pantheon: (p) => this.relics.restore(p),
         applyStats: () => this.growth.applyStats(),
         applyLooks: () => this.appearance.apply(),
       })
@@ -969,6 +974,14 @@ export class Game {
   }
 
   /** 신화 고르기 카드가 떠 있나 (봇·점검용) */
+  /** 두 갈래 카드에 답한다 (봇·점검용): 그 카드의 「새 것으로」나 「지금 그대로」를 누른다 */
+  answerSwap(take: boolean): boolean {
+    const card = document.querySelectorAll<HTMLButtonElement>('.myth-pick__card')[take ? 0 : 1]
+    if (!this.mythPicker.open || !card) return false
+    card.click()
+    return true
+  }
+
   get mythPickerOpen(): boolean {
     return this.mythPicker.open
   }
@@ -1032,31 +1045,38 @@ export class Game {
     }
   }
 
-  /** 고른 신화를 바꿀 수 있는 곳인가: 마을, 또는 지역 성소 곁 (E12-04, DESIGN.md 4.2). 전설·시련 중에는 못 바꾼다 (도전한 신화가 승급하도록) */
+  /** 신의 자리를 바꿀 수 있는가 (E302: 어디서나). 전설·시련 중에는 못 바꾼다 (도전한 신화가 승급하도록) */
   get canChooseMyth(): boolean {
-    if (this.legend.active) return false
-    if (this.ctx.map.region.kind === 'hub' || this.conveniences.has('quickChoose')) return true
-    if (!this.legend.present) return false
-    const p = this.hero.object.position
-    return Math.hypot(p.x - this.legend.center.x, p.z - this.legend.center.z) <= CHOOSE_NEAR_SANCTUARY
+    return !this.legend.active
   }
 
-  /** 정보 화면에서 신화를 고른다. 마을·성소가 아니거나 닫힌 신화면 false */
+  /** 정보 화면에서 한 신에 몰아 고른다 (손·심장·숨 첫 칸). 닫힌 신화면 false */
   chooseMyth(god: string): boolean {
     return this.canChooseMyth && this.relics.choose(god, true)
   }
 
-  /** 신위 칸 (E237): 칸 수, 칸의 신, 잠긴 칸마다 열리는 때 (정보 화면) */
-  mythSlots(): { count: number; gods: readonly string[]; locked: readonly string[] } {
+  /** 신의 자리 셋 (E302): 손·심장·숨, 숨 칸 수, 잠긴 숨 칸마다 열리는 때, 한 신에 몰았으면 그 신 (정보 화면) */
+  pantheonView(): { hand: string | null; heart: string | null; breath: readonly string[]; count: number; locked: readonly string[]; focus: string | null } {
     const count = this.relics.slots
     const locked: string[] = []
     if (this.progress.opened.length < 2) locked.push('두 번째 신이 깨어나면')
-    for (const region of SLOT_BOSSES) {
+    for (const region of BREATH_BOSSES) {
       if (this.chapters.bosses.has(region)) continue
       const boss = REGIONS[region]?.boss
       locked.push(`${josa(ENEMIES[boss?.enemy ?? 'king']?.name ?? '장 보스', '을')} 이기면`)
     }
-    return { count, gods: this.progress.chosen.slice(0, Math.max(1, count)), locked: locked.slice(0, Math.max(0, MAX_SLOTS - Math.max(1, count))) }
+    const p = this.progress.pantheon
+    return { hand: p.hand, heart: p.heart, breath: p.breath, count, locked: locked.slice(0, Math.max(0, MAX_BREATH - Math.max(1, count))), focus: focusGod(p) }
+  }
+
+  /** 정보 화면에서 그 자리에 낀다 (손·심장은 바꿔 끼고, 숨은 빈 칸에) */
+  placeMyth(part: PartKind, god: string): boolean {
+    return this.canChooseMyth && this.relics.place(part, god)
+  }
+
+  /** 정보 화면에서 숨 칸에서 뺀다 */
+  unplaceMyth(god: string): boolean {
+    return this.canChooseMyth && this.relics.unplace(god)
   }
 
   /** 깨우는 중인 신 (E238): 모은 조각과 다음 할 일 (정보 화면 신화 탭) */
@@ -1066,11 +1086,6 @@ export class Game {
     if (!waking || !path || this.progress.isOpen(waking)) return null
     const next = fragments >= 2 ? `${josa(path.guardian.name, '을')} 쓰러뜨린다` : `${REGIONS[path.land]?.name ?? path.land}에서 사냥한다 (${hunt}/${HUNT_KILLS})`
     return { god: waking, fragments, next }
-  }
-
-  /** 정보 화면에서 신위 칸의 빌린 칸에 넣거나 뺀다 (E237). 마을·성소에서만 */
-  lendMyth(god: string, on: boolean): boolean {
-    return this.canChooseMyth && (on ? this.relics.lend(god) : this.relics.unlend(god))
   }
 
   /** 기본 공격의 대상별 배율 (정예·보스에게 피해) */
@@ -1122,6 +1137,7 @@ export class Game {
       onHits: (hits) => this.damage.onHeroHits(hits),
     })
     this.relics.update(dt)
+    this.uniqueSystem.update(dt, this.relics.walked)
     // 최대 생명: 개방 단계·상시 효과·장비 (빌드 상태 한 곳에서 계산)
     const wantHp = this.ctx.build.state.maxHp
     if (this.combat.health.max !== wantHp) this.combat.health.setMax(wantHp)
@@ -1138,7 +1154,7 @@ export class Game {
     this.trialSystem.update(dt)
     this.riftSystem.update(dt)
     this.life.update(dt)
-    this.appearance.update()
+    this.appearance.update(dt)
     this.sound.update()
 
     const position = this.hero.object.position
@@ -1220,7 +1236,7 @@ export class Game {
                 ? boss.spec.name
                 : (this.awakening.fighting?.spec.name ?? null),
         slots: this.powers.hudSlots(),
-        ultimate: manifested !== null,
+        ultimate: this.ctx.build.heart !== null,
         xp: manifested ? this.progress.xpRatio(manifested) : null,
         xpColor: manifested ? godDef(manifested).color : '',
         portrait: manifested
@@ -1246,6 +1262,8 @@ export class Game {
   /** 마우스 휠로 확대·축소한다. 설정에 저장되어 다시 켜도 유지된다. */
   private onWheel(e: WheelEvent): void {
     e.preventDefault()
+    // 대화 장면(줌인·줌아웃 포함)의 시야는 장면이 정한다. 바꾸지도 저장하지도 않는다
+    if (this.scenes.active) return
     const next = clampViewHeight(this.view.viewHeight * (e.deltaY > 0 ? 1.1 : 1 / 1.1))
     if (next === this.view.viewHeight) return
     this.setViewHeight(next)

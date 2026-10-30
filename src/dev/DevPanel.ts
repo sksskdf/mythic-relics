@@ -161,7 +161,7 @@ export class DevPanel {
           b.setAttribute('aria-label', def.name)
           b.style.backgroundImage = `url(${relicIcon(def)})`
           b.style.setProperty('--god', godDef(def.god).color)
-          b.addEventListener('click', () => (g.powers.loadout.slots.includes(id) ? g.dev.unequip(id) : g.dev.equip(id)))
+          b.addEventListener('click', () => (g.powers.loadout.has(id) ? g.dev.unequip(id) : g.dev.equip(id)))
           this.refreshers.push(() => b.classList.toggle('is-on', g.powers.loadout.slots.includes(id)))
           line.append(b)
         }
@@ -324,7 +324,7 @@ export class DevPanel {
     const editor = new RegionEditor(g)
     this.editor = editor
     // 지역 이동 (E7-10): 저장하지 않은 편집도 들고 간다
-    page.append(row(choice('지역', editor.regionIds.map((id) => [id, REGIONS[id]?.name ?? id] as const), () => g.region.id, (id) => editor.go(id))))
+    page.append(row(choice('지역', editor.regionIds.map((id) => [id, REGIONS[id]?.name ?? id] as const), () => g.region.id, (id) => editor.go(id), this.refreshers)))
     page.append(
       row(
         toggle('편집', () => editor.active, (on) => editor.setActive(on), this.refreshers),
@@ -458,7 +458,10 @@ export class DevPanel {
         }),
         button('저장 지우기', () => {
           saveStorage.clear()
-          location.replace(`${location.pathname}?fresh`)
+          // ?dev 같은 다른 값은 남기고 fresh만 더한다
+          const p = new URLSearchParams(location.search)
+          p.set('fresh', '')
+          location.replace(`${location.pathname}?${p}`)
         }),
       ),
       // 소리 (E5): 효과음 하나씩 들어 보기, 곡 바꾸기
@@ -531,8 +534,14 @@ function toggle(label: string, get: () => boolean, set: (on: boolean) => void, r
 }
 
 /** 고르는 상자와 실행 단추 한 쌍. 목록이 길어도 단추가 늘지 않는다. */
-/** 고르면 바로 바뀌는 상자. get으로 지금 값을 맞춘다 */
-function choice(label: string, options: readonly (readonly [string, string])[], get: () => string, set: (value: string) => void): HTMLElement {
+/** 고르면 바로 바뀌는 상자. get으로 지금 값을 맞춘다 (refreshers를 주면 상자 밖에서 바뀐 값도 따라간다) */
+function choice(
+  label: string,
+  options: readonly (readonly [string, string])[],
+  get: () => string,
+  set: (value: string) => void,
+  refreshers?: (() => void)[],
+): HTMLElement {
   const box = el('label', 'devpanel__select')
   box.append(el('span', 'devpanel__label', label))
   const s = el('select', '')
@@ -544,6 +553,10 @@ function choice(label: string, options: readonly (readonly [string, string])[], 
   }
   s.value = get()
   s.addEventListener('change', () => set(s.value))
+  refreshers?.push(() => {
+    const v = get()
+    if (s.value !== v) s.value = v
+  })
   box.append(s)
   return box
 }

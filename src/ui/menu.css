@@ -405,6 +405,58 @@ button.menu-slots__slot {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+/* 유물표 (E303-04): 신화의 유물과 고유 효과, 켠 칸마다 +1% */
+.menu-table {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.menu-table__head {
+  font: var(--t-small);
+  color: var(--c-ink-3);
+}
+.menu-table__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(36px, 1fr));
+  gap: var(--sp-1);
+}
+.menu-table__cell {
+  --god: var(--c-line-2);
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  max-width: 100%;
+  border: var(--bw) solid var(--c-line-1);
+  background: var(--c-bg-1);
+  opacity: 0.5;
+}
+.menu-table__cell img {
+  width: 24px;
+  height: 24px;
+  image-rendering: pixelated;
+}
+.menu-table__cell.is-lit {
+  opacity: 0.75;
+  border-color: color-mix(in srgb, var(--god) 50%, var(--c-line-1));
+}
+.menu-table__cell.is-awake {
+  opacity: 1;
+  border-color: var(--god);
+  background: color-mix(in srgb, var(--god) 14%, var(--c-bg-1));
+}
+.menu-table__cell--unique.is-lit {
+  --god: var(--c-gilt);
+  opacity: 1;
+  border-color: var(--c-gilt);
+}
+.menu-table__cell small {
+  position: absolute;
+  right: 2px;
+  bottom: 0;
+  font: var(--t-small);
+  color: var(--c-ink-1);
+}
 /* 깨우는 신 (E238): 조각 셋 가운데 모은 것과 다음 할 일 */
 .menu-waking {
   --god: var(--c-line-2);
@@ -1009,6 +1061,12 @@ button.menu-slots__slot {
   font: var(--t-title);
   font-weight: normal;
   color: var(--c-ink-1);
+}
+.menu-status__layers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-top: var(--sp-4);
 }
 .menu-status__powers {
   display: flex;
@@ -1981,3 +2039,57 @@ button.menu-slots__slot {
   image-rendering: pixelated;
 }
 
+
+/* 합치기 (E303): 셋이 모인 가방 칸은 등급 색으로 숨 쉬듯 빛나고, 설명 카드 아래 셋 → 다음 등급 상자 */
+.menu-relics__item.is-mergeable {
+  box-shadow:
+    0 0 0 2px var(--god),
+    var(--stone-raised);
+  animation: menu-merge-glow 1.6s ease-in-out infinite;
+}
+@keyframes menu-merge-glow {
+  50% {
+    filter: brightness(1.35);
+  }
+}
+.menu-merge {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--c-stone-hi);
+  box-shadow: var(--stone-raised);
+  border-top: 2px solid var(--god);
+}
+.menu-merge__row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.menu-merge__icon {
+  width: 30px;
+  height: 30px;
+  background-size: 100% 100%;
+  image-rendering: pixelated;
+  box-shadow: 0 0 0 2px var(--god);
+}
+.menu-merge__arrow {
+  font: var(--t-body);
+  color: var(--god);
+  margin-left: var(--sp-2);
+}
+.menu-merge small {
+  font: var(--t-small);
+  color: var(--c-ink-2);
+}
+.menu-merge__go {
+  align-self: flex-start;
+}
+
+/* 비교 카드의 한 줄 결론 (E303-02) */
+.gc__verdict {
+  margin: var(--sp-2) 0 0;
+  font: var(--t-body);
+  color: var(--god);
+}

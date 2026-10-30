@@ -26,7 +26,11 @@ import {
 } from '../src/data/world'
 import { clampToArea, inArea, walkArea } from '../src/world/colliders'
 import { NavGrid } from '../src/world/navGrid'
-import { buildChunk, cellTheme, RegionMap } from '../src/world/regionMap'
+import * as THREE from 'three'
+
+import { EFFECT_LAYER } from '../src/render/PixelRenderer'
+import { PathLine } from '../src/world/moveMarker'
+import { buildChunk, cellTheme, chunkSteps, RegionMap } from '../src/world/regionMap'
 import { EDGE_BLEND, edgeWave, FLAT_LAND, heightAt, withTerrainFrame } from '../src/world/terrain'
 
 /**
@@ -293,5 +297,61 @@ describe('이웃 땅의 성소 (E19-04)', () => {
     expect(previous.sanctuary!.visible).toBe(true)
     // 마을처럼 성소가 없는 땅은 표시도 없다
     expect(buildChunk(REGIONS.village!, regionLinks(REGIONS, 'village')).sanctuary).toBeNull()
+  })
+})
+
+describe('조각 짓기의 무게 (검수 고침)', () => {
+  const instanced = (group: THREE.Object3D) => {
+    const out: THREE.InstancedMesh[] = []
+    group.traverse((o) => {
+      if (o instanceof THREE.InstancedMesh) out.push(o)
+    })
+    return out
+  }
+
+  it('숲은 땅 네모만 한 묶음으로 그려, 묶음 하나에 여러 그루가 든다', () => {
+    const chunk = buildChunk(REGIONS.midgard!, regionLinks(REGIONS, 'midgard'))
+    const trees = instanced(chunk.group)
+    const count = trees.reduce((sum, t) => sum + t.count, 0)
+    expect(count).toBeGreaterThan(500)
+    expect(trees.length).toBeLessThan(count / 3)
+  })
+
+  it('단계로 나눠 지어도 한 번에 지은 것과 같고, 땅·숲을 여러 단계로 쉰다', () => {
+    const links = regionLinks(REGIONS, 'midgard')
+    const whole = buildChunk(REGIONS.midgard!, links)
+    const steps = chunkSteps(REGIONS.midgard!, links)
+    let n = 0
+    let step = steps.next()
+    while (!step.done) {
+      n++
+      step = steps.next()
+    }
+    expect(n).toBeGreaterThan(15)
+    const a = instanced(whole.group)
+    const b = instanced(step.value.group)
+    expect(b.map((t) => t.count)).toEqual(a.map((t) => t.count))
+    expect(Array.from(b[0]!.instanceMatrix.array)).toEqual(Array.from(a[0]!.instanceMatrix.array))
+    expect(step.value.colliders).toEqual(whole.colliders)
+  })
+
+  it('대장간 연기는 효과 층에 있어 법선 패스에 그려지지 않는다', () => {
+    const chunk = buildChunk(REGIONS.village!, regionLinks(REGIONS, 'village'))
+    const puffs: THREE.Mesh[] = []
+    chunk.group.traverse((o) => {
+      if (o instanceof THREE.Mesh && o.material instanceof THREE.MeshBasicMaterial && o.material.transparent && o.material.color.getHex() === 0xb8b4ac) puffs.push(o)
+    })
+    expect(puffs.length).toBeGreaterThan(0)
+    for (const puff of puffs) expect(puff.layers.mask).toBe(1 << EFFECT_LAYER)
+  })
+
+  it('걷는 점선은 거리 버퍼를 새로 붙이지 않고 선 길이만 고쳐 쓴다', () => {
+    const line = new PathLine()
+    const distances = line.object.geometry.getAttribute('lineDistance')
+    line.update(new THREE.Vector3(0, 0, 0), { x: 3, z: 4 })
+    line.update(new THREE.Vector3(0, 0, 0), { x: 6, z: 8 })
+    expect(line.object.geometry.getAttribute('lineDistance')).toBe(distances)
+    const p = line.object.geometry.getAttribute('position')
+    expect(distances.getX(1)).toBeCloseTo(Math.hypot(p.getX(1) - p.getX(0), p.getY(1) - p.getY(0), p.getZ(1) - p.getZ(0)), 5)
   })
 })

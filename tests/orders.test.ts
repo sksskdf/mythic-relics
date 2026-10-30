@@ -73,6 +73,25 @@ describe('클릭 지시', () => {
     expect(orders.destination).toEqual({ x: 5, z: 0 })
   })
 
+  it('누른 채 따라가다 한 번 도착해도, 계속 누른 채 커서를 옮기면 다시 따라간다', () => {
+    const { hero, orders, step } = setup([])
+    orders.press({ x: 3, z: 0 }, null)
+    const hold = (ground: { x: number; z: number }, seconds: number) => {
+      for (let t = 0; t < seconds; t += 1 / 60) {
+        orders.hold(ground)
+        step(1 / 60)
+      }
+    }
+    hold({ x: 3, z: 0 }, 2)
+    expect(orders.order).toBeNull()
+    hold({ x: -5, z: 0 }, 3)
+    expect(hero.object.position.x).toBeLessThan(-4)
+    // 떼면 더는 따라가지 않는다
+    orders.release()
+    hold({ x: 5, z: 0 }, 1)
+    expect(hero.object.position.x).toBeLessThan(-4)
+  })
+
   it('도착해 멈추면 사거리 안의 적을 자동으로 친다', () => {
     const { target, hits } = dummy(0, 7.5)
     const { orders, step } = setup([target])

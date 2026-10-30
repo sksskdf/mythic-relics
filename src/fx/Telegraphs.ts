@@ -16,6 +16,9 @@ export type TelegraphShape =
 const DANGER = VFX.danger
 const SEGMENTS = 40
 const RINGS = 6
+/** 충격파 띠의 둘레·두께 나눔 수 */
+const RING_SEGMENTS = SEGMENTS * 2
+const RING_ROWS = 2
 
 /** 땅에서 띄우는 높이 (땅에 묻혀 깜빡이지 않을 만큼) */
 const LIFT = 0.08
@@ -88,7 +91,7 @@ export class Telegraph {
     this.object.updateMatrixWorld()
     this.conform(this.base, this.baseFlat, 1)
     if (this.edge.visible) this.conform(this.edge, this.edgeFlat, 1)
-    if (this.fill.visible) this.conform(this.fill, this.fillFlat, this.fillScale)
+    // 채움은 맞추지 않는다: 예고 중에는 setProgress가 늘 뒤따라 새 크기로 맞춘다 (처음 크기 0.001이라 그 사이에도 보이지 않는다)
   }
 
   /** 0이면 막 시작, 1이면 지금 맞는다. 충격파는 띠 전체가 진하게 보인다. */
@@ -106,7 +109,14 @@ export class Telegraph {
 
   /** 충격파처럼 크기가 바뀌는 모양을 새로 만든다. */
   reshape(shape: TelegraphShape): void {
+    const wasRing = this.shape.kind === 'ring'
     this.shape = shape
+    // 충격파는 프레임마다 반지름만 바뀌고 정점 수는 같으니, 형상을 새로 만들지 않고 그 자리에서 다시 쓴다
+    if (wasRing && shape.kind === 'ring') {
+      writeRing(this.base.geometry, this.baseFlat, Math.max(0.01, shape.radius - shape.width / 2), shape.radius + shape.width / 2)
+      this.conform(this.base, this.baseFlat, 1)
+      return
+    }
     this.base.geometry.dispose()
     this.base.geometry = this.geometry(shape)
     this.baseFlat = flatPositions(this.base.geometry)
@@ -161,8 +171,8 @@ export class Telegraph {
         return new THREE.RingGeometry(
           Math.max(0.01, shape.radius - shape.width / 2),
           shape.radius + shape.width / 2,
-          SEGMENTS * 2,
-          2,
+          RING_SEGMENTS,
+          RING_ROWS,
         )
     }
   }
@@ -220,4 +230,29 @@ function edgeGeometry(shape: TelegraphShape): THREE.BufferGeometry {
 
 function flatPositions(geometry: THREE.BufferGeometry): Float32Array {
   return Float32Array.from((geometry.getAttribute('position') as THREE.BufferAttribute).array)
+}
+
+/**
+ * 충격파 띠(RingGeometry(inner, outer, RING_SEGMENTS, RING_ROWS))의 정점·uv를 같은 식으로 그 자리에서 다시 쓴다.
+ * flat에는 평평한 정점 위치를 쓰고, 땅 높이는 conform이 맞춘다
+ */
+function writeRing(geometry: THREE.BufferGeometry, flat: Float32Array, inner: number, outer: number): void {
+  const uv = geometry.getAttribute('uv') as THREE.BufferAttribute
+  const step = (outer - inner) / RING_ROWS
+  let radius = inner
+  let v = 0
+  for (let j = 0; j <= RING_ROWS; j++) {
+    for (let i = 0; i <= RING_SEGMENTS; i++) {
+      const segment = (i / RING_SEGMENTS) * Math.PI * 2
+      const x = radius * Math.cos(segment)
+      const y = radius * Math.sin(segment)
+      flat[v * 3] = x
+      flat[v * 3 + 1] = y
+      flat[v * 3 + 2] = 0
+      uv.setXY(v, (x / outer + 1) / 2, (y / outer + 1) / 2)
+      v++
+    }
+    radius += step
+  }
+  uv.needsUpdate = true
 }

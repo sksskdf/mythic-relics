@@ -1,11 +1,14 @@
 // 신화별 처치 속도 비교 (E12-07): 신화마다 자기 유물을 끼고(그 신화를 고른 채) 미드가르드에서 시작해, 떠나지 않고 정해진 시간 동안 1분당 처치 수를 잰다.
 // 같은 땅에서 재야 한다: 자기 신화권 필드로 걸어가게 하면 이동 시간과 땅마다 다른 적이 섞인다.
-// 사용법: npm run build && node scripts/myth-trial.mjs [판 수=2] [시간(분)=3] [신 id,...]
-// 결과는 test-results/myth-trial.json. 중앙값에서 ±20% 밖이면 표시한다 (ROADMAP E12 자동 검증).
+// 사용법: npm run build && node scripts/myth-trial.mjs [판 수=2] [시간(분)=3] [신 id,...] [--by=focus|hand|breath]
+// --by (E302 신의 자리 셋): focus = 손·심장·숨을 모두 그 신으로(한 신에 몰기, 기본), hand = 그 신을 손에만(공격 동작·배율),
+// breath = 손은 낡은 검, 그 신을 숨에만(패시브). 셋 다 그 신의 첫 유물을 낀다.
+// 결과는 test-results/myth-trial[-hand|-breath].json. 중앙값에서 ±20% 밖이면 표시한다 (ROADMAP E12·E302 자동 검증).
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 
-const [runs = '2', minutes = '3', only] = process.argv.slice(2)
+const BY = process.argv.find((a) => a.startsWith('--by='))?.slice(5) ?? 'focus'
+const [runs = '2', minutes = '3', only] = process.argv.slice(2).filter((a) => !a.startsWith('--'))
 const gods = JSON.parse(readFileSync('src/data/gods.json', 'utf8'))
 const relics = JSON.parse(readFileSync('src/data/relics.json', 'utf8'))
 const ids = Object.keys(gods).filter((id) => !only || only.split(',').includes(id))
@@ -16,19 +19,37 @@ for (const god of ids) {
   const own = Object.keys(relics).filter((r) => relics[r].god === god)
   const shared = Object.keys(relics).filter((r) => relics[r].also?.includes(god))
   const set = [...own, ...shared].slice(0, 4)
-  execFileSync('node', ['scripts/playtest.mjs', runs, minutes, `--relics=${set.join(',')}`, `--god=${god}`, '--region=midgard'], { stdio: 'ignore' })
-  const results = JSON.parse(readFileSync('test-results/playtest.json', 'utf8'))
+  // 봇이 끊겨도 원인을 보이고 다음 신화로 간다 (지난 결과 파일을 이 신화 것으로 읽지 않게)
+  try {
+    const how = BY === 'hand' ? [`--relics=${set[0]}`, `--pantheon=hand:${god}`] : BY === 'breath' ? [`--relics=${set[0]}`, `--pantheon=breath:${god}`] : [`--relics=${set.join(',')}`, `--god=${god}`]
+    execFileSync('node', ['scripts/playtest.mjs', runs, minutes, ...how, '--region=midgard'], { stdio: ['ignore', 'ignore', 'inherit'] })
+  } catch (e) {
+    rows.push({ god, name: gods[god].name, rates: [], mean: 0, hurt: [], errors: [String(e?.message ?? e)], chosen: god, failed: true })
+    console.error(`${gods[god].name}: 봇 실패`)
+    continue
+  }
+  // 끊긴 판(crashed)은 재지 않고 오류만 모은다
+  const all = JSON.parse(readFileSync('test-results/playtest.json', 'utf8'))
+  const results = all.filter((r) => !r.crashed)
+  if (results.length === 0) {
+    rows.push({ god, name: gods[god].name, rates: [], mean: 0, hurt: [], errors: all.flatMap((r) => r.errors), chosen: god, failed: true })
+    console.error(`${gods[god].name}: 판이 모두 끊겼다`)
+    continue
+  }
   const rates = results.map((r) => r.killRate)
   const mean = Math.round((rates.reduce((s, v) => s + v, 0) / rates.length) * 10) / 10
   const chosen = results[0]?.log.find((e) => e.type === 'open')?.detail ?? god
-  rows.push({ god, name: gods[god].name, rates, mean, hurt: results.map((r) => r.hurt), errors: results.flatMap((r) => r.errors), chosen })
+  rows.push({ god, name: gods[god].name, rates, mean, hurt: results.map((r) => r.hurt), errors: all.flatMap((r) => r.errors), chosen })
   console.log(`${gods[god].name}: 1분당 처치 ${rates.join(' / ')} (평균 ${mean})`)
 }
 
-const sorted = rows.map((r) => r.mean).sort((a, b) => a - b)
+// 봇이 실패한 신화는 중앙값·벗어남에서 빼고 따로 알린다
+const measured = rows.filter((r) => !r.failed)
+const sorted = measured.map((r) => r.mean).sort((a, b) => a - b)
 const median = sorted[Math.floor(sorted.length / 2)] ?? 0
-const outside = rows.filter((r) => Math.abs(r.mean - median) > median * 0.2)
+const outside = measured.filter((r) => Math.abs(r.mean - median) > median * 0.2)
 console.log(`중앙값 ${median}, ±20% ${(median * 0.8).toFixed(1)}~${(median * 1.2).toFixed(1)}`)
+if (measured.length < rows.length) console.log(`봇 실패: ${rows.filter((r) => r.failed).map((r) => r.name).join(', ')}`)
 console.log(outside.length ? `벗어난 신화: ${outside.map((r) => `${r.name} ${r.mean}`).join(', ')}` : '모두 ±20% 안')
 mkdirSync('test-results', { recursive: true })
-writeFileSync('test-results/myth-trial.json', JSON.stringify({ median, rows }, null, 2))
+writeFileSync(`test-results/myth-trial${BY === 'focus' ? '' : `-${BY}`}.json`, JSON.stringify({ by: BY, median, rows }, null, 2))

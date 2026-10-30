@@ -78,22 +78,25 @@ const sections = {
     const base = rows[0].damage
     for (const r of rows) r.vsOne = `${Math.round((r.damage / base - 1) * 100)}%`
     await page.close()
-    // 새로 여는 순간 (E22-03): 경험치가 차면 미드가르드 성소 가운데에서 넷 가운데 하나를 골라 연다
+    // 새로 여는 순간 (E238): 성소에서 고르지 않고, 신의 조각 셋(흔적 → 사냥 → 수호자)을 모으면 그 신이 깨어난다
+    // 여기서 실패해도 앞에서 잰 피해는 남긴다
     const page2 = await fresh(browser, '?fresh&relics=&region=midgard')
-    await page2.evaluate(() => {
-      const g = window.__game
-      g.storyScenes = true
-      g.dev.gainMastery()
-      g.hero.teleport(g.legend.center.x, g.legend.center.z)
-    })
-    await page2.waitForFunction(() => window.__game.mythPickerOpen, null, { timeout: 30000 })
-    await shot(page2, 'e12-1-pick')
-    await page2.click('.myth-pick__card[data-god="loki"]')
-    await page2.waitForTimeout(500)
-    const opened = await page2.evaluate(() => ({ opened: window.__game.progress.opened, scene: window.__game.scenes.current }))
-    await shot(page2, 'e12-1-open')
-    await page2.close()
-    return { rows, opened }
+    try {
+      await page2.evaluate(() => {
+        const g = window.__game
+        g.storyScenes = true
+        for (let i = 0; i < 5 && !g.progress.isOpen('thor'); i++) g.dev.awaken('thor')
+      })
+      await page2.waitForFunction(() => window.__game.progress.isOpen('thor'), null, { timeout: 30000 })
+      await page2.waitForTimeout(500)
+      const opened = await page2.evaluate(() => ({ opened: window.__game.progress.opened, scene: window.__game.scenes.current }))
+      await shot(page2, 'e12-1-open')
+      return { rows, opened }
+    } catch (e) {
+      return { rows, openError: String(e?.message ?? e) }
+    } finally {
+      await page2.close()
+    }
   },
 
   /** E12-2 고른 신화를 바꾸면 싸우는 모습이 바로 달라진다: 바꾼 뒤 첫 휘두르기까지 시간과 휘두르는 모습 */
@@ -587,7 +590,8 @@ const sections = {
       steps.push(s)
       // 장의 처음 목표와 보스 목표만 찍는다
       if (steps.length === 1 || steps.at(-2)?.chapter !== s.chapter || s.kind === 'boss') await shot(page, `e22-1-${steps.length}-${s.chapter}-${s.kind}`)
-      if (s.chapter === 'north' && s.kind === 'choose') {
+      if (s.chapter === 'north' && s.kind === 'awaken' && steps.at(-2)?.kind !== 'awaken') {
+        // 제1장 첫 흔적 찾기에서 세계 지도를 찍는다 (E238: 성소에서 고르지 않고 흔적을 찾아간다)
         // 처음부터 하는 판이라 지도 탭은 성소를 찾아야 열린다 (E236-05): 작은 지도를 누른 것처럼 연다
         await page.evaluate(() => {
           window.__game.tabSystem.open('map', true)
@@ -637,18 +641,22 @@ const sections = {
       return { region: g.region.id }
     })
     await shot(page, 'e22-3-passage')
-    // 결계 너머 (마을의 올림포스 쪽)
-    await page.evaluate(() => {
-      const g = window.__game
-      g.enterRegion(g.regions.village)
-      const exit = g.region.exits.find((e) => e.to === 'olympus')
-      g.dev.teleport(exit.x - 2, exit.z + 4)
-    })
-    await shot(page, 'e22-3-barrier')
-    // 장이 열리며 결계가 풀리는 순간 (미드가르드에 들어서면 요툰헤임 쪽)
-    const opened = await page.evaluate(() => {
+    // 결계 너머 (E239: 마을 밖 길은 미드가르드 하나라, 미드가르드에서 아직 막힌 길 아무거나)
+    const barrier = await page.evaluate(() => {
       const g = window.__game
       g.world.travelTo('midgard')
+      g.advance(1.5, 1 / 30)
+      const spots = g.barrierSpots
+      const b = spots.find((x) => x.to === 'jotunheim') ?? spots[0]
+      // 결계에서 땅 가운데 쪽으로 몇 걸음 물러선 자리
+      if (b) g.dev.teleport(b.x * 0.88, b.z * 0.88)
+      return { region: g.region.id, to: b?.to ?? null, barriers: spots.map((x) => x.to) }
+    })
+    await shot(page, 'e22-3-barrier')
+    // 할 일을 마쳐 결계가 풀리는 순간 (E236: 미드가르드 흔적을 찾으면 요툰헤임 쪽)
+    const opened = await page.evaluate(() => {
+      const g = window.__game
+      for (let i = 0; i < 6 && g.barrierSpots.some((x) => x.to === 'jotunheim'); i++) g.skipGoal()
       g.advance(1.5, 1 / 30)
       const exit = g.region.exits.find((e) => e.to === 'jotunheim')
       g.dev.teleport(exit.x + 3, exit.z + 5)
@@ -665,11 +673,11 @@ const sections = {
     })
     await shot(page, 'e22-3-sky')
     await page.close()
-    return { walk, opened }
+    return { walk, barrier, opened }
   },
 
   /**
-   * E23-1 큰 걸음마다 「강해졌다」가 크게 보인다: 첫 신화 고르기(장면) → 고른 신화 큰 카드, 신화 단계·유물 벼리기(큰 카드),
+   * E23-1 큰 걸음마다 「강해졌다」가 크게 보인다: 첫 신 깨우기(장면) → 주신 큰 카드, 신화 단계·유물 벼리기(큰 카드),
    * 장 보스 처치(느린 동작 → 장면) → 장 넘어가기 장면 → 신화 개방 카드, 엔딩 장면 → 큰 카드
    */
   async 'e23-1'(browser) {
@@ -716,20 +724,15 @@ const sections = {
     await nextScene()
     await record('e23-1-chapter-north')
     await settle()
-    // 첫 신화 고르기: 성소 가운데에 서면 넷이 선다 (위아래 검은 띠, 성소의 곡)
+    // 첫 신 깨우기 (E238): 흔적 → 사냥 → 수호자, 셋째 조각에 토르가 깨어나며 장면 → 주신 큰 카드
     await page.evaluate(() => {
       const g = window.__game
-      for (const god of ['thor', 'loki', 'odin', 'freyr']) g.progress.addXp(god, 450)
-      const s = g.region.sanctuary
-      g.dev.teleport(s.x, s.z)
+      for (let i = 0; i < 5 && !g.progress.isOpen('thor'); i++) g.dev.awaken('thor')
     })
-    await page.waitForTimeout(800)
-    await record('e23-1-choose')
-    await page.click('.myth-pick__card[data-god="thor"]')
     await page.waitForTimeout(500)
-    await record('e23-1-choose-scene')
+    await record('e23-1-awaken-scene')
     await settle()
-    await record('e23-1-choose-card')
+    await record('e23-1-awaken-card')
     // 신화 단계 (큰 카드): 번쩍·하늘 기둥·북소리
     await page.waitForTimeout(4500)
     await page.evaluate(() => window.__game.dev.promote())

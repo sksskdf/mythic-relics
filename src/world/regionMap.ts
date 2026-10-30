@@ -41,6 +41,7 @@ import { toonMaterial } from '../render/toon'
 import type { CircleCollider } from './colliders'
 import { exitColor, type PropKind, type PropPlacement, type RegionDef, REGIONS } from '../data/regions'
 import { CELL, type Cell, cellOrigin, inRect, type Rect, rectDistance, type RegionLink } from '../data/world'
+import { collectPropLights, PropLight } from './propLights'
 import { createRng } from './rng'
 import { baseHeightAt, buildGround, buildScatter, buildTerraces, cliffColliders, EDGE_BLEND, edgeWave, FLAT_LAND, type GroundBlend, groundSteps, heightAt, type Pond, pondLevel, setLand } from './terrain'
 import { THEMES, type ThemeDef, type ThemeId } from './themes'
@@ -134,7 +135,7 @@ function glowing(body: VoxelGrid, glow: VoxelGrid, voxelSize: number, light: { c
   group.add(new THREE.Mesh(buildVoxelGeometry(body, { voxelSize }), voxelMaterial()))
   const glowMaterial = new THREE.MeshBasicMaterial({ vertexColors: true })
   group.add(new THREE.Mesh(buildVoxelGeometry(glow, { voxelSize }), glowMaterial))
-  const point = new THREE.PointLight(light.color, light.intensity, 5, 2)
+  const point = new PropLight(light.color, light.intensity, 5, 2)
   point.position.y = light.y
   group.add(point)
   const animate: Animator = (t) => {
@@ -153,7 +154,7 @@ function makeRunestone(variant: number): Built {
   const glyph = new THREE.Mesh(buildVoxelGeometry(runestoneGlyph(seed), { voxelSize: 0.12 }), glowMaterial)
   glyph.position.z = 0.005
   group.add(glyph)
-  const light = new THREE.PointLight(PROP_COLORS.rune, 1.5, 4, 2)
+  const light = new PropLight(PROP_COLORS.rune, 1.5, 4, 2)
   light.position.set(0, 1.1, 0.6)
   group.add(light)
   const phase = variant * 1.3
@@ -171,7 +172,7 @@ function makeBrazier(variant: number, base: VoxelGrid = brazier(), flameY = 1.05
   const flameMesh = new THREE.Mesh(buildVoxelGeometry(flame(), { voxelSize: 0.1 }), new THREE.MeshBasicMaterial({ vertexColors: true }))
   flameMesh.position.y = flameY
   group.add(flameMesh)
-  const light = new THREE.PointLight(PROP_COLORS.fire, 4, 9, 1.6)
+  const light = new PropLight(PROP_COLORS.fire, 4, 9, 1.6)
   light.position.y = 1.7
   group.add(light)
   const seed = variant * 2.1
@@ -191,7 +192,7 @@ function makeForge(variant: number): Built {
   const glowMaterial = new THREE.MeshBasicMaterial({ vertexColors: true })
   group.add(new THREE.Mesh(buildVoxelGeometry(forgeGlow(), { voxelSize: 0.15 }), glowMaterial))
   // 불 아가리 앞의 빛 (격자 가운데가 원점: 아가리는 x −1.5m, 앞 z +0.8m)
-  const light = new THREE.PointLight(PROP_COLORS.fire, 3, 7, 1.6)
+  const light = new PropLight(PROP_COLORS.fire, 3, 7, 1.6)
   light.position.set(-1.5, 0.6, 1.2)
   group.add(light)
   // 굴뚝 끝 (x −1.5m, 높이 4.4m, z −0.1m)에서 오르는 연기 덩이
@@ -199,6 +200,8 @@ function makeForge(variant: number): Built {
   const puffGeometry = new THREE.BoxGeometry(0.3, 0.3, 0.3)
   for (let i = 0; i < 6; i++) {
     const puff = new THREE.Mesh(puffGeometry, new THREE.MeshBasicMaterial({ color: 0xb8b4ac, transparent: true, depthWrite: false }))
+    // 효과 층: 법선 패스에서 꽉 찬 상자로 그려져 옅어진 연기에 밝은 테두리가 남지 않게 (성소 고리·출구 빛기둥과 같다)
+    puff.layers.set(EFFECT_LAYER)
     group.add(puff)
     puffs.push(puff)
   }
@@ -505,8 +508,11 @@ function buildBorder(seed: number, halfExtent: number, theme: ThemeId): THREE.Gr
 
 /** 숲 칸의 간격 (m). 칸마다 조금 흔들어 놓아 줄이 보이지 않게 한다 */
 const FOREST_STEP = 2.1
-/** 숲을 이만한 네모(m)로 나눠 그린다. 화면 밖 네모는 그리지 않는다 (시야 거르기) */
-const FOREST_TILE = 6
+/**
+ * 숲을 이만한 네모(m)로 나눠 그린다. 화면 밖 네모는 그리지 않는다 (시야 거르기).
+ * 땅 네모(GROUND_TILE)와 같은 굵기: 6m로 잘게 나누면 모양마다 한두 그루짜리 묶음이 되어 그리기 호출이 나무 수만큼 는다
+ */
+const FOREST_TILE = 25
 /** 트인 땅에서 이 거리(m) 안의 숲 가장자리는 빽빽하게 심는다. 그 안쪽 깊은 숲은 성기게, 크게, 단순한 모양으로 */
 const FOREST_EDGE = 6
 /** 그림자는 트인 땅에 닿는 맨 앞줄(이 거리 m 안)만 드리운다. 숲 안쪽 그림자는 우듬지에 가려 보이지 않는다 */
@@ -517,7 +523,7 @@ const FOREST_SHADE = 3
  * depth(x, z)는 트인 땅(움직일 수 있는 곳과 그 둘레)까지의 거리다. 칸마다 수천 그루라, 숲 네모(FOREST_TILE)와
  * 모양(종류·변형)마다 InstancedMesh 하나로 그린다. 충돌체는 없다 (움직일 수 있는 곳 밖이라).
  */
-function buildForest(seed: number, theme: ThemeId, depth: (x: number, z: number) => number, mix: EdgeMix | null = null): THREE.Group {
+function* forestSteps(seed: number, theme: ThemeId, depth: (x: number, z: number) => number, mix: EdgeMix | null = null): Generator<void, THREE.Group> {
   const group = new THREE.Group()
   const rng = createRng(seed * 31 + 5)
   const spots = new Map<string, THREE.Matrix4[]>()
@@ -549,8 +555,13 @@ function buildForest(seed: number, theme: ThemeId, depth: (x: number, z: number)
       list.push(dummy.matrix.clone())
       spots.set(key, list)
     }
+    // 이웃 조각을 프레임마다 조금씩 지을 때 한 프레임이 길어지지 않게 숲 네모 한 줄(25m, 약 12열)마다 쉰다
+    if (Math.floor((x + FOREST_STEP + half) / FOREST_TILE) !== Math.floor((x + half) / FOREST_TILE)) yield
   }
+  yield
+  let made = 0
   for (const [key, matrices] of spots) {
+    if (++made % 40 === 0) yield
     const [face, kind, variant, shade, plain] = key.split('|') as [ThemeId, PropKind, string, string, string]
     const mesh = BUILDERS[kind](Number(variant), face, plain === '1')().object
     if (!(mesh instanceof THREE.Mesh)) continue
@@ -656,6 +667,13 @@ export class Chunk {
     readonly cell: Cell | null,
   ) {}
 
+  private lightList: PropLight[] | null = null
+
+  /** 이 조각의 불빛 자리 (다 지은 뒤 처음 물을 때 한 번 모은다). 진짜 빛은 무대가 가까운 것에만 단다 */
+  get lights(): readonly PropLight[] {
+    return (this.lightList ??= collectPropLights(this.group))
+  }
+
   /** 불꽃, 룬 빛처럼 움직이는 것들을 갱신한다. */
   update(elapsed: number): void {
     for (const animate of this.animators) animate(elapsed)
@@ -708,7 +726,7 @@ export function* chunkSteps(region: RegionDef, links: readonly RegionLink[] = []
     const mix = themeAt ? edgeMixer(region.cell, region.theme, themeAt) : null
     chunk.group.add(own(yield* groundSteps(CELL / 2 - 4, theme, region.paths, undefined, groundMix(mix))))
     yield
-    chunk.group.add(buildForest(region.seed, region.theme, openDepth(openRects(half, links)), mix))
+    chunk.group.add(yield* forestSteps(region.seed, region.theme, openDepth(openRects(half, links)), mix))
     yield
   } else {
     // 땅은 움직일 수 있는 범위보다 넓게 깔아서, 멀리 축소해도 맵 끝이 허공으로 보이지 않게 한다.
@@ -776,7 +794,7 @@ export function* fillerSteps(cell: Cell, theme: ThemeId, open: readonly Rect[] =
   chunk.group.add(own(yield* groundSteps(CELL / 2 - 4, THEMES[theme], [], undefined, groundMix(mix))))
   yield
   const seed = Math.round(cell.col * 2 + 1000) * 131 + Math.round(cell.row + 1000)
-  chunk.group.add(buildForest(seed, theme, open.length ? openDepth(open) : () => Infinity, mix))
+  chunk.group.add(yield* forestSteps(seed, theme, open.length ? openDepth(open) : () => Infinity, mix))
   return chunk
 }
 

@@ -22,8 +22,12 @@ export interface HeroStats {
   divine: number
   /** 총 승급 횟수 */
   promotions: number
-  /** 열린 신화 수 (수집 보너스, E21-02) */
+  /** 열린 신화 수 (하나마다 최대 생명) */
   collected: number
+  /** 유물표에 켠 칸 수 (E303-04) */
+  lit: number
+  /** 주는 피해가 어디서 오나 (E301-01): 그대로가 아닌 층마다 이름과 몫(×1.35, +12%) */
+  layers: { name: string; text: string }[]
   /** 지금 걸린 힘: 발현, 가호, 낀 유물의 지속 효과 */
   powers: { kind: 'god' | 'relic'; name: string; color: string; label: string; what: string }[]
 }
@@ -138,26 +142,35 @@ export interface MenuHost {
   wield(id: RelicId, slot: number): void
   stow(slot: number): void
   drop(slot: number): void
-  /** 일반 장비를 분해해 재료로 (E13-07-3) */
-  salvage(id: string): void
+  /** 일반 장비를 녹여 원형으로 (E303-04) */
+  melt(id: string): void
+  /** 가방에서 합칠 수 있는 셋 묶음 (장비 id, E303) */
+  mergeable(): string[][]
+  /** 셋을 합친다 */
+  merge(uids: readonly string[]): void
   readonly progress: ClassProgress
   /** 신화 탭 (E12-06): 고르기와 별 수치 */
   readonly myths: {
-    /** 지금 고른 신화를 바꿀 수 있는 곳인가 (마을·성소) */
+    /** 지금 신의 자리를 바꿀 수 있는가 (E302: 어디서나, 전설 중에는 못 바꾼다) */
     canChoose(): boolean
+    /** 한 신에 몰아 고른다 (손·심장·숨 첫 칸) */
     choose(god: God): boolean
-    /** 신위 칸 (E237): 칸 수, 칸의 신(첫째가 주신), 아직 잠긴 칸마다 열리는 때 */
-    slots(): { count: number; gods: readonly God[]; locked: readonly string[] }
-    /** 빌린 칸에 넣거나 뺀다 (마을·성소에서만) */
-    lend(god: God, on: boolean): boolean
+    /** 신의 자리 셋 (E302): 손·심장·숨, 숨 칸 수, 잠긴 숨 칸마다 열리는 때, 한 신에 몰았으면 그 신 */
+    pantheon(): { hand: God | null; heart: God | null; breath: readonly God[]; count: number; locked: readonly string[]; focus: God | null }
+    /** 그 자리에 낀다 (손·심장은 바꿔 끼고, 숨은 빈 칸에) */
+    place(part: 'hand' | 'heart' | 'breath', god: God): boolean
+    /** 숨 칸에서 뺀다 */
+    unplace(god: God): boolean
     /** 깨우는 중인 신 (E238): 모은 조각과 다음 할 일 한 줄. 없으면 null */
     waking(): { god: God; fragments: number; next: string } | null
     /** 성좌판에서 별을 밝힌 신화의 수치 단계 (밝히지 않았으면 0, 엔딩 뒤) */
     star(god: God): number
+    /** 유물표 (E303-04): 신화의 유물과 고유 효과 칸, 켰는지·깨어났는지 */
+    table(): { relics: { id: RelicId; lit: boolean; awake: boolean; stage: number }[]; uniques: { id: string; name: string; text: string; lit: boolean }[] }
   }
   readonly wardrobe: WardrobeHost
   /** 설명 카드에 넣을 지금 상태 */
-  cardContext(id: RelicId, preview?: { before: LoadoutState; after: LoadoutState }): RelicCardContext
+  cardContext(id: RelicId): RelicCardContext
   stats(): HeroStats
   readonly sources: SourcesHost
   readonly world: WorldMapHost

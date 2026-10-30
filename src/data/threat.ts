@@ -41,8 +41,9 @@ export const threatElite = (base: number, level: number): number => Math.min(0.9
 export function threatGrades(chances: Readonly<Record<Grade, number>>, level: number): Record<Grade, number> {
   const k = THREAT.grade ** (Math.max(1, level) - 1)
   // 높은 등급부터 채우고, 남는 몫에서 좋음, 그 나머지가 흔함
+  const legend = Math.min(0.1, chances.legend * k)
   const hero = Math.min(0.2, chances.hero * k)
   const rare = Math.min(0.4, chances.rare * k)
-  const good = Math.min(1 - hero - rare, chances.good * k)
-  return { common: Math.max(0, 1 - good - rare - hero), good, rare, hero }
+  const good = Math.min(1 - legend - hero - rare, chances.good * k)
+  return { common: Math.max(0, 1 - good - rare - hero - legend), good, rare, hero, legend }
 }

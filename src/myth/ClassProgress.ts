@@ -1,5 +1,5 @@
 import { type God, godDef } from '../relics/data'
-import { BORROWED_XP, MAX_SLOTS } from './slots'
+import { emptyPantheon, OTHER_XP, type Pantheon } from './pantheon'
 
 export const MAX_LEVEL = 4
 /** 데모(첫 엔딩까지)의 단계 끝: 4단계는 엔딩 뒤 (E21-01, TIMELINE.md 3장) */
@@ -19,8 +19,6 @@ export interface ClassRecord {
   xp: number
 }
 
-/** 신위 칸에 모실 수 있는 신 수 (E237: 주신 하나 + 빌린 힘, 칸 수는 `myth/slots.ts`) */
-export const CHOSEN_SLOTS = MAX_SLOTS
 
 /** 숙련을 더한 결과 */
 export type MasteryResult = 'opened' | null
@@ -31,8 +29,10 @@ export type MasteryResult = 'opened' | null
  */
 export const PER_PROMOTION = { damage: 1.35, maxHpPct: 0.25 }
 
-/** 수집 보너스 (E21-02): 열린 신화 하나마다 모든 피해 +4%, 최대 생명 +5. 메아리 대신 신화를 모으는 이유 */
-export const PER_OPENED = { damage: 0.04, maxHp: 5 }
+/** 열린 신화 하나마다 최대 생명 +5 (E21-02의 수집 보너스에서 생명만 남김) */
+export const PER_OPENED = { maxHp: 5 }
+/** 유물표 (E303-04): 켠 칸(신화의 유물·고유 효과) 하나마다 모든 피해 +1% */
+export const PER_LIT = 0.01
 
 /**
  * 신화 성장 기록. (DESIGN.md 5.2, E12-02 → E21-01)
@@ -43,8 +43,8 @@ export const PER_OPENED = { damage: 0.04, maxHp: 5 }
  */
 export class ClassProgress {
   readonly records = new Map<God, ClassRecord>()
-  /** 신위 칸 (E237): 첫째가 주신(고른 신화, E12-04), 그 뒤는 빌린 신 */
-  chosen: God[] = []
+  /** 신의 자리 셋 (E302): 손·심장·숨에 낀 신 */
+  pantheon: Pantheon = emptyPantheon()
   /**
    * afterEnding: 엔딩 뒤인가. 그 뒤로는 4단계까지 오른다.
    * openByXp: 경험치가 문턱을 넘으면 신화가 저절로 열리는가. 데모(엔딩 전)에서는 끄고, 문턱까지만 쌓아 성소에서 고르게 한다 (E22-03)
@@ -152,6 +152,15 @@ export class ClassProgress {
     return true
   }
 
+  /** 승천 (E304): 귀환 갈래로 열린 신 하나를 한 단계 올린다 (경험치 막대·전설 없이). 올랐으면 true */
+  ascend(god: God): boolean {
+    const record = this.record(god)
+    if (record.level < 1 || record.level >= this.levelCap) return false
+    record.level += 1
+    record.xp = 0
+    return true
+  }
+
   /** 총 승급 횟수 */
   get promotions(): number {
     let total = 0
@@ -171,7 +180,7 @@ export function masteryShares(amount: number, realm: string | undefined, chosen:
   const out = new Map<God, number>()
   if (chosen) {
     out.set(chosen, amount)
-    for (const god of borrowed) if (god !== chosen) out.set(god, amount * BORROWED_XP)
+    for (const god of borrowed) if (god !== chosen) out.set(god, amount * OTHER_XP)
   }
   else if (realm) for (const g of gods) if (!g.hidden && g.realm === realm) out.set(g.id, amount)
   return out

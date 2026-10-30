@@ -5,7 +5,7 @@ import enemies from '../src/data/enemies.json'
 import gods from '../src/data/gods.json'
 import relics from '../src/data/relics.json'
 import { parseGameData } from '../src/data/schema'
-import { MATERIAL_RELICS, MYTH_RELICS, relicMyth, relicPart, relicSource, stageName } from '../src/gear/mythRelic'
+import { MATERIAL_RELICS, MYTH_RELICS, relicMyth, relicPart, stageName } from '../src/gear/mythRelic'
 import { GODS } from '../src/relics/data'
 import { LOOK_MODELS } from '../src/voxel/models/looks'
 import { RELIC_MODELS } from '../src/voxel/models/relics'
@@ -26,12 +26,10 @@ describe('신화의 유물 (E13-03)', () => {
     for (const god of Object.keys(GODS)) expect(relicMyth(GODS[god]!.relic)).toBe(god)
   })
 
-  it('유물은 외형으로 부위를 차지하고(묠니르는 무기, 로키의 가면은 머리), 단계마다 원천이 커진다', () => {
+  it('유물의 부위는 외형으로 정한다 (묠니르는 무기, 로키의 가면은 머리)', () => {
     expect(relicPart('mjolnir')).toBe('weapon')
     expect(relicPart('lokiMask')).toBe('head')
     expect(relicPart('gullinbursti')).toBe('trinket')
-    expect(relicSource('mjolnir', 1)).toEqual({ id: 'flame', value: 2 })
-    expect(relicSource('mjolnir', 4)).toEqual({ id: 'flame', value: 5 })
   })
 
   it('단계 이름: 데이터에 있으면 그것, 없으면 지어 준다', () => {

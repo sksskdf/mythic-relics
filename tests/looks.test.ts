@@ -5,6 +5,7 @@ import { BASE_OUTFIT, LOOK_IDS, lookDef } from '../src/looks/catalog'
 import { GEAR_LOOKS, gearLook, parseGearLook } from '../src/looks/gearLooks'
 import { autoOutfit, Wardrobe } from '../src/looks/outfit'
 import { GEAR } from '../src/gear/roll'
+import { GRADES } from '../src/data/gearData'
 import { godDef, relicDef } from '../src/relics/data'
 import { LOOK_MODELS } from '../src/voxel/models/looks'
 import { buildHeroModel } from '../src/world/heroModel'
@@ -65,7 +66,7 @@ describe('일반 장비 외형 (E18-04-5)', () => {
 
   it('부위·바탕·등급마다 외형이 있고, 머리·발은 그 칸의 기본 외형과 격자 크기가 같다 (원점이 정해져 있다. 몸·손은 가운데 원점이라 더 넓어도 된다)', () => {
     const parts = ['weapon', 'head', 'body', 'hands', 'feet'] as const
-    expect(GEAR_LOOKS.length).toBe(parts.reduce((n, p) => n + GEAR.parts[p].bases.length, 0) * 4)
+    expect(GEAR_LOOKS.length).toBe(parts.reduce((n, p) => n + GEAR.parts[p].bases.length, 0) * GRADES.length)
     for (const look of GEAR_LOOKS) {
       expect(LOOK_MODELS[look.id], look.id).toBeTypeOf('function')
       expect(parseGearLook(look.id), look.id).not.toBeNull()

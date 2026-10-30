@@ -1,5 +1,18 @@
 import { type Action, type Bindings, DEFAULT_BINDINGS, mouseCode, resolveAction } from './bindings'
 
+/** 이벤트의 button(바뀐 버튼)이 buttons(지금 눌린 버튼들)에서 차지하는 자리. 왼쪽 1·오른쪽 2·가운데 4·뒤로 8·앞으로 16 */
+const BUTTON_BITS = [1, 4, 2, 8, 16]
+
+/**
+ * pointermove가 버튼이 바뀐 것을 실어 왔는가 (겹쳐 누름). button이 -1이면 바뀐 것이 없다.
+ * 바뀐 버튼이 지금 눌려 있으면 누름, 아니면 뗌
+ */
+export function chordChange(button: number, buttons: number): 'press' | 'release' | null {
+  const bit = BUTTON_BITS[button]
+  if (bit === undefined) return null
+  return buttons & bit ? 'press' : 'release'
+}
+
 /**
  * 키보드·마우스 입력을 모아 동작 단위 상태로 바꾼다.
  * 프레임마다 isDown/wasPressed로 읽고, 프레임 끝에 endFrame()을 부른다.
@@ -27,7 +40,19 @@ export class Input {
       this.press(mouseCode(e.button))
     })
     window.addEventListener('pointerup', (e) => mine(e) && this.release(mouseCode(e.button)))
-    window.addEventListener('pointermove', (e) => mine(e) && this.updatePointer(e))
+    window.addEventListener('pointermove', (e) => {
+      if (!mine(e)) return
+      this.updatePointer(e)
+      // 다른 버튼을 누른 채 바꾼 버튼은 pointerdown·pointerup 없이 pointermove로 온다
+      const change = chordChange(e.button, e.buttons)
+      if (change === 'release') this.release(mouseCode(e.button))
+      else if (change === 'press' && e.target instanceof Node && element.contains(e.target)) this.press(mouseCode(e.button))
+    })
+    // 브라우저가 포인터를 거두면(창 밖 끌기 등) 눌린 버튼을 모두 놓는다
+    window.addEventListener('pointercancel', (e) => {
+      if (!mine(e)) return
+      for (const button of [0, 1, 2, 3, 4]) this.release(mouseCode(button))
+    })
     // 커서가 게임 화면이나 창 밖으로 나가면 마지막 위치를 가리키지 않는다
     element.addEventListener('pointerleave', () => (this.pointer.inside = false))
     window.addEventListener('blur', () => (this.pointer.inside = false))

@@ -4,16 +4,16 @@ import type { SourceId } from '../data/schema'
 import type { RiftProgress } from '../progress/Rift'
 import type { RelicPowers } from '../game/RelicPowers'
 import type { ClassProgress } from '../myth/ClassProgress'
-import { type TrialId, trialRules } from '../data/trials'
+import { TRIAL_IDS, type TrialId, trialRules } from '../data/trials'
 import type { ThreatProgress } from '../progress/Threat'
 import type { TrialProgress } from '../progress/Trials'
 import type { TrainingProgress } from '../progress/Training'
 import type { AwakenProgress } from '../progress/Awakening'
-import { isMythRelic, relicStats } from '../gear/mythRelic'
 import { isGearUid } from '../gear/roll'
 import type { ClassPassive } from '../data/classKit'
-import { lentPassive } from '../myth/slots'
-import { type God, godDef, isRelicId } from '../relics/data'
+import { breathPassive, focusGod, partLevel, pantheonGods } from '../myth/pantheon'
+import type { God } from '../relics/data'
+import { UNIQUE_STATS } from '../skills/uniques'
 import { type BuildInputs, type BuildState, computeBuild } from './BuildState'
 
 /**
@@ -32,18 +32,19 @@ export class Build {
     const { loadout } = powers
     // 시련 「세 칸의 짐」: 쓸 수 있는 칸만 (E16)
     const slots = loadout.slots.map((id, i) => (rules.slots && !rules.slots.includes(i) ? null : id))
-    const relics = slots.map((id) => (id && isRelicId(id) ? id : null))
-    const gearItems = slots.flatMap((id) => (isGearUid(id) && loadout.gear.has(id) ? [loadout.gear.get(id)!] : []))
-    // 신화의 유물은 기본 수치를 낸다 (같은 단계 영웅 장비보다 조금 못하다, E21-04). 원천은 computeBuild가 유물 단계로 따로 더한다
-    const relicItems = relics.flatMap((id) => (id && isMythRelic(id) ? [{ stats: relicStats(id, loadout.stage(id)), source: { id: 'flame' as const, value: 0 } }] : []))
+    // 고유 효과 가운데 수치인 것(깊은 울림·사냥꾼의 눈, E303)은 그 장비의 수치로 더한다
+    const gearItems = slots.flatMap((id) => (isGearUid(id) && loadout.gear.has(id) ? [withUniqueStats(loadout.gear.get(id)!)] : []))
     return {
       open,
-      // 신위 칸 (E237): 주신 다음에 빌린 신
-      chosen: powers.manifested ? [powers.manifested, ...powers.loadout.borrowed] : [],
+      // 신의 자리 셋 (E302): 손의 신과 자리에 든 신들
+      hand: loadout.pantheon.hand,
+      present: pantheonGods(loadout.pantheon),
       // 깨우는 신 (E238): 조각 2부터 유물이 깨어난다
       waking: loadout.waking,
-      gear: relics,
-      gearItems: [...gearItems, ...relicItems],
+      // 유물표 (E303-04): 유물은 칸을 떠나 기본 수치·원천 없이 지속·행동 효과만, 켠 칸마다 +1%
+      gear: loadout.relics,
+      lit: loadout.litCount,
+      gearItems,
       ...this.blessed(),
       starred: this.from.rift?.lit,
       rules,
@@ -52,59 +53,175 @@ export class Build {
     }
   }
 
-  /** 시련 보상(E16)·균열의 축복(E17)·수련의 마디(E236): 더할 수치와 각성 단계 */
-  private blessed(): { bonus: Partial<Record<StatKind, number>>; awakenBonus: Partial<Record<SourceId, number>> } {
-    const bonus: Partial<Record<StatKind, number>> = { ...this.from.trials?.rewards() }
-    for (const [kind, value] of Object.entries(this.from.training?.stats() ?? {}) as [StatKind, number][]) bonus[kind] = (bonus[kind] ?? 0) + value
+  /** 시련 보상(E16)·균열의 축복(E17)·수련의 마디(E236): 출처마다 더할 수치와 각성 단계 */
+  private blessed(): Pick<BuildInputs, 'bonus' | 'awakenBonus'> {
+    const blessings: Partial<Record<StatKind, number>> = {}
+    const bonus = { trials: { ...this.from.trials?.rewards() }, training: { ...this.from.training?.stats() }, blessings }
     const awakenBonus: Partial<Record<SourceId, number>> = {}
     for (const id of this.from.blessings?.() ?? []) {
       const b = blessingDef(id)
-      if (b?.stat) bonus[b.stat.kind] = (bonus[b.stat.kind] ?? 0) + b.stat.value
+      if (b?.stat) blessings[b.stat.kind] = (blessings[b.stat.kind] ?? 0) + b.stat.value
       if (b?.awaken) awakenBonus[b.awaken] = (awakenBonus[b.awaken] ?? 0) + 1
     }
     return { bonus, awakenBonus }
   }
 
-  /** 지금 고른 신화 (state.chosen과 같다. 자주 읽는 곳을 위해 전체 계산 없이) */
-  get chosen(): string | null {
-    if (this.from.trial?.() === 'noMyth') return null
-    return this.from.powers.manifested
+  /** 지금 시련의 제약 (없으면 제약 없음) */
+  get rules(): ReturnType<typeof trialRules> {
+    return trialRules(this.from.trial?.() ?? null)
   }
 
-  /** 신위 칸의 빌린 신들 (E237, 시련 「신화 없이」에서는 없음) */
+  /** 손에 낀 신 (state.chosen과 같다. 자주 읽는 곳을 위해 전체 계산 없이) */
+  get chosen(): string | null {
+    if (this.from.trial?.() === 'noMyth') return null
+    return this.from.powers.loadout.pantheon.hand
+  }
+
+  /** 심장에 낀 신 (궁극기) */
+  get heart(): God | null {
+    if (this.from.trial?.() === 'noMyth') return null
+    return this.from.powers.loadout.pantheon.heart
+  }
+
+  /** 손 말고 자리에 든 신들 (심장·숨, 시련 「신화 없이」에서는 없음) */
   get borrowed(): readonly God[] {
-    if (this.from.trial?.() === 'noMyth' || !this.from.powers.manifested) return []
-    return this.from.powers.loadout.borrowed
+    if (this.from.trial?.() === 'noMyth') return []
+    const { pantheon } = this.from.powers.loadout
+    return pantheonGods(pantheon).filter((g) => g !== pantheon.hand)
+  }
+
+  /** 한 신에 몰았으면 그 신 (손·심장·숨 하나가 같은 신) */
+  get focus(): God | null {
+    if (this.from.trial?.() === 'noMyth') return null
+    return focusGod(this.from.powers.loadout.pantheon)
   }
 
   /**
-   * 깨우는 중인 신 (E238): 조각 1(흔적)부터 그 신의 대표 힘을 빌린다. 칸이 없어도 켜지고, 깨어나면 칸으로 옮긴다.
+   * 깨우는 중인 신 (E238): 조각 1(흔적)부터 그 신의 숨을 빌린다. 자리가 없어도 켜지고, 깨어나면 자리로 옮긴다.
    * 시련 「신화 없이」에서는 없음
    */
   get waking(): God | null {
     const awaken = this.from.awaken
     if (!awaken?.waking || awaken.fragments < 1 || this.from.trial?.() === 'noMyth') return null
+    // 숨 칸에 들었으면 그쪽이 돌린다 (조각 2에 손에 쥔 것만으로는 숨이 아니다)
+    if (this.from.powers.loadout.pantheon.breath.includes(awaken.waking)) return null
     return this.from.progress.isOpen(awaken.waking) ? null : awaken.waking
   }
 
-  /** 도는 패시브: 주신의 패시브 전부(주신 단계), 빌린 신마다 대표 패시브 하나(그 신 단계), 깨우는 신의 대표 패시브(1단계) */
-  passives(): { god: God; passive: ClassPassive; level: number; main: boolean }[] {
+  /**
+   * 도는 패시브: 숨 칸의 신마다 그 신의 패시브(대표 힘은 1단계부터, 나머지는 단계대로, 한 신에 몰면 하나 위), 깨우는 신의 숨(1단계).
+   * 피해마다 읽으므로 판이 그대로면 지난 목록을 돌려준다 (E301-02). 돌려준 목록은 고치지 않는다
+   */
+  passives(): readonly ActivePassive[] {
+    const version = this.version
+    if (this.passiveMemo && this.passiveVersion === version) return this.passiveMemo
+    this.passiveVersion = version
+    this.passiveMemo = this.listPassives()
+    return this.passiveMemo
+  }
+
+  private passiveMemo: readonly ActivePassive[] | null = null
+  private passiveVersion = -1
+
+  private listPassives(): ActivePassive[] {
+    if (this.from.trial?.() === 'noMyth') return []
     const { progress } = this.from
-    const main = this.chosen
-    const out = main ? [{ god: main, passive: godDef(main).passive, level: progress.level(main), main: true }, ...this.borrowed.map((god) => ({ god, passive: lentPassive(god), level: progress.level(god), main: false }))] : []
+    const { pantheon } = this.from.powers.loadout
+    const focus = focusGod(pantheon)
+    const out = pantheon.breath.map((god) => ({ god, passive: breathPassive(god), level: partLevel(pantheon, god, progress.level(god)), main: god === focus }))
     const waking = this.waking
-    if (waking) out.push({ god: waking, passive: lentPassive(waking), level: 1, main: false })
+    if (waking) out.push({ god: waking, passive: breathPassive(waking), level: 1, main: false })
     return out
   }
 
-  /** 고른 신화의 개방 단계 (없으면 0) */
+  /** 손에 낀 신의 단계 (없으면 0) */
   get level(): number {
     const god = this.chosen
     return god ? this.from.progress.level(god) : 0
   }
 
-  /** 지금의 빌드 상태 (부를 때마다 새로 계산한다) */
+  /**
+   * 지금의 빌드 상태. 피해마다 여러 번 읽으므로 재료가 그대로면 지난 계산을 돌려준다.
+   * 재료가 바뀌었는지는 inputs()가 읽는 값을 모두 적은 지문(fingerprint)으로 본다. 돌려준 값은 고치지 않는다
+   */
   get state(): BuildState {
-    return computeBuild(this.inputs())
+    this.refresh()
+    return this.memo!
   }
+
+  /**
+   * 판 번호 (E301-02): 빌드 재료가 바뀌어 다시 계산할 때마다 하나 오른다.
+   * 빌드에서 나온 값을 캐시하는 곳(도는 패시브 등)은 이 번호가 같으면 지난 값을 쓴다
+   */
+  get version(): number {
+    this.refresh()
+    return this.versionNo
+  }
+
+  private versionNo = 0
+
+  /** 재료가 바뀌었으면 다시 계산하고 판 번호를 올린다 */
+  private refresh(): void {
+    this.fingerprint(this.probe)
+    if (this.memo && sameList(this.probe, this.seen)) return
+    this.seen.length = 0
+    for (const v of this.probe) this.seen.push(v)
+    this.memo = computeBuild(this.inputs())
+    this.versionNo++
+  }
+
+  private memo: BuildState | null = null
+  /** 지난 계산의 지문 */
+  private readonly seen: unknown[] = []
+  /** 이번에 읽은 지문 (부를 때마다 새로 만들지 않게 같은 배열을 다시 쓴다) */
+  private readonly probe: unknown[] = []
+
+  /**
+   * inputs()가 읽는 재료를 차례로 적는다: 시련, 고른 신화·빌린 신·깨우는 신, 칸마다 장비(일반 장비는 그 물건, 유물은 단계),
+   * 열린 신화의 단계(승급 합도 여기서 나온다), 시련 보상(깬 난이도), 수련 수치(익히고 되돌릴 때만 바뀌는 객체), 균열의 축복, 성좌판의 별.
+   * 길이가 바뀌는 묶음 사이에는 가름표를 둔다
+   */
+  private fingerprint(out: unknown[]): void {
+    out.length = 0
+    const { powers, progress, trials, training, rift } = this.from
+    const { loadout } = powers
+    // 깨우는 신은 장비 쪽(loadout.waking)과 조각 쪽(awaken: 도는 패시브가 읽음)을 함께 본다
+    const { pantheon } = loadout
+    out.push(this.from.trial?.() ?? null, loadout, pantheon.hand, pantheon.heart, loadout.waking, this.from.awaken?.waking ?? null, this.from.awaken?.fragments ?? 0, pantheon.breath.length)
+    for (const god of pantheon.breath) out.push(god)
+    for (const id of loadout.slots) out.push(id, id && isGearUid(id) ? loadout.gear.get(id) : null)
+    // 유물표: 켠 유물과 그 단계, 켠 고유 효과 수
+    out.push(loadout.lit.length, loadout.uniquesSeen.size)
+    for (const id of loadout.lit) out.push(id, loadout.stage(id))
+    out.push(progress.records.size)
+    progress.records.forEach((record, god) => out.push(god, record.level))
+    if (trials) for (const id of TRIAL_IDS) out.push(trials.cleared[id] ?? 0)
+    out.push(training?.stats())
+    const blessings = this.from.blessings?.() ?? []
+    out.push(blessings.length)
+    for (const id of blessings) out.push(id)
+    out.push(rift?.lit.size ?? 0)
+    rift?.lit.forEach((god) => out.push(god))
+  }
+}
+
+/** 고유 효과 가운데 수치인 것을 그 장비의 수치 줄에 더한 모습 (없으면 그대로) */
+function withUniqueStats<T extends { stats: readonly { kind: StatKind; value: number }[]; unique?: string; unique2?: string }>(item: T): T {
+  const extra = [item.unique, item.unique2].flatMap((u) => (u && UNIQUE_STATS[u] ? [UNIQUE_STATS[u]!] : []))
+  return extra.length ? { ...item, stats: [...item.stats, ...extra] } : item
+}
+
+/** 도는 패시브 하나: 그 신, 패시브, 단계, 주신인가 */
+export interface ActivePassive {
+  god: God
+  passive: ClassPassive
+  level: number
+  main: boolean
+}
+
+/** 두 목록이 차례대로 같은가 (값은 ===로 견준다) */
+function sameList(a: readonly unknown[], b: readonly unknown[]): boolean {
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false
+  return true
 }

@@ -27,17 +27,41 @@ describe('고른 신화와 가호 (E12-04)', () => {
 })
 
 describe('장비 칸 (E13-02)', () => {
-  it('주운 것은 그 부위의 빈 칸에 들어가고, 같은 것은 다시 들어가지 않는다. 부위 칸이 차 있으면 가방으로', () => {
+  it('신화의 유물은 칸에 들지 않고 유물표에 켜진다, 같은 것은 한 번만 (E303-04)', () => {
     const loadout = new Loadout()
     expect(loadout.slots.length).toBe(7)
-    // 묠니르는 무기, 로키의 가면은 머리, 메긴교르드(허리)는 장신구
-    expect(loadout.equip('mjolnir')).toBe(0)
-    expect(loadout.equip('lokiMask')).toBe(1)
-    expect(loadout.equip('megingjord')).toBe(5)
-    expect(loadout.equip('mjolnir')).toBe(0)
-    // 무기 칸이 차 있으니 궁니르는 가방으로
-    expect(loadout.equip('gungnir')).toBe(-1)
-    expect(loadout.bag).toEqual(['gungnir'])
+    expect(loadout.equip('mjolnir')).toBe(-1)
+    expect(loadout.equip('lokiMask')).toBe(-1)
+    expect(loadout.equip('mjolnir')).toBe(-1)
+    expect(loadout.lit).toEqual(['mjolnir', 'lokiMask'])
+    expect(loadout.slots.every((s) => s === null)).toBe(true)
+    expect(loadout.bag).toEqual([])
+    expect(loadout.has('mjolnir')).toBe(true)
+    expect(loadout.litCount).toBe(2)
+  })
+
+  it('가방이 차면 칸의 것을 가방에 넣지 않는다 (E303: 12칸)', () => {
+    const loadout = new Loadout()
+    for (let i = 0; i < 12; i++) {
+      const g = rollGear(createRng(100 + i), { part: 'trinket' })
+      loadout.addGear(g)
+      loadout.bag.push(g.uid)
+    }
+    const boots = rollGear(createRng(5), { part: 'feet' })
+    loadout.addGear(boots)
+    loadout.equip(boots.uid)
+    expect(loadout.stow(4)).toBeNull()
+    expect(loadout.slots[4]).toBe(boots.uid)
+    expect(loadout.bag).toHaveLength(12)
+  })
+
+  it('영웅·전설 장비를 가지면 그 고유 효과가 유물표에 켜진다 (E303-04)', () => {
+    const loadout = new Loadout()
+    const hero = rollGear(createRng(9), { part: 'weapon', grade: 'hero' })
+    loadout.addGear(hero)
+    expect(hero.unique).toBeTruthy()
+    expect([...loadout.uniquesSeen]).toEqual([hero.unique])
+    expect(loadout.litCount).toBe(1)
   })
 
   it('일반 장비도 부위 칸에, 가방의 것은 맞는 부위 칸에만 낀다', () => {

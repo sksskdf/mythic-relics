@@ -4,7 +4,7 @@ import { REGIONS, type RegionDef } from '../../data/regions'
 import { type Blessing, blessingDef, RIFT_BASE_THREAT, riftScale, rollBlessings, STAR_EVERY, STARS_PER_DOOM } from '../../data/rift'
 import { threatElite, threatScale } from '../../data/threat'
 import { ELITE_CHANCE } from '../../enemies/elite'
-import { bossMaterial, materialName, realmMaterial } from '../../gear/materials'
+import { bossMaterial, materialName, PROTOTYPE } from '../../gear/materials'
 import { EFFECT_LAYER } from '../../render/PixelRenderer'
 import { heightAt } from '../../world/terrain'
 import { riftFloor, type RiftFloor } from '../../world/riftFloor'
@@ -160,16 +160,15 @@ export class RiftSystem {
     this.ctx.bus.emit('moment', { id: 'blessingPicked', text: `${blessingDef(id)!.name} · 다음 층 문이 열렸다` })
   }
 
-  /** 층을 깬 보상: 그 땅 공통 재료(깊을수록 많이, 시련 기록 배율), 보스 층은 귀한 재료, 종말 보스는 별 둘, 처음 닿은 5층마다 별 하나 */
+  /** 층을 깬 보상: 원형(깊을수록 많이, 시련 기록 배율, 대장간 값이 셋 배라 셋 배로), 보스 층은 귀한 재료, 종말 보스는 별 둘, 처음 닿은 5층마다 별 하나 */
   private reward(run: RiftRun): void {
     const { powers, trials, rift, bus } = this.ctx
     const scale = trials.riftScale()
     const lines: string[] = []
-    const common = run.floor.region.realm ? realmMaterial(run.floor.region.realm) : undefined
-    if (common) {
-      const n = Math.round((2 + Math.floor(run.depth / 2)) * scale)
-      powers.loadout.addMaterial(common, n)
-      lines.push(`${materialName(common)} ×${n}`)
+    {
+      const n = Math.round(3 * (2 + Math.floor(run.depth / 2)) * scale)
+      powers.loadout.addMaterial(PROTOTYPE, n)
+      lines.push(`${materialName(PROTOTYPE)} ×${n}`)
     }
     // 보스 층의 귀한 재료: 그 보스의 재료, 없으면(종말 보스) 그 층 신화권 보스의 재료
     const bossId = run.floor.region.boss ? (run.floor.region.boss.enemy ?? 'king') : null

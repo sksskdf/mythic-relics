@@ -29,8 +29,15 @@ function circleSegments(circles: readonly CircleCollider[], lift = 0.08): Float3
   return out
 }
 
+/** 정점을 바꾼다. 길이가 같으면 붙어 있는 버퍼에 옮겨 쓰고(켜 둔 동안 프레임마다 GPU 버퍼를 새로 만들지 않게), 다를 때만 새로 붙인다 */
 function setPositions(object: THREE.LineSegments | THREE.Line | THREE.Points, positions: Float32Array): void {
-  object.geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+  const current = object.geometry.getAttribute('position') as THREE.BufferAttribute | undefined
+  if (current && current.array.length === positions.length) {
+    ;(current.array as Float32Array).set(positions)
+    current.needsUpdate = true
+  } else {
+    object.geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+  }
   object.geometry.computeBoundingSphere()
 }
 
@@ -54,6 +61,9 @@ export class DebugOverlay {
   )
   private readonly path = new THREE.Line(new THREE.BufferGeometry(), material(0xffe14a))
   private readonly navCenter = new THREE.Vector2(Infinity, Infinity)
+  /** 하늘색 원을 그린 충돌체 (첫 것과 수). 땅이 바뀌면 배열 속이 새 충돌체로 갈리므로 이것이 달라질 때 다시 그린다 */
+  private staticsFirst: CircleCollider | undefined = undefined
+  private staticsCount = -1
 
   constructor(private readonly game: Game) {
     for (const part of [this.statics, this.blocking, this.passable, this.hero, this.cells, this.path]) {
@@ -62,7 +72,6 @@ export class DebugOverlay {
       part.frustumCulled = false
       this.object.add(part)
     }
-    setPositions(this.statics, circleSegments(game.staticColliders))
     this.object.visible = false
     game.scene.add(this.object)
   }
@@ -75,6 +84,12 @@ export class DebugOverlay {
 
     for (const part of [this.statics, this.blocking, this.passable, this.hero]) part.visible = this.colliders
     if (this.colliders) {
+      const statics = g.staticColliders
+      if (statics[0] !== this.staticsFirst || statics.length !== this.staticsCount) {
+        this.staticsFirst = statics[0]
+        this.staticsCount = statics.length
+        setPositions(this.statics, circleSegments(statics))
+      }
       const plowing = g.orders.plowing
       const alive = g.encounter.alive
       setPositions(this.blocking, circleSegments(alive.filter((e) => !plowing || e.blocksPath).map((e) => e.collider)))

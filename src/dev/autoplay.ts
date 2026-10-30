@@ -9,8 +9,8 @@ import { TRIAL_IDS, type TrialId } from '../data/trials'
 import { forgeReady, missing, nextRecipe } from '../gear/forge'
 import { MATERIALS } from '../gear/materials'
 import { gearScore } from '../gear/roll'
-import { mythRelic } from '../gear/mythRelic'
-import { type God, godDef, isRelicId, relicDef } from '../relics/data'
+import { type God, godDef, relicDef } from '../relics/data'
+import { relicGods } from '../relics/model'
 import type { Point2 } from '../world/colliders'
 
 /** 판단 간격 (초). 사람의 반응 속도쯤으로 둔다. */
@@ -212,23 +212,13 @@ export class Autoplayer {
     }
     if (hp < 0.7 && near.length === 0 && !legend.active && !hero.isMoving) return void (this.step = 5)
 
-    // 3. 떨어진 유물을 줍는다. 한 신만 쓰는 봇은 다른 신 유물을 가방에 넣는다.
-    if (this.god) {
-      powers.loadout.relics.forEach((id, slot) => id && relicDef(id).god !== this.god && this.game.dev.stow(slot))
-    }
-    // 정한 신이 있으면 그 신화가 열리는 대로 고른다 (사람은 마을·성소에서 고른다)
+    // 3. 정한 신이 있으면 그 신화가 열리는 대로 고른다 (사람은 마을·성소에서 고른다)
     if (this.god && powers.manifested !== this.god && this.game.progress.isOpen(this.god)) this.game.dev.choose(this.god)
-    // 고른 신화의 유물(신을 깨우는 중이면 그 신의 유물, E238 조각 2)이 가방에 있으면 그 부위 칸에 낀다 (대장간에서 만든 유물이 가방으로 들어간 때)
-    const ownGod = powers.manifested ?? powers.loadout.waking
-    const own = ownGod ? mythRelic(ownGod) : null
-    if (own && powers.loadout.bag.includes(own)) {
-      const slots = powers.loadout.slots.map((_, i) => i).filter((i) => powers.loadout.fits(own, i))
-      const target = slots.find((i) => powers.loadout.slots[i] === null) ?? slots.find((i) => !isRelicId(powers.loadout.slots[i] ?? ''))
-      if (target !== undefined) this.game.dev.wield(own, target)
-    }
     // 깨달음이 있으면 수련 마디를 찍는다 (E236): 힘 갈래를 먼저 끝까지, 그다음 몸·손
     for (const id of SAMPLE_ORDER) if (this.game.training.unspent > 0) this.game.dev.train(id)
-    // 가방의 일반 장비가 더 좋으면 바꿔 낀다 (빈 칸이면 그냥 낀다, 유물은 빼지 않는다) (E13-08)
+    // 가방에 셋이 모이면 합친다 (E303): 낮은 등급부터
+    for (const group of powers.loadout.mergeable()) this.game.dev.merge(group.map((i) => i.uid))
+    // 가방의 일반 장비가 더 좋으면 바꿔 낀다 (빈 칸이면 그냥 낀다) (E13-08)
     for (const id of [...powers.loadout.bag]) {
       const item = powers.loadout.gear.get(id)
       if (!item) continue
@@ -248,7 +238,7 @@ export class Autoplayer {
     if (!legend.active) {
       const t = this.game.time
       const reachable = (id: string) => t - (this.pickupSince.get(id) ?? t) < 20
-      const pickup = nearest(pickups.list.filter((i) => !powers.loadout.has(i.id) && reachable(i.id) && (i.gear !== undefined || !this.god || relicDef(i.id).god === this.god)), here)
+      const pickup = nearest(pickups.list.filter((i) => !powers.loadout.has(i.id) && reachable(i.id) && (i.gear !== undefined || !this.god || relicGods(relicDef(i.id)).includes(this.god))), here)
       if (pickup && near.length < 3) {
         if (!this.pickupSince.has(pickup.id)) this.pickupSince.set(pickup.id, t)
         hero.moveTo(pickup)
@@ -305,6 +295,12 @@ export class Autoplayer {
       return
     }
 
+    // 두 갈래 카드 (E302-03): 새 신의 손·심장이 왔는데 자리가 차 있으면, 정한 신이면 새 것을, 아니면 지금 그대로
+    if (!offer && this.game.mythPickerOpen) {
+      const incoming = document.querySelector<HTMLElement>('.myth-pick__card')?.dataset.god
+      this.game.answerSwap(!!this.god && incoming === this.god)
+      return
+    }
     // 4.8 신화 고르기 (E22-03): 카드가 떠 있으면 정한 신(없으면 첫 신화)을 고르고, 아니면 성소 가운데로 간다
     if (offer && this.game.mythPickerOpen) {
       this.game.mythChoice.pick(this.god && offer.gods.includes(this.god) ? this.god : offer.gods[0]!)

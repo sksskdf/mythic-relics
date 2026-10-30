@@ -1,11 +1,11 @@
 import * as THREE from 'three'
 
 import { SKY_COLORS } from '../art/palette'
+import { godDef } from '../relics/data'
 import { atLevel } from '../data/check'
 import type { ClassPassive, CompanionLook, OrbitShape } from '../data/classKit'
 import type { CombatTarget } from '../game/PlayerCombat'
 import { EFFECT_LAYER } from '../render/PixelRenderer'
-import { godDef } from '../relics/data'
 import { voxelMesh } from '../voxel/mesher'
 import { boar, hound, raven } from '../voxel/models/beasts'
 import { HERO_VOXEL } from '../voxel/models/hero'
@@ -151,7 +151,7 @@ export class ClassPassives {
     }
   }
 
-  /** 돌릴 패시브와 단계: 빌린 힘이면 그것, 아니면 주신의 것 */
+  /** 돌릴 패시브와 단계: 묶인 것(숨 칸, E302), 묶이지 않았으면 ctx의 신화 것 (부품 하나를 따로 시험할 때) */
   private use(ctx: SkillContext): { passive: ClassPassive | null; level: number } {
     return this.bound ?? { passive: ctx.manifested ? godDef(ctx.manifested).passive : null, level: ctx.level }
   }

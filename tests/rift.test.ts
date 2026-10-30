@@ -88,7 +88,7 @@ describe('성좌판 (E17-05)', () => {
   })
 
   it('밝힌 별만 그 신화의 수치를 내고, 축복은 수치와 각성 단계를 더한다', () => {
-    const base = { open: new Map([['thor', 2], ['odin', 4]]), chosen: [], gear: [], promotions: 0 }
+    const base = { open: new Map([['thor', 2], ['odin', 4]]), hand: null, gear: [], promotions: 0 }
     const plain = computeBuild(base)
     const starred = computeBuild({ ...base, starred: new Set(['thor', 'odin']) })
     const odin = godDef('odin').always.stat
@@ -97,7 +97,7 @@ describe('성좌판 (E17-05)', () => {
     expect(plain.stats[odin.kind]).toBe(0)
     expect(starred.stats[odin.kind] - (odin.kind === thor.kind ? thor.value[0] : 0)).toBeCloseTo(odin.value[1] * 1.5)
     expect(starred.stats[thor.kind] - (odin.kind === thor.kind ? odin.value[1] * 1.5 : 0)).toBeCloseTo(thor.value[0])
-    const blessed = computeBuild({ ...base, bonus: { damage: 0.12 }, awakenBonus: { stone: 2 } })
+    const blessed = computeBuild({ ...base, bonus: { blessings: { damage: 0.12 } }, awakenBonus: { stone: 2 } })
     expect(blessed.stats.damage).toBeCloseTo(plain.stats.damage + 0.12)
     expect(blessed.awakening.stone).toBe(2)
     expect(BLESSINGS.length).toBe(20)

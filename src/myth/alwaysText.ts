@@ -40,9 +40,9 @@ export function statText(kind: StatKind, value: number): string {
   return `${STAT_LABELS[kind]} ${sign}${amount}`
 }
 
-/** 수집 보너스 한 줄 (E21-02): 열린 신화 하나마다 같은 덧셈 */
+/** 열린 신화 하나마다 더하는 것 한 줄 (E21-02 → E303-04: 피해는 유물표로 옮겼다) */
 export function collectionText(): string {
-  return `모든 피해 +${Math.round(PER_OPENED.damage * 100)}%, 최대 생명 +${PER_OPENED.maxHp}`
+  return `최대 생명 +${PER_OPENED.maxHp}`
 }
 
 /** 성좌판에서 별을 밝힌 신화의 수치 한 줄 (엔딩 뒤, E17-04). stage는 별 수치 단계 (3부터 작동) */

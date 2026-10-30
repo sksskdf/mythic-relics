@@ -28,7 +28,7 @@ export interface HoverCardsParts {
   readonly view: QuarterViewCamera
   readonly nameplates: Nameplates
   /** 설명 카드에 넣을 지금 상태 */
-  cardContext(id: RelicId, preview?: RelicCardContext['preview']): RelicCardContext
+  cardContext(id: RelicId): RelicCardContext
   /** 커서를 올린 몬스터 */
   hovered(): unknown
   /** 월드 좌표가 화면 어디에 보이는가 (CSS 픽셀) */
@@ -54,21 +54,20 @@ export class HoverCards {
   /** 지금 떠 있는 카드가 땅의 유물 카드인가 */
   private groundTooltip = false
   /** 커서를 올린 HUD 유물 칸 (카드를 그 위에 띄운다) */
-  private hoveredSlot: { slot: number; x: number; y: number } | null = null
+  private hoveredSlot: { relic: RelicId; x: number; y: number } | null = null
 
   constructor(private readonly parts: HoverCardsParts) {
     this.tooltip = new RelicTooltip(parts.container)
   }
 
   /** HUD 유물 칸에 커서를 올렸다(장비 칸 번호와 칸 자리) 또는 뗐다(null) */
-  slot(slot: number | null, anchor: DOMRect | null): void {
-    const id = slot === null ? null : this.parts.ctx.powers.loadout.slots[slot]
-    if (slot === null || !id || !anchor) {
+  slot(relic: RelicId | null, anchor: DOMRect | null): void {
+    if (!relic || !anchor) {
       this.hoveredSlot = null
       this.tooltip.hide()
       return
     }
-    this.hoveredSlot = { slot, x: anchor.left + anchor.width / 2, y: anchor.top }
+    this.hoveredSlot = { relic, x: anchor.left + anchor.width / 2, y: anchor.top }
   }
 
   /** 창을 여닫을 때: 떠 있는 카드를 치운다 */
@@ -82,8 +81,8 @@ export class HoverCards {
     const { ctx, input, cardContext } = this.parts
     const { powers, pickups } = ctx
     if (this.hoveredSlot) {
-      const id = powers.loadout.slots[this.hoveredSlot.slot]
-      if (id) this.tooltip.show(relicDef(id), cardContext(id), this.hoveredSlot.x, this.hoveredSlot.y, true)
+      const id = this.hoveredSlot.relic
+      this.tooltip.show(relicDef(id), cardContext(id), this.hoveredSlot.x, this.hoveredSlot.y, true)
       return
     }
     const { pointer } = input
@@ -100,9 +99,7 @@ export class HoverCards {
       this.groundTooltip = true
     } else if (near) {
       const place = { kind: 'ground' } as const
-      const free = powers.loadout.slots.indexOf(null)
-      const preview = free >= 0 ? { before: powers.state, after: powers.loadout.preview(free, near.id) } : undefined
-      this.tooltip.show(relicDef(near.id), { ...cardContext(near.id, preview), place }, pointer.x, pointer.y)
+      this.tooltip.show(relicDef(near.id), { ...cardContext(near.id), place }, pointer.x, pointer.y)
       this.groundTooltip = true
     } else if ((trace = this.traceUnderPointer(pointer))) {
       // 신의 흔적 (E238): 무엇을 고르는지 알고 고르게 그 신의 무기·빌려주는 힘

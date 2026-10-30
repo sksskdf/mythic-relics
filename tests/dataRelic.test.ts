@@ -81,7 +81,7 @@ describe('데이터에만 넣은 시험용 유물', () => {
     expect(pickups.list.map(({ id, x, z }) => ({ id, x, z }))).toEqual([{ id: 'testRelic', x: 5, z: -70 }])
   })
 
-  it('장착하면 그 신의 유물로 세고, 그 신화를 고르면 깨어나 지속 효과와 행동 연동 효과가 붙는다 (E21-04)', () => {
+  it('유물표에 켜면 그 신의 유물로 세고, 그 신이 자리에 들면 깨어나 지속 효과와 행동 연동 효과가 붙는다 (E21-04)', () => {
     const fx = new THREE.Group()
     const powers = new RelicPowers(fx)
     powers.equip('testRelic')
@@ -89,12 +89,12 @@ describe('데이터에만 넣은 시험용 유물', () => {
     const change = powers.equip('megingjord')
     expect(change?.after.blessings).toEqual(['thor'])
     expect(powers.awake('testRelic')).toBe(false)
-    powers.choose('thor')
+    powers.setPantheon({ hand: 'thor', heart: 'thor', breath: ['thor'] })
     expect(powers.awake('testRelic')).toBe(true)
     expect(gearModifiers(powers.loadout.relics).damageTaken).toBeCloseTo(0.8)
-    // 유물은 외형 칸으로 정한 부위 칸에 들어간다 (시험용 뿔잔은 얼굴 → 머리)
-    const slot = powers.loadout.slots.indexOf('testRelic')
-    expect(slot).toBe(1)
+    // 유물은 장비 칸에 들지 않고 유물표에 켜진다 (E303-04)
+    expect(powers.loadout.slots.every((s) => s === null)).toBe(true)
+    expect(powers.loadout.lit).toEqual(['testRelic', 'mjolnir', 'megingjord'])
 
     const hits: number[] = []
     const near = dummy(1.5, 0, hits)
@@ -122,11 +122,11 @@ describe('데이터에만 넣은 시험용 유물', () => {
     const hit = { targets: [near], comboIndex: 0, comboLength: 3, finisher: false }
     powers.onKill(near, ctx)
     powers.onKill(near, ctx)
-    expect(powers.effects[slot]!.charge).toBe(1)
+    expect(powers.effectOf('testRelic')!.charge).toBe(1)
     powers.onBasicHit(hit, ctx)
     // 메긴교르드는 처치 5번이 필요해 아직 터지지 않고, 시험용 유물만 50 피해로 터진다. (묠니르는 3연타 마지막 타에)
     expect(hits).toEqual([50])
-    expect(powers.effects[slot]!.charge).toBe(0)
+    expect(powers.effectOf('testRelic')!.charge).toBe(0)
   })
 
   it('저장했다가 다시 읽어도 남는다 (신화의 유물이 아니라 재료로, E13-03)', () => {

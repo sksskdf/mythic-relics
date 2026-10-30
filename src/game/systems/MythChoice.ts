@@ -1,4 +1,5 @@
 import { realmInk } from '../../art/palette'
+import { inPantheon } from '../../myth/pantheon'
 import { REGIONS } from '../../data/regions'
 import { REALM_NAMES } from '../../data/threat'
 import { ENEMIES } from '../../enemies/Giant'
@@ -117,7 +118,7 @@ export class MythChoiceSystem {
     for (const god of opened) bus.emit('mythOpened', { god, quiet: true })
     const names = opened.map((g) => godDef(g).name)
     // 빈 빌린 칸에 저절로 들어간 신 (E237, RelicSystem이 mythOpened에서 넣는다)
-    const lent = opened.filter((g) => progress.chosen.includes(g))
+    const lent = opened.filter((g) => inPantheon(progress.pantheon, g))
     // 카드 (E23-01): 장 보스 장면이 끝난 뒤에 뜬다
     bus.emit('moment', {
       id: 'realmOpened',
@@ -126,7 +127,7 @@ export class MythChoiceSystem {
         title: `${REALM_NAMES[realm] ?? realm} 신화 ${opened.length}`,
         color: realmInk(realm).light,
         icon: this.iconOf(opened[0]!),
-        lines: [`${josa(names.join('·'), '이')} 열렸다`, lent.length ? `빌린 칸에 넣음: ${lent.map((g) => godDef(g).name).join('·')}` : '마을이나 성소에서 신위 칸에 넣는다', `수집 보너스: ${collectionText()}`],
+        lines: [`${josa(names.join('·'), '이')} 열렸다`, lent.length ? `빌린 칸에 넣음: ${lent.map((g) => godDef(g).name).join('·')}` : '마을이나 성소에서 신위 칸에 넣는다', `열린 신화: ${collectionText()}`],
       },
     })
     bus.emit('progressChanged', {})

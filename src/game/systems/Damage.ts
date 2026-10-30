@@ -6,6 +6,8 @@ import type { GameContext } from '../context'
 import type { StatKind } from '../../data/mythAlways'
 import type { DamageSource } from '../../skills/Skill'
 import type { CombatTarget, HitReport } from '../PlayerCombat'
+import type { BuildState } from '../../build/BuildState'
+import { isBossLike } from '../../enemies/grade'
 
 /** 피해가 온 곳 → 그 피해를 키우는 상시 효과 수치 */
 const SOURCE_STAT: Partial<Record<DamageSource, StatKind>> = {
@@ -17,10 +19,10 @@ const SOURCE_STAT: Partial<Record<DamageSource, StatKind>> = {
   dot: 'dotDamage',
 }
 
-/** 정예·보스인가 (상시 효과 「정예·보스에게 피해」) */
+/** 정예·보스인가 (상시 효과 「정예·보스에게 피해」). 신을 깨우는 수호자(E239)도 보스로 친다 */
 function isBig(target: CombatTarget): boolean {
-  const t = target as { elite?: unknown; spec?: { boss?: unknown } }
-  return !!t.elite || !!t.spec?.boss
+  const t = target as { elite?: unknown; spec?: { boss?: unknown; role?: string } }
+  return !!t.elite || !!t.spec?.boss || (!!t.spec && isBossLike(t.spec))
 }
 
 /** 신위 게이지: 스킬로 맞힐 때, 쓰러뜨릴 때 차오르는 양 */
@@ -37,15 +39,14 @@ export class DamageSystem {
   constructor(private readonly ctx: GameContext) {}
 
   /** 피해 배율: 공통 배율 × 그 피해가 온 곳의 상시 효과 수치 */
-  scale(source: DamageSource = 'other'): number {
-    const state = this.ctx.build.state
+  scale(source: DamageSource = 'other', state: BuildState = this.ctx.build.state): number {
     const stat = SOURCE_STAT[source]
     return state.damageScale * (stat ? 1 + state.stats[stat] : 1) * this.ctx.powers.awakening.damageScale
   }
 
   /** 그 대상에게만 붙는 배율 (정예·보스에게 피해) */
-  targetScale(target: CombatTarget): number {
-    return isBig(target) ? 1 + this.ctx.build.state.stats.bossDamage : 1
+  targetScale(target: CombatTarget, state: BuildState = this.ctx.build.state): number {
+    return isBig(target) ? 1 + state.stats.bossDamage : 1
   }
 
   /** 스킬로 적에게 피해를 준다. 배율, 피해 숫자, 신위 게이지를 함께 처리한다. */
@@ -53,7 +54,7 @@ export class DamageSystem {
     if (!target.alive) return
     const { combat, numbers, build, bus } = this.ctx
     const state = build.state
-    const dealt = target.takeHit(damage * this.scale(source) * this.targetScale(target), dirX, dirZ, knockback * state.modifiers.knockbackDealt)
+    const dealt = target.takeHit(damage * this.scale(source, state) * this.targetScale(target, state), dirX, dirZ, knockback * state.modifiers.knockbackDealt)
     if (dealt > 0 && !target.alive) bus.emit('targetKilled', { target })
     if (dealt <= 0) return
     if (style === 'thunder') bus.emit('sound', { cue: 'thunder', x: target.x, z: target.z })
@@ -96,7 +97,7 @@ export class DamageSystem {
       skills,
     )
     // 발현 패시브: 처음 맞은 적에게 번개가 함께 떨어지고(천둥의 신), 레벨이 차면 옮겨 붙는다(천둥군주).
-    // 주신의 패시브와 빌린 힘(E237)을 차례로 본다
+    // 숨 칸의 신마다 그 패시브를 차례로 본다 (E302)
     const first = hits[0]!.target
     for (const { passive, level } of this.ctx.build.passives()) {
       if (passive.basicLightning && first.alive) {
@@ -175,7 +176,8 @@ export class DamageSystem {
   hitHero(damage: number, fromX: number, fromZ: number, knockback: number): void {
     const { combat, powers, skills, feel, view, numbers, hero, bus } = this.ctx
     if (!combat.canBeHit) return
-    const reduced = powers.beforeHeroHit(damage, fromX, fromZ, skills)
+    // 달빛 방패(고유 효과, E303)가 먼저 막는다
+    const reduced = this.ctx.uniques.absorb(powers.beforeHeroHit(damage, fromX, fromZ, skills))
     // 보호막 등이 다 막았으면 맞지 않은 것으로 친다 (밀리지도, 무적 시간이 돌지도 않게)
     if (reduced <= 0) return
     const dealt = combat.takeHit(reduced, fromX, fromZ, knockback)

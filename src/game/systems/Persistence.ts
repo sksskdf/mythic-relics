@@ -1,5 +1,6 @@
 import type { LookSlot } from '../../looks/catalog'
 import type { God, RelicId } from '../../relics/data'
+import type { Pantheon } from '../../myth/pantheon'
 import { type SaveData, SAVE_VERSION, saveStorage } from '../../save/SaveData'
 import type { GameContext } from '../context'
 
@@ -10,10 +11,8 @@ const AUTOSAVE_INTERVAL = 3
 export interface RestoreHost {
   /** 연출 없이 유물을 끼운다. */
   equip(id: RelicId): void
-  /** 연출 없이 신화를 고른다. */
-  choose(god: God): void
-  /** 연출 없이 빌린 칸에 넣는다 (E237) */
-  lend(god: God): void
+  /** 연출 없이 신의 자리 셋을 낀다 (E302) */
+  pantheon(p: Pantheon): void
   /** 성장 기록에 맞춰 기본 능력치를 다시 계산한다. */
   applyStats(): void
   /** 외형 보관함을 되돌린 뒤 다시 입는다. */
@@ -52,13 +51,15 @@ export class Persistence {
       version: SAVE_VERSION,
       slots: [...powers.loadout.slots],
       bag: [...powers.loadout.bag],
+      lit: [...powers.loadout.lit],
+      uniques: [...powers.loadout.uniquesSeen],
       // 칸·가방·땅에 있는 일반 장비의 내용
       gear: [...powers.loadout.gear.values(), ...pickups.list.flatMap((p) => (p.gear ? [p.gear] : []))],
       stages: Object.fromEntries([...powers.loadout.stages].filter(([, n]) => n >= 2)),
       materials: Object.fromEntries(powers.loadout.materials),
       ground: pickups.list.map((p) => ({ id: p.id, x: p.x, z: p.z })),
       classes,
-      chosen: [...progress.chosen],
+      pantheon: { ...progress.pantheon, breath: [...progress.pantheon.breath] },
       dropMisses: drops.misses,
       divine: combat.divine,
       looks: { unlocked: [...wardrobe.unlocked], choices: Object.fromEntries(wardrobe.choices) },
@@ -96,9 +97,8 @@ export class Persistence {
     for (const [god, record] of Object.entries(data.classes) as [God, { level: number; xp: number }][]) {
       Object.assign(progress.record(god), record)
     }
-    // 고른 신화를 먼저 정해 두어야, 유물을 끼울 때 처음 연 신화를 저절로 고르지 않는다
-    if (data.chosen.length) host.choose(data.chosen[0]!)
-    for (const god of data.chosen.slice(1)) host.lend(god)
+    // 자리 셋을 먼저 정해 두어야, 유물을 끼울 때 처음 연 신화를 저절로 고르지 않는다
+    host.pantheon(data.pantheon)
     host.applyStats()
     combat.health.reset()
     // 장비 (E13-06): 일반 장비 내용과 유물 단계를 먼저 적어 두고, 칸의 것은 그 부위 칸에 다시 낀다
@@ -107,6 +107,9 @@ export class Persistence {
     for (const [id, n] of Object.entries(data.stages)) if (n) powers.loadout.stages.set(id, n)
     for (const [id, n] of Object.entries(data.materials)) powers.loadout.addMaterial(id, n)
     data.slots.forEach((id) => id && host.equip(id))
+    // 유물표 (E303-04): 켠 유물은 효과를 다시 만들고, 고유 효과 칸은 그대로
+    data.lit.forEach((id) => host.equip(id))
+    for (const u of data.uniques) powers.loadout.uniquesSeen.add(u)
     powers.loadout.bag.push(...data.bag)
     for (const item of data.ground) pickups.drop(item.id, item.x, item.z, true, gear.get(item.id))
     drops.misses = data.dropMisses

@@ -4,7 +4,7 @@ import type { Pickups } from '../gear/Pickups'
 import { nextRecipe } from '../gear/forge'
 import { type GearItem, rollGear } from '../gear/roll'
 import { gearIcon } from '../ui/gearCard'
-import { GODS, type RelicId } from '../relics/data'
+import { GODS, isRelicId, type RelicId } from '../relics/data'
 import { type ClassProgress, MASTERY_TO_OPEN } from '../myth/ClassProgress'
 import type { EventBus, GameEvents } from '../game/events'
 import type { HeroController } from '../game/HeroController'
@@ -52,7 +52,8 @@ export class DevTools {
   /** 유물을 끼운다. 신화 개방 연출도 그대로 나온다. */
   equip(id: RelicId): void {
     const { powers, relics, bus } = this.parts
-    if (powers.loadout.has(id) || !powers.hasFreeSlot) return
+    // 유물은 유물표에 켜니 칸이 차 있어도 된다 (E303-04)
+    if (powers.loadout.has(id)) return
     relics.equip(id, true)
     bus.emit('progressChanged', {})
   }
@@ -91,8 +92,7 @@ export class DevTools {
   fireRelic(id?: RelicId): boolean {
     const { powers, skills } = this.parts
     const relic = id ?? (powers.manifested ? GODS[powers.manifested]?.relic : undefined)
-    const slot = relic ? powers.loadout.slots.indexOf(relic) : -1
-    const effect = slot >= 0 ? powers.effects[slot] : null
+    const effect = relic ? powers.effectOf(relic) : null
     if (!effect?.forceFire) return false
     effect.forceFire(skills)
     return true
@@ -136,18 +136,37 @@ export class DevTools {
     this.parts.relics.choose(god, true)
   }
 
-  /** 유물 하나를 뺀다. (땅에 내려놓지 않고 없앤다) */
-  unequip(id: RelicId): void {
+  /**
+   * 신의 자리 셋을 그대로 낀다 (E302, 점검·봇). 닫힌 신은 먼저 연다. 예: `pantheon({ hand: 'thor', heart: 'odin', breath: ['loki'] })`
+   * 숨 칸 수는 장 진행을 따르지 않고 준 만큼 낀다 (넷까지)
+   */
+  pantheon(p: { hand?: string | null; heart?: string | null; breath?: readonly string[] }): void {
+    const { progress, relics } = this.parts
+    for (const g of [p.hand, p.heart, ...(p.breath ?? [])]) if (g) progress.open(g)
+    relics.restore({ hand: p.hand ?? null, heart: p.heart ?? null, breath: [...(p.breath ?? [])] }, true)
+  }
+
+  /** 유물 하나를 유물표에서 끄거나 장비 하나를 뺀다. (땅에 내려놓지 않고 없앤다) */
+  unequip(id: string): void {
+    if (isRelicId(id)) {
+      this.parts.relics.unlight(id)
+      return
+    }
     const slot = this.parts.powers.loadout.slots.indexOf(id)
     if (slot >= 0) this.parts.relics.unequip(slot, false)
   }
 
-  /** 가방의 유물을 칸에 끼운다. (봇이 신화를 여는 조합으로 바꿔 낄 때) */
-  wield(id: RelicId, slot: number): void {
+  /** 가방의 장비를 칸에 끼운다. (봇이 더 좋은 장비로 바꿔 낄 때) */
+  wield(id: string, slot: number): void {
     this.parts.relics.wield(id, slot)
   }
 
-  /** 칸의 유물을 가방에 넣는다. (봇이 한 신만 쓸 때) */
+  /** 가방의 셋을 합친다 (E303, 봇·점검) */
+  merge(uids: readonly string[]): boolean {
+    return this.parts.relics.merge(uids) !== null
+  }
+
+  /** 칸의 장비를 가방에 넣는다. */
   stow(slot: number): void {
     this.parts.relics.stow(slot)
   }
@@ -159,15 +178,15 @@ export class DevTools {
   }
 
   /**
-   * 신위 칸 (E237): 신을 열고 칸에 넣는다 (곳을 가리지 않는다). 주신이 없으면 첫 신이 주신, 나머지는 빈 빌린 칸에.
-   * 칸 수는 장 진행 그대로라, 넣지 못한 신은 열리기만 한다
+   * 신의 자리 셋 (E302): 신을 열고 빈 자리에 넣는다 (곳을 가리지 않는다). 자리가 비었으면 첫 신에 몰고, 나머지는 빈 숨 칸에.
+   * 숨 칸 수는 장 진행 그대로라, 넣지 못한 신은 열리기만 한다
    */
   lend(...gods: string[]): void {
-    const { powers, progress, relics } = this.parts
+    const { progress, relics } = this.parts
     for (const god of gods) {
       progress.open(god)
-      if (!powers.manifested) relics.choose(god, false)
-      else relics.lend(god)
+      if (!progress.pantheon.hand) relics.choose(god, false)
+      else relics.fill(god, ['breath'])
     }
   }
 

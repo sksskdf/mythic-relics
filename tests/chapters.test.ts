@@ -5,6 +5,8 @@ import raw from '../src/data/chapters.json'
 import { CHAPTERS, chapterOf, GOAL_MAX_CHARS, landScale, parseChapters, TOP_POWER } from '../src/data/chapters'
 import { REGIONS } from '../src/data/regions'
 import { ChapterProgress, type ChapterWorld } from '../src/progress/Chapters'
+import { Encounter } from '../src/game/Encounter'
+import { walkArea } from '../src/world/colliders'
 
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T
 
@@ -233,5 +235,19 @@ describe('장 진행 (E22-01)', () => {
     b.load(a.toData())
     expect(b.toData()).toEqual(a.toData())
     expect(b.index).toBe(a.index)
+  })
+})
+
+describe('보스 처치를 적는 땅', () => {
+  it('무너지는 동안 통로를 넘어 데려가도 처치는 쓰러진 땅의 것으로 친다', () => {
+    const area = walkArea([{ minX: -30, maxX: 30, minZ: -30, maxZ: 30 }])
+    const encounter = new Encounter({ camps: [], boss: null }, [], area)
+    encounter.reset({ id: 'a', camps: [], boss: null }, [], area)
+    const fallen = encounter.spawnGrunt(0, 0)
+    const standing = encounter.spawnGrunt(5, 0)
+    fallen.takeHit(1e6, 1, 0, 0)
+    encounter.cross({ id: 'b', camps: [], boss: null }, { x: 0, z: 0 }, [], area)
+    expect(encounter.fellRegion(fallen)).toBe('a')
+    expect(encounter.fellRegion(standing)).toBeUndefined()
   })
 })

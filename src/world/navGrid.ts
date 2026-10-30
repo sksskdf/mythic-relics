@@ -11,6 +11,15 @@ export class NavGrid {
   /** 움직일 수 있는 곳 (E19: 땅의 네모 + 이웃 통로). 이 밖의 칸은 막힌다 */
   area: WalkArea = squareArea(0)
   private blocked = new Uint8Array(0)
+  /**
+   * A* 작업 배열: 부를 때마다 칸 수만큼 새로 잡지 않고 격자를 짤 때 한 번 잡아 되쓴다.
+   * 칸의 gScore·cameFrom은 seen이 이번 차례 번호일 때만 쓸모 있고, closed도 차례 번호로 표시한다 (지우는 일 없이)
+   */
+  private gScore = new Float32Array(0)
+  private cameFrom = new Int32Array(0)
+  private seen = new Uint32Array(0)
+  private closed = new Uint32Array(0)
+  private turn = 0
 
   constructor(
     bounds: number | WalkArea,
@@ -29,6 +38,13 @@ export class NavGrid {
     this.halfExtent = halfExtent
     this.size = Math.ceil((halfExtent * 2) / this.cellSize)
     this.blocked = new Uint8Array(this.size * this.size)
+    if (this.seen.length !== this.blocked.length) {
+      this.gScore = new Float32Array(this.blocked.length)
+      this.cameFrom = new Int32Array(this.blocked.length)
+      this.seen = new Uint32Array(this.blocked.length)
+      this.closed = new Uint32Array(this.blocked.length)
+      this.turn = 0
+    }
     // 움직일 수 있는 곳 밖(통로 사이의 숲 띠)은 막는다. 네모 하나뿐이면 격자 끝이 곧 경계다
     if (area.rects.length > 1) {
       // 모두 막은 뒤 네모마다 가운데가 그 안에 드는 칸을 연다 (칸마다 재는 것보다 빠르다: 넘어갈 때마다 다시 짠다)
@@ -61,7 +77,14 @@ export class NavGrid {
   }
 
   isBlocked(point: Point2): boolean {
-    const { cx, cz } = this.toCell(point)
+    return this.blockedAt(point.x, point.z)
+  }
+
+  /** isBlocked와 같되 객체를 만들지 않는다 (직선 검사가 걸음마다 부른다) */
+  private blockedAt(x: number, z: number): boolean {
+    const last = this.size - 1
+    const cx = Math.max(0, Math.min(last, Math.floor((x + this.halfExtent) / this.cellSize)))
+    const cz = Math.max(0, Math.min(last, Math.floor((z + this.halfExtent) / this.cellSize)))
     return this.isBlockedCell(cx, cz)
   }
 
@@ -86,7 +109,7 @@ export class NavGrid {
     const steps = Math.max(1, Math.ceil(dist / (this.cellSize * 0.5)))
     for (let i = 0; i <= steps; i++) {
       const t = i / steps
-      if (this.isBlocked({ x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t })) return false
+      if (this.blockedAt(a.x + (b.x - a.x) * t, a.z + (b.z - a.z) * t)) return false
     }
     return true
   }
@@ -132,11 +155,18 @@ export class NavGrid {
     const startIndex = from.cz * n + from.cx
     const goalIndex = to.cz * n + to.cx
 
-    const gScore = new Float32Array(n * n).fill(Infinity)
-    const cameFrom = new Int32Array(n * n).fill(-1)
-    const closed = new Uint8Array(n * n)
+    const { gScore, cameFrom, seen, closed } = this
+    // 차례 번호가 한 바퀴 돌면 표시를 지우고 다시 센다
+    if (this.turn >= 0xffffffff) {
+      seen.fill(0)
+      closed.fill(0)
+      this.turn = 0
+    }
+    const turn = ++this.turn
     const open = new MinHeap()
+    seen[startIndex] = turn
     gScore[startIndex] = 0
+    cameFrom[startIndex] = -1
     open.push(startIndex, this.heuristic(from.cx, from.cz, to.cx, to.cz))
 
     const neighbors = [
@@ -151,8 +181,8 @@ export class NavGrid {
         found = true
         break
       }
-      if (closed[current]) continue
-      closed[current] = 1
+      if (closed[current] === turn) continue
+      closed[current] = turn
       const cx = current % n
       const cz = (current - cx) / n
       for (const [dx, dz, cost] of neighbors) {
@@ -162,9 +192,10 @@ export class NavGrid {
         // 대각선으로 모서리를 파고들지 않게 한다.
         if (dx !== 0 && dz !== 0 && (this.isBlockedCell(cx + dx, cz) || this.isBlockedCell(cx, cz + dz))) continue
         const next = nz * n + nx
-        if (closed[next]) continue
+        if (closed[next] === turn) continue
         const tentative = gScore[current]! + cost
-        if (tentative < gScore[next]!) {
+        if (seen[next] !== turn || tentative < gScore[next]!) {
+          seen[next] = turn
           gScore[next] = tentative
           cameFrom[next] = current
           open.push(next, tentative + this.heuristic(nx, nz, to.cx, to.cz))

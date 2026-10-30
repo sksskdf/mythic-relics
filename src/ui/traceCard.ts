@@ -53,14 +53,14 @@ export function traceCard(god: God, ctx: TraceCardContext): HTMLElement {
         : ctx.state === 'busy' && ctx.waking
           ? `${josa(godDef(ctx.waking).name, '이')} 깨어난 뒤에 응답한다`
           : ctx.state === 'sealed'
-            ? `주신이 ${ctx.sealedUntil}단계가 되면 응답한다 (성소의 전설)`
+            ? `손에 쥔 신이 ${ctx.sealedUntil}단계가 되면 응답한다 (성소의 전설)`
             : '다가가면 흔적을 지키는 것들이 깨어난다'
   card.append(el('div', `rc__place${ctx.state === 'open' ? ' rc__place--ground' : ''}`, now))
 
-  // 주신이 되면: 무기와 궁극기
+  // 깨우면 얻는 것: 손(무기)과 심장(궁극기)
   const weapon = levelGains(god, 1).find((g) => g.kind === 'power')?.text ?? ''
   const main = el('section', 'rc__section')
-  main.append(el('div', 'rc__label', '주신이 되면'), el('p', 'rc__text', `${weapon} · 궁극기 「${def.ultimate.name}」`))
+  main.append(el('div', 'rc__label', '깨우면 손과 심장'), el('p', 'rc__text', `${weapon} · 궁극기 「${def.ultimate.name}」`))
   card.append(main)
 
   // 빌려주는 힘: 첫 조각부터 켜진다

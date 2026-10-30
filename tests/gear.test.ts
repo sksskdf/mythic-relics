@@ -14,8 +14,8 @@ describe('장비 규칙 (E13-01)', () => {
     expect(SLOT_PARTS).toEqual(['weapon', 'head', 'body', 'hands', 'feet', 'trinket', 'trinket'])
   })
 
-  it('등급 넷, 수치 개수 1~4, 확률 합 1', () => {
-    expect(GRADES.map((g) => GEAR.grades[g].stats)).toEqual([1, 2, 3, 4])
+  it('등급 다섯, 수치 개수 1~5, 확률 합 1', () => {
+    expect(GRADES.map((g) => GEAR.grades[g].stats)).toEqual([1, 2, 3, 4, 5])
     expect(GRADES.reduce((s, g) => s + GEAR.grades[g].chance, 0)).toBeCloseTo(1)
   })
 
@@ -45,8 +45,10 @@ describe('장비 굴리기 (E13-02)', () => {
         for (let i = 0; i < 30; i++) {
           const item = rollGear(rng, { part, grade })
           const g = GEAR.grades[grade]
-          expect(item.stats.length).toBe(g.stats)
-          expect(new Set(item.stats.map((s) => s.kind)).size).toBe(g.stats)
+          // 전설(수치 다섯)은 수치가 넷뿐인 부위에서 넷까지
+          const count = Math.min(g.stats, GEAR.parts[part].stats.length)
+          expect(item.stats.length).toBe(count)
+          expect(new Set(item.stats.map((s) => s.kind)).size).toBe(count)
           for (const s of item.stats) {
             expect(GEAR.parts[part].stats).toContain(s.kind)
             const [lo, hi] = GEAR.ranges[s.kind]
@@ -59,7 +61,8 @@ describe('장비 굴리기 (E13-02)', () => {
           }
           expect(item.source.value).toBeGreaterThanOrEqual(g.source[0])
           expect(item.source.value).toBeLessThanOrEqual(g.source[1])
-          expect(item.unique !== undefined).toBe(grade === 'hero')
+          expect(item.unique !== undefined).toBe(grade === 'hero' || grade === 'legend')
+          expect(item.unique2 !== undefined).toBe(grade === 'legend')
           expect(isGearUid(item.uid)).toBe(true)
           expect(gearName(item)).toContain(item.base)
         }
@@ -69,16 +72,16 @@ describe('장비 굴리기 (E13-02)', () => {
 
   it('등급 확률을 따르고, 보스는 최소 등급 아래로 나오지 않는다', () => {
     const rng = createRng(3)
-    const counts = { common: 0, good: 0, rare: 0, hero: 0 }
+    const counts = { common: 0, good: 0, rare: 0, hero: 0, legend: 0 }
     for (let i = 0; i < 20000; i++) counts[rollGrade(rng)] += 1
     for (const g of GRADES) expect(counts[g] / 20000).toBeCloseTo(GEAR.grades[g].chance, 1)
-    for (let i = 0; i < 200; i++) expect(['rare', 'hero']).toContain(rollGrade(rng, 'rare'))
+    for (let i = 0; i < 200; i++) expect(['rare', 'hero', 'legend']).toContain(rollGrade(rng, 'rare'))
   })
 })
 
 describe('장비 단계와 땅의 드랍 표 (E21-03)', () => {
-  it('등급 배율은 1 / 1.3 / 1.7 / 2.2, 단계마다 ×1.4', () => {
-    expect(GRADES.map((g) => GEAR.grades[g].scale)).toEqual([1, 1.3, 1.7, 2.2])
+  it('등급 배율은 1 / 1.3 / 1.7 / 2.2 / 2.8, 단계마다 ×1.4', () => {
+    expect(GRADES.map((g) => GEAR.grades[g].scale)).toEqual([1, 1.3, 1.7, 2.2, 2.8])
     expect(tierScale(1)).toBe(1)
     expect(tierScale(3)).toBeCloseTo(1.96)
   })
@@ -99,9 +102,11 @@ describe('장비 단계와 땅의 드랍 표 (E21-03)', () => {
 
   it('땅 자리마다 드랍 표: 깊을수록 좋은 등급이 잦고 더 자주 떨어진다', () => {
     expect([...LAND_ZONES]).toEqual([...REGION_ZONES])
-    const hero = LAND_ZONES.map((z) => landChances(z).hero)
-    expect(hero[0]).toBeLessThan(hero[1]!)
-    expect(hero[1]).toBeLessThan(hero[2]!)
+    // 영웅·전설은 합쳐야만 나온다 (E303): 깊을수록 희귀가 잦다
+    const rare = LAND_ZONES.map((z) => landChances(z).rare)
+    expect(rare[0]).toBeLessThan(rare[1]!)
+    expect(rare[1]).toBeLessThan(rare[2]!)
+    for (const z of LAND_ZONES) expect(landChances(z).hero + landChances(z).legend).toBe(0)
     expect(GEAR.lands.entrance.rate).toBeLessThan(GEAR.lands.boss.rate)
     expect(landChances(null)).toEqual(Object.fromEntries(GRADES.map((g) => [g, GEAR.grades[g].chance])))
   })

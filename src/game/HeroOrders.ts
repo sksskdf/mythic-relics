@@ -62,11 +62,16 @@ export class HeroOrders {
 
   /** 누른 채로 커서를 움직이고 있다. */
   hold(ground: Point2 | null): void {
-    if (!this.following || !ground || this.order?.kind !== 'move' || this.hero.locked) return
-    if (this.hero.canRepath) {
-      this.hero.moveTo(ground)
-      this.destination = { ...ground }
+    if (!this.following || !ground || this.hero.locked || !this.hero.canRepath) return
+    if (this.order?.kind !== 'move') {
+      // 도착하거나 막혀 지시가 끝났다. 누른 채 커서가 그곳을 벗어나면 다시 따라간다 (같은 곳을 밀며 제자리걸음하지 않게)
+      const d = this.destination
+      if (d && Math.hypot(ground.x - d.x, ground.z - d.z) < 0.5) return
+      this.order = { kind: 'move' }
+      this.combat.focus = null
     }
+    this.hero.moveTo(ground)
+    this.destination = { ...ground }
   }
 
   release(): void {

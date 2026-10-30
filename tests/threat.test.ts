@@ -8,7 +8,7 @@ import { SOURCE_IDS } from '../src/data/schema'
 import { THREAT_MAX, threatElite, threatGrades, threatScale } from '../src/data/threat'
 import { Lightning } from '../src/fx/Lightning'
 import { Puffs } from '../src/fx/Puffs'
-import { MYTH_RELICS, STAGE_SOURCE } from '../src/gear/mythRelic'
+import { MYTH_RELICS } from '../src/gear/mythRelic'
 import { GEAR } from '../src/gear/roll'
 import { HeroController } from '../src/game/HeroController'
 import type { CombatTarget } from '../src/game/PlayerCombat'
@@ -50,13 +50,13 @@ function setup(enemies: CombatTarget[]) {
   return { ctx, hits }
 }
 
-/** 원천 하나에 몬 장비: 그 등급 일반 장비 여섯 + 그 원천 신화의 유물 */
+/** 원천 하나에 몬 장비: 그 등급 일반 장비 여섯 + 그 원천 신화의 유물 (유물은 원천을 주지 않는다, E303-04) */
 function stacked(source: (typeof SOURCE_IDS)[number], grade: (typeof GRADES)[number], stage: number) {
   const value = GEAR.grades[grade].source[1]
   const relic = MYTH_RELICS.find((id) => godDef(relicDef(id).god).source === source)!
   return computeBuild({
     open: new Map(),
-    chosen: [],
+    hand: null,
     gear: [relic],
     gearItems: Array.from({ length: 6 }, () => ({ stats: [], source: { id: source, value } })),
     stage: () => stage,
@@ -70,11 +70,12 @@ describe('원천 각성 규칙 (E14-01)', () => {
     expect(AWAKEN_AT).toEqual([5, 10, 20])
   })
 
-  it('원천마다: 한 원천에 몰면 영웅 장비 + 4단계 유물로 3단계, 흔함 장비만이면 1단계', () => {
+  it('원천마다: 한 원천에 몰면 전설 장비로 3단계, 영웅 장비로 2단계, 흔함 장비만이면 1단계', () => {
     for (const source of SOURCE_IDS) {
-      const top = stacked(source, 'hero', 4)
-      expect(top.sources[source], source).toBe(6 * 3 + STAGE_SOURCE[3]!)
+      const top = stacked(source, 'legend', 4)
+      expect(top.sources[source], source).toBe(6 * GEAR.grades.legend.source[1])
       expect(top.awakening[source], source).toBe(3)
+      expect(stacked(source, 'hero', 4).awakening[source], source).toBe(2)
       expect(stacked(source, 'common', 1).awakening[source], source).toBe(1)
     }
   })
@@ -82,7 +83,7 @@ describe('원천 각성 규칙 (E14-01)', () => {
   it('둘로 나누면 두 원천 모두 2단계에 머문다 (몰지 나눌지가 선택)', () => {
     const split = computeBuild({
       open: new Map(),
-      chosen: [],
+      hand: null,
       gear: [],
       gearItems: [...Array.from({ length: 3 }, () => ({ stats: [], source: { id: 'flame' as const, value: 4 } })), ...Array.from({ length: 3 }, () => ({ stats: [], source: { id: 'stone' as const, value: 4 } }))],
       promotions: 0,

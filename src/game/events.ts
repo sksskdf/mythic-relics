@@ -23,8 +23,12 @@ export interface GameEvents {
   relicPicked: { id: RelicId }
   /** 대장간에서 유물을 만들거나 올렸다 (E13-05) */
   forged: { relic: RelicId; stage: number }
-  /** 일반 장비를 분해했다 (E13-07-3) */
+  /** 일반 장비를 녹였다 (E13-07-3 → E303-04) */
   gearSalvaged: { item: GearItem }
+  /** 셋을 합쳐 한 등급 위가 나왔다 (E303) */
+  gearMerged: { item: GearItem }
+  /** 궁극기가 나갔다 (E303: 고유 효과 「신의 숨결」) */
+  ultimateCast: Record<string, never>
   /** 시련이 끝났다 (E16): 이겼나, 걸린 시간 */
   trialEnded: { id: string; level: number; win: boolean; seconds: number }
   /** 한계를 깼다 (E17-01) */

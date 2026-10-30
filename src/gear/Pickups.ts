@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { GRADES } from '../data/gearData'
 
 import { EFFECT_LAYER } from '../render/PixelRenderer'
 import { voxelMesh } from '../voxel/mesher'
@@ -10,6 +11,8 @@ import { godDef, isRelicId, relicDef } from '../relics/data'
 import { gearGrid } from '../voxel/models/gearLooks'
 import { GEAR, type GearItem } from './roll'
 
+/** 땅에 남는 일반 장비 수 끝 (E303) */
+const GROUND_GEAR_CAP = 24
 /** 주울 수 있는 거리 (m) */
 const PICK_RADIUS = 1.1
 /** 주운 것이 주인공 품으로 날아드는 시간 (초) */
@@ -86,6 +89,14 @@ export class Pickups {
 
     this.object.add(root)
     this.items.push({ id, ...(gear ? { gear } : {}), root, model, beam, x, z, armed, placed: !armed, phase: Math.random() * 6 })
+    // 땅에 남는 일반 장비는 24개까지 (E303, 성능): 넘치면 가장 낮은 등급의 오래된 것부터 사라진다.
+    // 플레이어가 일부러 내려놓은 것은 지우지 않는다
+    const gearOnGround = this.items.filter((i) => i.gear && !i.placed)
+    if (gearOnGround.length > GROUND_GEAR_CAP) {
+      const rank = (g: GearItem) => GRADES.indexOf(g.grade)
+      const lowest = gearOnGround.reduce((a, b) => (rank(b.gear!) < rank(a.gear!) ? b : a))
+      this.discard(this.items.indexOf(lowest))
+    }
   }
 
   /** 땅의 유물을 줍지 않고 없앤다 (점검용) */
@@ -136,7 +147,7 @@ export class Pickups {
    * reach: 그것을 줍는 거리 (엔딩 뒤 편의 자동화의 자동 줍기·재료 자동 모음, 없으면 발밑). 내려놓은 것은 늘 발밑.
    * 주운 것은 빛기둥이 꺼지며 주인공 품으로 날아들어 사라진다 (사용자 의견 2026-10-28: 얻는 표현이 모자라다)
    */
-  update(dt: number, heroX: number, heroZ: number, canPick: (id: string) => boolean, reach?: (id: string, gear?: GearItem) => number): { id: string; gear?: GearItem }[] {
+  update(dt: number, heroX: number, heroZ: number, canPick: (id: string, gear?: GearItem) => boolean, reach?: (id: string, gear?: GearItem) => number): { id: string; gear?: GearItem }[] {
     const picked: { id: string; gear?: GearItem }[] = []
     for (let i = this.flying.length - 1; i >= 0; i--) {
       const f = this.flying[i]!
@@ -168,7 +179,7 @@ export class Pickups {
         continue
       }
       const far = item.placed ? 0 : (reach?.(item.id, item.gear) ?? 0)
-      if (dist <= Math.max(PICK_RADIUS, far) && canPick(item.id)) {
+      if (dist <= Math.max(PICK_RADIUS, far) && canPick(item.id, item.gear)) {
         picked.push({ id: item.id, ...(item.gear ? { gear: item.gear } : {}) })
         this.items.splice(i, 1)
         this.flying.push({ item, t: 0 })
