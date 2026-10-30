@@ -406,8 +406,8 @@ const sections = {
     const merged = await page.evaluate(() => {
       const g = window.__game
       const p = g.hero.object.position
-      // 같은 부위 보통 장비 셋을 발밑에 떨군다: 주울 때마다 셋이 모이면 저절로 합친다
-      for (let i = 0; i < 3; i++) g.dev.dropGear('feet', 'common', p.x, p.z)
+      // 같은 부위 보통 장비 넷을 발밑에 떨군다: 하나는 빈 발 칸에, 가방에 셋이 모이면 저절로 합친다
+      for (let i = 0; i < 4; i++) g.dev.dropGear('feet', 'common', p.x, p.z)
       g.advance(1.5, 1 / 30)
       return { grades: [...g.powers.loadout.gear.values()].map((x) => x.grade) }
     })

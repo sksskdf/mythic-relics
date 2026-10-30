@@ -44,6 +44,8 @@ export interface ExpeditionParts {
 export class ExpeditionSystem {
   /** 「아직」을 눌렀다: 화로를 떠났다 다시 올 때까지 카드를 띄우지 않는다 */
   private declined = false
+  /** 장비를 주웠다: 다음 프레임에 저절로 합친다 (주웠다는 알림은 가방에 넣기 전에 오므로, 넣은 뒤에 센다) */
+  private mergeDue = false
 
   constructor(
     private readonly ctx: GameContext,
@@ -53,7 +55,7 @@ export class ExpeditionSystem {
       if (giant.spec.boss !== undefined || isBossLike(giant.spec)) ctx.expedition.beatBoss()
     })
     // 귀환 횟수 자동화 (E304-03): 귀환 2부터 보통·좋음, 3부터 희귀를 주울 때 저절로 합친다
-    ctx.bus.on('gearPicked', () => this.autoMerge())
+    ctx.bus.on('gearPicked', () => (this.mergeDue = true))
   }
 
   /** 지난 원정 차례에서 아직 안 익힌 마디 하나를 익힌다 (익힐 수 있는 것이 없으면 그대로) */
@@ -77,6 +79,10 @@ export class ExpeditionSystem {
   update(dt: number): void {
     const { expedition, chapters, training } = this.ctx
     expedition.tick(dt)
+    if (this.mergeDue) {
+      this.mergeDue = false
+      this.autoMerge()
+    }
     // 다시 찍기 (귀환 1부터): 깨달음이 생기는 대로 지난 원정에서 익힌 차례대로
     if (expedition.retakes && training.unspent > 0) this.retake()
     expedition.reach(Math.max(1, chapters.index))
