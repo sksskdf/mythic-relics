@@ -9,7 +9,7 @@ import { GRADES, SLOT_PARTS } from '../../data/gearData'
 import { hiddenUnlocked } from '../../myth/manifest'
 import { relicGods } from '../../relics/model'
 import { type ChapterData, parseChapterData } from '../../progress/Chapters'
-import type { ConvenienceData } from '../../progress/Conveniences'
+import { parseWaypoints } from '../../progress/Waypoints'
 import { STARTING_LOOKS } from '../../looks/catalog'
 import { type God, godDef, GODS, isRelicId, relicDef, type RelicId } from '../../relics/data'
 import type { SaveData } from '../SaveData'
@@ -167,9 +167,18 @@ export function oldThreat(raw: unknown): { unlocked: number; cleared: Record<str
   return { unlocked: int(o.unlocked, 1, 99, 1), cleared }
 }
 
+/**
+ * 웨이포인트 키가 없는 저장(v16 이하, 그리고 E305-03 전의 v17 개발판): 옛 편의(`conveniences`)의 켠 성소(`visited`).
+ * 빠뜨리면 켠 성소가 모두 사라진다
+ */
+export function oldVisited(conveniences: unknown): string[] {
+  const o = (typeof conveniences === 'object' && conveniences !== null ? conveniences : {}) as Record<string, unknown>
+  return parseWaypoints(o.visited)
+}
+
 /** v9 이하 → v10: 장 진행을 그때까지 한 것에서 짐작한다 (E22) */
-export function oldChapters(region: SaveData['region'], conveniences: ConvenienceData, cleared: Readonly<Record<string, number>>, materials: Record<string, number>, owned: readonly RelicId[]): ChapterData {
-  const entered = new Set<string>([...(region ? [region.id] : []), ...conveniences.visited])
+export function oldChapters(region: SaveData['region'], visited: readonly string[], cleared: Readonly<Record<string, number>>, materials: Record<string, number>, owned: readonly RelicId[]): ChapterData {
+  const entered = new Set<string>([...(region ? [region.id] : []), ...visited])
   const beaten = (realm: string) => {
     const boss = Object.values(DATA.enemies).find((e) => e.boss && e.realm === realm && e.role === 'boss')?.boss
     const material = boss ? bossMaterial(boss) : undefined

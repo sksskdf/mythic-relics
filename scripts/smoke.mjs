@@ -513,8 +513,7 @@ try {
   // 세계 지도와 성소 워프 (E15-04): 지도 탭에 모든 땅 (E22: 마지막 무대까지 열일곱 곳), 찾은 성소를 누르면 그 땅으로
   await page.evaluate(() => {
     const g = window.__game
-    g.conveniences.open.add('warp')
-    g.conveniences.visited.add('jotunheim')
+    g.waypoints.light('jotunheim')
   })
   await page.click('.minimap')
   const mapLabels = await page.locator('.menu-map__label').count()
@@ -532,7 +531,7 @@ try {
   // 저장 왕복: 로키를 빌린 칸에 넣고, 정보 화면을 열어 멈춘 채(창을 닫을 때 다시 저장해도 같게) 저장한다
   const keep = () => {
     const d = window.__game.snapshot()
-    return { pantheon: d.pantheon, waking: d.awaken.waking, fragments: d.awaken.fragments, slots: d.slots, bag: d.bag, stages: d.stages, taken: d.training.taken, ending: d.ending, threat: d.threat.reached, open: d.conveniences.open.filter((id) => id !== 'warp'), visited: d.conveniences.visited }
+    return { pantheon: d.pantheon, waking: d.awaken.waking, fragments: d.awaken.fragments, slots: d.slots, bag: d.bag, stages: d.stages, taken: d.training.taken, ending: d.ending, depth: d.threat.reached, pickups: d.conveniences.counters.pickups ?? 0, waypoints: d.waypoints, lastBranch: d.expedition.lastBranch }
   }
   await page.evaluate(() => {
     window.__game.relics.place('breath', 'loki')
@@ -564,7 +563,7 @@ try {
   // 세계 자리 (E19-05): 지역 id + 지역 안 좌표가 곧 이어진 세계의 자리다
   const back = await page.evaluate(() => ({ x: window.__game.hero.object.position.x, z: window.__game.hero.object.position.z }))
   if (Math.hypot(back.x - savedAt.x, back.z - savedAt.z) > 1) throw new Error(`이어서 플레이 실패: 저장한 자리가 아닙니다 ${JSON.stringify({ savedAt, back })}`)
-  console.log('저장 확인: 새로 고침하면 단추 없이 바로 이어서, 유물·일반 장비·재료와 고른 외형, 신의 자리·조각·단계·수련·위협·웨이포인트, 있던 지역과 자리 유지')
+  console.log('저장 확인: 새로 고침하면 단추 없이 바로 이어서, 유물·일반 장비·재료와 고른 외형, 신의 자리·조각·단계·수련·깊이·자동화 세기·웨이포인트, 있던 지역과 자리 유지')
   // 귀환 점검 (E304): 원정이 무르익어(2분·기세 8) 성소 화로에 서면 귀환 카드. 승천을 고르면 명성·단계가 오르고 일반 장비는 가보 하나만 남는다
   await page.evaluate(() => {
     const g = window.__game
@@ -587,9 +586,10 @@ try {
     const g = window.__game
     const before = { level: g.progress.level('thor'), gear: g.powers.loadout.gear.size, depth: g.depth.level }
     document.querySelector('.return-card .pick-card__card').click()
-    return { before, after: { level: g.progress.level('thor'), gear: g.powers.loadout.gear.size, heirloom: g.expedition.heirloom.length, count: g.expedition.count, renown: g.expedition.renown, open: g.returnCardOpen, depth: g.depth.level, reached: g.depth.reached, foeHp: g.encounter.threat.hp } }
+    return { before, after: { level: g.progress.level('thor'), gear: g.powers.loadout.gear.size, heirloom: g.expedition.heirloom.length, count: g.expedition.count, renown: g.expedition.renown, open: g.returnCardOpen, depth: g.depth.level, reached: g.depth.reached, foeHp: g.encounter.threat.hp, lastBranch: g.expedition.lastBranch } }
   })
   if (returned.before.depth !== 1 || returned.after.depth !== 2 || returned.after.reached !== 2 || !(returned.after.foeHp > 1)) throw new Error(`귀환: 「+1」을 골랐는데 다음 원정이 깊이 2가 아닙니다 ${JSON.stringify(returned)}`)
+  if (returned.after.lastBranch !== 'ascend:thor') throw new Error(`귀환: 고른 갈래가 지난번 갈래로 남지 않았습니다 ${JSON.stringify(returned)}`)
   if (returned.after.count !== 2 || !(returned.after.renown > 0) || returned.after.open) throw new Error(`귀환: 갈래를 눌렀는데 원정이 넘어가지 않았습니다 ${JSON.stringify(returned)}`)
   if (returned.after.level !== returned.before.level + 1 || returned.after.gear !== returned.after.heirloom || returned.after.heirloom > 1) throw new Error(`귀환: 승천·장비 지우기가 맞지 않습니다 ${JSON.stringify(returned)}`)
   console.log(`귀환 확인: 성소 화로에서 빛기둥과 카드, 토르 승천 ${returned.before.level} → ${returned.after.level}, 명성 ${returned.after.renown}, 장비 ${returned.before.gear} → 가보 ${returned.after.heirloom}, 「+1」로 깊이 1 → ${returned.after.depth}(적 생명 ×${returned.after.foeHp.toFixed(1)})`)
@@ -612,12 +612,18 @@ try {
     if (!g.combat.alive) g.dev.revive()
     g.orders.clear()
     // 귀환 1을 마친 원정이 무르익었다: 성소 화로에서 귀환하면 귀환 2
-    Object.assign(g.expedition, { count: 2, elapsed: 300 })
+    Object.assign(g.expedition, { count: 2, elapsed: 300, lastBranch: 'flame:stone' })
     g.training.xp = 5000
     g.hero.teleport(g.sanctuary.center.x, g.sanctuary.center.z)
     g.hero.stop()
   })
   await page.waitForFunction(() => window.__game.returnCardOpen, null, { timeout: 15000 })
+  // 지난번 갈래 그대로 (E305-03, 엔딩 뒤 자동화): 지난 귀환의 갈래가 맨 앞에 꼬리표와 함께
+  const sameBranch = await page.evaluate(() => {
+    const first = document.querySelector('.return-card:not(.oath-card) .pick-card__card')
+    return { tag: first?.querySelector('.return-card__again')?.textContent ?? null, name: first?.querySelector('b')?.textContent ?? null }
+  })
+  if (sameBranch.tag !== '지난번 그대로' || sameBranch.name !== '바위 불씨') throw new Error(`귀환: 엔딩 뒤 귀환 카드 맨 앞에 지난번 갈래(바위 불씨)가 없습니다 ${JSON.stringify(sameBranch)}`)
   await page.locator('.return-card:not(.oath-card) .pick-card__card').last().click()
   await page.waitForFunction(() => window.__game.oathCardOpen, null, { timeout: 15000 })
   const oathCards = await page.locator('.oath-card .pick-card__card').count()

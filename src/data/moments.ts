@@ -34,7 +34,7 @@ export const MOMENTS = {
   mythOpened: 2,
   mythSwitched: 2,
   mythLent: 2,
-  convenience: 2,
+  automation: 2,
   depthUp: 2,
   oathSworn: 2,
   riftCleared: 2,

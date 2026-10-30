@@ -1698,7 +1698,7 @@ button.menu-slots__slot {
   color: var(--c-ink-1);
 }
 
-/* 원천 (E14): 각성·깊이·편의 */
+/* 원천 (E14): 각성·귀환이 여는 것·깊이 */
 .menu-src {
   display: flex;
   flex-direction: column;
@@ -1837,7 +1837,8 @@ button.menu-slots__slot {
   color: var(--c-ink-4);
 }
 .menu-src__conv b {
-  min-width: 96px;
+  flex: none;
+  min-width: 56px;
   font-weight: normal;
 }
 .menu-src__conv.is-on {
@@ -1845,14 +1846,6 @@ button.menu-slots__slot {
 }
 .menu-src__conv.is-on b {
   color: var(--c-ink-1);
-}
-.menu-src__conv .ui-pill {
-  margin-left: auto;
-}
-.menu-src__warps {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-2);
 }
 .ui-pill img {
   width: 12px;

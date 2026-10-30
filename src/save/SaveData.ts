@@ -6,7 +6,8 @@ import { GEAR, type GearItem, parseGearItem } from '../gear/roll'
 import { MATERIAL_CAP } from '../gear/Loadout'
 import { legacyManifest } from '../myth/manifest'
 import { type ChapterData, parseChapterData } from '../progress/Chapters'
-import { type ConvenienceData, parseConveniences } from '../progress/Conveniences'
+import { type AutomationData, parseAutomation } from '../progress/Automation'
+import { parseWaypoints } from '../progress/Waypoints'
 import { type DepthData, parseDepth } from '../progress/Depth'
 import { type OathData, oathsFromTrials, parseOaths } from '../progress/Oaths'
 import { parseRift, type RiftData } from '../progress/Rift'
@@ -18,7 +19,7 @@ import { type BodyLook, parseBody } from '../looks/body'
 import { isLookId, lookDef, type LookSlot, STARTING_LOOKS, WARDROBE_SLOTS } from '../looks/catalog'
 import type { LookChoice } from '../looks/outfit'
 import { GODS, type God, isRelicId, type RelicId } from '../relics/data'
-import { legacySlots, legacyStarRenown, migrateLooks, oldChapters, oldThreat, oldTrainingXp, fillEmptySlots, meltOverflow, openOwned, realmToPrototype, refundCycle, refundMythMaterials } from './migrate/legacy'
+import { legacySlots, legacyStarRenown, migrateLooks, oldChapters, oldThreat, oldTrainingXp, oldVisited, fillEmptySlots, meltOverflow, openOwned, realmToPrototype, refundCycle, refundMythMaterials } from './migrate/legacy'
 
 /**
  * 저장 형식 버전. 형식이 바뀌면 올리고, 옛 형식을 옮기는 코드를 둔다.
@@ -49,6 +50,7 @@ import { legacySlots, legacyStarRenown, migrateLooks, oldChapters, oldThreat, ol
  * - v17: 맹세 (E305-01). 시련 기록(trials) → 맹세 기록(oaths), 원정에 건 맹세(expedition.oath). 한 단계라도 깬 시련은 짝인 맹세를 지킨 것으로.
  *   균열의 성좌판을 걷었다(E305-03): rift는 깊이 기록만, 밝힌 별과 남은 별 하나마다 명성 20
  *   위협 단계는 깊이로(E305-03): 키 threat는 그대로 {level, reached, limitBroken}, 열린 단계·신화권마다 이긴 단계는 버린다(v9 이하 옮기기만 `oldThreat`로 읽는다)
+ *   편의는 자동화로(E305-03): 키 conveniences는 그대로 {counters:{pickups}}만, 켠 성소(visited)는 새 키 waypoints로. 원정에 지난번 갈래(expedition.lastBranch)
  */
 export const SAVE_VERSION = 17
 
@@ -84,8 +86,10 @@ export interface SaveData {
   body: BodyLook
   /** 깊이 (E305-03, 옛 위협 단계 E14라 키 이름은 그대로). 옛 저장에는 없어서 1 */
   threat: DepthData
-  /** 편의 자동화 (E14-05) */
-  conveniences: ConvenienceData
+  /** 자동화 세기 (E305-03, 옛 편의 E14-05라 키 이름은 그대로): 주운 수만. 나머지 자동화는 귀환 횟수·엔딩에서 셈한다 */
+  conveniences: AutomationData
+  /** 웨이포인트: 밟아 켠 성소의 땅 (E239-05, E305-03에서 편의에서 뗌). 없으면 옛 편의의 visited에서 */
+  waypoints: string[]
   /** 맹세: 지킨 맹세와 기록 (E305-01, v16 이하는 시련 기록에서) */
   oaths: OathData
   /** 균열 기록 (E17, 성좌판은 E305-03에서 걷음) */
@@ -219,8 +223,9 @@ export function parseSave(text: string | null): SaveData | null {
   const oldDanger = (data.version as number) < 10 ? oldThreat(data.threat) : null
   const tried = threat.limitBroken || (oldDanger?.unlocked ?? 1) > 1 || oaths.kept.length > 0 || rift.best > 0
   const region = parseRegion(data.region)
-  const conveniences = parseConveniences(data.conveniences)
-  const chapters = oldDanger ? oldChapters(region, conveniences, oldDanger.cleared, materials, relicsOwned) : parseChapterData(data.chapters)
+  // 웨이포인트는 키가 있는지로 옛 모양을 알아본다 (E305-03 전의 v17 개발판도 편의에 담았다)
+  const waypoints = Array.isArray(data.waypoints) ? parseWaypoints(data.waypoints) : oldVisited(data.conveniences)
+  const chapters = oldDanger ? oldChapters(region, waypoints, oldDanger.cleared, materials, relicsOwned) : parseChapterData(data.chapters)
   const awaken = openedAwaken(parseAwaken(data.awaken), myths)
   return {
     version: SAVE_VERSION,
@@ -239,7 +244,8 @@ export function parseSave(text: string | null): SaveData | null {
     looks: data.version === 1 ? migrateLooks(legacySlots(data.slots), legacySlots(data.bag) as RelicId[], classes) : parseLooks(data.looks),
     body: parseBody(data.body),
     threat,
-    conveniences,
+    conveniences: parseAutomation(data.conveniences),
+    waypoints,
     oaths,
     rift,
     ending: data.ending === true || ((data.version as number) < 9 && tried),

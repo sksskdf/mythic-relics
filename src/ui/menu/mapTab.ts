@@ -37,7 +37,6 @@ function frame(points: readonly { x: number; y: number }[]): { cx: number; cy: n
 export function renderMap(ctx: TabContext, body: HTMLElement): void {
   const { world } = ctx.host
   const nodes = world.nodes().map((n) => ({ ...n, ...view(n) }))
-  const warp = world.canWarp()
   const goal = world.goal()
   const traces = world.traces()
   const wrap = el('div', 'menu-map')
@@ -107,7 +106,7 @@ export function renderMap(ctx: TabContext, body: HTMLElement): void {
   const sides = new Map([...nodes].sort((a, b) => Number(named(b)) - Number(named(a))).map((n) => [n.id, named(n) ? place(n) : '']))
   for (const n of nodes) {
     const g = document.createElementNS(NS, 'g')
-    g.setAttribute('class', `menu-map__node${n.here ? ' is-here' : ''}${n.found ? ' is-found' : ''}${n.locked ? ' is-locked' : ''}${warp && n.found && !n.here ? ' can-warp' : ''}`)
+    g.setAttribute('class', `menu-map__node${n.here ? ' is-here' : ''}${n.found ? ' is-found' : ''}${n.locked ? ' is-locked' : ''}${n.found && !n.here ? ' can-warp' : ''}`)
     g.style.setProperty('--realm', n.color)
     const shape = document.createElementNS(NS, n.zone === 'boss' ? 'rect' : 'circle')
     if (n.zone === 'boss') {
@@ -154,11 +153,11 @@ export function renderMap(ctx: TabContext, body: HTMLElement): void {
     label.style.top = `${((n.y - cy + half) / (half * 2)) * 100}%`
     label.append(el('span', '', n.name))
     if (n.zone === 'boss' && n.beaten) label.append(el('small', '', '이김'))
-    label.disabled = !(warp && n.found && !n.here)
+    label.disabled = !(n.found && !n.here)
     label.addEventListener('click', () => world.warp(n.id) && ctx.close())
     ctx.hintOn(label, () => {
       const zone = n.zone === 'entrance' ? '입구 들판' : n.zone === 'deep' ? '깊은 땅 (정예가 많다)' : n.zone === 'boss' ? '보스의 땅' : '마을'
-      const how = n.here ? '지금 여기' : warp ? (n.found ? '누르면 바로 간다' : '성소를 밟으면 켜진다') : n.found ? '성소를 켰다' : '아직 성소를 켜지 않았다'
+      const how = n.here ? '지금 여기' : n.found ? '누르면 바로 간다' : '성소를 밟으면 켜진다'
       const won = n.zone === 'boss' && n.beaten ? ' · 이김' : ''
       const seal = n.locked ? '\n결계로 막혀 있다' : ''
       const next = goal?.region === n.id ? `\n다음 목표: ${goal.text}` : ''
@@ -182,6 +181,6 @@ export function renderMap(ctx: TabContext, body: HTMLElement): void {
   board.append(svg, labels)
   wrap.append(board)
   // 웨이포인트 (E239-05): 처음부터 켠 성소와 마을로 바로 간다
-  if (warp) wrap.append(el('div', 'menu-src__text', '켠 성소나 마을을 누르면 바로 간다'))
+  wrap.append(el('div', 'menu-src__text', '켠 성소나 마을을 누르면 바로 간다'))
   body.append(wrap)
 }

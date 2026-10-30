@@ -14,7 +14,7 @@ import { MYTH_RELICS, mythRelic, relicMyth, stageName } from '../gear/mythRelic'
 import { GEAR } from '../gear/roll'
 import { TRAINING_UNIQUES } from '../skills/uniques'
 import { levelGains } from '../myth/levelGains'
-import { CONVENIENCES } from '../progress/Conveniences'
+import { AUTOMATION_STEPS } from '../progress/Automation'
 import { BRANCHES, insightProgress, TRAINING_NODES } from '../data/training'
 import { statText } from '../myth/alwaysText'
 import type { StatKind } from '../data/mythAlways'
@@ -43,7 +43,7 @@ export class MenuData {
   /** 정보 화면이 읽고 부르는 것 */
   host(): MenuHost {
     const { game, ctx, relics } = this.parts
-    const { powers, conveniences, bus, appearance } = game
+    const { powers, waypoints, appearance } = game
     return {
       get slots() {
         return powers.loadout.slots
@@ -115,22 +115,13 @@ export class MenuData {
       sources: {
         rows: () => this.sourceRows(),
         depth: this.depthView(),
-        conveniences: () => CONVENIENCES.map((c) => ({ id: c.id, name: c.name, text: c.text, open: conveniences.has(c.id), have: conveniences.counters[c.counter] ?? 0, need: c.need })),
-        get autoSalvage() {
-          return conveniences.autoSalvage
+        // 귀환이 여는 것 (E305-03, `CYCLE.md` 3.5): 엔딩 전에도 보인다. 엔딩을 봤으면 귀환 3 이상으로 친다
+        automation: () => {
+          const returns = game.expedition.returns
+          const ending = game.ending.reached
+          return AUTOMATION_STEPS.map((s) => ({ name: s.name, lines: s.lines, on: s.at === null ? ending : ending || returns >= s.at }))
         },
-        set autoSalvage(on: boolean) {
-          conveniences.autoSalvage = on
-          // 바꾼 설정도 저장한다
-          bus.emit('progressChanged', {})
-        },
-        warps: () => {
-          if (!conveniences.has('warp')) return []
-          return Object.values(game.regions)
-            .filter((r) => r.id !== ctx.map.region.id && (r.kind === 'hub' || conveniences.visited.has(r.id)))
-            .map((r) => ({ id: r.id, name: r.name }))
-        },
-        warp: (id) => game.warpTo(id),
+        returns: () => game.expedition.returns,
       },
       oaths: {
         current: () => (game.expedition.oath ? OATHS[game.expedition.oath].name : null),
@@ -182,7 +173,7 @@ export class MenuData {
             size: (r.halfExtent * 2) / CELL,
             links: r.exits.map((e) => e.to),
             here: r.id === ctx.map.region.id,
-            found: r.kind === 'hub' || conveniences.visited.has(r.id),
+            found: r.kind === 'hub' || waypoints.has(r.id),
             beaten: ctx.chapters.bosses.has(r.id),
             locked: !ctx.chapters.isOpen(r.id),
           }))
@@ -212,7 +203,6 @@ export class MenuData {
           const p = ctx.hero.object.position
           return { x: (o.x + p.x) / CELL, y: (o.z + p.z) / CELL }
         },
-        canWarp: () => conveniences.has('warp'),
         warp: (id) => game.warpTo(id),
       },
       wardrobe: {

@@ -9,11 +9,11 @@ import { el, img, type TabContext } from './dom'
 const SOURCE_HELP = {
   awaken: '원천 각성\n장비마다 붙은 원천 수치를 더한 값이 5·10·20을 넘을 때마다 그 원천이 한 단계씩 깨어난다. 한 원천에 몰면 3단계, 나누면 두 원천이 2단계쯤.',
   depth: '깊이\n세계 전체의 난이도. 깊을수록 적이 세지고 정예가 늘며, 장비 등급과 재료가 좋아진다. 귀환 카드에서 다음 원정을 그대로나 한 걸음 더 깊이 고른다.',
-  convenience: '편의\n같은 일을 여러 번 하면 손이 덜 가게 하나씩 열린다. 싸움은 그대로 내 몫이다.',
+  automation: '귀환이 여는 것\n귀환할수록 손이 덜 가는 일이 하나씩 저절로 된다. 엔딩을 봤으면 귀환 3 이상으로 친다. 싸움은 그대로 내 몫이다.',
 }
 
 /**
- * 원천 탭 (E14): 원천 넷의 각성. 엔딩 뒤에는 깊이(읽기만, 고르기는 귀환 카드)와 편의 자동화도 (E21-06, E305-03).
+ * 원천 탭 (E14): 원천 넷의 각성과 귀환이 여는 것(자동화, 엔딩 전에도). 엔딩 뒤에는 깊이도 (읽기만, 고르기는 귀환 카드, E305-03).
  */
 export function renderSources(ctx: TabContext, body: HTMLElement): void {
   const { sources } = ctx.host
@@ -52,7 +52,17 @@ export function renderSources(ctx: TabContext, body: HTMLElement): void {
   awaken.append(grid)
   wrap.append(awaken)
 
-  // 엔딩 뒤: 깊이(읽기만)와 편의 (E21-06, E305-03)
+  // 귀환이 여는 것 (E305-03, `CYCLE.md` 3.5): 귀환 1·2·3·엔딩, 켜진 것은 밝게
+  const auto = el('section', 'menu-src__panel menu-src__auto')
+  auto.append(titled(`귀환이 여는 것 · 귀환 ${sources.returns()}`, SOURCE_HELP.automation))
+  for (const step of sources.automation()) {
+    const line = el('div', `menu-src__conv${step.on ? ' is-on' : ''}`)
+    line.append(el('b', '', step.name), el('small', '', step.lines.join(' · ')))
+    auto.append(line)
+  }
+  wrap.append(auto)
+
+  // 엔딩 뒤: 깊이 (읽기만, E21-06·E305-03)
   if (!ctx.host.afterEnding()) {
     body.append(wrap)
     return
@@ -63,35 +73,5 @@ export function renderSources(ctx: TabContext, body: HTMLElement): void {
   depth.append(el('div', 'menu-src__text', `가 본 가장 깊은 곳 ${d.reached} · 다음 원정의 깊이는 귀환 카드에서 고른다`))
   depth.append(el('div', 'menu-src__text', d.limitBroken ? '한계를 깼다: 깊이의 끝이 없다' : `깊이 ${DEPTH_LIMIT} 원정에서 장 보스나 수호자를 이기고 귀환하면 한계를 깬다`))
   wrap.append(depth)
-
-  // 편의
-  const conv = el('section', 'menu-src__panel')
-  conv.append(titled('편의', SOURCE_HELP.convenience))
-  for (const c of sources.conveniences()) {
-    const line = el('div', `menu-src__conv${c.open ? ' is-on' : ''}`)
-    line.append(el('b', '', c.name), el('small', '', c.open ? c.text : `${Math.min(c.have, c.need)} / ${c.need}`))
-    if (c.id === 'autoSalvage' && c.open) {
-      const toggle = el('button', 'ui-pill', sources.autoSalvage ? '켬' : '끔')
-      toggle.type = 'button'
-      toggle.addEventListener('click', () => {
-        sources.autoSalvage = !sources.autoSalvage
-        ctx.render()
-      })
-      line.append(toggle)
-    }
-    conv.append(line)
-  }
-  const warps = sources.warps()
-  if (warps.length > 0) {
-    const row = el('div', 'menu-src__warps')
-    for (const w of warps) {
-      const b = el('button', 'ui-pill', w.name)
-      b.type = 'button'
-      b.addEventListener('click', () => sources.warp(w.id) && ctx.close())
-      row.append(b)
-    }
-    conv.append(row)
-  }
-  wrap.append(conv)
   body.append(wrap)
 }

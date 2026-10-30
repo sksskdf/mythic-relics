@@ -1,6 +1,7 @@
 import type { Build } from '../build/Build'
 import type { UniqueState } from '../skills/uniques'
-import type { Conveniences } from '../progress/Conveniences'
+import type { AutomationProgress } from '../progress/Automation'
+import type { Waypoints } from '../progress/Waypoints'
 import type { ChapterProgress } from '../progress/Chapters'
 import type { ExpeditionProgress } from '../progress/Expedition'
 import type { TrainingProgress } from '../progress/Training'
@@ -85,8 +86,10 @@ export interface GameContext {
   readonly rift: RiftProgress
   /** 맹세 기록과 영구 보상 (E305-01) */
   readonly oaths: OathProgress
-  /** 편의 자동화 (E14-05) */
-  readonly conveniences: Conveniences
+  /** 자동화 세기 (E305-03: 귀환 횟수·엔딩·주운 수로 켜진다) */
+  readonly automation: AutomationProgress
+  /** 웨이포인트: 밟아 켠 성소 (E239-05) */
+  readonly waypoints: Waypoints
   /** 첫 엔딩을 보았나: 엔딩 뒤 장치를 연다 (E21-06) */
   readonly ending: Ending
   /** 장 진행: 지금 장·목표·열린 땅 (E22) */

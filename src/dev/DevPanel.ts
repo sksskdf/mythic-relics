@@ -1,5 +1,6 @@
 import { THEME_IDS, type ThemeId } from '../audio/music'
 import { CONQUESTS } from '../data/chapters'
+import { AUTOMATION } from '../data/cycle'
 import { SOUND_CUES } from '../audio/sounds'
 import { type Realm, REALM_NAMES, REALMS } from '../data/classKit'
 import { REGIONS } from '../data/regions'
@@ -270,7 +271,7 @@ export class DevPanel {
           }),
         ),
       ),
-      // 엔딩 뒤 장치 (E21-06)·깊이·편의 (E14, E305-03)
+      // 엔딩 뒤 장치 (E21-06)·깊이·자동화 (E305-03)
       row(
         button('엔딩 뒤로', () => {
           g.reachEnding()
@@ -301,8 +302,10 @@ export class DevPanel {
           g.rift.best += 5
           g.menu.refresh()
         }),
-        button('편의 모두', () => {
-          for (const id of ['autoPickup', 'autoSalvage', 'autoMaterials', 'quickChoose', 'warp'] as const) g.conveniences.open.add(id)
+        // 자동화 (E305-03): 귀환 3까지 마친 것으로(원정 번호를 덮어씀), 자동 줍기 세기도 채움 (자동 줍기는 엔딩 뒤)
+        button('자동화 모두', () => {
+          g.expedition.count = Math.max(g.expedition.count, 1 + AUTOMATION.endingReturns)
+          g.automation.pickups = Math.max(g.automation.pickups, AUTOMATION.pickup.need)
           g.menu.refresh()
         }),
       ),

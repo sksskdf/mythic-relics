@@ -74,6 +74,10 @@ export const AUTOMATION = {
   autoMerge: { good: 2, rare: 3 } as const,
   /** 기세 출발점: 귀환 횟수 → 지난 원정 최고 경험치의 몫 */
   head: [0, 0, 1 / 3, 1 / 2] as readonly number[],
+  /** 엔딩을 봤으면 귀환 횟수를 이만큼은 친다 (자동화를 유지, `expedition.count`는 그대로, E305-03) */
+  endingReturns: 3,
+  /** 자동 줍기 (엔딩 뒤): 장비·재료를 이만큼 주운 뒤 열리고, 둘레 이 거리(m) 안의 장비를 걸어가지 않아도 줍는다. 재료 유물은 어디서나 */
+  pickup: { need: 20, radius: 5 },
 } as const
 
 /** 귀환 횟수 n일 때 (표 끝을 넘으면 마지막 값) */

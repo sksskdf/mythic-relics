@@ -1,7 +1,6 @@
-import { AUTO_PICKUP_RADIUS } from '../../progress/Conveniences'
 import * as THREE from 'three'
 
-import { SLOT_PARTS } from '../../data/gearData'
+import { AUTOMATION } from '../../data/cycle'
 import { type God, godDef, isRelicId, relicDef, type RelicId } from '../../relics/data'
 import { effectScale, isMythRelic, relicMyth, stageName } from '../../gear/mythRelic'
 import { GRADE_COLORS } from '../../art/palette'
@@ -244,7 +243,6 @@ export class RelicSystem {
     const item = powers.loadout.gear.get(id)
     const done = powers.melt(id)
     if (!done || !item) return false
-    bus.emit('gearSalvaged', { item })
     if (done.slot >= 0) this.changed(done.change, false)
     bus.emit('moment', { id: 'salvaged', text: `녹임 · ${materialName(done.material)} ×${done.count}` })
     bus.emit('progressChanged', {})
@@ -266,13 +264,6 @@ export class RelicSystem {
       const worn = wornId ? powers.loadout.gear.get(wornId) : undefined
       powers.loadout.addGear(gear)
       bus.emit('gearPicked', { item: gear })
-      // 자동 녹이기 (E14-05): 흔함 등급이고 그 부위 칸이 이미 차 있으면 바로 원형으로
-      const filled = powers.loadout.slots.every((s, i) => !powers.loadout.fits(id, i) || s !== null)
-      if (this.ctx.conveniences.salvaging && gear.grade === 'common' && filled) {
-        powers.loadout.bag.push(id)
-        this.melt(id)
-        return
-      }
       this.equip(id, true)
       // 빈 칸에 끼었으면 카드, 가방으로 갔는데 지금 낀 것보다 좋으면 견준 카드, 아니면 작은 알림 (E23-01)
       const card = { title: gearName(gear), color: GRADE_COLORS[gear.grade], icon: gearIcon(gear) }
@@ -320,7 +311,8 @@ export class RelicSystem {
     this.lastWalk.set(position.x, position.z)
 
     if (combat.alive) {
-      const conv = this.ctx.conveniences
+      // 자동 줍기 (E305-03, 엔딩 뒤 자동화): 둘레 장비는 걸어가지 않아도, 재료 유물은 어디서나
+      const auto = this.ctx.automation.now.autoPickup
       const picked = pickups.update(
         dt,
         position.x,
@@ -329,16 +321,13 @@ export class RelicSystem {
         (id, gear) => {
           if (powers.loadout.has(id)) return false
           if (!gear || powers.loadout.canTake(gear.part)) return true
-          // 자동 녹이기(엔딩 뒤 편의)가 받을 흔함 장비는 가방이 차도 줍는다 (줍자마자 녹는다)
-          if (conv.salvaging && gear.grade === 'common' && powers.loadout.slots.every((s, i) => SLOT_PARTS[i] !== gear.part || s !== null)) return true
           if (this.fullWarned <= 0) {
             this.ctx.bus.emit('moment', { id: 'bagFull', text: '가방이 찼다 · 셋을 합치면 자리가 난다' })
             this.fullWarned = 8
           }
           return false
         },
-        // 편의 자동화 (E14-05): 둘레 장비는 걸어가지 않아도, 재료 유물은 어디서나
-        (id, gear) => (gear ? (conv.has('autoPickup') ? AUTO_PICKUP_RADIUS : 0) : !isMythRelic(id) && conv.has('autoMaterials') ? Infinity : 0),
+        (id, gear) => (!auto ? 0 : gear ? AUTOMATION.pickup.radius : !isMythRelic(id) ? Infinity : 0),
       )
       for (const { id, gear } of picked) this.take(id, gear)
       powers.update(dt, skills)

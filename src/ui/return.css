@@ -63,3 +63,7 @@
   color: var(--c-ink-3);
   cursor: default;
 }
+/* 지난번 갈래 그대로 (E305-03, 엔딩 뒤 자동화): 맨 앞 갈래 위에 작은 꼬리표 */
+.return-card .pick-card__card .return-card__again {
+  color: var(--c-good);
+}

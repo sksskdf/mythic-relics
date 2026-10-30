@@ -1,7 +1,6 @@
 import { DEPTH_LIMIT, depthElite, depthScale } from '../../data/depth'
 import { ELITE_CHANCE } from '../../enemies/elite'
 import { isBossLike } from '../../enemies/grade'
-import type { CounterId } from '../../progress/Conveniences'
 import type { GameContext } from '../context'
 
 /**
@@ -9,14 +8,13 @@ import type { GameContext } from '../context'
  * - 귀환 카드에서 다음 원정의 깊이를 「그대로 / +1」로 고른다 (마을 촌장·보스 문은 없앴다)
  * - 지금 깊이의 배율을 적 무리에 건다 (고르면 이미 세운 적도 다시 세운다)
  * - 한계를 깸 (D8): 깊이 10 원정에서 장 보스나 수호자를 이기고 귀환하면 깊이의 끝이 사라지고 균열이 열린다
- * - 편의 자동화의 셈은 다음 단계(자동화)가 가져갈 때까지 여기서 센다
  */
 export class DepthSystem {
   /** 이번 원정에서 깊이 10(한계 전 끝)의 장 보스나 수호자를 이겼다: 귀환하면 한계를 깬다 */
   private deepWin = false
 
   constructor(private readonly ctx: GameContext) {
-    const { bus, depth, progress } = ctx
+    const { bus, depth } = ctx
     this.apply()
     bus.on('giantKilled', ({ giant }) => {
       // 균열 층의 보스는 세지 않는다 (층 세기가 깊이와 따로라)
@@ -27,11 +25,6 @@ export class DepthSystem {
       if (this.deepWin && !depth.limitBroken) this.breakLimit()
       this.deepWin = false
     })
-    bus.on('gearPicked', () => this.count('pickups', 1))
-    bus.on('relicPicked', () => this.count('pickups', 1))
-    bus.on('gearSalvaged', () => this.count('salvaged', 1))
-    bus.on('forged', () => this.count('forged', 1))
-    bus.on('mythOpened', () => this.count('opened', progress.opened.length, 'set'))
   }
 
   /** 지금 깊이의 배율을 적 무리에 건다 (다음에 세우는 적부터) */
@@ -69,13 +62,5 @@ export class DepthSystem {
     })
     bus.emit('limitBroken', {})
     bus.emit('progressChanged', {})
-  }
-
-  private count(counter: CounterId, value: number, mode: 'add' | 'set' = 'add'): void {
-    const opened = this.ctx.conveniences.count(counter, value, mode)
-    for (const c of opened) {
-      this.ctx.bus.emit('moment', { id: 'convenience', card: { kind: '편의', title: c.name, color: '#9fe3ff', lines: [c.text] } })
-      this.ctx.bus.emit('progressChanged', {})
-    }
   }
 }

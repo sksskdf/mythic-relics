@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { parseConveniences } from '../src/progress/Conveniences'
+import { parseAutomation } from '../src/progress/Automation'
 import { parseDepth } from '../src/progress/Depth'
 import { parseOaths } from '../src/progress/Oaths'
 import { parseRift } from '../src/progress/Rift'
@@ -30,13 +30,14 @@ const sample: SaveData = {
   },
   body: { skin: 2, hair: 1, cloth: 3 },
   threat: parseDepth({ level: 2, unlocked: 3, reached: 2, mastery: { flame: 2 }, battle: 40 }),
-  conveniences: parseConveniences({ counters: { pickups: 5 }, open: ['autoPickup'] }),
+  conveniences: parseAutomation({ counters: { pickups: 5 }, open: ['autoPickup'] }),
+  waypoints: ['midgard', 'jotunheim'],
   oaths: parseOaths({ kept: ['glass', 'slow', 'nope'], best: { glass: 371, nope: 5 } }),
   rift: parseRift({ best: 12, stars: 3, lit: ['thor', 'odin', 'nobody'] }),
   ending: true,
   chapters: { entered: ['village', 'midgard', 'olympus'], bosses: ['utgard'] },
   training: { xp: 1500, taken: ['awaken', 'edge'] },
-  expedition: { count: 2, renown: 20, flames: { stone: 1 }, best: [900], elapsed: 30, bosses: 0, deepest: 1, lastTaken: ['awaken'], bestXp: 1200, heirloom: [], oath: 'silence' },
+  expedition: { count: 2, renown: 20, flames: { stone: 1 }, best: [900], elapsed: 30, bosses: 0, deepest: 1, lastTaken: ['awaken'], bestXp: 1200, heirloom: [], oath: 'silence', lastBranch: 'ascend:thor' },
   tabs: ['relics', 'training'],
   awaken: { waking: 'odin', fragments: 1, hunt: 7 },
   region: { id: 'olympus', x: 3.5, z: -12 },
@@ -154,7 +155,7 @@ describe('저장 데이터', () => {
     // 결정 400.5 → 서리 조각 4, 재 7 → 거인 왕의 심장 2
     expect(data?.materials).toEqual({ prototype: 18, giantHeart: 2 })
     expect(data?.threat).toEqual({ level: 1, reached: 1, limitBroken: false })
-    expect(data?.conveniences.open).toEqual([])
+    expect(data?.conveniences).toEqual({ counters: {} })
     // 옛 별자리는 v5 저장에 없으면 0
     // 깊이는 가 본 곳을 넘지 않는다 (옛 위협 단계의 열린 단계는 버린다, E305-03)
     expect(parseSave(JSON.stringify({ ...sample, threat: { level: 9, unlocked: 3, reached: 5 } }))?.threat).toEqual({ level: 5, reached: 5, limitBroken: false })
@@ -202,7 +203,8 @@ describe('저장 v9: 세 축 정리 (E21-07)', () => {
 
 describe('저장 v10: 장 진행 (E22-01)', () => {
   const v9 = (extra: Record<string, unknown>) => JSON.stringify({ ...sample, version: 9, chapters: undefined, ...extra })
-  const none = { threat: { level: 1, unlocked: 1, reached: 1 }, materials: {}, slots: [null, null, null, null, null, null, null], ground: [] }
+  // 옛 저장에는 웨이포인트 키가 없다 (켠 성소는 편의의 visited에)
+  const none = { threat: { level: 1, unlocked: 1, reached: 1 }, waypoints: undefined, materials: {}, slots: [null, null, null, null, null, null, null], ground: [] }
 
   it('모르는 땅은 버리고, 보스가 없는 땅은 보스를 이긴 땅이 아니다', () => {
     const data = parseSave(JSON.stringify({ ...sample, chapters: { entered: ['midgard', 'nowhere', 'midgard', 3], bosses: ['lycia', 'midgard', 'nowhere'] } }))
@@ -382,6 +384,20 @@ describe('저장 v17: 맹세 (E305-01)', () => {
     const data = parseSave(JSON.stringify(sample))
     expect(data?.oaths).toEqual({ kept: ['glass', 'slow'], best: { glass: 371 } })
     expect(data?.expedition.oath).toBe('silence')
+  })
+
+  it('편의 → 자동화 (E305-03): 주운 수만 남고, 켠 성소는 웨이포인트로 (키가 없는 옛 모양은 편의의 visited에서), 지난번 갈래는 없으면 null', () => {
+    const conveniences = { counters: { pickups: 9, salvaged: 30, threat: 2 }, open: ['autoPickup', 'autoSalvage'], autoSalvage: false, visited: ['ironwood', 'midgard'] }
+    const old = { ...sample, conveniences, waypoints: undefined, expedition: { ...sample.expedition, lastBranch: undefined } }
+    for (const version of [16, 17]) {
+      const data = parseSave(JSON.stringify({ ...old, version }))
+      expect(data?.conveniences).toEqual({ counters: { pickups: 9 } })
+      expect(data?.waypoints).toEqual(['ironwood', 'midgard'])
+      expect(data?.expedition.lastBranch).toBeNull()
+    }
+    // 웨이포인트 키가 있으면 그것을 쓴다 (옛 visited는 보지 않는다)
+    expect(parseSave(JSON.stringify({ ...old, waypoints: ['olympus'] }))?.waypoints).toEqual(['olympus'])
+    expect(parseSave(JSON.stringify({ ...sample, expedition: { ...sample.expedition, lastBranch: 'nope' } }))?.expedition.lastBranch).toBeNull()
   })
 
   it('성좌판을 걷었다 (E305-03): v16 이하의 밝힌 별과 남은 별은 하나마다 명성 20으로, 깊이 기록은 그대로', () => {

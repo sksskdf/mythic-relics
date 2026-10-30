@@ -1,4 +1,5 @@
-import { atCount, AUTOMATION, FLAME, NEW_FIRE, renownFor, renownMultiplier } from '../data/cycle'
+import { FLAME, NEW_FIRE, renownFor, renownMultiplier } from '../data/cycle'
+import { type Automation, automationAt } from './Automation'
 import { OATH_IDS, type OathId } from '../data/oaths'
 import { SOURCE_IDS, type SourceId } from '../data/schema'
 
@@ -26,6 +27,8 @@ export interface ExpeditionData {
   heirloom: string[]
   /** 이번 원정에 건 맹세 (E305-01, 지켰거나 없으면 null) */
   oath: OathId | null
+  /** 지난 귀환에서 고른 갈래 (`ascend:신`·`flame:원천`, E305-03: 엔딩 뒤 귀환 카드 맨 앞에 「지난번 그대로」). 없으면 null */
+  lastBranch: string | null
 }
 
 /** 귀환 카드에 보일 것 */
@@ -56,12 +59,15 @@ export class ExpeditionProgress {
   bestXp = 0
   heirloom: string[] = []
   oath: OathId | null = null
+  lastBranch: string | null = null
   /** 새 불길이 남은 초 (저장하지 않는다) */
   fire = 0
   /** 정복한 장의 수 (E305-02, 장 진행에서 읽는다): 명성 배율에 지수가 붙는다 */
   conquests: () => number = () => 0
   /** 맹세 기록이 더하는 명성 배율 (E305-01, 맹세 기록에서 읽는다) */
   oathScale: () => number = () => 1
+  /** 지금 켜진 자동화 (E305-03, 자동화 세기에서 읽는다: 엔딩을 봤으면 귀환 3 이상으로 친다). 없으면 귀환 횟수만으로 */
+  automation: () => Automation = () => automationAt(this.returns, false, 0)
 
   /** 귀환한 횟수 */
   get returns(): number {
@@ -94,23 +100,23 @@ export class ExpeditionProgress {
 
   /** 가보 칸 수 */
   get heirloomSlots(): number {
-    return atCount(AUTOMATION.heirloom, this.returns)
+    return this.automation().heirloomSlots
   }
 
   /** 다음 원정의 기세 출발 경험치 */
   get headStart(): number {
-    return Math.round(this.bestXp * atCount(AUTOMATION.head, this.returns))
+    return Math.round(this.bestXp * this.automation().headShare)
   }
 
   /** 마디를 저절로 다시 찍는가 */
   get retakes(): boolean {
-    return this.returns >= AUTOMATION.retake
+    return this.automation().retake
   }
 
   /** 그 등급까지 저절로 합치는가 (보통은 좋음 문턱과 함께) */
   autoMerges(grade: 'common' | 'good' | 'rare'): boolean {
-    const need = grade === 'rare' ? AUTOMATION.autoMerge.rare : AUTOMATION.autoMerge.good
-    return this.returns >= need
+    const merge = this.automation().autoMerge
+    return grade === 'rare' ? merge.rare : merge.good
   }
 
   /** 이긴 수호자·장 보스 */
@@ -153,7 +159,7 @@ export class ExpeditionProgress {
   }
 
   toData(): ExpeditionData {
-    return { count: this.count, renown: this.renown, flames: { ...this.flames }, best: [...this.best], elapsed: Math.round(this.elapsed), bosses: this.bosses, deepest: this.deepest, lastTaken: [...this.lastTaken], bestXp: this.bestXp, heirloom: [...this.heirloom], oath: this.oath }
+    return { count: this.count, renown: this.renown, flames: { ...this.flames }, best: [...this.best], elapsed: Math.round(this.elapsed), bosses: this.bosses, deepest: this.deepest, lastTaken: [...this.lastTaken], bestXp: this.bestXp, heirloom: [...this.heirloom], oath: this.oath, lastBranch: this.lastBranch }
   }
 
   load(data: ExpeditionData): void {
@@ -182,5 +188,6 @@ export function parseExpedition(raw: unknown): ExpeditionData {
     bestXp: num(o.bestXp, 0, 1e7, 0),
     heirloom: strings(o.heirloom, 4),
     oath: OATH_IDS.includes(o.oath as OathId) ? (o.oath as OathId) : null,
+    lastBranch: typeof o.lastBranch === 'string' && /^(ascend|flame):[a-z]{1,20}$/i.test(o.lastBranch) ? o.lastBranch : null,
   }
 }

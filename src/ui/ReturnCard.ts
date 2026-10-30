@@ -8,6 +8,8 @@ export interface ReturnBranch {
   text: string
   /** 신이나 원천의 색 */
   color: string
+  /** 지난 귀환에서 고른 갈래 (엔딩 뒤 자동화, 맨 앞에 「지난번 그대로」) */
+  again?: boolean
 }
 
 /** 귀환 카드에 보일 것 */
@@ -89,6 +91,7 @@ export class ReturnCard {
       const card = el('button', 'pick-card__card') as HTMLButtonElement
       card.type = 'button'
       card.style.setProperty('--god', b.color)
+      if (b.again) card.append(el('small', 'return-card__again', '지난번 그대로'))
       card.append(el('b', '', b.name), el('small', '', b.text))
       card.addEventListener('click', (e) => {
         e.stopPropagation()

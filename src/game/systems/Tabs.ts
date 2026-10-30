@@ -25,12 +25,12 @@ export class TabSystem {
 
   /** 탭을 여는 때를 가리는 지금 상태 */
   facts(): TabFacts {
-    const { powers, training, conveniences, progress, build, tabs } = this.ctx
+    const { powers, training, waypoints, progress, build, tabs } = this.ctx
     const loadout = powers.loadout
     return {
       gear: loadout.owned.length > 0,
       insights: training.insights,
-      shrine: conveniences.visited.size > 0,
+      shrine: waypoints.size > 0,
       // 빌드 상태는 통째로 새로 계산하니, 원천 탭이 열린 뒤에는 보지 않는다 (적을 잡을 때마다 불린다)
       awakened: !tabs.has('sources') && Object.values(build.state.awakening).some((level) => level >= 1),
       // 신화 탭은 첫 신의 흔적(조각 1)부터 (E238)

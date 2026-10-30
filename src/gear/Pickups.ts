@@ -30,7 +30,7 @@ interface Pickup {
   z: number
   /** 주인공이 한 번 벗어나야 주울 수 있다. (방금 빼서 떨군 유물을 바로 다시 줍지 않게) */
   armed: boolean
-  /** 플레이어가 내려놓은 것: 자동 줍기(편의)로는 줍지 않고 밟아야 줍는다 */
+  /** 플레이어가 내려놓은 것: 자동 줍기(엔딩 뒤 자동화)로는 줍지 않고 밟아야 줍는다 */
   placed: boolean
   phase: number
 }
@@ -144,7 +144,7 @@ export class Pickups {
 
   /**
    * 프레임마다 떠오르고 돌게 하고, 주인공이 닿은 유물을 주워 돌려준다.
-   * reach: 그것을 줍는 거리 (엔딩 뒤 편의 자동화의 자동 줍기·재료 자동 모음, 없으면 발밑). 내려놓은 것은 늘 발밑.
+   * reach: 그것을 줍는 거리 (엔딩 뒤 자동화의 자동 줍기: 장비는 둘레, 재료 유물은 어디서나. 없으면 발밑). 내려놓은 것은 늘 발밑.
    * 주운 것은 빛기둥이 꺼지며 주인공 품으로 날아들어 사라진다 (사용자 의견 2026-10-28: 얻는 표현이 모자라다)
    */
   update(dt: number, heroX: number, heroZ: number, canPick: (id: string, gear?: GearItem) => boolean, reach?: (id: string, gear?: GearItem) => number): { id: string; gear?: GearItem }[] {

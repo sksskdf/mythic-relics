@@ -56,7 +56,7 @@ describe('순간의 크기 (E23-01)', () => {
     // 1 작은 알림: 재료·흔한 장비 줍기
     expect(tiers(1)).toEqual(expect.arrayContaining(['gearPicked', 'materialPicked', 'bossMaterial', 'salvaged', 'insight']))
     // 2 카드: 장비를 칸에 낌·가방에 더 좋은 장비, 장치가 처음 열림
-    expect(tiers(2)).toEqual(expect.arrayContaining(['gearWorn', 'gearBetter', 'convenience', 'mythOpened', 'tabOpened']))
+    expect(tiers(2)).toEqual(expect.arrayContaining(['gearWorn', 'gearBetter', 'automation', 'mythOpened', 'tabOpened']))
     // 3 큰 카드: 신화 단계, 유물 벼리기, 신의 조각 2(유물)와 두 번째 신부터 깨어남 (E238)
     expect(tiers(3)).toEqual(expect.arrayContaining(['mythLevel', 'forged', 'fragmentRelic', 'godAwakened']))
     // 4 장면: 첫 신이 깨어남, 신의 흔적(조각 1, E238), 장 보스 처치, 장 넘어가기, 엔딩

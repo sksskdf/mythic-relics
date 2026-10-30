@@ -67,7 +67,9 @@ export class Persistence {
       body: { ...wardrobe.body },
       // 깊이 (E305-03): 저장 키는 옛 위협 단계 이름 그대로
       threat: this.ctx.depth.toData(),
-      conveniences: this.ctx.conveniences.toData(),
+      // 자동화 세기 (E305-03): 저장 키는 옛 편의 이름 그대로, 주운 수만
+      conveniences: this.ctx.automation.toData(),
+      waypoints: this.ctx.waypoints.toData(),
       oaths: this.ctx.oaths.toData(),
       rift: this.ctx.rift.toData(),
       ending: this.ctx.ending.reached,
@@ -93,7 +95,8 @@ export class Persistence {
     this.ctx.tabs.load(data.tabs)
     this.ctx.awaken.load(data.awaken)
     this.ctx.depth.load(data.threat)
-    this.ctx.conveniences.load(data.conveniences)
+    this.ctx.automation.load(data.conveniences)
+    this.ctx.waypoints.load(data.waypoints)
     this.ctx.oaths.load(data.oaths)
     this.ctx.rift.load(data.rift)
     for (const [slot, choice] of Object.entries(data.looks.choices) as [LookSlot, string | null][]) wardrobe.choose(slot, choice)

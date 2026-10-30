@@ -80,10 +80,12 @@ import { SwapCard } from '../ui/SwapCard'
 import { josa } from '../ui/josa'
 import { ENEMIES } from '../enemies/Giant'
 import { ChapterHud } from '../ui/ChapterHud'
-import { Conveniences } from '../progress/Conveniences'
+import { AutomationProgress } from '../progress/Automation'
+import { Waypoints } from '../progress/Waypoints'
 import { Ending } from '../progress/Ending'
 import { DepthProgress } from '../progress/Depth'
 import { DepthSystem } from './systems/Depth'
+import { AutomationSystem } from './systems/Automation'
 import { OathSystem } from './systems/Oaths'
 import type { OathId } from '../data/oaths'
 import { OathProgress } from '../progress/Oaths'
@@ -173,7 +175,13 @@ export class Game {
   readonly depthSystem: DepthSystem
   /** 대화 장면을 언제 여는가: 처음 보는 일, 마을 사람에게 말 걸기, 미룬 장면 (E15-06) */
   private readonly storyline: Storyline
-  readonly conveniences = new Conveniences(() => this.ending.has('conveniences'))
+  /** 자동화 (E305-03, `CYCLE.md` 3.5): 귀환 횟수가 열고, 엔딩을 봤으면 귀환 3 이상으로 친다. 자동 줍기는 엔딩 뒤 */
+  readonly automation = new AutomationProgress(
+    () => this.expedition.returns,
+    () => this.ending.has('autoPickup'),
+  )
+  /** 웨이포인트 (E239-05): 밟아 켠 성소로 지도에서 바로 간다 */
+  readonly waypoints = new Waypoints()
   /** 장 진행 (E22): 지금 장·목표·열린 땅 */
   readonly chapters: ChapterProgress = new ChapterProgress(
     {
@@ -187,7 +195,7 @@ export class Game {
   /** 수련 (E236): 경험치로 얻은 깨달음과 익힌 마디 */
   readonly training = new TrainingProgress()
   /** 원정 (E304): 원정 번호·명성·원천 불씨·기록 */
-  readonly expedition = Object.assign(new ExpeditionProgress(), { conquests: (): number => this.chapters.conquered })
+  readonly expedition = Object.assign(new ExpeditionProgress(), { conquests: (): number => this.chapters.conquered, automation: () => this.automation.now })
   /** 신을 깨우는 진행 (E238): 깨우는 신과 모은 조각 */
   readonly awaken = new AwakenProgress()
   /** 신을 깨우는 길 (E238): 흔적·사냥·수호자 */
@@ -435,7 +443,8 @@ export class Game {
       depth: this.depth,
       oaths: this.oaths,
       rift: this.rift,
-      conveniences: this.conveniences,
+      automation: this.automation,
+      waypoints: this.waypoints,
       ending: this.ending,
       chapters: this.chapters,
       training: this.training,
@@ -534,6 +543,8 @@ export class Game {
     this.growth = new ProgressionSystem(this.ctx)
     this.life = new HeroLife(this.ctx)
     this.depthSystem = new DepthSystem(this.ctx)
+    // 자동화 (E305-03): 귀환 횟수가 연 것과 자동 줍기를 카드로 알린다
+    new AutomationSystem(this.ctx)
     this.chapterSystem = new ChapterSystem(this.ctx)
     this.swapCard = new SwapCard(this.hud.root)
     // 새 신의 손·심장 부품이 왔는데 자리가 차 있으면 두 갈래 카드 (E302-03)
@@ -750,7 +761,6 @@ export class Game {
   reachEnding(): void {
     if (this.ending.reached) return
     this.ending.reached = true
-    this.conveniences.catchUp()
     this.chapterSystem.check()
     // 모든 땅과 정보 화면 탭이 열린다
     this.world.refreshLinks()
@@ -855,10 +865,10 @@ export class Game {
     return this.menuData.sourceRows()
   }
 
-  /** 성소 워프 (E14-05, E239-05 처음부터): 마을이나 켠 성소로 */
+  /** 성소 워프 (E14-05, E239-05 웨이포인트라 처음부터): 마을이나 켠 성소로 */
   warpTo(id: string): boolean {
-    if (!this.conveniences.has('warp') || id === this.ctx.map.region.id) return false
-    if (this.regions[id]?.kind !== 'hub' && !this.conveniences.visited.has(id)) return false
+    if (id === this.ctx.map.region.id) return false
+    if (this.regions[id]?.kind !== 'hub' && !this.waypoints.has(id)) return false
     return this.world.warpTo(id)
   }
 
@@ -1192,8 +1202,8 @@ export class Game {
     this.storyline.update(position)
     // 성소를 켰다 (E15-04, E239-05 웨이포인트): 성소 결계 안에 들어서면 켜지고, 지도에서 그 땅으로 바로 온다
     const sanctuary = this.ctx.map.region.sanctuary
-    if (sanctuary && !this.conveniences.visited.has(this.ctx.map.region.id) && Math.hypot(position.x - sanctuary.x, position.z - sanctuary.z) < sanctuary.radius) {
-      this.conveniences.visited.add(this.ctx.map.region.id)
+    if (sanctuary && !this.waypoints.has(this.ctx.map.region.id) && Math.hypot(position.x - sanctuary.x, position.z - sanctuary.z) < sanctuary.radius) {
+      this.waypoints.light(this.ctx.map.region.id)
       this.bus.emit('moment', { id: 'shrineFound', text: '성소를 켰다 · 지도에서 바로 온다' })
       this.bus.emit('progressChanged', {})
     }

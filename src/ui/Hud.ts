@@ -96,7 +96,7 @@ export class Hud {
   /** 조작 안내 한 줄: 해 볼 때까지 남는다 (시작 장면 뒤) */
   private readonly coach: HTMLElement
   private readonly gains: HTMLElement
-  /** 카드를 띄운 때(ms)와 기다리는 카드: 같은 때 열린 것(깊이 + 편의 등)이 서로 덮지 않게 차례로 보인다 */
+  /** 카드를 띄운 때(ms)와 기다리는 카드: 같은 때 열린 것(귀환 + 자동화 등)이 서로 덮지 않게 차례로 보인다 */
   private gainsShownAt = -Infinity
   private gainsHold = 0
   /** 마지막 제목 카드와 띄운 때, HUD를 숨긴 때 (장면 뒤 다시 띄우기) */

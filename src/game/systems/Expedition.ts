@@ -105,9 +105,12 @@ export class ExpeditionSystem {
     return Math.hypot(p.x - sanctuary.center.x, p.z - sanctuary.center.z) < HEARTH_RADIUS
   }
 
-  /** 고를 수 있는 갈래: 자리에 든 신 가운데 더 오를 수 있는 신의 승천, 원천 불씨 넷 */
+  /**
+   * 고를 수 있는 갈래: 자리에 든 신 가운데 더 오를 수 있는 신의 승천, 원천 불씨 넷.
+   * 엔딩 뒤(자동화 「지난번 갈래 그대로」)에는 지난 귀환의 갈래를 맨 앞에 둔다 (E305-03)
+   */
   branches(): ReturnBranch[] {
-    const { progress } = this.ctx
+    const { progress, expedition, automation } = this.ctx
     const out: ReturnBranch[] = []
     for (const god of pantheonGods(progress.pantheon)) {
       const level = progress.level(god)
@@ -116,6 +119,8 @@ export class ExpeditionSystem {
       out.push({ id: `ascend:${god}`, name: `${def.name} 승천`, text: `${level + 1}단계: 모든 피해 ×1.35, 생명 +25%`, color: def.color })
     }
     for (const s of SOURCE_IDS) out.push({ id: `flame:${s}`, name: `${SOURCE_NAMES[s]} 불씨`, text: FLAME_TEXT[s], color: SOURCE_COLORS[s]![0] })
+    const last = automation.now.sameBranch ? out.findIndex((b) => b.id === expedition.lastBranch) : -1
+    if (last >= 0) out.unshift({ ...out.splice(last, 1)[0]!, again: true })
     return out
   }
 
@@ -158,6 +163,7 @@ export class ExpeditionSystem {
     const flame = kind === 'flame' && SOURCE_IDS.includes(what as SourceId) ? (what as SourceId) : undefined
     const before = expedition.multiplier
     const gain = expedition.return({ ...(flame ? { flame } : {}) }, training.xp, [...training.taken])
+    expedition.lastBranch = id
     // 가보 (귀환 1부터): 낀 일반 장비 가운데 가장 좋은 것을 칸 수만큼 남긴다 (고르는 단추 없이)
     expedition.heirloom = powers.loadout.wornGear
       .sort((a, b) => gearScore(b) - gearScore(a))

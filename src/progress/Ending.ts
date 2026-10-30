@@ -7,7 +7,7 @@ export const AFTER_ENDING = {
   depth: '깊이 고르기(귀환 카드)와 한계를 깸',
   oaths: '맹세 다섯',
   rift: '균열',
-  conveniences: '편의 자동화 (자동 줍기는 처음부터)',
+  autoPickup: '자동 줍기·지난번 갈래 그대로 (자동화는 귀환 3 이상으로 친다)',
   mythStage4: '신화 4단계',
   relicStages: '유물 3·4단계',
   relicDrops: '땅에 떨어지는 유물',

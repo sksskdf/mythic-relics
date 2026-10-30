@@ -388,22 +388,33 @@ const sections = {
     return { scale, after }
   },
 
-  /** E14-3 반복하던 손일(줍기·분해)이 자동이 될 때 반갑다: 자동 줍기가 열리는 순간 */
+  /** E14-3 반복하던 손일이 자동이 될 때 반갑다 (E305-03 자동화): 귀환 2가 연 자동 합치기 카드, 보통 장비 셋을 주우면 저절로 합쳐지는 순간 */
   async 'e14-3'(browser) {
-    const page = await fresh(browser)
-    const r = await page.evaluate(() => {
+    const page = await fresh(browser, '?fresh&relics=&region=midgard&noscenes')
+    const before = await page.evaluate(() => {
       const g = window.__game
-      g.dev.teleport(2, -3)
-      // 자동 줍기는 처음부터, 나머지 편의는 엔딩 뒤 (E21-06): 자동 분해가 열리는 순간
-      g.reachEnding()
-      const before = [...g.conveniences.open]
-      g.depthSystem.count('salvaged', 400)
-      return { before, after: [...g.conveniences.open] }
+      g.dev.choose('thor')
+      // 귀환 1을 마친 원정: 귀환하면 귀환 2 (보통·좋음 자동 합치기, 기세 출발점 1/3)
+      Object.assign(g.expedition, { count: 2, elapsed: 300 })
+      g.training.xp = 5000
+      g.expeditionSystem.returnNow('flame:flame')
+      g.hideCards()
+      return { returns: g.expedition.returns, merge: g.automation.now.autoMerge }
     })
     await page.waitForTimeout(600)
-    await shot(page, 'e14-3-open')
+    await shot(page, 'e14-3-unlock')
+    const merged = await page.evaluate(() => {
+      const g = window.__game
+      const p = g.hero.object.position
+      // 같은 부위 보통 장비 셋을 발밑에 떨군다: 주울 때마다 셋이 모이면 저절로 합친다
+      for (let i = 0; i < 3; i++) g.dev.dropGear('feet', 'common', p.x, p.z)
+      g.advance(1.5, 1 / 30)
+      return { grades: [...g.powers.loadout.gear.values()].map((x) => x.grade) }
+    })
+    await page.waitForTimeout(600)
+    await shot(page, 'e14-3-merged')
     await page.close()
-    return r
+    return { before, merged }
   },
 
   /** E15-3 지도만 보고 어디로 가야 할지 안다: 미드가르드에서 연 세계 지도 */

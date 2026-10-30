@@ -83,8 +83,7 @@ export interface WorldMapHost {
   traces(): { region: string; name: string; color: string; waking: boolean }[]
   /** 지도 위 내 자리 (세계 칸 단위). 세계 밖(균열)이면 null */
   me(): { x: number; y: number } | null
-  /** 성소 워프가 열렸나 */
-  canWarp(): boolean
+  /** 마을이나 켠 성소로 바로 간다 (웨이포인트, 처음부터) */
   warp(id: string): boolean
 }
 
@@ -94,12 +93,10 @@ export interface SourcesHost {
   rows(): { id: SourceId; total: number; level: number; /** 원천 불씨 몫 (E304, 합에 들어 있다) */ flames: number }[]
   /** 깊이 (E305-03, 엔딩 뒤): 지금 원정의 깊이, 가 본 가장 깊은 곳, 한계를 깼나. 고르기는 귀환 카드에서 */
   readonly depth: { level: number; reached: number; limitBroken: boolean }
-  /** 편의: 이름, 설명, 열렸나, 진행 */
-  conveniences(): { id: string; name: string; text: string; open: boolean; have: number; need: number }[]
-  autoSalvage: boolean
-  /** 성소 워프: 갈 수 있는 곳 (열리지 않았으면 빈 목록) */
-  warps(): { id: string; name: string }[]
-  warp(id: string): boolean
+  /** 귀환이 여는 것 (E305-03): 차례(귀환 1·2·3·엔딩)마다 이름, 켜지는 것, 켜졌나 */
+  automation(): { name: string; lines: readonly string[]; on: boolean }[]
+  /** 귀환한 횟수 */
+  returns(): number
 }
 
 /** 메뉴가 게임에서 읽고 부르는 것 */
@@ -161,7 +158,7 @@ export interface MenuHost {
   readonly oaths: OathsHost
   readonly rift: RiftMenuHost
   readonly training: TrainingHost
-  /** 첫 엔딩을 보았나: 엔딩 뒤 장치(깊이·편의·맹세 다섯·균열)를 보인다 (E21-06) */
+  /** 첫 엔딩을 보았나: 엔딩 뒤 장치(깊이·자동 줍기·맹세 다섯·균열)를 보인다 (E21-06) */
   afterEnding(): boolean
   /** 신 단계 상한을 올려 줄 다음 장 보스의 이름 (E305-02, 데모 끝까지 다 정복했으면 null) */
   nextConquest(): string | null

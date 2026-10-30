@@ -23,8 +23,6 @@ export interface GameEvents {
   relicPicked: { id: RelicId }
   /** 대장간에서 유물을 만들거나 올렸다 (E13-05) */
   forged: { relic: RelicId; stage: number }
-  /** 일반 장비를 녹였다 (E13-07-3 → E303-04) */
-  gearSalvaged: { item: GearItem }
   /** 셋을 합쳐 한 등급 위가 나왔다 (E303) */
   gearMerged: { item: GearItem }
   /** 원정을 마치고 귀환했다 (E304): 마친 원정 번호, 받은 명성, 새 배율, 고른 갈래 */
