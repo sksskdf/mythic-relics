@@ -99,26 +99,25 @@ export class RelicsTab {
       b.type = 'button'
       this.paintItem(b, id)
       b.setAttribute('aria-label', this.itemName(id))
-      b.addEventListener('pointerenter', () => {
+      // 커서를 올리면 설명 카드 (마우스만: 손가락의 pointerenter에서 화면을 바꾸면 iOS가 그 탭의 클릭을 삼킨다)
+      b.addEventListener('pointerenter', (e) => {
+        if (e.pointerType !== 'mouse') return
         this.hovered = id
         this.renderDetail(detail)
       })
       let finger = false
-      b.addEventListener('pointerdown', (e) => (finger = e.pointerType === 'touch'))
+      b.addEventListener('pointerdown', (e) => (finger = e.pointerType !== 'mouse'))
       b.addEventListener('click', () => {
-        // 손가락에는 커서가 없다: 처음 누르면 설명 카드만 보이고, 같은 것을 한 번 더 누르면 낀다 (E235). 마우스는 한 번에 낀다
+        // 손가락에는 커서가 없다: 처음 누르면 설명 카드와 「끼기」가 보이고, 같은 것을 한 번 더 누르거나 「끼기」를 누르면 낀다 (E235). 마우스는 한 번에 낀다
         if (finger && this.picked !== id) {
           this.picked = id
           this.hovered = id
+          for (const other of bag.querySelectorAll('.is-picked')) other.classList.remove('is-picked')
+          b.classList.add('is-picked')
           this.renderDetail(detail)
           return
         }
-        this.picked = null
-        this.hovered = null
-        const slot = this.wieldSlot(id)
-        if (slot === undefined) return
-        this.selectedSlot = slot
-        host.wield(id, slot)
+        this.wield(id)
       })
       bag.append(b)
     }
@@ -157,6 +156,15 @@ export class RelicsTab {
       detail.append(gearCard(gear, wornId ? host.gearOf(wornId) : null, totals))
       const group = host.mergeable().find((g) => g.includes(id))
       if (group) detail.append(this.mergeBox(group))
+      const actions = el('div', 'menu-relics__dos')
+      // 가방의 장비: 「끼기」 (휴대폰에서 고른 것을 끼는 길, 마우스는 가방 칸을 눌러도 낀다)
+      if (host.bag.includes(id) && this.wieldSlot(id) !== undefined) {
+        const w = el('button', 'menu-relics__salvage menu-relics__wear')
+        w.type = 'button'
+        w.append(img(glyph('sword')), '끼기')
+        w.addEventListener('click', () => this.wield(id))
+        actions.append(w)
+      }
       const b = el('button', 'menu-relics__salvage')
       b.type = 'button'
       b.append(img(glyph('salvage')), '녹이기')
@@ -165,7 +173,8 @@ export class RelicsTab {
         this.hovered = null
         host.melt(id)
       })
-      detail.append(b)
+      actions.append(b)
+      detail.append(actions)
       return
     }
     if (isRelicId(id)) detail.append(relicCard(relicDef(id), host.cardContext(id)))
@@ -200,6 +209,16 @@ export class RelicsTab {
   }
 
   /** 가방의 것을 누르면 낄 칸: 고른 칸이 맞는 부위면 그 칸, 아니면 비어 있는 맞는 칸부터 */
+  /** 가방의 장비를 그 부위 칸에 낀다 (고른 칸이 맞는 부위면 그 칸) */
+  private wield(id: string): void {
+    this.picked = null
+    this.hovered = null
+    const slot = this.wieldSlot(id)
+    if (slot === undefined) return
+    this.selectedSlot = slot
+    this.ctx.host.wield(id, slot)
+  }
+
   private wieldSlot(id: string): number | undefined {
     const fits = this.ctx.host.slotsFor(id)
     return fits.includes(this.selectedSlot) ? this.selectedSlot : (fits.find((i) => this.ctx.host.slots[i] === null) ?? fits[0])
@@ -210,7 +229,7 @@ export class RelicsTab {
     const { forge } = this.ctx.host
     const box = el('section', 'menu-forge')
     const here = forge.here()
-    box.append(el('b', '', '대장간'), el('small', '', here ? '장 보스의 재료와 신화권 재료로 신화의 유물을 벼린다' : '마을 대장장이에게 가면 벼릴 수 있다'))
+    box.append(el('b', '', '대장간'), el('small', '', here ? '장 보스의 재료와 원형으로 신화의 유물을 벼린다' : '마을 대장장이에게 가면 벼릴 수 있다'))
     const gods = forge.gods()
     if (gods.length === 0) box.append(el('p', 'menu-forge__empty', '신화를 열거나 재료를 모으면 여기에 제작법이 보인다'))
     for (const god of gods) {
