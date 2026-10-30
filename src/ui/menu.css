@@ -2020,11 +2020,16 @@ button.menu-slots__slot {
 }
 
 /* 분해 (E13-07-3) */
+.menu-relics__dos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+}
 .menu-relics__salvage {
   display: inline-flex;
   align-items: center;
   gap: var(--sp-2);
-  margin-top: var(--sp-3);
   padding: var(--sp-2) var(--sp-4);
   font: var(--t-body);
   color: var(--c-ink-1);
@@ -2041,6 +2046,9 @@ button.menu-slots__slot {
 
 
 /* 합치기 (E303): 셋이 모인 가방 칸은 등급 색으로 숨 쉬듯 빛나고, 설명 카드 아래 셋 → 다음 등급 상자 */
+.menu-relics__item.is-picked {
+  outline: var(--bw) solid var(--c-gold-soft);
+}
 .menu-relics__item.is-mergeable {
   box-shadow:
     0 0 0 2px var(--god),
@@ -2089,7 +2097,8 @@ button.menu-slots__slot {
 
 /* 비교 카드의 한 줄 결론 (E303-02) */
 .gc__verdict {
-  margin: var(--sp-2) 0 0;
+  /* 카드 안 다른 줄과 같은 들여쓰기 (rc__section의 좌우 12px) */
+  margin: var(--sp-2) 12px 0;
   font: var(--t-body);
   color: var(--god);
 }
