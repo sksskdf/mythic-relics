@@ -1892,14 +1892,14 @@ button.menu-slots__slot {
   align-items: center;
   gap: var(--sp-2);
 }
-.menu-trials {
+.menu-oaths {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--sp-3);
 }
 @media (max-width: 700px) {
   .menu-src__sources,
-  .menu-trials { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .menu-oaths { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 /* 설정 단추 (일시 정지 메뉴의 설정을 연다) */

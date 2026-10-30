@@ -4,9 +4,9 @@ import { SOURCE_IDS, type SourceId } from '../data/schema'
 import type { RiftProgress } from '../progress/Rift'
 import type { RelicPowers } from '../game/RelicPowers'
 import type { ClassProgress } from '../myth/ClassProgress'
-import { TRIAL_IDS, type TrialId, trialRules } from '../data/trials'
+import { OATH_IDS, type OathId, oathRules } from '../data/oaths'
 import type { ThreatProgress } from '../progress/Threat'
-import type { TrialProgress } from '../progress/Trials'
+import type { OathProgress } from '../progress/Oaths'
 import type { TrainingProgress } from '../progress/Training'
 import type { AwakenProgress } from '../progress/Awakening'
 import type { ExpeditionProgress } from '../progress/Expedition'
@@ -22,19 +22,17 @@ import { type BuildInputs, type BuildState, computeBuild } from './BuildState'
  * 피해·능력치를 쓰는 곳(Damage, Relics, 정보 화면)은 여기서 값을 읽는다.
  */
 export class Build {
-  constructor(private readonly from: { powers: RelicPowers; progress: ClassProgress; threat: ThreatProgress; trials?: TrialProgress; trial?: () => TrialId | null; rift?: RiftProgress; blessings?: () => readonly string[]; training?: TrainingProgress; awaken?: AwakenProgress; expedition?: ExpeditionProgress }) {}
+  constructor(private readonly from: { powers: RelicPowers; progress: ClassProgress; threat: ThreatProgress; oaths?: OathProgress; oath?: () => OathId | null; rift?: RiftProgress; blessings?: () => readonly string[]; training?: TrainingProgress; awaken?: AwakenProgress; expedition?: ExpeditionProgress }) {}
 
   /** 지금의 재료 */
   inputs(): BuildInputs {
     const { powers, progress } = this.from
     const open = new Map<string, number>()
     for (const [god, record] of progress.records) if (record.level >= 1) open.set(god, record.level)
-    const rules = trialRules(this.from.trial?.() ?? null)
+    const rules = this.rules
     const { loadout } = powers
-    // 시련 「세 칸의 짐」: 쓸 수 있는 칸만 (E16)
-    const slots = loadout.slots.map((id, i) => (rules.slots && !rules.slots.includes(i) ? null : id))
     // 고유 효과 가운데 수치인 것(깊은 울림·사냥꾼의 눈, E303)은 그 장비의 수치로 더한다
-    const gearItems = slots.flatMap((id) => (isGearUid(id) && loadout.gear.has(id) ? [withUniqueStats(loadout.gear.get(id)!)] : []))
+    const gearItems = loadout.slots.flatMap((id) => (isGearUid(id) && loadout.gear.has(id) ? [withUniqueStats(loadout.gear.get(id)!)] : []))
     return {
       open,
       // 신의 자리 셋 (E302): 손의 신과 자리에 든 신들
@@ -48,6 +46,7 @@ export class Build {
       gearItems,
       // 원정 (E304): 명성과 원천 불씨
       renown: this.from.expedition?.renown ?? 0,
+      conquered: this.from.expedition?.conquests() ?? 0,
       flames: this.from.expedition?.flames ?? {},
       ...this.blessed(),
       starred: this.from.rift?.lit,
@@ -57,10 +56,10 @@ export class Build {
     }
   }
 
-  /** 시련 보상(E16)·균열의 축복(E17)·수련의 마디(E236): 출처마다 더할 수치와 각성 단계 */
+  /** 맹세 보상(E305-01)·균열의 축복(E17)·수련의 마디(E236): 출처마다 더할 수치와 각성 단계 */
   private blessed(): Pick<BuildInputs, 'bonus' | 'awakenBonus'> {
     const blessings: Partial<Record<StatKind, number>> = {}
-    const bonus = { trials: { ...this.from.trials?.rewards() }, training: { ...this.from.training?.stats() }, blessings }
+    const bonus = { oaths: { ...this.from.oaths?.rewards() }, training: { ...this.from.training?.stats() }, blessings }
     const awakenBonus: Partial<Record<SourceId, number>> = {}
     for (const id of this.from.blessings?.() ?? []) {
       const b = blessingDef(id)
@@ -70,43 +69,39 @@ export class Build {
     return { bonus, awakenBonus }
   }
 
-  /** 지금 시련의 제약 (없으면 제약 없음) */
-  get rules(): ReturnType<typeof trialRules> {
-    return trialRules(this.from.trial?.() ?? null)
+  /** 지금 건 맹세의 제약 (없으면 제약 없음). 빈 손·홀로는 도는 자리(`oathPantheon`)가 맡는다 */
+  get rules(): ReturnType<typeof oathRules> {
+    return oathRules(this.from.oath?.() ?? null)
   }
 
   /** 손에 낀 신 (state.chosen과 같다. 자주 읽는 곳을 위해 전체 계산 없이) */
   get chosen(): string | null {
-    if (this.from.trial?.() === 'noMyth') return null
     return this.from.powers.loadout.pantheon.hand
   }
 
   /** 심장에 낀 신 (궁극기) */
   get heart(): God | null {
-    if (this.from.trial?.() === 'noMyth') return null
     return this.from.powers.loadout.pantheon.heart
   }
 
-  /** 손 말고 자리에 든 신들 (심장·숨, 시련 「신화 없이」에서는 없음) */
+  /** 손 말고 자리에 든 신들 (심장·숨) */
   get borrowed(): readonly God[] {
-    if (this.from.trial?.() === 'noMyth') return []
     const { pantheon } = this.from.powers.loadout
     return pantheonGods(pantheon).filter((g) => g !== pantheon.hand)
   }
 
   /** 한 신에 몰았으면 그 신 (손·심장·숨 하나가 같은 신) */
   get focus(): God | null {
-    if (this.from.trial?.() === 'noMyth') return null
     return focusGod(this.from.powers.loadout.pantheon)
   }
 
   /**
    * 깨우는 중인 신 (E238): 조각 1(흔적)부터 그 신의 숨을 빌린다. 자리가 없어도 켜지고, 깨어나면 자리로 옮긴다.
-   * 시련 「신화 없이」에서는 없음
+   * 홀로의 맹세 동안은 칸 밖의 숨도 돌지 않는다
    */
   get waking(): God | null {
     const awaken = this.from.awaken
-    if (!awaken?.waking || awaken.fragments < 1 || this.from.trial?.() === 'noMyth') return null
+    if (!awaken?.waking || awaken.fragments < 1 || this.rules.breath !== null) return null
     // 숨 칸에 들었으면 그쪽이 돌린다 (조각 2에 손에 쥔 것만으로는 숨이 아니다)
     if (this.from.powers.loadout.pantheon.breath.includes(awaken.waking)) return null
     return this.from.progress.isOpen(awaken.waking) ? null : awaken.waking
@@ -128,7 +123,6 @@ export class Build {
   private passiveVersion = -1
 
   private listPassives(): ActivePassive[] {
-    if (this.from.trial?.() === 'noMyth') return []
     const { progress } = this.from
     const { pantheon } = this.from.powers.loadout
     const focus = focusGod(pantheon)
@@ -181,17 +175,17 @@ export class Build {
   private readonly probe: unknown[] = []
 
   /**
-   * inputs()가 읽는 재료를 차례로 적는다: 시련, 고른 신화·빌린 신·깨우는 신, 칸마다 장비(일반 장비는 그 물건, 유물은 단계),
-   * 열린 신화의 단계(승급 합도 여기서 나온다), 시련 보상(깬 난이도), 수련 수치(익히고 되돌릴 때만 바뀌는 객체), 균열의 축복, 성좌판의 별.
+   * inputs()가 읽는 재료를 차례로 적는다: 건 맹세, 고른 신화·빌린 신·깨우는 신, 칸마다 장비(일반 장비는 그 물건, 유물은 단계),
+   * 열린 신화의 단계(승급 합도 여기서 나온다), 맹세 보상(지킨 맹세), 수련 수치(익히고 되돌릴 때만 바뀌는 객체), 균열의 축복, 성좌판의 별.
    * 길이가 바뀌는 묶음 사이에는 가름표를 둔다
    */
   private fingerprint(out: unknown[]): void {
     out.length = 0
-    const { powers, progress, trials, training, rift } = this.from
+    const { powers, progress, oaths, training, rift } = this.from
     const { loadout } = powers
     // 깨우는 신은 장비 쪽(loadout.waking)과 조각 쪽(awaken: 도는 패시브가 읽음)을 함께 본다
     const { pantheon } = loadout
-    out.push(this.from.trial?.() ?? null, loadout, pantheon.hand, pantheon.heart, loadout.waking, this.from.awaken?.waking ?? null, this.from.awaken?.fragments ?? 0, pantheon.breath.length)
+    out.push(this.from.oath?.() ?? null, loadout, pantheon.hand, pantheon.heart, loadout.waking, this.from.awaken?.waking ?? null, this.from.awaken?.fragments ?? 0, pantheon.breath.length)
     for (const god of pantheon.breath) out.push(god)
     for (const id of loadout.slots) out.push(id, id && isGearUid(id) ? loadout.gear.get(id) : null)
     // 유물표: 켠 유물과 그 단계, 켠 고유 효과 수
@@ -199,10 +193,10 @@ export class Build {
     for (const id of loadout.lit) out.push(id, loadout.stage(id))
     out.push(progress.records.size)
     progress.records.forEach((record, god) => out.push(god, record.level))
-    if (trials) for (const id of TRIAL_IDS) out.push(trials.cleared[id] ?? 0)
+    if (oaths) for (const id of OATH_IDS) out.push(oaths.has(id))
     out.push(training?.stats())
     const expedition = this.from.expedition
-    if (expedition) out.push(expedition.renown, ...SOURCE_IDS.map((s) => expedition.flames[s] ?? 0))
+    if (expedition) out.push(expedition.renown, expedition.conquests(), ...SOURCE_IDS.map((s) => expedition.flames[s] ?? 0))
     const blessings = this.from.blessings?.() ?? []
     out.push(blessings.length)
     for (const id of blessings) out.push(id)

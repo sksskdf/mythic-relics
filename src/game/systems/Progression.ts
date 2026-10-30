@@ -15,7 +15,6 @@ import { realmInk } from '../../art/palette'
 import { type God, godDef, GODS, isRelicId, type RelicId } from '../../relics/data'
 import type { LegendKind } from '../../data/classKit'
 import type { LegendHost } from '../Legend'
-import { TRIAL_MILESTONES } from '../../data/trials'
 import type { GameContext } from '../context'
 import { godMoment } from './godMoments'
 
@@ -46,10 +45,7 @@ export class ProgressionSystem {
     if (!god || !legend || !progress.readyToPromote(god)) return null
     // 데모에서는 신 단계를 귀환의 승천으로 올린다 (E304). 성소 전설은 엔딩 뒤에만 (개발 패널 「전설 시작」은 언제나)
     if (!this.ctx.ending.reached && !this.devLegend) return null
-    // 엔딩 뒤에는 지역 성소가 그 신화권 클래스의 전설만 연다 (E7-07). 시련 마일스톤 「열린 성소」면 어디서나 (E16).
-    // 데모(엔딩 전)에서는 장 흐름이 정한 성소(요툰헤임·델포이)에서 고른 신화의 전설을 연다 (E22)
-    const realm = this.ctx.map.region.realm
-    if (this.ctx.ending.reached && realm && godDef(god).realm !== realm && !this.ctx.trials.has(TRIAL_MILESTONES[1].at)) return null
+    // 엔딩 뒤에는 어느 성소에서나 손의 신 전설을 연다 (옛 시련 마일스톤 「열린 성소」를 맹세로 옮기며 제한을 걷음, E305-01)
     return legend.kind
   }
 
@@ -58,16 +54,13 @@ export class ProgressionSystem {
     return this.readyKind() !== null
   }
 
-  /** 시련 (E16): 진행 중이면 전설의 시작·이김·짐을 시련이 받는다 */
-  trial: { active: boolean; onStart(): void; onWin(): void; onFail(): void } | null = null
-
   /** 승급 전설: 성소에 들어서면 시작하고, 이기면 승급한다. */
   update(dt: number): void {
     const { legend, encounter } = this.ctx
     legend.update(dt, encounter, this.legendHost())
   }
 
-  /** 전설이 게임에 알리는 일 (시련도 같은 것을 쓴다) */
+  /** 전설이 게임에 알리는 일 */
   legendHost(): LegendHost {
     const { build, combat, hero, hud, view, bus } = this.ctx
     return {
@@ -85,19 +78,16 @@ export class ProgressionSystem {
       },
       onStart: () => {
         bus.emit('legendStarted', {})
-        if (this.trial?.active) return this.trial.onStart()
         const def = godDef(this.challenger!)
         const ink = realmInk(def.realm)
         hud.showTitleCard(def.legend!.name, def.color, realmSigil(def.realm, ink.light, ink.dark), '전설')
         view.shake(0.3)
       },
       onWin: () => {
-        if (this.trial?.active) this.trial.onWin()
-        else if (this.challenger) this.promote(this.challenger)
+        if (this.challenger) this.promote(this.challenger)
       },
       onFail: () => {
         bus.emit('legendFailed', {})
-        if (this.trial?.active) this.trial.onFail()
       },
     }
   }

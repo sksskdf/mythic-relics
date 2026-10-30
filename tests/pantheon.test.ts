@@ -5,7 +5,7 @@ import { PASSIVE_PARTS } from '../src/data/classKit'
 import { relicAwake } from '../src/gear/mythRelic'
 import { masteryShares } from '../src/myth/ClassProgress'
 import { lendText } from '../src/myth/levelGains'
-import { autoFill, breathCount, breathPassive, emptyPantheon, focusGod, fromChosen, MAX_BREATH, OTHER_XP, partLevel, pantheonGods, withoutBreath, withPart } from '../src/myth/pantheon'
+import { autoFill, breathCount, breathPassive, DEMO_BREATH, emptyPantheon, focusGod, fromChosen, MAX_BREATH, oathPantheon, OTHER_XP, partLevel, pantheonGods, withoutBreath, withPart } from '../src/myth/pantheon'
 import { GODS, godDef } from '../src/relics/data'
 
 describe('신의 자리 셋 (E302)', () => {
@@ -14,8 +14,12 @@ describe('신의 자리 셋 (E302)', () => {
     expect(breathCount(1, 0)).toBe(1)
     expect(breathCount(2, 0)).toBe(2)
     expect(breathCount(4, 1)).toBe(3)
-    expect(breathCount(8, 2)).toBe(MAX_BREATH)
-    expect(breathCount(20, 9)).toBe(MAX_BREATH)
+    expect(breathCount(8, 2)).toBe(DEMO_BREATH)
+    expect(breathCount(20, 9)).toBe(DEMO_BREATH)
+    // 홀로의 맹세 (E305-01): 하나 더, 엔딩 뒤에는 다섯까지
+    expect(breathCount(2, 1, 1)).toBe(4)
+    expect(breathCount(8, 2, 1)).toBe(DEMO_BREATH)
+    expect(breathCount(8, 2, 1, MAX_BREATH)).toBe(MAX_BREATH)
   })
 
   it('손·심장은 바꿔 끼고, 숨은 빈 칸이 있을 때만 넣는다', () => {
@@ -90,5 +94,13 @@ describe('신의 자리 셋 (E302)', () => {
     expect(shares.get('loki')).toBe(100 * OTHER_XP)
     expect(shares.get('zeus')).toBe(100 * OTHER_XP)
     expect(shares.has('poseidon')).toBe(false)
+  })
+
+  it('맹세를 건 동안 도는 자리 (E305-01): 빈 손은 손만, 홀로는 숨 앞 하나만, 원본은 그대로', () => {
+    const p = { hand: 'thor', heart: 'odin', breath: ['thor', 'odin', 'freyr'] }
+    expect(oathPantheon(p, { emptyHand: false, breath: null })).toBe(p)
+    expect(oathPantheon(p, { emptyHand: true, breath: null })).toEqual({ hand: null, heart: 'odin', breath: ['thor', 'odin', 'freyr'] })
+    expect(oathPantheon(p, { emptyHand: false, breath: 1 })).toEqual({ hand: 'thor', heart: 'odin', breath: ['thor'] })
+    expect(p.breath).toHaveLength(3)
   })
 })

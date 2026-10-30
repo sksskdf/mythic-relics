@@ -8,7 +8,7 @@ import type { AwakenProgress } from '../progress/Awakening'
 import type { TabUnlocks } from '../progress/Tabs'
 import type { Ending } from '../progress/Ending'
 import type { ThreatProgress } from '../progress/Threat'
-import type { TrialProgress } from '../progress/Trials'
+import type { OathProgress } from '../progress/Oaths'
 import type { RiftProgress } from '../progress/Rift'
 import type * as THREE from 'three'
 
@@ -83,8 +83,8 @@ export interface GameContext {
   readonly threat: ThreatProgress
   /** 균열 기록과 성좌판 (E17) */
   readonly rift: RiftProgress
-  /** 시련 기록과 영구 보상 (E16) */
-  readonly trials: TrialProgress
+  /** 맹세 기록과 영구 보상 (E305-01) */
+  readonly oaths: OathProgress
   /** 편의 자동화 (E14-05) */
   readonly conveniences: Conveniences
   /** 첫 엔딩을 보았나: 엔딩 뒤 장치를 연다 (E21-06) */

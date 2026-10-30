@@ -1,3 +1,4 @@
+import { CONQUEST, LEVEL_CAP_BASE } from '../data/cycle'
 import { type God, godDef } from '../relics/data'
 import { emptyPantheon, OTHER_XP, type Pantheon } from './pantheon'
 
@@ -52,14 +53,17 @@ export class ClassProgress {
   constructor(
     private readonly afterEnding: () => boolean = () => false,
     private readonly openByXp: () => boolean = () => true,
+    /** 정복한 장의 수 (E305-02): 데모의 신 단계 상한이 2에서 하나씩 오른다. 장 진행을 넘기지 않으면 데모 끝(3)까지 연다 */
+    private readonly conquered: () => number = () => DEMO_MAX_LEVEL - LEVEL_CAP_BASE,
   ) {}
 
   /** 개발 지름길이 데모 끝 단계를 넘겼다 (4단계 외형·궁극기 점검) */
   uncapped = false
 
-  /** 오를 수 있는 가장 높은 단계 (데모 3, 엔딩 뒤 4) */
+  /** 오를 수 있는 가장 높은 단계: 데모는 2에서 장 정복마다 +1(끝 3), 엔딩 뒤 4 */
   get levelCap(): number {
-    return this.uncapped || this.afterEnding() ? MAX_LEVEL : DEMO_MAX_LEVEL
+    if (this.uncapped || this.afterEnding()) return MAX_LEVEL
+    return Math.min(DEMO_MAX_LEVEL, LEVEL_CAP_BASE + CONQUEST.levelCap * this.conquered())
   }
 
   record(god: God): ClassRecord {

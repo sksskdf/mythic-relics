@@ -1,4 +1,4 @@
-import { CHAPTERS, type ChapterDef, type ChapterStep, chapterOf, TOP_POWER } from '../data/chapters'
+import { CHAPTERS, type ChapterDef, type ChapterStep, chapterOf, conquestsOf, TOP_POWER } from '../data/chapters'
 import { REGIONS } from '../data/regions'
 
 /** 장 진행이 게임에서 읽는 것 (신화·장비는 따로 저장되니 여기서는 묻기만 한다) */
@@ -59,6 +59,11 @@ export class ChapterProgress {
       case 'return':
         return world.returns() >= step.n!
     }
+  }
+
+  /** 정복한 장의 수 (E305-02): 장 정복 보스(거인 왕·키마이라) 가운데 이긴 수. 엔딩 뒤 신화권 보스는 세지 않는다 */
+  get conquered(): number {
+    return conquestsOf(this.chapters).filter((r) => this.bosses.has(r)).length
   }
 
   /** 끝낸 장의 수 (지금 장의 차례). 모두 끝냈으면 장의 수 */

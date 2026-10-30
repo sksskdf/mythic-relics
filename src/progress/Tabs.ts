@@ -1,11 +1,11 @@
 /**
  * 정보 화면 탭을 차례로 연다 (E236-05, 사용자 의견 2026-10-28: "처음부터 탭이 다 열려 있으면 복잡하고 뭐가 뭔지 모르겠다").
  * 상태 탭만 처음부터 있고, 나머지는 쓸 일이 생기는 때에 하나씩 열린다 (TIMELINE.md 2장 "한 번에 새 장치 하나").
- * 시련·균열은 엔딩 뒤 장치라 여기서 다루지 않는다 (Ending).
+ * 균열은 엔딩 뒤 장치라 여기서 다루지 않는다 (Ending). 맹세는 귀환 2에 연다 (E305-01)
  */
 
 /** 차례로 열리는 탭 (정보 화면 탭 id) */
-export const STEP_TABS = ['relics', 'training', 'map', 'sources', 'classes', 'looks'] as const
+export const STEP_TABS = ['relics', 'training', 'map', 'sources', 'classes', 'looks', 'oaths'] as const
 export type StepTab = (typeof STEP_TABS)[number]
 
 /** 탭을 여는 때를 가리는 지금 상태 */
@@ -22,6 +22,8 @@ export interface TabFacts {
   myth: boolean
   /** 신화의 유물을 가졌다 (대장간에서 벼렸다) */
   relic: boolean
+  /** 귀환한 횟수 (E305-01: 귀환 2에 맹세 탭) */
+  returns: number
 }
 
 export interface StepTabDef {
@@ -42,6 +44,7 @@ export const STEP_TAB_DEFS: Readonly<Record<StepTab, StepTabDef>> = {
   sources: { name: '원천', icon: 'cycle', text: '장비의 원천이 쌓여 각성했다. 다음 각성까지 본다', due: (f) => f.awakened },
   classes: { name: '신화', icon: 'classes', text: '고른 신화의 단계와 다음 단계로 가는 길을 본다', due: (f) => f.myth },
   looks: { name: '외형', icon: 'looks', text: '얻은 모습을 부위마다 골라 입는다', due: (f) => f.relic },
+  oaths: { name: '맹세', icon: 'scroll', text: '다시 떠날 때 제약을 걸고, 지키면 영구히 세진다', due: (f) => f.returns >= 2 },
 }
 
 /** 지금 상태로 새로 열 탭 (이미 연 것은 빼고, 정한 차례대로) */

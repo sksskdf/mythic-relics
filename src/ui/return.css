@@ -46,3 +46,10 @@
     padding: var(--sp-3) var(--sp-2);
   }
 }
+/* 출발 카드 (E305-01): 지킨 맹세는 기록을, 아니면 지키면 얻는 것을 */
+.oath-card__reward {
+  color: var(--c-gold-soft);
+}
+.oath-card .blessing__card.is-kept .oath-card__reward {
+  color: var(--c-good);
+}

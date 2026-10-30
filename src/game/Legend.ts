@@ -83,10 +83,6 @@ export class UtgardLegend {
   present = true
   /** 전설이 아니어도 빛기둥을 세운다 (성소에서 신화를 고를 수 있을 때, E22-03) */
   beacon = false
-  /** 시련 규칙 (E16): 적 수 배율, 시간 제한(초, 없으면 null). 전설이 끝나면 되돌린다 */
-  rules: { crowd: number; timeLimit: number | null } = { crowd: 1, timeLimit: null }
-  /** 시간 제한이 있는 전설의 남은 시간 */
-  timeLeft: number | null = null
 
   constructor(center: Point2, radius: number) {
     // 둥글게 선 룬스톤 여섯 개와 바닥의 룬 고리
@@ -172,13 +168,6 @@ export class UtgardLegend {
       this.fail(encounter, host)
       return
     }
-    if (this.timeLeft !== null) {
-      this.timeLeft -= dt
-      if (this.timeLeft <= 0) {
-        this.fail(encounter, host)
-        return
-      }
-    }
 
     this.keepInside()
     const remaining = this.giants.filter((g) => !g.gone)
@@ -221,15 +210,7 @@ export class UtgardLegend {
     }
   }
 
-  /** 성소에 들어서지 않고 바로 연다 (시련, E16). 이미 진행 중이거나 성소가 없으면 false */
-  begin(kind: LegendKind, encounter: Encounter, host: LegendHost): boolean {
-    if (this.active || !this.present) return false
-    this.start(kind, encounter, host)
-    return true
-  }
-
   private start(kind: LegendKind, encounter: Encounter, host: LegendHost): void {
-    this.timeLeft = this.rules.timeLimit
     this.barrier.visible = true
     host.setArena({ x: this.center.x, z: this.center.z, radius: this.radius - 0.6 })
     // 결계가 닫히면 성소 둘레 무리는 안의 주인공을 보지 못한다: 전설은 결계 안에 세운 적과만 싸운다
@@ -264,15 +245,15 @@ export class UtgardLegend {
       return
     }
     this.spawnTimer -= dt
-    if (this.spawnTimer > 0 || this.giants.length >= Math.round(rule.crowd * this.rules.crowd)) return
-    this.spawnTimer = rule.every / this.rules.crowd
+    if (this.spawnTimer > 0 || this.giants.length >= rule.crowd) return
+    this.spawnTimer = rule.every
     const a = Math.random() * Math.PI * 2
     const r = this.radius * 0.8
     this.enlist(encounter, encounter.spawn(GRUNT, { x: this.center.x + Math.sin(a) * r, z: this.center.z + Math.cos(a) * r }, true))
   }
 
   private spawnWave(encounter: Encounter): void {
-    const count = Math.round(WAVES[this.wave]! * this.rules.crowd)
+    const count = WAVES[this.wave]!
     const offset = Math.random() * Math.PI * 2
     for (let i = 0; i < count; i++) {
       const a = offset + (i / count) * Math.PI * 2
@@ -311,8 +292,6 @@ export class UtgardLegend {
     for (const giant of encounter.ward?.members ?? []) if (giant.alive) encounter.remove(giant)
     encounter.ward = null
     this.phase = 'idle'
-    this.timeLeft = null
-    this.rules = { crowd: 1, timeLimit: null }
     this.boss = null
     this.barrier.visible = false
     host.setArena(null)

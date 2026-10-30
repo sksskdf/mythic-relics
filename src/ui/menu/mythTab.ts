@@ -4,7 +4,7 @@ import { collectionText, starText } from '../../myth/alwaysText'
 import { allLevelGains, lendText, levelGains } from '../../myth/levelGains'
 import { type God, godDef, relicDef } from '../../relics/data'
 import { relicMyth, stageName } from '../../gear/mythRelic'
-import { PER_LIT } from '../../myth/ClassProgress'
+import { DEMO_MAX_LEVEL, MAX_LEVEL, PER_LIT } from '../../myth/ClassProgress'
 import { josa } from '../josa'
 import { relicIcon } from '../relicCard'
 import { classIcon } from '../classIcons'
@@ -32,7 +32,21 @@ export class MythTab {
     const box = el('section', 'menu-promo')
     box.style.setProperty('--god', def.color)
 
-    if (level < progress.levelCap) {
+    if (!this.ctx.host.afterEnding()) {
+      // 데모 (E304·E305-02): 단계는 귀환할 때 고르는 승천으로 오른다. 상한은 장을 정복할 때마다 하나씩
+      const boss = this.ctx.host.nextConquest()
+      const steps = el('div', 'menu-promo__steps')
+      const how =
+        level < progress.levelCap
+          ? '성소 화로에서 원정을 마칠 때 「승천」을 고른다 (자리에 든 신만)'
+          : boss && level < DEMO_MAX_LEVEL
+            ? `${josa(boss, '을')} 이기면 이 신을 더 올릴 수 있다`
+            : '더 높은 단계는 엔딩 뒤에 열린다'
+      const step = el('div', `menu-promo__step${level < progress.levelCap ? ' is-now' : ''}`)
+      step.append(el('span', 'menu-promo__no', '↑'), el('span', '', how))
+      if (level < MAX_LEVEL) steps.append(el('div', 'menu-promo__head', `다음 단계: ${level + 1}단계 ${def.titles[level]}`), step)
+      box.append(steps)
+    } else if (level < progress.levelCap) {
       const steps = el('div', 'menu-promo__steps')
       const ratio = progress.xpRatio(god)
       const ready = progress.readyToPromote(god)
@@ -59,7 +73,8 @@ export class MythTab {
       const row = el('div', `menu-promo__level${lv <= level ? ' is-have' : ''}${lv === level + 1 && !later ? ' is-next' : ''}${later ? ' is-later' : ''}`)
       const head = el('div', 'menu-promo__lv')
       head.append(el('span', 'ui-tag' + (lv <= level ? ' ui-tag--solid' : ' ui-tag--plain'), `${lv}단계`), el('span', '', def.titles[i]!))
-      if (later && lv > level) head.append(el('small', '', '엔딩 뒤'))
+      const boss = this.ctx.host.nextConquest()
+      if (later && lv > level) head.append(el('small', '', lv <= DEMO_MAX_LEVEL && boss ? `${josa(boss, '을')} 이기면` : '엔딩 뒤'))
       const list = el('ul', '')
       for (const g of gains) list.append(el('li', `is-${g.kind}`, g.text))
       if (gains.length === 0) list.append(el('li', '', '신화 개방'))

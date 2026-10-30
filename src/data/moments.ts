@@ -25,7 +25,7 @@ export const MOMENTS = {
   shrineFound: 1,
   threatSet: 1,
   threatUnlocked: 1,
-  trialFailed: 1,
+  oathBroken: 1,
   riftEnded: 1,
   blessingPicked: 1,
   insight: 1,
@@ -40,7 +40,7 @@ export const MOMENTS = {
   realmOpened: 2,
   convenience: 2,
   threatUp: 2,
-  trialCleared: 2,
+  oathSworn: 2,
   riftCleared: 2,
   tabOpened: 2,
   // 3 큰 카드: 신화 단계, 유물 벼리기, 신의 조각 2(유물)와 두 번째 신부터 깨어남 (엔딩 뒤에는 한계를 깸도)
@@ -48,6 +48,7 @@ export const MOMENTS = {
   forged: 3,
   limitBroken: 3,
   fragmentRelic: 3,
+  oathKept: 3,
   godAwakened: 3,
   // 4 장면: 첫 신이 깨어남(주신), 신의 흔적(조각 1), 장 보스 처치, 장 넘어가기, 엔딩
   mythChosen: 4,

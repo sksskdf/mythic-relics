@@ -5,7 +5,7 @@ import { clampToCircle } from '../game/HeroController'
 import { angleDiff, angleTo, inLine } from '../combat/arc'
 import { nextHop } from '../data/regions'
 import { regionLinks } from '../data/world'
-import { TRIAL_IDS, type TrialId } from '../data/trials'
+import { OATHS } from '../data/oaths'
 import { forgeReady, missing, nextRecipe } from '../gear/forge'
 import { MATERIALS } from '../gear/materials'
 import { gearScore } from '../gear/roll'
@@ -31,10 +31,12 @@ export class Autoplayer {
   private patrol = 0
   /** 위협 단계를 올리는가: 열리면 마을에 가서 원천 갈래를 고르고 오른다 (scripts/playtest.mjs --threat) */
   climb = false
-  /** 시련을 하는가: 위협 3단계가 되면 아직 못 깬 시련 1단계를 차례로 (scripts/playtest.mjs --trials) */
-  trials = false
+  /** 맹세를 하는가: 출발 카드가 뜨면 아직 못 지킨 맹세를 건다 (scripts/playtest.mjs --oaths). 아니면 맹세 없이 떠난다 */
+  oaths = false
   /** 균열을 내려가는가: 마을에서 들어가 층마다 첫 축복을 고르고 다음 층 문으로 (scripts/playtest.mjs --rift) */
   rift = false
+  /** 건 맹세와 건 게임 시각 (맹세 봇) */
+  readonly oathLog: { id: keyof typeof OATHS; sworn: number }[] = []
   /** 균열 층마다 깬 게임 시각 (층 번호, 시각) */
   readonly riftFloors: { depth: number; t: number }[] = []
   /** 위협 단계를 처음 오른 게임 시각 */
@@ -64,15 +66,9 @@ export class Autoplayer {
     }
   }
 
-  /** 아직 못 깬 시련이 남았나 (점검 스크립트가 끝낼 때를 정한다) */
-  trialsLeft(): boolean {
-    return TRIAL_IDS.some((id) => !(this.game.trials.cleared[id] ?? 0))
-  }
-
-  /** 다음에 할 시련: 아직 못 깬 것 가운데 앞에서부터 (시련을 안 하거나 아직 안 열렸으면 null) */
-  nextTrial(): TrialId | null {
-    if (!this.trials || !this.game.trialSystem.open || this.game.trialSystem.active) return null
-    return TRIAL_IDS.find((id) => !(this.game.trials.cleared[id] ?? 0)) ?? null
+  /** 아직 못 지킨 맹세가 남았나 (점검 스크립트가 끝낼 때를 정한다) */
+  oathsLeft(): boolean {
+    return this.game.oathSystem.available().some((id) => !this.game.oaths.has(id))
   }
 
   /** 위협 단계: 마을에 있고 다음 단계가 열렸으면 오른다 (엔딩 뒤) */
@@ -119,8 +115,6 @@ export class Autoplayer {
     if (this.forgeGods().some((god) => forgeReady(powers.loadout, god, powers.maxStage()))) return hub
     // 위협 단계가 새로 열렸으면 마을 촌장에게 (E14-07)
     const threat = this.game.threat
-    // 시련 (E16): 아직 못 깬 시련이 있으면 고른 신화의 입구 들판 성소로
-    if (this.nextTrial()) return (manifested ? fieldOf(manifested) : null) ?? 'midgard'
     if (this.climb && threat.unlocked > threat.reached) return hub
     // 2단계 뒤에는 고른 신화(없으면 북유럽)의 보스의 땅으로 가서 문지기를 친다 (E15: 보스는 보스의 땅에만)
     if (this.climb && progress.promotions >= 1 && threat.unlocked === threat.reached && threat.level === threat.reached) {
@@ -278,12 +272,12 @@ export class Autoplayer {
       }
     }
 
-    // 4.5 시련 (E16): 생명이 넉넉하면 성소 가운데로 가서 연다
-    const trial = this.nextTrial()
-    if (trial && !legend.active && hp > 0.9 && near.length === 0 && this.game.region.kind === 'field' && legend.present) {
-      if (dist(here, legend.center) > 1.5) {
-        if (!hero.isMoving) hero.moveTo(legend.center)
-      } else this.game.trialSystem.start(trial, 1)
+    // 4.5 맹세 (E305-01): 출발 카드가 뜨면 아직 못 지킨 맹세를 건다(맹세 봇), 아니면 맹세 없이
+    if (this.game.oathCardOpen) {
+      const id = this.oaths ? (this.game.oathSystem.available().find((o) => !this.game.oaths.has(o)) ?? null) : null
+      this.game.hideBlessings()
+      this.game.oathSystem.swear(id)
+      if (id) this.oathLog.push({ id, sworn: this.game.time })
       this.step = 12
       return
     }

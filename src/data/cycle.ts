@@ -13,9 +13,20 @@ export const RENOWN = {
   boss: 0.5,
 } as const
 
-/** 누적 명성의 배율 */
-export function renownMultiplier(renown: number): number {
-  return 1 + RENOWN.per * Math.sqrt(Math.max(0, renown))
+/**
+ * 장 정복 (E305-02, `CYCLE.md` 3.1 층 3): 장 보스(거인 왕·키마이라)를 이길 때마다 숨 칸 +1, 신 단계 상한 +1, 명성 지수 +0.1.
+ * 신 단계 상한은 처음 2에서 정복마다 오르고 데모 끝은 3이다(키마이라의 몫은 엔딩 뒤 4단계에서 쓰인다)
+ */
+export const CONQUEST = { breath: 1, levelCap: 1, renownExp: 0.1 } as const
+/** 장을 하나도 정복하지 않았을 때의 신 단계 상한 */
+export const LEVEL_CAP_BASE = 2
+
+/** 명성 배율의 지수: 정복한 장마다 0.1씩 (1 → 1.1 → 1.2) */
+export const renownExponent = (conquered: number): number => 1 + CONQUEST.renownExp * Math.max(0, conquered)
+
+/** 누적 명성의 배율 (장을 정복할수록 지수가 붙는다) */
+export function renownMultiplier(renown: number, conquered = 0): number {
+  return (1 + RENOWN.per * Math.sqrt(Math.max(0, renown))) ** renownExponent(conquered)
 }
 
 /** 한 원정의 명성: 가장 깊이 닿은 장(1부터)과 그 원정에서 이긴 수호자·장 보스 수 */

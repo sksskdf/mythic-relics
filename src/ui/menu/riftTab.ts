@@ -25,7 +25,7 @@ export function renderRift(ctx: TabContext, body: HTMLElement): void {
       go.addEventListener('click', () => rift.enter() && ctx.close())
       head.append(go, el('div', 'menu-src__text', rift.canEnter() ? '들어갈 때마다 1층부터. 나오거나 쓰러지면 축복은 사라지고 기록·재료·별만 남는다' : '마을에서 들어갈 수 있다'))
     }
-    head.append(el('div', 'menu-src__text', `보상 배율 ×${rift.scale().toFixed(2)} (시련 기록) · 처음 닿은 5층마다 별 하나, 종말 보스는 별 둘`))
+    head.append(el('div', 'menu-src__text', '처음 닿은 5층마다 별 하나, 종말 보스는 별 둘'))
   }
   wrap.append(head)
 

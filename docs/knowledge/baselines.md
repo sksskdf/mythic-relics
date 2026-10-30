@@ -38,7 +38,7 @@ E11은 "기능 그대로"라서 아래 범위 안에 있어야 한다. 마일스
 | 엔딩까지 봇 | `node scripts/playtest.mjs 2 100 --ending` | 엔딩 57:31 / 62:16, 쓰러짐 0 / 0. 첫 신화 9:41 / 14:10, 2단계 26:07 / 28:37, 거인 왕 29:55 / 30:29 |
 | 성장 곡선 | `node scripts/power-curve.mjs 100` | 미드가르드 7:31에 공격 1.41(신화 전), 들어설 때 적 잡는 초 2.3~3, 떠날 때 1.8~2.6, 버티는 대 12~26 (`TIMELINE.md` 1.4) |
 | 위협 단계 봇 | `node scripts/playtest.mjs 1 50 --threat=5` (첫 엔딩 무렵 빌드로 시작) | 위협 5단계 14:09, 단계마다 2:22~4:43, 쓰러짐 0 |
-| 시련 봇 | `node scripts/playtest.mjs 1 40 --trials --relics=mjolnir --god=thor --region=midgard` | 여덟 모두 깸, 37~103초, 쓰러짐 0 |
+| 맹세 봇 (E305-01) | `node scripts/playtest.mjs 1 60 --oaths` | 데모 셋 모두 지킴 (기준은 E306에서 잰다) |
 | 균열 봇 | `node scripts/playtest.mjs 1 50 --rift --relics=mjolnir` | 10층 7:30(층마다 0:17~1:14), 쓰러짐 0 |
 
 ## 전설 결계 고침 (2026-10-28)

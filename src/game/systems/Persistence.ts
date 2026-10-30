@@ -66,7 +66,7 @@ export class Persistence {
       body: { ...wardrobe.body },
       threat: this.ctx.threat.toData(),
       conveniences: this.ctx.conveniences.toData(),
-      trials: this.ctx.trials.toData(),
+      oaths: this.ctx.oaths.toData(),
       rift: this.ctx.rift.toData(),
       ending: this.ctx.ending.reached,
       chapters: this.ctx.chapters.toData(),
@@ -92,7 +92,7 @@ export class Persistence {
     this.ctx.awaken.load(data.awaken)
     this.ctx.threat.load(data.threat)
     this.ctx.conveniences.load(data.conveniences)
-    this.ctx.trials.load(data.trials)
+    this.ctx.oaths.load(data.oaths)
     this.ctx.rift.load(data.rift)
     for (const [slot, choice] of Object.entries(data.looks.choices) as [LookSlot, string | null][]) wardrobe.choose(slot, choice)
     host.applyLooks()

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { DataError } from '../src/data/check'
 import raw from '../src/data/chapters.json'
-import { CHAPTERS, chapterOf, GOAL_MAX_CHARS, landScale, parseChapters, TOP_POWER } from '../src/data/chapters'
+import { CHAPTERS, chapterOf, CONQUESTS, GOAL_MAX_CHARS, landScale, parseChapters, TOP_POWER } from '../src/data/chapters'
 import { REGIONS } from '../src/data/regions'
 import { ChapterProgress, type ChapterWorld } from '../src/progress/Chapters'
 import { Encounter } from '../src/game/Encounter'
@@ -251,5 +251,23 @@ describe('보스 처치를 적는 땅', () => {
     encounter.cross({ id: 'b', camps: [], boss: null }, { x: 0, z: 0 }, [], area)
     expect(encounter.fellRegion(fallen)).toBe('a')
     expect(encounter.fellRegion(standing)).toBeUndefined()
+  })
+})
+
+describe('장 정복 (E305-02)', () => {
+  it('장 정복 보스는 마지막 장이 아닌 장의 끝 보스: 거인 왕·키마이라', () => {
+    expect(CONQUESTS).toEqual(['utgard', 'lycia'])
+  })
+
+  it('이긴 장 정복 보스만 센다 (마지막 무대·엔딩 뒤 신화권 보스는 세지 않는다)', () => {
+    const chapters = new ChapterProgress(world())
+    expect(chapters.conquered).toBe(0)
+    chapters.bossDefeated('huoyanshan')
+    chapters.bossDefeated('sky')
+    expect(chapters.conquered).toBe(0)
+    chapters.bossDefeated('utgard')
+    expect(chapters.conquered).toBe(1)
+    chapters.bossDefeated('lycia')
+    expect(chapters.conquered).toBe(2)
   })
 })

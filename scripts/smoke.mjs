@@ -403,13 +403,13 @@ try {
   console.log(`수련 확인: 깨달음을 얻으면 메뉴 단추 표시, 뿌리 마디를 찍으면 피해 ×${(trained.damage / trainBefore.damage).toFixed(2)}`)
   await page.keyboard.press('Escape')
   if (await page.evaluate(() => window.__game.paused)) throw new Error('정보 화면: 닫았는데 게임이 멈춰 있습니다.')
-  // 원천 탭 (E14, E21-06): 엔딩 전에는 각성 카드 넷만, 시련·균열 탭은 숨김. 엔딩 뒤에는 위협 단계를 골라 오른다
+  // 원천 탭 (E14, E21-06): 엔딩 전에는 각성 카드 넷만, 균열 탭은 숨김. 엔딩 뒤에는 위협 단계를 골라 오른다
   await page.evaluate(() => (window.__game.threat.unlocked = 2))
   await page.click('.menu-button')
   await page.locator('.menu__tab').nth(1).click()
   if ((await page.locator('.menu-src__source').count()) !== 4) throw new Error('원천 탭: 각성 카드가 넷이 아닙니다.')
   const demo = await page.evaluate(() => ({ levels: document.querySelectorAll('.menu-src__level').length, tabs: [...document.querySelectorAll('.menu__tab')].filter((b) => !b.hidden).length }))
-  if (demo.levels !== 0 || demo.tabs !== 7) throw new Error(`엔딩 전: 위협 단계나 시련·균열 탭이 보입니다 (${JSON.stringify(demo)})`)
+  if (demo.levels !== 0 || demo.tabs !== 8) throw new Error(`엔딩 전: 위협 단계나 균열 탭이 보입니다 (${JSON.stringify(demo)})`)
   await page.evaluate(() => {
     window.__game.reachEnding()
     window.__game.menu.refresh()
@@ -598,33 +598,39 @@ try {
   if (!(await page.evaluate(() => window.__game.powers.loadout.has('mjolnir')))) throw new Error('처음 화면에서 슬롯을 골랐는데 유물이 없습니다.')
   console.log('처음 화면 확인: 정보 화면에서 처음 화면으로, 슬롯을 골라 그대로 이어 감')
 
-  // 시련 (E16): 위협 3단계가 되면 필드 성소 결계 안에서 시련 탭의 난이도를 눌러 바로 연다. 제약은 시련 중에만 걸린다
+  // 맹세 (E305-01): 귀환 2에 다시 떠날 때 출발 카드에서 건다. 건 동안 제약이 돌고, 그 원정에서 수호자·장 보스를 이기면 지킨다
   await page.evaluate(() => {
     const g = window.__game
-    g.reachEnding()
-    Object.assign(g.threat, { unlocked: 3, reached: 3 })
-    // 진행 중인 전설이 있으면 그만두고(지역을 다시 지을 수 있게), 둘레 적이 밀어내거나 쓰러뜨리지 않게 치우고 성소 가운데 곁에 선다
     if (g.legend.active) g.legend.abort(g.encounter, g.growth.legendHost())
     g.enterRegion(g.regions.midgard)
     g.encounter.clearAll()
     if (!g.combat.alive) g.dev.revive()
     g.orders.clear()
-    g.hero.teleport(g.legend.center.x + 4, g.legend.center.z)
+    // 귀환 1을 마친 원정이 무르익었다: 성소 화로에서 귀환하면 귀환 2
+    Object.assign(g.expedition, { count: 2, elapsed: 300 })
+    g.training.xp = 5000
+    g.hero.teleport(g.legend.center.x, g.legend.center.z)
     g.hero.stop()
   })
-  const trialBlocked = await page.evaluate(() => {
+  await page.waitForFunction(() => window.__game.returnCardOpen, null, { timeout: 15000 })
+  await page.locator('.return-card:not(.oath-card) .blessing__card').last().click()
+  await page.waitForFunction(() => window.__game.oathCardOpen, null, { timeout: 15000 })
+  const oathCards = await page.locator('.oath-card .blessing__card').count()
+  if (oathCards < 3) throw new Error(`맹세: 출발 카드의 맹세가 셋보다 적습니다 (${oathCards})`)
+  await page.locator('.oath-card .blessing__card').filter({ hasText: '침묵의 맹세' }).click()
+  const sworn = await page.evaluate(() => ({ oath: window.__game.expedition.oath, noUltimate: window.__game.ctx.build.state.noUltimate }))
+  if (sworn.oath !== 'silence' || !sworn.noUltimate) throw new Error(`맹세: 침묵의 맹세가 걸리지 않습니다 ${JSON.stringify(sworn)}`)
+  const oathKept = await page.evaluate(() => {
     const g = window.__game
     const p = g.hero.object.position
-    return g.trialSystem.blocked() && { why: g.trialSystem.blocked(), phase: g.legend.phase, d: Math.hypot(p.x - g.legend.center.x, p.z - g.legend.center.z), trial: g.trialSystem.active, region: g.region.id }
+    g.dev.spawn('fenrir', p.x + 3, p.z)
+    const guardian = g.encounter.alive.find((e) => e.spec.role === 'guardian')
+    guardian?.takeHit(1e6, 0, 0, 0)
+    g.advance(2, 1 / 30)
+    return { spawned: !!guardian, oath: g.expedition.oath, kept: g.oaths.has('silence'), noUltimate: g.ctx.build.state.noUltimate, charge: g.ctx.build.state.stats.ultCharge }
   })
-  if (trialBlocked) throw new Error(`시련: 성소 곁인데 열 수 없습니다 ${JSON.stringify(trialBlocked)}`)
-  await page.click('.menu-button')
-  await page.locator('.menu__tab', { hasText: '시련' }).click()
-  if ((await page.locator('.menu-trials .menu-src__source').count()) !== 8) throw new Error('시련: 시련 카드가 여덟이 아닙니다.')
-  await page.locator('.menu-trials .menu-src__source').filter({ hasText: '유리 몸' }).getByRole('button', { name: '1', exact: true }).click()
-  const trial = await page.evaluate(() => ({ id: window.__game.trialSystem.active?.id, legend: window.__game.legend.active, maxHp: window.__game.combat.health.max }))
-  if (trial.id !== 'glass' || !trial.legend) throw new Error(`시련: 유리 몸 1단계가 열리지 않습니다 ${JSON.stringify(trial)}`)
-  console.log(`시련 확인: 성소에서 시련 탭으로 유리 몸 1단계를 열고 전설이 시작됨 (최대 생명 ${trial.maxHp})`)
+  if (!oathKept.spawned || oathKept.oath !== null || !oathKept.kept || oathKept.noUltimate || !(oathKept.charge >= 0.3)) throw new Error(`맹세: 수호자를 이겨도 지키지 못했습니다 ${JSON.stringify(oathKept)}`)
+  console.log(`맹세 확인: 귀환 2에 출발 카드 ${oathCards}장, 침묵의 맹세를 걸면 궁극기가 막히고, 수호자를 이기면 지켜 심장 충전 +${Math.round(oathKept.charge * 100)}%`)
 
   // 균열 (E17): 한계를 깨면 마을의 균열 탭에서 들어가고, 층을 깨면 축복을 골라 다음 층 문으로 내려가며, 나가는 문으로 나오면 끝
   await page.evaluate(() => {

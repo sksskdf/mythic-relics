@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { parseConveniences } from '../src/progress/Conveniences'
 import { parseThreat } from '../src/progress/Threat'
-import { parseTrials } from '../src/progress/Trials'
+import { parseOaths } from '../src/progress/Oaths'
 import { parseRift } from '../src/progress/Rift'
 import { STEP_TABS } from '../src/progress/Tabs'
 import { parseSave, SAVE_VERSION, type SaveData, saveStorage } from '../src/save/SaveData'
@@ -29,12 +29,12 @@ const sample: SaveData = {
   body: { skin: 2, hair: 1, cloth: 3 },
   threat: parseThreat({ level: 2, unlocked: 3, reached: 2, mastery: { flame: 2 }, battle: 40 }),
   conveniences: parseConveniences({ counters: { pickups: 5 }, open: ['autoPickup'] }),
-  trials: parseTrials({ cleared: { glass: 2, slow: 9 }, best: { 'glass:2': 71.3, 'nope:1': 5 } }),
+  oaths: parseOaths({ kept: ['glass', 'slow', 'nope'], best: { glass: 371, nope: 5 } }),
   rift: parseRift({ best: 12, stars: 3, lit: ['thor', 'odin', 'nobody'] }),
   ending: true,
   chapters: { entered: ['village', 'midgard', 'olympus'], bosses: ['utgard'] },
   training: { xp: 1500, taken: ['awaken', 'edge'] },
-  expedition: { count: 2, renown: 20, flames: { stone: 1 }, best: [900], elapsed: 30, bosses: 0, deepest: 1, lastTaken: ['awaken'], bestXp: 1200, heirloom: [] },
+  expedition: { count: 2, renown: 20, flames: { stone: 1 }, best: [900], elapsed: 30, bosses: 0, deepest: 1, lastTaken: ['awaken'], bestXp: 1200, heirloom: [], oath: 'silence' },
   tabs: ['relics', 'training'],
   awaken: { waking: 'odin', fragments: 1, hunt: 7 },
   region: { id: 'olympus', x: 3.5, z: -12 },
@@ -80,10 +80,10 @@ describe('저장 데이터', () => {
     expect(() => parseSave(JSON.stringify({ ...sample, gear: [{ uid: 5, part: 'head', grade: 'rare', base: '철 투구' }] }))).not.toThrow()
   })
 
-  it('자리 셋은 열린 신만, 숨은 겹치지 않게 넷까지 (E302, v14)', () => {
-    const many = { thor: { level: 2, xp: 0 }, loki: { level: 1, xp: 0 }, odin: { level: 1, xp: 0 }, freyr: { level: 1, xp: 0 }, zeus: { level: 1, xp: 0 } }
+  it('자리 셋은 열린 신만, 숨은 겹치지 않게 다섯까지 (E302, v14 · 엔딩 뒤 다섯째는 E305-01)', () => {
+    const many = { thor: { level: 2, xp: 0 }, loki: { level: 1, xp: 0 }, odin: { level: 1, xp: 0 }, freyr: { level: 1, xp: 0 }, zeus: { level: 1, xp: 0 }, poseidon: { level: 1, xp: 0 } }
     expect(parseSave(JSON.stringify({ ...sample, pantheon: { hand: 'zeus', heart: 'nobody', breath: ['thor', 'thor', 'nobody'] } }))?.pantheon).toEqual({ hand: null, heart: null, breath: ['thor'] })
-    expect(parseSave(JSON.stringify({ ...sample, classes: many, pantheon: { hand: 'loki', heart: 'odin', breath: ['thor', 'loki', 'odin', 'freyr', 'zeus'] } }))?.pantheon.breath).toHaveLength(4)
+    expect(parseSave(JSON.stringify({ ...sample, classes: many, pantheon: { hand: 'loki', heart: 'odin', breath: ['thor', 'loki', 'odin', 'freyr', 'zeus', 'poseidon'] } }))?.pantheon.breath).toHaveLength(5)
     // 손은 조각 2를 모은 깨우는 신도 쥘 수 있다
     expect(parseSave(JSON.stringify({ ...sample, awaken: { waking: 'odin', fragments: 2, hunt: 0 }, pantheon: { hand: 'odin', heart: null, breath: [] } }))?.pantheon.hand).toBe('odin')
     expect(parseSave(JSON.stringify({ ...sample, awaken: { waking: 'odin', fragments: 1, hunt: 0 }, pantheon: { hand: 'odin', heart: null, breath: [] } }))?.pantheon.hand).toBeNull()
@@ -328,5 +328,21 @@ describe('저장 v15: 원형 (E303-04)', () => {
     expect(data.materials.prototype).toBe(4)
     expect(data.lit).toContain('lokiMask')
     expect(data.gear).toHaveLength(14)
+  })
+})
+
+describe('저장 v17: 맹세 (E305-01)', () => {
+  it('v16 저장의 시련 기록은 짝인 맹세를 지킨 것으로, 원정에 건 맹세는 없이', () => {
+    const v16 = JSON.stringify({ ...sample, version: 16, oaths: undefined, trials: { cleared: { noUltimate: 1, fewSlots: 3 }, best: {} }, expedition: { ...sample.expedition, oath: undefined } })
+    const data = parseSave(v16)
+    expect(data?.version).toBe(17)
+    expect(data?.oaths.kept.sort()).toEqual(['alone', 'silence'])
+    expect(data?.expedition.oath).toBeNull()
+  })
+
+  it('v17은 건 맹세와 맹세 기록을 그대로 읽는다', () => {
+    const data = parseSave(JSON.stringify(sample))
+    expect(data?.oaths).toEqual({ kept: ['glass', 'slow'], best: { glass: 371 } })
+    expect(data?.expedition.oath).toBe('silence')
   })
 })

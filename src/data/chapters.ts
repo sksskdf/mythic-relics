@@ -108,6 +108,19 @@ export function parseChapters(rawChapters: unknown, regions = REGIONS, path = 'c
 
 export const CHAPTERS: readonly ChapterDef[] = parseChapters(raw)
 
+/**
+ * 장 정복 (E305-02, `CYCLE.md` 3.1 층 3): 마지막 장이 아닌 장의 끝 보스(거인 왕·키마이라).
+ * 이기면 숨 칸·신 단계 상한·명성 지수가 하나씩 오른다. 귀환해도 지워지지 않는다
+ */
+export function conquestsOf(chapters: readonly ChapterDef[]): string[] {
+  return chapters
+    .slice(0, -1)
+    .map((c) => c.steps.at(-1)!)
+    .filter((s) => s.kind === 'boss')
+    .map((s) => s.region)
+}
+export const CONQUESTS: readonly string[] = conquestsOf(CHAPTERS)
+
 /** 장 흐름의 땅 가운데 가장 센 땅의 적 지수 (장 흐름 밖의 들판은 엔딩 뒤라 이만큼) */
 export const TOP_POWER = Math.max(...CHAPTERS.flatMap((c) => Object.values(c.lands)))
 

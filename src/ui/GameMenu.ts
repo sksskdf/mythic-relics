@@ -5,7 +5,7 @@ import { RelicsTab } from './menu/relicsTab'
 import { renderRift } from './menu/riftTab'
 import { renderSources } from './menu/sourcesTab'
 import { renderStatus } from './menu/statusTab'
-import { renderTrials } from './menu/trialsTab'
+import { renderOaths } from './menu/oathsTab'
 import { TrainingTab } from './menu/trainingTab'
 import { el, img, type TabContext } from './menu/dom'
 import type { MenuHost } from './menu/host'
@@ -13,7 +13,7 @@ import { glyph } from './sigils'
 import { WardrobePane } from './WardrobePane'
 import './menu.css'
 
-export type MenuTab = 'status' | 'sources' | 'relics' | 'classes' | 'training' | 'trials' | 'rift' | 'map' | 'looks'
+export type MenuTab = 'status' | 'sources' | 'relics' | 'classes' | 'training' | 'oaths' | 'rift' | 'map' | 'looks'
 
 /** 탭: 그림과 이름 (좁은 화면에서는 고른 탭만 이름), 올리면 힌트 */
 const TABS: readonly [MenuTab, Parameters<typeof glyph>[0], string][] = [
@@ -22,21 +22,21 @@ const TABS: readonly [MenuTab, Parameters<typeof glyph>[0], string][] = [
   ['relics', 'relics', '장비'],
   ['classes', 'classes', '신화'],
   ['training', 'tree', '수련'],
-  ['trials', 'scroll', '시련'],
+  ['oaths', 'scroll', '맹세'],
   ['rift', 'star', '균열'],
   ['map', 'map', '지도'],
   ['looks', 'looks', '외형'],
 ]
 
 /** 엔딩 뒤에만 보이는 탭 (E21-06) */
-const ENDING_TABS: readonly MenuTab[] = ['trials', 'rift']
+const ENDING_TABS: readonly MenuTab[] = ['rift']
 
 /** 탭에 올리면 나오는 설명 */
 const TAB_HINTS: Record<MenuTab, string> = {
   status: '상태\n지금 내 능력치와 걸려 있는 힘',
   sources: '원천\n장비의 원천이 쌓여 각성한 힘 (엔딩 뒤에는 세계의 위협 단계와 손이 덜 가는 편의도)',
   relics: '유물\n낀 유물과 가방. 눌러서 바꿔 끼고, 바꾸면 어떻게 되는지 미리 본다',
-  trials: '시련\n제약을 건 전설. 깨면 그 제약과 이어진 힘이 영구히 붙는다',
+  oaths: '맹세\n다시 떠날 때 거는 제약. 그 원정에서 장 보스나 수호자를 이기면 지킨 것이고, 짝을 이룬 힘이 영구히 붙는다',
   rift: '균열\n한계를 깨면 열리는 끝없는 층과, 별을 밝히는 성좌판',
   map: '지도\n마을에서 북쪽으로 한 줄로 이어진 땅. 켠 성소와 마을은 눌러서 바로 간다',
   classes: '신화\n지금 신화의 개방 단계와 다음 단계로 가는 법, 만난 신들',
@@ -247,7 +247,7 @@ export class GameMenu {
     else if (this.tab === 'classes') this.myths.render(body)
     else if (this.tab === 'training') this.training.render(body)
     else if (this.tab === 'map') renderMap(ctx, body)
-    else if (this.tab === 'trials') renderTrials(ctx, body)
+    else if (this.tab === 'oaths') renderOaths(ctx, body)
     else if (this.tab === 'rift') renderRift(ctx, body)
     else this.wardrobe.render(body)
   }

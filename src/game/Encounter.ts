@@ -99,8 +99,8 @@ export class Encounter {
   landPower: (id: string | undefined) => number = () => 1
   /** 위협 단계 배율 (E14-03): 새로 세우는 적에 건다 */
   threat = { hp: 1, damage: 1 }
-  /** 결계 안(전설·시련)에 따로 세우는 적의 배율. 없으면 threat (시련 난이도가 결계 밖 무리·보스에 번지지 않게) */
-  arenaThreat: { hp: number; damage: number } | null = null
+  /** 무리 크기 배율 (맹세 「두 배의 무리」, E305-01): 새로 채우는 무리에 건다 */
+  crowd = 1
   /** 정예를 고를 때 쓰는 난수 (점검할 때 바꿔 끼운다) */
   rng: () => number = Math.random
   /** 지금 땅 (E19) */
@@ -398,10 +398,10 @@ export class Encounter {
     this.boss = null
   }
 
-  /** 승급 전설 등에서 거인을 따로 세운다. alert면 바로 주인공을 쫓는다. 시련 배율이 없으면 그 땅의 세기를 건다 */
+  /** 승급 전설 등에서 거인을 따로 세운다. alert면 바로 주인공을 쫓는다. 그 땅의 세기를 건다 */
   spawn(spec: GiantSpec, home: Point2, alert: boolean): Giant {
     const nav = this.navFor(spec)
-    const giant = this.addGiant(spec, nav.nearestFree(home) ?? home, this.arenaThreat ?? this.scaled(this.regionPower))
+    const giant = this.addGiant(spec, nav.nearestFree(home) ?? home, this.scaled(this.regionPower))
     if (alert) giant.alert()
     return giant
   }
@@ -481,8 +481,9 @@ export class Encounter {
    */
   private fillCamp(camp: Camp, elite = this.regionElite, free: (p: Point2) => Point2 | null = (p) => this.navs.get(GRUNT)!.nearestFree(p), into: Giant[] | null = null, power = this.regionPower): void {
     const threat = this.scaled(power)
-    for (let i = 0; i < camp.count; i++) {
-      const angle = (i / camp.count) * Math.PI * 2
+    const count = Math.round(camp.count * this.crowd)
+    for (let i = 0; i < count; i++) {
+      const angle = (i / count) * Math.PI * 2
       const around = { x: camp.center.x + Math.sin(angle) * 2.2, z: camp.center.z + Math.cos(angle) * 2.2 }
       const spot = free(around)
       const spec = camp.members.length > 0 ? camp.members[i % camp.members.length]! : GRUNT

@@ -31,8 +31,8 @@ export interface GameEvents {
   expeditionReturned: { count: number; renown: number; mult: number; branch: string }
   /** 궁극기가 나갔다 (E303: 고유 효과 「신의 숨결」) */
   ultimateCast: Record<string, never>
-  /** 시련이 끝났다 (E16): 이겼나, 걸린 시간 */
-  trialEnded: { id: string; level: number; win: boolean; seconds: number }
+  /** 맹세가 끝났다 (E305-01): 지켰나(깨졌나), 떠난 뒤 걸린 시간 */
+  oathEnded: { id: string; win: boolean; seconds: number }
   /** 한계를 깼다 (E17-01) */
   limitBroken: Record<string, never>
   /** 균열 층에 들어갔다 / 균열에서 나왔다 (E17) */
@@ -73,6 +73,8 @@ export interface GameEvents {
   regionEntered: { id: string }
   /** 다음 장이 열렸다 (E22): 그 장의 땅이 열린다. 마지막 장을 끝냈으면 chapter가 null */
   chapterChanged: { chapter: ChapterDef | null; index: number }
+  /** 장을 정복했다 (E305-02): 장 보스(거인 왕·키마이라)를 처음 이겼다. 숨 칸·신 단계 상한·명성 지수가 오른다 */
+  chapterConquered: { region: string; conquered: number }
   /** 지금 목표가 바뀌었다 (E22): HUD 한 줄과 지도 표시. 엔딩 뒤이거나 다 했으면 null */
   goalChanged: { goal: ChapterStep | null }
   /** 승급 전설이 시작됐다 / 실패했다. */

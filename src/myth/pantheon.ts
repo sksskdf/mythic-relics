@@ -18,19 +18,27 @@ export interface Pantheon {
 /** 부품 이름 */
 export type PartKind = 'hand' | 'heart' | 'breath'
 
-/** 숨 칸은 넷까지 */
-export const MAX_BREATH = 4
-/** 숨 칸을 하나씩 더 주는 장 보스의 땅 (거인 왕·키마이라) */
-export const BREATH_BOSSES: readonly string[] = ['utgard', 'lycia']
+/** 숨 칸의 끝: 데모 넷, 엔딩 뒤 다섯 (`CYCLE.md` 4.1: 키마이라·홀로의 맹세를 다 받으면 엔딩 뒤 다섯째) */
+export const MAX_BREATH = 5
+export const DEMO_BREATH = 4
 /** 같은 신이 아닌 자리의 신이 받는 경험치 비율 (손의 신은 다 받는다. 경험치 막대는 E304에서 기세로 바뀐다) */
 export const OTHER_XP = 0.5
 
 export const emptyPantheon = (): Pantheon => ({ hand: null, heart: null, breath: [] })
 
-/** 숨 칸 수: 처음 신이 깨어나면 1, 둘째 신 2, 장 보스(거인 왕·키마이라)마다 하나 더 */
-export function breathCount(awakened: number, beatenBosses: number): number {
+/** 숨 칸 수: 처음 신이 깨어나면 1, 둘째 신 2, 정복한 장(거인 왕·키마이라, E305-02)마다, 지킨 홀로의 맹세(E305-01)로 하나 더. 끝은 데모 4 */
+export function breathCount(awakened: number, conquered: number, oath = 0, cap = DEMO_BREATH): number {
   if (awakened <= 0) return 0
-  return Math.min(MAX_BREATH, 1 + (awakened >= 2 ? 1 : 0) + beatenBosses)
+  return Math.min(cap, 1 + (awakened >= 2 ? 1 : 0) + conquered + oath)
+}
+
+/**
+ * 맹세를 건 동안 도는 자리 (E305-01): 저장되는 자리는 그대로 두고, 빈 손이면 손을 비우고(낡은 검) 홀로면 숨을 앞에서 그만큼만.
+ * 원본은 바꾸지 않는다
+ */
+export function oathPantheon(p: Pantheon, rules: { emptyHand: boolean; breath: number | null }): Pantheon {
+  if (!rules.emptyHand && rules.breath === null) return p
+  return { hand: rules.emptyHand ? null : p.hand, heart: p.heart, breath: rules.breath === null ? p.breath : p.breath.slice(0, rules.breath) }
 }
 
 /** 자리에 든 신들 (겹치지 않게, 손 → 심장 → 숨 차례) */

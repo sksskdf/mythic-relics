@@ -10,9 +10,8 @@ import { ClassProgress, PER_LIT, PER_OPENED, PER_PROMOTION } from '../src/myth/C
 import { RiftProgress } from '../src/progress/Rift'
 import { ThreatProgress } from '../src/progress/Threat'
 import { TrainingProgress } from '../src/progress/Training'
-import { TrialProgress } from '../src/progress/Trials'
+import { OathProgress } from '../src/progress/Oaths'
 import { TRAINING_NODES } from '../src/data/training'
-import { TRIAL_IDS } from '../src/data/trials'
 import { GODS, godDef, RELIC_IDS, relicDef } from '../src/relics/data'
 
 /** 신화 단계(큰 걸음)와 고른 신화의 패시브 배율 (E21-01) */
@@ -163,14 +162,14 @@ describe('신화 단계와 수집 보너스 (E21-01·02)', () => {
 })
 
 describe('빌드 상태 다시 쓰기', () => {
-  it('재료가 그대로면 지난 계산을 돌려주고, 장착·단계·수련·시련·축복·별이 바뀌면 새로 계산한다', () => {
+  it('재료가 그대로면 지난 계산을 돌려주고, 장착·단계·수련·맹세·축복·별이 바뀌면 새로 계산한다', () => {
     const powers = new RelicPowers(new THREE.Group())
     const progress = new ClassProgress()
     const training = new TrainingProgress()
-    const trials = new TrialProgress()
+    const oaths = new OathProgress()
     const rift = new RiftProgress()
     const blessings: string[] = []
-    const build = new Build({ powers, progress, threat: new ThreatProgress(), training, trials, rift, blessings: () => blessings })
+    const build = new Build({ powers, progress, threat: new ThreatProgress(), training, oaths, rift, blessings: () => blessings })
     const first = build.state
     expect(build.state).toBe(first)
     const changes: (() => void)[] = [
@@ -183,7 +182,7 @@ describe('빌드 상태 다시 쓰기', () => {
         training.gain(1e7)
         training.take(TRAINING_NODES.find((n) => n.after.length === 0)!.id)
       },
-      () => trials.win(TRIAL_IDS[0], 1, 60),
+      () => oaths.keep('silence', 60),
       () => blessings.push('x'),
       () => rift.lit.add('thor'),
     ]
@@ -209,7 +208,7 @@ describe('빌드 층 목록 (E301-01)', () => {
       { open: new Map(), hand: null, gear: [], promotions: 0 },
       { open: new Map([['thor', 1]]), hand: 'thor', gear: ['mjolnir'], promotions: 0 },
       { open: new Map([['thor', 3], ['loki', 2]]), hand: 'thor', present: ['thor', 'loki'], gear: ['mjolnir'], lit: 4, gearItems, promotions: 3 },
-      { open: new Map([['zeus', 2]]), hand: 'zeus', gear: [], gearItems, promotions: 1, bonus: { trials: { damage: 0.1 }, training: { damage: 0.12, maxHp: 10 }, blessings: { damage: 0.05 } } },
+      { open: new Map([['zeus', 2]]), hand: 'zeus', gear: [], gearItems, promotions: 1, bonus: { oaths: { damage: 0.1 }, training: { damage: 0.12, maxHp: 10 }, blessings: { damage: 0.05 } } },
       { open: new Map([['odin', 4], ['thor', 2]]), hand: null, gear: ['mjolnir'], promotions: 4, starred: new Set(['odin', 'thor']) },
       { open: new Map([['artemis', 2]]), hand: 'artemis', waking: 'loki', gear: [], lit: 1, promotions: 1 },
     ]
@@ -221,9 +220,9 @@ describe('빌드 층 목록 (E301-01)', () => {
   })
 
   it('덧셈 층은 출처마다 피해 몫을 따로 센다', () => {
-    const state = computeBuild({ open: new Map([['thor', 2]]), hand: 'thor', gear: [], lit: 1, promotions: 2, bonus: { trials: { damage: 0.1 }, training: { damage: 0.2 } } })
+    const state = computeBuild({ open: new Map([['thor', 2]]), hand: 'thor', gear: [], lit: 1, promotions: 2, bonus: { oaths: { damage: 0.1 }, training: { damage: 0.2 } } })
     const by = Object.fromEntries(state.layers.map((l) => [l.id, l.value]))
-    expect(by.trials).toBeCloseTo(0.1)
+    expect(by.oaths).toBeCloseTo(0.1)
     expect(by.training).toBeCloseTo(0.2)
     expect(by.collection).toBeCloseTo(PER_LIT)
     expect(by.promotion).toBeCloseTo(PER_PROMOTION.damage ** 2)

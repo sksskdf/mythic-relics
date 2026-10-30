@@ -5,7 +5,7 @@
  */
 export const AFTER_ENDING = {
   threat: '위협 단계 고르기와 한계를 깸',
-  trials: '시련',
+  oaths: '맹세 다섯',
   rift: '균열과 성좌판',
   conveniences: '편의 자동화 (자동 줍기는 처음부터)',
   mythStage4: '신화 4단계',

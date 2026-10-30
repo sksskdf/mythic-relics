@@ -3,11 +3,13 @@ import { activeLayers, LAYER_NAMES } from '../build/layers'
 import { AWAKEN, AWAKEN_GODS } from '../data/awaken'
 import { awakeningLevel } from '../data/awakening'
 import { blessingDef, STARS } from '../data/rift'
-import { REALM_COLORS } from '../data/regions'
+import { REALM_COLORS, REGIONS } from '../data/regions'
+import { CONQUESTS } from '../data/chapters'
+import { ENEMIES } from '../enemies/Giant'
 import { CELL, cellOrigin } from '../data/world'
 import { SOURCE_IDS, type SourceId } from '../data/schema'
 import { LIMIT_REALMS, REALM_NAMES } from '../data/threat'
-import { TRIAL_IDS, TRIAL_MILESTONES, type TrialId, TRIALS } from '../data/trials'
+import { OATHS } from '../data/oaths'
 import { nextRecipe } from '../gear/forge'
 import { materialName } from '../gear/materials'
 import { MYTH_RELICS, mythRelic, relicMyth, stageName } from '../gear/mythRelic'
@@ -102,6 +104,10 @@ export class MenuData {
       cardContext: (id) => this.cardContext(id),
       stats: () => this.heroStats(),
       afterEnding: () => game.ending.reached,
+      nextConquest: () => {
+        const region = CONQUESTS.find((r) => !game.chapters.bosses.has(r))
+        return region && !game.ending.reached ? (ENEMIES[REGIONS[region]?.boss?.enemy ?? '']?.name ?? null) : null
+      },
       tabOpen: (tab) => game.tabs.has(tab),
       toTitle: () => game.toTitle(),
       openSettings: () => {
@@ -130,19 +136,10 @@ export class MenuData {
         },
         warp: (id) => game.warpTo(id),
       },
-      trials: {
-        open: () => game.trialSystem.open,
-        blocked: () => game.trialSystem.blocked(),
-        list: () =>
-          TRIAL_IDS.map((id) => {
-            const def = TRIALS[id]
-            const per = def.reward.per < 1 ? `+${Math.round(def.reward.per * 100)}%` : `+${def.reward.per}`
-            return { id, name: def.name, rule: def.rule, reward: def.reward.text, per, cleared: game.trials.cleared[id] ?? 0, best: [1, 2, 3, 4, 5].map((n) => game.trials.best[`${id}:${n}`] ?? null) }
-          }),
-        total: () => game.trials.total,
-        milestones: () => [...TRIAL_MILESTONES],
-        riftScale: () => game.trials.riftScale(),
-        start: (id, level) => game.trialSystem.start(id as TrialId, level),
+      oaths: {
+        current: () => (game.expedition.oath ? OATHS[game.expedition.oath].name : null),
+        list: () => game.oathSystem.view().oaths.map((o) => ({ ...o })),
+        renownScale: () => game.oaths.renownScale(),
       },
       training: {
         insights: () => ({ total: ctx.training.insights, unspent: ctx.training.unspent, ...insightProgress(ctx.training.xp) }),
@@ -176,7 +173,6 @@ export class MenuData {
         },
         best: () => game.rift.best,
         stars: () => game.rift.stars,
-        scale: () => game.trials.riftScale(),
         chart: () => {
           const isOpen = (god: string) => game.progress.isOpen(god)
           return Object.values(STARS).map((star) => ({

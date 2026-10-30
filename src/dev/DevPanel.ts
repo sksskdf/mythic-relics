@@ -1,4 +1,5 @@
 import { THEME_IDS, type ThemeId } from '../audio/music'
+import { CONQUESTS } from '../data/chapters'
 import { SOUND_CUES } from '../audio/sounds'
 import { type Realm, REALMS } from '../data/classKit'
 import { REGIONS } from '../data/regions'
@@ -251,6 +252,12 @@ export class DevPanel {
           for (let i = 0; i < 12 && g.chapters.index === at && g.chapters.goal; i++) g.skipGoal()
           g.menu.refresh()
         }),
+        // 장 정복 (E305-02): 다음 장 보스를 이긴 것으로 (숨 칸·신 단계 상한·명성 지수와 카드)
+        button('장 정복', () => {
+          const region = CONQUESTS.find((r) => !g.chapters.bosses.has(r))
+          if (region) g.chapterSystem.bossDown(region)
+          g.menu.refresh()
+        }),
       ),
       // 순간의 크기 (E23-01): 등급마다 하나씩 띄워 본다
       row(
@@ -279,8 +286,13 @@ export class DevPanel {
           g.threat.unlocked = Math.min(10, g.threat.unlocked + 1)
           g.menu.refresh()
         }),
-        button('시련 열기', () => {
-          Object.assign(g.threat, { unlocked: Math.max(3, g.threat.unlocked), reached: Math.max(3, g.threat.reached) })
+        // 맹세 (E305-01): 아직 못 지킨 것 하나를 걸고, 건 맹세를 지킨 것으로
+        button('맹세 걸기', () => {
+          g.oathSystem.swear(g.oathSystem.available().find((id) => !g.oaths.has(id)) ?? null)
+          g.menu.refresh()
+        }),
+        button('맹세 지킴', () => {
+          g.oathSystem.keepNow()
           g.menu.refresh()
         }),
         button('한계를 깸', () => {

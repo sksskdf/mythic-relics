@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import { renownFor, renownMultiplier } from '../src/data/cycle'
+import { LEVEL_CAP_BASE, renownFor, renownMultiplier } from '../src/data/cycle'
+import { computeBuild } from '../src/build/BuildState'
+import { layerProduct } from '../src/build/layers'
+import { DEMO_MAX_LEVEL, MAX_LEVEL } from '../src/myth/ClassProgress'
 import { ClassProgress } from '../src/myth/ClassProgress'
 import { ExpeditionProgress, parseExpedition } from '../src/progress/Expedition'
 
@@ -69,5 +72,37 @@ describe('원정과 귀환 (E304)', () => {
     expect(p.ascend('thor')).toBe(true)
     expect(p.ascend('thor')).toBe(false)
     expect(p.level('thor')).toBe(3)
+  })
+
+  it('장 정복 (E305-02): 신 단계 상한은 2에서 정복마다 +1, 데모 끝 3, 엔딩 뒤 4', () => {
+    let conquered = 0
+    let afterEnding = false
+    const p = new ClassProgress(() => afterEnding, () => true, () => conquered)
+    expect(p.levelCap).toBe(LEVEL_CAP_BASE)
+    p.open('thor')
+    expect(p.ascend('thor')).toBe(true)
+    expect(p.ascend('thor')).toBe(false)
+    conquered = 1
+    expect(p.levelCap).toBe(DEMO_MAX_LEVEL)
+    expect(p.ascend('thor')).toBe(true)
+    conquered = 2
+    expect(p.levelCap).toBe(DEMO_MAX_LEVEL)
+    afterEnding = true
+    expect(p.levelCap).toBe(MAX_LEVEL)
+  })
+
+  it('장 정복 (E305-02): 명성 배율에 지수 1 + 0.1·정복, 원정 기록·빌드 층이 같은 값을 쓴다', () => {
+    expect(renownMultiplier(25, 1)).toBeCloseTo(1.5 ** 1.1)
+    expect(renownMultiplier(25, 2)).toBeCloseTo(1.5 ** 1.2)
+    expect(renownMultiplier(0, 2)).toBe(1)
+    const e = new ExpeditionProgress()
+    e.renown = 25
+    e.conquests = () => 1
+    expect(e.multiplier).toBeCloseTo(1.5 ** 1.1)
+    expect(e.preview().now).toBeCloseTo(1.5 ** 1.1)
+    const build = computeBuild({ open: new Map(), gear: [], promotions: 0, hand: null, renown: 25, conquered: 1 })
+    const conquest = build.layers.find((l) => l.id === 'conquest')!
+    expect(conquest.value).toBeCloseTo(1.5 ** 0.1)
+    expect(layerProduct(build.layers)).toBeCloseTo(computeBuild({ open: new Map(), gear: [], promotions: 0, hand: null }).damageScale * 1.5 ** 1.1)
   })
 })

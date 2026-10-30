@@ -36,6 +36,7 @@ export class TabSystem {
       // 신화 탭은 첫 신의 흔적(조각 1)부터 (E238)
       myth: progress.opened.length > 0 || this.ctx.awaken.fragments >= 1,
       relic: loadout.ownedRelics.some(isMythRelic),
+      returns: this.ctx.expedition.returns,
     }
   }
 

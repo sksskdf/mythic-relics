@@ -8,6 +8,7 @@ import { TouchControls } from '../input/TouchControls'
 import { PixelRenderer } from '../render/PixelRenderer'
 import { QuarterViewCamera } from '../render/QuarterViewCamera'
 import { renderHeightForScreen, TARGET_RENDER_HEIGHT, visibleHeight } from '../render/resolution'
+import { CONQUESTS } from '../data/chapters'
 import { REGIONS, type RegionDef, START_REGION } from '../data/regions'
 import { godDef, type RelicId } from '../relics/data'
 import { Wardrobe } from '../looks/outfit'
@@ -17,7 +18,7 @@ import { Pickups } from '../gear/Pickups'
 import { DEMO_RELIC_STAGES, isMythRelic, RELIC_STAGES } from '../gear/mythRelic'
 import type { SaveData } from '../save/SaveData'
 import { ClassProgress } from '../myth/ClassProgress'
-import { BREATH_BOSSES, focusGod, MAX_BREATH, type PartKind } from '../myth/pantheon'
+import { focusGod, MAX_BREATH, type PartKind } from '../myth/pantheon'
 import type { SkillContext } from '../skills/Skill'
 import { DamageNumbers } from '../ui/DamageNumbers'
 import { Hud } from '../ui/Hud'
@@ -83,8 +84,10 @@ import { Conveniences } from '../progress/Conveniences'
 import { Ending } from '../progress/Ending'
 import { ThreatProgress } from '../progress/Threat'
 import { ThreatSystem } from './systems/Threat'
-import { TrialSystem } from './systems/Trials'
-import { TrialProgress } from '../progress/Trials'
+import { OathSystem } from './systems/Oaths'
+import type { OathId } from '../data/oaths'
+import { OathProgress } from '../progress/Oaths'
+import { OathCard } from '../ui/OathCard'
 import { RiftProgress } from '../progress/Rift'
 import { RiftSystem } from './systems/Rift'
 import { BlessingPicker } from '../ui/BlessingPicker'
@@ -132,7 +135,7 @@ const ENDING_CARD: MomentCard = {
 export interface PlayEvent {
   /** 게임 시간 (초) */
   t: number
-  type: 'relic' | 'manifest' | 'open' | 'fragment' | 'forge' | 'gear' | 'kill' | 'bossKill' | 'death' | 'legendStart' | 'legendFail' | 'promote' | 'hurt' | 'threat' | 'region' | 'trial' | 'rift' | 'chapter' | 'ending'
+  type: 'relic' | 'manifest' | 'open' | 'fragment' | 'forge' | 'gear' | 'kill' | 'bossKill' | 'death' | 'legendStart' | 'legendFail' | 'promote' | 'hurt' | 'threat' | 'region' | 'oath' | 'rift' | 'chapter' | 'ending'
   detail?: string
 }
 
@@ -155,25 +158,28 @@ export class Game {
   readonly pickups = new Pickups()
   /** 첫 엔딩을 보았나 (E21-06): 엔딩 뒤 장치는 여기서만 연다 */
   readonly ending = new Ending()
-  readonly progress = new ClassProgress(
+  readonly progress: ClassProgress = new ClassProgress(
     () => this.ending.has('mythStage4'),
     // 데모에서는 경험치로 저절로 열리지 않고 성소에서 고른다 (E22-03)
     () => this.ending.reached,
+    // 장 정복 (E305-02): 신 단계 상한
+    (): number => this.chapters.conquered,
   )
   readonly drops = new DropTable()
   readonly wardrobe = new Wardrobe()
   readonly threat = new ThreatProgress()
-  readonly trials = new TrialProgress()
+  readonly oaths = new OathProgress()
   readonly rift = new RiftProgress()
   readonly riftSystem: RiftSystem
   private readonly blessingPicker: BlessingPicker
-  readonly trialSystem: TrialSystem
+  readonly oathSystem: OathSystem
+  private readonly oathCard: OathCard
   readonly threatSystem: ThreatSystem
   /** 대화 장면을 언제 여는가: 처음 보는 일, 마을 사람에게 말 걸기, 미룬 장면 (E15-06) */
   private readonly storyline: Storyline
   readonly conveniences = new Conveniences(() => this.ending.has('conveniences'))
   /** 장 진행 (E22): 지금 장·목표·열린 땅 */
-  readonly chapters = new ChapterProgress(
+  readonly chapters: ChapterProgress = new ChapterProgress(
     {
       chose: (realm) => this.progress.opened.some((god) => godDef(god).realm === realm),
       awakened: (realm) => this.progress.opened.filter((god) => godDef(god).realm === realm).length,
@@ -187,7 +193,7 @@ export class Game {
   /** 수련 (E236): 경험치로 얻은 깨달음과 익힌 마디 */
   readonly training = new TrainingProgress()
   /** 원정 (E304): 원정 번호·명성·원천 불씨·기록 */
-  readonly expedition = new ExpeditionProgress()
+  readonly expedition = Object.assign(new ExpeditionProgress(), { conquests: (): number => this.chapters.conquered })
   /** 신을 깨우는 진행 (E238): 깨우는 신과 모은 조각 */
   readonly awaken = new AwakenProgress()
   /** 신을 깨우는 길 (E238): 흔적·사냥·수호자 */
@@ -434,7 +440,7 @@ export class Game {
       wardrobe: this.wardrobe,
       scenesSeen,
       threat: this.threat,
-      trials: this.trials,
+      oaths: this.oaths,
       rift: this.rift,
       conveniences: this.conveniences,
       ending: this.ending,
@@ -444,7 +450,7 @@ export class Game {
       tabs: this.tabs,
       awaken: this.awaken,
       uniques: new UniqueState(),
-      build: new Build({ powers: this.powers, progress: this.progress, threat: this.threat, trials: this.trials, trial: () => this.trialSystem?.active?.id ?? null, rift: this.rift, blessings: () => this.riftSystem?.blessings ?? [], training: this.training, awaken: this.awaken, expedition: this.expedition }),
+      build: new Build({ powers: this.powers, progress: this.progress, threat: this.threat, oaths: this.oaths, oath: () => this.expedition.oath, rift: this.rift, blessings: () => this.riftSystem?.blessings ?? [], training: this.training, awaken: this.awaken, expedition: this.expedition }),
       skills,
     }
     this.damage = new DamageSystem(this.ctx)
@@ -560,14 +566,20 @@ export class Game {
     })
     // 지금 장의 땅은 할 일 차례로 열린다 (E236-01): 할 일을 하나 마치면 다음 땅의 결계가 풀린다
     this.bus.on('goalChanged', () => this.world.refreshLinks())
-    this.trialSystem = new TrialSystem(this.ctx, this.growth, this.threatSystem)
     this.blessingPicker = new BlessingPicker(this.hud.root)
     this.returnCard = new ReturnCard(this.hud.root)
+    this.oathCard = new OathCard(this.hud.root)
     this.expeditionSystem = new ExpeditionSystem(this.ctx, {
       offer: (view, pick, later) => this.returnCard.show(view, pick, later),
       offering: () => this.returnCard.open,
       ascend: (god) => this.growth.promote(god, true),
       merge: (uids) => void this.relics.merge(uids),
+    })
+    // 맹세 (E305-01): 귀환 2부터 다시 떠날 때 출발 카드
+    this.oathSystem = new OathSystem(this.ctx, {
+      offer: (view, pick) => this.oathCard.show(view, (id) => pick(id as OathId | null)),
+      reapply: () => this.relics.reapply(),
+      fillBreath: () => this.relics.fillBreath(),
     })
     this.riftSystem = new RiftSystem(
       this.ctx,
@@ -635,6 +647,8 @@ export class Game {
       // 위협 단계 배율은 불러온 단계로 (이미 세운 적도 다시 세운다)
       this.threatSystem.apply()
       if (this.threat.level > 1) this.encounter.resetAll()
+      // 건 맹세 (E305-01): 빈 손·홀로의 도는 자리와 무리 크기
+      this.oathSystem.sync()
       this.chapterSystem.sync()
       this.world.refreshLinks(false)
       // 마지막 보스를 이긴 뒤 엔딩이 끝나기 전에 저장된 판: 엔딩을 다시 보인다 (안 그러면 엔딩 뒤 장치가 영영 닫힌다)
@@ -711,7 +725,7 @@ export class Game {
     bus.on('chapterChanged', ({ chapter }) => record('chapter', chapter?.id ?? 'end'))
     bus.on('riftFloor', ({ depth }) => record('rift', `floor:${depth}`))
     bus.on('riftEnded', ({ depth, reason }) => record('rift', `${reason}:${depth}`))
-    bus.on('trialEnded', ({ id, level, win, seconds }) => record('trial', `${id}:${level}:${win ? 'win' : 'fail'}:${Math.round(seconds)}`))
+    bus.on('oathEnded', ({ id, win, seconds }) => record('oath', `${id}:${win ? 'win' : 'fail'}:${Math.round(seconds)}`))
     bus.on('heroDied', () => record('death'))
     bus.on('legendStarted', () => record('legendStart'))
     bus.on('legendFailed', () => record('legendFail'))
@@ -819,10 +833,16 @@ export class Game {
     return this.returnCard.open
   }
 
+  /** 맹세 출발 카드가 떠 있다 (E305-01, 봇·점검) */
+  get oathCardOpen(): boolean {
+    return this.oathCard.open
+  }
+
   /** 축복 고르기 창을 닫는다 (봇이 대신 골랐을 때) */
   hideBlessings(): void {
     this.blessingPicker.hide()
     this.returnCard.hide()
+    this.oathCard.hide()
   }
 
   /** 처음 보는 일의 짧은 대화 장면을 연다 (창이 열려 있으면 미룬다, `Storyline.play`) */
@@ -973,7 +993,7 @@ export class Game {
         break
       }
       case 'boss': {
-        this.chapters.bossDefeated(goal.region)
+        this.chapterSystem.bossDown(goal.region)
         if (goal.opens) this.mythChoice.openRealm(goal.opens)
         break
       }
@@ -1092,7 +1112,7 @@ export class Game {
     const count = this.relics.slots
     const locked: string[] = []
     if (this.progress.opened.length < 2) locked.push('두 번째 신이 깨어나면')
-    for (const region of BREATH_BOSSES) {
+    for (const region of CONQUESTS) {
       if (this.chapters.bosses.has(region)) continue
       const boss = REGIONS[region]?.boss
       locked.push(`${josa(ENEMIES[boss?.enemy ?? 'king']?.name ?? '장 보스', '을')} 이기면`)
@@ -1184,7 +1204,7 @@ export class Game {
     this.expeditionSystem.update(dt)
     this.mythChoice.update()
     this.awakening.update(dt)
-    this.trialSystem.update(dt)
+    this.oathSystem.update()
     this.riftSystem.update(dt)
     this.life.update(dt)
     this.appearance.update(dt)
@@ -1269,7 +1289,7 @@ export class Game {
                 ? boss.spec.name
                 : (this.awakening.fighting?.spec.name ?? null),
         slots: this.powers.hudSlots(),
-        ultimate: this.ctx.build.heart !== null,
+        ultimate: this.ctx.build.heart !== null && !this.ctx.build.state.noUltimate,
         xp: manifested ? this.progress.xpRatio(manifested) : null,
         xpColor: manifested ? godDef(manifested).color : '',
         portrait: manifested

@@ -8,7 +8,7 @@ import { legacyManifest } from '../myth/manifest'
 import { type ChapterData, parseChapterData } from '../progress/Chapters'
 import { type ConvenienceData, parseConveniences } from '../progress/Conveniences'
 import { parseThreat, type ThreatData } from '../progress/Threat'
-import { parseTrials, type TrialData } from '../progress/Trials'
+import { type OathData, oathsFromTrials, parseOaths } from '../progress/Oaths'
 import { parseRift, type RiftData } from '../progress/Rift'
 import { parseTraining, type TrainingData } from '../progress/Training'
 import { type ExpeditionData, parseExpedition } from '../progress/Expedition'
@@ -46,8 +46,9 @@ import { legacySlots, migrateLooks, oldChapters, oldStars, oldTrainingXp, fillEm
  * - v15: 원형과 유물표 (E303-04). 신화권 재료 → 원형 셋씩(대장간 값 ×3), 12칸을 넘친 가방의 일반 장비는 낮은 등급부터 녹여 원형으로.
  *   칸·가방의 신화 유물은 유물표(lit)로 옮기고 빈 칸은 가방의 가장 좋은 장비로 채운다. 가진 장비의 고유 효과도 유물표에 켠다
  * - v16: 원정 (E304). 원정 번호·명성·원천 불씨·기록·가보. 옛 저장은 첫 원정에서 이어 간다(신 단계는 그대로라 명성 없이도 힘이 같다)
+ * - v17: 맹세 (E305-01). 시련 기록(trials) → 맹세 기록(oaths), 원정에 건 맹세(expedition.oath). 한 단계라도 깬 시련은 짝인 맹세를 지킨 것으로
  */
-export const SAVE_VERSION = 16
+export const SAVE_VERSION = 17
 
 export interface SaveData {
   version: typeof SAVE_VERSION
@@ -83,8 +84,8 @@ export interface SaveData {
   threat: ThreatData
   /** 편의 자동화 (E14-05) */
   conveniences: ConvenienceData
-  /** 시련: 깬 난이도와 기록 (E16) */
-  trials: TrialData
+  /** 맹세: 지킨 맹세와 기록 (E305-01, v16 이하는 시련 기록에서) */
+  oaths: OathData
   /** 균열 기록과 성좌판 (E17) */
   rift: RiftData
   /** 첫 엔딩을 보았나 (E21-06): 엔딩 뒤 장치를 연다 */
@@ -124,7 +125,7 @@ export function parseSave(text: string | null): SaveData | null {
   }
   if (typeof raw !== 'object' || raw === null) return null
   const data = raw as Record<string, unknown>
-  if (data.version !== SAVE_VERSION && ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].includes(data.version as number)) return null
+  if (data.version !== SAVE_VERSION && ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16].includes(data.version as number)) return null
   const old = (data.version as number) < 5
 
   // 일반 장비 (v5)
@@ -210,10 +211,10 @@ export function parseSave(text: string | null): SaveData | null {
   if ((data.version as number) < 15) fullBag = meltOverflow(fullBag, gearById, materials)
   const keep = new Set([...slots.slice(0, SLOT_PARTS.length), ...fullBag, ...ground.map((g) => g.id)])
   const threat = parseThreat(data.threat)
-  const trials = parseTrials(data.trials)
+  const oaths = (data.version as number) < 17 ? oathsFromTrials(data.trials) : parseOaths(data.oaths)
   const rift = parseRift(data.rift, (data.version as number) < 6 ? oldStars(data.cycle) : 0)
   // 엔딩 뒤 장치를 해 본 옛 저장은 엔딩 뒤로 친다 (E21-06)
-  const tried = threat.limitBroken || threat.unlocked > 1 || Object.values(trials.cleared).some((n) => (n ?? 0) > 0) || rift.best > 0
+  const tried = threat.limitBroken || threat.unlocked > 1 || oaths.kept.length > 0 || rift.best > 0
   const region = parseRegion(data.region)
   const conveniences = parseConveniences(data.conveniences)
   const chapters = (data.version as number) < 10 ? oldChapters(region, conveniences, threat, materials, relicsOwned) : parseChapterData(data.chapters)
@@ -236,7 +237,7 @@ export function parseSave(text: string | null): SaveData | null {
     body: parseBody(data.body),
     threat,
     conveniences,
-    trials,
+    oaths,
     rift,
     ending: data.ending === true || ((data.version as number) < 9 && tried),
     chapters,

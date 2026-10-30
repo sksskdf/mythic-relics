@@ -409,21 +409,28 @@ const sections = {
     return {}
   },
 
-  /** E16 시련 탭 (제약·보상이 이어지는지) */
-  async 'e16'(browser) {
+  /** E305 맹세: 귀환 2에 뜨는 출발 카드와 맹세 탭 (제약·보상이 이어지는지) */
+  async 'e305-oath'(browser) {
     const page = await fresh(browser, '?fresh&relics=&region=midgard&noscenes')
-    const text = await page.evaluate(() => {
+    await page.evaluate(() => {
       const g = window.__game
       g.dev.choose('thor')
-      g.reachEnding()
-      Object.assign(g.threat, { unlocked: 3, reached: 3 })
-      const s = g.region.sanctuary
-      g.dev.teleport(s.x, s.z)
-      g.menu.show('trials')
+      Object.assign(g.expedition, { count: 2, elapsed: 300 })
+      g.training.xp = 5000
+      g.oaths.keep('glass', 400)
+      g.expeditionSystem.returnNow('flame:flame')
+    })
+    await page.waitForTimeout(400)
+    await shot(page, 'e305-oath-card')
+    const text = await page.evaluate(() => {
+      const g = window.__game
+      g.hideBlessings()
+      g.oathSystem.swear('alone')
+      g.menu.show('oaths')
       return document.querySelector('.menu')?.innerText ?? ''
     })
     await page.waitForTimeout(400)
-    await shot(page, 'e16-trials')
+    await shot(page, 'e305-oaths-tab')
     await page.close()
     return { text: text.slice(0, 2000) }
   },

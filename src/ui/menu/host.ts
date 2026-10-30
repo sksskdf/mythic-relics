@@ -32,20 +32,14 @@ export interface HeroStats {
   powers: { kind: 'god' | 'relic'; name: string; color: string; label: string; what: string }[]
 }
 
-/** 시련 탭이 게임에서 읽고 부르는 것 (E16-04) */
-export interface TrialsHost {
-  /** 위협 3단계에 열린다 */
-  open(): boolean
-  /** 지금 시련을 열 수 없는 까닭 (열 수 있으면 null) */
-  blocked(): string | null
-  /** 시련마다: 이름, 제약, 보상(한 단계마다), 깬 난이도, 난이도마다 가장 빠른 기록(초) */
-  list(): { id: string; name: string; rule: string; reward: string; per: string; cleared: number; best: (number | null)[] }[]
-  /** 깬 난이도의 합과 마일스톤 */
-  total(): number
-  milestones(): { at: number; name: string; text: string }[]
-  /** 균열 보상 배율 (E17) */
-  riftScale(): number
-  start(id: string, level: number): boolean
+/** 맹세 탭이 게임에서 읽는 것 (E305-01) */
+export interface OathsHost {
+  /** 지금 건 맹세 이름 (없으면 null) */
+  current(): string | null
+  /** 고를 수 있는 맹세마다: 이름, 제약, 지키면 얻는 것, 지켰나, 가장 빠른 기록(분:초) */
+  list(): { id: string; name: string; rule: string; reward: string; kept: boolean; best: string | null }[]
+  /** 맹세 기록이 더하는 명성 배율 */
+  renownScale(): number
 }
 
 /** 균열 탭이 게임에서 읽고 부르는 것 (E17) */
@@ -60,8 +54,6 @@ export interface RiftMenuHost {
   run(): { depth: number; blessings: string[] } | null
   best(): number
   stars(): number
-  /** 균열 보상 배율 (시련 기록) */
-  scale(): number
   /** 성좌판: 별마다 신화 이름·색·자리·이웃, 밝혔나, 지금 밝힐 수 있나 */
   chart(): { god: string; name: string; color: string; x: number; y: number; neighbors: string[]; lit: boolean; can: boolean }[]
   light(god: string): boolean
@@ -174,11 +166,13 @@ export interface MenuHost {
   stats(): HeroStats
   readonly sources: SourcesHost
   readonly world: WorldMapHost
-  readonly trials: TrialsHost
+  readonly oaths: OathsHost
   readonly rift: RiftMenuHost
   readonly training: TrainingHost
   /** 첫 엔딩을 보았나: 엔딩 뒤 장치(위협 단계·편의·시련·균열)를 보인다 (E21-06) */
   afterEnding(): boolean
+  /** 신 단계 상한을 올려 줄 다음 장 보스의 이름 (E305-02, 데모 끝까지 다 정복했으면 null) */
+  nextConquest(): string | null
   /** 연 탭인가 (E236-05: 상태 탭 말고는 쓸 일이 생길 때 하나씩 열린다) */
   tabOpen(tab: string): boolean
   /** 저장하고 처음 화면(슬롯 고르기)으로 */

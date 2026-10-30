@@ -16,7 +16,7 @@ import { delta, gearIcon } from '../../ui/gearCard'
 import type { GameContext } from '../context'
 import type { LoadoutChange } from '../RelicPowers'
 import { godMoment } from './godMoments'
-import { autoFill, BREATH_BOSSES, breathCount, fitBreath, inPantheon, type PartKind, withoutBreath, withPart } from '../../myth/pantheon'
+import { autoFill, breathCount, DEMO_BREATH, fitBreath, inPantheon, MAX_BREATH, oathPantheon, type PartKind, withoutBreath, withPart } from '../../myth/pantheon'
 import { awakenDef } from '../../data/awaken'
 
 /** 클래스가 발현되는 순간 주변 적을 밀어내는 범위와 피해 */
@@ -59,6 +59,8 @@ export class RelicSystem {
       if (piece === 2) this.offer(god, 'hand')
       if (piece === 3) this.offer(god, 'heart')
     })
+    // 장 정복 (E305-02): 숨 칸이 늘면 아직 숨에 없는 깨어난 신 하나를 빈 칸에 넣는다 (카드는 장 보스 장면 뒤에 함께)
+    ctx.bus.on('chapterConquered', () => this.fillBreath())
     // 처음 깨어난 신: 손·심장·숨을 모두 그 신으로 (E12-04 → E302). 있으면 빈 자리에 저절로 넣는다
     ctx.bus.on('mythOpened', ({ god, quiet }) => {
       // 심장이 비었으면 첫 신이다 (손은 조각 2에 이미 쥐었을 수 있다): 세 자리에 몰고 깨어나는 장면
@@ -91,10 +93,10 @@ export class RelicSystem {
     return true
   }
 
-  /** 숨 칸 수 (E302): 깨어난 신 수와 이긴 장 보스(거인 왕·키마이라)로 정한다 */
+  /** 숨 칸 수 (E302): 깨어난 신 수, 정복한 장(E305-02), 지킨 홀로의 맹세(E305-01)로 정한다. 끝은 데모 4, 엔딩 뒤 5 */
   get slots(): number {
-    const { progress, chapters } = this.ctx
-    return breathCount(progress.opened.length, BREATH_BOSSES.filter((r) => chapters.bosses.has(r)).length)
+    const { progress, chapters, oaths, ending } = this.ctx
+    return breathCount(progress.opened.length, chapters.conquered, oaths.breath, ending.reached ? MAX_BREATH : DEMO_BREATH)
   }
 
   /** 그 자리에 그 신을 낀다 (정보 화면 신 탭, 어디서나). 숨은 빈 칸이 있어야 한다 */
@@ -115,6 +117,13 @@ export class RelicSystem {
     if (next === progress.pantheon) return false
     this.apply(next, false)
     return true
+  }
+
+  /** 숨 칸이 늘었다 (장 정복·홀로의 맹세): 아직 숨에 없는 깨어난 신 하나를 빈 칸에 넣는다 */
+  fillBreath(): void {
+    const p = this.ctx.progress.pantheon
+    const god = this.ctx.progress.opened.find((g) => !p.breath.includes(g))
+    if (god) this.fill(god, ['breath'])
   }
 
   /** 새로 얻은 부품을 빈 자리에 저절로 넣는다 (E302-03). 들어간 자리를 돌려준다 */
@@ -141,7 +150,7 @@ export class RelicSystem {
   private apply(next: typeof this.ctx.progress.pantheon, announce: boolean): void {
     const { progress, powers, bus } = this.ctx
     progress.pantheon = fitBreath(next, Math.max(1, this.slots))
-    const change = powers.setPantheon(progress.pantheon)
+    const change = powers.setPantheon(this.running(progress.pantheon))
     bus.emit('progressChanged', {})
     this.changed(change, announce)
   }
@@ -156,9 +165,21 @@ export class RelicSystem {
     // 개발 지름길은 숨 칸 수를 장 진행에 맞추지 않는다
     if (anyBreath) {
       progress.pantheon = next
-      this.changed(this.ctx.powers.setPantheon(next), false)
+      this.changed(this.ctx.powers.setPantheon(this.running(next)), false)
       this.ctx.bus.emit('progressChanged', {})
     } else this.apply(next, false)
+  }
+
+  /** 도는 자리: 맹세를 건 동안 빈 손이면 손을 비우고, 홀로면 숨을 하나만 (저장되는 자리는 그대로) */
+  private running(p: typeof this.ctx.progress.pantheon): typeof this.ctx.progress.pantheon {
+    return oathPantheon(p, this.ctx.build.rules)
+  }
+
+  /** 맹세를 걸거나 풀었다 (E305-01): 저장된 자리 그대로 도는 자리만 다시 맞춘다 */
+  reapply(): void {
+    const { powers, progress, bus } = this.ctx
+    this.changed(powers.setPantheon(this.running(progress.pantheon)), false)
+    bus.emit('progressChanged', {})
   }
 
   /** 그 신이 자리에 들었나 */

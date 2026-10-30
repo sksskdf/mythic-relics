@@ -160,13 +160,12 @@ export class RiftSystem {
     this.ctx.bus.emit('moment', { id: 'blessingPicked', text: `${blessingDef(id)!.name} · 다음 층 문이 열렸다` })
   }
 
-  /** 층을 깬 보상: 원형(깊을수록 많이, 시련 기록 배율, 대장간 값이 셋 배라 셋 배로), 보스 층은 귀한 재료, 종말 보스는 별 둘, 처음 닿은 5층마다 별 하나 */
+  /** 층을 깬 보상: 원형(깊을수록 많이, 대장간 값이 셋 배라 셋 배로), 보스 층은 귀한 재료, 종말 보스는 별 둘, 처음 닿은 5층마다 별 하나 */
   private reward(run: RiftRun): void {
-    const { powers, trials, rift, bus } = this.ctx
-    const scale = trials.riftScale()
+    const { powers, rift, bus } = this.ctx
     const lines: string[] = []
     {
-      const n = Math.round(3 * (2 + Math.floor(run.depth / 2)) * scale)
+      const n = 3 * (2 + Math.floor(run.depth / 2))
       powers.loadout.addMaterial(PROTOTYPE, n)
       lines.push(`${materialName(PROTOTYPE)} ×${n}`)
     }

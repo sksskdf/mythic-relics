@@ -1,6 +1,6 @@
 import type { AttackStyle } from '../combat/styles'
 import { awakeningLevel } from '../data/awakening'
-import { NO_RULES, type TrialRules } from '../data/trials'
+import { NO_RULES, type OathRules } from '../data/oaths'
 import { type MythAlways, STAT_KINDS, type StatKind } from '../data/mythAlways'
 import { SOURCE_IDS, type SourceId } from '../data/schema'
 import { relicAwake } from '../gear/mythRelic'
@@ -48,10 +48,12 @@ export interface BuildInputs {
   starred?: ReadonlySet<God>
   /** 누적 명성 (E304): 배율 1 + 0.1·√명성을 곱한다 */
   renown?: number
+  /** 정복한 장의 수 (E305-02): 명성 배율의 지수 */
+  conquered?: number
   /** 원천 불씨 (E304): 원천마다 고른 횟수. 원천 +2씩과 원천마다 다른 배율 */
   flames?: Partial<Record<SourceId, number>>
   /** 시련 중 제약 (E16): 고른 신화 없이·최대 생명·이동 속도 등. 장비 칸 제한은 재료를 모을 때 거른다 */
-  rules?: TrialRules
+  rules?: OathRules
 }
 
 /** 일반 장비 하나의 수치와 원천 */
@@ -61,8 +63,8 @@ export interface GearItemStats {
 }
 
 /** 더하는 수치의 출처 (층 이름과 같다) */
-export type BonusFrom = 'trials' | 'training' | 'blessings'
-const BONUS_FROM: readonly BonusFrom[] = ['trials', 'training', 'blessings']
+export type BonusFrom = 'oaths' | 'training' | 'blessings'
+const BONUS_FROM: readonly BonusFrom[] = ['oaths', 'training', 'blessings']
 
 /** 기본 최대 생명 */
 export const BASE_HP = 100
@@ -136,7 +138,7 @@ export function gearModifiers(gear: readonly (RelicId | null)[]): Modifiers {
 /** 재료에서 빌드 상태를 계산한다. (부수 효과 없음) */
 export function computeBuild(inputs: BuildInputs): BuildState {
   const rules = inputs.rules ?? NO_RULES
-  const chosen = rules.noMyth ? null : inputs.hand
+  const chosen = inputs.hand
   const god = chosen ? godDef(chosen) : null
   // 수치: 같은 종류는 더하고, 다른 종류끼리는 아래에서 곱한다
   const worn = new Set(inputs.gear.filter((id): id is RelicId => id !== null).map((id) => relicDef(id).god))
@@ -180,13 +182,16 @@ export function computeBuild(inputs: BuildInputs): BuildState {
   layers.push({ id: 'collection', kind: 'add', value: (inputs.lit ?? 0) * PER_LIT })
   layers.push({ id: 'myth', kind: 'mul', value: god ? god.passive.damageScale : 1 })
   // 원정 (E304): 명성 배율, 불꽃 불씨의 피해
-  layers.push({ id: 'renown', kind: 'mul', value: renownMultiplier(inputs.renown ?? 0) })
+  const renown = renownMultiplier(inputs.renown ?? 0)
+  layers.push({ id: 'renown', kind: 'mul', value: renown })
+  // 장 정복 (E305-02): 명성 배율 M을 M^(1 + 0.1·정복)으로. 늘어난 몫만 따로 한 층
+  layers.push({ id: 'conquest', kind: 'mul', value: renownMultiplier(inputs.renown ?? 0, inputs.conquered ?? 0) / renown })
   layers.push({ id: 'flames', kind: 'mul', value: FLAME.flame.damage ** (flames.flame ?? 0) })
   const damageScale = layerProduct(layers)
   // 유물의 지속 효과는 그 신이 자리에 들었을 때만 깨어난다 (E21-04 → E302). 시련으로 신화를 막아도 자리는 그대로 본다
   const present = inputs.present ?? (inputs.hand ? [inputs.hand] : [])
-  const borrowed = rules.noMyth ? [] : present.filter((g) => g !== inputs.hand)
-  const lent = inputs.waking && !rules.noMyth ? [...present, inputs.waking] : present
+  const borrowed = present.filter((g) => g !== inputs.hand)
+  const lent = inputs.waking ? [...present, inputs.waking] : present
   const modifiers = gearModifiers(inputs.gear.map((id) => (id && relicAwake(id, inputs.hand, lent) ? id : null)))
   return {
     chosen,

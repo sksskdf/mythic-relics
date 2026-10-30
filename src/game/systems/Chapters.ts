@@ -1,4 +1,6 @@
-import type { ChapterDef, ChapterStep } from '../../data/chapters'
+import { CONQUESTS, type ChapterDef, type ChapterStep } from '../../data/chapters'
+import { ENEMIES } from '../../enemies/Giant'
+import { breathCount } from '../../myth/pantheon'
 import { REGIONS } from '../../data/regions'
 import { sceneId } from '../../data/scenes'
 import { missing, nextRecipe } from '../../gear/forge'
@@ -31,16 +33,38 @@ export class ChapterSystem {
       const region = fell && fell !== ctx.map.region.id ? (REGIONS[fell] ?? ctx.map.region) : ctx.map.region
       // 땅의 보스만 (성소의 전설·시련·균열 층의 보스는 세지 않는다)
       if (giant.spec.role !== 'boss' || !region.boss || ctx.legend.active || region.kind === 'rift') return
-      if (!chapters.bossDefeated(region.id)) return
-      // 장 보스를 처음 이겼다 (E23-02): 느린 동작 → 쓰러지며 하는 한마디. 마지막 보스는 엔딩 장면이 대신한다
-      const last = chapters.chapters.at(-1)?.steps.at(-1)
-      const step = chapters.chapters.flatMap((c) => c.steps).find((s) => s.kind === 'boss' && s.region === region.id)
-      if (step && step !== last) bus.emit('moment', { id: 'chapterBoss', scene: sceneId('down', giant.spec.id), slow: true })
-      this.check()
+      this.bossDown(region.id, giant.spec.id)
     })
     bus.on('mythOpened', () => this.check())
     bus.on('promoted', () => this.check())
     bus.on('forged', () => this.check())
+  }
+
+  /**
+   * 그 땅의 보스를 이겼다 (싸움과 개발 지름길이 함께 부른다). 처음이면 장 보스 장면(E23-02: 느린 동작 → 쓰러지며 하는 한마디),
+   * 장 정복 보스(E305-02)면 그 카드와 `chapterConquered`. 마지막 보스는 엔딩 장면이 대신한다
+   */
+  bossDown(region: string, enemy = REGIONS[region]?.boss?.enemy ?? ''): void {
+    const { bus, chapters, progress, expedition } = this.ctx
+    const before = { breath: breathCount(progress.opened.length, chapters.conquered), cap: progress.levelCap, mult: expedition.multiplier }
+    if (!chapters.bossDefeated(region)) return
+    const last = chapters.chapters.at(-1)?.steps.at(-1)
+    const step = chapters.chapters.flatMap((c) => c.steps).find((s) => s.kind === 'boss' && s.region === region)
+    const conquest = CONQUESTS.includes(region)
+    if (step && step !== last) {
+      const breath = breathCount(progress.opened.length, chapters.conquered)
+      const lines = conquest
+        ? [
+            ...(breath > before.breath ? [`숨 칸 ${before.breath} → ${breath}`] : []),
+            ...(progress.levelCap > before.cap ? [`신 단계 끝 ${before.cap} → ${progress.levelCap}`] : []),
+            `명성 배율 ×${before.mult.toFixed(2)} → ×${expedition.multiplier.toFixed(2)}`,
+          ]
+        : []
+      const name = ENEMIES[enemy]?.name ?? '장 보스'
+      bus.emit('moment', { id: 'chapterBoss', scene: sceneId('down', enemy), slow: true, ...(conquest ? { card: { kind: '장 정복', title: name, color: '#ffd27a', lines } } : {}) })
+    }
+    if (conquest) bus.emit('chapterConquered', { region, conquered: chapters.conquered })
+    this.check()
   }
 
   /** 지금 장과 목표를 다시 본다 (불러온 뒤, 개발 지름길 뒤에도) */
