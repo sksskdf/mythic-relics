@@ -199,7 +199,7 @@ export class GodsTab {
     part('숨에 넣으면', inBreath, [...new Set(breathLines), '이 신의 유물이 깨어난다'])
     if (view.focus !== god && level > 0) card.append(el('p', 'menu-myth__hint', '손·심장·숨을 모두 이 신으로 채우면 한 신에 몰기: 효과 단계 +1, 이 신의 모습'))
 
-    // 자리 바꾸기 (E302): 어디서나, 전설 중에는 못 바꾼다
+    // 자리 바꾸기 (E302): 어디서나 (막던 전설 판은 E305-03에서 걷음)
     if (level > 0) {
       const can = gods.canSwap()
       const buttons = el('div', 'menu-myth__buttons')
@@ -208,7 +208,7 @@ export class GodsTab {
         b.type = 'button'
         b.disabled = !can || !ok
         if (can && ok) b.addEventListener('click', () => run() && this.ctx.render())
-        else this.ctx.hintOn(b, can ? why : '전설 중에는 자리를 바꿀 수 없다.')
+        else this.ctx.hintOn(b, can ? why : '지금은 자리를 바꿀 수 없다.')
         buttons.append(b)
       }
       if (!inHand) button('손에 쥐기', () => gods.place('hand', god), true, '')
