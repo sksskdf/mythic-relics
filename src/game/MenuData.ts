@@ -87,7 +87,8 @@ export class MenuData {
       merge: (uids) => relics.merge(uids) && game.menu.refresh(),
       progress: game.progress,
       myths: {
-        canSwap: () => game.canSwapGods,
+        // 신의 자리는 어디서나 바꾼다 (E302, 막던 전설 판은 E305-03에서 걷음)
+        canSwap: () => true,
         choose: (god) => game.chooseMyth(god),
         pantheon: () => game.pantheonView(),
         place: (part, god) => game.placeMyth(part, god),

@@ -4,7 +4,7 @@ import { ATTACK_STYLES, type AttackStyle } from '../../combat/styles'
 import { LOOK_SLOTS, LOOKS, type LookSlot } from '../../looks/catalog'
 import { bool, color, DataError, list, num, obj, oneOf, onlyKeys, optNum, str, table } from '../check'
 import { type MythAlways, parseAlways } from '../mythAlways'
-import { type ClassPassive, type LegendDef, nonDecreasing, PASSIVE_PARTS, type PassivePart, parseLegend, parsePassive, parseUltimate, type Realm, REALMS, type UltimateDef } from '../classKit'
+import { type ClassPassive, nonDecreasing, PASSIVE_PARTS, type PassivePart, parsePassive, parseUltimate, type Realm, REALMS, type UltimateDef } from '../classKit'
 import { SOURCE_IDS, type SourceId } from './classTree'
 
 // ───────────────────────────── 신·클래스 ─────────────────────────────
@@ -31,8 +31,6 @@ export interface GodDef {
   always: MythAlways
   /** 발현했을 때의 외형 (칸 → 외형 id) */
   looks: Readonly<Partial<Record<LookSlot, string>>>
-  /** 승급 전설 (이름과 종류). 아직 없으면 비어 있다 */
-  legend?: LegendDef
   /** 신화권 (드랍과 지역) */
   realm: Realm
   /** 발현 표식: 이 클래스의 정체성을 드러내는 고정 외형 (등에 붙고 기운 연출이 딸린다) */
@@ -69,7 +67,7 @@ export function parseGods(raw: unknown, path = 'gods.json'): Record<string, GodD
   const out: Record<string, GodDef> = {}
   for (const [id, o] of table(raw, path)) {
     const p = `${path}.${id}`
-    onlyKeys(o, p, ['name', 'titles', 'source', 'color', 'tree', 'passive', 'lend', 'always', 'looks', 'legend', 'mark', 'hidden', 'manifestCount', 'ultimate', 'attack', 'realm', 'relic'])
+    onlyKeys(o, p, ['name', 'titles', 'source', 'color', 'tree', 'passive', 'lend', 'always', 'looks', 'mark', 'hidden', 'manifestCount', 'ultimate', 'attack', 'realm', 'relic'])
     const titles = list(o, 'titles', p)
     if (titles.length !== 4 || titles.some((t) => typeof t !== 'string' || t.trim() === '')) {
       throw new DataError(`${p}.titles`, '1~4단계 칭호 네 개여야 합니다')
@@ -93,7 +91,6 @@ export function parseGods(raw: unknown, path = 'gods.json'): Record<string, GodD
       lend,
       always: parseAlways(o.always, `${p}.always`),
       looks: parseLooks(o.looks ?? {}, `${p}.looks`),
-      ...(o.legend === undefined ? {} : { legend: parseLegend(o.legend, `${p}.legend`)! }),
       realm: oneOf(o, 'realm', p, REALMS),
       mark: lookOf(o.mark, 'mark', `${p}.mark`),
       hidden: bool(o, 'hidden', p),

@@ -6,7 +6,6 @@ import { arrivalSpot, exitColor, formatRegions, nextHop, parseRegions, RAW_REGIO
 import { GRUNT, KING } from '../src/enemies/Giant'
 import { LAND_DAMAGE_EXPONENT } from '../src/data/chapters'
 import { Encounter } from '../src/game/Encounter'
-import { UtgardLegend } from '../src/game/Legend'
 import { CROSS_MARGIN, crossingAt, regionLinks, walkRects } from '../src/data/world'
 import { walkArea } from '../src/world/colliders'
 import { collidersFor, streamColliders } from '../src/world/regionMap'
@@ -333,21 +332,6 @@ describe('지역을 바꿔 다시 짓기', () => {
     expect(encounter.boss).toBeNull()
     encounter.update(30, { hero: { x: 0, z: 0, radius: 0.4, alive: true } } as never)
     expect(encounter.giants).toHaveLength(0)
-  })
-
-  it('성소가 없는 지역이면 성소를 감추고 전설이 열리지 않는다', () => {
-    const legend = new UtgardLegend({ x: 0, z: 0 }, 11)
-    legend.moveTo(null)
-    expect(legend.present).toBe(false)
-    expect(legend.object.visible).toBe(false)
-  })
-
-  it('성소를 옮기면 결계 중심과 반지름이 바뀐다 (전설이 진행 중이면 그대로)', () => {
-    const legend = new UtgardLegend({ x: 0, z: 0 }, 11)
-    legend.moveTo({ x: 5, z: -5 }, 8)
-    expect(legend.center).toEqual({ x: 5, z: -5 })
-    expect(legend.radius).toBe(8)
-    expect(legend.object.position.x).toBe(5)
   })
 })
 

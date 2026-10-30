@@ -89,6 +89,6 @@ export class Storyline {
     }
     // 보스 등장: 처음 싸움이 붙으면 한마디
     const boss = ctx.encounter.boss
-    if (boss?.alive && ctx.encounter.bossEngaged && !ctx.legend.active) this.play(sceneId('boss', boss.spec.id))
+    if (boss?.alive && ctx.encounter.bossEngaged) this.play(sceneId('boss', boss.spec.id))
   }
 }

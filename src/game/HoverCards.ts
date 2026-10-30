@@ -116,10 +116,10 @@ export class HoverCards {
   /** 이름표: 커서를 올린 몬스터와 지금 공격 중인 몬스터. shown이 false면(창이 열렸거나 대화 중) 모두 숨긴다 */
   plates(shown: boolean): void {
     const { ctx, hovered, screenPoint, nameplates } = this.parts
-    const { legend, encounter, orders, combat } = ctx
+    const { encounter, orders, combat } = ctx
     const plates: PlateTarget[] = []
     // 보스 막대가 떠 있는 보스는 막대에 이름이 있으니 머리 위에는 띄우지 않는다
-    const barBoss = legend.boss?.alive ? legend.boss : encounter.bossEngaged ? encounter.boss : this.parts.guardian()
+    const barBoss = encounter.bossEngaged ? encounter.boss : this.parts.guardian()
     const add = (target: unknown) => {
       if (!(target instanceof Giant) || !target.alive || target === barBoss) return
       const top = heightAt(target.x, target.z) + Math.max(1.6, target.radius * 3.6) + 0.6

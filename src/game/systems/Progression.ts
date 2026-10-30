@@ -10,10 +10,7 @@ import { emptyPantheon, inPantheon } from '../../myth/pantheon'
 import { collectionText } from '../../myth/alwaysText'
 import { levelGains } from '../../myth/levelGains'
 import { classIcon } from '../../ui/classIcons'
-import { realmSigil } from '../../ui/sigils'
-import { realmInk } from '../../art/palette'
 import { type God, godDef, isRelicId, type RelicId } from '../../relics/data'
-import type { LegendHost } from '../Legend'
 import type { GameContext } from '../context'
 import { godMoment } from './godMoments'
 
@@ -27,59 +24,9 @@ const HEAL_PER_BOSS = 30
  * 신화 경험치와 성소 전설로 단계를 올리던 길은 E305-03에서 걷었다 (단계는 귀환 갈래 「승천」으로만).
  */
 export class ProgressionSystem {
-  /** 지금 성소 전설에 도전하는 신 */
-  private challenger: God | null = null
-  /** 개발 패널 「전설 시작」이 성소 전설을 건 신 (보통 플레이에서는 전설이 열리지 않는다. 전설 판은 E305 다음 단계에서 걷는다) */
-  private armed: God | null = null
-
   constructor(private readonly ctx: GameContext) {
     ctx.bus.on('giantKilled', ({ giant }) => this.onGiantKilled(giant))
     ctx.bus.on('mythOpened', ({ god, quiet }) => !quiet && this.announceOpened(god))
-  }
-
-  /** 개발 패널 「전설 시작」: 그 신의 성소 전설을 건다. 성소 가운데에 서면 시작하고, 이기면 그 신이 승천한다 */
-  armLegend(god: God): void {
-    this.armed = godDef(god).legend ? god : null
-  }
-
-  /** 성소 전설 (개발 패널만): 건 전설이 있으면 성소에 들어설 때 시작하고, 이기면 승천한다 */
-  update(dt: number): void {
-    const { legend, encounter } = this.ctx
-    legend.update(dt, encounter, this.legendHost())
-  }
-
-  /** 전설이 게임에 알리는 일 */
-  legendHost(): LegendHost {
-    const { combat, hero, hud, view, bus } = this.ctx
-    return {
-      ready: () => {
-        const god = this.armed
-        const kind = god ? (godDef(god).legend?.kind ?? null) : null
-        // 도전하는 신화는 전설이 쉬는 동안에만 정한다 (진행 중에 바뀌어도 시작한 신화가 승급한다)
-        if (god && kind && !this.ctx.legend.active) this.challenger = god
-        return kind
-      },
-      heroAlive: () => combat.alive,
-      heroPosition: () => hero.object.position,
-      setArena: (arena) => {
-        hero.arena = arena
-      },
-      onStart: () => {
-        // 건 전설은 한 번만 (지거나 이겨도 다시 걸지 않는다)
-        this.armed = null
-        bus.emit('legendStarted', {})
-        const def = godDef(this.challenger!)
-        const ink = realmInk(def.realm)
-        hud.showTitleCard(def.legend!.name, def.color, realmSigil(def.realm, ink.light, ink.dark), '전설')
-        view.shake(0.3)
-      },
-      onWin: () => {
-        if (this.challenger) this.promote(this.challenger)
-      },
-      onFail: () => {
-        bus.emit('legendFailed', {})
-      },
-    }
   }
 
   /** 처치 경험치(수련·기세)와 드랍 (DESIGN.md 5.2, E12-02 → E305-03: 신화 경험치는 없앰) */

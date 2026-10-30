@@ -81,9 +81,8 @@ export class AwakeningSystem {
   ) {
     ctx.scene.add(this.group)
     ctx.bus.on('regionEntered', () => this.refresh())
-    // 쓰러지면 무리와 수호자는 물러난다 (조각은 남는다). 성소의 전설이 시작돼도 (결계 안 싸움과 곡이 섞이지 않게)
+    // 쓰러지면 무리와 수호자는 물러난다 (조각은 남는다)
     ctx.bus.on('heroDied', () => this.calm())
-    ctx.bus.on('legendStarted', () => this.calm())
     ctx.bus.on('giantKilled', ({ giant }) => this.killed(giant))
   }
 
@@ -245,8 +244,8 @@ export class AwakeningSystem {
       this.lair.beam.position.y = heightAt(this.lair.x, this.lair.z) + (BEAM_HEIGHT * 1.4) / 2
       ;(this.lair.beam.material as THREE.MeshBasicMaterial).opacity = pulse + 0.08
     }
-    const { hero, combat, legend, map } = this.ctx
-    if (!combat.alive || legend.active || map.region.kind !== 'field' || this.quiet()) return
+    const { hero, combat, map } = this.ctx
+    if (!combat.alive || map.region.kind !== 'field' || this.quiet()) return
     const p = hero.object.position
     if (this.pack) {
       // 멀리 달아나면 무리는 흩어지고 흔적은 다시 응답한다
@@ -323,11 +322,11 @@ export class AwakeningSystem {
 
   /** 적이 쓰러졌다 (무너지고 난 뒤): 사냥 수. 무리·수호자는 생명이 다한 순간 이미 조각을 주었다 */
   private killed(giant: Giant): void {
-    const { awaken, map, legend, bus } = this.ctx
+    const { awaken, map, bus } = this.ctx
     if (this.ours.has(giant)) return
     // 사냥: 그 신의 땅에서 잡을 때마다 (성소의 전설·시련 싸움은 빼고)
     const waking = this.waking
-    if (!waking || awaken.fragments !== 1 || legend.active || map.region.id !== awakenDef(waking)?.land) return
+    if (!waking || awaken.fragments !== 1 || map.region.id !== awakenDef(waking)?.land) return
     if (awaken.addKill()) this.piece2(waking)
     else bus.emit('progressChanged', {})
   }

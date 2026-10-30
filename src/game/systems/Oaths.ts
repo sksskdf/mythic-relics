@@ -28,7 +28,7 @@ export class OathSystem {
   ) {
     ctx.bus.on('giantKilled', ({ giant }) => {
       const oath = ctx.expedition.oath
-      if (!oath || ctx.legend.active || ctx.map.region.kind === 'rift') return
+      if (!oath || ctx.map.region.kind === 'rift') return
       if (giant.spec.boss !== undefined || isBossLike(giant.spec)) this.keep(oath)
     })
     // 귀환하면 그 자리에서 다시 떠난다: 맹세가 열렸으면 출발 카드

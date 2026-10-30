@@ -6,7 +6,6 @@ import { REGIONS } from '../data/regions'
 import type { EliteKind } from '../enemies/elite'
 import { ENEMIES, type GiantSpec, GRUNT } from '../enemies/Giant'
 import type { Game } from '../game/Game'
-import { BET } from '../game/Legend'
 import { LOOK_IDS, WARDROBE_SLOTS } from '../looks/catalog'
 import { type God, godDef, GODS, RELIC_IDS, relicDef } from '../relics/data'
 import { relicGods } from '../relics/model'
@@ -235,7 +234,8 @@ export class DevPanel {
           for (const slot of WARDROBE_SLOTS) g.appearance.choose(slot, 'auto')
         }),
       ),
-      row(button('전설 시작', () => this.startLegend())),
+      // 귀환 (E304): 원정을 무르익게(2분·기세 8) 하고 성소 화로에 선다 (빛기둥이 서고 귀환 카드가 뜬다)
+      row(button('귀환 준비', () => this.readyReturn())),
       // 장 흐름 (E22): 지금 목표를 한 것으로, 장 하나를 통째로
       row(
         button('목표 건너뛰기', () => {
@@ -308,18 +308,14 @@ export class DevPanel {
     )
   }
 
-  /** 성소 전설을 바로 시작한다 (보통 플레이에서는 열리지 않는다). 손의 신에게 전설이 있으면 그 전설, 없으면 토르로 우트가르드 원정 */
-  private startLegend(): void {
+  /** 귀환 준비: 원정을 무르익게 하고 이 땅의 성소 화로에 선다 (성소가 없는 땅이면 미드가르드로) */
+  private readyReturn(): void {
     const g = this.game
-    let god = g.powers.manifested
-    if (!god || !godDef(god).legend) {
-      g.dev.unequipAll()
-      for (const id of ['mjolnir', 'megingjord', 'jarngreipr'] as const) g.dev.equip(id)
-      god = 'thor'
-      g.dev.choose(god)
-    }
-    g.growth.armLegend(god)
-    g.dev.teleport(g.legend.center.x, g.legend.center.z)
+    const midgard = g.regions.midgard
+    if (!g.sanctuary.present && midgard) g.enterRegion(midgard)
+    g.expedition.elapsed = Math.max(g.expedition.elapsed, 300)
+    g.training.xp = Math.max(g.training.xp, 5000)
+    g.dev.teleport(g.sanctuary.center.x, g.sanctuary.center.z)
   }
 
   // ───────────── 세계 ─────────────
@@ -377,7 +373,7 @@ export class DevPanel {
       else if (place === 'boss') {
         if (spots.boss) g.dev.teleport(spots.boss.x - 7, spots.boss.z + 7)
       }
-      else if (place === 'sanctuary') g.dev.teleport(g.legend.center.x + 4, g.legend.center.z + 4)
+      else if (place === 'sanctuary') g.dev.teleport(g.sanctuary.center.x + 4, g.sanctuary.center.z + 4)
       else {
         const camp = spots.camps[Number(place.slice(4))]
         if (camp) g.dev.teleport(camp.x - 5, camp.z - 5)
@@ -492,7 +488,7 @@ export class DevPanel {
     return [
       `${Math.floor(g.time / 60)}:${String(Math.floor(g.time % 60)).padStart(2, '0')} · (${p.x.toFixed(0)}, ${p.z.toFixed(0)}) · ${g.view.viewHeight.toFixed(0)}m`,
       `♥${Math.round(g.combat.health.hp)}/${g.combat.health.max} ✦${Math.round(g.combat.divine * 100)}% · ${cls}`,
-      `적 ${g.encounter.alive.length} · 땅 유물 ${g.pickups.list.length} · 전설 ${g.legend.phase}${g.legend.phase === 'bet' ? ` ${g.legend.kills}/${BET.kills} ${g.legend.betSeconds.toFixed(0)}초` : ''}`,
+      `적 ${g.encounter.alive.length} · 땅 유물 ${g.pickups.list.length} · 성소 ${g.sanctuary.present ? (g.sanctuary.lit ? '빛기둥' : '있음') : '없음'}`,
       `소리 ${g.audio.unlocked ? `${g.audio.voices}개` : '꺼짐(누르면 켜짐)'} · 곡 ${g.audio.theme ?? '없음'}`,
     ].join('\n')
   }

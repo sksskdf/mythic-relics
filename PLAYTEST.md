@@ -67,7 +67,6 @@
 | 드랍 확률 | `src/gear/DropTable.ts` DEFAULT_DROPS | 기본 1.5%, 놓칠 때마다 +0.6%, 보스 70% |
 | 졸개·거인 왕·우트가르드의 왕 | `src/enemies/Giant.ts` GRUNT / KING / UTGARD_KING | 생명력 80 / 700 / 2500 |
 | 졸개 공격 예고 시간 | 같은 파일 GRUNT.attacks | 0.75초 |
-| 승급 전설 무리 수 | `src/game/Legend.ts` WAVES | 6, 8 |
 
 ## 6. 사람이 해 본 뒤 고친 것
 

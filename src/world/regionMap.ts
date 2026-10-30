@@ -659,7 +659,7 @@ export class Chunk {
   readonly group = new THREE.Group()
   readonly colliders: CircleCollider[] = []
   readonly animators: Animator[] = []
-  /** 성소 자리 표시 (룬스톤 고리). 지금 땅이면 숨기고 전설(UtgardLegend)이 그 자리에 그린다 */
+  /** 성소 자리 표시 (룬스톤 고리). 지금 땅이면 숨기고 성소(Sanctuary)가 그 자리에 그린다 */
   sanctuary: THREE.Object3D | null = null
 
   constructor(

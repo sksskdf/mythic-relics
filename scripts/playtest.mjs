@@ -162,7 +162,6 @@ try {
         gear: count('gear'),
         forged: log.filter((e) => e.type === 'forge').map((e) => ({ t: e.t, what: e.detail })),
         bossKill: first('bossKill', 'giantKing'),
-        legendStart: first('legendStart'),
         promote: first('promote'),
         kills: count('kill'),
         // 발현한 뒤(또는 처음부터 낀 뒤) 1분에 쓰러뜨린 수: 클래스끼리 비교한다
@@ -175,7 +174,6 @@ try {
         deaths: count('death'),
         hurt: count('hurt'),
         damageTaken: log.filter((e) => e.type === 'hurt').reduce((s, e) => s + Number(e.detail), 0),
-        legendFails: count('legendFail'),
         end: log.at(-1)?.t,
         climbs,
         // 시련 (E16-05): 시련:난이도:결과:초
@@ -205,7 +203,7 @@ try {
       console.log(
         `#${run} 2단계 ${fmt(result.promote)} | 첫 신화 ${fmt(result.manifest)} | 신화 둘 ${fmt(result.opened[1]?.t)} (연 신화 ${result.opened.length}: ${result.opened.map((o) => o.god).join(', ')}) | 거인 왕 ${fmt(result.bossKill)} | 장비 ${result.gear}, 첫 제작 ${fmt(result.forged[0]?.t)}${result.forged[0] ? ` (${result.forged[0].what})` : ''} | ` +
           `유물 ${Object.entries(result.relics).map(([k, v]) => `${k} ${fmt(v)}`).join(', ')} | ` +
-          `처치 ${result.kills}(첫 신화 뒤 분당 ${result.killRate}), 쓰러짐 ${result.deaths}, 피격 ${result.hurt}, 전설 실패 ${result.legendFails}` +
+          `처치 ${result.kills}(첫 신화 뒤 분당 ${result.killRate}), 쓰러짐 ${result.deaths}, 피격 ${result.hurt}` +
           (ENDING ? ` | 조각 ${result.fragments.map((f) => `${f.what} ${fmt(f.t)}`).join(', ')}` : '') +
           (ENDING ? ` | 장 ${result.chapters.map((c) => `${c.id} ${fmt(c.t)}`).join(' → ')} | 엔딩 ${fmt(result.ending)} | 단계 ${result.levels.map((l) => fmt(l.t)).join(', ')} | 제작 ${result.forged.map((f) => `${f.what} ${fmt(f.t)}`).join(', ')}` : '') +
           (RIFT ? ` | 균열 ${result.riftFloors.map((f) => `${f.depth}층 ${fmt(f.t)}`).join(', ')} | ${result.rift.filter((x) => !x.startsWith('floor')).join(', ')}` : '') +

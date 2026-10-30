@@ -17,7 +17,7 @@ export class ThreatSystem {
     bus.on('giantKilled', ({ giant }) => {
       const boss = giant.spec.role === 'boss' && giant.spec.boss !== undefined
       // 균열 층의 보스는 위협 단계의 문이 아니다 (층 세기가 위협 단계와 따로라, 세면 단계를 공짜로 오른다)
-      if (!boss || ctx.legend.active || ctx.map.region.kind === 'rift' || !ctx.ending.has('threat')) return
+      if (!boss || ctx.map.region.kind === 'rift' || !ctx.ending.has('threat')) return
       if (threat.bossDefeated(giant.spec.realm)) this.announceOpened()
       if (!threat.limitBroken && threat.canBreak) this.breakLimit()
       bus.emit('progressChanged', {})

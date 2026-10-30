@@ -32,7 +32,7 @@ export class ChapterSystem {
       const fell = ctx.encounter.fellRegion(giant)
       const region = fell && fell !== ctx.map.region.id ? (REGIONS[fell] ?? ctx.map.region) : ctx.map.region
       // 땅의 보스만 (성소의 전설·시련·균열 층의 보스는 세지 않는다)
-      if (giant.spec.role !== 'boss' || !region.boss || ctx.legend.active || region.kind === 'rift') return
+      if (giant.spec.role !== 'boss' || !region.boss || region.kind === 'rift') return
       this.bossDown(region.id, giant.spec.id)
     })
     bus.on('mythOpened', () => this.check())

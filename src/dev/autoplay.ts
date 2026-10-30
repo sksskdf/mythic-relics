@@ -1,7 +1,6 @@
 import { SAMPLE_ORDER } from '../data/training'
 import type { Giant, GiantDanger } from '../enemies/Giant'
 import type { Game } from '../game/Game'
-import { clampToCircle } from '../game/HeroController'
 import { angleDiff, angleTo, inLine } from '../combat/arc'
 import { nextHop } from '../data/regions'
 import { regionLinks } from '../data/world'
@@ -45,7 +44,7 @@ export class Autoplayer {
   god: God | null = null
   /** 다른 지역으로 가지 않고 이 자리에서만 싸운다 (scripts/enemy-trial.mjs) */
   stay = false
-  /** 장 흐름의 목표를 따라간다 (E22-06): 들어설 땅·신화 고르기·전설·보스·대장간 (scripts/playtest.mjs) */
+  /** 장 흐름의 목표를 따라간다 (E22-06): 들어설 땅·신 깨우기·귀환·보스·대장간 (scripts/playtest.mjs) */
   chapters = false
   /** 마지막 생각이 끝난 단계 (멈춤을 찾을 때) */
   step = 0
@@ -144,8 +143,8 @@ export class Autoplayer {
 
   /** 다른 지역으로 가야 하면 이웃으로 가는 통로를 따라 걸어 넘어간다 (마을을 거쳐 간다, E19). 걸었으면 true */
   private travel(): boolean {
-    const { region, hero, legend } = this.game
-    if (legend.active || this.stay || this.rift) return false
+    const { region, hero } = this.game
+    if (this.stay || this.rift) return false
     const want = this.wantRegion()
     if (want === region.id) return false
     const hop = nextHop(region.id, want, this.game.regions)
@@ -163,7 +162,7 @@ export class Autoplayer {
   }
 
   private think(): void {
-    const { hero, combat, encounter, pickups, legend, progress, powers } = this.game
+    const { hero, combat, encounter, pickups, sanctuary, progress, powers } = this.game
     if (!combat.alive) return void (this.step = 1)
     const p = hero.object.position
     const here = { x: p.x, z: p.z }
@@ -172,11 +171,11 @@ export class Autoplayer {
     // 다른 땅으로 떠나는 길이면 생명이 넉넉한 동안 예고를 피하지 않고 통로로 걸어간다 (E19: 통로를 다 걸어야 넘어가므로
     // 피하기를 되풀이하면 쫓아오는 무리에 막혀 떠나지 못한다. 사람도 그냥 걸어 나간다)
     const hp = combat.health.ratio
-    const leaving = hp >= 0.5 && !legend.active && !this.stay && !this.rift && this.wantRegion() !== this.game.region.id
+    const leaving = hp >= 0.5 && !this.stay && !this.rift && this.wantRegion() !== this.game.region.id
 
     // 신 깨우기 (E239): 흔적·수호자 자리가 멀면 예고를 피하지 않고 걸어간다 (물러서며 던지는 적이 많은 땅에서 둘레가 비기를 기다리면 닿지 못한다)
     const wake = this.awakenSpot()
-    const toWake = wake !== null && hp >= 0.6 && !legend.active && dist(here, wake) > 6
+    const toWake = wake !== null && hp >= 0.6 && dist(here, wake) > 6
     // 수호자와 싸울 때 (E239): 생명이 넉넉하면 떨어지는 것(독·화살·불덩이)은 맞으며 붙는다. 멀리서 던지는 수호자를 피하기만 하면 끝나지 않는다
     const guarding = this.game.awakening.fighting !== null && hp > 0.5
     // 1. 예고 범위 안에 있으면 빠져나간다.
@@ -190,14 +189,14 @@ export class Autoplayer {
     // 피했으면 예고가 끝날 때까지 다시 들어가지 않는다.
     if (dangers.length > 0 && hero.isMoving) return void (this.step = 3)
 
-    // 2. 생명력이 낮으면 물러나 회복한다. (전설 결계 안에서는 물러날 곳이 없다)
+    // 2. 생명력이 낮으면 물러나 회복한다.
     const near = enemies.filter((g) => dist(g, here) < 9)
-    if (hp < 0.35 && near.length > 0 && !legend.active) {
+    if (hp < 0.35 && near.length > 0) {
       hero.moveTo(this.retreatPoint(here, near))
       this.step = 4
       return
     }
-    if (hp < 0.7 && near.length === 0 && !legend.active && !hero.isMoving) return void (this.step = 5)
+    if (hp < 0.7 && near.length === 0 && !hero.isMoving) return void (this.step = 5)
 
     // 3. 정한 신이 있으면 그 신화가 열리는 대로 고른다 (사람은 마을·성소에서 고른다)
     if (this.god && powers.manifested !== this.god && this.game.progress.isOpen(this.god)) this.game.dev.choose(this.god)
@@ -222,16 +221,14 @@ export class Autoplayer {
       for (const god of this.forgeGods()) if (forgeReady(powers.loadout, god, powers.maxStage()) && !this.game.dev.forge(god)) this.forgeBlocked.add(god)
     }
     // 칸이 차 있어도 줍는다 (가방에 들어가고, 모이면 바꿔 낀다)
-    if (!legend.active) {
-      const t = this.game.time
-      const reachable = (id: string) => t - (this.pickupSince.get(id) ?? t) < 20
-      const pickup = nearest(pickups.list.filter((i) => !powers.loadout.has(i.id) && reachable(i.id) && (i.gear !== undefined || !this.god || relicGods(relicDef(i.id)).includes(this.god))), here)
-      if (pickup && near.length < 3) {
-        if (!this.pickupSince.has(pickup.id)) this.pickupSince.set(pickup.id, t)
-        hero.moveTo(pickup)
-        this.step = 6
-        return
-      }
+    const t = this.game.time
+    const reachable = (id: string) => t - (this.pickupSince.get(id) ?? t) < 20
+    const pickup = nearest(pickups.list.filter((i) => !powers.loadout.has(i.id) && reachable(i.id) && (i.gear !== undefined || !this.god || relicGods(relicDef(i.id)).includes(this.god))), here)
+    if (pickup && near.length < 3) {
+      if (!this.pickupSince.has(pickup.id)) this.pickupSince.set(pickup.id, t)
+      hero.moveTo(pickup)
+      this.step = 6
+      return
     }
 
     // 4. 다른 땅으로 가야 하면 출구로 (마을에서 시작하면 필드로, 승급할 때가 되면 그 신의 땅으로)
@@ -269,7 +266,7 @@ export class Autoplayer {
 
     // 4.7 신 깨우기 (E238): 생명이 넉넉하면 흔적·수호자 자리로 간다 (지키는 무리·수호자와의 싸움은 아래 싸움이 맡고,
     // 사냥은 그 땅에서 싸우면 찬다). 멀면 둘레의 적을 달고서라도 가고, 가까우면 둘레가 빌 때 간다
-    if (wake && !legend.active && (toWake || (hp > 0.75 && near.length === 0))) {
+    if (wake && (toWake || (hp > 0.75 && near.length === 0))) {
       if (dist(here, wake) > 1.5 && (!hero.isMoving || dist(hero.goal ?? here, wake) > 1)) hero.moveTo(wake)
       this.step = 17
       return
@@ -284,13 +281,13 @@ export class Autoplayer {
 
     // 4.9 귀환 (E304): 장 목표가 귀환이면 성소 화로로 가서, 카드가 뜨면 손의 신 승천(없으면 불꽃 불씨)을 고른다
     const goalNow = this.chapters ? this.game.chapters.goal : null
-    if (goalNow?.kind === 'return' && goalNow.region === this.game.region.id && legend.present && this.game.expeditionSystem.canReturn && hp > 0.5) {
+    if (goalNow?.kind === 'return' && goalNow.region === this.game.region.id && sanctuary.present && this.game.expeditionSystem.canReturn && hp > 0.5) {
       if (this.game.returnCardOpen) {
         const ids = this.game.expeditionSystem.branches().map((b) => b.id)
         const hand = progress.pantheon.hand
         this.game.hideCards()
         this.game.expeditionSystem.returnNow(ids.find((id) => id === `ascend:${hand}`) ?? ids.find((id) => id.startsWith('ascend:')) ?? 'flame:flame')
-      } else if (dist(here, legend.center) > 1.2 && (!hero.isMoving || dist(hero.goal ?? here, legend.center) > 1)) hero.moveTo(legend.center)
+      } else if (dist(here, sanctuary.center) > 1.2 && (!hero.isMoving || dist(hero.goal ?? here, sanctuary.center) > 1)) hero.moveTo(sanctuary.center)
       this.step = 16
       return
     }
@@ -305,27 +302,26 @@ export class Autoplayer {
     const bossOk = (bossGoal || worn >= 2) && hp > 0.6
     // 보스가 20m 안이면 둘레에 남은 적이 하나쯤 있어도 보스를 친다 (무리가 계속 다시 나타나는 땅에서 붙들리지 않게)
     const strays = near.filter((g) => g !== boss).length
-    if (bossGoal && !legend.active && boss?.alive && hp > 0.6 && (strays === 0 || (strays <= 1 && dist(here, boss) < 20))) {
+    if (bossGoal && boss?.alive && hp > 0.6 && (strays === 0 || (strays <= 1 && dist(here, boss) < 20))) {
       this.step = 16
       this.engage(here, boss)
       return
     }
     // 신의 수호자 (E238): 나타났으면 둘레에 졸개가 있어도 수호자를 친다 (졸개를 쫓다 수호자 자리에서 30m 넘게 멀어지면 수호자가 물러나 처음부터라, E239)
     const guardian = this.game.awakening.fighting
-    if (guardian && !legend.active && hp > 0.5) {
+    if (guardian && hp > 0.5) {
       this.step = 18
       this.engage(here, guardian)
       return
     }
     // 위협 단계를 올리는 봇: 2단계 뒤에는 열린 가장 높은 단계의 문지기(지역 보스)를 찾아간다 (E14-07)
     const threat = this.game.threat
-    if (this.climb && !legend.active && progress.promotions >= 1 && threat.unlocked === threat.reached && threat.level === threat.reached && boss?.alive && hp > 0.6) {
+    if (this.climb && progress.promotions >= 1 && threat.unlocked === threat.reached && threat.level === threat.reached && boss?.alive && hp > 0.6) {
       this.step = 11
       this.engage(here, boss)
       return
     }
     let candidates = enemies.filter((g) => {
-      if (legend.active) return true
       if (g === boss) return bossOk
       return !boss || !boss.alive || bossOk || dist(g, boss) > 18
     })
@@ -379,14 +375,12 @@ export class Autoplayer {
 
   /** 모든 예고 범위 밖이면서 가장 가까운 곳 */
   private findEscape(here: Point2, dangers: GiantDanger[]): Point2 | null {
-    const arena = this.game.hero.arena
     let best: Point2 | null = null
     let bestCost = Infinity
     for (const r of [1.5, 2.5, 3.5, 5, 7]) {
       for (let i = 0; i < 24; i++) {
         const a = (i / 24) * Math.PI * 2
         const point = { x: here.x + Math.sin(a) * r, z: here.z + Math.cos(a) * r }
-        if (arena && dist(point, arena) > arena.radius - 0.5) continue
         if (dangers.some((d) => inDanger(point, d, MARGIN))) continue
         if (this.nearExit(point)) continue
         // 쉬고 있는 거인 왕 쪽으로는 피하지 않는다 (깨우면 무리와 함께 몰려온다)
@@ -407,19 +401,16 @@ export class Autoplayer {
     return this.game.region.exits.some((e) => dist(e, point) < EXIT_CLEAR)
   }
 
-  /** 물러날 곳: 둘레 열두 방향 가운데 가까운 적에게서 가장 멀고, 거인 왕을 깨우지 않고, 맵 안(결계 안)인 곳 */
+  /** 물러날 곳: 둘레 열두 방향 가운데 가까운 적에게서 가장 멀고, 거인 왕을 깨우지 않고, 맵 안인 곳 */
   private retreatPoint(here: Point2, near: Giant[]): Point2 {
-    const { encounter, region, hero } = this.game
+    const { encounter, region } = this.game
     const boss = encounter.boss
     const half = region.halfExtent - 2
-    // 결계 밖을 누르면 가장자리에서 멈추므로, 결계 안으로 당긴 자리를 견준다
-    const inside = hero.arena ? { ...hero.arena, radius: Math.max(0, hero.arena.radius - 1) } : null
     let best = here
     let bestScore = -Infinity
     for (let i = 0; i < 12; i++) {
       const a = (i / 12) * Math.PI * 2
-      const away = { x: here.x + Math.sin(a) * 10, z: here.z + Math.cos(a) * 10 }
-      const point = inside ? clampToCircle(away, inside) : away
+      const point = { x: here.x + Math.sin(a) * 10, z: here.z + Math.cos(a) * 10 }
       if (Math.abs(point.x) > half || Math.abs(point.z) > half) continue
       // 가는 길에 출구를 밟지 않게 (균열에서는 나가는 문을 밟으면 끝난다)
       if ([0.25, 0.5, 0.75, 1].some((t) => this.nearExit({ x: here.x + (point.x - here.x) * t, z: here.z + (point.z - here.z) * t }))) continue

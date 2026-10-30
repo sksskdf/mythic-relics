@@ -44,7 +44,7 @@ import { Villagers } from './Villagers'
 import { Minimap } from '../ui/Minimap'
 import { Nameplates } from '../ui/Nameplates'
 import { EventBus, type GameEvents } from './events'
-import { UtgardLegend } from './Legend'
+import { Sanctuary } from './Sanctuary'
 import { HERO_RADIUS, HeroController } from './HeroController'
 import { HeroOrders } from './HeroOrders'
 import { plowThrough } from './plow'
@@ -134,7 +134,7 @@ const ENDING_CARD: MomentCard = {
 export interface PlayEvent {
   /** 게임 시간 (초) */
   t: number
-  type: 'relic' | 'manifest' | 'open' | 'fragment' | 'forge' | 'gear' | 'kill' | 'bossKill' | 'death' | 'legendStart' | 'legendFail' | 'promote' | 'hurt' | 'threat' | 'region' | 'oath' | 'rift' | 'chapter' | 'ending'
+  type: 'relic' | 'manifest' | 'open' | 'fragment' | 'forge' | 'gear' | 'kill' | 'bossKill' | 'death' | 'promote' | 'hurt' | 'threat' | 'region' | 'oath' | 'rift' | 'chapter' | 'ending'
   detail?: string
 }
 
@@ -209,8 +209,8 @@ export class Game {
   readonly moments: MomentSystem
   /** 장면의 위아래 검은 띠 (E23-02) */
   private readonly letterbox = document.createElement('div')
-  /** 성소의 전설과 시련 결계 (E6-04) */
-  readonly legend: UtgardLegend
+  /** 지금 땅의 성소: 돌 고리와 빛기둥, 한가운데가 귀환 화로 (E304) */
+  readonly sanctuary: Sanctuary
   /** 주인공 길찾기 격자 */
   readonly nav: NavGrid
   readonly log: PlayEvent[] = []
@@ -334,9 +334,9 @@ export class Game {
     this.powers = new RelicPowers(this.fx.skills)
     // 유물 단계는 데모 2까지, 엔딩 뒤 4까지 (E21-04)
     this.powers.maxStage = () => (this.ending.has('relicStages') ? RELIC_STAGES : DEMO_RELIC_STAGES)
-    this.legend = new UtgardLegend({ x: 0, z: 0 }, 11)
-    this.legend.moveTo(region.sanctuary && (nav.nearestFree(region.sanctuary) ?? region.sanctuary), region.sanctuary?.radius)
-    this.scene.add(this.legend.object, this.pickups.object)
+    this.sanctuary = new Sanctuary({ x: 0, z: 0 }, 11)
+    this.sanctuary.moveTo(region.sanctuary && (nav.nearestFree(region.sanctuary) ?? region.sanctuary), region.sanctuary?.radius)
+    this.scene.add(this.sanctuary.object, this.pickups.object)
     this.fx.addTo(this.scene)
     this.world = new World(
       {
@@ -344,7 +344,7 @@ export class Game {
         stage: this.stage,
         nav,
         encounter: this.encounter,
-        legend: this.legend,
+        sanctuary: this.sanctuary,
         villagers: this.villagers,
         minimap: this.minimap,
         fx: this.fx,
@@ -425,7 +425,7 @@ export class Game {
       combat: this.combat,
       orders: this.orders,
       encounter: this.encounter,
-      legend: this.legend,
+      sanctuary: this.sanctuary,
       powers: this.powers,
       pickups: this.pickups,
       progress: this.progress,
@@ -718,8 +718,6 @@ export class Game {
     bus.on('riftEnded', ({ depth, reason }) => record('rift', `${reason}:${depth}`))
     bus.on('oathEnded', ({ id, win, seconds }) => record('oath', `${id}:${win ? 'win' : 'fail'}:${Math.round(seconds)}`))
     bus.on('heroDied', () => record('death'))
-    bus.on('legendStarted', () => record('legendStart'))
-    bus.on('legendFailed', () => record('legendFail'))
     bus.on('promoted', ({ title }) => record('promote', title))
   }
 
@@ -1076,14 +1074,9 @@ export class Game {
     }
   }
 
-  /** 신의 자리를 바꿀 수 있는가 (E302: 어디서나). 전설 중에는 못 바꾼다 (도전한 신화가 승급하도록) */
-  get canSwapGods(): boolean {
-    return !this.legend.active
-  }
-
   /** 정보 화면에서 한 신에 몰아 고른다 (손·심장·숨 첫 칸). 닫힌 신화면 false */
   chooseMyth(god: string): boolean {
-    return this.canSwapGods && this.relics.choose(god, true)
+    return this.relics.choose(god, true)
   }
 
   /** 신의 자리 셋 (E302): 손·심장·숨, 숨 칸 수, 잠긴 숨 칸마다 열리는 때, 한 신에 몰았으면 그 신 (정보 화면) */
@@ -1102,12 +1095,12 @@ export class Game {
 
   /** 정보 화면에서 그 자리에 낀다 (손·심장은 바꿔 끼고, 숨은 빈 칸에) */
   placeMyth(part: PartKind, god: string): boolean {
-    return this.canSwapGods && this.relics.place(part, god)
+    return this.relics.place(part, god)
   }
 
   /** 정보 화면에서 숨 칸에서 뺀다 */
   unplaceMyth(god: string): boolean {
-    return this.canSwapGods && this.relics.unplace(god)
+    return this.relics.unplace(god)
   }
 
   /** 깨우는 중인 신 (E238): 모은 조각과 다음 할 일 (정보 화면 신화 탭) */
@@ -1179,8 +1172,8 @@ export class Game {
     this.hero.boostScale = awakening.moveSpeed
     this.combat.targetScale = this.targetScale
     this.updateEnemies(dt)
-    this.growth.update(dt)
     this.expeditionSystem.update(dt)
+    this.sanctuary.update(dt)
     this.awakening.update(dt)
     this.oathSystem.update()
     this.riftSystem.update(dt)
@@ -1205,7 +1198,7 @@ export class Game {
       hero: position,
       relics: this.pickups.list,
       // 원정이 무르익으면 성소 화로가 깜빡인다 (E305-03: 성소 전설 대신 귀환)
-      sanctuaryReady: this.legend.present && this.expeditionSystem.canReturn,
+      sanctuaryReady: this.sanctuary.lit,
       goal: this.goalSpot(),
       // 신의 흔적 (E238): 응답하는 흔적만 그 신의 색으로
       traces: this.awakening.spots.filter((t) => t.state === 'open').map((t) => ({ x: t.x, z: t.z, color: godDef(t.god).color })),
@@ -1254,25 +1247,9 @@ export class Game {
       {
         life: this.combat.health.ratio,
         divine: this.combat.divine,
-        // 내기 전설은 보스 막대 자리에 채운 처치 수를 보인다
-        boss:
-          this.legend.betProgress !== null
-            ? this.legend.betProgress
-            : this.legend.boss?.alive
-              ? this.legend.boss.health.ratio
-              : boss && this.encounter.bossEngaged
-                ? boss.health.ratio
-                : this.awakening.fighting
-                  ? this.awakening.fighting.health.ratio
-                  : null,
-        bossName:
-          this.legend.betProgress !== null
-            ? null
-            : this.legend.boss?.alive
-              ? this.legend.boss.spec.name
-              : boss && this.encounter.bossEngaged
-                ? boss.spec.name
-                : (this.awakening.fighting?.spec.name ?? null),
+        // 보스 막대: 싸우는 지역 보스, 아니면 깨어난 수호자
+        boss: boss && this.encounter.bossEngaged ? boss.health.ratio : this.awakening.fighting ? this.awakening.fighting.health.ratio : null,
+        bossName: boss && this.encounter.bossEngaged ? boss.spec.name : (this.awakening.fighting?.spec.name ?? null),
         slots: this.powers.hudSlots(),
         ultimate: this.ctx.build.heart !== null && !this.ctx.build.state.noUltimate,
         // 기세 막대 (E305-03): 신화 경험치 대신 다음 깨달음까지 (원정마다 처음부터)
@@ -1291,8 +1268,8 @@ export class Game {
     )
     // 장면과 신화 고르기에는 위아래 검은 띠 (E23-02)
     this.letterbox.classList.toggle('is-on', this.scenes.active || this.swapCard.open)
-    // 목표 한 줄 (E22-04): 보스 막대가 서거나 전설·대화 중이면 잠깐 감춘다
-    const fighting = this.legend.active || (boss !== null && this.encounter.bossEngaged) || this.awakening.fighting !== null
+    // 목표 한 줄 (E22-04): 보스 막대가 서거나 대화 중이면 잠깐 감춘다
+    const fighting = (boss !== null && this.encounter.bossEngaged) || this.awakening.fighting !== null
     this.chapterHud.setGoal(this.chapterSystem.goalView(), fighting || this.scenes.active || this.world.traveling)
   }
 

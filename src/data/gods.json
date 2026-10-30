@@ -65,10 +65,6 @@
       "torso": "thorTunic",
       "cape": "thorCape"
     },
-    "legend": {
-      "name": "우트가르드 원정",
-      "kind": "boss"
-    },
     "mark": "thorStormHalo",
     "relic": "mjolnir"
   },
@@ -134,10 +130,6 @@
       "torso": "lokiTunic",
       "cape": "lokiCape",
       "weapon": "laevateinnBlade"
-    },
-    "legend": {
-      "name": "대장장이들의 내기",
-      "kind": "tally"
     },
     "mark": "lokiSerpents",
     "relic": "lokiMask"
@@ -265,10 +257,6 @@
       "torso": "odinRobe",
       "cape": "odinCape"
     },
-    "legend": {
-      "name": "미미르의 샘",
-      "kind": "survive"
-    },
     "mark": "odinRavens",
     "relic": "gungnir"
   },
@@ -352,10 +340,6 @@
       "cape": "freyrCape",
       "weapon": "freyrSword"
     },
-    "legend": {
-      "name": "알프헤임의 수확",
-      "kind": "boss"
-    },
     "mark": "freyrSun",
     "relic": "gullinbursti"
   },
@@ -426,10 +410,6 @@
       "head": "zeusLaurel",
       "torso": "zeusRobe",
       "cape": "zeusCape"
-    },
-    "legend": {
-      "name": "크로노스의 뱃속",
-      "kind": "boss"
     },
     "mark": "zeusWings",
     "relic": "keraunos"
@@ -502,10 +482,6 @@
       "torso": "poseidonArmor",
       "cape": "poseidonCape"
     },
-    "legend": {
-      "name": "아테네를 건 내기",
-      "kind": "tally"
-    },
     "mark": "poseidonWaves",
     "relic": "triaina"
   },
@@ -566,10 +542,6 @@
       "torso": "hadesRobe",
       "cape": "hadesCape",
       "weapon": "hadesBident"
-    },
-    "legend": {
-      "name": "키클롭스의 선물",
-      "kind": "survive"
     },
     "mark": "hadesFlames",
     "relic": "helmOfDarkness"
@@ -656,10 +628,6 @@
       "torso": "artemisTunic",
       "cape": "artemisCape"
     },
-    "legend": {
-      "name": "칼리돈의 멧돼지",
-      "kind": "boss"
-    },
     "mark": "artemisMoon",
     "relic": "silverBow"
   },
@@ -730,10 +698,6 @@
       "cape": "wukongCape",
       "arms": "wukongBracers"
     },
-    "legend": {
-      "name": "천궁을 어지럽히다",
-      "kind": "boss"
-    },
     "mark": "wukongTail",
     "relic": "ruyi"
   },
@@ -800,10 +764,6 @@
       "torso": "changeDress",
       "cape": "changeRibbons",
       "weapon": "changeBranch"
-    },
-    "legend": {
-      "name": "불사약을 삼킨 밤",
-      "kind": "survive"
     },
     "mark": "changeHalo",
     "relic": "elixir"
@@ -876,10 +836,6 @@
       "torso": "longwangRobe",
       "cape": "longwangCape",
       "weapon": "longwangStaff"
-    },
-    "legend": {
-      "name": "수정궁의 손님",
-      "kind": "tally"
     },
     "mark": "longwangWaves",
     "relic": "dragonPearl"
@@ -961,10 +917,6 @@
       "torso": "nezhaTunic",
       "cape": "nezhaRibbons",
       "weapon": "nezhaSpear"
-    },
-    "legend": {
-      "name": "동해를 뒤집은 소년",
-      "kind": "boss"
     },
     "mark": "nezhaHalo",
     "relic": "windFireWheels"
@@ -1048,10 +1000,6 @@
       "torso": "amaterasuRobe",
       "cape": "amaterasuCape"
     },
-    "legend": {
-      "name": "아마노이와토",
-      "kind": "survive"
-    },
     "mark": "amaterasuRays",
     "relic": "yataMirror"
   },
@@ -1119,10 +1067,6 @@
       "torso": "tsukuyomiRobe",
       "cape": "tsukuyomiCape",
       "weapon": "tsukuyomiScepter"
-    },
-    "legend": {
-      "name": "우케모치의 연회",
-      "kind": "tally"
     },
     "mark": "tsukuyomiMoon",
     "relic": "magatama"
@@ -1196,10 +1140,6 @@
       "cape": "raijinCape",
       "weapon": "raijinMallet"
     },
-    "legend": {
-      "name": "구름 위의 북소리",
-      "kind": "tally"
-    },
     "mark": "raijinDrums",
     "relic": "raijinDrum"
   },
@@ -1254,10 +1194,6 @@
       "head": "susanooHead",
       "torso": "susanooArmor",
       "cape": "susanooCape"
-    },
-    "legend": {
-      "name": "여덟 갈래 뱀",
-      "kind": "boss"
     },
     "mark": "susanooBlades",
     "relic": "kusanagi"
@@ -1337,10 +1273,6 @@
       "cape": "haemosuCape",
       "legs": "haemosuBoots",
       "weapon": "haemosuSword"
-    },
-    "legend": {
-      "name": "하백과의 둔갑 겨루기",
-      "kind": "tally"
     },
     "mark": "haemosuCrow",
     "relic": "oryonggeo"
@@ -1423,10 +1355,6 @@
       "cape": "bariCape",
       "weapon": "bariFlower"
     },
-    "legend": {
-      "name": "서천 꽃밭 가는 길",
-      "kind": "survive"
-    },
     "mark": "bariPetals",
     "relic": "lifeWater"
   },
@@ -1494,10 +1422,6 @@
       "torso": "dokkaebiTunic",
       "cape": "dokkaebiCape",
       "legs": "dokkaebiLegs"
-    },
-    "legend": {
-      "name": "달밤의 도깨비 씨름",
-      "kind": "tally"
     },
     "mark": "dokkaebiFire",
     "relic": "dokkaebiClub"
@@ -1570,10 +1494,6 @@
       "torso": "magoDress",
       "cape": "magoCape",
       "weapon": "magoMallet"
-    },
-    "legend": {
-      "name": "바다를 메운 치마",
-      "kind": "boss"
     },
     "mark": "magoStones",
     "relic": "magoSkirt"

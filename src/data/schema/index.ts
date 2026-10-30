@@ -14,7 +14,7 @@ import { type RelicDef, parseRelics } from './relics'
 import { type GiantSpec, parseEnemies } from './enemies'
 import { type ClassTree, parseClassTree } from './classTree'
 
-export type { ClassPassive, LegendDef, Realm, UltimateDef } from '../classKit'
+export type { ClassPassive, Realm, UltimateDef } from '../classKit'
 export { DataError } from '../check'
 export * from './gods'
 export * from './relics'

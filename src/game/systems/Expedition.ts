@@ -78,6 +78,8 @@ export class ExpeditionSystem {
     // 다시 찍기 (귀환 1부터): 깨달음이 생기는 대로 지난 원정에서 익힌 차례대로
     if (expedition.retakes && training.unspent > 0) this.retake()
     expedition.reach(Math.max(1, chapters.index))
+    // 원정이 무르익으면 성소의 빛기둥이 선다 (글 대신 빛으로 알린다)
+    this.ctx.sanctuary.beacon = this.canReturn
     if (this.atHearth()) {
       if (!this.declined && !this.parts.offering() && this.canReturn) this.offer()
     } else this.declined = false
@@ -88,18 +90,17 @@ export class ExpeditionSystem {
     return this.ctx.expedition.elapsed >= RETURN_MIN_SECONDS && this.ctx.training.insights >= RETURN_MIN_LEVEL
   }
 
-  /** 지금 귀환할 수 있나: 원정이 무르익었고 싸우는 중이 아니다 */
+  /** 지금 귀환할 수 있나: 원정이 무르익었고 살아 있다 */
   get canReturn(): boolean {
-    const { legend, combat } = this.ctx
-    return this.ripe && !legend.active && combat.alive
+    return this.ripe && this.ctx.combat.alive
   }
 
   /** 주인공이 성소 한가운데(화로)에 있다 */
   private atHearth(): boolean {
-    const { legend, hero } = this.ctx
-    if (!legend.present) return false
+    const { sanctuary, hero } = this.ctx
+    if (!sanctuary.present) return false
     const p = hero.object.position
-    return Math.hypot(p.x - legend.center.x, p.z - legend.center.z) < HEARTH_RADIUS
+    return Math.hypot(p.x - sanctuary.center.x, p.z - sanctuary.center.z) < HEARTH_RADIUS
   }
 
   /** 고를 수 있는 갈래: 자리에 든 신 가운데 더 오를 수 있는 신의 승천, 원천 불씨 넷 */

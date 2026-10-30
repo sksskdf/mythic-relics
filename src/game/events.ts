@@ -77,9 +77,6 @@ export interface GameEvents {
   chapterConquered: { region: string; conquered: number }
   /** 지금 목표가 바뀌었다 (E22): HUD 한 줄과 지도 표시. 엔딩 뒤이거나 다 했으면 null */
   goalChanged: { goal: ChapterStep | null }
-  /** 승급 전설이 시작됐다 / 실패했다. */
-  legendStarted: Record<string, never>
-  legendFailed: Record<string, never>
   /** 새 외형을 얻었다. */
   looksUnlocked: { ids: string[] }
   /** 주인공의 모습이 바뀌었다. (장착이나 보관함 선택) */

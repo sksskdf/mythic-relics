@@ -18,7 +18,7 @@ import type { Encounter, NeighborLayout } from './Encounter'
 import type { EventBus, GameEvents } from './events'
 import type { HeroController } from './HeroController'
 import type { HeroOrders } from './HeroOrders'
-import type { UtgardLegend } from './Legend'
+import type { Sanctuary } from './Sanctuary'
 import type { PlayerCombat } from './PlayerCombat'
 import type { Stage } from './Stage'
 import type { Effects } from './systems/Effects'
@@ -43,7 +43,7 @@ export interface WorldParts {
   stage: Stage
   nav: NavGrid
   encounter: Encounter
-  legend: UtgardLegend
+  sanctuary: Sanctuary
   villagers: Villagers
   minimap: Minimap
   fx: Effects
@@ -199,8 +199,7 @@ export class World {
    * 지도 편집기가 고친 지역을 바로 보여 줄 때도 쓴다. 다른 지역으로 가면 땅에 떨어진 유물은 사라진다.
    */
   enter(region: RegionDef, at: { x: number; z: number } = region.spawn): void {
-    const { stage, nav, encounter, legend, hero, orders, view, pickups, bus } = this.parts
-    if (legend.active) return
+    const { stage, nav, encounter, sanctuary, hero, orders, view, pickups, bus } = this.parts
     // 균열은 층마다 id가 같지만 새 땅이다 (앞 층의 물건을 치우고 「균열 N층」을 띄운다)
     const moved = region.id !== this.region.id || region.kind === 'rift'
     if (moved) pickups.clear()
@@ -211,7 +210,7 @@ export class World {
     nav.rebuild(area, colliders)
     encounter.reset({ ...region, respawn: region.kind !== 'rift' }, colliders, area)
     encounter.setNeighbors(this.neighborLayouts(region))
-    legend.moveTo(region.sanctuary && (nav.nearestFree(region.sanctuary) ?? region.sanctuary), region.sanctuary?.radius)
+    sanctuary.moveTo(region.sanctuary && (nav.nearestFree(region.sanctuary) ?? region.sanctuary), region.sanctuary?.radius)
     hero.area = area
     orders.clear()
     // 도착 자리가 바위·나무에 걸리면 가까운 빈 곳에 선다
@@ -237,7 +236,7 @@ export class World {
   private cross(link: RegionLink): void {
     const to = this.regions[link.to]
     if (!to) return
-    const { stage, nav, encounter, legend, hero, orders, view, pickups, bus } = this.parts
+    const { stage, nav, encounter, sanctuary, hero, orders, view, pickups, bus } = this.parts
     const { x: dx, z: dz } = link.shift
     hero.shift(dx, dz)
     view.shift(dx, dz)
@@ -251,7 +250,7 @@ export class World {
     // 적: 앞 땅의 무리는 그 자리에 남기고, 넘어간 땅에 미리 세워 둔 무리를 깨운다. 쫓아오던 적은 그대로 쫓는다
     encounter.cross({ ...to, respawn: true }, link.shift, colliders, area)
     encounter.setNeighbors(this.neighborLayouts(to))
-    legend.moveTo(to.sanctuary && (nav.nearestFree(to.sanctuary) ?? to.sanctuary), to.sanctuary?.radius)
+    sanctuary.moveTo(to.sanctuary && (nav.nearestFree(to.sanctuary) ?? to.sanctuary), to.sanctuary?.radius)
     hero.area = area
     // 길찾기를 넘어간 땅 것으로 바꾼 뒤에 가던 곳까지 다시 길을 찾는다
     orders.shift(dx, dz)
@@ -262,18 +261,18 @@ export class World {
   /** 출구로 다른 지역에 간다: 잠깐 어두워졌다가 그 지역의 돌아오는 출구 앞에서 밝아진다 (E7-02) */
   travelTo(id: string): void {
     const to = this.regions[id]
-    if (!to || this.travel || this.parts.legend.active) return
+    if (!to || this.travel) return
     this.parts.orders.clear()
     this.travel = { to, at: arrivalSpot(to, this.region.id), t: 0, switched: false }
   }
 
   /**
    * 성소 워프 (E14-05): 그 지역의 성소(마을이면 시작점)로 암전과 함께 바로 간다.
-   * 성소 한가운데는 전설이 시작되는 자리라, 시작점 쪽으로 몇 걸음 떨어진 곳에 선다.
+   * 성소 한가운데는 귀환 화로라(서면 귀환 카드가 뜬다), 시작점 쪽으로 몇 걸음 떨어진 곳에 선다.
    */
   warpTo(id: string): boolean {
     const to = this.regions[id]
-    if (!to || this.travel || this.parts.legend.active) return false
+    if (!to || this.travel) return false
     this.parts.orders.clear()
     this.travel = { to, at: to.sanctuary ? besideSanctuary(to.sanctuary, to.spawn) : to.spawn, t: 0, switched: false }
     return true
@@ -296,8 +295,8 @@ export class World {
       }
       return
     }
-    const { combat, legend, hero, orders } = this.parts
-    if (!combat.alive || legend.active || this.exitsLocked) return
+    const { combat, hero, orders } = this.parts
+    if (!combat.alive || this.exitsLocked) return
     const p = hero.object.position
     // 하나로 이어진 세계 (E19): 통로를 반 넘게 지나면 이웃 땅으로 넘어간다. 문은 통로 입구의 표시일 뿐이다
     if (this.region.cell) {

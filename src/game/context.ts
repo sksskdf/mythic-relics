@@ -25,7 +25,7 @@ import type { Encounter } from './Encounter'
 import type { EventBus, GameEvents } from './events'
 import type { HeroController } from './HeroController'
 import type { HeroOrders } from './HeroOrders'
-import type { UtgardLegend } from './Legend'
+import type { Sanctuary } from './Sanctuary'
 import type { PlayerCombat } from './PlayerCombat'
 import type { RelicPowers } from './RelicPowers'
 import type { Effects } from './systems/Effects'
@@ -74,7 +74,7 @@ export interface GameContext {
   readonly combat: PlayerCombat
   readonly orders: HeroOrders
   readonly encounter: Encounter
-  readonly legend: UtgardLegend
+  readonly sanctuary: Sanctuary
   readonly powers: RelicPowers
   readonly pickups: Pickups
   readonly progress: ClassProgress

@@ -572,11 +572,13 @@ try {
     g.expedition.elapsed = 300
     // 원정이 무르익게 (기세 레벨 8)
     g.training.xp = Math.max(g.training.xp, 5000)
-    g.hero.teleport(g.legend.center.x, g.legend.center.z)
+    g.hero.teleport(g.sanctuary.center.x, g.sanctuary.center.z)
   })
   await page.waitForFunction(() => window.__game.returnCardOpen, null, { timeout: 15000 }).catch(() => {
     throw new Error('귀환: 성소 화로에 섰는데 귀환 카드가 뜨지 않았습니다.')
   })
+  // 원정이 무르익으면 성소에 빛기둥이 선다 (E305-03: 전설 판 대신 귀환을 빛으로 알린다)
+  if (!(await page.evaluate(() => window.__game.sanctuary.lit))) throw new Error('귀환: 원정이 무르익었는데 성소 빛기둥이 서지 않습니다.')
   await lookShot('5-return')
   const returned = await page.evaluate(() => {
     const g = window.__game
@@ -601,7 +603,6 @@ try {
   // 맹세 (E305-01): 귀환 2에 다시 떠날 때 출발 카드에서 건다. 건 동안 제약이 돌고, 그 원정에서 수호자·장 보스를 이기면 지킨다
   await page.evaluate(() => {
     const g = window.__game
-    if (g.legend.active) g.legend.abort(g.encounter, g.growth.legendHost())
     g.enterRegion(g.regions.midgard)
     g.encounter.clearAll()
     if (!g.combat.alive) g.dev.revive()
@@ -609,7 +610,7 @@ try {
     // 귀환 1을 마친 원정이 무르익었다: 성소 화로에서 귀환하면 귀환 2
     Object.assign(g.expedition, { count: 2, elapsed: 300 })
     g.training.xp = 5000
-    g.hero.teleport(g.legend.center.x, g.legend.center.z)
+    g.hero.teleport(g.sanctuary.center.x, g.sanctuary.center.z)
     g.hero.stop()
   })
   await page.waitForFunction(() => window.__game.returnCardOpen, null, { timeout: 15000 })
@@ -635,7 +636,6 @@ try {
   // 균열 (E17): 한계를 깨면 마을의 균열 탭에서 들어가고, 층을 깨면 다음 층 문이 열려 내려가며(축복은 E305-03에서 걷음), 나가는 문으로 나오면 끝
   await page.evaluate(() => {
     const g = window.__game
-    if (g.legend.active) g.legend.abort(g.encounter, g.growth.legendHost())
     g.reachEnding()
     for (const realm of ['norse', 'greek', 'china', 'japan', 'korea']) g.threat.cleared[realm] = 10
     Object.assign(g.threat, { unlocked: 10, reached: 10 })
@@ -752,11 +752,20 @@ try {
   await page.waitForFunction((n) => window.__game.region.props.length === n, beforeEdit.props, { timeout: 15000 })
   await devButton('편집').click()
   console.log('지도 편집기 확인: 편집 켜고 소품 놓기(이동 지시 없음), 되돌리기')
+  // 성소 (E305-03): 「귀환 준비」를 누르면 원정이 무르익어 화로에 서고, 빛기둥이 서고 귀환 카드가 뜬다
   await devTab('신화')
-  await devButton('전설 시작').click()
-  await page.waitForFunction(() => window.__game.legend.phase === 'wave', null, { timeout: 15000 })
+  await devButton('귀환 준비').click()
+  await page.waitForFunction(() => window.__game.returnCardOpen, null, { timeout: 15000 }).catch(() => {
+    throw new Error('개발 패널: 「귀환 준비」를 눌렀는데 성소 화로에서 귀환 카드가 뜨지 않았습니다.')
+  })
+  const hearth = await page.evaluate(() => {
+    const g = window.__game
+    const p = g.hero.object.position
+    return { lit: g.sanctuary.lit, present: g.sanctuary.present, near: Math.hypot(p.x - g.sanctuary.center.x, p.z - g.sanctuary.center.z) }
+  })
+  if (!hearth.present || !hearth.lit || hearth.near > 2.5) throw new Error(`개발 패널: 성소 화로가 맞지 않습니다 ${JSON.stringify(hearth)}`)
   await page.screenshot({ path: 'test-results/devpanel.png' }).catch(() => {})
-  console.log('개발 패널 확인: 오른쪽 아래에 접힌 채 시작·펴기, 신화권·신화별 유물 묶음, 적 소환·제거, 충돌·길찾기 보기, 전설 바로 시작')
+  console.log('개발 패널 확인: 오른쪽 아래에 접힌 채 시작·펴기, 신화권·신화별 유물 묶음, 적 소환·제거, 충돌·길찾기 보기, 귀환 준비(성소 빛기둥·귀환 카드)')
 
   mkdirSync('test-results', { recursive: true })
   await page.screenshot({ path: 'test-results/smoke.png' })
