@@ -103,7 +103,7 @@ export interface WorldMapHost {
 /** 원천 탭이 게임에서 읽고 부르는 것 */
 export interface SourcesHost {
   /** 원천마다: 장비의 합과 각성 단계 */
-  rows(): { id: SourceId; total: number; level: number }[]
+  rows(): { id: SourceId; total: number; level: number; /** 원천 불씨 몫 (E304, 합에 들어 있다) */ flames: number }[]
   readonly threat: { level: number; unlocked: number; reached: number; max: number }
   /** 단계를 고를 수 있는 곳인가 (마을) */
   here(): boolean

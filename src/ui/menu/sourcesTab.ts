@@ -42,7 +42,7 @@ export function renderSources(ctx: TabContext, body: HTMLElement): void {
     head.append(gems)
     card.append(head)
     const amount = el('div', 'menu-src__amount')
-    amount.append(el('b', '', String(row.total)), el('span', '', '장비'))
+    amount.append(el('b', '', String(row.total)), el('span', '', row.flames > 0 ? `장비 + 불씨 ${row.flames}` : '장비'))
     card.append(amount)
     AWAKENING_TEXT[row.id].forEach((text, i) => card.append(el('div', `menu-src__line${i < row.level ? ' is-on' : ''}`, `${i + 1} · ${text}`)))
     const next = AWAKEN_AT.find((at) => row.total < at)

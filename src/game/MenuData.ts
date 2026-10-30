@@ -316,9 +316,12 @@ export class MenuData {
   }
 
   /** 원천마다: 장비의 합과 각성 단계 (HUD·정보 화면) */
-  sourceRows(): { id: SourceId; total: number; level: number }[] {
-    const state = this.parts.ctx.build.state
-    return SOURCE_IDS.map((id) => ({ id, total: state.sources[id], level: awakeningLevel(state.sources[id]) }))
+  sourceRows(): { id: SourceId; total: number; level: number; flames: number }[] {
+    const { build, expedition } = this.parts.ctx
+    const state = build.state
+    // 원천 불씨 (E304): 귀환 갈래로 쌓은 영구 몫 (합에 이미 들어 있다)
+    const flames = expedition.flamePoints()
+    return SOURCE_IDS.map((id) => ({ id, total: state.sources[id], level: awakeningLevel(state.sources[id]), flames: flames[id] }))
   }
 
   /** 정보 화면에 보일 위협 단계 (읽을 때마다 지금 값) */
