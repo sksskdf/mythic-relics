@@ -5,9 +5,8 @@ import { UniqueSystem } from './systems/Uniques'
 import { AudioEngine } from '../audio/AudioEngine'
 import { Input } from '../input/Input'
 import { TouchControls } from '../input/TouchControls'
-import { PixelRenderer } from '../render/PixelRenderer'
+import type { PixelRenderer } from '../render/PixelRenderer'
 import { QuarterViewCamera } from '../render/QuarterViewCamera'
-import { renderHeightForScreen, TARGET_RENDER_HEIGHT, visibleHeight } from '../render/resolution'
 import { CONQUESTS } from '../data/chapters'
 import { REGIONS, type RegionDef, START_REGION } from '../data/regions'
 import { godDef, type RelicId } from '../relics/data'
@@ -36,7 +35,7 @@ import { walkArea } from '../world/colliders'
 import { buildHeroModel } from '../world/heroModel'
 import type { BodyLook } from '../looks/body'
 import { TITLE_REQUEST } from '../save/SaveData'
-import { clampViewHeight, RENDER_SCALE, type RenderQuality, type Settings, settingsStorage } from '../save/settings'
+import type { RenderQuality } from '../save/settings'
 import { frameDelta } from './clock'
 import { Feel, type GameContext } from './context'
 import { Encounter } from './Encounter'
@@ -73,7 +72,6 @@ import { ExpeditionProgress } from '../progress/Expedition'
 import { WakeProgress } from '../progress/Wake'
 import { wakeDef, HUNT_KILLS } from '../data/wake'
 import { TabUnlocks } from '../progress/Tabs'
-import { insightProgress } from '../data/training'
 import { TabSystem } from './systems/Tabs'
 import { Barriers } from '../world/Barriers'
 import { SwapCard } from '../ui/SwapCard'
@@ -95,6 +93,10 @@ import { EndlessSystem } from './systems/Endless'
 import { ReturnCard } from '../ui/ReturnCard'
 import { ExpeditionSystem } from './systems/Expedition'
 import { Build } from '../build/Build'
+import { type PlayEvent, PlayLog } from './PlayLog'
+import { listenWindow } from './WindowEvents'
+import { Viewport } from './Viewport'
+import { HudFeed } from './HudFeed'
 
 export interface GameOptions {
   /** 처음부터 끼고 시작할 유물 (점검용) */
@@ -130,14 +132,6 @@ const ENDING_CARD: MomentCard = {
   title: '엔딩 뒤가 열렸다',
   color: '#ffd27a',
   lines: endingLines(),
-}
-
-/** 플레이 기록: 검증과 수치 조정에 쓴다. */
-export interface PlayEvent {
-  /** 게임 시간 (초) */
-  t: number
-  type: 'relic' | 'manifest' | 'open' | 'fragment' | 'forge' | 'gear' | 'kill' | 'bossKill' | 'death' | 'promote' | 'hurt' | 'depth' | 'region' | 'oath' | 'endless' | 'chapter' | 'ending'
-  detail?: string
 }
 
 /**
@@ -217,13 +211,12 @@ export class Game {
   readonly chapterHud: ChapterHud
   /** 순간의 크기 (E23-01): 사건을 등급에 맞는 크기(작은 알림·카드·큰 카드·장면)로 보인다 */
   readonly moments: MomentSystem
-  /** 장면의 위아래 검은 띠 (E23-02) */
-  private readonly letterbox = document.createElement('div')
   /** 지금 땅의 성소: 돌 고리와 빛기둥, 한가운데가 귀환 화로 (E304) */
   readonly sanctuary: Sanctuary
   /** 주인공 길찾기 격자 */
   readonly nav: NavGrid
-  readonly log: PlayEvent[] = []
+  /** 플레이 기록 (봇·점검 스크립트가 `game.log`로 읽는다) */
+  private readonly playLog: PlayLog
   frame = 0
   /** 게임 시간 (초). 타격 순간 멈춘 시간은 빠진다. */
   time = 0
@@ -243,8 +236,8 @@ export class Game {
   readonly nameplates: Nameplates
   /** 대화 장면 (E12-10) */
   readonly scenes: DialogScene
-  /** 조작 안내: 걸어 보면 싸우는 법으로, 싸워 보면 사라진다 (저장하지 않는다) */
-  private coach: 'move' | 'fight' | null = null
+  /** HUD에 넣을 것: 조작 안내·위아래 띠·목표 한 줄·작은 지도 */
+  private readonly hudFeed: HudFeed
   readonly dialog: DialogBox
   /** 개발 패널의 지도 편집기 (E7-01). 켜 있으면 땅을 누르는 것이 이동 대신 편집이 된다 */
   mapEditor: { active: boolean; update(cursor: { x: number; z: number } | null, pressed: boolean): void } | null = null
@@ -268,7 +261,8 @@ export class Game {
   private readonly sound: SoundSystem
   /** 공격 모션의 궤적과 원거리 공격의 모습 */
   private readonly attackFx: AttackFx
-  private settings: Settings
+  /** 화면과 설정: 픽셀 렌더러·확대·축소·창 크기 */
+  private readonly viewport: Viewport
   /** 커서 아래의 설명 카드와 몬스터 이름표 */
   private readonly hover: HoverCards
   private readonly relics: RelicSystem
@@ -276,10 +270,6 @@ export class Game {
   private readonly life: HeroLife
   private readonly persistence: Persistence
   private readonly playerInput: PlayerInput
-  /** 가장 크게 확대했을 때(시야 12m)의 렌더 세로 픽셀 수. ?res= 로 바꿔 볼 수 있고, 설정의 해상도를 곱한다 */
-  private baseRenderHeight: number
-  /** ?res= 로 정한 기준 (없으면 기본값) */
-  private readonly requestedRenderHeight: number
   private lastTime = performance.now()
   /** 시작 화면 뒤의 장면 */
   private readonly backdrop: TitleBackdrop
@@ -295,17 +285,10 @@ export class Game {
   ) {
     this.touch = options.touch ?? false
     this.suspended = options.suspended ?? (() => false)
-    this.settings = settingsStorage.load()
-    if (options.quality) this.settings = { ...this.settings, quality: options.quality }
-    // ?res= 로 픽셀 밀도를 바꿔 볼 수 있다. 기본은 프로토타입의 밀도에 설정의 해상도를 곱한다
-    this.requestedRenderHeight = options.renderHeight ?? TARGET_RENDER_HEIGHT
-    this.baseRenderHeight = options.renderHeight ?? Math.round(TARGET_RENDER_HEIGHT * RENDER_SCALE[this.settings.quality])
-    this.pixel = new PixelRenderer(container, this.baseRenderHeight)
+    this.viewport = new Viewport({ container, view: this.view, stage: () => this.stage, hud: () => this.hud, audio: () => this.audio, sceneActive: () => this.scenes.active }, options)
+    this.pixel = this.viewport.pixel
     this.input = new Input(this.pixel.renderer.domElement, undefined, this.touch)
-    // 확대·축소: 주소의 ?view= 가 있으면 그 값, 없으면 저장한 설정
-    this.view.viewHeight = options.viewHeight ?? this.settings.viewHeight
-    this.pixel.setTargetHeight(renderHeightForScreen(this.view.viewHeight, container.clientWidth, container.clientHeight, this.baseRenderHeight))
-    this.pixel.renderer.domElement.addEventListener('wheel', (e) => this.onWheel(e), { passive: false })
+    this.viewport.attach(options.viewHeight)
     // 떠오르는 숫자·주운 것 이름은 HUD(정보 화면 포함)보다 아래에 깔린다 (창을 열면 그 아래로 숨게)
     this.numbers = new DamageNumbers(container)
     this.hud = new Hud(container)
@@ -386,11 +369,11 @@ export class Game {
         this.villagers.quiet = hidden
       },
       viewHeight: () => this.view.viewHeight,
-      setViewHeight: (viewHeight) => this.applyViewHeight(viewHeight),
+      setViewHeight: (viewHeight) => this.viewport.applyViewHeight(viewHeight),
       clearOrders: () => this.orders.clear(),
       onSeen: (id) => {
         // 시작 장면 뒤: 조작은 대사 대신 해 볼 때까지 남는 안내 한 줄로 (사용자 의견 2026-10-28)
-        if (id === 'opening') this.coach = 'move'
+        if (id === 'opening') this.hudFeed.coach = 'move'
         this.bus.emit('progressChanged', {})
       },
       seen: scenesSeen,
@@ -473,8 +456,8 @@ export class Game {
     }
     this.menu.onToggle = onToggle
     this.pauseMenu = new PauseMenu(this.hud.root, {
-      settings: () => this.settings,
-      change: (patch) => this.applySettings(settingsStorage.update(patch)),
+      settings: () => this.viewport.settings,
+      change: (patch) => this.viewport.change(patch),
       toTitle: () => this.toTitle(),
     })
     this.pauseMenu.onToggle = onToggle
@@ -486,8 +469,7 @@ export class Game {
     })
     // 대화 장면 (E15-06): 마을 사람을 누르면 걸어가 말을 걸고, 처음 보는 일에는 짧은 장면
     this.storyline = new Storyline({ ctx: this.ctx, scenes: this.scenes, villagers: this.villagers, paused: () => this.paused, holding: () => this.moments.holding })
-    this.letterbox.className = 'letterbox'
-    container.append(this.letterbox)
+    this.hudFeed = new HudFeed({ game: this, build: this.ctx.build, container, plates: (show) => this.hover.plates(show) })
     this.moments = new MomentSystem(this.ctx, {
       playScene: (id) => this.storyline.play(id, true),
       // 땅을 옮겨 가는 암전 중에도 기다린다 (장면이 어두운 화면 위에 서지 않게)
@@ -604,12 +586,7 @@ export class Game {
       this.playerInput.touch = touch
       this.input.frameEnd.push(() => touch.gestures.endFrame())
     }
-    this.playerInput.onZoom = (viewHeight, end) => {
-      // 대화 장면의 시야는 장면이 정한다 (휠과 같이)
-      if (this.scenes.active) return
-      if (viewHeight !== this.view.viewHeight) this.setViewHeight(viewHeight)
-      if (end) this.settings = settingsStorage.update({ viewHeight: this.view.viewHeight })
-    }
+    this.playerInput.onZoom = (viewHeight, end) => this.viewport.zoom(viewHeight, end)
     this.dev = new DevTools({
       bus: this.bus,
       relics: this.relics,
@@ -628,12 +605,12 @@ export class Game {
       depth: this.depth,
       applyDepth: () => this.depthSystem.apply(),
     })
-    this.audio = new AudioEngine(this.settings.volume, { mobile: this.touch })
+    this.audio = new AudioEngine(this.viewport.settings.volume, { mobile: this.touch })
     this.attackFx = new AttackFx({ fx: this.fx, hero: this.hero, combat: this.combat, build: this.ctx.build, audio: this.audio })
     this.sound = new SoundSystem(this.ctx, this.audio)
-    this.applySettings(this.settings)
-    this.listenWindow()
-    this.recordPlay()
+    this.viewport.apply()
+    listenWindow({ audio: this.audio, menu: this.menu, pauseMenu: this.pauseMenu, playing: () => this.playing, paused: () => this.paused, talking: () => this.scenes.active })
+    this.playLog = new PlayLog(this.bus, () => this.time)
 
     if (options.title) {
       this.playing = false
@@ -679,21 +656,7 @@ export class Game {
     this.awakening.refresh()
 
     this.view.jumpTo(rig.root.position)
-    this.resize()
-    window.addEventListener('resize', () => this.resize())
-  }
-
-  /** 조작 안내 한 줄: 땅을 눌러 걸어 보면 → 가까이 적이 있을 때 적을 눌러 보라고 → 싸우면 사라진다 */
-  private updateCoach(): void {
-    if (this.coach === 'move' && this.orders.order?.kind === 'move') this.coach = 'fight'
-    if (this.coach === 'fight' && (this.orders.order?.kind === 'attack' || this.combat.combo.swinging)) this.coach = null
-    let text: string | null = null
-    if (this.playing && !this.paused && !this.scenes.active && this.coach) {
-      const p = this.hero.object.position
-      if (this.coach === 'move') text = this.touch ? '화면을 누른 채 끌면 걷는다' : '땅을 누르면 걷는다'
-      else if (this.encounter.alive.some((g) => Math.hypot(g.x - p.x, g.z - p.z) < 9)) text = this.touch ? '적을 톡 누르면 싸운다' : '적을 누르면 싸운다'
-    }
-    this.hud.setCoach(text)
+    this.viewport.fit()
   }
 
   /**
@@ -715,26 +678,9 @@ export class Game {
     }
   }
 
-  /** 사건을 플레이 기록으로 남긴다. (봇 검증과 수치 조정용) */
-  private recordPlay(): void {
-    const record = (type: PlayEvent['type'], detail?: string) => this.log.push({ t: Math.round(this.time * 10) / 10, type, detail })
-    const { bus } = this
-    bus.on('relicPicked', ({ id }) => record('relic', id))
-    bus.on('mythOpened', ({ god }) => record('open', god))
-    bus.on('fragment', ({ god, piece }) => record('fragment', `${god}:${piece}`))
-    bus.on('forged', ({ relic, stage }) => record('forge', `${relic}:${stage}`))
-    bus.on('gearPicked', ({ item }) => record('gear', item.grade))
-    bus.on('manifested', ({ god }) => record('manifest', god))
-    bus.on('giantKilled', ({ giant }) => record(giant.spec.boss ? 'bossKill' : 'kill', giant.spec.boss))
-    bus.on('heroHurt', ({ damage }) => record('hurt', String(Math.round(damage))))
-    bus.on('depthChanged', ({ level }) => record('depth', String(level)))
-    bus.on('regionEntered', ({ id }) => record('region', id))
-    bus.on('chapterChanged', ({ chapter }) => record('chapter', chapter?.id ?? 'end'))
-    bus.on('endlessFloor', ({ depth }) => record('endless', `floor:${depth}`))
-    bus.on('endlessEnded', ({ depth, reason }) => record('endless', `${reason}:${depth}`))
-    bus.on('oathEnded', ({ id, win, seconds }) => record('oath', `${id}:${win ? 'win' : 'fail'}:${Math.round(seconds)}`))
-    bus.on('heroDied', () => record('death'))
-    bus.on('promoted', ({ title }) => record('promote', title))
+  /** 플레이 기록: 게임 시간과 사건 (봇 검증과 수치 조정용) */
+  get log(): PlayEvent[] {
+    return this.playLog.events
   }
 
   /** 지금 상태를 저장 데이터로 만든다. */
@@ -756,7 +702,7 @@ export class Game {
     this.view.shake(0.4)
     this.chapterHud.showChapter('첫 엔딩', '갈라진 하늘이 닫혔다', gold)
     this.bus.emit('sound', { cue: 'promote' })
-    this.log.push({ t: Math.round(this.time * 10) / 10, type: 'ending' })
+    this.playLog.record('ending')
   }
 
   /** 첫 엔딩을 보았다 (E21-06): 엔딩 뒤 장치를 연다. 마지막 보스를 이기면 엔딩 장면 뒤에 부르고(E22-05), 개발 패널과 점검 스크립트도 부른다 */
@@ -931,7 +877,7 @@ export class Game {
       if (!talking) this.hover.update()
     }
     this.numbers.update(realDt, this.container.clientHeight, this.pixel.size, this.view.camera, this.view.subpixel)
-    this.updateHud(realDt)
+    this.hudFeed.update(realDt)
     this.pixel.render(this.scene, this.view.camera, this.view.subpixel)
     this.input.endFrame()
     this.frame += 1
@@ -1033,60 +979,6 @@ export class Game {
   /** 정보 화면·일시 정지 메뉴·두 갈래 카드가 열려 있어 게임이 멈췄는가 */
   get paused(): boolean {
     return this.menu.open || (this.pauseMenu?.open ?? false) || (this.swapCard?.open ?? false) || this.suspended()
-  }
-
-  /**
-   * 창과 키보드: 첫 입력에 소리를 켜고, Esc로 창을 닫거나 일시 정지하고,
-   * 탭을 옮기거나 창이 가려지면 멈춘다. (E5-04·06)
-   */
-  private listenWindow(): void {
-    const unlock = () => this.audio.unlock()
-    addEventListener('pointerdown', unlock)
-    addEventListener('keydown', unlock)
-    // 휴대폰(iOS Safari)은 손가락을 뗄 때만 소리를 켜 준다: 누를 때 만든 소리가 잠들어 있으면 뗄 때 깨운다 (E235)
-    addEventListener('pointerup', unlock)
-    addEventListener('touchend', unlock)
-    addEventListener('keydown', (e) => {
-      if (e.key !== 'Escape' || !this.playing) return
-      if (this.pauseMenu.open) this.pauseMenu.hide()
-      else if (this.menu.open) this.menu.toggle(false)
-      // 대화 중에는 세계가 이미 멈춰 있고, 일시 정지 창은 숨은 HUD 안이라 보이지 않는다
-      else if (!this.scenes.active) this.pauseMenu.show()
-    })
-    // 단추를 누르면 짧게 딸깍
-    addEventListener('click', (e) => {
-      if ((e.target as Element | null)?.closest?.('button')) this.audio.play('ui')
-    })
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden) {
-        this.autoPause()
-        this.audio.suspend()
-      } else this.audio.resume()
-    })
-    // 아이폰은 다른 앱에서 돌아올 때 visibilitychange 없이 pageshow·focus만 오기도 한다
-    addEventListener('pageshow', () => !document.hidden && this.audio.resume())
-    addEventListener('focus', () => !document.hidden && this.audio.resume())
-    addEventListener('blur', () => this.autoPause())
-  }
-
-  /** 창 밖으로 나가면 멈춘다. 이미 창이 열려 있거나 대화 중(세계가 멈춤)이면 그대로 둔다 */
-  private autoPause(): void {
-    if (this.playing && !this.paused && !this.scenes.active) this.pauseMenu.show()
-  }
-
-  /** 설정을 적용한다: 음량, 흔들림, 번쩍임, 렌더 해상도 */
-  private applySettings(next: Settings): void {
-    const before = this.settings
-    this.settings = next
-    this.audio.setVolumes(next.volume)
-    this.view.shakeScale = next.shake ? 1 : 0
-    this.hud.flashEnabled = next.flash
-    // 낮음: 그림자를 끈다 (그림자 패스가 장면을 한 번 더 그린다)
-    this.stage.setShadows(next.quality !== 'low')
-    if (next.quality !== before.quality && this.requestedRenderHeight === TARGET_RENDER_HEIGHT) {
-      this.baseRenderHeight = Math.round(TARGET_RENDER_HEIGHT * RENDER_SCALE[next.quality])
-      this.setViewHeight(this.view.viewHeight)
-    }
   }
 
   /** 정보 화면에서 한 신에 몰아 고른다 (손·심장·숨 첫 칸). 닫힌 신화면 false */
@@ -1209,15 +1101,7 @@ export class Game {
       this.bus.emit('moment', { id: 'shrineFound', text: '성소를 켰다 · 지도에서 바로 온다' })
       this.bus.emit('progressChanged', {})
     }
-    this.minimap.update(dt, {
-      hero: position,
-      relics: this.pickups.list,
-      // 원정이 무르익으면 성소 화로가 깜빡인다 (E305-03: 성소 전설 대신 귀환)
-      sanctuaryReady: this.sanctuary.lit,
-      goal: this.goalSpot(),
-      // 신의 흔적 (E238): 응답하는 흔적만 그 신의 색으로
-      traces: this.awakening.spots.filter((t) => t.state === 'open').map((t) => ({ x: t.x, z: t.z, color: godDef(t.god).color })),
-    })
+    this.hudFeed.updateMinimap(dt)
     // 이웃 땅 조각과 이웃 무리는 한 프레임에 하나씩만 짓는다 (조각이 먼저)
     if (!this.stage.update(this.elapsed)) this.encounter.buildStep()
     this.stage.follow(position)
@@ -1244,80 +1128,5 @@ export class Game {
       this.view.shake(giant.spec.role === 'boss' || giant.spec.role === 'guardian' ? 0.6 : 0.15)
       this.bus.emit('giantKilled', { giant })
     }
-  }
-
-  /** 다음 깨달음까지 모은 기세 0~1 (HUD 막대) */
-  private momentum(): number {
-    const { have, need } = insightProgress(this.training.xp)
-    return need > 0 ? Math.min(1, have / need) : 1
-  }
-
-  private updateHud(realDt: number): void {
-    // 창이 열렸거나 대화 중이면 이름표를 띄우지 않는다 (창 위에 그려지지 않게, E12-09)
-    this.hover.plates(this.playing && !this.paused && !this.scenes.active)
-    this.updateCoach()
-    const boss = this.encounter.boss
-    const manifested = this.ctx.build.chosen
-    this.hud.update(
-      {
-        life: this.combat.health.ratio,
-        heartGauge: this.combat.heartGauge,
-        // 보스 막대: 싸우는 지역 보스, 아니면 깨어난 수호자
-        boss: boss && this.encounter.bossEngaged ? boss.health.ratio : this.awakening.fighting ? this.awakening.fighting.health.ratio : null,
-        bossName: boss && this.encounter.bossEngaged ? boss.spec.name : (this.awakening.fighting?.spec.name ?? null),
-        slots: this.powers.hudSlots(),
-        ultimate: this.ctx.build.heart !== null && !this.ctx.build.state.noUltimate,
-        // 기세 막대 (E305-03): 신화 경험치 대신 다음 깨달음까지 (원정마다 처음부터)
-        xp: manifested ? this.momentum() : null,
-        xpColor: manifested ? godDef(manifested).color : '',
-        portrait: manifested
-          ? { name: godDef(manifested).name, title: this.progress.title(manifested), color: godDef(manifested).color, level: this.progress.level(manifested) }
-          : null,
-        // 빌린 신(E237)은 밝은 칩, 그 밖에 낀 유물의 신은 잠든 가호
-        lent: this.ctx.build.borrowed.map((g) => ({ name: godDef(g).name, color: godDef(g).color })),
-        promote: manifested !== null && this.expeditionSystem.canReturn,
-        sources: Object.fromEntries(this.sourceRows().map((r) => [r.id, { value: r.total, level: r.level }])),
-      },
-      realDt,
-    )
-    // 장면과 신화 고르기에는 위아래 검은 띠 (E23-02)
-    this.letterbox.classList.toggle('is-on', this.scenes.active || this.swapCard.open)
-    // 목표 한 줄 (E22-04): 보스 막대가 서거나 대화 중이면 잠깐 감춘다
-    const fighting = (boss !== null && this.encounter.bossEngaged) || this.awakening.fighting !== null
-    this.chapterHud.setGoal(this.chapterSystem.goalView(), fighting || this.scenes.active || this.world.traveling)
-  }
-
-  // ── 화면 ──────────────────────────────────────────
-
-  /** 마우스 휠로 확대·축소한다. 설정에 저장되어 다시 켜도 유지된다. */
-  private onWheel(e: WheelEvent): void {
-    e.preventDefault()
-    // 대화 장면(줌인·줌아웃 포함)의 시야는 장면이 정한다. 바꾸지도 저장하지도 않는다
-    if (this.scenes.active) return
-    const next = clampViewHeight(this.view.viewHeight * (e.deltaY > 0 ? 1.1 : 1 / 1.1))
-    if (next === this.view.viewHeight) return
-    this.setViewHeight(next)
-    this.settings = settingsStorage.update({ viewHeight: next })
-  }
-
-  /** 확대·축소. 그림자가 그려지는 범위도 보이는 범위에 맞춘다. */
-  setViewHeight(viewHeight: number): void {
-    this.applyViewHeight(clampViewHeight(viewHeight))
-  }
-
-  /** 보이는 범위를 그대로 바꾼다 (대화 장면의 줌은 평소 범위보다 가깝다) */
-  private applyViewHeight(next: number): void {
-    this.view.viewHeight = next
-    this.resize()
-    this.view.setViewHeight(next)
-  }
-
-  private resize(): void {
-    const { clientWidth: width, clientHeight: height } = this.container
-    // 가장 크게 확대했을 때의 픽셀 크기를 기준으로, 넓게 볼 때는 뭉개지지 않을 만큼만 해상도를 올린다 (세로 화면은 늘어난 세로만큼 더)
-    this.pixel.setTargetHeight(renderHeightForScreen(this.view.viewHeight, width, height, this.baseRenderHeight))
-    const size = this.pixel.setScreenSize(width, height)
-    this.view.setRenderSize(size.width, size.height)
-    this.stage.fitShadow(visibleHeight(this.view.viewHeight, width, height))
   }
 }
