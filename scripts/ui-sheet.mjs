@@ -80,7 +80,7 @@ try {
     })
     await page.goto(`http://localhost:${PORT}/?fresh&relics=&region=village&noscenes`)
     await page.waitForFunction(() => (window.__game?.frame ?? 0) > 3, null, { timeout: 60000 })
-    // 중반쯤: 토르를 고르고 신화 셋을 열고, 장비 몇 개와 재료, 위협 3단계, 지킨 맹세 몇 개, 한계를 깬 뒤 별 셋
+    // 중반쯤: 토르를 고르고 신화 셋을 열고, 장비 몇 개와 재료, 위협 3단계, 지킨 맹세 몇 개, 한계를 깬 뒤 균열 기록 15층
     await page.evaluate(() => {
       const g = window.__game
       g.dev.equip('mjolnir')

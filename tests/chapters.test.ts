@@ -79,7 +79,7 @@ describe('장 데이터 (E22-01)', () => {
     bad((d) => delete d.finale, /마지막 무대의 보스/)
     bad((d) => (d.greek.steps[0].when = 'x'), /모르는 항목/)
     bad((d) => (d.north.steps[5].opens = 'norse'), /모르는 항목/)
-    bad((d) => (d.greek.steps[1].kind = 'choose'), /kind/)
+    bad((d) => (d.greek.steps[1].kind = 'level'), /kind/)
   })
 })
 
