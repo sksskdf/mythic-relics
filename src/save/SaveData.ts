@@ -42,7 +42,7 @@ import { legacySlots, migrateLooks, oldChapters, oldStars, oldTrainingXp, fillEm
  * - v12: 신위 칸 (E237). chosen은 첫째가 주신(고른 신화), 그 뒤가 빌린 신(넷까지). 옛 저장은 주신 하나뿐이라 그대로 읽는다
  * - v13: 신을 깨우는 조각 (E238). 깨우는 신과 모은 조각·사냥한 수. 옛 저장은 깨우는 신 없이 (이미 연 신은 그대로)
  * - v14: 신의 자리 셋 (E302). chosen(주신 + 빌린 신) → pantheon(손·심장·숨). 옛 주신은 손·심장·숨 첫 칸으로(한 신에 몰기), 빌린 신은 숨 칸으로
- * - v15: 원형과 유물표 (E303-04). 신화권 재료 → 원형 하나씩, 12칸을 넘친 가방의 일반 장비는 낮은 등급부터 녹여 원형으로.
+ * - v15: 원형과 유물표 (E303-04). 신화권 재료 → 원형 셋씩(대장간 값 ×3), 12칸을 넘친 가방의 일반 장비는 낮은 등급부터 녹여 원형으로.
  *   칸·가방의 신화 유물은 유물표(lit)로 옮기고 빈 칸은 가방의 가장 좋은 장비로 채운다. 가진 장비의 고유 효과도 유물표에 켠다
  */
 export const SAVE_VERSION = 15
@@ -146,7 +146,9 @@ export function parseSave(text: string | null): SaveData | null {
   const light = (id: unknown) => {
     if (typeof id === 'string' && isRelic(id) && isMythRelic(id) && !lit.includes(id)) lit.push(id)
   }
-  if ((data.version as number) >= 15 && Array.isArray(data.lit)) data.lit.forEach(light)
+  // 유물표가 없는 저장(v14 이하, 그리고 유물표 전의 v15 개발판)은 칸·가방의 신화 유물을 옮긴다
+  const hasLit = (data.version as number) >= 15 && Array.isArray(data.lit)
+  if (hasLit) (data.lit as unknown[]).forEach(light)
   /** 칸·가방·땅에 들어갈 수 있는 것: 가진 일반 장비(땅에는 유물도), 한 번씩만 */
   const unique = (id: unknown, ground = false): id is string => {
     if (typeof id !== 'string' || seen.has(id)) return false
@@ -158,7 +160,7 @@ export function parseSave(text: string | null): SaveData | null {
     // 신화의 유물은 칸·가방을 떠나 유물표로 (옛 저장). 이미 켠 유물은 땅에도 없다
     if (isRelic(id) && isMythRelic(id) && ground && lit.includes(id)) return false
     if (isRelic(id) && isMythRelic(id) && !ground) {
-      if ((data.version as number) < 15) light(id)
+      if (!hasLit) light(id)
       return false
     }
     if (!isRelic(id) && !gearById.has(id)) return false
@@ -199,8 +201,9 @@ export function parseSave(text: string | null): SaveData | null {
   }
   let fullBag = [...bag, ...slots.slice(SLOT_PARTS.length).filter((id): id is string => id !== null)]
   // 유물이 비운 칸은 가방의 가장 좋은 장비로 채우고(v15), 그래도 12칸을 넘친 가방은 녹인다
-  if ((data.version as number) < 15) fullBag = fillEmptySlots(slots, fullBag, gearById)
-  fullBag = meltOverflow(fullBag, gearById, materials)
+  if (!hasLit) fullBag = fillEmptySlots(slots, fullBag, gearById)
+  // 12칸을 넘친 가방은 옛 저장에서만 녹인다 (지금은 가방이 차면 더 넣지 않는다)
+  if ((data.version as number) < 15) fullBag = meltOverflow(fullBag, gearById, materials)
   const keep = new Set([...slots.slice(0, SLOT_PARTS.length), ...fullBag, ...ground.map((g) => g.id)])
   const threat = parseThreat(data.threat)
   const trials = parseTrials(data.trials)
@@ -216,7 +219,7 @@ export function parseSave(text: string | null): SaveData | null {
     slots: slots.slice(0, SLOT_PARTS.length),
     bag: fullBag,
     lit,
-    uniques: parseUniques(data.uniques, (data.version as number) < 15 ? [...gearById.values()] : []),
+    uniques: parseUniques(data.uniques, hasLit ? [] : [...gearById.values()].filter((g) => keep.has(g.uid))),
     gear: [...gearById.values()].filter((g) => keep.has(g.uid)),
     stages,
     materials,

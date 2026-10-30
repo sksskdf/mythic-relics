@@ -13,7 +13,9 @@ import type { DamageStyle } from '../../ui/DamageNumbers'
 export class UniqueSystem {
   private readonly from = new THREE.Vector3()
   private readonly to = new THREE.Vector3()
-  private worn = ''
+  /** 마지막으로 고유 효과를 모은 빌드 판 번호와 익힌 마디 수 (바뀔 때만 다시 모은다) */
+  private version = -1
+  private taken = -1
 
   constructor(private readonly ctx: GameContext) {
     const { bus } = ctx
@@ -49,19 +51,32 @@ export class UniqueSystem {
 
   /** 낀 장비와 수련 큰 마디의 고유 효과를 맞추고 타이머를 돌린다. 걸은 거리로 회오리 걸음 */
   update(dt: number, walked: number): void {
-    const { powers, uniques, training } = this.ctx
-    const ids = powers.loadout.wornGear.flatMap((g) => [g.unique, g.unique2].filter((u): u is string => !!u))
-    for (const [node, unique] of Object.entries(TRAINING_UNIQUES)) if (training.taken.has(node) && !ids.includes(unique)) ids.push(unique)
-    const key = ids.join(',')
-    if (key !== this.worn) {
-      this.worn = key
-      uniques.setActive(new Set(ids))
+    const { uniques, training, build } = this.ctx
+    // 장비·자리·시련이 바뀌면 빌드 판 번호가 오른다. 수련 마디는 판 번호에 수치로만 들어가 따로 센다
+    if (build.version !== this.version || training.taken.size !== this.taken) {
+      this.version = build.version
+      this.taken = training.taken.size
+      uniques.setActive(this.collect())
     }
     uniques.update(dt)
     if (walked > 0 && uniques.onWalk(walked)) {
       const p = this.ctx.hero.object.position
       this.burst(p.x, p.z, UNIQUE.whirlStep.radius, UNIQUE.whirlStep.damage)
     }
+  }
+
+  /** 도는 고유 효과: 쓸 수 있는 칸(시련 「세 칸의 짐」이면 그 칸만)의 장비와 익힌 큰 마디 */
+  private collect(): Set<string> {
+    const { powers, training } = this.ctx
+    const allow = this.ctx.build.rules.slots
+    const out = new Set<string>()
+    powers.loadout.slots.forEach((uid, i) => {
+      const g = uid && (!allow || allow.includes(i)) ? powers.loadout.gear.get(uid) : undefined
+      if (g?.unique) out.add(g.unique)
+      if (g?.unique2) out.add(g.unique2)
+    })
+    for (const [node, unique] of Object.entries(TRAINING_UNIQUES)) if (training.taken.has(node)) out.add(unique)
+    return out
   }
 
   /** 천둥 부름: 하늘에서 그 적에게 번개 */

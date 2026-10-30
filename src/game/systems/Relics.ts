@@ -1,6 +1,7 @@
 import { AUTO_PICKUP_RADIUS } from '../../progress/Conveniences'
 import * as THREE from 'three'
 
+import { SLOT_PARTS } from '../../data/gearData'
 import { type God, godDef, isRelicId, relicDef, type RelicId } from '../../relics/data'
 import { effectScale, isMythRelic, relicMyth, stageName } from '../../gear/mythRelic'
 import { GRADE_COLORS } from '../../art/palette'
@@ -313,6 +314,8 @@ export class RelicSystem {
         (id, gear) => {
           if (powers.loadout.has(id)) return false
           if (!gear || powers.loadout.canTake(gear.part)) return true
+          // 자동 녹이기(엔딩 뒤 편의)가 받을 흔함 장비는 가방이 차도 줍는다 (줍자마자 녹는다)
+          if (conv.salvaging && gear.grade === 'common' && powers.loadout.slots.every((s, i) => SLOT_PARTS[i] !== gear.part || s !== null)) return true
           if (this.fullWarned <= 0) {
             this.ctx.bus.emit('moment', { id: 'bagFull', text: '가방이 찼다 · 셋을 합치면 자리가 난다' })
             this.fullWarned = 8

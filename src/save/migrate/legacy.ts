@@ -94,12 +94,15 @@ export function refundMythMaterials(materials: Record<string, number>): void {
   }
 }
 
-/** v14 이하 → v15: 신화권 재료를 원형으로 하나씩 바꿔 준다 (E303-04) */
+/** 신화권 재료 하나 = 원형 몇 (E303-04: 원형이 나오는 수와 대장간 값을 셋 배로 올린 만큼) */
+export const REALM_TO_PROTOTYPE = 3
+
+/** v14 이하 → v15: 신화권 재료를 원형 셋씩으로 바꿔 준다 (모아 둔 재료로 벼릴 수 있던 만큼 그대로) */
 export function realmToPrototype(materials: Record<string, number>): void {
   for (const [id, n] of Object.entries(materials)) {
     if (MATERIALS[id]?.kind !== 'realm') continue
     delete materials[id]
-    materials[PROTOTYPE] = Math.min(MATERIAL_CAP, (materials[PROTOTYPE] ?? 0) + n)
+    materials[PROTOTYPE] = Math.min(MATERIAL_CAP, (materials[PROTOTYPE] ?? 0) + n * REALM_TO_PROTOTYPE)
   }
 }
 

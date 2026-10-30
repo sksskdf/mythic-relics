@@ -1,5 +1,6 @@
 import { GRADE_COLORS } from '../../art/palette'
 import { SLOT_PARTS } from '../../data/gearData'
+import { BAG_SIZE } from '../../gear/Loadout'
 import type { SourceId } from '../../data/schema'
 import { materialName } from '../../gear/materials'
 import { nextGrade, PROTOTYPE_VALUE } from '../../gear/merge'
@@ -77,7 +78,8 @@ export class RelicsTab {
       const b = el('button', 'ui-btn menu-relics__action')
       b.type = 'button'
       b.setAttribute('aria-label', label)
-      b.disabled = !selected
+      // 가방이 찼으면 가방에 넣지 못한다 (E303: 12칸)
+      b.disabled = !selected || (name === 'bag' && host.bag.length >= BAG_SIZE)
       b.append(img(glyph(name)))
       b.addEventListener('click', run)
       this.ctx.hintOn(b, label)

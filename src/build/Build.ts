@@ -66,6 +66,11 @@ export class Build {
     return { bonus, awakenBonus }
   }
 
+  /** 지금 시련의 제약 (없으면 제약 없음) */
+  get rules(): ReturnType<typeof trialRules> {
+    return trialRules(this.from.trial?.() ?? null)
+  }
+
   /** 손에 낀 신 (state.chosen과 같다. 자주 읽는 곳을 위해 전체 계산 없이) */
   get chosen(): string | null {
     if (this.from.trial?.() === 'noMyth') return null

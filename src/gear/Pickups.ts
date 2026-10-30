@@ -89,8 +89,9 @@ export class Pickups {
 
     this.object.add(root)
     this.items.push({ id, ...(gear ? { gear } : {}), root, model, beam, x, z, armed, placed: !armed, phase: Math.random() * 6 })
-    // 땅에 남는 일반 장비는 24개까지 (E303, 성능): 넘치면 가장 낮은 등급의 오래된 것부터 사라진다
-    const gearOnGround = this.items.filter((i) => i.gear)
+    // 땅에 남는 일반 장비는 24개까지 (E303, 성능): 넘치면 가장 낮은 등급의 오래된 것부터 사라진다.
+    // 플레이어가 일부러 내려놓은 것은 지우지 않는다
+    const gearOnGround = this.items.filter((i) => i.gear && !i.placed)
     if (gearOnGround.length > GROUND_GEAR_CAP) {
       const rank = (g: GearItem) => GRADES.indexOf(g.grade)
       const lowest = gearOnGround.reduce((a, b) => (rank(b.gear!) < rank(a.gear!) ? b : a))

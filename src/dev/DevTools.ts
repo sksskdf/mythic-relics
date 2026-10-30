@@ -52,7 +52,8 @@ export class DevTools {
   /** 유물을 끼운다. 신화 개방 연출도 그대로 나온다. */
   equip(id: RelicId): void {
     const { powers, relics, bus } = this.parts
-    if (powers.loadout.has(id) || !powers.hasFreeSlot) return
+    // 유물은 유물표에 켜니 칸이 차 있어도 된다 (E303-04)
+    if (powers.loadout.has(id)) return
     relics.equip(id, true)
     bus.emit('progressChanged', {})
   }

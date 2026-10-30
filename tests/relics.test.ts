@@ -40,6 +40,21 @@ describe('장비 칸 (E13-02)', () => {
     expect(loadout.litCount).toBe(2)
   })
 
+  it('가방이 차면 칸의 것을 가방에 넣지 않는다 (E303: 12칸)', () => {
+    const loadout = new Loadout()
+    for (let i = 0; i < 12; i++) {
+      const g = rollGear(createRng(100 + i), { part: 'trinket' })
+      loadout.addGear(g)
+      loadout.bag.push(g.uid)
+    }
+    const boots = rollGear(createRng(5), { part: 'feet' })
+    loadout.addGear(boots)
+    loadout.equip(boots.uid)
+    expect(loadout.stow(4)).toBeNull()
+    expect(loadout.slots[4]).toBe(boots.uid)
+    expect(loadout.bag).toHaveLength(12)
+  })
+
   it('영웅·전설 장비를 가지면 그 고유 효과가 유물표에 켜진다 (E303-04)', () => {
     const loadout = new Loadout()
     const hero = rollGear(createRng(9), { part: 'weapon', grade: 'hero' })

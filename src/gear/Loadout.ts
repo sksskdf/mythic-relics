@@ -145,8 +145,9 @@ export class Loadout {
     return id
   }
 
-  /** 칸의 것을 가방에 넣는다. (장비 화면) */
+  /** 칸의 것을 가방에 넣는다. 가방이 찼으면 넣지 않는다 (장비 화면) */
   stow(slot: number): EquipId | null {
+    if (this.bagFull) return null
     const id = this.unequip(slot)
     if (id) this.bag.push(id)
     return id

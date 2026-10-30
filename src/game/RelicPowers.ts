@@ -46,20 +46,32 @@ export class RelicPowers {
     return !!id && isRelicId(id) && relicAwake(id, null, this.awakeGods)
   }
 
-  /** 유물이 깨어나는 신: 자리 셋에 든 신과, 조각 2를 모은 깨우는 신 (E238) */
+  /** 유물이 깨어나는 신: 자리 셋에 든 신과, 조각 2를 모은 깨우는 신 (E238). 자리나 깨우는 신이 바뀔 때만 다시 센다 (프레임마다 부른다) */
   get awakeGods(): readonly God[] {
     const { pantheon, waking } = this.loadout
-    const gods = [pantheon.hand, pantheon.heart, ...pantheon.breath].filter((g): g is God => g !== null)
-    if (waking && !inPantheon(pantheon, waking)) gods.push(waking)
-    return gods
+    if (pantheon !== this.godsFor || waking !== this.godsWaking || pantheon.breath.length !== this.godsBreath) {
+      const gods = [pantheon.hand, pantheon.heart, ...pantheon.breath].filter((g): g is God => g !== null)
+      if (waking && !inPantheon(pantheon, waking)) gods.push(waking)
+      this.gods = gods
+      this.godsFor = pantheon
+      this.godsWaking = waking
+      this.godsBreath = pantheon.breath.length
+    }
+    return this.gods
   }
+  private gods: readonly God[] = []
+  private godsFor: Pantheon | null = null
+  private godsWaking: God | null = null
+  private godsBreath = -1
 
-  /** 지금 도는 유물 효과 (잠든 유물은 뺀다) */
-  private get live(): RelicEffect[] {
-    const out: RelicEffect[] = []
+  /** 지금 도는 유물 효과 (잠든 유물은 뺀다). 프레임마다 부르니 배열을 다시 쓴다 */
+  private get live(): readonly RelicEffect[] {
+    const out = this.liveList
+    out.length = 0
     for (const [id, effect] of this.effects) if (this.awake(id)) out.push(effect)
     return out
   }
+  private readonly liveList: RelicEffect[] = []
 
   /** 그 유물의 효과 (켜지 않았으면 없음) */
   effectOf(id: RelicId): RelicEffect | null {
