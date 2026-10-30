@@ -1,6 +1,6 @@
 import { ATTACK_NAMES } from '../../combat/styles'
 import { DATA } from '../../data'
-import { collectionText, starText } from '../../myth/alwaysText'
+import { collectionText } from '../../myth/alwaysText'
 import { allLevelGains, lendText, levelGains } from '../../myth/levelGains'
 import { type God, godDef, relicDef } from '../../relics/data'
 import { relicMyth, stageName } from '../../gear/mythRelic'
@@ -153,7 +153,6 @@ export class MythTab {
     const { progress, myths } = this.ctx.host
     const def = godDef(god)
     const level = progress.level(god)
-    const star = myths.star(god)
     const view = myths.pantheon()
     const inHand = view.hand === god
     const inHeart = view.heart === god
@@ -174,12 +173,11 @@ export class MythTab {
     else if (tags.length) head.append(el('span', 'ui-tag ui-tag--solid menu-myth__chosen', tags.join('·')))
     card.append(head)
 
-    // 열린 신화 (E21-02 → E303-04): 자리에 없어도 늘 붙는다(최대 생명). 별을 밝힌 신화는 그 신화의 수치도 (엔딩 뒤)
+    // 열린 신화 (E21-02 → E303-04): 자리에 없어도 늘 붙는다(최대 생명)
     const always = el('div', 'menu-myth__part')
     always.append(el('b', '', '열린 신화'), el('small', '', '열려 있으면 늘'))
     const alwaysList = el('ul', '')
     alwaysList.append(el('li', level > 0 ? 'is-on' : '', collectionText()))
-    if (star > 0) alwaysList.append(el('li', star >= 3 ? 'is-on' : '', `별: ${starText(god, star)}${star >= 3 ? '' : ' (3단계부터)'}`))
     always.append(alwaysList)
     card.append(always)
 

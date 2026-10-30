@@ -27,7 +27,6 @@ export const MOMENTS = {
   threatUnlocked: 1,
   oathBroken: 1,
   riftEnded: 1,
-  blessingPicked: 1,
   insight: 1,
   traceRoused: 1,
   traceBusy: 1,

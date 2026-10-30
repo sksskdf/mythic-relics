@@ -90,7 +90,6 @@ import { OathProgress } from '../progress/Oaths'
 import { OathCard } from '../ui/OathCard'
 import { RiftProgress } from '../progress/Rift'
 import { RiftSystem } from './systems/Rift'
-import { BlessingPicker } from '../ui/BlessingPicker'
 import { ReturnCard } from '../ui/ReturnCard'
 import { ExpeditionSystem } from './systems/Expedition'
 import { Build } from '../build/Build'
@@ -128,7 +127,7 @@ const ENDING_CARD: MomentCard = {
   kind: '첫 엔딩',
   title: '엔딩 뒤가 열렸다',
   color: '#ffd27a',
-  lines: ['남은 신화권의 결계가 풀렸다', '위협 단계: 같은 땅을 더 세게 다시 걷는다 (마을 촌장)', '시련·균열·성좌판이 열렸다 (정보 화면)', '신화 4단계·유물 3·4단계, 땅에 떨어지는 유물'],
+  lines: ['남은 신화권의 결계가 풀렸다', '위협 단계: 같은 땅을 더 세게 다시 걷는다 (마을 촌장)', '맹세 다섯·균열이 열렸다 (정보 화면)', '신화 4단계·유물 3·4단계, 땅에 떨어지는 유물'],
 }
 
 /** 플레이 기록: 검증과 수치 조정에 쓴다. */
@@ -171,7 +170,6 @@ export class Game {
   readonly oaths = new OathProgress()
   readonly rift = new RiftProgress()
   readonly riftSystem: RiftSystem
-  private readonly blessingPicker: BlessingPicker
   readonly oathSystem: OathSystem
   private readonly oathCard: OathCard
   readonly threatSystem: ThreatSystem
@@ -450,7 +448,7 @@ export class Game {
       tabs: this.tabs,
       awaken: this.awaken,
       uniques: new UniqueState(),
-      build: new Build({ powers: this.powers, progress: this.progress, threat: this.threat, oaths: this.oaths, oath: () => this.expedition.oath, rift: this.rift, blessings: () => this.riftSystem?.blessings ?? [], training: this.training, awaken: this.awaken, expedition: this.expedition }),
+      build: new Build({ powers: this.powers, progress: this.progress, threat: this.threat, oaths: this.oaths, oath: () => this.expedition.oath, training: this.training, awaken: this.awaken, expedition: this.expedition }),
       skills,
     }
     this.damage = new DamageSystem(this.ctx)
@@ -566,7 +564,6 @@ export class Game {
     })
     // 지금 장의 땅은 할 일 차례로 열린다 (E236-01): 할 일을 하나 마치면 다음 땅의 결계가 풀린다
     this.bus.on('goalChanged', () => this.world.refreshLinks())
-    this.blessingPicker = new BlessingPicker(this.hud.root)
     this.returnCard = new ReturnCard(this.hud.root)
     this.oathCard = new OathCard(this.hud.root)
     this.expeditionSystem = new ExpeditionSystem(this.ctx, {
@@ -587,8 +584,6 @@ export class Game {
       {
         enter: (region) => this.world.enter(region),
         home: () => this.world.travelTo(START_REGION),
-        offer: (choices, pick) => this.blessingPicker.show(choices, pick),
-        closeBlessings: () => this.blessingPicker.hide(),
       },
       this.scene,
     )
@@ -838,9 +833,8 @@ export class Game {
     return this.oathCard.open
   }
 
-  /** 축복 고르기 창을 닫는다 (봇이 대신 골랐을 때) */
-  hideBlessings(): void {
-    this.blessingPicker.hide()
+  /** 고르는 카드(귀환·맹세 출발)를 닫는다 (봇이 대신 골랐을 때) */
+  hideCards(): void {
     this.returnCard.hide()
     this.oathCard.hide()
   }

@@ -1,4 +1,4 @@
-/* 귀환 카드 (E304): 축복 고르기 틀에 명성·남는 것·지워지는 것 줄을 더한다 */
+/* 귀환 카드 (E304): 고르는 카드 틀(pickCard.css)에 명성·남는 것·지워지는 것 줄을 더한다 */
 .return-card {
   top: 18%;
   max-width: calc(100vw - 2 * var(--sp-4));
@@ -28,7 +28,7 @@
 .return-card__line.is-clear {
   color: var(--c-bad);
 }
-.return-card .blessing__card {
+.return-card .pick-card__card {
   --god: var(--c-line-2);
   width: 132px;
   box-shadow: var(--stone-raised), inset 0 -3px 0 var(--god);
@@ -41,7 +41,7 @@
     width: calc(100vw - 2 * var(--sp-4));
     padding: var(--sp-4) var(--sp-3);
   }
-  .return-card .blessing__card {
+  .return-card .pick-card__card {
     width: calc(50% - var(--sp-2));
     padding: var(--sp-3) var(--sp-2);
   }
@@ -50,6 +50,6 @@
 .oath-card__reward {
   color: var(--c-gold-soft);
 }
-.oath-card .blessing__card.is-kept .oath-card__reward {
+.oath-card .pick-card__card.is-kept .oath-card__reward {
   color: var(--c-good);
 }

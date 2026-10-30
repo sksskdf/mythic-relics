@@ -81,7 +81,7 @@ export interface GameContext {
   readonly drops: DropTable
   /** 세계 위협 단계와 원천 숙련 (E14-03·04) */
   readonly threat: ThreatProgress
-  /** 균열 기록과 성좌판 (E17) */
+  /** 균열 기록 (E17) */
   readonly rift: RiftProgress
   /** 맹세 기록과 영구 보상 (E305-01) */
   readonly oaths: OathProgress

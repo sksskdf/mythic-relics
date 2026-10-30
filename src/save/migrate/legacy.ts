@@ -13,7 +13,7 @@ import { type ChapterData, parseChapterData } from '../../progress/Chapters'
 import type { ConvenienceData } from '../../progress/Conveniences'
 import type { ThreatData } from '../../progress/Threat'
 import { STARTING_LOOKS } from '../../looks/catalog'
-import { type God, godDef, isRelicId, relicDef, type RelicId } from '../../relics/data'
+import { type God, godDef, GODS, isRelicId, relicDef, type RelicId } from '../../relics/data'
 import type { SaveData } from '../SaveData'
 
 /**
@@ -81,6 +81,20 @@ export function oldStars(raw: unknown): number {
   const stars = (raw as Record<string, unknown>).stars
   if (typeof stars !== 'object' || stars === null) return 0
   return Object.values(stars as Record<string, unknown>).reduce<number>((s, v) => s + (typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.min(10, Math.round(v)) : 0), 0)
+}
+
+/** 성좌판의 별 하나를 바꿔 주는 명성 (E305-03, `CYCLE.md` 9장 v17) */
+export const LEGACY_STAR_RENOWN = 20
+
+/**
+ * v16 이하 → v17: 성좌판(E17-05)을 걷었으니 밝힌 별과 남은 별 하나마다 명성 20을 준다.
+ * 밝힌 별은 있는 신만 세고, v5 이하 별자리의 별(`oldStars`)은 남은 별로 친다
+ */
+export function legacyStarRenown(rift: unknown, cycle: unknown, version: number): number {
+  const o = (typeof rift === 'object' && rift !== null ? rift : {}) as Record<string, unknown>
+  const left = typeof o.stars === 'number' && Number.isFinite(o.stars) ? Math.max(0, Math.min(999, Math.round(o.stars))) : 0
+  const lit = new Set((Array.isArray(o.lit) ? o.lit : []).filter((g): g is God => typeof g === 'string' && Object.hasOwn(GODS, g))).size
+  return (left + lit + (version < 6 ? oldStars(cycle) : 0)) * LEGACY_STAR_RENOWN
 }
 
 /** v8 이하 → v9: 신화 고유 재료를 그 신의 신화권 재료로 하나씩 바꿔 준다 (E21-04) */

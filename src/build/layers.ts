@@ -5,7 +5,7 @@
  */
 
 /** 층 이름 (출처) */
-export type LayerId = 'promotion' | 'collection' | 'stars' | 'gear' | 'oaths' | 'training' | 'blessings' | 'myth' | 'renown' | 'conquest' | 'flames'
+export type LayerId = 'promotion' | 'collection' | 'gear' | 'oaths' | 'training' | 'myth' | 'renown' | 'conquest' | 'flames'
 
 export interface DamageLayer {
   id: LayerId
@@ -19,11 +19,9 @@ export interface DamageLayer {
 export const LAYER_NAMES: Readonly<Record<LayerId, string>> = {
   promotion: '올린 단계',
   collection: '유물표',
-  stars: '성좌판',
   gear: '장비',
   oaths: '맹세',
   training: '수련',
-  blessings: '균열의 축복',
   myth: '신화의 힘',
   renown: '명성',
   conquest: '장 정복',

@@ -424,7 +424,7 @@ const sections = {
     await shot(page, 'e305-oath-card')
     const text = await page.evaluate(() => {
       const g = window.__game
-      g.hideBlessings()
+      g.hideCards()
       g.oathSystem.swear('alone')
       g.menu.show('oaths')
       return document.querySelector('.menu')?.innerText ?? ''
@@ -449,25 +449,6 @@ const sections = {
     })
     await page.waitForTimeout(500)
     await shot(page, 'e17-1-break')
-    await page.close()
-    return {}
-  },
-
-  /** E17-3 성좌판 */
-  async 'e17-3'(browser) {
-    const page = await fresh(browser)
-    await page.evaluate(() => {
-      const g = window.__game
-      g.dev.choose('thor')
-      g.reachEnding()
-      for (const realm of ['norse', 'greek', 'china', 'japan', 'korea']) g.threat.cleared[realm] = 10
-      Object.assign(g.threat, { unlocked: 10, reached: 10, level: 10 })
-      g.threatSystem.breakLimit()
-      g.rift.stars += 6
-      g.menu.show('rift')
-    })
-    await page.waitForTimeout(5500)
-    await shot(page, 'e17-3-board')
     await page.close()
     return {}
   },

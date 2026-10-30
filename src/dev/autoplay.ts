@@ -33,7 +33,7 @@ export class Autoplayer {
   climb = false
   /** 맹세를 하는가: 출발 카드가 뜨면 아직 못 지킨 맹세를 건다 (scripts/playtest.mjs --oaths). 아니면 맹세 없이 떠난다 */
   oaths = false
-  /** 균열을 내려가는가: 마을에서 들어가 층마다 첫 축복을 고르고 다음 층 문으로 (scripts/playtest.mjs --rift) */
+  /** 균열을 내려가는가: 마을에서 들어가 층을 깰 때마다 다음 층 문으로 (scripts/playtest.mjs --rift) */
   rift = false
   /** 건 맹세와 건 게임 시각 (맹세 봇) */
   readonly oathLog: { id: keyof typeof OATHS; sworn: number }[] = []
@@ -245,7 +245,7 @@ export class Autoplayer {
     // 4. 다른 땅으로 가야 하면 출구로 (마을에서 시작하면 필드로, 승급할 때가 되면 그 신의 땅으로)
     if (this.travel()) return void (this.step = 7)
 
-    // 4.4 균열 (E17): 층을 깼으면 첫 축복을 고르고 다음 층 문으로, 마을이면 들어간다
+    // 4.4 균열 (E17): 층을 깼으면 다음 층 문으로, 마을이면 들어간다 (축복 고르기는 E305-03에서 걷었다)
     if (this.rift) {
       const rs = this.game.riftSystem
       const run = rs.run
@@ -255,16 +255,9 @@ export class Autoplayer {
         return
       }
       if (run && run.cleared) {
-        if (!run.picked && run.choices[0]) {
-          this.riftFloors.push({ depth: run.depth, t: this.game.time })
-          // 살아남는 것부터: 받는 피해·생명 → 피해 → 나머지
-          const order = ['guard', 'vigor', 'fury', 'spring', 'feast', 'giantBane', 'edge', 'storm', 'haste']
-          const rank = (id: string) => (order.indexOf(id) + order.length + 1) % (order.length + 1)
-          const best = [...run.choices].sort((a, b) => rank(a.id) - rank(b.id))[0]!
-          rs.pick(best.id)
-          this.game.hideBlessings()
-        }
-        if (run.picked && hp > 0.6) {
+        // 층을 깬 때를 처음 한 번 적는다
+        if (this.riftFloors.at(-1)?.depth !== run.depth) this.riftFloors.push({ depth: run.depth, t: this.game.time })
+        if (hp > 0.6) {
           if (!hero.isMoving || dist(here, run.floor.portal) > 2) hero.moveTo(run.floor.portal)
           this.step = 14
           return
@@ -275,7 +268,7 @@ export class Autoplayer {
     // 4.5 맹세 (E305-01): 출발 카드가 뜨면 아직 못 지킨 맹세를 건다(맹세 봇), 아니면 맹세 없이
     if (this.game.oathCardOpen) {
       const id = this.oaths ? (this.game.oathSystem.available().find((o) => !this.game.oaths.has(o)) ?? null) : null
-      this.game.hideBlessings()
+      this.game.hideCards()
       this.game.oathSystem.swear(id)
       if (id) this.oathLog.push({ id, sworn: this.game.time })
       this.step = 12
@@ -314,7 +307,7 @@ export class Autoplayer {
       if (this.game.returnCardOpen) {
         const ids = this.game.expeditionSystem.branches().map((b) => b.id)
         const hand = progress.pantheon.hand
-        this.game.hideBlessings()
+        this.game.hideCards()
         this.game.expeditionSystem.returnNow(ids.find((id) => id === `ascend:${hand}`) ?? ids.find((id) => id.startsWith('ascend:')) ?? 'flame:flame')
       } else if (dist(here, legend.center) > 1.2 && (!hero.isMoving || dist(hero.goal ?? here, legend.center) > 1)) hero.moveTo(legend.center)
       this.step = 16

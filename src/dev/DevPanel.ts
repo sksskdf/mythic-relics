@@ -301,8 +301,8 @@ export class DevPanel {
           g.threatSystem.breakLimit()
           g.menu.refresh()
         }),
-        button('별 +5', () => {
-          g.rift.stars += 5
+        button('균열 기록 +5층', () => {
+          g.rift.best += 5
           g.menu.refresh()
         }),
         button('편의 모두', () => {

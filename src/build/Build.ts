@@ -1,7 +1,5 @@
-import { blessingDef } from '../data/rift'
 import type { StatKind } from '../data/mythAlways'
-import { SOURCE_IDS, type SourceId } from '../data/schema'
-import type { RiftProgress } from '../progress/Rift'
+import { SOURCE_IDS } from '../data/schema'
 import type { RelicPowers } from '../game/RelicPowers'
 import type { ClassProgress } from '../myth/ClassProgress'
 import { OATH_IDS, type OathId, oathRules } from '../data/oaths'
@@ -22,7 +20,7 @@ import { type BuildInputs, type BuildState, computeBuild } from './BuildState'
  * 피해·능력치를 쓰는 곳(Damage, Relics, 정보 화면)은 여기서 값을 읽는다.
  */
 export class Build {
-  constructor(private readonly from: { powers: RelicPowers; progress: ClassProgress; threat: ThreatProgress; oaths?: OathProgress; oath?: () => OathId | null; rift?: RiftProgress; blessings?: () => readonly string[]; training?: TrainingProgress; awaken?: AwakenProgress; expedition?: ExpeditionProgress }) {}
+  constructor(private readonly from: { powers: RelicPowers; progress: ClassProgress; threat: ThreatProgress; oaths?: OathProgress; oath?: () => OathId | null; training?: TrainingProgress; awaken?: AwakenProgress; expedition?: ExpeditionProgress }) {}
 
   /** 지금의 재료 */
   inputs(): BuildInputs {
@@ -48,25 +46,11 @@ export class Build {
       renown: this.from.expedition?.renown ?? 0,
       conquered: this.from.expedition?.conquests() ?? 0,
       flames: this.from.expedition?.flames ?? {},
-      ...this.blessed(),
-      starred: this.from.rift?.lit,
+      bonus: { oaths: { ...this.from.oaths?.rewards() }, training: { ...this.from.training?.stats() } },
       rules,
       stage: (id) => powers.loadout.stage(id),
       promotions: progress.promotions,
     }
-  }
-
-  /** 맹세 보상(E305-01)·균열의 축복(E17)·수련의 마디(E236): 출처마다 더할 수치와 각성 단계 */
-  private blessed(): Pick<BuildInputs, 'bonus' | 'awakenBonus'> {
-    const blessings: Partial<Record<StatKind, number>> = {}
-    const bonus = { oaths: { ...this.from.oaths?.rewards() }, training: { ...this.from.training?.stats() }, blessings }
-    const awakenBonus: Partial<Record<SourceId, number>> = {}
-    for (const id of this.from.blessings?.() ?? []) {
-      const b = blessingDef(id)
-      if (b?.stat) blessings[b.stat.kind] = (blessings[b.stat.kind] ?? 0) + b.stat.value
-      if (b?.awaken) awakenBonus[b.awaken] = (awakenBonus[b.awaken] ?? 0) + 1
-    }
-    return { bonus, awakenBonus }
   }
 
   /** 지금 건 맹세의 제약 (없으면 제약 없음). 빈 손·홀로는 도는 자리(`oathPantheon`)가 맡는다 */
@@ -176,12 +160,12 @@ export class Build {
 
   /**
    * inputs()가 읽는 재료를 차례로 적는다: 건 맹세, 고른 신화·빌린 신·깨우는 신, 칸마다 장비(일반 장비는 그 물건, 유물은 단계),
-   * 열린 신화의 단계(승급 합도 여기서 나온다), 맹세 보상(지킨 맹세), 수련 수치(익히고 되돌릴 때만 바뀌는 객체), 균열의 축복, 성좌판의 별.
+   * 열린 신화의 단계(승급 합도 여기서 나온다), 맹세 보상(지킨 맹세), 수련 수치(익히고 되돌릴 때만 바뀌는 객체), 원정(명성·정복·불씨).
    * 길이가 바뀌는 묶음 사이에는 가름표를 둔다
    */
   private fingerprint(out: unknown[]): void {
     out.length = 0
-    const { powers, progress, oaths, training, rift } = this.from
+    const { powers, progress, oaths, training } = this.from
     const { loadout } = powers
     // 깨우는 신은 장비 쪽(loadout.waking)과 조각 쪽(awaken: 도는 패시브가 읽음)을 함께 본다
     const { pantheon } = loadout
@@ -197,11 +181,6 @@ export class Build {
     out.push(training?.stats())
     const expedition = this.from.expedition
     if (expedition) out.push(expedition.renown, expedition.conquests(), ...SOURCE_IDS.map((s) => expedition.flames[s] ?? 0))
-    const blessings = this.from.blessings?.() ?? []
-    out.push(blessings.length)
-    for (const id of blessings) out.push(id)
-    out.push(rift?.lit.size ?? 0)
-    rift?.lit.forEach((god) => out.push(god))
   }
 }
 

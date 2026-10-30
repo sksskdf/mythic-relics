@@ -1,8 +1,6 @@
-import { alwaysStage } from '../build/BuildState'
 import { activeLayers, LAYER_NAMES } from '../build/layers'
 import { AWAKEN, AWAKEN_GODS } from '../data/awaken'
 import { awakeningLevel } from '../data/awakening'
-import { blessingDef, STARS } from '../data/rift'
 import { REALM_COLORS, REGIONS } from '../data/regions'
 import { CONQUESTS } from '../data/chapters'
 import { ENEMIES } from '../enemies/Giant'
@@ -95,7 +93,6 @@ export class MenuData {
         place: (part, god) => game.placeMyth(part, god),
         unplace: (god) => game.unplaceMyth(god),
         waking: () => game.wakingMyth(),
-        star: (god) => (game.rift.lit.has(god) ? alwaysStage(game.progress.level(god), powers.loadout.relics.some((id) => id !== null && relicDef(id).god === god), true) : 0),
         table: () => ({
           relics: MYTH_RELICS.filter((id) => !godDef(relicMyth(id)!).hidden || powers.loadout.lit.includes(id)).map((id) => ({ id, lit: powers.loadout.lit.includes(id), awake: powers.awake(id), stage: powers.loadout.stage(id) })),
           uniques: Object.entries(GEAR.uniques).map(([id, u]) => ({ id, name: u.name, text: u.text, lit: powers.loadout.uniquesSeen.has(id) })),
@@ -169,28 +166,9 @@ export class MenuData {
         enter: () => game.riftSystem.enter(),
         run: () => {
           const run = game.riftSystem.run
-          return run ? { depth: run.depth, blessings: run.blessings.map((id) => blessingDef(id)?.name ?? id) } : null
+          return run ? { depth: run.depth } : null
         },
         best: () => game.rift.best,
-        stars: () => game.rift.stars,
-        chart: () => {
-          const isOpen = (god: string) => game.progress.isOpen(god)
-          return Object.values(STARS).map((star) => ({
-            god: star.god,
-            name: godDef(star.god).name,
-            color: godDef(star.god).color,
-            x: star.x,
-            y: star.y,
-            neighbors: star.neighbors,
-            lit: game.rift.lit.has(star.god),
-            can: game.rift.canLight(star.god, isOpen),
-          }))
-        },
-        light: (god) => {
-          const ok = game.rift.light(god, (g) => game.progress.isOpen(g))
-          if (ok) bus.emit('progressChanged', {})
-          return ok
-        },
       },
       world: {
         nodes: () => {

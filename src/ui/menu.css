@@ -1406,34 +1406,6 @@ button.menu-slots__slot {
   .menu-classes__sources { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-/* 성좌판 (E17-05) */
-.menu-stars {
-  width: min(100%, 360px);
-  aspect-ratio: 1;
-  align-self: center;
-}
-.menu-stars__link {
-  stroke: var(--c-line-2);
-  stroke-width: 0.015;
-}
-.menu-stars__link.is-lit {
-  stroke: var(--c-gold-soft);
-}
-.menu-stars__star {
-  --realm: var(--c-moon);
-  fill: var(--c-bg-1);
-  stroke: var(--realm);
-  stroke-width: 0.02;
-}
-.menu-stars__star.is-lit {
-  fill: var(--realm);
-}
-.menu-stars__star.can-light {
-  stroke: var(--c-gold-soft);
-  stroke-width: 0.04;
-  cursor: pointer;
-}
-
 /* 수련 (E236-03): 깨달음과 공용 트리 (뿌리에서 힘·몸·손 세 갈래) */
 .menu-train {
   display: grid;

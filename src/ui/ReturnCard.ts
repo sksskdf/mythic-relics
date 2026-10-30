@@ -1,4 +1,4 @@
-import './blessing.css'
+import './pickCard.css'
 import './return.css'
 
 /** 귀환 카드의 갈래 하나 */
@@ -27,13 +27,13 @@ export interface ReturnView {
 
 /**
  * 귀환 카드 (E304, `CYCLE.md` 3.2): 받을 명성·다음 배율·원정 시간과 지난 기록·남는 것과 지워지는 것·갈래.
- * 갈래를 누르는 것이 곧 귀환이다. 「아직」을 누르면 닫힌다. 틀은 균열의 축복 고르기(`BlessingPicker`)를 빌린다
+ * 갈래를 누르는 것이 곧 귀환이다. 「아직」을 누르면 닫힌다. 틀은 고르는 카드(`pickCard.css`)를 쓴다
  */
 export class ReturnCard {
   private readonly root = document.createElement('div')
 
   constructor(parent: HTMLElement) {
-    this.root.className = 'blessing return-card'
+    this.root.className = 'pick-card return-card'
     this.root.hidden = true
     parent.append(this.root)
   }
@@ -50,7 +50,7 @@ export class ReturnCard {
       return e
     }
     this.root.replaceChildren()
-    this.root.append(el('div', 'blessing__title', `원정 ${view.count}을 마친다`))
+    this.root.append(el('div', 'pick-card__title', `원정 ${view.count}을 마친다`))
     const mult = el('div', 'return-card__mult')
     mult.append(el('b', '', `×${view.now.toFixed(2)} → ×${view.next.toFixed(2)}`), el('small', '', `명성 +${view.gain}`))
     this.root.append(mult)
@@ -58,9 +58,9 @@ export class ReturnCard {
     this.root.append(el('div', 'return-card__line is-keep', `남는 것: ${view.keeps}`))
     this.root.append(el('div', 'return-card__line is-clear', `지워지는 것: ${view.clears}`))
     this.root.append(el('div', 'return-card__ask', '하나를 골라 돌아간다'))
-    const row = el('div', 'blessing__row')
+    const row = el('div', 'pick-card__row')
     for (const b of view.branches) {
-      const card = el('button', 'blessing__card') as HTMLButtonElement
+      const card = el('button', 'pick-card__card') as HTMLButtonElement
       card.type = 'button'
       card.style.setProperty('--god', b.color)
       card.append(el('b', '', b.name), el('small', '', b.text))

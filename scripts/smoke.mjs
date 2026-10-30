@@ -581,7 +581,7 @@ try {
   const returned = await page.evaluate(() => {
     const g = window.__game
     const before = { level: g.progress.level('thor'), gear: g.powers.loadout.gear.size }
-    document.querySelector('.return-card .blessing__card').click()
+    document.querySelector('.return-card .pick-card__card').click()
     return { before, after: { level: g.progress.level('thor'), gear: g.powers.loadout.gear.size, heirloom: g.expedition.heirloom.length, count: g.expedition.count, renown: g.expedition.renown, open: g.returnCardOpen } }
   })
   if (returned.after.count !== 2 || !(returned.after.renown > 0) || returned.after.open) throw new Error(`귀환: 갈래를 눌렀는데 원정이 넘어가지 않았습니다 ${JSON.stringify(returned)}`)
@@ -613,11 +613,11 @@ try {
     g.hero.stop()
   })
   await page.waitForFunction(() => window.__game.returnCardOpen, null, { timeout: 15000 })
-  await page.locator('.return-card:not(.oath-card) .blessing__card').last().click()
+  await page.locator('.return-card:not(.oath-card) .pick-card__card').last().click()
   await page.waitForFunction(() => window.__game.oathCardOpen, null, { timeout: 15000 })
-  const oathCards = await page.locator('.oath-card .blessing__card').count()
+  const oathCards = await page.locator('.oath-card .pick-card__card').count()
   if (oathCards < 3) throw new Error(`맹세: 출발 카드의 맹세가 셋보다 적습니다 (${oathCards})`)
-  await page.locator('.oath-card .blessing__card').filter({ hasText: '침묵의 맹세' }).click()
+  await page.locator('.oath-card .pick-card__card').filter({ hasText: '침묵의 맹세' }).click()
   const sworn = await page.evaluate(() => ({ oath: window.__game.expedition.oath, noUltimate: window.__game.ctx.build.state.noUltimate }))
   if (sworn.oath !== 'silence' || !sworn.noUltimate) throw new Error(`맹세: 침묵의 맹세가 걸리지 않습니다 ${JSON.stringify(sworn)}`)
   const oathKept = await page.evaluate(() => {
@@ -632,7 +632,7 @@ try {
   if (!oathKept.spawned || oathKept.oath !== null || !oathKept.kept || oathKept.noUltimate || !(oathKept.charge >= 0.3)) throw new Error(`맹세: 수호자를 이겨도 지키지 못했습니다 ${JSON.stringify(oathKept)}`)
   console.log(`맹세 확인: 귀환 2에 출발 카드 ${oathCards}장, 침묵의 맹세를 걸면 궁극기가 막히고, 수호자를 이기면 지켜 심장 충전 +${Math.round(oathKept.charge * 100)}%`)
 
-  // 균열 (E17): 한계를 깨면 마을의 균열 탭에서 들어가고, 층을 깨면 축복을 골라 다음 층 문으로 내려가며, 나가는 문으로 나오면 끝
+  // 균열 (E17): 한계를 깨면 마을의 균열 탭에서 들어가고, 층을 깨면 다음 층 문이 열려 내려가며(축복은 E305-03에서 걷음), 나가는 문으로 나오면 끝
   await page.evaluate(() => {
     const g = window.__game
     if (g.legend.active) g.legend.abort(g.encounter, g.growth.legendHost())
@@ -651,12 +651,12 @@ try {
   await page.getByRole('button', { name: '균열에 들어가기' }).click()
   const floor1 = await page.evaluate(() => ({ region: window.__game.region.id, depth: window.__game.riftSystem.run?.depth }))
   if (floor1.region !== 'rift' || floor1.depth !== 1) throw new Error(`균열: 1층에 들어가지 않습니다 ${JSON.stringify(floor1)}`)
-  await page.evaluate(() => {
+  const opened = await page.evaluate(() => {
     window.__game.encounter.clearAll()
     window.__game.riftSystem.update(0.1)
+    return window.__game.riftSystem.run?.cleared === true
   })
-  await page.waitForSelector('.blessing button', { timeout: 5000 })
-  await page.locator('.blessing button').first().click()
+  if (!opened) throw new Error('균열: 층의 적을 모두 쓰러뜨렸는데 다음 층 문이 열리지 않습니다.')
   const floor2 = await page.evaluate(() => {
     const g = window.__game
     const p = g.riftSystem.run.floor.portal
@@ -665,9 +665,9 @@ try {
     g.stage.flush()
     g.encounter.flushNeighbors()
     // 균열은 세계 밖 따로 된 공간 (E19-06): 이웃 땅 조각·무리·통로가 없다
-    return { depth: g.riftSystem.run?.depth, blessings: g.riftSystem.run?.blessings.length, region: g.region.id, chunks: g.stage.others.size, parked: g.encounter.parkedGiants.length, links: g.world.links.length }
+    return { depth: g.riftSystem.run?.depth, region: g.region.id, chunks: g.stage.others.size, parked: g.encounter.parkedGiants.length, links: g.world.links.length }
   })
-  if (floor2.depth !== 2 || floor2.blessings !== 1) throw new Error(`균열: 축복을 고르고 문에 닿았는데 2층이 아닙니다 ${JSON.stringify(floor2)}`)
+  if (floor2.depth !== 2) throw new Error(`균열: 층을 깨고 문에 닿았는데 2층이 아닙니다 ${JSON.stringify(floor2)}`)
   if (floor2.chunks || floor2.parked || floor2.links) throw new Error(`균열: 세계 밖인데 이웃 땅이 붙어 있습니다 ${JSON.stringify(floor2)}`)
   // 나가는 문: 밀려서(걸어가던 곳이 아닌데) 밟으면 그대로, 문으로 걸어가면 나간다
   const pushed = await page.evaluate(() => {
@@ -703,7 +703,7 @@ try {
     return { run: g.riftSystem.run, best: g.rift.best, region: g.region.id }
   })
   if (left.run || left.best < 1 || left.region !== 'village') throw new Error(`균열: 나가는 문으로 걸어갔는데 끝나지 않았습니다 ${JSON.stringify(left)}`)
-  console.log('균열 확인: 한계를 깨고 마을에서 들어가, 1층을 깨 축복을 고르고 2층으로, 밀려 밟거나 적을 쫓다 밟은 나가는 문은 닫혀 있고 땅을 눌러 걸어가면 나와 끝')
+  console.log('균열 확인: 한계를 깨고 마을에서 들어가, 1층을 깨면 열린 문으로 2층에, 밀려 밟거나 적을 쫓다 밟은 나가는 문은 닫혀 있고 땅을 눌러 걸어가면 나와 끝')
 
   // 개발 패널: ?dev 는 평소 플레이에 오른쪽 아래 패널만 더한다 (저장 없이 보려고 점검용 실행 ?relics= 와 함께). 단추로 유물·적·전설을 바로 바꿔 본다.
   await page.goto(`${URL}?dev&relics=&region=midgard`)

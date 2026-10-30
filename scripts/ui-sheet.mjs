@@ -100,7 +100,7 @@ try {
       for (const realm of ['norse', 'greek', 'china', 'japan', 'korea']) g.threat.cleared[realm] = 10
       Object.assign(g.threat, { unlocked: 10, reached: 10 })
       g.threatSystem.breakLimit()
-      g.rift.reach(15, 5)
+      g.rift.reach(15)
       g.threatSystem.apply()
       g.bus.emit('progressChanged', {})
     })

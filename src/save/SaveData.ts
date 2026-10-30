@@ -18,7 +18,7 @@ import { type BodyLook, parseBody } from '../looks/body'
 import { isLookId, lookDef, type LookSlot, STARTING_LOOKS, WARDROBE_SLOTS } from '../looks/catalog'
 import type { LookChoice } from '../looks/outfit'
 import { GODS, type God, isRelicId, type RelicId } from '../relics/data'
-import { legacySlots, migrateLooks, oldChapters, oldStars, oldTrainingXp, fillEmptySlots, meltOverflow, openOwned, realmToPrototype, refundCycle, refundMythMaterials } from './migrate/legacy'
+import { legacySlots, legacyStarRenown, migrateLooks, oldChapters, oldTrainingXp, fillEmptySlots, meltOverflow, openOwned, realmToPrototype, refundCycle, refundMythMaterials } from './migrate/legacy'
 
 /**
  * 저장 형식 버전. 형식이 바뀌면 올리고, 옛 형식을 옮기는 코드를 둔다.
@@ -46,7 +46,8 @@ import { legacySlots, migrateLooks, oldChapters, oldStars, oldTrainingXp, fillEm
  * - v15: 원형과 유물표 (E303-04). 신화권 재료 → 원형 셋씩(대장간 값 ×3), 12칸을 넘친 가방의 일반 장비는 낮은 등급부터 녹여 원형으로.
  *   칸·가방의 신화 유물은 유물표(lit)로 옮기고 빈 칸은 가방의 가장 좋은 장비로 채운다. 가진 장비의 고유 효과도 유물표에 켠다
  * - v16: 원정 (E304). 원정 번호·명성·원천 불씨·기록·가보. 옛 저장은 첫 원정에서 이어 간다(신 단계는 그대로라 명성 없이도 힘이 같다)
- * - v17: 맹세 (E305-01). 시련 기록(trials) → 맹세 기록(oaths), 원정에 건 맹세(expedition.oath). 한 단계라도 깬 시련은 짝인 맹세를 지킨 것으로
+ * - v17: 맹세 (E305-01). 시련 기록(trials) → 맹세 기록(oaths), 원정에 건 맹세(expedition.oath). 한 단계라도 깬 시련은 짝인 맹세를 지킨 것으로.
+ *   균열의 성좌판을 걷었다(E305-03): rift는 깊이 기록만, 밝힌 별과 남은 별 하나마다 명성 20
  */
 export const SAVE_VERSION = 17
 
@@ -86,7 +87,7 @@ export interface SaveData {
   conveniences: ConvenienceData
   /** 맹세: 지킨 맹세와 기록 (E305-01, v16 이하는 시련 기록에서) */
   oaths: OathData
-  /** 균열 기록과 성좌판 (E17) */
+  /** 균열 기록 (E17, 성좌판은 E305-03에서 걷음) */
   rift: RiftData
   /** 첫 엔딩을 보았나 (E21-06): 엔딩 뒤 장치를 연다 */
   ending: boolean
@@ -212,7 +213,7 @@ export function parseSave(text: string | null): SaveData | null {
   const keep = new Set([...slots.slice(0, SLOT_PARTS.length), ...fullBag, ...ground.map((g) => g.id)])
   const threat = parseThreat(data.threat)
   const oaths = (data.version as number) < 17 ? oathsFromTrials(data.trials) : parseOaths(data.oaths)
-  const rift = parseRift(data.rift, (data.version as number) < 6 ? oldStars(data.cycle) : 0)
+  const rift = parseRift(data.rift)
   // 엔딩 뒤 장치를 해 본 옛 저장은 엔딩 뒤로 친다 (E21-06)
   const tried = threat.limitBroken || threat.unlocked > 1 || oaths.kept.length > 0 || rift.best > 0
   const region = parseRegion(data.region)
@@ -241,13 +242,21 @@ export function parseSave(text: string | null): SaveData | null {
     rift,
     ending: data.ending === true || ((data.version as number) < 9 && tried),
     chapters,
-    expedition: parseExpedition(data.expedition),
+    expedition: oldExpedition(data),
     training: parseTraining(data.training, (data.version as number) < 11 ? oldTrainingXp(myths) : 0),
     tabs: parseTabs(data.tabs, (data.version as number) < 11),
     awaken,
     region,
     scenes: Array.isArray(data.scenes) ? [...new Set(data.scenes.filter((s): s is string => typeof s === 'string' && s.length < 40))] : [],
   }
+}
+
+/** 원정 기록. v16 이하는 성좌판의 별을 명성으로 돌려준다 (v17, E305-03) */
+function oldExpedition(data: Record<string, unknown>): ExpeditionData {
+  const expedition = parseExpedition(data.expedition)
+  const version = data.version as number
+  if (version < 17) expedition.renown = Math.min(1e7, expedition.renown + legacyStarRenown(data.rift, data.cycle, version))
+  return expedition
 }
 
 /** 유물표의 고유 효과: 있는 것만 한 번씩. 옛 저장은 가진 장비의 고유 효과로 (E303-04) */

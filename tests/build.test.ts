@@ -3,11 +3,10 @@ import { describe, expect, it } from 'vitest'
 
 import { Build } from '../src/build/Build'
 import { activeLayers, layerProduct } from '../src/build/layers'
-import { alwaysStage, computeBuild, gearModifiers, statAt, TOP_STAGE } from '../src/build/BuildState'
+import { computeBuild, gearModifiers, statAt } from '../src/build/BuildState'
 import { RelicPowers } from '../src/game/RelicPowers'
 import { relicAwake } from '../src/gear/mythRelic'
 import { ClassProgress, PER_LIT, PER_OPENED, PER_PROMOTION } from '../src/myth/ClassProgress'
-import { RiftProgress } from '../src/progress/Rift'
 import { ThreatProgress } from '../src/progress/Threat'
 import { TrainingProgress } from '../src/progress/Training'
 import { OathProgress } from '../src/progress/Oaths'
@@ -125,21 +124,13 @@ describe('신화 단계와 수집 보너스 (E21-01·02)', () => {
     expect('echoes' in state).toBe(false)
   })
 
-  it('성좌판에서 별을 밝힌 신화만 그 신화의 수치를 낸다 (엔딩 뒤, 별 + 유물로 단계가 오른다)', () => {
-    expect(alwaysStage(0, true, true)).toBe(0)
-    expect(alwaysStage(2, false, true)).toBe(3)
-    expect(alwaysStage(2, true, true)).toBe(4)
-    expect(alwaysStage(4, true, true)).toBe(TOP_STAGE)
-    const stat = godDef('thor').always.stat
-    const plain = computeBuild({ ...base, hand: null, open: new Map([['thor', 2]]), gear: ['mjolnir'] })
-    const star = computeBuild({ ...base, hand: null, open: new Map([['thor', 2]]), starred: new Set(['thor']) })
-    const starRelic = computeBuild({ ...base, hand: null, open: new Map([['thor', 2]]), gear: ['mjolnir'], starred: new Set(['thor']) })
-    expect(plain.stats.bossDamage).toBe(0)
-    expect(star.stats.bossDamage).toBe(stat.value[0])
-    expect(starRelic.stats.bossDamage).toBe(stat.value[1])
+  it('열린 신화는 단계가 높아도 그 신화의 수치를 내지 않는다 (성좌판은 E305-03에서 걷었다)', () => {
+    const state = computeBuild({ ...base, hand: null, open: new Map([['thor', 4], ['odin', 4]]), gear: ['mjolnir'] })
+    expect(state.stats[godDef('thor').always.stat.kind]).toBe(0)
+    expect(state.stats[godDef('odin').always.stat.kind]).toBe(0)
   })
 
-  it('별 수치는 3단계부터: 3단계 value[0], 4단계 value[1], 5단계 ×1.5', () => {
+  it('신화 수치 단계는 3단계부터: 3단계 value[0], 4단계 value[1], 5단계 ×1.5', () => {
     const stat = godDef('loki').always.stat
     expect(statAt(stat, 2)).toBe(0)
     expect(statAt(stat, 3)).toBe(stat.value[0])
@@ -148,28 +139,26 @@ describe('신화 단계와 수집 보너스 (E21-01·02)', () => {
   })
 
   it('같은 종류 수치는 더하고, 다른 종류끼리는 곱한다', () => {
-    const starred = new Set(['freyr', 'mago', 'loki', 'susanoo'])
-    // 최대 생명 +20(프레이)과 +10%(마고할미), 수집 보너스 둘 +10
-    const state = computeBuild({ ...base, hand: null, open: new Map([['freyr', 3], ['mago', 3]]), starred })
+    const item = (kind: 'maxHp' | 'damageTaken', value: number) => ({ stats: [{ kind, value }], source: { id: 'stone' as const, value: 1 } })
+    // 최대 생명 +20(장비)과 +10%(수련), 열린 신화 둘 +10
+    const state = computeBuild({ ...base, hand: null, open: new Map([['freyr', 3], ['mago', 3]]), gearItems: [item('maxHp', 20)], bonus: { training: { maxHpPct: 0.1 } } })
     expect(state.maxHp).toBe(Math.round((100 + 20 + 2 * PER_OPENED.maxHp) * 1.1))
-    // 고른 신화의 공격 리듬(제우스)과 공격 빠르기(로키 4단계)는 곱한다
-    const fast = computeBuild({ ...base, hand: 'zeus', open: new Map([['loki', 3], ['zeus', 1]]), starred })
-    expect(fast.attackSpeed).toBeCloseTo(godDef('zeus').passive.attackSpeed * (1 + godDef('loki').always.stat.value[1]))
-    // 받는 피해: 스사노오 −6%와 유물의 배율을 곱한다
-    const tough = computeBuild({ ...base, hand: null, open: new Map([['susanoo', 3]]), gear: ['megingjord'], starred })
-    expect(tough.damageTaken).toBeCloseTo(gearModifiers(['megingjord']).damageTaken * (1 + godDef('susanoo').always.stat.value[1]))
+    // 손의 신의 공격 리듬(제우스)과 공격 빠르기(수련 +10%)는 곱한다
+    const fast = computeBuild({ ...base, hand: 'zeus', open: new Map([['zeus', 1]]), bonus: { training: { attackSpeed: 0.1 } } })
+    expect(fast.attackSpeed).toBeCloseTo(godDef('zeus').passive.attackSpeed * 1.1)
+    // 받는 피해: 장비 −6%와 유물의 배율을 곱한다
+    const tough = computeBuild({ ...base, hand: null, open: new Map([['susanoo', 3]]), gear: ['megingjord'], gearItems: [item('damageTaken', -0.06)] })
+    expect(tough.damageTaken).toBeCloseTo(gearModifiers(['megingjord']).damageTaken * (1 - 0.06))
   })
 })
 
 describe('빌드 상태 다시 쓰기', () => {
-  it('재료가 그대로면 지난 계산을 돌려주고, 장착·단계·수련·맹세·축복·별이 바뀌면 새로 계산한다', () => {
+  it('재료가 그대로면 지난 계산을 돌려주고, 장착·단계·수련·맹세가 바뀌면 새로 계산한다', () => {
     const powers = new RelicPowers(new THREE.Group())
     const progress = new ClassProgress()
     const training = new TrainingProgress()
     const oaths = new OathProgress()
-    const rift = new RiftProgress()
-    const blessings: string[] = []
-    const build = new Build({ powers, progress, threat: new ThreatProgress(), training, oaths, rift, blessings: () => blessings })
+    const build = new Build({ powers, progress, threat: new ThreatProgress(), training, oaths })
     const first = build.state
     expect(build.state).toBe(first)
     const changes: (() => void)[] = [
@@ -183,8 +172,6 @@ describe('빌드 상태 다시 쓰기', () => {
         training.take(TRAINING_NODES.find((n) => n.after.length === 0)!.id)
       },
       () => oaths.keep('silence', 60),
-      () => blessings.push('x'),
-      () => rift.lit.add('thor'),
     ]
     let last = first
     for (const change of changes) {
@@ -208,8 +195,8 @@ describe('빌드 층 목록 (E301-01)', () => {
       { open: new Map(), hand: null, gear: [], promotions: 0 },
       { open: new Map([['thor', 1]]), hand: 'thor', gear: ['mjolnir'], promotions: 0 },
       { open: new Map([['thor', 3], ['loki', 2]]), hand: 'thor', present: ['thor', 'loki'], gear: ['mjolnir'], lit: 4, gearItems, promotions: 3 },
-      { open: new Map([['zeus', 2]]), hand: 'zeus', gear: [], gearItems, promotions: 1, bonus: { oaths: { damage: 0.1 }, training: { damage: 0.12, maxHp: 10 }, blessings: { damage: 0.05 } } },
-      { open: new Map([['odin', 4], ['thor', 2]]), hand: null, gear: ['mjolnir'], promotions: 4, starred: new Set(['odin', 'thor']) },
+      { open: new Map([['zeus', 2]]), hand: 'zeus', gear: [], gearItems, promotions: 1, bonus: { oaths: { damage: 0.1 }, training: { damage: 0.12, maxHp: 10 } } },
+      { open: new Map([['odin', 4], ['thor', 2]]), hand: null, gear: ['mjolnir'], promotions: 4 },
       { open: new Map([['artemis', 2]]), hand: 'artemis', waking: 'loki', gear: [], lit: 1, promotions: 1 },
     ]
     for (const input of samples) {

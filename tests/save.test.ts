@@ -345,4 +345,17 @@ describe('저장 v17: 맹세 (E305-01)', () => {
     expect(data?.oaths).toEqual({ kept: ['glass', 'slow'], best: { glass: 371 } })
     expect(data?.expedition.oath).toBe('silence')
   })
+
+  it('성좌판을 걷었다 (E305-03): v16 이하의 밝힌 별과 남은 별은 하나마다 명성 20으로, 깊이 기록은 그대로', () => {
+    const rift = { best: 12, stars: 3, lit: ['thor', 'odin', 'nobody'] }
+    const v16 = parseSave(JSON.stringify({ ...sample, version: 16, rift }))
+    expect(v16?.rift).toEqual({ best: 12 })
+    // 남은 별 셋 + 밝힌 별 둘(모르는 신은 버림) = 다섯
+    expect(v16?.expedition.renown).toBe(sample.expedition.renown + 5 * 20)
+    // v5 이하 별자리의 별도 남은 별로 친다
+    const v5 = parseSave(JSON.stringify({ ...sample, version: 5, rift: undefined, cycle: { stars: { a: 2, b: 1 } } }))
+    expect(v5?.expedition.renown).toBe(sample.expedition.renown + 3 * 20)
+    // 한 번 옮긴 v17은 다시 주지 않는다
+    expect(parseSave(JSON.stringify(v16))?.expedition.renown).toBe(v16?.expedition.renown)
+  })
 })

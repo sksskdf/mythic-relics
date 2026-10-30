@@ -50,13 +50,9 @@ export interface RiftMenuHost {
   progress(): { name: string; cleared: number }[]
   canEnter(): boolean
   enter(): boolean
-  /** 진행 중인 균열: 층과 고른 축복 이름 */
-  run(): { depth: number; blessings: string[] } | null
+  /** 진행 중인 균열의 층 */
+  run(): { depth: number } | null
   best(): number
-  stars(): number
-  /** 성좌판: 별마다 신화 이름·색·자리·이웃, 밝혔나, 지금 밝힐 수 있나 */
-  chart(): { god: string; name: string; color: string; x: number; y: number; neighbors: string[]; lit: boolean; can: boolean }[]
-  light(god: string): boolean
 }
 
 /** 수련 탭이 게임에서 읽고 부르는 것 (E236-03) */
@@ -155,8 +151,6 @@ export interface MenuHost {
     unplace(god: God): boolean
     /** 깨우는 중인 신 (E238): 모은 조각과 다음 할 일 한 줄. 없으면 null */
     waking(): { god: God; fragments: number; next: string } | null
-    /** 성좌판에서 별을 밝힌 신화의 수치 단계 (밝히지 않았으면 0, 엔딩 뒤) */
-    star(god: God): number
     /** 유물표 (E303-04): 신화의 유물과 고유 효과 칸, 켰는지·깨어났는지 */
     table(): { relics: { id: RelicId; lit: boolean; awake: boolean; stage: number }[]; uniques: { id: string; name: string; text: string; lit: boolean }[] }
   }

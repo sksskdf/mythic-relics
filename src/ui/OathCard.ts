@@ -1,4 +1,4 @@
-import './blessing.css'
+import './pickCard.css'
 import './return.css'
 
 /** 출발 카드에 보일 맹세 하나 */
@@ -25,7 +25,7 @@ export class OathCard {
   private readonly root = document.createElement('div')
 
   constructor(parent: HTMLElement) {
-    this.root.className = 'blessing return-card oath-card'
+    this.root.className = 'pick-card return-card oath-card'
     this.root.hidden = true
     parent.append(this.root)
   }
@@ -42,16 +42,16 @@ export class OathCard {
       return e
     }
     this.root.replaceChildren()
-    this.root.append(el('div', 'blessing__title', '맹세를 걸고 떠난다'))
+    this.root.append(el('div', 'pick-card__title', '맹세를 걸고 떠난다'))
     this.root.append(el('div', 'return-card__ask', '그 원정에서 장 보스나 수호자를 이기면 지킨다'))
-    const row = el('div', 'blessing__row')
+    const row = el('div', 'pick-card__row')
     const choose = (id: string | null) => (e: Event) => {
       e.stopPropagation()
       this.root.hidden = true
       pick(id)
     }
     for (const o of view.oaths) {
-      const card = el('button', `blessing__card${o.kept ? ' is-kept' : ''}`) as HTMLButtonElement
+      const card = el('button', `pick-card__card${o.kept ? ' is-kept' : ''}`) as HTMLButtonElement
       card.type = 'button'
       card.style.setProperty('--god', 'var(--c-gilt)')
       card.append(el('b', '', o.name), el('small', '', o.rule), el('small', 'oath-card__reward', o.kept ? `지킴${o.best ? ` · ${o.best}` : ''}` : o.reward))

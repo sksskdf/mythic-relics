@@ -93,7 +93,7 @@ E12~E14에서 새 규칙을 넣을 때는 `BuildInputs`에 재료를 더하고 `
 | `src/data/training.ts` | 갈래 넷(뿌리·힘·몸·손)과 마디 스물둘(자리·앞 마디·수치), 깨달음 문턱(`insightsAt`, 60 + 25 × (k − 1)), 데이터 검사(`checkTraining`) |
 | `src/progress/Training.ts` | 모은 경험치·찍은 마디. `gain`(새 깨달음 수), `canTake`·`take`, `reset`(무료), `stats`(같은 종류끼리 더함), 저장 모양(`parseTraining`) |
 | `Progression.gainMastery` | 신화 경험치와 같은 양을 수련에 더하고, 깨달음을 얻으면 `insightGained`. `train`·`untrain`은 찍고 되돌리며 최대 생명을 다시 맞춘다 |
-| `Build.blessed` | 찍은 마디 수치를 시련 보상·균열 축복과 같이 `bonus`로 더한다 (전투는 기존 수치 종류 그대로) |
+| `Build.inputs` | 찍은 마디 수치를 맹세 보상과 같이 `bonus`로 더한다 (전투는 기존 수치 종류 그대로, 균열 축복은 E305-03에서 걷음) |
 | `Game` | `insightGained` → 메뉴 단추 표시(`markTab('training')`)와 작은 알림(`insight`). 첫 깨달음은 수련 탭이 열리는 카드가 대신 알린다 |
 | `src/progress/Tabs.ts` | 정보 화면 탭을 차례로 (E236-05): 차례로 여는 탭 여섯과 여는 때(`STEP_TAB_DEFS`, `tabsDue`), 연 탭(`TabUnlocks`, 저장 v11 `tabs`, 옛 저장은 모두 열림 `parseTabs`) |
 | `systems/Tabs.ts` | `TabSystem`: 장비·신화·벼리기·`progressChanged`마다 지금 상태(`facts`)를 보고 열 때가 된 탭을 연다. 열면 카드(`tabOpened`, 등급 2, 같은 사건의 더 큰 순간 뒤에 서도록 한 박자 늦게)와 메뉴 단추 표시(여럿이면 차례의 첫 탭). 불러온 뒤에 켜고(`ready`), 점검용 실행(`allTabs`)·엔딩 뒤에는 모두 연다. 메뉴는 `host.tabOpen`으로 숨길 탭을 가린다 |

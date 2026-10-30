@@ -1,5 +1,5 @@
-/* 균열의 축복 고르기 (E17-03) */
-.blessing {
+/* 고르는 카드 틀 (귀환·맹세 출발, E304·E305-01. 옛 균열의 축복 고르기 E17-03에서 왔다) */
+.pick-card {
   position: fixed;
   left: 50%;
   top: 30%;
@@ -16,20 +16,20 @@
   font-family: var(--font-body);
   pointer-events: auto;
 }
-.blessing[hidden] {
+.pick-card[hidden] {
   display: none;
 }
-.blessing__title {
+.pick-card__title {
   font: var(--t-title);
   color: var(--c-moon);
 }
-.blessing__row {
+.pick-card__row {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: var(--sp-3);
 }
-.blessing__card {
+.pick-card__card {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -42,15 +42,15 @@
   color: var(--c-ink-1);
   cursor: pointer;
 }
-.blessing__card b {
+.pick-card__card b {
   font: var(--t-body);
   font-weight: normal;
   color: var(--c-gold-soft);
 }
-.blessing__card small {
+.pick-card__card small {
   font: var(--t-small);
   color: var(--c-ink-2);
 }
-.blessing__card:hover {
+.pick-card__card:hover {
   background: var(--c-stone-hover);
 }
