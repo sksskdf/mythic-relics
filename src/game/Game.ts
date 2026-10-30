@@ -567,6 +567,7 @@ export class Game {
       offer: (view, pick, later) => this.returnCard.show(view, pick, later),
       offering: () => this.returnCard.open,
       ascend: (god) => this.growth.promote(god, true),
+      merge: (uids) => void this.relics.merge(uids),
     })
     this.riftSystem = new RiftSystem(
       this.ctx,

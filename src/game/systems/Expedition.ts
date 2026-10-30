@@ -1,7 +1,7 @@
 import { SOURCE_IDS, type SourceId } from '../../data/schema'
-import { FLAME } from '../../data/cycle'
+import { FLAME, RETURN_MIN_LEVEL, RETURN_MIN_SECONDS } from '../../data/cycle'
 import { isBossLike } from '../../enemies/grade'
-import { isGearUid } from '../../gear/roll'
+import { gearName, gearScore, isGearUid } from '../../gear/roll'
 import { pantheonGods } from '../../myth/pantheon'
 import { godDef, type God } from '../../relics/data'
 import { SOURCE_COLORS } from '../../ui/sigils'
@@ -19,8 +19,6 @@ const FLAME_TEXT: Readonly<Record<SourceId, string>> = {
 }
 /** 성소 한가운데에서 이만큼 안에 서면 귀환 카드가 뜬다 */
 const HEARTH_RADIUS = 2.5
-/** 원정을 떠난 뒤 이 초가 지나야 귀환할 수 있다 (떠나자마자 다시 뜨지 않게) */
-const MIN_SECONDS = 120
 
 const clock = (s: number): string => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`
 
@@ -32,6 +30,8 @@ export interface ExpeditionParts {
   offering(): boolean
   /** 신을 한 단계 올린다 (승천, 큰 카드와 함께) */
   ascend(god: God): void
+  /** 가방의 셋을 합친다 (자동 합치기, 카드와 함께) */
+  merge(uids: readonly string[]): void
 }
 
 /**
@@ -50,21 +50,48 @@ export class ExpeditionSystem {
     ctx.bus.on('giantKilled', ({ giant }) => {
       if (giant.spec.boss !== undefined || isBossLike(giant.spec)) ctx.expedition.beatBoss()
     })
+    // 귀환 횟수 자동화 (E304-03): 귀환 2부터 보통·좋음, 3부터 희귀를 주울 때 저절로 합친다
+    ctx.bus.on('gearPicked', () => this.autoMerge())
+  }
+
+  /** 지난 원정 차례에서 아직 안 익힌 마디 하나를 익힌다 (익힐 수 있는 것이 없으면 그대로) */
+  private retake(): void {
+    const { training, expedition, bus } = this.ctx
+    const next = expedition.lastTaken.find((id) => !training.taken.has(id) && training.canTake(id))
+    if (next && training.take(next)) bus.emit('progressChanged', {})
+  }
+
+  /** 저절로 합칠 수 있는 셋을 모두 합친다 (낮은 등급부터, 한 번에 다섯 묶음까지) */
+  private autoMerge(): void {
+    const { expedition, powers } = this.ctx
+    if (!expedition.autoMerges('good')) return
+    for (let i = 0; i < 5; i++) {
+      const group = powers.loadout.mergeable().find((g) => g[0]!.grade === 'common' || g[0]!.grade === 'good' || (g[0]!.grade === 'rare' && expedition.autoMerges('rare')))
+      if (!group) return
+      this.parts.merge(group.map((g) => g.uid))
+    }
   }
 
   update(dt: number): void {
-    const { expedition, chapters } = this.ctx
+    const { expedition, chapters, training } = this.ctx
     expedition.tick(dt)
+    // 다시 찍기 (귀환 1부터): 깨달음이 생기는 대로 지난 원정에서 익힌 차례대로
+    if (expedition.retakes && training.unspent > 0) this.retake()
     expedition.reach(Math.max(1, chapters.index))
     if (this.atHearth()) {
       if (!this.declined && !this.parts.offering() && this.canReturn) this.offer()
     } else this.declined = false
   }
 
-  /** 지금 귀환할 수 있나: 원정을 떠난 지 2분이 지났고 싸우는 중이 아니다 */
+  /** 원정이 무르익었나: 떠난 지 2분이 지났고 기세 레벨이 문턱을 넘었다 */
+  get ripe(): boolean {
+    return this.ctx.expedition.elapsed >= RETURN_MIN_SECONDS && this.ctx.training.insights >= RETURN_MIN_LEVEL
+  }
+
+  /** 지금 귀환할 수 있나: 원정이 무르익었고 싸우는 중이 아니다 */
   get canReturn(): boolean {
-    const { expedition, legend, combat } = this.ctx
-    return expedition.elapsed >= MIN_SECONDS && !legend.active && combat.alive
+    const { legend, combat } = this.ctx
+    return this.ripe && !legend.active && combat.alive
   }
 
   /** 주인공이 성소 한가운데(화로)에 있다 */
@@ -101,7 +128,7 @@ export class ExpeditionSystem {
       next: p.next,
       time: clock(p.seconds),
       last: p.last === null ? null : clock(p.last),
-      keeps: `깨운 신·신 단계·유물표·원형·장 진행·웨이포인트${heirloom > 0 ? `·가보 ${heirloom}` : ''}`,
+      keeps: `깨운 신·신 단계·유물표·원형·장 진행·웨이포인트${heirloom > 0 ? `·가장 좋은 장비 ${heirloom}` : ''}`,
       clears: '기세(수련 마디), 일반 장비',
       branches: this.branches(),
     }
@@ -123,10 +150,14 @@ export class ExpeditionSystem {
     const flame = kind === 'flame' && SOURCE_IDS.includes(what as SourceId) ? (what as SourceId) : undefined
     const before = expedition.multiplier
     const gain = expedition.return({ ...(flame ? { flame } : {}) }, training.xp, [...training.taken])
+    // 가보 (귀환 1부터): 낀 일반 장비 가운데 가장 좋은 것을 칸 수만큼 남긴다 (고르는 단추 없이)
+    expedition.heirloom = powers.loadout.wornGear
+      .sort((a, b) => gearScore(b) - gearScore(a))
+      .slice(0, expedition.heirloomSlots)
+      .map((g) => g.uid)
     // 기세: 수련 경험치는 출발점으로, 마디는 비우고 (귀환 1부터) 지난 차례대로 다시 찍는다
     training.reset()
     training.xp = expedition.headStart
-    if (expedition.retakes) for (const node of expedition.lastTaken) training.take(node)
     // 일반 장비: 가보 빼고 낀 것·가방·땅의 것을 지운다
     const keep = new Set(expedition.heirloom)
     const { loadout } = powers
@@ -137,7 +168,13 @@ export class ExpeditionSystem {
     if (kind === 'ascend') this.parts.ascend(what)
     this.declined = true
     bus.emit('expeditionReturned', { count: expedition.count - 1, renown: gain, mult: expedition.multiplier, branch: id })
-    const lines = [`명성 +${gain} · 모든 피해 ×${before.toFixed(2)} → ×${expedition.multiplier.toFixed(2)}`, ...(flame ? [`${SOURCE_NAMES[flame]} 불씨: ${FLAME_TEXT[flame]}`] : []), '새 불길: 2분 동안 장비가 더 떨어진다']
+    const heirlooms = expedition.heirloom.map((uid) => loadout.gear.get(uid)).filter((g) => g !== undefined)
+    const lines = [
+      `명성 +${gain} · 모든 피해 ×${before.toFixed(2)} → ×${expedition.multiplier.toFixed(2)}`,
+      ...(flame ? [`${SOURCE_NAMES[flame]} 불씨: ${FLAME_TEXT[flame]}`] : []),
+      ...heirlooms.map((g) => `가보로 남김: ${gearName(g)}`),
+      '새 불길: 2분 동안 장비가 더 떨어진다',
+    ]
     bus.emit('moment', { id: 'returned', card: { kind: '귀환', title: `원정 ${expedition.count} 출발`, color: '#ffd27a', lines } })
     bus.emit('loadoutChanged', { change: { before: powers.state, after: powers.state }, announce: false })
     bus.emit('progressChanged', {})

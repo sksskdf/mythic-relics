@@ -36,11 +36,22 @@ export const FLAME = {
   hunt: { renown: 1.25 },
 } as const
 
+/** 원정을 떠난 뒤 이 초가 지나야 귀환할 수 있다 (떠나자마자 다시 귀환 카드가 뜨지 않게) */
+export const RETURN_MIN_SECONDS = 120
+/**
+ * 원정이 무르익어야 귀환한다: 이번 원정의 기세 레벨(수련 깨달음)이 이만큼은 되어야 귀환 카드가 뜬다.
+ * 옛 신 경험치 막대(1500·3000)가 맡던 박자를 기세가 맡는다. 봇 기준 첫 귀환 13~16분 (`CYCLE.md` 6장)
+ */
+export const RETURN_MIN_LEVEL = 8
+
 /** 새 불길: 다시 떠난 뒤 이 초 동안 장비 드랍 배율 */
 export const NEW_FIRE = { seconds: 120, drop: 3 } as const
 
-/** 귀환을 알리는 때: 다음 기세 레벨이 이 초를 넘게 걸리거나, 받을 배율이 지난 귀환의 이 배를 넘으면 */
-export const RETURN_SIGNAL = { slowLevel: 180, gain: 1.25 } as const
+/**
+ * 귀환을 알리는 때 (목표 한 줄이 「화로에서 원정을 마친다」로): 첫 귀환 뒤로, 원정을 떠난 지 이 초가 지났고 받을 배율이 지금의 이 배를 넘으면.
+ * `CYCLE.md`의 「기세 레벨이 3분을 넘게 걸리면」은 기세 막대가 생기는 E306에서 더한다
+ */
+export const RETURN_SIGNAL = { after: 300, gain: 1.1 } as const
 
 /** 귀환 횟수가 여는 자동화 (`CYCLE.md` 3.5) */
 export const AUTOMATION = {

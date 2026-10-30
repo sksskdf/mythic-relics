@@ -6,6 +6,7 @@ import { awakenDef, HUNT_KILLS } from '../../data/awaken'
 import { godDef } from '../../relics/data'
 import { josa } from '../../ui/josa'
 import type { GoalView } from '../../ui/ChapterHud'
+import { RETURN_MIN_LEVEL, RETURN_MIN_SECONDS, RETURN_SIGNAL } from '../../data/cycle'
 import type { GameContext } from '../context'
 
 /**
@@ -66,6 +67,15 @@ export class ChapterSystem {
     const { chapters, progress, build, powers, awaken } = this.ctx
     const goal = chapters.goal
     if (!goal) return null
+    // 귀환 (E304): 귀환이 할 일이면 떠난 지 2분까지 막대, 그 뒤는 받을 배율. 첫 귀환 뒤로는 받을 배율이 넉넉하면 귀환을 알린다
+    const { expedition } = this.ctx
+    const p = expedition.preview()
+    const mult = ` (×${p.next.toFixed(2)})`
+    const level = this.ctx.training.insights
+    const ripe = p.seconds >= RETURN_MIN_SECONDS && level >= RETURN_MIN_LEVEL
+    // 무르익기 전에는 기세 막대(깨달음 n/8), 무르익으면 받을 배율
+    if (goal.kind === 'return') return ripe ? { text: goal.goal + mult, ratio: null } : { text: `기세를 모은다 ${Math.min(level, RETURN_MIN_LEVEL)}/${RETURN_MIN_LEVEL}`, ratio: Math.min(1, level / RETURN_MIN_LEVEL) }
+    if (expedition.returns >= 1 && ripe && p.seconds >= RETURN_SIGNAL.after && p.next >= p.now * RETURN_SIGNAL.gain) return { text: `성소 화로에서 원정을 마친다${mult}`, ratio: null }
     let ratio: number | null = null
     const waking = awaken.waking && !progress.isOpen(awaken.waking) ? awaken.waking : null
     if (goal.kind === 'awaken' && waking) {

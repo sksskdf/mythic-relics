@@ -566,10 +566,12 @@ try {
   const back = await page.evaluate(() => ({ x: window.__game.hero.object.position.x, z: window.__game.hero.object.position.z }))
   if (Math.hypot(back.x - savedAt.x, back.z - savedAt.z) > 1) throw new Error(`이어서 플레이 실패: 저장한 자리가 아닙니다 ${JSON.stringify({ savedAt, back })}`)
   console.log('저장 확인: 새로 고침하면 단추 없이 바로 이어서, 유물·일반 장비·재료와 고른 외형, 신의 자리·조각·단계·수련·위협·웨이포인트, 있던 지역과 자리 유지')
-  // 귀환 점검 (E304): 원정을 떠난 지 2분이 지나 성소 화로에 서면 귀환 카드. 승천을 고르면 명성·단계가 오르고 일반 장비는 지워진다
+  // 귀환 점검 (E304): 원정이 무르익어(2분·기세 8) 성소 화로에 서면 귀환 카드. 승천을 고르면 명성·단계가 오르고 일반 장비는 가보 하나만 남는다
   await page.evaluate(() => {
     const g = window.__game
     g.expedition.elapsed = 300
+    // 원정이 무르익게 (기세 레벨 8)
+    g.training.xp = Math.max(g.training.xp, 5000)
     g.hero.teleport(g.legend.center.x, g.legend.center.z)
   })
   await page.waitForFunction(() => window.__game.returnCardOpen, null, { timeout: 15000 }).catch(() => {
@@ -580,11 +582,11 @@ try {
     const g = window.__game
     const before = { level: g.progress.level('thor'), gear: g.powers.loadout.gear.size }
     document.querySelector('.return-card .blessing__card').click()
-    return { before, after: { level: g.progress.level('thor'), gear: g.powers.loadout.gear.size, count: g.expedition.count, renown: g.expedition.renown, open: g.returnCardOpen } }
+    return { before, after: { level: g.progress.level('thor'), gear: g.powers.loadout.gear.size, heirloom: g.expedition.heirloom.length, count: g.expedition.count, renown: g.expedition.renown, open: g.returnCardOpen } }
   })
   if (returned.after.count !== 2 || !(returned.after.renown > 0) || returned.after.open) throw new Error(`귀환: 갈래를 눌렀는데 원정이 넘어가지 않았습니다 ${JSON.stringify(returned)}`)
-  if (returned.after.level !== returned.before.level + 1 || returned.after.gear !== 0) throw new Error(`귀환: 승천·장비 지우기가 맞지 않습니다 ${JSON.stringify(returned)}`)
-  console.log(`귀환 확인: 성소 화로에서 카드, 토르 승천 ${returned.before.level} → ${returned.after.level}, 명성 ${returned.after.renown}, 장비 ${returned.before.gear} → 0`)
+  if (returned.after.level !== returned.before.level + 1 || returned.after.gear !== returned.after.heirloom || returned.after.heirloom > 1) throw new Error(`귀환: 승천·장비 지우기가 맞지 않습니다 ${JSON.stringify(returned)}`)
+  console.log(`귀환 확인: 성소 화로에서 카드, 토르 승천 ${returned.before.level} → ${returned.after.level}, 명성 ${returned.after.renown}, 장비 ${returned.before.gear} → 가보 ${returned.after.heirloom}`)
 
   // 처음 화면으로: 정보 화면의 단추를 두 번 누르면 저장하고 슬롯 고르기로 돌아가고, 그 슬롯을 누르면 이어 간다.
   await page.click('.menu-button')
