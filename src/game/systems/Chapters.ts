@@ -108,9 +108,7 @@ export class ChapterSystem {
       if (awaken.fragments >= 2) return { text: `${josa(path.guardian.name, '을')} 쓰러뜨려 ${josa(name, '을')} 깨운다`, ratio: null }
       return { text: `${REGIONS[path.land]?.name ?? path.land}에서 사냥한다 ${awaken.hunt}/${HUNT_KILLS}`, ratio: awaken.huntRatio }
     }
-    if (goal.kind === 'level' && build.chosen && progress.level(build.chosen) < goal.n!) {
-      ratio = progress.xpRatio(build.chosen)
-    } else if (goal.kind === 'forge' && build.chosen) {
+    if (goal.kind === 'forge' && build.chosen) {
       const recipe = nextRecipe(powers.loadout, build.chosen, powers.maxStage())
       if (recipe) {
         const lack = missing(powers.loadout, recipe)

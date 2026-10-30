@@ -5,7 +5,7 @@ import { nextRecipe } from '../gear/forge'
 import { type GearItem, rollGear } from '../gear/roll'
 import { gearIcon } from '../ui/gearCard'
 import { GODS, isRelicId, type RelicId } from '../relics/data'
-import { type ClassProgress, MASTERY_TO_OPEN } from '../myth/ClassProgress'
+import type { ClassProgress } from '../myth/ClassProgress'
 import type { EventBus, GameEvents } from '../game/events'
 import type { HeroController } from '../game/HeroController'
 import type { HeroOrders } from '../game/HeroOrders'
@@ -31,8 +31,6 @@ export interface DevParts {
   orders: HeroOrders
   view: QuarterViewCamera
   pickups: Pickups
-  /** 지금 지역의 신화권 (마을은 없음) */
-  region: () => string | undefined
   /** 스킬이 세계와 주고받는 것 (유물 행동을 바로 터뜨릴 때) */
   skills: SkillContext
   encounter: Encounter
@@ -190,22 +188,16 @@ export class DevTools {
     }
   }
 
-  /** 지금 신화의 경험치를 채우고 바로 다음 개방 단계로 올린다. 데모 끝 단계(3)도 넘긴다 */
+  /** 지금 신화를 바로 다음 개방 단계로 올린다 (승천과 같은 길). 데모 끝 단계(3)·장 정복 상한도 넘긴다 */
   promote(): void {
     const { powers, progress, growth } = this.parts
     const god = powers.manifested
     if (!god) return
     if (progress.level(god) >= progress.levelCap) progress.uncapped = true
-    progress.addXp(god, 1e9)
     growth.promote(god)
   }
 
-  /** 이 지역 신화권의 신들에게 숙련을 준다 (신화 개방 시험). 신화권이 없는 마을이면 북유럽 */
-  gainMastery(amount = MASTERY_TO_OPEN * 4): void {
-    this.parts.growth.gainMastery(amount, this.parts.region() ?? 'norse')
-  }
-
-  /** 수련 경험치만 준다 (깨달음 시험). 신화 경험치는 그대로 */
+  /** 수련 경험치만 준다 (깨달음 시험) */
   insight(count = 1): void {
     const { training, bus } = this.parts
     const target = insightsAt(training.xp) + count

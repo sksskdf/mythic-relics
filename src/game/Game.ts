@@ -73,6 +73,7 @@ import { ExpeditionProgress } from '../progress/Expedition'
 import { AwakenProgress } from '../progress/Awakening'
 import { awakenDef, HUNT_KILLS } from '../data/awaken'
 import { TabUnlocks } from '../progress/Tabs'
+import { insightProgress } from '../data/training'
 import { TabSystem } from './systems/Tabs'
 import { Barriers } from '../world/Barriers'
 import { SwapCard } from '../ui/SwapCard'
@@ -158,8 +159,6 @@ export class Game {
   readonly ending = new Ending()
   readonly progress: ClassProgress = new ClassProgress(
     () => this.ending.has('mythStage4'),
-    // 데모에서는 경험치로 저절로 열리지 않고 성소에서 고른다 (E22-03)
-    () => this.ending.reached,
     // 장 정복 (E305-02): 신 단계 상한
     (): number => this.chapters.conquered,
   )
@@ -179,7 +178,6 @@ export class Game {
   readonly chapters: ChapterProgress = new ChapterProgress(
     {
       awakened: (realm) => this.progress.opened.filter((god) => godDef(god).realm === realm).length,
-      level: () => Math.max(0, ...this.progress.opened.map((god) => this.progress.level(god))),
       forged: () => Math.max(0, ...this.powers.loadout.ownedRelics.filter(isMythRelic).map((id) => this.powers.loadout.stage(id))),
       returns: () => this.expedition.returns,
     },
@@ -563,7 +561,7 @@ export class Game {
     this.expeditionSystem = new ExpeditionSystem(this.ctx, {
       offer: (view, pick, later) => this.returnCard.show(view, pick, later),
       offering: () => this.returnCard.open,
-      ascend: (god) => this.growth.promote(god, true),
+      ascend: (god) => this.growth.promote(god),
       merge: (uids) => void this.relics.merge(uids),
     })
     // 맹세 (E305-01): 귀환 2부터 다시 떠날 때 출발 카드
@@ -609,7 +607,6 @@ export class Game {
       orders: this.orders,
       view: this.view,
       pickups: this.pickups,
-      region: () => this.ctx.map.region.realm ?? undefined,
       skills: this.ctx.skills,
       encounter: this.encounter,
       training: this.training,
@@ -952,7 +949,7 @@ export class Game {
 
   /**
    * 개발 지름길 (E22): 지금 목표를 한 것으로 한다. 들어설 땅이면 그리로 가고, 깨우기는 조각을 차례로,
-   * 신화 단계는 고른 신화를 그 단계까지, 귀환은 승천으로, 보스는 이긴 것으로, 벼리기는 재료를 채워 벼린다
+   * 귀환은 승천으로, 보스는 이긴 것으로, 벼리기는 재료를 채워 벼린다
    */
   skipGoal(): void {
     const goal = this.chapters.goal
@@ -966,10 +963,6 @@ export class Game {
       case 'awaken':
         // 조각을 하나씩 (흔적 → 사냥 → 수호자) 그 할 일을 마칠 때까지
         for (let i = 0; i < 12 && this.chapters.goal === goal; i++) if (!this.awakening.skip(this.awakening.target(goal.region)?.god)) break
-        break
-      case 'level':
-        if (!this.ctx.build.chosen) break
-        while (this.progress.level(this.ctx.build.chosen) < goal.n!) this.dev.promote()
         break
       case 'return': {
         // 귀환 (E304): 떠난 지 2분이 안 됐어도 손의 신 승천(없으면 불꽃 불씨)으로 바로
@@ -1211,7 +1204,8 @@ export class Game {
     this.minimap.update(dt, {
       hero: position,
       relics: this.pickups.list,
-      sanctuaryReady: this.legend.present && this.growth.sanctuaryOpen,
+      // 원정이 무르익으면 성소 화로가 깜빡인다 (E305-03: 성소 전설 대신 귀환)
+      sanctuaryReady: this.legend.present && this.expeditionSystem.canReturn,
       goal: this.goalSpot(),
       // 신의 흔적 (E238): 응답하는 흔적만 그 신의 색으로
       traces: this.awakening.spots.filter((t) => t.state === 'open').map((t) => ({ x: t.x, z: t.z, color: godDef(t.god).color })),
@@ -1242,6 +1236,12 @@ export class Game {
       this.view.shake(giant.spec.role === 'boss' || giant.spec.role === 'guardian' ? 0.6 : 0.15)
       this.bus.emit('giantKilled', { giant })
     }
+  }
+
+  /** 다음 깨달음까지 모은 기세 0~1 (HUD 막대) */
+  private momentum(): number {
+    const { have, need } = insightProgress(this.training.xp)
+    return need > 0 ? Math.min(1, have / need) : 1
   }
 
   private updateHud(realDt: number): void {
@@ -1275,7 +1275,8 @@ export class Game {
                 : (this.awakening.fighting?.spec.name ?? null),
         slots: this.powers.hudSlots(),
         ultimate: this.ctx.build.heart !== null && !this.ctx.build.state.noUltimate,
-        xp: manifested ? this.progress.xpRatio(manifested) : null,
+        // 기세 막대 (E305-03): 신화 경험치 대신 다음 깨달음까지 (원정마다 처음부터)
+        xp: manifested ? this.momentum() : null,
         xpColor: manifested ? godDef(manifested).color : '',
         portrait: manifested
           ? { name: godDef(manifested).name, title: this.progress.title(manifested), color: godDef(manifested).color, level: this.progress.level(manifested) }
@@ -1283,7 +1284,7 @@ export class Game {
         // 빌린 신(E237)은 밝은 칩, 그 밖에 낀 유물의 신은 잠든 가호
         lent: this.ctx.build.borrowed.map((g) => ({ name: godDef(g).name, color: godDef(g).color })),
         blessings: this.powers.state.blessings.filter((g) => !this.ctx.build.borrowed.includes(g)).map((g) => ({ name: godDef(g).name, color: godDef(g).color })),
-        promote: manifested !== null && this.progress.readyToPromote(manifested),
+        promote: manifested !== null && this.expeditionSystem.canReturn,
         sources: Object.fromEntries(this.sourceRows().map((r) => [r.id, { value: r.total, level: r.level }])),
       },
       realDt,

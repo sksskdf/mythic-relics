@@ -196,13 +196,8 @@ export class DevPanel {
     const g = this.game
     page.append(
       row(
-        button('경험치 가득', () => {
-          const god = g.powers.manifested
-          if (god) g.progress.addXp(god, 1e9)
-        }),
         button('단계 올리기', () => g.dev.promote()),
         button('레벨 초기화', () => g.dev.resetMyths()),
-        button('이 신화권 경험치', () => g.dev.gainMastery()),
         button('깨달음 하나', () => g.dev.insight()),
         // 신의 조각 (E238): 깨우는 신의 다음 조각 (흔적 → 사냥 → 수호자)
         button('다음 조각', () => {
@@ -313,7 +308,7 @@ export class DevPanel {
     )
   }
 
-  /** 승급 전설을 바로 시작한다. 지금 발현한 신에게 전설이 있으면 그 전설, 없으면 토르로 발현해 우트가르드 원정 */
+  /** 성소 전설을 바로 시작한다 (보통 플레이에서는 열리지 않는다). 손의 신에게 전설이 있으면 그 전설, 없으면 토르로 우트가르드 원정 */
   private startLegend(): void {
     const g = this.game
     let god = g.powers.manifested
@@ -323,8 +318,7 @@ export class DevPanel {
       god = 'thor'
       g.dev.choose(god)
     }
-    g.progress.addXp(god, 1e9)
-    g.growth.devLegend = true
+    g.growth.armLegend(god)
     g.dev.teleport(g.legend.center.x, g.legend.center.z)
   }
 
@@ -494,7 +488,7 @@ export class DevPanel {
     const g = this.game
     const p = g.hero.object.position
     const god = g.powers.manifested
-    const cls = god ? `${godDef(god).titles[g.progress.level(god) - 1]} ${g.progress.level(god)}단계 ${Math.round(g.progress.xpRatio(god) * 100)}%` : '신화 개방 없음'
+    const cls = god ? `${godDef(god).titles[g.progress.level(god) - 1]} ${g.progress.level(god)}단계` : '신화 개방 없음'
     return [
       `${Math.floor(g.time / 60)}:${String(Math.floor(g.time % 60)).padStart(2, '0')} · (${p.x.toFixed(0)}, ${p.z.toFixed(0)}) · ${g.view.viewHeight.toFixed(0)}m`,
       `♥${Math.round(g.combat.health.hp)}/${g.combat.health.max} ✦${Math.round(g.combat.divine * 100)}% · ${cls}`,

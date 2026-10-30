@@ -5,15 +5,14 @@ import { ELITE_REWARD } from '../../enemies/elite'
 import { isBossLike } from '../../enemies/grade'
 import { MATERIALS, materialName, rollMaterials } from '../../gear/materials'
 import { GEAR, landChances, landTier, rollGear } from '../../gear/roll'
-import { masteryShares, PER_PROMOTION } from '../../myth/ClassProgress'
+import { PER_PROMOTION } from '../../myth/ClassProgress'
 import { emptyPantheon, inPantheon } from '../../myth/pantheon'
 import { collectionText } from '../../myth/alwaysText'
 import { levelGains } from '../../myth/levelGains'
 import { classIcon } from '../../ui/classIcons'
 import { realmSigil } from '../../ui/sigils'
 import { realmInk } from '../../art/palette'
-import { type God, godDef, GODS, isRelicId, type RelicId } from '../../relics/data'
-import type { LegendKind } from '../../data/classKit'
+import { type God, godDef, isRelicId, type RelicId } from '../../relics/data'
 import type { LegendHost } from '../Legend'
 import type { GameContext } from '../context'
 import { godMoment } from './godMoments'
@@ -24,37 +23,26 @@ const HEAL_PER_KILL = 4
 const HEAL_PER_BOSS = 30
 
 /**
- * 성장: 처치 경험치, 생명력 회복, 유물 드랍, 승급 전설과 승급, 승급 횟수에서 나오는 기본 능력치.
+ * 성장: 처치 경험치(수련·기세), 생명력 회복, 유물 드랍, 승급(귀환의 승천), 승급 횟수에서 나오는 기본 능력치.
+ * 신화 경험치와 성소 전설로 단계를 올리던 길은 E305-03에서 걷었다 (단계는 귀환 갈래 「승천」으로만).
  */
 export class ProgressionSystem {
-  /** 지금 승급 전설에 도전하는 신 */
+  /** 지금 성소 전설에 도전하는 신 */
   private challenger: God | null = null
-  /** 개발 패널이 데모에서도 성소 전설을 연다 (E304 뒤 전설은 엔딩 뒤 장치) */
-  devLegend = false
+  /** 개발 패널 「전설 시작」이 성소 전설을 건 신 (보통 플레이에서는 전설이 열리지 않는다. 전설 판은 E305 다음 단계에서 걷는다) */
+  private armed: God | null = null
 
   constructor(private readonly ctx: GameContext) {
     ctx.bus.on('giantKilled', ({ giant }) => this.onGiantKilled(giant))
     ctx.bus.on('mythOpened', ({ god, quiet }) => !quiet && this.announceOpened(god))
   }
 
-  /** 지금 이 지역 성소에서 열 수 있는 승급 전설 (없으면 null) */
-  readyKind(): LegendKind | null {
-    const { build, progress } = this.ctx
-    const god = build.chosen
-    const legend = god ? godDef(god).legend : undefined
-    if (!god || !legend || !progress.readyToPromote(god)) return null
-    // 데모에서는 신 단계를 귀환의 승천으로 올린다 (E304). 성소 전설은 엔딩 뒤에만 (개발 패널 「전설 시작」은 언제나)
-    if (!this.ctx.ending.reached && !this.devLegend) return null
-    // 엔딩 뒤에는 어느 성소에서나 손의 신 전설을 연다 (옛 시련 마일스톤 「열린 성소」를 맹세로 옮기며 제한을 걷음, E305-01)
-    return legend.kind
+  /** 개발 패널 「전설 시작」: 그 신의 성소 전설을 건다. 성소 가운데에 서면 시작하고, 이기면 그 신이 승천한다 */
+  armLegend(god: God): void {
+    this.armed = godDef(god).legend ? god : null
   }
 
-  /** 성소가 열려 있다 (지도에 깜빡임) */
-  get sanctuaryOpen(): boolean {
-    return this.readyKind() !== null
-  }
-
-  /** 승급 전설: 성소에 들어서면 시작하고, 이기면 승급한다. */
+  /** 성소 전설 (개발 패널만): 건 전설이 있으면 성소에 들어설 때 시작하고, 이기면 승천한다 */
   update(dt: number): void {
     const { legend, encounter } = this.ctx
     legend.update(dt, encounter, this.legendHost())
@@ -62,11 +50,11 @@ export class ProgressionSystem {
 
   /** 전설이 게임에 알리는 일 */
   legendHost(): LegendHost {
-    const { build, combat, hero, hud, view, bus } = this.ctx
+    const { combat, hero, hud, view, bus } = this.ctx
     return {
       ready: () => {
-        const god = build.chosen
-        const kind = this.readyKind()
+        const god = this.armed
+        const kind = god ? (godDef(god).legend?.kind ?? null) : null
         // 도전하는 신화는 전설이 쉬는 동안에만 정한다 (진행 중에 바뀌어도 시작한 신화가 승급한다)
         if (god && kind && !this.ctx.legend.active) this.challenger = god
         return kind
@@ -77,6 +65,8 @@ export class ProgressionSystem {
         hero.arena = arena
       },
       onStart: () => {
+        // 건 전설은 한 번만 (지거나 이겨도 다시 걸지 않는다)
+        this.armed = null
         bus.emit('legendStarted', {})
         const def = godDef(this.challenger!)
         const ink = realmInk(def.realm)
@@ -92,10 +82,10 @@ export class ProgressionSystem {
     }
   }
 
-  /** 신화 숙련과 유물 드랍. 숙련은 그 몬스터 신화권의 신들에게 나눠 쌓인다. (DESIGN.md 5.2, E12-02) */
+  /** 처치 경험치(수련·기세)와 드랍 (DESIGN.md 5.2, E12-02 → E305-03: 신화 경험치는 없앰) */
   private onGiantKilled(giant: Giant): void {
     const { powers, combat, drops, pickups } = this.ctx
-    this.gainMastery(giant.spec.xp * (giant.elite ? ELITE_REWARD.xp : 1), giant.spec.realm)
+    this.gainXp(giant.spec.xp * (giant.elite ? ELITE_REWARD.xp : 1))
     // 적을 쓰러뜨리면 생명력을 조금 되찾는다. 몰려오는 무리를 쓸어 내며 버틸 수 있게 한다.
     if (combat.alive) combat.heal((isBossLike(giant.spec) || giant.spec.boss ? HEAL_PER_BOSS : HEAL_PER_KILL) + this.ctx.build.state.stats.healOnKill)
     const owned = new Set<RelicId>([
@@ -138,22 +128,18 @@ export class ProgressionSystem {
   }
 
   /**
-   * 경험치를 쌓는다: 신화 경험치는 고른 신화만, 고른 신화가 없으면 그 신화권 신들에게 (첫 신화를 연다). 문턱을 넘은 신화는 열린다.
-   * 같은 경험치가 수련에도 쌓여 문턱마다 깨달음 한 점 (E236)
+   * 경험치를 쌓는다: 수련(기세)에 쌓여 문턱마다 깨달음 한 점 (E236). 신화 경험치는 E305-03에서 없앴다 (신은 조각 셋으로 열고 승천으로 올린다)
    */
-  gainMastery(amount: number, realm: string | undefined): void {
-    const { build, progress, training, bus } = this.ctx
+  gainXp(amount: number): void {
+    const { build, training, bus } = this.ctx
     // 경험치 얻는 양 (오딘, 수련 「배움」)
     amount *= 1 + build.state.stats.masteryGain
-    for (const [god, share] of masteryShares(amount, realm, build.chosen, Object.values(GODS), build.borrowed)) {
-      if (progress.addXp(god, share) === 'opened') bus.emit('mythOpened', { god })
-    }
     const count = training.gain(amount)
     if (count > 0) bus.emit('insightGained', { count, unspent: training.unspent })
     bus.emit('progressChanged', {})
   }
 
-  /** 신화가 처음 열렸다 (경험치 문턱 또는 유물): 칭호 카드 (고르지 않아도 최대 생명이 붙는다) */
+  /** 신화가 처음 열렸다 (신이 깨어남·엔딩 뒤 유물): 칭호 카드 (고르지 않아도 최대 생명이 붙는다) */
   private announceOpened(god: God): void {
     const { bus, progress } = this.ctx
     // 처음 연 신화를 바로 골랐거나 빌린 칸에 넣었으면 그쪽(고른 신화 장면·빌린 힘 카드)이 대신 알린다 (RelicSystem이 먼저 듣는다)
@@ -163,13 +149,12 @@ export class ProgressionSystem {
     bus.emit('moment', { id: 'mythOpened', card: { kind: '신화 개방', title: def.titles[0], color: def.color, icon: classIcon(def.name), lines } })
   }
 
-  /** 승급: 칭호가 바뀌고, 스킬이 강해지고, 원천 숙련과 기본 능력치가 오른다. */
-  promote(god: God, ascend = false): void {
+  /** 승급 (귀환의 승천·개발 지름길): 칭호가 바뀌고, 스킬이 강해지고, 기본 능력치가 오른다. 상한이면 그대로 */
+  promote(god: God): void {
     const { progress, combat, hero, fx, view, feel, bus } = this.ctx
     const hpBefore = this.ctx.build.state.maxHp
     const dmgBefore = PER_PROMOTION.damage ** progress.promotions
-    // 승천 (E304): 귀환 갈래로 경험치 막대·전설 없이 오른다
-    if (!(ascend ? progress.ascend(god) : progress.promote(god))) return
+    if (!progress.ascend(god)) return
     bus.emit('promoted', { god, title: progress.title(god) })
     bus.emit('progressChanged', {})
     this.applyStats()

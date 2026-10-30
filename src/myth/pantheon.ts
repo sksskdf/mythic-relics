@@ -21,8 +21,6 @@ export type PartKind = 'hand' | 'heart' | 'breath'
 /** 숨 칸의 끝: 데모 넷, 엔딩 뒤 다섯 (`CYCLE.md` 4.1: 키마이라·홀로의 맹세를 다 받으면 엔딩 뒤 다섯째) */
 export const MAX_BREATH = 5
 export const DEMO_BREATH = 4
-/** 같은 신이 아닌 자리의 신이 받는 경험치 비율 (손의 신은 다 받는다. 경험치 막대는 E304에서 기세로 바뀐다) */
-export const OTHER_XP = 0.5
 
 export const emptyPantheon = (): Pantheon => ({ hand: null, heart: null, breath: [] })
 

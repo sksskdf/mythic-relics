@@ -105,8 +105,6 @@ export class Autoplayer {
       const goal = this.chapterRegion()
       if (goal) return goal
     }
-    // 성소 전설은 엔딩 뒤에만 (E304: 데모의 단계는 귀환 승천)
-    if (this.game.ending.reached && manifested && godDef(manifested).legend && progress.readyToPromote(manifested)) return fieldOf(manifested) ?? region.id
     // 벼릴 재료가 차면 마을 대장간으로 (E13-08)
     const hub = Object.values(regions).find((r) => r.kind === 'hub')?.id ?? region.id
     if (this.forgeGods().some((god) => forgeReady(powers.loadout, god, powers.maxStage()))) return hub
@@ -294,14 +292,6 @@ export class Autoplayer {
         this.game.expeditionSystem.returnNow(ids.find((id) => id === `ascend:${hand}`) ?? ids.find((id) => id.startsWith('ascend:')) ?? 'flame:flame')
       } else if (dist(here, legend.center) > 1.2 && (!hero.isMoving || dist(hero.goal ?? here, legend.center) > 1)) hero.moveTo(legend.center)
       this.step = 16
-      return
-    }
-
-    // 5. 승급 준비가 되면 성소로 간다.
-    const manifested = powers.manifested
-    if (this.game.ending.reached && !legend.active && legend.present && manifested && godDef(manifested).legend && progress.readyToPromote(manifested) && hp > 0.8) {
-      hero.moveTo(legend.center)
-      this.step = 8
       return
     }
 

@@ -1,6 +1,5 @@
 import { DATA } from '../../data'
 import { REGIONS } from '../../data/regions'
-import { MASTERY_TO_OPEN, XP_TO_PROMOTE } from '../../myth/ClassProgress'
 import { isMythRelic } from '../../gear/mythRelic'
 import { BAG_SIZE, MATERIAL_CAP } from '../../gear/Loadout'
 import { bossMaterial, MATERIALS, PROTOTYPE, realmMaterial } from '../../gear/materials'
@@ -51,12 +50,19 @@ export const OLD_MYTH_MATERIALS: Readonly<Record<string, God>> = {
 /** 옛 순환 성장 → 재료 (E14-06) */
 export const CYCLE_REFUND = { essencePer: 100, essenceTo: 'frostShard', essenceMax: 300, ashPer: 3, ashTo: 'giantHeart', ashMax: 20 } as const
 
+/**
+ * 옛 신화 경험치의 문턱 (E236 기준, E305-03에서 신화 경험치를 없앰): 1단계를 연 문턱과 단계마다 다음 단계까지.
+ * v10 이하 저장의 수련 경험치를 짐작할 때만 쓴다
+ */
+export const LEGACY_OPEN_XP = 600
+export const LEGACY_PROMOTE_XP: readonly number[] = [1500, 3000, 5000]
+
 /** v10 이하 → v11: 모은 경험치를 신화 경험치로 짐작한다 (E236). 신화마다 연 문턱·단계 문턱·지금 경험치의 합 가운데 가장 큰 것 */
 export function oldTrainingXp(classes: SaveData['classes']): number {
   let best = 0
   for (const record of Object.values(classes)) {
     if (!record) continue
-    const spent = record.level >= 1 ? MASTERY_TO_OPEN + XP_TO_PROMOTE.slice(0, record.level - 1).reduce((a, b) => a + b, 0) : 0
+    const spent = record.level >= 1 ? LEGACY_OPEN_XP + LEGACY_PROMOTE_XP.slice(0, record.level - 1).reduce((a, b) => a + b, 0) : 0
     best = Math.max(best, spent + record.xp)
   }
   return best

@@ -29,10 +29,7 @@ function manifest(god: string): RelicPowers {
 }
 
 function promoteTimes(progress: ClassProgress, god: string, times: number): void {
-  for (let i = 0; i < times; i++) {
-    progress.addXp(god, 1e9)
-    progress.promote(god)
-  }
+  for (let i = 0; i < times; i++) progress.ascend(god)
 }
 
 describe('빌드 상태 (E11-04)', () => {
@@ -164,7 +161,7 @@ describe('빌드 상태 다시 쓰기', () => {
     const changes: (() => void)[] = [
       () => powers.equip('mjolnir'),
       () => powers.loadout.stages.set('mjolnir', 3),
-      () => progress.record('thor'),
+      () => progress.open('thor'),
       () => powers.setPantheon({ hand: 'thor', heart: 'thor', breath: ['thor'] }),
       () => promoteTimes(progress, 'thor', 1),
       () => {

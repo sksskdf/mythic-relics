@@ -36,18 +36,13 @@ export function renderStatus(ctx: TabContext, body: HTMLElement): void {
     const gems = pips(level)
     gems.classList.remove('ui-gems--small')
     who.append(gems)
-    if (level < host.progress.levelCap) {
-      const bar = el('div', 'ui-bar ui-bar--thin menu-status__xp')
-      bar.style.setProperty('--fill', god.color)
-      bar.style.setProperty('--pct', host.progress.xpRatio(current).toFixed(3))
-      ctx.hintOn(bar, `다음 단계까지 ${Math.round(host.progress.xpRatio(current) * 100)}%`)
-      who.append(bar)
-    }
+    // 다음 단계는 귀환의 승천으로 (E305-03: 신화 경험치 막대는 없앰)
+    if (level < host.progress.levelCap) ctx.hintOn(portrait, `성소 화로에서 원정을 마칠 때 「승천」을 고르면 ${god.titles[level]}`)
   } else {
     portrait.classList.add('is-empty')
     portrait.append(img(unknownSigil()))
     who.append(portrait, el('div', 'menu-status__title', '이름 없는 모험가'))
-    ctx.hintOn(portrait, '한 신의 유물이 모이면 그 신의 힘이 깨어난다.')
+    ctx.hintOn(portrait, '신의 흔적·사냥·수호자, 조각 셋을 모으면 그 신이 깨어난다.')
   }
   const tags = el('div', 'menu-status__tags')
   if (current) tags.append(el('span', 'ui-tag ui-tag--solid', '신화 개방'))

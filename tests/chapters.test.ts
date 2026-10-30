@@ -10,15 +10,13 @@ import { walkArea } from '../src/world/colliders'
 
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T
 
-/** 시험용 세계: 깨운 신 수·신화 단계·유물 단계·귀환 수를 손으로 정한다 */
-function world(): ChapterWorld & { awake: Map<string, number>; lv: number; stage: number; ret: number } {
+/** 시험용 세계: 깨운 신 수·유물 단계·귀환 수를 손으로 정한다 */
+function world(): ChapterWorld & { awake: Map<string, number>; stage: number; ret: number } {
   const w = {
     awake: new Map<string, number>(),
-    lv: 0,
     ret: 0,
     stage: 0,
     awakened: (realm: string) => w.awake.get(realm) ?? 0,
-    level: () => w.lv,
     forged: () => w.stage,
     returns: () => w.ret,
   }
@@ -168,7 +166,7 @@ describe('장 진행 (E22-01)', () => {
     chapters.enter('midgard')
     chapters.enter('utgard')
     expect(chapters.goal?.kind).toBe('boss')
-    // 신화 단계가 다음 장 목표(3단계)에 먼저 닿아도 장은 건너뛰지 않는다
+    // 귀환이 다음 장 목표(델포이 귀환 2)에 먼저 닿아도 장은 건너뛰지 않는다
     w.ret = 2
     expect(chapters.chapter?.id).toBe('north')
   })

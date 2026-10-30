@@ -46,7 +46,8 @@ export class Persistence {
   snapshot(): SaveData {
     const { progress, powers, pickups, drops, combat, wardrobe } = this.ctx
     const classes: SaveData['classes'] = {}
-    for (const [god, record] of progress.records) classes[god] = { ...record }
+    // 신화 경험치는 E305-03에서 없앴다: 저장 모양은 그대로 두고 0으로 쓴다
+    for (const [god, record] of progress.records) classes[god] = { level: record.level, xp: 0 }
     return {
       version: SAVE_VERSION,
       slots: [...powers.loadout.slots],
@@ -96,9 +97,7 @@ export class Persistence {
     this.ctx.rift.load(data.rift)
     for (const [slot, choice] of Object.entries(data.looks.choices) as [LookSlot, string | null][]) wardrobe.choose(slot, choice)
     host.applyLooks()
-    for (const [god, record] of Object.entries(data.classes) as [God, { level: number; xp: number }][]) {
-      Object.assign(progress.record(god), record)
-    }
+    for (const [god, record] of Object.entries(data.classes) as [God, { level: number }][]) progress.record(god).level = record.level
     // 자리 셋을 먼저 정해 두어야, 유물을 끼울 때 처음 연 신화를 저절로 고르지 않는다
     host.pantheon(data.pantheon)
     host.applyStats()

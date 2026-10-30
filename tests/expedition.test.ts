@@ -77,7 +77,7 @@ describe('원정과 귀환 (E304)', () => {
   it('장 정복 (E305-02): 신 단계 상한은 2에서 정복마다 +1, 데모 끝 3, 엔딩 뒤 4', () => {
     let conquered = 0
     let afterEnding = false
-    const p = new ClassProgress(() => afterEnding, () => true, () => conquered)
+    const p = new ClassProgress(() => afterEnding, () => conquered)
     expect(p.levelCap).toBe(LEVEL_CAP_BASE)
     p.open('thor')
     expect(p.ascend('thor')).toBe(true)

@@ -273,7 +273,6 @@ describe('그리스 장의 옛 저장 (E305-03: 성소의 신화 고르기 → �
     const opened = Object.entries(data.classes).filter(([, r]) => (r?.level ?? 0) >= 1).map(([g]) => g)
     const chapters = new ChapterProgress({
       awakened: (realm) => opened.filter((g) => godDef(g).realm === realm).length,
-      level: () => 2,
       forged: () => 1,
       returns: () => data.expedition.count - 1,
     })

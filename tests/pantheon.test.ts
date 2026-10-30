@@ -3,9 +3,8 @@ import { describe, expect, it } from 'vitest'
 import { computeBuild } from '../src/build/BuildState'
 import { PASSIVE_PARTS } from '../src/data/classKit'
 import { relicAwake } from '../src/gear/mythRelic'
-import { masteryShares } from '../src/myth/ClassProgress'
 import { lendText } from '../src/myth/levelGains'
-import { autoFill, breathCount, breathPassive, DEMO_BREATH, emptyPantheon, focusGod, fromChosen, MAX_BREATH, oathPantheon, OTHER_XP, partLevel, pantheonGods, withoutBreath, withPart } from '../src/myth/pantheon'
+import { autoFill, breathCount, breathPassive, DEMO_BREATH, emptyPantheon, focusGod, fromChosen, MAX_BREATH, oathPantheon, partLevel, pantheonGods, withoutBreath, withPart } from '../src/myth/pantheon'
 import { GODS, godDef } from '../src/relics/data'
 
 describe('신의 자리 셋 (E302)', () => {
@@ -85,15 +84,6 @@ describe('신의 자리 셋 (E302)', () => {
     expect(mixed.modifiers).not.toEqual(alone.modifiers)
     const lokiHand = computeBuild({ ...base, hand: 'loki', present: ['loki', 'thor'] })
     expect(lokiHand.attack).toBe(godDef('loki').attack)
-  })
-
-  it('경험치는 손의 신이 다, 다른 자리의 신은 절반', () => {
-    const gods = Object.values(GODS)
-    const shares = masteryShares(100, 'greek', 'thor', gods, ['loki', 'zeus'])
-    expect(shares.get('thor')).toBe(100)
-    expect(shares.get('loki')).toBe(100 * OTHER_XP)
-    expect(shares.get('zeus')).toBe(100 * OTHER_XP)
-    expect(shares.has('poseidon')).toBe(false)
   })
 
   it('맹세를 건 동안 도는 자리 (E305-01): 빈 손은 손만, 홀로는 숨 앞 하나만, 원본은 그대로', () => {

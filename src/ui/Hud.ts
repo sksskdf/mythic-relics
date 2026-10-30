@@ -29,9 +29,9 @@ export interface HudState {
   slots: readonly HudSlot[]
   /** 클래스가 발현되어 궁극기를 쓸 수 있는가 */
   ultimate: boolean
-  /** 발현한 클래스의 경험치 바 0~1. 발현하지 않았으면 null */
+  /** 기세 막대 0~1 (다음 깨달음까지, E305-03에서 신화 경험치 대신). 손에 신이 없으면 null */
   xp: number | null
-  /** 경험치 바 색 (발현한 신의 대표 색) */
+  /** 막대 색 (손의 신의 대표 색) */
   xpColor: string
   /** 왼쪽 위 초상: 발현한 클래스. 발현하지 않았으면 null */
   portrait: { name: string; title: string; color: string; level: number } | null
@@ -41,7 +41,7 @@ export interface HudState {
   lent: readonly { name: string; color: string }[]
   /** 잠든 유물의 신들 (가호, E21-04에서 유물의 힘은 잠든다) */
   blessings: readonly { name: string; color: string }[]
-  /** 경험치가 가득 차 승급 전설에 들어갈 수 있다 */
+  /** 원정이 무르익어 성소 화로에서 귀환(승천)할 수 있다 (E305-03: 성소 전설 대신) */
   promote: boolean
 }
 
@@ -279,7 +279,7 @@ export class Hud {
   private updateStatus(state: HudState): void {
     const { portrait, lent, blessings, promote } = state
     const borrowed = lent.length ? `\n빌린 힘: ${lent.map((b) => b.name).join('·')}` : ''
-    this.statusTip = portrait ? `${portrait.title}\n${portrait.name} ${portrait.level}단계${borrowed}${promote ? ' · 다음 단계 준비됨' : ''}` : ''
+    this.statusTip = portrait ? `${portrait.title}\n${portrait.name} ${portrait.level}단계${borrowed}${promote ? ' · 성소 화로에서 귀환할 수 있다' : ''}` : ''
     const key = `${portrait?.name}|${portrait?.level}|${lent.map((b) => b.name).join()}|${blessings.map((b) => b.name).join()}|${promote}`
     if (key === this.statusKey) return
     this.statusKey = key

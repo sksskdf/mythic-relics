@@ -5,14 +5,12 @@ import { allLevelGains, lendText, levelGains } from '../../myth/levelGains'
 import { type God, godDef, relicDef } from '../../relics/data'
 import { relicMyth, stageName } from '../../gear/mythRelic'
 import { DEMO_MAX_LEVEL, MAX_LEVEL, PER_LIT } from '../../myth/ClassProgress'
+import { awakenDef } from '../../data/awaken'
 import { josa } from '../josa'
 import { relicIcon } from '../relicCard'
 import { classIcon } from '../classIcons'
 import { glyph, SOURCE_COLORS, sourceSigil, unknownSigil } from '../sigils'
 import { el, img, pips, type TabContext } from './dom'
-
-/** 신화권 이름 (숙련 안내) */
-const REALM_NAME: Readonly<Record<string, string>> = { norse: '북유럽', greek: '그리스', china: '중국', japan: '일본', korea: '한국' }
 
 /** 신화 탭 (E12-06): 지금 신화, 눌러 본 신화의 카드, 원천 넷, 발견한 만큼 드러나는 신들의 지도 */
 export class MythTab {
@@ -22,7 +20,7 @@ export class MythTab {
   constructor(private readonly ctx: TabContext) {}
 
   /**
-   * 다음 단계까지의 두 걸음(숙련 채우기 → 전설)과, Lv1~4 단계마다 얻는 것.
+   * 다음 단계로 오르는 길(귀환의 승천, 상한은 장 정복)과, Lv1~4 단계마다 얻는 것.
    * 지난 단계는 밝게, 다음 단계는 금빛 테로 강조한다.
    */
   private promotionGuide(god: God): HTMLElement {
@@ -32,8 +30,8 @@ export class MythTab {
     const box = el('section', 'menu-promo')
     box.style.setProperty('--god', def.color)
 
-    if (!this.ctx.host.afterEnding()) {
-      // 데모 (E304·E305-02): 단계는 귀환할 때 고르는 승천으로 오른다. 상한은 장을 정복할 때마다 하나씩
+    {
+      // 단계는 귀환할 때 고르는 승천으로만 오른다 (E304, E305-03: 엔딩 뒤도 같다). 데모의 상한은 장을 정복할 때마다 하나씩
       const boss = this.ctx.host.nextConquest()
       const steps = el('div', 'menu-promo__steps')
       const how =
@@ -41,27 +39,12 @@ export class MythTab {
           ? '성소 화로에서 원정을 마칠 때 「승천」을 고른다 (자리에 든 신만)'
           : boss && level < DEMO_MAX_LEVEL
             ? `${josa(boss, '을')} 이기면 이 신을 더 올릴 수 있다`
-            : '더 높은 단계는 엔딩 뒤에 열린다'
+            : level < MAX_LEVEL
+              ? '더 높은 단계는 엔딩 뒤에 열린다'
+              : ''
       const step = el('div', `menu-promo__step${level < progress.levelCap ? ' is-now' : ''}`)
       step.append(el('span', 'menu-promo__no', '↑'), el('span', '', how))
       if (level < MAX_LEVEL) steps.append(el('div', 'menu-promo__head', `다음 단계: ${level + 1}단계 ${def.titles[level]}`), step)
-      box.append(steps)
-    } else if (level < progress.levelCap) {
-      const steps = el('div', 'menu-promo__steps')
-      const ratio = progress.xpRatio(god)
-      const ready = progress.readyToPromote(god)
-      const step1 = el('div', `menu-promo__step${ready ? ' is-done' : ' is-now'}`)
-      step1.append(el('span', 'menu-promo__no', '1'), el('span', '', '이 신을 손에 쥐고 싸워 경험치를 채운다 (다른 자리는 절반)'))
-      const bar = el('div', 'ui-bar ui-bar--thin')
-      bar.style.setProperty('--fill', def.color)
-      bar.style.setProperty('--pct', ratio.toFixed(3))
-      step1.append(bar, el('b', '', `${Math.round(ratio * 100)}%`))
-      const step2 = el('div', `menu-promo__step${ready ? ' is-now' : ''}`)
-      step2.append(
-        el('span', 'menu-promo__no', '2'),
-        el('span', '', def.legend ? `성소의 결계에 들어가 전설 「${def.legend.name}」에서 이긴다` : '이 신의 전설은 아직 이 세계에 없다'),
-      )
-      steps.append(el('div', 'menu-promo__head', `다음 단계: ${level + 1}단계 ${def.titles[level]}`), step1, step2)
       box.append(steps)
     }
 
@@ -218,18 +201,17 @@ export class MythTab {
       card.append(buttons)
     }
 
-    // 다음 단계: 못 연 신화는 여는 법, 연 신화는 경험치와 전설
+    // 다음 단계: 못 연 신화는 여는 법(조각 셋, E305-03: 신화 경험치는 없앰), 연 신화는 승천
     if (level === 0) {
       const open = el('div', 'menu-myth__part')
       open.append(el('b', '', '여는 법'))
-      const how = def.hidden ? '숨겨진 신화. 이 신의 유물을 모두 모으면 열린다.' : `${def.name}의 유물을 손에 넣으면 열린다. 고른 신화가 없을 때는 ${REALM_NAME[def.realm] ?? '그 신화권'} 몬스터를 잡아도 경험치가 찬다.`
+      const path = awakenDef(god)
+      const how = path
+        ? `${path.trace.name}에서 흔적을 지키는 것들을 물리치고, 그 땅에서 사냥하고, ${josa(path.guardian.name, '을')} 쓰러뜨리면 깨어난다.`
+        : def.hidden
+          ? '숨겨진 신화. 엔딩 뒤 이 신의 유물을 모두 모으면 열린다.'
+          : `엔딩 뒤 ${def.name}의 유물을 손에 넣으면 열린다.`
       open.append(el('p', '', how))
-      if (!def.hidden) {
-        const bar = el('div', 'ui-bar ui-bar--thin')
-        bar.style.setProperty('--fill', def.color)
-        bar.style.setProperty('--pct', progress.xpRatio(god).toFixed(3))
-        open.append(bar)
-      }
       card.append(open)
     } else card.append(this.promotionGuide(god))
     return card
@@ -279,7 +261,7 @@ export class MythTab {
     const wrap = el('div', 'menu-classes')
     const levelOf = (god: God | undefined): number => (god ? progress.level(god) : 0)
 
-    // 지금 클래스: 문장, 칭호, 레벨 점, 경험치 막대, 승급 전설 두루마리
+    // 지금 클래스: 문장, 칭호, 레벨 점, 다음 단계로 오르는 길
     const now = el('section', 'menu-classes__now')
     const current = loadout.manifested
     if (current) {
@@ -291,28 +273,9 @@ export class MythTab {
       const title = el('div', 'menu-classes__title', progress.title(current))
       title.append(pips(level))
       info.append(title)
-      if (level < progress.levelCap) {
-        const bar = el('div', 'ui-bar ui-bar--thin menu-classes__xp')
-        bar.style.setProperty('--fill', god.color)
-        bar.style.setProperty('--pct', progress.xpRatio(current).toFixed(3))
-        info.append(bar)
-      }
+      // 다음 단계는 귀환의 승천으로 (E305-03: 신화 경험치 막대·전설 두루마리는 없앰)
+      if (level < progress.levelCap) info.append(el('p', 'menu-classes__how', `성소 화로에서 원정을 마칠 때 「승천」을 고르면 ${god.titles[level]}`))
       now.append(info)
-      if (level < progress.levelCap) {
-        const ready = progress.readyToPromote(current)
-        const scroll = el('span', `menu-classes__legend${ready ? ' is-ready' : ''}`)
-        scroll.append(img(glyph('scroll', ready ? '#ffd27a' : '#5d6876', ready ? '#6b5622' : '#222a36')))
-        const next = god.titles[level]!
-        this.ctx.hintOn(
-          scroll,
-          ready
-            ? god.legend
-              ? `「${god.legend.name}」\n성소의 결계 안에서 증명하면 ${next}`
-              : `다음 시련은 아직 이 세계에 없다.\n${next}`
-            : `싸워서 이름을 더 떨쳐야 한다.\n${Math.round(progress.xpRatio(current) * 100)}%`,
-        )
-        now.append(scroll)
-      }
     } else {
       now.classList.add('is-empty')
       now.append(img(unknownSigil(), 'menu-classes__emblem'))

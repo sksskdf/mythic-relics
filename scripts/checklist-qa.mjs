@@ -143,7 +143,7 @@ const sections = {
     return out
   },
 
-  /** E12-3 신화 탭만 보고 다음에 무엇을 해야 하는지 안다: 막 시작했을 때, 신화 하나 연 뒤, 단계를 올릴 수 있을 때 */
+  /** E12-3 신화 탭만 보고 다음에 무엇을 해야 하는지 안다: 막 시작했을 때, 신화 하나 연 뒤, 귀환해 승천할 수 있을 때 */
   async 'e12-3'(browser) {
     const page = await fresh(browser)
     const tab = async (name) => {
@@ -157,9 +157,11 @@ const sections = {
     const empty = await tab('e12-3-none')
     await page.evaluate(() => window.__game.dev.choose('thor'))
     const one = await tab('e12-3-thor')
+    // 원정이 무르익어 성소 화로에서 승천할 수 있을 때 (E305-03: 신화 경험치 대신 귀환)
     await page.evaluate(() => {
       const g = window.__game
-      g.progress.addXp('thor', 1e9)
+      g.expedition.elapsed = 600
+      g.dev.insight(8)
     })
     const ready = await tab('e12-3-ready')
     await page.close()
