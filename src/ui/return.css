@@ -53,3 +53,13 @@
 .oath-card .pick-card__card.is-kept .oath-card__reward {
   color: var(--c-good);
 }
+/* 다음 원정의 깊이 (E305-03, 엔딩 뒤): 「그대로 / +1」 알약 둘 */
+.return-card__depth {
+  display: flex;
+  gap: var(--sp-2);
+  justify-content: center;
+}
+.return-card__depth .ui-pill:disabled {
+  color: var(--c-ink-3);
+  cursor: default;
+}

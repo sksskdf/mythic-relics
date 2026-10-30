@@ -16,6 +16,7 @@ import type { RelicSystem } from '../game/systems/Relics'
 import type { Encounter } from '../game/Encounter'
 import { ENEMIES, GRUNT } from '../enemies/Giant'
 import { insightsAt, SAMPLE_ORDER } from '../data/training'
+import type { DepthProgress } from '../progress/Depth'
 import type { TrainingProgress } from '../progress/Training'
 import type { SkillContext } from '../skills/Skill'
 
@@ -38,6 +39,9 @@ export interface DevParts {
   training: TrainingProgress
   /** 신을 깨우는 길 (E238): 다음 조각을 바로 얻는다 */
   awakening: { skip(god?: string): boolean }
+  /** 깊이 (E305-03): 바로 정하고 배율을 다시 건다 */
+  depth: DepthProgress
+  applyDepth(): void
 }
 
 /**
@@ -111,6 +115,20 @@ export class DevTools {
     for (const g of Object.values(GODS)) if (g.realm === realm && !g.hidden) progress.open(g.id)
     for (let i = 0; i < 4; i++) this.promote()
     bus.emit('progressChanged', {})
+  }
+
+  /**
+   * 깊이를 바로 정한다 (점검 스크립트 `--depth`, 개발 패널). 귀환 카드 없이, 가 본 곳도 함께 올리고 이미 세운 적도 새 배율로 다시 세운다.
+   * 엔딩 뒤 장치라 부르는 쪽이 먼저 엔딩 뒤로 넘긴다 (`game.reachEnding()`)
+   */
+  depth(level: number): void {
+    const { depth, encounter } = this.parts
+    const to = Math.max(1, Math.min(depth.max, Math.round(level)))
+    depth.reached = Math.max(depth.reached, to)
+    depth.level = to
+    this.parts.applyDepth()
+    encounter.resetAll()
+    this.parts.bus.emit('progressChanged', {})
   }
 
   /** 그 신화(없으면 고른 신화)의 다음 제작 재료를 채운다 (대장간 시험) */

@@ -23,8 +23,8 @@
 | 세계 (E15) | 지역 16곳: `RegionDef.zone`(entrance·deep·boss)·`elite`. `nextHop`(봇·지도의 다음 이웃). 지도 자리는 세계 칸(`world.ts`의 CELLS, E239). 대화 장면은 `Game.story(id)`가 처음 보는 일에만 열고, 대화 중에는 세계가 멈춘다 |
 | `src/gear/` | `Loadout`(칸 7·가방·일반 장비 `gear`·유물 단계 `stages`·재료 `materials`), `roll.ts`(일반 장비 굴리기와 단계 `tier`·`landTier`·`landChances`, id는 `g:`로 시작), `mythRelic.ts`(신화마다 유물 하나와 부위·단계, 기본 수치 `relicStats`, 깨어남 `relicAwake`, 효과 배율 `effectScale`, 나머지 유물은 엔딩 뒤 재료), `materials.ts`(신화권 재료·보스 재료와 드랍), `forge.ts`(장 보스 규칙으로 만드는 제작법·제작·분해), `Pickups`, `DropTable`(엔딩 뒤 유물 드랍). 칸에는 유물 id와 장비 id가 섞여 들어가므로 유물만 다루는 곳은 `isRelicId`나 `loadout.relics`로 거른다 |
 | `src/myth/` | `manifest.ts`(고른 신화·가호 판정, 옛 발현 규칙 `legacyManifest`는 옛 저장과 히든 신화만), `ClassProgress`(개방 단계 0~4, 열기 `open`·승천 `ascend`, 단계 상한 `levelCap`(데모 2에서 장 정복마다 +1·끝 3, 엔딩 뒤 4), 큰 걸음 `PER_PROMOTION`·수집 보너스 `PER_OPENED`. 신화 경험치는 E305-03에서 없앰), `levelGains`, `alwaysText`(수치·수집 보너스·별 글) |
-| `src/progress/Ending.ts` | 엔딩 뒤 장치를 여는 한 곳 (E21-06): 위협 단계·시련·균열·편의·신화 4단계·유물 3·4단계·유물 드랍. `game.reachEnding()`이 열고 저장에 남는다 |
-| 원천·위협 단계 (E14) | 빌드 상태에 `sources`(장비의 합, E21-05에서 원천 숙련·공명을 없앰)·`awakening`(0~3). 각성 효과는 `powers.awakening`(`SourceAwakening`)이 기본 공격·처치·걸음·피격에서 돌고, 배율(기본 공격·모든 피해·공격/이동 속도·받는 피해)은 Game이 매 프레임 전투·이동에 곱한다. 위협 단계 배율은 `encounter.threat`·`eliteChance`로 새로 세우는 적에 건다 |
+| `src/progress/Ending.ts` | 엔딩 뒤 장치를 여는 한 곳 (E21-06): 깊이·맹세 다섯·균열·편의·신화 4단계·유물 3·4단계·유물 드랍. `game.reachEnding()`이 열고 저장에 남는다 |
+| 원천·깊이 (E14, E305-03) | 빌드 상태에 `sources`(장비의 합, E21-05에서 원천 숙련·공명을 없앰)·`awakening`(0~3). 각성 효과는 `powers.awakening`(`SourceAwakening`)이 기본 공격·처치·걸음·피격에서 돌고, 배율(기본 공격·모든 피해·공격/이동 속도·받는 피해)은 Game이 매 프레임 전투·이동에 곱한다. 깊이 배율은 `encounter.threat`(옛 이름 그대로)·`eliteChance`로 새로 세우는 적에 건다. 깊이는 엔딩 뒤 귀환 카드에서 고르고(`ExpeditionSystem.returnNow(id, depth)` → `DepthSystem.choose`), 고르면 이미 세운 적도 다시 세운다. 한계를 깸은 깊이 10 원정의 장 보스·수호자 + 귀환 |
 | 읽는 길 | 게임 시스템은 지금 신화·단계를 `ctx.build.chosen`·`ctx.build.level`로 읽는다. 장비 칸 자체를 다루는 곳(장착·저장·유물 화면)은 `powers.loadout`을 본다 |
 
 ## 2차 스프린트 중간 점검에서 나눈 곳 (2026-10-27)
@@ -60,7 +60,7 @@ E12~E14에서 새 규칙을 넣을 때는 `BuildInputs`에 재료를 더하고 `
 | `src/game/systems/Chapters.ts` | 땅 들어섬·보스 처치를 적고 `chapterChanged`·`goalChanged`를 보낸다. `goalView`(목표 한 줄과 채우는 막대) |
 | `src/game/systems/Awakening.ts` | 신을 여는 길은 조각 셋 하나(E305-03: 그리스도 제우스를 깨움, 성소의 신화 고르기 `MythChoice` 없앰). 신을 하나 더 깨우려면 1 + 귀환 + 장 정복보다 적어야 한다(`mayWake`). 유물로 신이 열리는 것은 엔딩 뒤뿐(`Relics.unlock`), 점검용 실행(`?relics=`)은 `Game`이 끼고 시작한 신화 유물의 신을 연다 |
 | `src/world/Barriers.ts`, `World.openLinks`·`refreshLinks` | 막힌 땅으로 가는 통로는 걸을 수 있는 곳에서 빼고 입구에 결계를 세운다. 장이 바뀌면 빛기둥과 함께 풀린다 |
-| `Encounter.landPower` | 땅 id → 적 지수. 무리·보스·전설의 적에 위협 배율과 곱해 건다(`scaled`) |
+| `Encounter.landPower` | 땅 id → 적 지수. 무리·보스·수호자에 깊이 배율과 곱해 건다(`scaled`) |
 | `ui/ChapterHud.ts` | 목표 한 줄(채우는 목표면 막대)과 장 제목 띠. 지도 탭은 `world.goal()`·`nodes().locked`, 작은 지도는 `Game.goalSpot()` |
 | 엔딩 | 마지막 장이 끝나면(`chapterChanged`의 chapter가 null) 엔딩 장면 → `showEnding`(`reachEnding` + 띠·카드). 개발 패널 「목표 건너뛰기」·「장 건너뛰기」는 `Game.skipGoal` |
 

@@ -10,7 +10,6 @@ import { hiddenUnlocked } from '../../myth/manifest'
 import { relicGods } from '../../relics/model'
 import { type ChapterData, parseChapterData } from '../../progress/Chapters'
 import type { ConvenienceData } from '../../progress/Conveniences'
-import type { ThreatData } from '../../progress/Threat'
 import { STARTING_LOOKS } from '../../looks/catalog'
 import { type God, godDef, GODS, isRelicId, relicDef, type RelicId } from '../../relics/data'
 import type { SaveData } from '../SaveData'
@@ -154,13 +153,27 @@ export function fillEmptySlots(slots: (string | null)[], bag: readonly string[],
   return rest
 }
 
+/**
+ * v9 이하의 위협 단계 (E14-03): 열린 가장 높은 단계와 신화권마다 이긴 단계. 지금은 깊이(`progress/Depth.ts`)로 바뀌어
+ * 엔딩 뒤로 칠지(v8 이하)와 장 진행 짐작(v9 이하)에만 읽는다 (E305-03)
+ */
+export function oldThreat(raw: unknown): { unlocked: number; cleared: Record<string, number> } {
+  const o = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
+  const int = (v: unknown, min: number, max: number, fallback: number) => (typeof v === 'number' && Number.isFinite(v) ? Math.round(Math.min(max, Math.max(min, v))) : fallback)
+  const cleared: Record<string, number> = {}
+  if (typeof o.cleared === 'object' && o.cleared !== null) {
+    for (const [realm, n] of Object.entries(o.cleared as Record<string, unknown>)) if (realm.length < 20) cleared[realm] = int(n, 0, 99, 0)
+  }
+  return { unlocked: int(o.unlocked, 1, 99, 1), cleared }
+}
+
 /** v9 이하 → v10: 장 진행을 그때까지 한 것에서 짐작한다 (E22) */
-export function oldChapters(region: SaveData['region'], conveniences: ConvenienceData, threat: ThreatData, materials: Record<string, number>, owned: readonly RelicId[]): ChapterData {
+export function oldChapters(region: SaveData['region'], conveniences: ConvenienceData, cleared: Readonly<Record<string, number>>, materials: Record<string, number>, owned: readonly RelicId[]): ChapterData {
   const entered = new Set<string>([...(region ? [region.id] : []), ...conveniences.visited])
   const beaten = (realm: string) => {
     const boss = Object.values(DATA.enemies).find((e) => e.boss && e.realm === realm && e.role === 'boss')?.boss
     const material = boss ? bossMaterial(boss) : undefined
-    return (threat.cleared[realm] ?? 0) > 0 || (material !== undefined && (materials[material] ?? 0) > 0) || owned.some((id) => isMythRelic(id) && godDef(relicDef(id).god).realm === realm)
+    return (cleared[realm] ?? 0) > 0 || (material !== undefined && (materials[material] ?? 0) > 0) || owned.some((id) => isMythRelic(id) && godDef(relicDef(id).god).realm === realm)
   }
   const bosses = Object.values(REGIONS)
     .filter((r) => r.zone === 'boss' && r.boss && !r.finale && r.realm && beaten(r.realm))

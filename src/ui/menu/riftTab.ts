@@ -9,9 +9,10 @@ export function renderRift(ctx: TabContext, body: HTMLElement): void {
   const head = el('section', 'menu-src__panel')
   if (!rift.open()) {
     head.append(el('div', 'menu-src__title', '균열 · 닫힘'))
-    head.append(el('div', 'menu-src__text', '다섯 신화권의 보스를 모두 위협 10단계에서 이기면 한계를 깨고 균열이 열린다'))
+    const { reached, limit } = rift.depth()
+    head.append(el('div', 'menu-src__text', `깊이 ${limit} 원정에서 장 보스나 수호자를 이기고 귀환하면 한계를 깨고 균열이 열린다`))
     const row = el('div', 'menu-src__levels')
-    for (const p of rift.progress()) row.append(el('span', `ui-pill${p.cleared >= 10 ? ' is-done' : ''}`, `${p.name} ${p.cleared}/10`))
+    row.append(el('span', `ui-pill${reached >= limit ? ' is-done' : ''}`, `깊이 ${reached}/${limit}`))
     head.append(row)
   } else {
     const run = rift.run()

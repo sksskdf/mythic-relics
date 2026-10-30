@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { parseConveniences } from '../src/progress/Conveniences'
-import { parseThreat } from '../src/progress/Threat'
+import { parseDepth } from '../src/progress/Depth'
 import { parseOaths } from '../src/progress/Oaths'
 import { parseRift } from '../src/progress/Rift'
 import { STEP_TABS } from '../src/progress/Tabs'
@@ -29,7 +29,7 @@ const sample: SaveData = {
     choices: { weapon: 'shortSword', cape: null },
   },
   body: { skin: 2, hair: 1, cloth: 3 },
-  threat: parseThreat({ level: 2, unlocked: 3, reached: 2, mastery: { flame: 2 }, battle: 40 }),
+  threat: parseDepth({ level: 2, unlocked: 3, reached: 2, mastery: { flame: 2 }, battle: 40 }),
   conveniences: parseConveniences({ counters: { pickups: 5 }, open: ['autoPickup'] }),
   oaths: parseOaths({ kept: ['glass', 'slow', 'nope'], best: { glass: 371, nope: 5 } }),
   rift: parseRift({ best: 12, stars: 3, lit: ['thor', 'odin', 'nobody'] }),
@@ -146,18 +146,18 @@ describe('저장 데이터', () => {
     expect(data?.looks.choices).toEqual({})
   })
 
-  it('v6: 옛 순환 성장은 재료로 바꿔 주고, 위협 단계는 1단계에서 시작한다 (E14-06)', () => {
+  it('v6: 옛 순환 성장은 재료로 바꿔 주고, 위협 단계(지금 깊이)는 1에서 시작한다 (E14-06)', () => {
     const { threat: _t, conveniences: _c, ...rest } = sample
     const v5 = { ...rest, version: 5, materials: { frostShard: 2 }, cycle: { essence: { flame: 250, hunt: 80.5, wind: 0, stone: 70 }, ash: 7 } }
     const data = parseSave(JSON.stringify(v5))
     expect(data?.version).toBe(SAVE_VERSION)
     // 결정 400.5 → 서리 조각 4, 재 7 → 거인 왕의 심장 2
     expect(data?.materials).toEqual({ prototype: 18, giantHeart: 2 })
-    expect(data?.threat).toEqual({ level: 1, unlocked: 1, reached: 1, cleared: {}, limitBroken: false })
+    expect(data?.threat).toEqual({ level: 1, reached: 1, limitBroken: false })
     expect(data?.conveniences.open).toEqual([])
     // 옛 별자리는 v5 저장에 없으면 0
-    // 위협 단계는 열린 단계를 넘지 않는다
-    expect(parseSave(JSON.stringify({ ...sample, threat: { level: 9, unlocked: 3, reached: 5 } }))?.threat).toMatchObject({ level: 3, unlocked: 3, reached: 3 })
+    // 깊이는 가 본 곳을 넘지 않는다 (옛 위협 단계의 열린 단계는 버린다, E305-03)
+    expect(parseSave(JSON.stringify({ ...sample, threat: { level: 9, unlocked: 3, reached: 5 } }))?.threat).toEqual({ level: 5, reached: 5, limitBroken: false })
   })
 
   it('기본 모습은 범위 밖이거나 없으면 기본값', () => {
@@ -180,7 +180,7 @@ describe('저장 v9: 세 축 정리 (E21-07)', () => {
   it('물려받은 수치·원천 숙련·전투 경험은 버린다', () => {
     const data = parseSave(v8({ inherited: { mjolnir: { kind: 'damage', value: 0.05 } }, threat: { level: 1, unlocked: 1, reached: 1, mastery: { flame: 3 }, battle: 200 } }))
     expect(data && 'inherited' in data).toBe(false)
-    expect(data?.threat).toEqual({ level: 1, unlocked: 1, reached: 1, cleared: {}, limitBroken: false })
+    expect(data?.threat).toEqual({ level: 1, reached: 1, limitBroken: false })
   })
 
   it('위협 단계·시련·균열을 해 본 옛 저장은 엔딩 뒤로, 처음 땅만 걸은 저장은 엔딩 전으로', () => {

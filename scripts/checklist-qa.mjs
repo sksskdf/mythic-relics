@@ -356,31 +356,36 @@ const sections = {
     return rows
   },
 
-  /** E14-2 위협 단계를 올리면 확실히 어려워지고, 보상이 좋아진 게 보인다: 올리는 순간 화면, 단계별 적 배율 */
+  /** E14-2 깊이를 올리면 확실히 어려워지고, 보상이 좋아진 게 보인다 (E305-03): 귀환 카드의 「그대로 / +1」, 처음 가는 깊이의 큰 카드, 깊이별 적 배율 */
   async 'e14-2'(browser) {
-    const page = await fresh(browser)
-    const r = await page.evaluate(() => {
+    const page = await fresh(browser, '?fresh&relics=&region=midgard&noscenes')
+    const scale = await page.evaluate(() => {
       const g = window.__game
       g.dev.choose('thor')
-      g.dev.teleport(2, -3)
       const scale = []
       for (let lv = 1; lv <= 10; lv++) {
-        Object.assign(g.threat, { unlocked: 10, reached: 10 })
-        g.threat.level = lv
-        g.threatSystem.apply()
+        g.depth.level = lv
+        g.depthSystem.apply()
         scale.push({ level: lv, ...g.encounter.threat, elite: Math.round(g.encounter.eliteChance * 100) / 100 })
       }
-      // 위협 단계는 엔딩 뒤 장치 (E21-06): 처음 오르는 단계를 고르면 큰 카드
+      // 깊이는 엔딩 뒤 장치 (E21-06): 원정이 무르익어 성소 화로에 서면 귀환 카드에 깊이 알약
+      Object.assign(g.depth, { level: 1, reached: 1 })
+      g.depthSystem.apply()
       g.reachEnding()
-      Object.assign(g.threat, { unlocked: 2, reached: 1, level: 1 })
-      g.threatSystem.apply()
-      const ok = g.threatSystem.choose(2)
-      return { scale, ok }
+      g.expedition.elapsed = 300
+      g.training.xp = 5000
+      g.dev.teleport(g.sanctuary.center.x, g.sanctuary.center.z)
+      return scale
     })
+    await page.waitForFunction(() => window.__game.returnCardOpen, null, { timeout: 15000 })
+    await page.locator('.return-card__depth .ui-pill', { hasText: '+1' }).click()
+    await shot(page, 'e14-2-return-card')
+    await page.locator('.return-card .pick-card__card').first().click()
     await page.waitForTimeout(700)
     await shot(page, 'e14-2-advance')
+    const after = await page.evaluate(() => ({ level: window.__game.depth.level, reached: window.__game.depth.reached }))
     await page.close()
-    return r
+    return { scale, after }
   },
 
   /** E14-3 반복하던 손일(줍기·분해)이 자동이 될 때 반갑다: 자동 줍기가 열리는 순간 */
@@ -392,7 +397,7 @@ const sections = {
       // 자동 줍기는 처음부터, 나머지 편의는 엔딩 뒤 (E21-06): 자동 분해가 열리는 순간
       g.reachEnding()
       const before = [...g.conveniences.open]
-      g.threatSystem.count('salvaged', 400)
+      g.depthSystem.count('salvaged', 400)
       return { before, after: [...g.conveniences.open] }
     })
     await page.waitForTimeout(600)
@@ -445,9 +450,8 @@ const sections = {
       g.dev.choose('thor')
       g.dev.teleport(2, -3)
       g.reachEnding()
-      for (const realm of ['norse', 'greek', 'china', 'japan', 'korea']) g.threat.cleared[realm] = 10
-      Object.assign(g.threat, { unlocked: 10, reached: 10, level: 10 })
-      g.threatSystem.breakLimit()
+      g.dev.depth(10)
+      g.depthSystem.breakLimit()
     })
     await page.waitForTimeout(500)
     await shot(page, 'e17-1-break')

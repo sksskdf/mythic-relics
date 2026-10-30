@@ -7,7 +7,7 @@ import { MATERIAL_CAP } from '../gear/Loadout'
 import { legacyManifest } from '../myth/manifest'
 import { type ChapterData, parseChapterData } from '../progress/Chapters'
 import { type ConvenienceData, parseConveniences } from '../progress/Conveniences'
-import { parseThreat, type ThreatData } from '../progress/Threat'
+import { type DepthData, parseDepth } from '../progress/Depth'
 import { type OathData, oathsFromTrials, parseOaths } from '../progress/Oaths'
 import { parseRift, type RiftData } from '../progress/Rift'
 import { parseTraining, type TrainingData } from '../progress/Training'
@@ -18,7 +18,7 @@ import { type BodyLook, parseBody } from '../looks/body'
 import { isLookId, lookDef, type LookSlot, STARTING_LOOKS, WARDROBE_SLOTS } from '../looks/catalog'
 import type { LookChoice } from '../looks/outfit'
 import { GODS, type God, isRelicId, type RelicId } from '../relics/data'
-import { legacySlots, legacyStarRenown, migrateLooks, oldChapters, oldTrainingXp, fillEmptySlots, meltOverflow, openOwned, realmToPrototype, refundCycle, refundMythMaterials } from './migrate/legacy'
+import { legacySlots, legacyStarRenown, migrateLooks, oldChapters, oldThreat, oldTrainingXp, fillEmptySlots, meltOverflow, openOwned, realmToPrototype, refundCycle, refundMythMaterials } from './migrate/legacy'
 
 /**
  * 저장 형식 버전. 형식이 바뀌면 올리고, 옛 형식을 옮기는 코드를 둔다.
@@ -48,6 +48,7 @@ import { legacySlots, legacyStarRenown, migrateLooks, oldChapters, oldTrainingXp
  * - v16: 원정 (E304). 원정 번호·명성·원천 불씨·기록·가보. 옛 저장은 첫 원정에서 이어 간다(신 단계는 그대로라 명성 없이도 힘이 같다)
  * - v17: 맹세 (E305-01). 시련 기록(trials) → 맹세 기록(oaths), 원정에 건 맹세(expedition.oath). 한 단계라도 깬 시련은 짝인 맹세를 지킨 것으로.
  *   균열의 성좌판을 걷었다(E305-03): rift는 깊이 기록만, 밝힌 별과 남은 별 하나마다 명성 20
+ *   위협 단계는 깊이로(E305-03): 키 threat는 그대로 {level, reached, limitBroken}, 열린 단계·신화권마다 이긴 단계는 버린다(v9 이하 옮기기만 `oldThreat`로 읽는다)
  */
 export const SAVE_VERSION = 17
 
@@ -81,8 +82,8 @@ export interface SaveData {
   looks: { unlocked: string[]; choices: Partial<Record<LookSlot, LookChoice>> }
   /** 처음에 고른 기본 모습. 옛 저장에는 없어서 기본값 */
   body: BodyLook
-  /** 세계 위협 단계와 원천 숙련 (E14). 옛 저장에는 없어서 1단계 */
-  threat: ThreatData
+  /** 깊이 (E305-03, 옛 위협 단계 E14라 키 이름은 그대로). 옛 저장에는 없어서 1 */
+  threat: DepthData
   /** 편의 자동화 (E14-05) */
   conveniences: ConvenienceData
   /** 맹세: 지킨 맹세와 기록 (E305-01, v16 이하는 시련 기록에서) */
@@ -211,14 +212,15 @@ export function parseSave(text: string | null): SaveData | null {
   // 12칸을 넘친 가방은 옛 저장에서만 녹인다 (지금은 가방이 차면 더 넣지 않는다)
   if ((data.version as number) < 15) fullBag = meltOverflow(fullBag, gearById, materials)
   const keep = new Set([...slots.slice(0, SLOT_PARTS.length), ...fullBag, ...ground.map((g) => g.id)])
-  const threat = parseThreat(data.threat)
+  const threat = parseDepth(data.threat)
   const oaths = (data.version as number) < 17 ? oathsFromTrials(data.trials) : parseOaths(data.oaths)
   const rift = parseRift(data.rift)
-  // 엔딩 뒤 장치를 해 본 옛 저장은 엔딩 뒤로 친다 (E21-06)
-  const tried = threat.limitBroken || threat.unlocked > 1 || oaths.kept.length > 0 || rift.best > 0
+  // 엔딩 뒤 장치를 해 본 옛 저장은 엔딩 뒤로 친다 (E21-06). 옛 위협 단계는 열린 단계(unlocked)까지 본다
+  const oldDanger = (data.version as number) < 10 ? oldThreat(data.threat) : null
+  const tried = threat.limitBroken || (oldDanger?.unlocked ?? 1) > 1 || oaths.kept.length > 0 || rift.best > 0
   const region = parseRegion(data.region)
   const conveniences = parseConveniences(data.conveniences)
-  const chapters = (data.version as number) < 10 ? oldChapters(region, conveniences, threat, materials, relicsOwned) : parseChapterData(data.chapters)
+  const chapters = oldDanger ? oldChapters(region, conveniences, oldDanger.cleared, materials, relicsOwned) : parseChapterData(data.chapters)
   const awaken = openedAwaken(parseAwaken(data.awaken), myths)
   return {
     version: SAVE_VERSION,

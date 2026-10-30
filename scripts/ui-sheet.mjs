@@ -93,15 +93,12 @@ try {
       // 수련 (E236): 깨달음 여덟, 힘 갈래 넷과 손 갈래 둘을 찍고 둘은 남긴다
       g.dev.insight(8)
       for (const id of ['awaken', 'edge', 'fury', 'cleave', 'quick', 'stride']) g.dev.train(id)
-      // 위협 단계·균열은 엔딩 뒤 장치라 엔딩 뒤로 넘겨 모든 탭을 찍는다 (E21-06)
+      // 깊이·균열은 엔딩 뒤 장치라 엔딩 뒤로 넘겨 모든 탭을 찍는다 (E21-06): 깊이 10에서 한계를 깼다 (E305-03)
       g.reachEnding()
-      Object.assign(g.threat, { unlocked: 3, reached: 3, level: 3 })
       for (const id of ['silence', 'glass', 'crowd']) g.oaths.keep(id, 420)
-      for (const realm of ['norse', 'greek', 'china', 'japan', 'korea']) g.threat.cleared[realm] = 10
-      Object.assign(g.threat, { unlocked: 10, reached: 10 })
-      g.threatSystem.breakLimit()
+      g.dev.depth(10)
+      g.depthSystem.breakLimit()
       g.rift.reach(15)
-      g.threatSystem.apply()
       g.bus.emit('progressChanged', {})
     })
     const wait = async (frames = 3) => {

@@ -17,13 +17,13 @@ describe('대화 장면 데이터 (E12-10)', () => {
     expect(opening.lines.every((l) => l.who === '촌장')).toBe(true)
   })
 
-  it('대화 네 곳이 빠짐없이 있다 (E15-06): 신화 개방 21, 보스 다섯, 마을 사람마다, 촌장·대장장이', () => {
+  it('대화 네 곳이 빠짐없이 있다 (E15-06): 신화 개방 21, 보스 다섯, 마을 사람마다, 대장장이 (촌장의 위협 단계 글은 E305-03에서 걷음)', () => {
     const cap = (id: string) => id.charAt(0).toUpperCase() + id.slice(1)
     for (const god of Object.keys(GODS)) expect(SCENES[`myth${cap(god)}`], god).toBeDefined()
     for (const r of Object.values(REGIONS)) if (r.boss) expect(SCENES[`boss${cap(r.boss.enemy ?? 'king')}`], r.id).toBeDefined()
     const talks = Object.values(SCENES).filter((s) => s.id.startsWith('talk'))
     for (const npc of REGIONS[START_REGION]!.npcs) expect(talks.some((s) => s.lines[0]!.who === npc.name), npc.name).toBe(true)
-    expect(SCENES.threatUp?.lines[0]?.who).toBe('촌장')
+    expect(SCENES.threatUp).toBeUndefined()
     expect(SCENES.forgeFirst?.lines[0]?.who).toBe('대장장이')
     // 신화·보스 장면은 어디서나 열리고, 말하는 사람은 그 신화·보스다
     expect(SCENES.mythThor!.region).toBeNull()

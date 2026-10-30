@@ -7,7 +7,7 @@ import type { TrainingProgress } from '../progress/Training'
 import type { AwakenProgress } from '../progress/Awakening'
 import type { TabUnlocks } from '../progress/Tabs'
 import type { Ending } from '../progress/Ending'
-import type { ThreatProgress } from '../progress/Threat'
+import type { DepthProgress } from '../progress/Depth'
 import type { OathProgress } from '../progress/Oaths'
 import type { RiftProgress } from '../progress/Rift'
 import type * as THREE from 'three'
@@ -79,8 +79,8 @@ export interface GameContext {
   readonly pickups: Pickups
   readonly progress: ClassProgress
   readonly drops: DropTable
-  /** 세계 위협 단계와 원천 숙련 (E14-03·04) */
-  readonly threat: ThreatProgress
+  /** 깊이 (E305-03, 옛 위협 단계 E14-03) */
+  readonly depth: DepthProgress
   /** 균열 기록 (E17) */
   readonly rift: RiftProgress
   /** 맹세 기록과 영구 보상 (E305-01) */

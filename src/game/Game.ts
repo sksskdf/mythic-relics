@@ -82,8 +82,8 @@ import { ENEMIES } from '../enemies/Giant'
 import { ChapterHud } from '../ui/ChapterHud'
 import { Conveniences } from '../progress/Conveniences'
 import { Ending } from '../progress/Ending'
-import { ThreatProgress } from '../progress/Threat'
-import { ThreatSystem } from './systems/Threat'
+import { DepthProgress } from '../progress/Depth'
+import { DepthSystem } from './systems/Depth'
 import { OathSystem } from './systems/Oaths'
 import type { OathId } from '../data/oaths'
 import { OathProgress } from '../progress/Oaths'
@@ -127,14 +127,14 @@ const ENDING_CARD: MomentCard = {
   kind: '첫 엔딩',
   title: '엔딩 뒤가 열렸다',
   color: '#ffd27a',
-  lines: ['남은 신화권의 결계가 풀렸다', '위협 단계: 같은 땅을 더 세게 다시 걷는다 (마을 촌장)', '맹세 다섯·균열이 열렸다 (정보 화면)', '신화 4단계·유물 3·4단계, 땅에 떨어지는 유물'],
+  lines: ['남은 신화권의 결계가 풀렸다', '깊이: 귀환할 때 다음 원정을 한 걸음 더 깊이 고른다', '맹세 다섯이 열렸다, 깊이 10을 넘어서면 균열', '신화 4단계·유물 3·4단계, 땅에 떨어지는 유물'],
 }
 
 /** 플레이 기록: 검증과 수치 조정에 쓴다. */
 export interface PlayEvent {
   /** 게임 시간 (초) */
   t: number
-  type: 'relic' | 'manifest' | 'open' | 'fragment' | 'forge' | 'gear' | 'kill' | 'bossKill' | 'death' | 'promote' | 'hurt' | 'threat' | 'region' | 'oath' | 'rift' | 'chapter' | 'ending'
+  type: 'relic' | 'manifest' | 'open' | 'fragment' | 'forge' | 'gear' | 'kill' | 'bossKill' | 'death' | 'promote' | 'hurt' | 'depth' | 'region' | 'oath' | 'rift' | 'chapter' | 'ending'
   detail?: string
 }
 
@@ -164,13 +164,13 @@ export class Game {
   )
   readonly drops = new DropTable()
   readonly wardrobe = new Wardrobe()
-  readonly threat = new ThreatProgress()
+  readonly depth = new DepthProgress()
   readonly oaths = new OathProgress()
   readonly rift = new RiftProgress()
   readonly riftSystem: RiftSystem
   readonly oathSystem: OathSystem
   private readonly oathCard: OathCard
-  readonly threatSystem: ThreatSystem
+  readonly depthSystem: DepthSystem
   /** 대화 장면을 언제 여는가: 처음 보는 일, 마을 사람에게 말 걸기, 미룬 장면 (E15-06) */
   private readonly storyline: Storyline
   readonly conveniences = new Conveniences(() => this.ending.has('conveniences'))
@@ -432,7 +432,7 @@ export class Game {
       drops: this.drops,
       wardrobe: this.wardrobe,
       scenesSeen,
-      threat: this.threat,
+      depth: this.depth,
       oaths: this.oaths,
       rift: this.rift,
       conveniences: this.conveniences,
@@ -443,7 +443,7 @@ export class Game {
       tabs: this.tabs,
       awaken: this.awaken,
       uniques: new UniqueState(),
-      build: new Build({ powers: this.powers, progress: this.progress, threat: this.threat, oaths: this.oaths, oath: () => this.expedition.oath, training: this.training, awaken: this.awaken, expedition: this.expedition }),
+      build: new Build({ powers: this.powers, progress: this.progress, oaths: this.oaths, oath: () => this.expedition.oath, training: this.training, awaken: this.awaken, expedition: this.expedition }),
       skills,
     }
     this.damage = new DamageSystem(this.ctx)
@@ -533,7 +533,7 @@ export class Game {
     this.hud.onSlotHover = (i, anchor) => this.hover.slot(hudRelic(i), anchor)
     this.growth = new ProgressionSystem(this.ctx)
     this.life = new HeroLife(this.ctx)
-    this.threatSystem = new ThreatSystem(this.ctx)
+    this.depthSystem = new DepthSystem(this.ctx)
     this.chapterSystem = new ChapterSystem(this.ctx)
     this.swapCard = new SwapCard(this.hud.root)
     // 새 신의 손·심장 부품이 왔는데 자리가 차 있으면 두 갈래 카드 (E302-03)
@@ -563,6 +563,7 @@ export class Game {
       offering: () => this.returnCard.open,
       ascend: (god) => this.growth.promote(god),
       merge: (uids) => void this.relics.merge(uids),
+      deepen: (level) => void this.depthSystem.choose(level),
     })
     // 맹세 (E305-01): 귀환 2부터 다시 떠날 때 출발 카드
     this.oathSystem = new OathSystem(this.ctx, {
@@ -572,7 +573,7 @@ export class Game {
     })
     this.riftSystem = new RiftSystem(
       this.ctx,
-      this.threatSystem,
+      this.depthSystem,
       {
         enter: (region) => this.world.enter(region),
         home: () => this.world.travelTo(START_REGION),
@@ -611,6 +612,8 @@ export class Game {
       encounter: this.encounter,
       training: this.training,
       awakening: this.awakening,
+      depth: this.depth,
+      applyDepth: () => this.depthSystem.apply(),
     })
     this.audio = new AudioEngine(this.settings.volume, { mobile: this.touch })
     this.attackFx = new AttackFx({ fx: this.fx, hero: this.hero, combat: this.combat, build: this.ctx.build, audio: this.audio })
@@ -630,9 +633,9 @@ export class Game {
         applyStats: () => this.growth.applyStats(),
         applyLooks: () => this.appearance.apply(),
       })
-      // 위협 단계 배율은 불러온 단계로 (이미 세운 적도 다시 세운다)
-      this.threatSystem.apply()
-      if (this.threat.level > 1) this.encounter.resetAll()
+      // 깊이 배율은 불러온 깊이로 (이미 세운 적도 다시 세운다)
+      this.depthSystem.apply()
+      if (this.depth.level > 1) this.encounter.resetAll()
       // 건 맹세 (E305-01): 빈 손·홀로의 도는 자리와 무리 크기
       this.oathSystem.sync()
       this.chapterSystem.sync()
@@ -711,7 +714,7 @@ export class Game {
     bus.on('manifested', ({ god }) => record('manifest', god))
     bus.on('giantKilled', ({ giant }) => record(giant.spec.boss ? 'bossKill' : 'kill', giant.spec.boss))
     bus.on('heroHurt', ({ damage }) => record('hurt', String(Math.round(damage))))
-    bus.on('threatChanged', ({ level }) => record('threat', String(level)))
+    bus.on('depthChanged', ({ level }) => record('depth', String(level)))
     bus.on('regionEntered', ({ id }) => record('region', id))
     bus.on('chapterChanged', ({ chapter }) => record('chapter', chapter?.id ?? 'end'))
     bus.on('riftFloor', ({ depth }) => record('rift', `floor:${depth}`))

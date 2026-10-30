@@ -92,7 +92,7 @@ export class Encounter {
   private regionPower = 1
   /** 땅 id → 그 땅 적의 세기 (장 데이터의 적 지수, E22-02). 생명은 그만큼, 피해는 landScale을 따른다 */
   landPower: (id: string | undefined) => number = () => 1
-  /** 위협 단계 배율 (E14-03): 새로 세우는 적에 건다 */
+  /** 깊이 배율 (E305-03, 옛 위협 단계라 이름은 threat): 새로 세우는 적에 건다 */
   threat = { hp: 1, damage: 1 }
   /** 무리 크기 배율 (맹세 「두 배의 무리」, E305-01): 새로 채우는 무리에 건다 */
   crowd = 1
@@ -369,7 +369,7 @@ export class Encounter {
     return { camps: this.camps.map((c) => c.center), boss: this.bossHome }
   }
 
-  /** 모든 거인을 지우고 무리와 거인 왕을 처음처럼 다시 세운다 (위협 단계가 바뀌었을 때·개발 패널). 이웃 땅의 무리도 다시 세운다 */
+  /** 모든 거인을 지우고 무리와 거인 왕을 처음처럼 다시 세운다 (깊이가 바뀌었을 때·개발 패널). 이웃 땅의 무리도 다시 세운다 */
   resetAll(): void {
     for (const giant of [...this.giants]) this.remove(giant)
     for (const camp of this.camps) {
@@ -444,7 +444,7 @@ export class Encounter {
     }
   }
 
-  /** 위협 단계 배율에 그 땅의 세기를 곱한다 (E22-02) */
+  /** 깊이 배율에 그 땅의 세기를 곱한다 (E22-02) */
   private scaled(power: number): { hp: number; damage: number } {
     const land = landScale(power)
     return { hp: this.threat.hp * land.hp, damage: this.threat.damage * land.damage }

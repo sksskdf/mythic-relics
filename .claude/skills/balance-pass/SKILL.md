@@ -26,7 +26,7 @@ description: 게임 수치를 바꾸는 한 바퀴. 목표 띠를 정하고, src
 | 신화·유물 | `node scripts/myth-trial.mjs` | 1분당 처치 중앙값 ±20% |
 | 원천 각성 | `node scripts/source-trial.mjs` | 원천 넷 평균 ±25% |
 | 적 | `node scripts/enemy-trial.mjs` | 역할별 피격·처치 시간, 지역 보스 다섯 |
-| 위협 단계·균열 (엔딩 뒤), 맹세 | `node scripts/playtest.mjs 1 60 --threat=N` / `--rift …` / `--oaths` | `CLAUDE.md` 명령 설명 |
+| 깊이·균열 (엔딩 뒤), 맹세 | `node scripts/playtest.mjs 1 60 --depth=N` (깊이 하나에 고정은 `--depth-at=N`) / `--rift …` / `--oaths` | `CLAUDE.md` 명령 설명 |
 
 3. 봇은 운에 따라 흔들린다. 판정이 걸린 숫자는 두 판 이상 돌리고 범위로 적는다
 4. 띠를 넘지 못하면 1로 돌아간다. 세 바퀴를 넘기면 손잡이를 잘못 골랐을 수 있으니 식을 다시 따라간다

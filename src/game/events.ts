@@ -38,8 +38,8 @@ export interface GameEvents {
   /** 균열 층에 들어갔다 / 균열에서 나왔다 (E17) */
   riftFloor: { depth: number }
   riftEnded: { depth: number; reason: 'left' | 'fell' }
-  /** 위협 단계가 바뀌었다 (E14-03) */
-  threatChanged: { level: number }
+  /** 깊이가 바뀌었다 (E305-03, 귀환 카드의 「+1」) */
+  depthChanged: { level: number }
   /** 일반 장비를 주웠다 (E13-02) */
   gearPicked: { item: GearItem }
   /** 신위 칸의 빌린 칸에 신을 넣었다 (E237) */

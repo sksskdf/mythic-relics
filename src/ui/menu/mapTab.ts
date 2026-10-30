@@ -153,13 +153,13 @@ export function renderMap(ctx: TabContext, body: HTMLElement): void {
     label.style.left = `${((n.x - cx + half) / (half * 2)) * 100}%`
     label.style.top = `${((n.y - cy + half) / (half * 2)) * 100}%`
     label.append(el('span', '', n.name))
-    if (n.zone === 'boss' && n.cleared > 0) label.append(el('small', '', `${n.cleared}단계 이김`))
+    if (n.zone === 'boss' && n.beaten) label.append(el('small', '', '이김'))
     label.disabled = !(warp && n.found && !n.here)
     label.addEventListener('click', () => world.warp(n.id) && ctx.close())
     ctx.hintOn(label, () => {
       const zone = n.zone === 'entrance' ? '입구 들판' : n.zone === 'deep' ? '깊은 땅 (정예가 많다)' : n.zone === 'boss' ? '보스의 땅' : '마을'
       const how = n.here ? '지금 여기' : warp ? (n.found ? '누르면 바로 간다' : '성소를 밟으면 켜진다') : n.found ? '성소를 켰다' : '아직 성소를 켜지 않았다'
-      const won = n.zone === 'boss' && n.cleared > 0 ? ` · ${n.cleared}단계 이김` : ''
+      const won = n.zone === 'boss' && n.beaten ? ' · 이김' : ''
       const seal = n.locked ? '\n결계로 막혀 있다' : ''
       const next = goal?.region === n.id ? `\n다음 목표: ${goal.text}` : ''
       const found = marks.length ? `\n신의 흔적: ${marks.map((t) => t.name).join('·')}` : ''

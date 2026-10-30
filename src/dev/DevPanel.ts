@@ -1,7 +1,7 @@
 import { THEME_IDS, type ThemeId } from '../audio/music'
 import { CONQUESTS } from '../data/chapters'
 import { SOUND_CUES } from '../audio/sounds'
-import { type Realm, REALMS } from '../data/classKit'
+import { type Realm, REALM_NAMES, REALMS } from '../data/classKit'
 import { REGIONS } from '../data/regions'
 import type { EliteKind } from '../enemies/elite'
 import { ENEMIES, type GiantSpec, GRUNT } from '../enemies/Giant'
@@ -127,7 +127,6 @@ export class DevPanel {
     const g = this.game
     // 신화권 → 신화 → 유물 그림 칸. 그림을 누르면 끼고 빼기(낀 것은 밝게), 신화 이름을 누르면 그 묶음을 끼고 그 신화를 고른다.
     // 함께 쓰는 유물(쿠사나기·토츠카)은 스사노오와 아수라왕 양쪽에 보인다.
-    const REALM_NAMES: Record<string, string> = { norse: '북유럽', greek: '그리스', china: '중국', japan: '일본', korea: '한국', hidden: '히든' }
     const wearSet = (god: God) => {
       g.dev.unequipAll()
       for (const id of RELIC_IDS.filter((r) => relicGods(relicDef(r)).includes(god)).slice(0, 4)) g.dev.equip(id)
@@ -271,14 +270,16 @@ export class DevPanel {
           }),
         ),
       ),
-      // 엔딩 뒤 장치 (E21-06)·위협 단계·편의 (E14)
+      // 엔딩 뒤 장치 (E21-06)·깊이·편의 (E14, E305-03)
       row(
         button('엔딩 뒤로', () => {
           g.reachEnding()
           g.menu.refresh()
         }),
-        button('위협 단계 열기', () => {
-          g.threat.unlocked = Math.min(10, g.threat.unlocked + 1)
+        // 깊이 (E305-03): 귀환 카드의 「+1」처럼 한 걸음 더 깊이 (엔딩 뒤 장치라 엔딩 뒤로 넘긴다)
+        button('깊이 +1', () => {
+          if (!g.ending.reached) g.reachEnding()
+          g.depthSystem.choose(Math.min(g.depth.max, g.depth.level + 1))
           g.menu.refresh()
         }),
         // 맹세 (E305-01): 아직 못 지킨 것 하나를 걸고, 건 맹세를 지킨 것으로
@@ -291,9 +292,9 @@ export class DevPanel {
           g.menu.refresh()
         }),
         button('한계를 깸', () => {
-          for (const realm of ['norse', 'greek', 'china', 'japan', 'korea']) g.threat.cleared[realm] = 10
-          Object.assign(g.threat, { unlocked: 10, reached: 10, level: 10 })
-          g.threatSystem.breakLimit()
+          if (!g.ending.reached) g.reachEnding()
+          g.dev.depth(10)
+          g.depthSystem.breakLimit()
           g.menu.refresh()
         }),
         button('균열 기록 +5층', () => {
@@ -384,12 +385,11 @@ export class DevPanel {
     // 적 데이터(enemies.json)에 있는 적을 고르고 몇 마리 부를지 정한다. 여럿이면 주인공을 둘러싼다.
     // 신화권 순서로 늘어놓고, 이름 앞에 신화권과 역할을 붙인다
     const REALM_ORDER = ['norse', 'greek', 'china', 'japan', 'korea']
-    const REALM_SHORT: Record<string, string> = { norse: '북유럽', greek: '그리스', china: '중국', japan: '일본', korea: '한국' }
     const ROLE_NAMES: Record<string, string> = { brute: '근접', charger: '돌진', ranged: '원거리', guard: '방패', summoner: '부르기', boss: '보스', guardian: '수호자' }
     const enemies = Object.values(ENEMIES)
       .slice()
       .sort((a, b) => REALM_ORDER.indexOf(a.realm ?? '') - REALM_ORDER.indexOf(b.realm ?? ''))
-      .map((spec) => [spec.id, `${REALM_SHORT[spec.realm ?? ''] ?? '-'} · ${spec.name} (${ROLE_NAMES[spec.role]})`] as const)
+      .map((spec) => [spec.id, `${(REALM_NAMES as Readonly<Record<string, string>>)[spec.realm ?? ''] ?? '-'} · ${spec.name} (${ROLE_NAMES[spec.role]})`] as const)
     let count = 1
     let elite: EliteKind | null = null
     const call = (spec: GiantSpec, at: { x: number; z: number }) => {

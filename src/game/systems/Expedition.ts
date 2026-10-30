@@ -25,13 +25,15 @@ const clock = (s: number): string => `${Math.floor(s / 60)}:${String(Math.floor(
 /** 게임이 귀환 시스템에 넘기는 것 */
 export interface ExpeditionParts {
   /** 귀환 카드를 보인다 */
-  offer(view: ReturnView, pick: (id: string) => void, later: () => void): void
+  offer(view: ReturnView, pick: (id: string, depth?: number) => void, later: () => void): void
   /** 귀환 카드가 떠 있다 */
   offering(): boolean
   /** 신을 한 단계 올린다 (승천, 큰 카드와 함께) */
   ascend(god: God): void
   /** 가방의 셋을 합친다 (자동 합치기, 카드와 함께) */
   merge(uids: readonly string[]): void
+  /** 다음 원정의 깊이를 정한다 (엔딩 뒤 귀환 카드의 「+1」, 이미 세운 적도 다시 세운다) */
+  deepen(level: number): void
 }
 
 /**
@@ -119,7 +121,7 @@ export class ExpeditionSystem {
 
   /** 귀환 카드에 보일 것 */
   view(): ReturnView {
-    const { expedition } = this.ctx
+    const { expedition, depth, ending } = this.ctx
     const p = expedition.preview()
     const heirloom = expedition.heirloomSlots
     return {
@@ -132,19 +134,24 @@ export class ExpeditionSystem {
       keeps: `깨운 신·신 단계·유물표·원형·장 진행·웨이포인트${heirloom > 0 ? `·가장 좋은 장비 ${heirloom}` : ''}`,
       clears: '기세(수련 마디), 일반 장비',
       branches: this.branches(),
+      // 깊이 (E305-03, D9): 엔딩 뒤에만 다음 원정을 그대로나 한 걸음 더 깊이
+      ...(ending.has('depth') ? { depth: { now: depth.level, max: depth.max } } : {}),
     }
   }
 
   private offer(): void {
     this.parts.offer(
       this.view(),
-      (id) => this.returnNow(id),
+      (id, level) => this.returnNow(id, level),
       () => (this.declined = true),
     )
   }
 
-  /** 귀환한다 (카드의 갈래, 봇·점검). 갈래 id는 `ascend:신` 또는 `flame:원천`. 받은 명성 (못 했으면 -1) */
-  returnNow(id: string): number {
+  /**
+   * 귀환한다 (카드의 갈래, 봇·점검). 갈래 id는 `ascend:신` 또는 `flame:원천`, depth는 다음 원정의 깊이(엔딩 뒤, 없으면 그대로).
+   * 받은 명성 (못 했으면 -1)
+   */
+  returnNow(id: string, depth?: number): number {
     const { expedition, training, powers, pickups, bus } = this.ctx
     const [kind, what] = id.split(':') as [string, string]
     if (kind !== 'ascend' && kind !== 'flame') return -1
@@ -169,6 +176,8 @@ export class ExpeditionSystem {
     if (kind === 'ascend') this.parts.ascend(what)
     this.declined = true
     bus.emit('expeditionReturned', { count: expedition.count - 1, renown: gain, mult: expedition.multiplier, branch: id })
+    // 다음 원정의 깊이: 지난 원정의 한계를 깸(DepthSystem이 expeditionReturned에서 본다) 뒤에 바꾼다
+    if (depth !== undefined && depth !== this.ctx.depth.level) this.parts.deepen(depth)
     const heirlooms = expedition.heirloom.map((uid) => loadout.gear.get(uid)).filter((g) => g !== undefined)
     const lines = [
       `명성 +${gain} · 모든 피해 ×${before.toFixed(2)} → ×${expedition.multiplier.toFixed(2)}`,

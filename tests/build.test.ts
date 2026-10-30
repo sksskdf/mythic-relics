@@ -7,7 +7,6 @@ import { computeBuild, gearModifiers, statAt } from '../src/build/BuildState'
 import { RelicPowers } from '../src/game/RelicPowers'
 import { relicAwake } from '../src/gear/mythRelic'
 import { ClassProgress, PER_LIT, PER_OPENED, PER_PROMOTION } from '../src/myth/ClassProgress'
-import { ThreatProgress } from '../src/progress/Threat'
 import { TrainingProgress } from '../src/progress/Training'
 import { OathProgress } from '../src/progress/Oaths'
 import { TRAINING_NODES } from '../src/data/training'
@@ -34,7 +33,7 @@ function promoteTimes(progress: ClassProgress, god: string, times: number): void
 
 describe('빌드 상태 (E11-04)', () => {
   it('아무것도 없으면 맨손의 모험가: 배율 1, 칼 모션', () => {
-    const state = new Build({ powers: new RelicPowers(new THREE.Group()), progress: new ClassProgress(), threat: new ThreatProgress() }).state
+    const state = new Build({ powers: new RelicPowers(new THREE.Group()), progress: new ClassProgress() }).state
     expect(state.chosen).toBeNull()
     expect(state.level).toBe(0)
     expect(state.damageScale).toBe(1)
@@ -52,7 +51,7 @@ describe('빌드 상태 (E11-04)', () => {
       progress.record(god)
       promoteTimes(progress, god, 2)
       promoteTimes(progress, 'thor', 1)
-      const state = new Build({ powers, progress, threat: new ThreatProgress() }).state
+      const state = new Build({ powers, progress }).state
       expect(state.chosen, god).toBe(god)
       expect(state.level, god).toBe(progress.level(god))
       const st = state.stats
@@ -155,7 +154,7 @@ describe('빌드 상태 다시 쓰기', () => {
     const progress = new ClassProgress()
     const training = new TrainingProgress()
     const oaths = new OathProgress()
-    const build = new Build({ powers, progress, threat: new ThreatProgress(), training, oaths })
+    const build = new Build({ powers, progress, training, oaths })
     const first = build.state
     expect(build.state).toBe(first)
     const changes: (() => void)[] = [

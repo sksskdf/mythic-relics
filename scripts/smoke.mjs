@@ -403,22 +403,21 @@ try {
   console.log(`수련 확인: 깨달음을 얻으면 메뉴 단추 표시, 뿌리 마디를 찍으면 피해 ×${(trained.damage / trainBefore.damage).toFixed(2)}`)
   await page.keyboard.press('Escape')
   if (await page.evaluate(() => window.__game.paused)) throw new Error('정보 화면: 닫았는데 게임이 멈춰 있습니다.')
-  // 원천 탭 (E14, E21-06): 엔딩 전에는 각성 카드 넷만, 균열 탭은 숨김. 엔딩 뒤에는 위협 단계를 골라 오른다
-  await page.evaluate(() => (window.__game.threat.unlocked = 2))
+  // 원천 탭 (E14, E21-06, E305-03): 엔딩 전에는 각성 카드 넷만, 균열 탭은 숨김. 엔딩 뒤에는 깊이 한 줄(읽기만, 고르기는 귀환 카드)
   await page.click('.menu-button')
   await page.locator('.menu__tab').nth(1).click()
   if ((await page.locator('.menu-src__source').count()) !== 4) throw new Error('원천 탭: 각성 카드가 넷이 아닙니다.')
-  const demo = await page.evaluate(() => ({ levels: document.querySelectorAll('.menu-src__level').length, tabs: [...document.querySelectorAll('.menu__tab')].filter((b) => !b.hidden).length }))
-  if (demo.levels !== 0 || demo.tabs !== 8) throw new Error(`엔딩 전: 위협 단계나 균열 탭이 보입니다 (${JSON.stringify(demo)})`)
+  const srcView = () => ({ depth: document.querySelectorAll('.menu-src__depth').length, levels: document.querySelectorAll('.menu-src__level').length, tabs: [...document.querySelectorAll('.menu__tab')].filter((b) => !b.hidden).length })
+  const demo = await page.evaluate(srcView)
+  if (demo.depth !== 0 || demo.levels !== 0 || demo.tabs !== 8) throw new Error(`엔딩 전: 깊이나 균열 탭이 보입니다 (${JSON.stringify(demo)})`)
   await page.evaluate(() => {
     window.__game.reachEnding()
     window.__game.menu.refresh()
   })
-  await page.locator('.menu-src__level', { hasText: '2' }).first().click()
-  const climbed = await page.evaluate(() => ({ level: window.__game.threat.level, reached: window.__game.threat.reached, tabs: [...document.querySelectorAll('.menu__tab')].filter((b) => !b.hidden).length }))
-  if (climbed.level !== 2 || climbed.reached !== 2 || climbed.tabs !== 9) throw new Error(`엔딩 뒤: 위협 2단계로 오르지 못했거나 탭이 아홉이 아닙니다 (${JSON.stringify(climbed)})`)
+  const after = await page.evaluate(srcView)
+  if (after.depth !== 1 || after.levels !== 0 || after.tabs !== 9) throw new Error(`엔딩 뒤: 깊이 한 줄이 없거나(고르는 단추는 없어야 함) 탭이 아홉이 아닙니다 (${JSON.stringify(after)})`)
   await page.keyboard.press('Escape')
-  console.log('원천 확인: 엔딩 전에는 각성 카드 넷과 탭 일곱, 엔딩 뒤에는 탭 아홉과 위협 2단계 고르기')
+  console.log('원천 확인: 엔딩 전에는 각성 카드 넷과 탭 여덟, 엔딩 뒤에는 탭 아홉과 깊이 한 줄(고르기는 귀환 카드)')
   console.log('정보 화면 확인: 상태 탭 능력치 8줄, 열면 멈춤, 가방에 넣기·다시 끼기와 미리 보기, 신화 탭, Esc로 닫기')
 
   // 일시 정지(E5): 창이 없을 때 Esc를 누르면 멈추고, 멈춘 동안 게임 시간이 흐르지 않는다.
@@ -579,16 +578,21 @@ try {
   })
   // 원정이 무르익으면 성소에 빛기둥이 선다 (E305-03: 전설 판 대신 귀환을 빛으로 알린다)
   if (!(await page.evaluate(() => window.__game.sanctuary.lit))) throw new Error('귀환: 원정이 무르익었는데 성소 빛기둥이 서지 않습니다.')
+  // 깊이 (E305-03, 엔딩 뒤): 귀환 카드 갈래 위에 「그대로 / +1」, 기본은 그대로. +1을 누르고 갈래를 고르면 다음 원정이 깊이 2
+  const pills = await page.locator('.return-card__depth .ui-pill').allTextContents()
+  if (pills.length !== 2 || !(await page.locator('.return-card__depth .ui-pill.is-on').textContent())?.includes('그대로')) throw new Error(`귀환: 엔딩 뒤 귀환 카드에 깊이 「그대로 / +1」이 없습니다 (${pills.join(', ')})`)
+  await page.locator('.return-card__depth .ui-pill', { hasText: '+1' }).click()
   await lookShot('5-return')
   const returned = await page.evaluate(() => {
     const g = window.__game
-    const before = { level: g.progress.level('thor'), gear: g.powers.loadout.gear.size }
+    const before = { level: g.progress.level('thor'), gear: g.powers.loadout.gear.size, depth: g.depth.level }
     document.querySelector('.return-card .pick-card__card').click()
-    return { before, after: { level: g.progress.level('thor'), gear: g.powers.loadout.gear.size, heirloom: g.expedition.heirloom.length, count: g.expedition.count, renown: g.expedition.renown, open: g.returnCardOpen } }
+    return { before, after: { level: g.progress.level('thor'), gear: g.powers.loadout.gear.size, heirloom: g.expedition.heirloom.length, count: g.expedition.count, renown: g.expedition.renown, open: g.returnCardOpen, depth: g.depth.level, reached: g.depth.reached, foeHp: g.encounter.threat.hp } }
   })
+  if (returned.before.depth !== 1 || returned.after.depth !== 2 || returned.after.reached !== 2 || !(returned.after.foeHp > 1)) throw new Error(`귀환: 「+1」을 골랐는데 다음 원정이 깊이 2가 아닙니다 ${JSON.stringify(returned)}`)
   if (returned.after.count !== 2 || !(returned.after.renown > 0) || returned.after.open) throw new Error(`귀환: 갈래를 눌렀는데 원정이 넘어가지 않았습니다 ${JSON.stringify(returned)}`)
   if (returned.after.level !== returned.before.level + 1 || returned.after.gear !== returned.after.heirloom || returned.after.heirloom > 1) throw new Error(`귀환: 승천·장비 지우기가 맞지 않습니다 ${JSON.stringify(returned)}`)
-  console.log(`귀환 확인: 성소 화로에서 카드, 토르 승천 ${returned.before.level} → ${returned.after.level}, 명성 ${returned.after.renown}, 장비 ${returned.before.gear} → 가보 ${returned.after.heirloom}`)
+  console.log(`귀환 확인: 성소 화로에서 빛기둥과 카드, 토르 승천 ${returned.before.level} → ${returned.after.level}, 명성 ${returned.after.renown}, 장비 ${returned.before.gear} → 가보 ${returned.after.heirloom}, 「+1」로 깊이 1 → ${returned.after.depth}(적 생명 ×${returned.after.foeHp.toFixed(1)})`)
 
   // 처음 화면으로: 정보 화면의 단추를 두 번 누르면 저장하고 슬롯 고르기로 돌아가고, 그 슬롯을 누르면 이어 간다.
   await page.click('.menu-button')
@@ -633,19 +637,39 @@ try {
   if (!oathKept.spawned || oathKept.oath !== null || !oathKept.kept || oathKept.noUltimate || !(oathKept.charge >= 0.3)) throw new Error(`맹세: 수호자를 이겨도 지키지 못했습니다 ${JSON.stringify(oathKept)}`)
   console.log(`맹세 확인: 귀환 2에 출발 카드 ${oathCards}장, 침묵의 맹세를 걸면 궁극기가 막히고, 수호자를 이기면 지켜 심장 충전 +${Math.round(oathKept.charge * 100)}%`)
 
+  // 한계를 깸 (E305-03, D8): 깊이 10 원정에서 수호자(장 보스)를 이기고 귀환하면 깊이의 끝이 사라지고 균열이 열린다
+  const broke = await page.evaluate(() => {
+    const g = window.__game
+    g.reachEnding()
+    // 새로 고친 뒤라 대화 장면이 다시 켜져 있다 (한계를 깸 장면이 메뉴를 가리지 않게)
+    g.storyScenes = false
+    g.enterRegion(g.regions.midgard)
+    g.encounter.clearAll()
+    if (!g.combat.alive) g.dev.revive()
+    g.dev.depth(9)
+    // 깊이 9에서 이겨도 깨지 않는다
+    const p = g.hero.object.position
+    const win = () => {
+      g.dev.spawn('fenrir', p.x + 3, p.z)
+      g.encounter.alive.find((e) => e.spec.role === 'guardian')?.takeHit(1e6, 0, 0, 0)
+      g.advance(2, 1 / 30)
+      g.expeditionSystem.returnNow('flame:flame')
+      g.hideCards()
+    }
+    win()
+    const shallow = g.depth.limitBroken
+    g.dev.depth(10)
+    win()
+    return { shallow, broken: g.depth.limitBroken, max: g.depth.max, open: g.riftSystem.open }
+  })
+  if (broke.shallow || !broke.broken || broke.max <= 10 || !broke.open) throw new Error(`한계를 깸: 깊이 10 원정에서 수호자를 이기고 귀환했는데 깨지 않았거나 깊이 9에서 깼습니다 ${JSON.stringify(broke)}`)
+  console.log('한계를 깸 확인: 깊이 9에서 이기고 귀환하면 그대로, 깊이 10에서 이기고 귀환하면 깊이의 끝이 사라지고 균열이 열림')
   // 균열 (E17): 한계를 깨면 마을의 균열 탭에서 들어가고, 층을 깨면 다음 층 문이 열려 내려가며(축복은 E305-03에서 걷음), 나가는 문으로 나오면 끝
   await page.evaluate(() => {
     const g = window.__game
-    g.reachEnding()
-    for (const realm of ['norse', 'greek', 'china', 'japan', 'korea']) g.threat.cleared[realm] = 10
-    Object.assign(g.threat, { unlocked: 10, reached: 10 })
-    // 새로 고친 뒤라 대화 장면이 다시 켜져 있다 (한계를 깸 장면이 메뉴를 가리지 않게)
-    g.storyScenes = false
-    g.threatSystem.breakLimit()
     g.enterRegion(g.regions.village)
     if (!g.combat.alive) g.dev.revive()
   })
-  if ((await page.evaluate(() => window.__game.threat.unlocked)) !== 11) throw new Error('균열: 한계를 깼는데 위협 11단계가 열리지 않습니다.')
   if (!(await page.locator('.menu').isVisible())) await page.click('.menu-button')
   await page.locator('.menu__tab', { hasText: '균열' }).click()
   await page.getByRole('button', { name: '균열에 들어가기' }).click()

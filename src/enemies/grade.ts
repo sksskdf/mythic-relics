@@ -12,7 +12,7 @@ export interface Grade {
   tone: string
 }
 
-/** 보스처럼 다루는 적인가: 지역 보스·전설 보스와 신을 깨우는 수호자(E239) */
+/** 보스처럼 다루는 적인가: 지역 보스와 신을 깨우는 수호자(E239) */
 export const isBossLike = (spec: { role?: string }): boolean => spec.role === 'boss' || spec.role === 'guardian'
 
 /** 이 몬스터의 등급. 보스는 지역 보스·전설 보스, 정예는 무리에서 가끔 나오는 강한 놈 */

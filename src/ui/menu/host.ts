@@ -46,8 +46,8 @@ export interface OathsHost {
 export interface RiftMenuHost {
   /** 한계를 깼나 (균열이 열렸다) */
   open(): boolean
-  /** 한계를 깨는 길: 신화권마다 이긴 가장 높은 위협 단계 */
-  progress(): { name: string; cleared: number }[]
+  /** 한계를 깨는 길: 가 본 가장 깊은 곳과 한계 전 끝 (E305-03) */
+  depth(): { reached: number; limit: number }
   canEnter(): boolean
   enter(): boolean
   /** 진행 중인 균열의 층 */
@@ -74,9 +74,9 @@ export interface TrainingHost {
 export interface WorldMapHost {
   /**
    * 지역마다: 이름, 신화권 색, 자리(입구·깊은 땅·보스), 지도 위 자리(세계 칸, 북쪽이 위), 땅의 너비(칸 한 변 = 1),
-   * 이웃, 지금 여기인가, 성소를 찾았나, 그 신화권 보스를 이긴 가장 높은 위협 단계, 결계로 막혔나 (E22)
+   * 이웃, 지금 여기인가, 성소를 찾았나, 그 땅의 장 보스를 이겼나, 결계로 막혔나 (E22)
    */
-  nodes(): { id: string; name: string; color: string; zone: string | null; x: number; y: number; size: number; links: string[]; here: boolean; found: boolean; cleared: number; locked: boolean }[]
+  nodes(): { id: string; name: string; color: string; zone: string | null; x: number; y: number; size: number; links: string[]; here: boolean; found: boolean; /** 그 땅의 장 보스를 이겼다 */ beaten: boolean; locked: boolean }[]
   /** 다음 목표: 가야 할 땅과 목표 한 줄 (E22-04). 엔딩 뒤이거나 다 했으면 null */
   goal(): { region: string; text: string } | null
   /** 아직 깨우지 않은 신의 흔적 (E238): 있는 땅, 이름, 그 신의 색, 지금 응답하지 않는가(깨우는 중·주신이 더 자라야 함) */
@@ -92,10 +92,8 @@ export interface WorldMapHost {
 export interface SourcesHost {
   /** 원천마다: 장비의 합과 각성 단계 */
   rows(): { id: SourceId; total: number; level: number; /** 원천 불씨 몫 (E304, 합에 들어 있다) */ flames: number }[]
-  readonly threat: { level: number; unlocked: number; reached: number; max: number }
-  /** 단계를 고를 수 있는 곳인가 (마을) */
-  here(): boolean
-  choose(level: number): boolean
+  /** 깊이 (E305-03, 엔딩 뒤): 지금 원정의 깊이, 가 본 가장 깊은 곳, 한계를 깼나. 고르기는 귀환 카드에서 */
+  readonly depth: { level: number; reached: number; limitBroken: boolean }
   /** 편의: 이름, 설명, 열렸나, 진행 */
   conveniences(): { id: string; name: string; text: string; open: boolean; have: number; need: number }[]
   autoSalvage: boolean
@@ -163,7 +161,7 @@ export interface MenuHost {
   readonly oaths: OathsHost
   readonly rift: RiftMenuHost
   readonly training: TrainingHost
-  /** 첫 엔딩을 보았나: 엔딩 뒤 장치(위협 단계·편의·시련·균열)를 보인다 (E21-06) */
+  /** 첫 엔딩을 보았나: 엔딩 뒤 장치(깊이·편의·맹세 다섯·균열)를 보인다 (E21-06) */
   afterEnding(): boolean
   /** 신 단계 상한을 올려 줄 다음 장 보스의 이름 (E305-02, 데모 끝까지 다 정복했으면 null) */
   nextConquest(): string | null

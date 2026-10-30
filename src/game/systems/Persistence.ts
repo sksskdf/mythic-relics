@@ -65,7 +65,8 @@ export class Persistence {
       divine: combat.divine,
       looks: { unlocked: [...wardrobe.unlocked], choices: Object.fromEntries(wardrobe.choices) },
       body: { ...wardrobe.body },
-      threat: this.ctx.threat.toData(),
+      // 깊이 (E305-03): 저장 키는 옛 위협 단계 이름 그대로
+      threat: this.ctx.depth.toData(),
       conveniences: this.ctx.conveniences.toData(),
       oaths: this.ctx.oaths.toData(),
       rift: this.ctx.rift.toData(),
@@ -91,7 +92,7 @@ export class Persistence {
     this.ctx.expedition.load(data.expedition)
     this.ctx.tabs.load(data.tabs)
     this.ctx.awaken.load(data.awaken)
-    this.ctx.threat.load(data.threat)
+    this.ctx.depth.load(data.threat)
     this.ctx.conveniences.load(data.conveniences)
     this.ctx.oaths.load(data.oaths)
     this.ctx.rift.load(data.rift)

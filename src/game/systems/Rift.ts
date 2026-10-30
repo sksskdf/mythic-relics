@@ -1,8 +1,8 @@
 import * as THREE from 'three'
 
 import { REGIONS, type RegionDef } from '../../data/regions'
-import { RIFT_BASE_THREAT, riftScale } from '../../data/rift'
-import { threatElite, threatScale } from '../../data/threat'
+import { RIFT_BASE_DEPTH, riftScale } from '../../data/rift'
+import { depthElite, depthScale } from '../../data/depth'
 import { ELITE_CHANCE } from '../../enemies/elite'
 import { bossMaterial, materialName, PROTOTYPE } from '../../gear/materials'
 import { EFFECT_LAYER } from '../../render/PixelRenderer'
@@ -10,7 +10,7 @@ import { heightAt } from '../../world/terrain'
 import { riftFloor, type RiftFloor } from '../../world/riftFloor'
 import { ENEMIES } from '../../enemies/Giant'
 import type { GameContext } from '../context'
-import type { ThreatSystem } from './Threat'
+import type { DepthSystem } from './Depth'
 
 const bossMaterialOf = (enemyId: string): string | undefined => {
   const name = ENEMIES[enemyId]?.boss
@@ -57,7 +57,7 @@ export class RiftSystem {
 
   constructor(
     private readonly ctx: GameContext,
-    private readonly threat: ThreatSystem,
+    private readonly depthSystem: DepthSystem,
     private readonly host: RiftHost,
     parent: THREE.Object3D,
   ) {
@@ -79,7 +79,7 @@ export class RiftSystem {
 
   /** 균열이 열렸나 (한계를 깸) */
   get open(): boolean {
-    return this.ctx.ending.has('rift') && this.ctx.threat.limitBroken
+    return this.ctx.ending.has('rift') && this.ctx.depth.limitBroken
   }
 
   /** 지금 들어갈 수 있나: 열렸고, 마을이고, 이미 들어가 있지 않다 */
@@ -102,11 +102,11 @@ export class RiftSystem {
     run.cleared = false
     run.t = 0
     this.portal.visible = false
-    // 깊이 배율: 위협 5단계 × 층 (다음에 세우는 적부터라 들어가기 전에). 정예 확률도 고른 단계가 아니라 위협 5단계로
-    const base = threatScale(RIFT_BASE_THREAT)
+    // 세기: 깊이 5 × 층 (다음에 세우는 적부터라 들어가기 전에). 정예 확률도 고른 깊이가 아니라 깊이 5로
+    const base = depthScale(RIFT_BASE_DEPTH)
     const deep = riftScale(depth)
     this.ctx.encounter.threat = { hp: base.hp * deep.hp, damage: base.damage * deep.damage }
-    this.ctx.encounter.eliteChance = threatElite(ELITE_CHANCE, RIFT_BASE_THREAT)
+    this.ctx.encounter.eliteChance = depthElite(ELITE_CHANCE, RIFT_BASE_DEPTH)
     this.host.enter(run.floor.region)
     this.ctx.bus.emit('riftFloor', { depth })
   }
@@ -164,8 +164,8 @@ export class RiftSystem {
     const run = this.run!
     this.run = null
     this.portal.visible = false
-    this.threat.apply()
-    // 다른 땅으로 나왔으면 그 땅은 이미 균열 배율로 적을 세웠다 (워프 등): 고른 위협 단계로 다시 세운다
+    this.depthSystem.apply()
+    // 다른 땅으로 나왔으면 그 땅은 이미 균열 배율로 적을 세웠다 (워프 등): 고른 깊이로 다시 세운다
     if (reason === 'left') this.ctx.encounter.resetAll()
     this.ctx.bus.emit('moment', { id: 'riftEnded', text: `균열 ${run.depth}층에서 ${reason === 'fell' ? '쓰러졌다' : '나왔다'} · 가장 깊이 ${this.ctx.rift.best}층` })
     this.ctx.bus.emit('riftEnded', { depth: run.depth, reason })

@@ -21,6 +21,8 @@ export const WAVE_STYLES = ['bloom', 'tide', 'ripple', 'night', 'gale', 'spirit'
 export const BLADE_STYLES = ['six', 'fire'] as const
 /** 신화권 (hidden은 히든 클래스) */
 export const REALMS = ['norse', 'greek', 'china', 'japan', 'korea', 'hidden'] as const
+/** 신화권 이름 (화면 글·개발 패널) */
+export const REALM_NAMES: Readonly<Record<(typeof REALMS)[number], string>> = { norse: '북유럽', greek: '그리스', china: '중국', japan: '일본', korea: '한국', hidden: '히든' }
 
 export type SkyStyle = (typeof SKY_STYLES)[number]
 export type CompanionLook = (typeof COMPANION_LOOKS)[number]

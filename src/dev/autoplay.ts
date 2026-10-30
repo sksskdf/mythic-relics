@@ -28,8 +28,8 @@ const EXIT_CLEAR = 3.5
 export class Autoplayer {
   private thinkTimer = 0
   private patrol = 0
-  /** 위협 단계를 올리는가: 열리면 마을에 가서 원천 갈래를 고르고 오른다 (scripts/playtest.mjs --threat) */
-  climb = false
+  /** 깊이를 내려가는가 (엔딩 뒤): 원정이 무르익으면 성소 화로에서 귀환하며 귀환 카드에서 「+1」을 고른다 (scripts/playtest.mjs --depth) */
+  deepen = false
   /** 맹세를 하는가: 출발 카드가 뜨면 아직 못 지킨 맹세를 건다 (scripts/playtest.mjs --oaths). 아니면 맹세 없이 떠난다 */
   oaths = false
   /** 균열을 내려가는가: 마을에서 들어가 층을 깰 때마다 다음 층 문으로 (scripts/playtest.mjs --rift) */
@@ -38,8 +38,8 @@ export class Autoplayer {
   readonly oathLog: { id: keyof typeof OATHS; sworn: number }[] = []
   /** 균열 층마다 깬 게임 시각 (층 번호, 시각) */
   readonly riftFloors: { depth: number; t: number }[] = []
-  /** 위협 단계를 처음 오른 게임 시각 */
-  readonly climbs: number[] = []
+  /** 깊이를 하나씩 처음 내려간 게임 시각 */
+  readonly depths: number[] = []
   /** 이 신의 유물만 낀다 (다른 신 유물은 주우면 가방에 넣는다). null이면 가리지 않는다 (scripts/playtest.mjs --god) */
   god: God | null = null
   /** 다른 지역으로 가지 않고 이 자리에서만 싸운다 (scripts/enemy-trial.mjs) */
@@ -59,7 +59,6 @@ export class Autoplayer {
       if (this.thinkTimer <= 0) {
         this.thinkTimer = THINK
         this.think()
-        if (this.climb) this.climbUp()
       }
       this.game.advance(step, step)
     }
@@ -68,13 +67,6 @@ export class Autoplayer {
   /** 아직 못 지킨 맹세가 남았나 (점검 스크립트가 끝낼 때를 정한다) */
   oathsLeft(): boolean {
     return this.game.oathSystem.available().some((id) => !this.game.oaths.has(id))
-  }
-
-  /** 위협 단계: 마을에 있고 다음 단계가 열렸으면 오른다 (엔딩 뒤) */
-  private climbUp(): void {
-    const { threat, threatSystem, region } = this.game
-    if (region.kind !== 'hub' || threat.unlocked <= threat.reached) return
-    if (threatSystem.choose(threat.unlocked)) this.climbs.push(this.game.time)
   }
 
   /** 벼리기에 실패한 신화 (재료가 늘면 다시 해 본다) */
@@ -95,9 +87,9 @@ export class Autoplayer {
     return (chosen ? [chosen, ...open] : open).filter((g) => !this.forgeBlocked.has(g))
   }
 
-  /** 가야 할 필드 (E7): 승급할 때가 된 신의 땅, 한 신만 쓰면 그 신의 땅, 아니면 지금 필드(마을이면 미드가르드) */
+  /** 가야 할 필드 (E7): 장 목표의 땅, 벼릴 재료가 차면 마을, 한 신만 쓰면 그 신의 땅, 아니면 지금 필드(마을이면 미드가르드) */
   private wantRegion(): string {
-    const { powers, progress, region, regions } = this.game
+    const { powers, region, regions } = this.game
     const fieldOf = (god: God) => Object.values(regions).find((r) => r.realm === godDef(god).realm && r.zone === 'entrance')?.id
     const manifested = powers.manifested
     if (this.chapters) {
@@ -107,15 +99,8 @@ export class Autoplayer {
     // 벼릴 재료가 차면 마을 대장간으로 (E13-08)
     const hub = Object.values(regions).find((r) => r.kind === 'hub')?.id ?? region.id
     if (this.forgeGods().some((god) => forgeReady(powers.loadout, god, powers.maxStage()))) return hub
-    // 위협 단계가 새로 열렸으면 마을 촌장에게 (E14-07)
-    const threat = this.game.threat
-    if (this.climb && threat.unlocked > threat.reached) return hub
-    // 2단계 뒤에는 고른 신화(없으면 북유럽)의 보스의 땅으로 가서 문지기를 친다 (E15: 보스는 보스의 땅에만)
-    if (this.climb && progress.promotions >= 1 && threat.unlocked === threat.reached && threat.level === threat.reached) {
-      const realm = manifested ? godDef(manifested).realm : 'norse'
-      const bossLand = Object.values(regions).find((r) => r.zone === 'boss' && r.realm === realm)?.id
-      if (bossLand) return bossLand
-    }
+    // 깊이 봇 (E305-03): 손의 신(없으면 북유럽)의 입구 들판에서 싸우고 그 땅의 성소 화로에서 귀환한다
+    if (this.deepen) return fieldOf(manifested ?? 'thor') ?? 'midgard'
     const here = region.kind === 'field' ? region.id : 'midgard'
     // 히든 신화는 자기 땅이 없어 지금 필드(마을이면 미드가르드)에서 싸운다
     if (this.god) return fieldOf(this.god) ?? here
@@ -279,14 +264,19 @@ export class Autoplayer {
       return
     }
 
-    // 4.9 귀환 (E304): 장 목표가 귀환이면 성소 화로로 가서, 카드가 뜨면 손의 신 승천(없으면 불꽃 불씨)을 고른다
+    // 4.9 귀환 (E304): 장 목표가 귀환이면(깊이 봇은 원정이 무르익을 때마다) 성소 화로로 가서, 카드가 뜨면 손의 신 승천(없으면 불꽃 불씨)을 고른다.
+    // 깊이 봇은 귀환 카드에서 「+1」도 고른다 (E305-03)
     const goalNow = this.chapters ? this.game.chapters.goal : null
-    if (goalNow?.kind === 'return' && goalNow.region === this.game.region.id && sanctuary.present && this.game.expeditionSystem.canReturn && hp > 0.5) {
+    const returning = (goalNow?.kind === 'return' && goalNow.region === this.game.region.id) || (this.deepen && this.wantRegion() === this.game.region.id)
+    if (returning && sanctuary.present && this.game.expeditionSystem.canReturn && hp > 0.5) {
       if (this.game.returnCardOpen) {
         const ids = this.game.expeditionSystem.branches().map((b) => b.id)
         const hand = progress.pantheon.hand
+        const { depth } = this.game
+        const deeper = this.deepen && depth.level < depth.max ? depth.level + 1 : undefined
         this.game.hideCards()
-        this.game.expeditionSystem.returnNow(ids.find((id) => id === `ascend:${hand}`) ?? ids.find((id) => id.startsWith('ascend:')) ?? 'flame:flame')
+        this.game.expeditionSystem.returnNow(ids.find((id) => id === `ascend:${hand}`) ?? ids.find((id) => id.startsWith('ascend:')) ?? 'flame:flame', deeper)
+        if (deeper !== undefined && depth.level === deeper) this.depths.push(this.game.time)
       } else if (dist(here, sanctuary.center) > 1.2 && (!hero.isMoving || dist(hero.goal ?? here, sanctuary.center) > 1)) hero.moveTo(sanctuary.center)
       this.step = 16
       return
@@ -312,13 +302,6 @@ export class Autoplayer {
     if (guardian && hp > 0.5) {
       this.step = 18
       this.engage(here, guardian)
-      return
-    }
-    // 위협 단계를 올리는 봇: 2단계 뒤에는 열린 가장 높은 단계의 문지기(지역 보스)를 찾아간다 (E14-07)
-    const threat = this.game.threat
-    if (this.climb && progress.promotions >= 1 && threat.unlocked === threat.reached && threat.level === threat.reached && boss?.alive && hp > 0.6) {
-      this.step = 11
-      this.engage(here, boss)
       return
     }
     let candidates = enemies.filter((g) => {

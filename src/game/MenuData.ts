@@ -6,7 +6,7 @@ import { CONQUESTS } from '../data/chapters'
 import { ENEMIES } from '../enemies/Giant'
 import { CELL, cellOrigin } from '../data/world'
 import { SOURCE_IDS, type SourceId } from '../data/schema'
-import { LIMIT_REALMS, REALM_NAMES } from '../data/threat'
+import { DEPTH_LIMIT } from '../data/depth'
 import { OATHS } from '../data/oaths'
 import { nextRecipe } from '../gear/forge'
 import { materialName } from '../gear/materials'
@@ -114,9 +114,7 @@ export class MenuData {
       },
       sources: {
         rows: () => this.sourceRows(),
-        threat: this.threatView(),
-        here: () => game.threatSystem.here,
-        choose: (level) => game.threatSystem.choose(level),
+        depth: this.depthView(),
         conveniences: () => CONVENIENCES.map((c) => ({ id: c.id, name: c.name, text: c.text, open: conveniences.has(c.id), have: conveniences.counters[c.counter] ?? 0, need: c.need })),
         get autoSalvage() {
           return conveniences.autoSalvage
@@ -162,7 +160,7 @@ export class MenuData {
       },
       rift: {
         open: () => game.riftSystem.open,
-        progress: () => LIMIT_REALMS.map((realm) => ({ name: REALM_NAMES[realm] ?? realm, cleared: game.threat.cleared[realm] ?? 0 })),
+        depth: () => ({ reached: game.depth.reached, limit: DEPTH_LIMIT }),
         canEnter: () => game.riftSystem.canEnter,
         enter: () => game.riftSystem.enter(),
         run: () => {
@@ -185,7 +183,7 @@ export class MenuData {
             links: r.exits.map((e) => e.to),
             here: r.id === ctx.map.region.id,
             found: r.kind === 'hub' || conveniences.visited.has(r.id),
-            cleared: r.realm ? (game.threat.cleared[r.realm] ?? 0) : 0,
+            beaten: ctx.chapters.bosses.has(r.id),
             locked: !ctx.chapters.isOpen(r.id),
           }))
         },
@@ -299,22 +297,18 @@ export class MenuData {
     return SOURCE_IDS.map((id) => ({ id, total: state.sources[id], level: awakeningLevel(state.sources[id]), flames: flames[id] }))
   }
 
-  /** 정보 화면에 보일 위협 단계 (읽을 때마다 지금 값) */
-  private threatView(): SourcesHost['threat'] {
-    const { game } = this.parts
-    const threat = game.threat
+  /** 정보 화면에 보일 깊이 (읽을 때마다 지금 값) */
+  private depthView(): SourcesHost['depth'] {
+    const depth = this.parts.game.depth
     return {
       get level() {
-        return threat.level
-      },
-      get unlocked() {
-        return threat.unlocked
+        return depth.level
       },
       get reached() {
-        return threat.reached
+        return depth.reached
       },
-      get max() {
-        return threat.max
+      get limitBroken() {
+        return depth.limitBroken
       },
     }
   }

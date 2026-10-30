@@ -1,5 +1,5 @@
 import { NEW_FIRE } from '../../data/cycle'
-import { THREAT, threatGrades } from '../../data/threat'
+import { DEPTH, depthGrades } from '../../data/depth'
 import type { Giant } from '../../enemies/Giant'
 import { ELITE_REWARD } from '../../enemies/elite'
 import { isBossLike } from '../../enemies/grade'
@@ -51,10 +51,10 @@ export class ProgressionSystem {
       break
     }
     // 재료 (E13-04): 잡는 순간 주머니로. 신화 고유·보스 재료만 알린다
-    const level = this.ctx.threat.level
+    const level = this.ctx.depth.level
     for (const { id, count } of rollMaterials(Math.random, { realm: giant.spec.realm, elite: !!giant.elite, boss: giant.spec.boss })) {
-      // 위협 단계가 높을수록 하나 더 (E14-03)
-      powers.loadout.addMaterial(id, count + (Math.random() < THREAT.material * (level - 1) ? 1 : 0))
+      // 깊을수록 하나 더 (E14-03, E305-03)
+      powers.loadout.addMaterial(id, count + (Math.random() < DEPTH.material * (level - 1) ? 1 : 0))
       // 보스 재료만 알린다: 유물을 벼리는 열쇠
       if (MATERIALS[id]?.kind === 'boss') this.ctx.bus.emit('moment', { id: 'bossMaterial', text: `${materialName(id)} · 대장간에서 유물을 벼린다` })
     }
@@ -65,9 +65,10 @@ export class ProgressionSystem {
     const land = region.zone ? GEAR.lands[region.zone] : null
     // 새 불길 (E304): 다시 떠난 뒤 잠시 장비가 더 떨어진다
     const fire = this.ctx.expedition.fire > 0 ? NEW_FIRE.drop : 1
-    const chance = (boss ? GEAR.drop.boss : giant.elite ? GEAR.drop.elite : GEAR.drop.grunt) * (land?.rate ?? 1) * THREAT.gearDrop ** (level - 1) * fire
+    const chance = (boss ? GEAR.drop.boss : giant.elite ? GEAR.drop.elite : GEAR.drop.grunt) * (land?.rate ?? 1) * DEPTH.gearDrop ** (level - 1) * fire
     if (Math.random() < chance) {
-      const chances = threatGrades(landChances(region.zone), level)
+      // 등급 표는 땅 자리와 깊이로만 정한다. 적 등급(보통·정예·보스)별 표로 나눌 자리 (E307)
+      const chances = depthGrades(landChances(region.zone), level)
       const tier = this.ctx.chapters.tier(region.id) ?? landTier(region.realm ?? giant.spec.realm)
       const item = rollGear(Math.random, boss ? { minGrade: GEAR.drop.bossMinGrade, chances, tier } : { chances, tier })
       pickups.drop(item.uid, giant.x + 0.7, giant.z + 0.4, true, item)
