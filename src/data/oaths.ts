@@ -80,15 +80,3 @@ export function oathRules(id: OathId | null): OathRules {
       return NO_RULES
   }
 }
-
-/** 옛 시련 id → 맹세 (저장 v17 옮기기) */
-export const TRIAL_TO_OATH: Readonly<Record<string, OathId>> = {
-  noUltimate: 'silence',
-  noMyth: 'emptyHand',
-  fewSlots: 'alone',
-  noHeal: 'noHeal',
-  crowd: 'crowd',
-  timed: 'timed',
-  glass: 'glass',
-  slow: 'slow',
-}

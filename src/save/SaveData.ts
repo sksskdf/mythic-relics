@@ -9,7 +9,7 @@ import { type ChapterData, parseChapterData } from '../progress/Chapters'
 import { type AutomationData, parseAutomation } from '../progress/Automation'
 import { parseWaypoints } from '../progress/Waypoints'
 import { type DepthData, parseDepth } from '../progress/Depth'
-import { type OathData, oathsFromTrials, parseOaths } from '../progress/Oaths'
+import { type OathData, parseOaths } from '../progress/Oaths'
 import { parseEndless, type EndlessData } from '../progress/Endless'
 import { parseTraining, type TrainingData } from '../progress/Training'
 import { type ExpeditionData, parseExpedition } from '../progress/Expedition'
@@ -18,8 +18,10 @@ import { type WakeData, parseWake } from '../progress/Wake'
 import { type BodyLook, parseBody } from '../looks/body'
 import { isLookId, lookDef, type LookSlot, STARTING_LOOKS, WARDROBE_SLOTS } from '../looks/catalog'
 import type { LookChoice } from '../looks/outfit'
-import { GODS, type God, isRelicId, type RelicId } from '../relics/data'
-import { legacySlots, legacyStarRenown, migrateLooks, oldChapters, oldThreat, oldTrainingXp, oldVisited, fillEmptySlots, meltOverflow, openOwned, realmToPrototype, refundCycle, refundMythMaterials } from './migrate/legacy'
+import { godDef, GODS, type God, isRelicId, type RelicId } from '../relics/data'
+import { legacySlots, migrateLooks, oldChapters, oldThreat, oldTrainingXp, fillEmptySlots, meltOverflow, openOwned, realmToPrototype, refundCycle, refundMythMaterials } from './migrate/legacy'
+import { estimateExpeditions, legacyStarRenown, legacyTrialRenown, oathsFromTrials, oldAutomation, oldVisited } from './migrate/v17'
+import { CONQUESTS } from '../data/chapters'
 
 /**
  * 저장 형식 버전. 형식이 바뀌면 올리고, 옛 형식을 옮기는 코드를 둔다.
@@ -47,11 +49,14 @@ import { legacySlots, legacyStarRenown, migrateLooks, oldChapters, oldThreat, ol
  * - v15: 원형과 유물표 (E303-04). 신화권 재료 → 원형 셋씩(대장간 값 ×3), 12칸을 넘친 가방의 일반 장비는 낮은 등급부터 녹여 원형으로.
  *   칸·가방의 신화 유물은 유물표(lit)로 옮기고 빈 칸은 가방의 가장 좋은 장비로 채운다. 가진 장비의 고유 효과도 유물표에 켠다
  * - v16: 원정 (E304). 원정 번호·명성·원천 불씨·기록·가보. 옛 저장은 첫 원정에서 이어 간다(신 단계는 그대로라 명성 없이도 힘이 같다)
- * - v17: 맹세 (E305-01). 시련 기록(trials) → 맹세 기록(oaths), 원정에 건 맹세(expedition.oath). 한 단계라도 깬 시련은 짝인 맹세를 지킨 것으로.
- *   균열의 성좌판을 걷었다(E305-03): rift는 깊이 기록만, 밝힌 별과 남은 별 하나마다 명성 20
- *   위협 단계는 깊이로(E305-03): 키 threat는 그대로 {level, reached, limitBroken}, 열린 단계·신화권마다 이긴 단계는 버린다(v9 이하 옮기기만 `oldThreat`로 읽는다)
- *   편의는 자동화로(E305-03): 키 conveniences는 그대로 {counters:{pickups}}만, 켠 성소(visited)는 새 키 waypoints로. 원정에 지난번 갈래(expedition.lastBranch)
- *   균열은 끝없는 원정으로(E305-03): 키 rift는 그대로 {best}. 탭 일곱(E305-04): 연 탭의 classes·looks → gods, trials → oaths. 신위 게이지 divine → 심장 게이지 heartGauge (E305-04, 옛 키도 읽는다)
+ * - v17: 원정 순환 정리 (E305, `migrate/v17.ts`). 옛 키는 버전이 아니라 키가 있는지로 알아본다 (E305 도중의 v17 개발판도 옛 모양을 들고 있다).
+ *   옮긴 저장은 새 키로만 쓰니 한 번만 하는 일(명성 돌려주기)이 두 번 붙지 않는다
+ *   - 시련(trials) → 맹세(oaths): 한 단계라도 깬 시련은 짝인 맹세를 지킨 것으로. 시련 보상의 모든 피해 몫은 명성으로. 원정에 건 맹세(expedition.oath)
+ *   - 균열(rift) → 끝없는 원정(endless {best}): 성좌판의 밝힌 별과 남은 별 하나마다 명성 20
+ *   - 위협 단계(threat) → 깊이(depth {level, reached, limitBroken}): 열린 단계·신화권마다 이긴 단계는 버린다(v9 이하 옮기기만 `oldThreat`로 읽는다)
+ *   - 편의(conveniences) → 자동화 세기(automation {counters:{pickups}}): 자동화는 귀환 횟수·엔딩에서 다시 셈하고, 켠 성소(visited)는 waypoints로. 지난번 갈래(expedition.lastBranch)
+ *   - 신위 게이지(divine) → 심장 게이지(heartGauge). 신화 경험치(classes[*].xp)는 내보내지 않는다 (v10 이하 수련 짐작만 원본에서 읽는다)
+ *   - 연 탭: classes·looks → gods, trials → oaths. 원정 기록이 없던 저장(v15 이하)은 원정 번호를 장 진행이 지나온 할 일 「귀환」으로 짐작한다
  */
 export const SAVE_VERSION = 17
 
@@ -73,8 +78,8 @@ export interface SaveData {
   materials: Record<string, number>
   /** 땅에 떨어져 있던 유물·장비 */
   ground: { id: string; x: number; z: number }[]
-  /** 신화별 개방 단계(0~4)와 신화 숙련 */
-  classes: Partial<Record<God, { level: number; xp: number }>>
+  /** 신마다 단계 (0~4, 1부터 깨어남). 옛 신화 경험치는 v17에서 내보내지 않는다 */
+  classes: Partial<Record<God, { level: number }>>
   /** 신의 자리 셋 (E302): 손·심장·숨에 낀 신. 열린 신만 */
   pantheon: Pantheon
   /** 불운 보정: 마지막 유물 뒤로 놓친 횟수 */
@@ -85,16 +90,16 @@ export interface SaveData {
   looks: { unlocked: string[]; choices: Partial<Record<LookSlot, LookChoice>> }
   /** 처음에 고른 기본 모습. 옛 저장에는 없어서 기본값 */
   body: BodyLook
-  /** 깊이 (E305-03, 옛 위협 단계 E14라 키 이름은 그대로). 옛 저장에는 없어서 1 */
-  threat: DepthData
-  /** 자동화 세기 (E305-03, 옛 편의 E14-05라 키 이름은 그대로): 주운 수만. 나머지 자동화는 귀환 횟수·엔딩에서 셈한다 */
-  conveniences: AutomationData
+  /** 깊이 (E305-03, v16 이하는 옛 위협 단계 `threat`). 옛 저장에는 없어서 1 */
+  depth: DepthData
+  /** 자동화 세기 (E305-03, v16 이하는 옛 편의 `conveniences`): 주운 수만. 나머지 자동화는 귀환 횟수·엔딩에서 셈한다 */
+  automation: AutomationData
   /** 웨이포인트: 밟아 켠 성소의 땅 (E239-05, E305-03에서 편의에서 뗌). 없으면 옛 편의의 visited에서 */
   waypoints: string[]
   /** 맹세: 지킨 맹세와 기록 (E305-01, v16 이하는 시련 기록에서) */
   oaths: OathData
-  /** 끝없는 원정 기록 (E17 균열, 성좌판은 E305-03에서 걷음). 키는 옛 이름 그대로 */
-  rift: EndlessData
+  /** 끝없는 원정 기록 (E305-03, v16 이하는 옛 균열 `rift`. 성좌판은 걷음) */
+  endless: EndlessData
   /** 첫 엔딩을 보았나 (E21-06): 엔딩 뒤 장치를 연다 */
   ending: boolean
   /** 장 진행 (E22): 들어서 본 땅, 보스를 이긴 땅 */
@@ -192,12 +197,15 @@ export function parseSave(text: string | null): SaveData | null {
     .map((g) => ({ id: g.id, x: num(g.x, -100, 100, 0), z: num(g.z, -100, 100, 0) }))
 
   const classes: SaveData['classes'] = {}
+  // 옛 신화 경험치: v10 이하 수련 경험치를 짐작할 때만 읽고 내보내지 않는다 (v17)
+  const oldXp: Partial<Record<God, number>> = {}
   if (typeof data.classes === 'object' && data.classes !== null) {
     for (const [god, value] of Object.entries(data.classes as Record<string, unknown>)) {
       if (!isGod(god) || typeof value !== 'object' || value === null) continue
       const record = value as Record<string, unknown>
-      // 개방 단계 0은 숙련만 쌓이고 아직 못 연 신화 (E12-02)
-      classes[god] = { level: Math.round(num(record.level, 0, 4, 1)), xp: num(record.xp, 0, 1e6, 0) }
+      // 단계 0은 옛 신화 숙련만 쌓이고 아직 못 연 신화 (E12-02)
+      classes[god] = { level: Math.round(num(record.level, 0, 4, 1)) }
+      oldXp[god] = num(record.xp, 0, 1e6, 0)
     }
   }
 
@@ -217,12 +225,14 @@ export function parseSave(text: string | null): SaveData | null {
   // 12칸을 넘친 가방은 옛 저장에서만 녹인다 (지금은 가방이 차면 더 넣지 않는다)
   if ((data.version as number) < 15) fullBag = meltOverflow(fullBag, gearById, materials)
   const keep = new Set([...slots.slice(0, SLOT_PARTS.length), ...fullBag, ...ground.map((g) => g.id)])
-  const threat = parseDepth(data.threat)
-  const oaths = (data.version as number) < 17 ? oathsFromTrials(data.trials) : parseOaths(data.oaths)
-  const rift = parseEndless(data.rift)
+  // v17 옮기기 (`migrate/v17.ts`): 옛 키는 새 키가 없을 때만 읽는다 (E305 도중의 v17 개발판도 옛 모양을 들고 있다)
+  const has = (key: string) => Object.hasOwn(data, key)
+  const depth = parseDepth(has('depth') ? data.depth : data.threat)
+  const oaths = has('oaths') ? parseOaths(data.oaths) : oathsFromTrials(data.trials)
+  const endless = parseEndless(has('endless') ? data.endless : data.rift)
   // 엔딩 뒤 장치를 해 본 옛 저장은 엔딩 뒤로 친다 (E21-06). 옛 위협 단계는 열린 단계(unlocked)까지 본다
   const oldDanger = (data.version as number) < 10 ? oldThreat(data.threat) : null
-  const tried = threat.limitBroken || (oldDanger?.unlocked ?? 1) > 1 || oaths.kept.length > 0 || rift.best > 0
+  const tried = depth.limitBroken || (oldDanger?.unlocked ?? 1) > 1 || oaths.kept.length > 0 || endless.best > 0
   const region = parseRegion(data.region)
   // 웨이포인트는 키가 있는지로 옛 모양을 알아본다 (E305-03 전의 v17 개발판도 편의에 담았다)
   const waypoints = Array.isArray(data.waypoints) ? parseWaypoints(data.waypoints) : oldVisited(data.conveniences)
@@ -245,15 +255,15 @@ export function parseSave(text: string | null): SaveData | null {
     heartGauge: num(data.heartGauge ?? data.divine, 0, 1, 0),
     looks: data.version === 1 ? migrateLooks(legacySlots(data.slots), legacySlots(data.bag) as RelicId[], classes) : parseLooks(data.looks),
     body: parseBody(data.body),
-    threat,
-    conveniences: parseAutomation(data.conveniences),
+    depth,
+    automation: has('automation') ? parseAutomation(data.automation) : oldAutomation(data.conveniences),
     waypoints,
     oaths,
-    rift,
+    endless,
     ending: data.ending === true || ((data.version as number) < 9 && tried),
     chapters,
-    expedition: oldExpedition(data),
-    training: parseTraining(data.training, (data.version as number) < 11 ? oldTrainingXp(myths) : 0),
+    expedition: oldExpedition(data, chapters, myths, stages),
+    training: parseTraining(data.training, (data.version as number) < 11 ? oldTrainingXp(myths, oldXp) : 0),
     tabs: parseTabs(data.tabs, (data.version as number) < 11),
     awaken,
     region,
@@ -261,11 +271,21 @@ export function parseSave(text: string | null): SaveData | null {
   }
 }
 
-/** 원정 기록. v16 이하는 성좌판의 별을 명성으로 돌려준다 (v17, E305-03) */
-function oldExpedition(data: Record<string, unknown>): ExpeditionData {
+/**
+ * 원정 기록 (v17 옮기기는 키가 있는지로): 원정 기록이 없던 저장(v15 이하)은 원정 번호를 짐작하고,
+ * 성좌판의 별(끝없는 원정 키가 없을 때)과 옛 시련 보상의 피해 몫(맹세 키가 없을 때)은 명성으로 한 번 돌려준다
+ */
+function oldExpedition(data: Record<string, unknown>, chapters: ChapterData, classes: SaveData['classes'], stages: SaveData['stages']): ExpeditionData {
+  const has = (key: string) => Object.hasOwn(data, key)
   const expedition = parseExpedition(data.expedition)
-  const version = data.version as number
-  if (version < 17) expedition.renown = Math.min(1e7, expedition.renown + legacyStarRenown(data.rift, data.cycle, version))
+  if (!has('expedition')) {
+    const awakened = (realm: string) => Object.entries(classes).filter(([god, r]) => (r?.level ?? 0) >= 1 && godDef(god).realm === realm).length
+    expedition.count = estimateExpeditions(chapters, awakened, Math.max(1, ...Object.values(stages).filter((n): n is number => typeof n === 'number')))
+  }
+  let refund = 0
+  if (!has('endless')) refund += legacyStarRenown(data.rift, data.cycle, data.version as number)
+  if (!has('oaths')) refund += legacyTrialRenown(data.trials, CONQUESTS.filter((r) => chapters.bosses.includes(r)).length)
+  expedition.renown = Math.min(1e7, expedition.renown + refund)
   return expedition
 }
 

@@ -1,5 +1,5 @@
 import type { StatKind } from '../data/mythAlways'
-import { OATH, OATH_IDS, type OathId, OATHS, TRIAL_TO_OATH } from '../data/oaths'
+import { OATH, OATH_IDS, type OathId, OATHS } from '../data/oaths'
 
 export interface OathData {
   /** 지킨 맹세 */
@@ -69,23 +69,5 @@ export function parseOaths(raw: unknown): OathData {
   const b = (typeof o.best === 'object' && o.best !== null ? o.best : {}) as Record<string, unknown>
   const best: OathData['best'] = {}
   for (const [id, v] of Object.entries(b)) if (isOath(id) && typeof v === 'number' && Number.isFinite(v) && v > 0) best[id] = Math.min(36000, Math.round(v))
-  return { kept, best }
-}
-
-/**
- * 옛 시련 기록(v16 이하) → 맹세 (`CYCLE.md` 9장 v17): 한 단계라도 깬 시련은 짝인 맹세를 지킨 것으로.
- * 시련 기록(결계 싸움 초)은 원정 기록과 재는 것이 달라 기준 시간으로 둔다
- */
-export function oathsFromTrials(raw: unknown): OathData {
-  const o = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
-  const c = (typeof o.cleared === 'object' && o.cleared !== null ? o.cleared : {}) as Record<string, unknown>
-  const kept: OathId[] = []
-  const best: OathData['best'] = {}
-  for (const [trial, n] of Object.entries(c)) {
-    const id = TRIAL_TO_OATH[trial]
-    if (!id || typeof n !== 'number' || !(n >= 1) || kept.includes(id)) continue
-    kept.push(id)
-    best[id] = OATH.par
-  }
   return { kept, best }
 }

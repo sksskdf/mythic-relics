@@ -51,7 +51,7 @@ function fraction(x: number): string {
   return `${Math.round(x * 100)}%`
 }
 
-/** 저장되는 자동화 세기 (저장 키는 옛 이름 그대로 `conveniences`) */
+/** 저장되는 자동화 세기 (저장 키 `automation`, v16 이하는 옛 편의 `conveniences`) */
 export interface AutomationData {
   counters: { pickups?: number }
 }

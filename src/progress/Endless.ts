@@ -26,7 +26,7 @@ export class EndlessProgress {
   }
 }
 
-/** 끝없는 원정 기록을 읽는다 (저장 키는 옛 이름 `rift`). 옛 저장의 별(`stars`·`lit`)은 여기서 버리고 `legacyStarRenown`이 명성으로 바꾼다 */
+/** 끝없는 원정 기록을 읽는다 (저장 키 `endless`, v16 이하는 옛 균열 `rift`). 옛 저장의 별(`stars`·`lit`)은 여기서 버리고 `legacyStarRenown`이 명성으로 바꾼다 */
 export function parseEndless(raw: unknown): EndlessData {
   const o = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
   const best = typeof o.best === 'number' && Number.isFinite(o.best) ? Math.max(0, Math.min(9999, Math.round(o.best))) : 0

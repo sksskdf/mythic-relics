@@ -386,16 +386,17 @@
 | v15 | E303 | `materials` 신화권 재료 → `materials.prototype` | 1:1. 보스 재료 그대로. 재료 유물은 하나마다 원형 27 |
 | | | `bag[]` | 12칸이 넘으면 낮은 등급부터 원형으로 녹이고 첫 화면 카드로 알림 |
 | | | `conveniences.autoSalvage` | 버림 |
-| v16 | E304 | `training {xp, taken}` → `expedition {count, level, xp, taken, renown, flames, heirloom[], best, oath}` | 지금 판을 원정 하나로 본다. level = 그 xp의 깨달음 수, taken 그대로. count = 1 + 이긴 장 보스 수 + ⌊깨운 신 ÷ 2⌋. renown = 그 count의 목표 배율이 나오는 값(`cycle.ts`의 역함수). 불씨 = count − 1점을 원천 장비 합이 가장 큰 쪽에 |
+| v16 | E304 | `training {xp, taken}` → `expedition {count, level, xp, taken, renown, flames, heirloom[], best, oath}` | 지금 판을 원정 하나로 본다. level = 그 xp의 깨달음 수, taken 그대로. count = 1 + 장 진행이 이미 지나온 할 일 「귀환」(같은 장에서 그 뒤 할 일을 했으면 지나옴. 처음 안의 「1 + 이긴 장 보스 + ⌊깨운 신 ÷ 2⌋」는 그리스 장 들머리에서 델포이 귀환까지 채워 제우스 목표를 건너뛰게 해서 바꿈, E305). 명성·불씨는 주지 않음(신 단계가 그대로라 힘이 같다, E304 결정). v17 옮기기에서 함께 함 |
 | | | `classes[*].xp`가 다음 단계 문턱을 넘었던 신 | 「승천 준비」 표시, 다음 귀환 카드 맨 앞 |
-| v17 | E305 | `trials {cleared, best}` → `oaths` | 데모 맹세 셋은 대응하는 시련을 깼으면 깬 것으로. 나머지는 엔딩 뒤 기록 |
+| v17 | E305 | `trials {cleared, best}` → `oaths` | 데모 맹세 셋은 대응하는 시련을 깼으면 깬 것으로. 나머지는 엔딩 뒤 기록. 난이도의 모든 피해 몫(세 칸의 짐)은 명성 배율의 역함수로 돌려줌 (`migrate/v17.ts`, 옛 키는 새 키가 없을 때만 읽는다) |
 | | | `rift {best, stars, lit}` → `endless {best}` | 밝힌 별 하나마다 명성 20 |
 | | | `threat` → `depth` | 단계 그대로, 한계를 깸 그대로 |
-| | | `conveniences` → `automation` | 귀환 횟수로 다시 셈. 엔딩을 봤으면 횟수를 3 이상으로 쳐 자동화를 유지. 자동 줍기 세기 남김 |
+| | | `divine` → `heartGauge`, `classes[*].xp` | 이름만 / 내보내지 않음 (v10 이하 수련 짐작에만 읽음) |
+| | | `conveniences` → `automation` | 귀환 횟수로 다시 셈. 엔딩을 봤으면 횟수를 3 이상으로 쳐 자동화를 유지. 자동 줍기 세기 남김(열어 둔 자동 줍기는 문턱까지 채움). 켠 성소(`visited`)는 `waypoints`로 |
 | | | `tabs[]` | `rift` 버림, `trials` → `oaths`, `classes`·`looks` → `gods`, `sources` 그대로 |
 | | | `chapters` | 그대로. 없어진 할 일(`level`·`choose`)은 사실로 다시 판정 |
 
-**테스트:** v1·v9·v12·v13 실제 저장 견본을 최신으로 올린 뒤 (1) 검사 통과 (2) 공격 지수가 옮기기 전의 0.9~1.1배 (3) 깨운 신·장 진행·웨이포인트가 같음을 본다(`tests/save.test.ts`).
+**테스트:** v1·v9·v12·v13·v15·v16 실제 저장 견본을 최신으로 올린 뒤 (1) 검사 통과 (2) 공격 지수가 옮기기 전의 0.9~1.1배 (3) 깨운 신·장 진행·웨이포인트가 같음을 본다(`tests/save.test.ts`). 성좌판의 별(하나마다 명성 20)은 정복 둘에서 공격 지수 ×1.56이라 별을 가진 저장은 이 띠 밖이다(E306에서 다시 본다).
 
 ---
 

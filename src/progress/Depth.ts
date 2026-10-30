@@ -1,6 +1,6 @@
 import { DEPTH_LIMIT, DEPTH_LIMITLESS } from '../data/depth'
 
-/** 저장되는 깊이 (저장 키는 옛 이름 그대로 `threat`, E305-03) */
+/** 저장되는 깊이 (저장 키 `depth`, v16 이하는 옛 위협 단계 `threat`) */
 export interface DepthData {
   level: number
   reached: number

@@ -538,7 +538,7 @@ try {
   // 저장 왕복: 로키를 빌린 칸에 넣고, 정보 화면을 열어 멈춘 채(창을 닫을 때 다시 저장해도 같게) 저장한다
   const keep = () => {
     const d = window.__game.snapshot()
-    return { pantheon: d.pantheon, waking: d.awaken.waking, fragments: d.awaken.fragments, slots: d.slots, bag: d.bag, stages: d.stages, taken: d.training.taken, ending: d.ending, depth: d.threat.reached, pickups: d.conveniences.counters.pickups ?? 0, waypoints: d.waypoints, lastBranch: d.expedition.lastBranch }
+    return { pantheon: d.pantheon, waking: d.awaken.waking, fragments: d.awaken.fragments, slots: d.slots, bag: d.bag, stages: d.stages, taken: d.training.taken, ending: d.ending, depth: d.depth.reached, pickups: d.automation.counters.pickups ?? 0, waypoints: d.waypoints, lastBranch: d.expedition.lastBranch }
   }
   await page.evaluate(() => {
     window.__game.relics.place('breath', 'loki')

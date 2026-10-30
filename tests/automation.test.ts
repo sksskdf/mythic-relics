@@ -4,7 +4,7 @@ import { AUTOMATION } from '../src/data/cycle'
 import { AUTOMATION_STEPS, AutomationProgress, automationAt, parseAutomation } from '../src/progress/Automation'
 import { ExpeditionProgress } from '../src/progress/Expedition'
 import { parseWaypoints, Waypoints } from '../src/progress/Waypoints'
-import { oldVisited } from '../src/save/migrate/legacy'
+import { oldAutomation, oldVisited } from '../src/save/migrate/v17'
 
 describe('자동화: 귀환 횟수가 여는 것 (E305-03, CYCLE.md 3.5)', () => {
   it('귀환 0·1·2·3마다 다시 찍기·가보·자동 합치기·출발점이 차례로 켜진다', () => {
@@ -62,6 +62,13 @@ describe('자동화: 귀환 횟수가 여는 것 (E305-03, CYCLE.md 3.5)', () =>
     a.load(parseAutomation({ counters: { pickups: 7, salvaged: 12, threat: 3 }, open: ['autoSalvage', 'quickChoose'], autoSalvage: false, visited: ['midgard'] }))
     expect(a.toData()).toEqual({ counters: { pickups: 7 } })
     expect(parseAutomation('broken')).toEqual({ counters: {} })
+  })
+
+  it('옛 편의(v16 이하): 주운 수만 남기고, 이미 열어 둔 자동 줍기는 문턱까지 채워 그대로 켜 둔다', () => {
+    expect(oldAutomation({ counters: { pickups: 4 }, open: ['autoPickup'], visited: [] })).toEqual({ counters: { pickups: AUTOMATION.pickup.need } })
+    expect(oldAutomation({ counters: { pickups: 31 }, open: ['autoPickup'] })).toEqual({ counters: { pickups: 31 } })
+    expect(oldAutomation({ counters: { pickups: 4 }, open: [] })).toEqual({ counters: { pickups: 4 } })
+    expect(oldAutomation(undefined)).toEqual({ counters: {} })
   })
 })
 

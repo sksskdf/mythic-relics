@@ -46,8 +46,8 @@ export class Persistence {
   snapshot(): SaveData {
     const { progress, powers, pickups, drops, combat, wardrobe } = this.ctx
     const classes: SaveData['classes'] = {}
-    // 신화 경험치는 E305-03에서 없앴다: 저장 모양은 그대로 두고 0으로 쓴다
-    for (const [god, record] of progress.records) classes[god] = { level: record.level, xp: 0 }
+    // 신화 경험치는 E305-03에서 없앴다: 단계만 쓴다 (v17)
+    for (const [god, record] of progress.records) classes[god] = { level: record.level }
     return {
       version: SAVE_VERSION,
       slots: [...powers.loadout.slots],
@@ -65,14 +65,12 @@ export class Persistence {
       heartGauge: combat.heartGauge,
       looks: { unlocked: [...wardrobe.unlocked], choices: Object.fromEntries(wardrobe.choices) },
       body: { ...wardrobe.body },
-      // 깊이 (E305-03): 저장 키는 옛 위협 단계 이름 그대로
-      threat: this.ctx.depth.toData(),
-      // 자동화 세기 (E305-03): 저장 키는 옛 편의 이름 그대로, 주운 수만
-      conveniences: this.ctx.automation.toData(),
+      depth: this.ctx.depth.toData(),
+      // 자동화 세기: 주운 수만 (나머지 자동화는 귀환 횟수·엔딩에서 셈한다)
+      automation: this.ctx.automation.toData(),
       waypoints: this.ctx.waypoints.toData(),
       oaths: this.ctx.oaths.toData(),
-      // 끝없는 원정 기록 (E305-03): 저장 키는 옛 균열 이름 그대로
-      rift: this.ctx.endless.toData(),
+      endless: this.ctx.endless.toData(),
       ending: this.ctx.ending.reached,
       chapters: this.ctx.chapters.toData(),
       training: this.ctx.training.toData(),
@@ -95,11 +93,11 @@ export class Persistence {
     this.ctx.expedition.load(data.expedition)
     this.ctx.tabs.load(data.tabs)
     this.ctx.awaken.load(data.awaken)
-    this.ctx.depth.load(data.threat)
-    this.ctx.automation.load(data.conveniences)
+    this.ctx.depth.load(data.depth)
+    this.ctx.automation.load(data.automation)
     this.ctx.waypoints.load(data.waypoints)
     this.ctx.oaths.load(data.oaths)
-    this.ctx.endless.load(data.rift)
+    this.ctx.endless.load(data.endless)
     for (const [slot, choice] of Object.entries(data.looks.choices) as [LookSlot, string | null][]) wardrobe.choose(slot, choice)
     host.applyLooks()
     for (const [god, record] of Object.entries(data.classes) as [God, { level: number }][]) progress.record(god).level = record.level

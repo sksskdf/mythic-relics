@@ -12,7 +12,7 @@
 - **UI는 디자인 시스템:** `theme.css`의 토큰만, 갈무리 픽셀 글꼴 10/12/15px와 그 배수만.
 - **테스트 층:** 단위(`tests/*.test.ts`, vitest는 `tests/`만 봄), 스모크(`scripts/smoke.mjs`, 브라우저로 실제 화면), 봇(`scripts/playtest.mjs`), 적 시험(`enemy-trial.mjs`), 성능(`bench.mjs`), 모습 모음(`enemy-sheet.mjs`, `class-sheet.mjs`).
 - **개발 도구도 같이:** 새 시스템을 만들면 개발 패널(`src/dev/DevPanel.ts`)에 시험 단추를 더하고, 봇(`src/dev/autoplay.ts`)이 그 시스템을 쓰게 한다.
-- **저장은 옮기기 테스트로:** 지금 v3 (`src/save/SaveData.ts`, v1·v2도 읽음). 형식을 바꾸면 옛 판을 옮기는 함수와 테스트를 함께 만든다.
+- **저장은 옮기기 테스트로:** 지금 v17 (`src/save/SaveData.ts`, v1부터 모두 읽음). 형식을 바꾸면 옛 판을 옮기는 함수(`src/save/migrate/`)와 실제 모양 견본 테스트(`tests/save.test.ts`: 검사 통과·공격 지수 0.9~1.1배·깨운 신·장 진행·웨이포인트)를 함께 만든다. 개발판이 버전은 같고 모양만 옛것일 수 있으니 옛 키는 새 키가 없을 때만 읽는다(E305).
 
 ## E11에서 바꾼 곳 (끝)
 

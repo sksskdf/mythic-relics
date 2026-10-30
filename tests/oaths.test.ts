@@ -8,7 +8,8 @@ import { RelicPowers } from '../src/game/RelicPowers'
 import { rollGear } from '../src/gear/roll'
 import { ClassProgress } from '../src/myth/ClassProgress'
 import { oathPantheon } from '../src/myth/pantheon'
-import { OathProgress, oathsFromTrials, parseOaths } from '../src/progress/Oaths'
+import { OathProgress, parseOaths } from '../src/progress/Oaths'
+import { oathsFromTrials } from '../src/save/migrate/v17'
 
 /** 토르를 손·심장·숨에 몰고 일반 장비 여섯 칸을 낀 상태 (맹세는 sworn이 정한다, 도는 자리는 시스템처럼 맞춘다) */
 function geared(sworn: () => OathId | null) {

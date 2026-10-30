@@ -9,14 +9,13 @@ import { GRADES, SLOT_PARTS } from '../../data/gearData'
 import { hiddenUnlocked } from '../../myth/manifest'
 import { relicGods } from '../../relics/model'
 import { type ChapterData, parseChapterData } from '../../progress/Chapters'
-import { parseWaypoints } from '../../progress/Waypoints'
 import { STARTING_LOOKS } from '../../looks/catalog'
-import { type God, godDef, GODS, isRelicId, relicDef, type RelicId } from '../../relics/data'
+import { type God, godDef, isRelicId, relicDef, type RelicId } from '../../relics/data'
 import type { SaveData } from '../SaveData'
 
 /**
- * 옛 저장 옮기기 (E301-03, `CYCLE.md` 9장): 옛 버전을 지금 모양으로 올릴 때만 쓰는 것을 한곳에 모았다.
- * `parseSave`가 버전을 보고 부른다. v14부터는 버전마다 `migrate/v14.ts`처럼 하나씩 둔다
+ * 옛 저장 옮기기 (E301-03, `CYCLE.md` 9장): 옛 버전을 v16 모양까지 올릴 때만 쓰는 것을 한곳에 모았다.
+ * `parseSave`가 버전을 보고 부른다. 맹세·깊이·자동화·끝없는 원정으로 바꾸는 v17 옮기기는 `migrate/v17.ts`
  */
 
 const isRelic = isRelicId
@@ -56,13 +55,16 @@ export const CYCLE_REFUND = { essencePer: 100, essenceTo: 'frostShard', essenceM
 export const LEGACY_OPEN_XP = 600
 export const LEGACY_PROMOTE_XP: readonly number[] = [1500, 3000, 5000]
 
-/** v10 이하 → v11: 모은 경험치를 신화 경험치로 짐작한다 (E236). 신화마다 연 문턱·단계 문턱·지금 경험치의 합 가운데 가장 큰 것 */
-export function oldTrainingXp(classes: SaveData['classes']): number {
+/**
+ * v10 이하 → v11: 모은 경험치를 신화 경험치로 짐작한다 (E236). 신화마다 연 문턱·단계 문턱·지금 경험치의 합 가운데 가장 큰 것.
+ * 신화 경험치는 저장에서 내보내지 않으니(v17) 원본에서 읽은 값을 따로 받는다
+ */
+export function oldTrainingXp(classes: SaveData['classes'], xp: Partial<Record<God, number>>): number {
   let best = 0
-  for (const record of Object.values(classes)) {
+  for (const [god, record] of Object.entries(classes)) {
     if (!record) continue
     const spent = record.level >= 1 ? LEGACY_OPEN_XP + LEGACY_PROMOTE_XP.slice(0, record.level - 1).reduce((a, b) => a + b, 0) : 0
-    best = Math.max(best, spent + record.xp)
+    best = Math.max(best, spent + (xp[god] ?? 0))
   }
   return best
 }
@@ -86,20 +88,6 @@ export function oldStars(raw: unknown): number {
   const stars = (raw as Record<string, unknown>).stars
   if (typeof stars !== 'object' || stars === null) return 0
   return Object.values(stars as Record<string, unknown>).reduce<number>((s, v) => s + (typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.min(10, Math.round(v)) : 0), 0)
-}
-
-/** 성좌판의 별 하나를 바꿔 주는 명성 (E305-03, `CYCLE.md` 9장 v17) */
-export const LEGACY_STAR_RENOWN = 20
-
-/**
- * v16 이하 → v17: 성좌판(E17-05)을 걷었으니 밝힌 별과 남은 별 하나마다 명성 20을 준다.
- * 밝힌 별은 있는 신만 세고, v5 이하 별자리의 별(`oldStars`)은 남은 별로 친다
- */
-export function legacyStarRenown(rift: unknown, cycle: unknown, version: number): number {
-  const o = (typeof rift === 'object' && rift !== null ? rift : {}) as Record<string, unknown>
-  const left = typeof o.stars === 'number' && Number.isFinite(o.stars) ? Math.max(0, Math.min(999, Math.round(o.stars))) : 0
-  const lit = new Set((Array.isArray(o.lit) ? o.lit : []).filter((g): g is God => typeof g === 'string' && Object.hasOwn(GODS, g))).size
-  return (left + lit + (version < 6 ? oldStars(cycle) : 0)) * LEGACY_STAR_RENOWN
 }
 
 /** v8 이하 → v9: 신화 고유 재료를 그 신의 신화권 재료로 하나씩 바꿔 준다 (E21-04) */
@@ -167,15 +155,6 @@ export function oldThreat(raw: unknown): { unlocked: number; cleared: Record<str
   return { unlocked: int(o.unlocked, 1, 99, 1), cleared }
 }
 
-/**
- * 웨이포인트 키가 없는 저장(v16 이하, 그리고 E305-03 전의 v17 개발판): 옛 편의(`conveniences`)의 켠 성소(`visited`).
- * 빠뜨리면 켠 성소가 모두 사라진다
- */
-export function oldVisited(conveniences: unknown): string[] {
-  const o = (typeof conveniences === 'object' && conveniences !== null ? conveniences : {}) as Record<string, unknown>
-  return parseWaypoints(o.visited)
-}
-
 /** v9 이하 → v10: 장 진행을 그때까지 한 것에서 짐작한다 (E22) */
 export function oldChapters(region: SaveData['region'], visited: readonly string[], cleared: Readonly<Record<string, number>>, materials: Record<string, number>, owned: readonly RelicId[]): ChapterData {
   const entered = new Set<string>([...(region ? [region.id] : []), ...visited])
@@ -201,7 +180,7 @@ export function openOwned(classes: SaveData['classes'], owned: readonly (RelicId
   const out: SaveData['classes'] = { ...classes }
   const gods = new Set<God>(hiddenUnlocked(owned))
   for (const id of owned) if (id) for (const god of relicGods(relicDef(id))) if (!godDef(god).hidden) gods.add(god)
-  for (const god of gods) if ((out[god]?.level ?? 0) < 1) out[god] = { level: 1, xp: 0 }
+  for (const god of gods) if ((out[god]?.level ?? 0) < 1) out[god] = { level: 1 }
   return out
 }
 
