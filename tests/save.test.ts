@@ -250,8 +250,13 @@ describe('저장 v11: 연 탭 (E236-05)', () => {
     expect(parseSave(JSON.stringify({ ...sample, tabs: 'broken' }))?.tabs).toEqual([])
   })
 
-  it('옛 저장(탭 기록이 없던 때)은 탭을 모두 연 것으로 친다', () => {
-    expect(parseSave(JSON.stringify({ ...sample, version: 10, tabs: undefined }))?.tabs).toEqual([...STEP_TABS])
+  it('옛 저장(탭 기록이 없던 때)은 맹세 말고 탭을 모두 연 것으로 친다 (맹세는 불러온 뒤 귀환 수로)', () => {
+    expect(parseSave(JSON.stringify({ ...sample, version: 10, tabs: undefined }))?.tabs).toEqual(STEP_TABS.filter((t) => t !== 'oaths'))
+  })
+
+  it('v16과 E305-04 전의 v17 개발판: 신화·외형 탭은 신 탭으로 (탭 id로 옛 모양을 알아본다)', () => {
+    expect(parseSave(JSON.stringify({ ...sample, version: 16, tabs: ['relics', 'classes', 'looks', 'sources'] }))?.tabs).toEqual(['relics', 'gods', 'sources'])
+    expect(parseSave(JSON.stringify({ ...sample, tabs: ['looks', 'map'] }))?.tabs).toEqual(['gods', 'map'])
   })
 })
 

@@ -86,7 +86,7 @@ export class MenuData {
       mergeable: () => game.powers.loadout.mergeable().map((g) => g.map((i) => i.uid)),
       merge: (uids) => relics.merge(uids) && game.menu.refresh(),
       progress: game.progress,
-      myths: {
+      gods: {
         // 신의 자리는 어디서나 바꾼다 (E302, 막던 전설 판은 E305-03에서 걷음)
         canSwap: () => true,
         choose: (god) => game.chooseMyth(god),
@@ -123,6 +123,10 @@ export class MenuData {
           return AUTOMATION_STEPS.map((s) => ({ name: s.name, lines: s.lines, on: s.at === null ? ending : ending || returns >= s.at }))
         },
         returns: () => game.expedition.returns,
+        expedition: () => {
+          const e = game.expedition
+          return { count: e.count, renown: e.renown, multiplier: e.multiplier, times: [...e.best], heirloomSlots: e.heirloomSlots }
+        },
       },
       oaths: {
         current: () => (game.expedition.oath ? OATHS[game.expedition.oath].name : null),

@@ -26,7 +26,7 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, te
 }
 
 /**
- * 외형 보관함. (E3-07) 정보 화면의 "외형" 탭.
+ * 외형 보관함. (E3-07) 정보 화면 신 탭의 「외형」 (E305-04에서 외형 탭을 신 탭에 합침).
  * 가운데에 지금 모습을 돌려 보여 주고, 몸 둘레에 부위별 칸을 둔다. 칸을 누르면 아래에 고를 수 있는 외형이 나오고,
  * 외형에 커서를 올리면 입혀 본 모습을 미리 보여 준다. 모습만 바뀌고 능력은 그대로다.
  */
@@ -63,7 +63,7 @@ export class WardrobePane {
     doll.append(column(LEFT, 'left'), stage, column(RIGHT, 'right'))
     pane.append(doll)
 
-    // 고른 칸의 외형들. 표식은 발현한 신을 따르므로 고를 것이 없다.
+    // 고른 칸의 외형들. 표식은 손에 쥔 신을 따르므로 고를 것이 없다.
     const { wardrobe, autoOutfit } = this.host
     const options = el('section', 'wardrobe__options')
     const chips = el('div', 'wardrobe__chips')
@@ -96,7 +96,7 @@ export class WardrobePane {
       if (OPTIONAL.has(this.selected)) add(null, null, 'none', '비우기')
     }
     options.append(
-      el('div', 'wardrobe__options-label', this.selected === 'mark' ? '표식은 지금 신화가 정한다' : `${SLOT_NAMES[this.selected]}: ${touchUi() ? '누르면 입혀 보고 고른다' : '커서를 올리면 입혀 보고, 누르면 고른다'}`),
+      el('div', 'wardrobe__options-label', this.selected === 'mark' ? '표식은 손에 쥔 신이 정한다' : `${SLOT_NAMES[this.selected]}: ${touchUi() ? '누르면 입혀 보고 고른다' : '커서를 올리면 입혀 보고, 누르면 고른다'}`),
       chips,
     )
     pane.append(options)
@@ -118,7 +118,7 @@ export class WardrobePane {
       lock.src = glyph('lock', '#8d98a6', '#222a36')
       lock.alt = ''
       box.append(lock)
-      this.hintOn(box, id ? '지금 신화의 표식' : '신화가 열리면 새겨진다')
+      this.hintOn(box, id ? '손에 쥔 신의 표식' : '신의 무기를 손에 쥐면 새겨진다')
     }
     box.addEventListener('click', () => {
       this.selected = slot

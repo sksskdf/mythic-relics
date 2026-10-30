@@ -31,7 +31,7 @@
 
 | 곳 | 나눈 뒤 |
 | --- | --- |
-| `src/ui/GameMenu.ts` | 1279줄 → 225줄. 틀(탭 줄·힌트·여닫기)만 남기고 탭은 `src/ui/menu/`: `statusTab`·`sourcesTab`·`oathsTab`·`endlessTab`·`mapTab`는 함수(`renderX(ctx, body)`), 기억할 것이 있는 장비·신화 탭은 클래스(`RelicsTab`의 고른 칸·커서 올린 것, `MythTab`의 눌러 본 신화). 탭이 쓰는 것은 `TabContext`(host·힌트·다시 그리기·닫기), 게임에서 읽는 형식은 `menu/host.ts` |
+| `src/ui/GameMenu.ts` | 1279줄 → 225줄. 틀(탭 줄·힌트·여닫기)만 남기고 탭은 `src/ui/menu/`: `statusTab`·`sourcesTab`·`oathsTab`·`endlessTab`·`mapTab`는 함수(`renderX(ctx, body)`), 기억할 것이 있는 장비·수련·신 탭은 클래스(`RelicsTab`의 고른 칸·커서 올린 것, `GodsTab`의 눌러 본 신·「자리 · 외형」·접힌 신들의 지도, 외형 보관함 `WardrobePane`은 `GodsTab`이 하나만 들고 따로 둔 칸에 그린다). 탭 일곱(E305-04)과 엔딩 뒤 끝없는 원정. 탭이 쓰는 것은 `TabContext`(host·힌트·다시 그리기·닫기), 게임에서 읽는 형식은 `menu/host.ts` |
 | `src/game/Game.ts` | 1278줄 → 861줄. 정보 화면에 넘길 값과 할 일·능력치·설명 카드 상태는 `MenuData`, 대화 장면을 여는 때와 미루기·말 걸기는 `Storyline`, 공격 궤적·원거리 공격 모습은 `AttackFx`, 커서 아래 카드·이름표는 `HoverCards`. Game에는 `story`·`storyScenes`·`sourceRows` 위임이 남음 |
 
 새 탭은 `src/ui/menu/`에 파일을 만들고 `GameMenu.render`에 한 줄을 더한다. 탭이 게임에서 읽을 것은 `menu/host.ts`의 형식에 더하고 `MenuData.host()`에서 채운다.

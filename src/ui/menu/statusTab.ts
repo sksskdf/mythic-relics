@@ -17,7 +17,7 @@ const STAT_TINT: Partial<Record<Parameters<typeof glyph>[0], [string, string]>> 
   promote: ['#ffd27a', '#a8862e'],
 }
 
-/** 지금의 나: 왼쪽에 초상·칭호·레벨 보석·승급 막대, 오른쪽에 능력치와 걸린 힘 */
+/** 지금의 나: 왼쪽에 초상·칭호·단계 보석, 오른쪽에 능력치와 무엇으로 얼마나 강해졌나 */
 export function renderStatus(ctx: TabContext, body: HTMLElement): void {
   const { host } = ctx
   const stats = host.stats()
@@ -45,7 +45,6 @@ export function renderStatus(ctx: TabContext, body: HTMLElement): void {
     ctx.hintOn(portrait, '신의 흔적·사냥·수호자, 조각 셋을 모으면 그 신이 깨어난다.')
   }
   const tags = el('div', 'menu-status__tags')
-  if (current) tags.append(el('span', 'ui-tag ui-tag--solid', '신화 개방'))
   for (const g of host.loadout.blessings) {
     const tag = el('span', 'ui-tag', `잠든 ${godDef(g).name}의 유물`)
     tag.style.setProperty('--tag', godDef(g).color)
@@ -69,14 +68,14 @@ export function renderStatus(ctx: TabContext, body: HTMLElement): void {
     grid.append(r)
   }
   const changed = (v: number, higherIsGood: boolean) => (Math.abs(v - 1) < 0.005 ? undefined : { text: pct(v), good: v > 1 === higherIsGood })
-  row('heart', '생명', `${Math.round(stats.hp)} / ${stats.maxHp}`, `생명\n개방 단계를 하나 올릴 때마다 최대 생명 +${Math.round(PER_PROMOTION.maxHpPct * 100)}%, 열린 신화 하나마다 +${PER_OPENED.maxHp}. 오르면 가득 찬다.`)
-  row('sword', '주는 피해', `×${stats.damage.toFixed(2)}`, `주는 피해\n개방 단계를 하나 올릴 때마다 ×${PER_PROMOTION.damage}, 유물표에 켠 칸 하나마다 +${Math.round(PER_LIT * 100)}%, 손에 쥔 신의 힘이 곱해진다.`, changed(stats.damage, true))
+  row('heart', '생명', `${Math.round(stats.hp)} / ${stats.maxHp}`, `생명\n승천 하나마다 최대 생명 +${Math.round(PER_PROMOTION.maxHpPct * 100)}%, 깨운 신 하나마다 +${PER_OPENED.maxHp}. 오르면 가득 찬다.`)
+  row('sword', '주는 피해', `×${stats.damage.toFixed(2)}`, `주는 피해\n승천 하나마다 ×${PER_PROMOTION.damage}, 유물표에 켠 칸 하나마다 +${Math.round(PER_LIT * 100)}%, 손에 쥔 신의 힘이 곱해진다.`, changed(stats.damage, true))
   row('shield', '받는 피해', `×${stats.damageTaken.toFixed(2)}`, '낀 유물의 지속 효과', changed(stats.damageTaken, false))
   row('boot', '이동 속도', `${Math.round(stats.moveSpeed * 100)}%`, '낀 유물의 지속 효과', changed(stats.moveSpeed, true))
   row('push', '밀쳐 내기', `×${stats.knockbackDealt.toFixed(2)}`, '내 공격이 적을 미는 힘', changed(stats.knockbackDealt, true))
   row('stand', '버티기', `×${stats.knockbackTaken.toFixed(2)}`, '내가 밀려나는 정도. 낮을수록 잘 버틴다.', changed(stats.knockbackTaken, false))
   row('divine', '궁극기 충전', `${Math.round(stats.divine * 100)}%`, '궁극기 충전\n스킬로 맞히고 적을 쓰러뜨릴수록 차오른다. 가득 차면 지금 신화의 궁극기가 저절로 나간다.')
-  row('promote', '올린 단계', `${stats.promotions}`, `올린 단계\n어느 신화든 개방 단계를 하나 올릴 때마다 최대 생명 +${Math.round(PER_PROMOTION.maxHpPct * 100)}%, 모든 피해 ×${PER_PROMOTION.damage}. 다른 신화로 바꿔도 남는다.`)
+  row('promote', '승천', `${stats.promotions}`, `승천\n어느 신이든 귀환할 때 승천을 고르면 그 신이 한 단계 오르고, 하나마다 최대 생명 +${Math.round(PER_PROMOTION.maxHpPct * 100)}%, 모든 피해 ×${PER_PROMOTION.damage}. 자리를 바꿔도 남는다.`)
   right.append(grid)
 
   // 주는 피해가 어디서 오나 (E301-01): 곱하는 층과 더하는 층, 합은 「주는 피해」 줄
@@ -96,7 +95,7 @@ export function renderStatus(ctx: TabContext, body: HTMLElement): void {
       const chip = el('span', 'ui-chip')
       chip.style.setProperty('--glow', 'var(--c-gilt)')
       chip.append(img(glyph('star', '#ffd27a', '#a8862e')))
-      line.append(chip, el('span', '', '유물표'), el('em', '', `켠 칸 ${stats.lit} · 모든 피해 +${Math.round(stats.lit * PER_LIT * 100)}%, 열린 신화 ${n} · 최대 생명 +${n * PER_OPENED.maxHp}`))
+      line.append(chip, el('span', '', '유물표'), el('em', '', `켠 칸 ${stats.lit} · 모든 피해 +${Math.round(stats.lit * PER_LIT * 100)}%, 깨운 신 ${n} · 최대 생명 +${n * PER_OPENED.maxHp}`))
       list.append(line)
     }
     for (const p of stats.powers) {

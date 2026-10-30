@@ -143,11 +143,11 @@ const sections = {
     return out
   },
 
-  /** E12-3 신화 탭만 보고 다음에 무엇을 해야 하는지 안다: 막 시작했을 때, 신화 하나 연 뒤, 귀환해 승천할 수 있을 때 */
+  /** E12-3 신 탭만 보고 다음에 무엇을 해야 하는지 안다: 막 시작했을 때, 신화 하나 연 뒤, 귀환해 승천할 수 있을 때 */
   async 'e12-3'(browser) {
     const page = await fresh(browser)
     const tab = async (name) => {
-      await page.evaluate(() => window.__game.menu.show('classes'))
+      await page.evaluate(() => window.__game.menu.show('gods'))
       await page.waitForTimeout(300)
       const text = await page.evaluate(() => document.querySelector('.menu')?.innerText ?? '')
       await shot(page, name)
@@ -470,6 +470,63 @@ const sections = {
     return {}
   },
 
+  /** E305-6 탭 일곱이 쓸 일이 생길 때 하나씩 열린다: 새 판에서 장비 → 수련 → 신 → 지도 → 원천(첫 귀환) → 맹세(귀환 2), 카드와 신 탭의 「자리 · 외형」 */
+  async 'e305-6'(browser) {
+    const page = await fresh(browser, '?fresh&region=midgard&noscenes')
+    const order = []
+    const step = async (name, run) => {
+      await page.evaluate(run)
+      await page.waitForTimeout(500)
+      await shot(page, `e305-6-${name}`)
+      order.push({ step: name, opened: await page.evaluate(() => [...window.__game.tabs.opened]) })
+    }
+    await step('gear', () => {
+      const g = window.__game
+      const p = g.hero.object.position
+      g.dev.dropGear('feet', 'rare', p.x, p.z)
+      g.advance(1, 1 / 30)
+    })
+    await step('training', () => {
+      window.__game.dev.insight(1)
+      window.__game.advance(0.5, 1 / 30)
+    })
+    await step('gods', () => {
+      window.__game.dev.awaken('thor')
+      window.__game.advance(0.5, 1 / 30)
+    })
+    await step('map', () => {
+      const g = window.__game
+      g.dev.teleport(g.sanctuary.center.x, g.sanctuary.center.z)
+      g.advance(1, 1 / 30)
+      g.hideCards()
+    })
+    await step('sources', () => {
+      const g = window.__game
+      Object.assign(g.expedition, { elapsed: 300 })
+      g.training.xp = 5000
+      g.expeditionSystem.returnNow('flame:flame')
+      g.hideCards()
+      g.advance(0.5, 1 / 30)
+    })
+    await step('oaths', () => {
+      const g = window.__game
+      Object.assign(g.expedition, { elapsed: 300 })
+      g.training.xp = 5000
+      g.expeditionSystem.returnNow('flame:flame')
+      g.hideCards()
+      g.advance(0.5, 1 / 30)
+    })
+    await page.evaluate(() => window.__game.menu.show('gods'))
+    await page.waitForTimeout(400)
+    await shot(page, 'e305-6-gods-slots')
+    await page.locator('.menu-gods__views .ui-pill', { hasText: '외형' }).click()
+    await page.waitForTimeout(400)
+    await shot(page, 'e305-6-gods-looks')
+    const tabs = await page.evaluate(() => [...document.querySelectorAll('.menu__tab')].filter((b) => !b.hidden).map((b) => b.textContent.trim()))
+    await page.close()
+    return { order, tabs }
+  },
+
   /** E305 끝없는 원정: 한계를 깬 뒤 마을의 끝없는 원정 탭과 1층 입구 (층 이름·나가는 문) */
   async 'e305-endless'(browser) {
     const page = await fresh(browser)
@@ -582,7 +639,7 @@ const sections = {
     return rows
   },
 
-  /** E21-3 정보 화면에 잡다한 장치가 보이지 않는다: 엔딩 전 탭 줄과 원천·신화 탭 */
+  /** E21-3 정보 화면에 잡다한 장치가 보이지 않는다: 엔딩 전 탭 줄과 원천·신 탭 */
   async 'e21-3'(browser) {
     const page = await fresh(browser)
     await page.evaluate(() => {
@@ -593,7 +650,7 @@ const sections = {
     })
     await page.waitForTimeout(600)
     await shot(page, 'e21-3-sources')
-    await page.evaluate(() => window.__game.menu.show('classes'))
+    await page.evaluate(() => window.__game.menu.show('gods'))
     await page.waitForTimeout(600)
     await shot(page, 'e21-3-myth')
     const tabs = await page.evaluate(() => [...document.querySelectorAll('.menu__tab')].filter((b) => getComputedStyle(b).display !== 'none').map((b) => b.textContent.trim()))

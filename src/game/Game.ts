@@ -509,9 +509,9 @@ export class Game {
       traceContext: () => ({ waking: this.awaken.waking, fragments: this.awaken.fragments, hunt: this.awaken.hunt, sealedText: this.awakening.sealedText }),
       guardian: () => this.awakening.fighting,
     })
-    // 새 외형은 메뉴 단추의 점으로만 알린다. (유물 이름 알림과 겹치지 않게, 외형 탭이 열린 뒤에만)
+    // 새 외형은 메뉴 단추의 점과 신 탭의 「외형」 알약으로만 알린다. (유물 이름 알림과 겹치지 않게, 신 탭이 열린 뒤에만)
     this.bus.on('looksUnlocked', () => {
-      if (this.tabs.has('looks')) this.menu.markNew()
+      if (this.tabs.has('gods')) this.menu.markNew()
     })
     // 가방에 더 좋은 장비가 들어왔다: 메뉴 단추를 누르면 장비 탭부터 (밟거나 눌러서 줍기, 사용자 의견 2026-10-28)
     this.bus.on('gearBetter', () => {
@@ -540,7 +540,7 @@ export class Game {
     this.bus.on('loadoutChanged', () => this.menu.refresh())
     // HUD 유물 칸: 커서를 올리면 설명 카드, 누르면 신 탭(유물표)
     const hudRelic = (i: number | null) => (i === null ? null : (this.powers.hudSlots()[i]?.relic ?? null))
-    this.hud.onSlotClick = () => this.menu.show('classes')
+    this.hud.onSlotClick = () => this.menu.show('gods')
     this.hud.onSlotHover = (i, anchor) => this.hover.slot(hudRelic(i), anchor)
     this.growth = new ProgressionSystem(this.ctx)
     this.life = new HeroLife(this.ctx)
@@ -1118,7 +1118,7 @@ export class Game {
     return this.relics.unplace(god)
   }
 
-  /** 깨우는 중인 신 (E238): 모은 조각과 다음 할 일 (정보 화면 신화 탭) */
+  /** 깨우는 중인 신 (E238): 모은 조각과 다음 할 일 (정보 화면 신 탭) */
   wakingMyth(): { god: string; fragments: number; next: string } | null {
     const { waking, fragments, hunt } = this.awaken
     const path = waking ? awakenDef(waking) : undefined

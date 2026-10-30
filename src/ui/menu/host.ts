@@ -98,6 +98,8 @@ export interface SourcesHost {
   automation(): { name: string; lines: readonly string[]; on: boolean }[]
   /** 귀환한 횟수 */
   returns(): number
+  /** 원정 기록 (E305-04, `CYCLE.md` 7장 원천(갈래) 탭): 지금 원정 번호, 누적 명성과 배율, 끝난 원정마다 걸린 초, 가보 칸 */
+  expedition(): { count: number; renown: number; multiplier: number; times: readonly number[]; heirloomSlots: number }
 }
 
 /** 메뉴가 게임에서 읽고 부르는 것 */
@@ -133,9 +135,9 @@ export interface MenuHost {
   /** 셋을 합친다 */
   merge(uids: readonly string[]): void
   readonly progress: ClassProgress
-  /** 신화 탭 (E12-06): 신의 자리와 유물표 */
-  readonly myths: {
-    /** 지금 신의 자리를 바꿀 수 있는가 (E302: 어디서나, 전설 중에는 못 바꾼다) */
+  /** 신 탭 (E12-06 신화 탭 → E305-04): 신의 자리와 유물표 */
+  readonly gods: {
+    /** 지금 신의 자리를 바꿀 수 있는가 (E302: 어디서나) */
     canSwap(): boolean
     /** 한 신에 몰아 고른다 (손·심장·숨 첫 칸) */
     choose(god: God): boolean

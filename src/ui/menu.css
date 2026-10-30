@@ -2067,3 +2067,27 @@ button.menu-slots__slot {
   font: var(--t-body);
   color: var(--god);
 }
+
+/* 신 탭 (E305-04): 「자리 · 외형」 알약 둘, 맨 아래 접힌 신들의 지도 */
+.menu-gods__views {
+  display: flex;
+  gap: var(--sp-3);
+}
+.menu-gods__views .ui-pill.is-new::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  background: var(--c-gold);
+}
+.menu-gods__atlas {
+  margin-top: var(--sp-5);
+}
+.menu-gods__atlas > summary {
+  font: var(--t-strong);
+  color: var(--c-ink-2);
+  padding: var(--sp-2) 0;
+  cursor: pointer;
+}
+.menu-gods__atlas > summary:hover {
+  color: var(--c-ink-1);
+}

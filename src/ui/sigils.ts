@@ -65,7 +65,7 @@ const GLYPHS: Record<string, readonly string[]> = {
   relics: ['............', '...aaaaaa...', '..abbbbbba..', '.abbaabbbba.', 'aaaaaaaaaaaa', '.abbbbbbbba.', '..abbbbbba..', '...abbbba...', '....abba....', '.....aa.....', '............', '............'],
   // 클래스 탭: 별
   classes: ['.....aa.....', '.....aa.....', '....abba....', 'aaaaabbaaaaa', '.abbbbbbbba.', '..abbbbbba..', '...abbbba...', '..abba.abba.', '..aa.....aa.', '.a.........a', '............', '............'],
-  // 외형 탭: 옷걸이
+  // 외형: 옷걸이
   looks: ['............', '.....aa.....', '....a..a....', '.......a....', '......a.....', '.....aa.....', '....abba....', '...abbbba...', '..abbbbbba..', '.abbbbbbbba.', '.aaaaaaaaaa.', '............'],
   // 순환 탭: 맞물려 도는 두 화살표
   cycle: ['....aaaa....', '..aa....a...', '.a.......a..', '.a......aaa.', 'a........a..', 'a...........', '...........a', '..a........a', '.aaa......a.', '..a.......a.', '...a....aa..', '....aaaa....'],
