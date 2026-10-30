@@ -11,6 +11,7 @@ import type { QuarterViewCamera } from '../render/QuarterViewCamera'
 import type { Hud } from '../ui/Hud'
 import type { Minimap } from '../ui/Minimap'
 import type { Barriers } from '../world/Barriers'
+import type { Waypoints } from '../progress/Waypoints'
 import { realmSigil } from '../ui/sigils'
 import type { NavGrid } from '../world/navGrid'
 import { THEMES } from '../world/themes'
@@ -56,6 +57,8 @@ export interface WorldParts {
   drops: DropTable
   /** 막힌 땅으로 가는 통로의 결계 (E22-02) */
   barriers: Barriers
+  /** 밟아 켠 성소 (E239-05): 마을과 켠 성소로만 워프한다 */
+  waypoints: Waypoints
   /** 그 땅에 들어갈 수 있나 (장 진행, E22-02) */
   isOpen: (id: string) => boolean
 }
@@ -267,15 +270,50 @@ export class World {
   }
 
   /**
-   * 성소 워프 (E14-05): 그 지역의 성소(마을이면 시작점)로 암전과 함께 바로 간다.
+   * 성소 워프 (E14-05, E239-05 웨이포인트라 처음부터): 마을이나 켠 성소(마을이면 시작점)로 암전과 함께 바로 간다.
    * 성소 한가운데는 귀환 화로라(서면 귀환 카드가 뜬다), 시작점 쪽으로 몇 걸음 떨어진 곳에 선다.
    */
   warpTo(id: string): boolean {
+    if (id === this.region.id) return false
+    if (this.regions[id]?.kind !== 'hub' && !this.parts.waypoints.has(id)) return false
     const to = this.regions[id]
     if (!to || this.travel) return false
     this.parts.orders.clear()
     this.travel = { to, at: to.sanctuary ? besideSanctuary(to.sanctuary, to.spawn) : to.spawn, t: 0, switched: false }
     return true
+  }
+
+  /** 성소를 켰다 (E15-04, E239-05 웨이포인트): 성소 결계 안에 들어서면 켜지고, 지도에서 그 땅으로 바로 온다 */
+  lightWaypoint(): void {
+    const { hero, waypoints, bus } = this.parts
+    const region = this.region
+    const sanctuary = region.sanctuary
+    const position = hero.object.position
+    if (sanctuary && !waypoints.has(region.id) && Math.hypot(position.x - sanctuary.x, position.z - sanctuary.z) < sanctuary.radius) {
+      waypoints.light(region.id)
+      bus.emit('moment', { id: 'shrineFound', text: '성소를 켰다 · 지도에서 바로 온다' })
+      bus.emit('progressChanged', {})
+    }
+  }
+
+  /**
+   * 불러온 자리가 막혔거나 시작점까지 길이 없으면 가까운 빈 곳이나 시작점에 세운다 (E24-07: 마을을 다시 지어
+   * 옛 저장의 자리가 새 건물·절벽 안일 수 있다). 막힌 곳에 떨어져 있던 물건도 가까운 빈 곳으로 옮긴다
+   */
+  settleLoaded(): void {
+    const { hero, nav, pickups } = this.parts
+    const p = hero.object.position
+    const spawn = this.region.spawn
+    const free = nav.nearestFree({ x: p.x, z: p.z }, 4)
+    if (!free || nav.findPath(free, spawn).length === 0) hero.teleport(spawn.x, spawn.z)
+    else if (free.x !== p.x || free.z !== p.z) hero.teleport(free.x, free.z)
+    for (const item of [...pickups.list]) {
+      if (!nav.isBlocked(item)) continue
+      const to = nav.nearestFree(item) ?? spawn
+      const gear = item.gear
+      pickups.remove(item.id)
+      pickups.drop(item.id, to.x, to.z, true, gear)
+    }
   }
 
   /** 출구 밟기와 넘어가는 동안의 암전 (실제 시간으로 흐른다) */

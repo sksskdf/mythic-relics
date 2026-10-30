@@ -34,6 +34,14 @@
 | `src/ui/GameMenu.ts` | 1279줄 → 225줄. 틀(탭 줄·힌트·여닫기)만 남기고 탭은 `src/ui/menu/`: `statusTab`·`sourcesTab`·`oathsTab`·`endlessTab`·`mapTab`는 함수(`renderX(ctx, body)`), 기억할 것이 있는 장비·수련·신 탭은 클래스(`RelicsTab`의 고른 칸·커서 올린 것, `GodsTab`의 눌러 본 신·「자리 · 외형」·접힌 신들의 지도, 외형 보관함 `WardrobePane`은 `GodsTab`이 하나만 들고 따로 둔 칸에 그린다). 탭 일곱(E305-04)과 엔딩 뒤 끝없는 원정. 탭이 쓰는 것은 `TabContext`(host·힌트·다시 그리기·닫기), 게임에서 읽는 형식은 `menu/host.ts` |
 | `src/game/Game.ts` | 1278줄 → 861줄. 정보 화면에 넘길 값과 할 일·능력치·설명 카드 상태는 `MenuData`, 대화 장면을 여는 때와 미루기·말 걸기는 `Storyline`, 공격 궤적·원거리 공격 모습은 `AttackFx`, 커서 아래 카드·이름표는 `HoverCards`. Game에는 `story`·`storyScenes`·`sourceRows` 위임이 남음 |
 
+## E305-04에서 나눈 곳 (2026-10-30)
+
+| 곳 | 나눈 뒤 |
+| --- | --- |
+| `src/game/Game.ts` | 1323줄 → 877줄. 조립과 메인 루프(`tick`·`update`·`advance`)만 남기고, 덩어리는 `src/game/` 아래 제 모듈로: 화면과 설정 `Viewport`(픽셀 렌더러·휠과 두 손가락 확대·축소·창 크기·일시 정지 메뉴의 설정), 창과 키보드 `WindowEvents`(`listenWindow`), 플레이 기록 `PlayLog`(`game.log`), HUD에 넣을 것 `HudFeed`(막대·칸·조작 안내·위아래 띠·목표 한 줄·목표의 자리 `goalSpot`·작은 지도), 정보 화면 배선 `MenuWiring`(정보 화면·일시 정지 메뉴·누르면 여는 탭·탭 표시·깨달음 알림, 정보 화면 값은 그 안의 `MenuData`), 장 넘어가기와 첫 엔딩 `ChapterFlow`(`reachEnding`), 유물 스킬의 세계 `skillContext.ts`(`heroSkills`), 시작 옵션 `options.ts`(`GameOptions`). 신 탭의 자리 보기·깨우는 신 한 줄은 `MenuData`, 목표 건너뛰기는 `DevTools.skipGoal`, 불러온 자리 맞추기·워프의 웨이포인트 검사·성소 켜기는 `World`(`settleLoaded`·`warpTo`·`lightWaypoint`) |
+| 남긴 위임 | 스크립트·봇·개발 패널이 부르는 이름은 Game에 한 줄 위임으로 둔다: `log`·`sourceRows`·`screenPoint`·`goalSpot`·`skipGoal`·`reachEnding`·`placeMyth`·`unplaceMyth`·`returnCardOpen`·`oathCardOpen`·`hideCards`·`answerSwap`·`swapOpen`·`story`·`storyScenes`·`forgetScene`·`gameSpeed`·`barrierSpots`·`region(s)`·`enterRegion`·`travelTo`·`exitsLocked`. 스크립트가 private 필드(`ctx`·`relics`·`stage`·`playerInput`·`attackFx`·`damage`·`nav`·`tabSystem`·`chapterSystem`)도 손대니 이름을 바꾸지 않는다 |
+| 지키는 것 | `tests/structure.test.ts`가 `Game.ts` 900줄 아래를 지킨다. 새 장치를 넣으며 늘면 한 덩어리를 제 모듈로 뗀다. 옮길 때 버스를 듣는 차례(같은 사건을 듣는 시스템보다 앞서거나 뒤서지 않게)와 DOM에 붙는 차례는 옛 자리 그대로 둔다 |
+
 새 탭은 `src/ui/menu/`에 파일을 만들고 `GameMenu.render`에 한 줄을 더한다. 탭이 게임에서 읽을 것은 `menu/host.ts`의 형식에 더하고 `MenuData.host()`에서 채운다.
 
 E12~E14에서 새 규칙을 넣을 때는 `BuildInputs`에 재료를 더하고 `computeBuild`에서 계산을 늘린다. 시스템이 장비·신화를 직접 읽어 따로 계산하지 않는다.
@@ -61,8 +69,8 @@ E12~E14에서 새 규칙을 넣을 때는 `BuildInputs`에 재료를 더하고 `
 | `src/game/systems/Wake.ts` (옛 `Awakening`, 데이터 `src/data/wake.ts`, E305-04에서 원천 「각성」과 이름을 가름) | 신을 여는 길은 조각 셋 하나(E305-03: 그리스도 제우스를 깨움, 성소의 신화 고르기 `MythChoice` 없앰). 신을 하나 더 깨우려면 1 + 귀환 + 장 정복보다 적어야 한다(`mayWake`). 유물로 신이 열리는 것은 엔딩 뒤뿐(`Relics.unlock`), 점검용 실행(`?relics=`)은 `Game`이 끼고 시작한 신화 유물의 신을 연다 |
 | `src/world/Barriers.ts`, `World.openLinks`·`refreshLinks` | 막힌 땅으로 가는 통로는 걸을 수 있는 곳에서 빼고 입구에 결계를 세운다. 장이 바뀌면 빛기둥과 함께 풀린다 |
 | `Encounter.landPower` | 땅 id → 적 지수. 무리·보스·수호자에 깊이 배율과 곱해 건다(`scaled`) |
-| `ui/ChapterHud.ts` | 목표 한 줄(채우는 목표면 막대)과 장 제목 띠. 지도 탭은 `world.goal()`·`nodes().locked`, 작은 지도는 `Game.goalSpot()` |
-| 엔딩 | 마지막 장이 끝나면(`chapterChanged`의 chapter가 null) 엔딩 장면 → `showEnding`(`reachEnding` + 띠·카드). 개발 패널 「목표 건너뛰기」·「장 건너뛰기」는 `Game.skipGoal` |
+| `ui/ChapterHud.ts` | 목표 한 줄(채우는 목표면 막대)과 장 제목 띠. 지도 탭은 `world.goal()`·`nodes().locked`, 작은 지도는 `HudFeed.goalSpot()`(게임에서는 `game.goalSpot()`) |
+| 엔딩 | `ChapterFlow`: 마지막 장이 끝나면(`chapterChanged`의 chapter가 null) 엔딩 장면 → `showEnding`(`reachEnding` + 띠·카드). 개발 패널 「목표 건너뛰기」·「장 건너뛰기」는 `DevTools.skipGoal`(`game.skipGoal()`) |
 
 ## 순간의 크기 (E23)
 
@@ -70,8 +78,8 @@ E12~E14에서 새 규칙을 넣을 때는 `BuildInputs`에 재료를 더하고 `
 | --- | --- |
 | `src/data/moments.ts` | 사건 id → 등급(1 작은 알림·2 카드·3 큰 카드·4 장면), 느린 동작(1.2초 × 0.25)과 카드 뒤 기다림(2.6초) |
 | `src/game/systems/Moments.ts` | 버스의 `moment`를 받아 등급대로 보인다. 1은 바로, 나머지는 온 차례대로 줄을 세운다. 장면 중·땅을 옮기는 암전 중·느린 동작 중에는 기다리고, 장면이 끝나면 그 순간의 카드와 `after`(장 제목 띠·엔딩 뒤 장치). `holding`이면 `Storyline`이 처음 보는 일의 짧은 대화를 미룬다. 장면은 `storyline.play(id, true)`로 연다 |
-| 보내는 쪽 | `Progression`(신화 단계·신화 개방·보스 재료), `Relics`(벼리기·장비·고른 신화), `Wake`(신의 조각·깨어남), `Chapters`(장 보스·장 정복), `Game`(장 넘어가기·엔딩·성소 찾음), 엔딩 뒤 장치(`Depth`·`Oaths`·`Endless`) |
-| HUD | `Hud.showGains(..., size)`: `card`는 오른쪽 위 작게, `big`은 가운데 크게. 장면 중 HUD는 투명하게만 숨긴다(띠 움직임이 다시 돌지 않게). 위아래 검은 띠는 `Game`의 `.letterbox` |
+| 보내는 쪽 | `Progression`(신화 단계·신화 개방·보스 재료), `Relics`(벼리기·장비·고른 신화), `Wake`(신의 조각·깨어남), `Chapters`(장 보스·장 정복), `ChapterFlow`(장 넘어가기·엔딩)·`World`(성소 찾음), 엔딩 뒤 장치(`Depth`·`Oaths`·`Endless`) |
+| HUD | `Hud.showGains(..., size)`: `card`는 오른쪽 위 작게, `big`은 가운데 크게. 장면 중 HUD는 투명하게만 숨긴다(띠 움직임이 다시 돌지 않게). 위아래 검은 띠는 `HudFeed`의 `.letterbox` |
 | 곡 | `SoundSystem.theme()`이 프레임마다 고른다. 장면·고르기의 곡은 버스의 `music` |
 | 빠르기 | `Feel.slow`·`timeScale`: `Game.update`에서 게임 시간만 느려진다. `Game.advance`(봇·점검의 감기)도 순간을 흘린다 |
 
@@ -94,7 +102,7 @@ E12~E14에서 새 규칙을 넣을 때는 `BuildInputs`에 재료를 더하고 `
 | `src/progress/Training.ts` | 모은 경험치·찍은 마디. `gain`(새 깨달음 수), `canTake`·`take`, `reset`(무료), `stats`(같은 종류끼리 더함), 저장 모양(`parseTraining`) |
 | `Progression.gainXp` | 처치 경험치를 수련(기세)에 더하고, 깨달음을 얻으면 `insightGained` (신화 경험치는 E305-03에서 없앰). `train`·`untrain`은 찍고 되돌리며 최대 생명을 다시 맞춘다 |
 | `Build.inputs` | 찍은 마디 수치를 맹세 보상과 같이 `bonus`로 더한다 (전투는 기존 수치 종류 그대로, 균열 축복은 E305-03에서 걷음) |
-| `Game` | `insightGained` → 메뉴 단추 표시(`markTab('training')`)와 작은 알림(`insight`). 첫 깨달음은 수련 탭이 열리는 카드가 대신 알린다 |
+| `MenuWiring` | `insightGained` → 메뉴 단추 표시(`markTab('training')`)와 작은 알림(`insight`). 첫 깨달음은 수련 탭이 열리는 카드가 대신 알린다 |
 | `src/progress/Tabs.ts` | 정보 화면 탭을 차례로 (E236-05): 차례로 여는 탭 여섯과 여는 때(`STEP_TAB_DEFS`, `tabsDue`), 연 탭(`TabUnlocks`, 저장 v11 `tabs`, 옛 저장은 모두 열림 `parseTabs`) |
 | `systems/Tabs.ts` | `TabSystem`: 장비·신화·벼리기·`progressChanged`마다 지금 상태(`facts`)를 보고 열 때가 된 탭을 연다. 열면 카드(`tabOpened`, 등급 2, 같은 사건의 더 큰 순간 뒤에 서도록 한 박자 늦게)와 메뉴 단추 표시(여럿이면 차례의 첫 탭). 불러온 뒤에 켜고(`ready`), 점검용 실행(`allTabs`)·엔딩 뒤에는 모두 연다. 메뉴는 `host.tabOpen`으로 숨길 탭을 가린다 |
 | `src/ui/menu/trainingTab.ts` | 깨달음·다음 점 막대·찍은 수치의 합·모두 되돌리기(한 번 더 눌러야), 트리(가로 %·세로 px, SVG 줄). 손가락은 처음 누르면 설명 |

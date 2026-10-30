@@ -353,7 +353,7 @@
 | 없앰 | `gearSalvaged`, `legendStarted`·`legendFailed`(맹세 판은 `oathEnded`), `riftFloor`·`riftEnded`는 `endlessFloor`로 이름만 바꿈, `threatChanged` → `depthChanged` |
 | --- | --- |
 
-시스템끼리는 버스로만 주고받는다. `Game.ts`에는 조립만 남기고 원정·자리·합치기·맹세 배선을 시스템으로 빼서 1279줄에서 **900줄 아래**로 줄인다.
+시스템끼리는 버스로만 주고받는다. `Game.ts`에는 조립만 남기고 원정·자리·합치기·맹세 배선을 시스템으로 빼서 1279줄(E305-04를 시작할 때는 걷어낸 뒤에도 1323줄)에서 **900줄 아래**로 줄인다. E305-04에서 877줄로 줄였다(`Viewport`·`WindowEvents`·`PlayLog`·`HudFeed`·`MenuWiring`·`ChapterFlow` 등, `docs/knowledge/architecture.md`).
 
 ### 8.4 빌드 상태 계산을 한 곳으로
 

@@ -16,7 +16,7 @@ export interface HudFeedParts {
 
 /**
  * HUD에 넣을 것 (E305-04에서 Game.ts에서 뗌): 생명·심장 게이지·보스·유물 칸·기세·초상, 조작 안내 한 줄,
- * 장면의 위아래 검은 띠(E23-02), 목표 한 줄(E22-04), 작은 지도(E7-08).
+ * 장면의 위아래 검은 띠(E23-02), 목표 한 줄과 목표의 자리(E22-04), 작은 지도(E7-08).
  */
 export class HudFeed {
   /** 조작 안내: 걸어 보면 싸우는 법으로, 싸워 보면 사라진다 (저장하지 않는다) */
@@ -73,10 +73,32 @@ export class HudFeed {
       relics: game.pickups.list,
       // 원정이 무르익으면 성소 화로가 깜빡인다 (E305-03: 성소 전설 대신 귀환)
       sanctuaryReady: game.sanctuary.lit,
-      goal: game.goalSpot(),
+      goal: this.goalSpot(),
       // 신의 흔적 (E238): 응답하는 흔적만 그 신의 색으로
       traces: game.awakening.spots.filter((t) => t.state === 'open').map((t) => ({ x: t.x, z: t.z, color: godDef(t.god).color })),
     })
+  }
+
+  /**
+   * 다음 목표의 자리 (지금 땅 좌표, E22-04): 지금 땅이면 성소(고르기·전설)·보스·대장장이, 다른 땅이면 그쪽 통로 입구.
+   * 작은 지도의 금빛 표시와 봇이 쓴다
+   */
+  goalSpot(): { x: number; z: number } | null {
+    const { chapters, awakening, world } = this.parts.game
+    const goal = chapters.goal
+    const region = world.region
+    if (!goal || region.kind === 'endless') return null
+    // 신 깨우기 (E238): 깨우는 신의 다음 조각(사냥하는 땅·수호자 자리), 없으면 응답하는 흔적
+    if (goal.kind === 'awaken') {
+      const target = awakening.target(goal.region)
+      if (!target) return null
+      if (target.region !== region.id) return world.wayTo(target.region)
+      return awakening.placed(target)
+    }
+    if (goal.region !== region.id) return world.wayTo(goal.region)
+    if (goal.kind === 'boss') return region.boss
+    if (goal.kind === 'forge') return region.npcs.find((n) => n.name === '대장장이') ?? null
+    return region.sanctuary
   }
 
   /** 조작 안내 한 줄: 땅을 눌러 걸어 보면 → 가까이 적이 있을 때 적을 눌러 보라고 → 싸우면 사라진다 */

@@ -7,9 +7,8 @@ import { Input } from '../input/Input'
 import { TouchControls } from '../input/TouchControls'
 import type { PixelRenderer } from '../render/PixelRenderer'
 import { QuarterViewCamera } from '../render/QuarterViewCamera'
-import { CONQUESTS } from '../data/chapters'
 import { REGIONS, type RegionDef, START_REGION } from '../data/regions'
-import { godDef, type RelicId } from '../relics/data'
+import { godDef } from '../relics/data'
 import { Wardrobe } from '../looks/outfit'
 import { DropTable } from '../gear/DropTable'
 import { worldToScreen } from '../render/picking'
@@ -17,25 +16,23 @@ import { Pickups } from '../gear/Pickups'
 import { DEMO_RELIC_STAGES, isMythRelic, RELIC_STAGES, relicMyth } from '../gear/mythRelic'
 import type { SaveData } from '../save/SaveData'
 import { ClassProgress } from '../myth/ClassProgress'
-import { focusGod, MAX_BREATH, type PartKind } from '../myth/pantheon'
-import type { SkillContext } from '../skills/Skill'
+import type { PartKind } from '../myth/pantheon'
 import { DamageNumbers } from '../ui/DamageNumbers'
 import { Hud } from '../ui/Hud'
-import { GameMenu } from '../ui/GameMenu'
-import { MenuData } from './MenuData'
+import type { GameMenu } from '../ui/GameMenu'
+import type { MenuData } from './MenuData'
+import { MenuWiring } from './MenuWiring'
 import { Storyline } from './Storyline'
-import { type MomentCard, MomentSystem } from './systems/Moments'
-import { sceneId } from '../data/scenes'
+import { MomentSystem } from './systems/Moments'
 import { AttackFx } from './AttackFx'
 import { HoverCards } from './HoverCards'
-import { PauseMenu } from '../ui/PauseMenu'
+import type { PauseMenu } from '../ui/PauseMenu'
 import { NavGrid } from '../world/navGrid'
 import { regionLinks, walkRects } from '../data/world'
 import { walkArea } from '../world/colliders'
 import { buildHeroModel } from '../world/heroModel'
 import type { BodyLook } from '../looks/body'
 import { TITLE_REQUEST } from '../save/SaveData'
-import type { RenderQuality } from '../save/settings'
 import { frameDelta } from './clock'
 import { Feel, type GameContext } from './context'
 import { Encounter } from './Encounter'
@@ -51,7 +48,7 @@ import { type CombatTarget, PlayerCombat } from './PlayerCombat'
 import { RelicPowers } from './RelicPowers'
 import { Stage } from './Stage'
 import { AppearanceSystem } from './systems/Appearance'
-import { chapterColor, ChapterSystem } from './systems/Chapters'
+import { ChapterSystem } from './systems/Chapters'
 import { WakeSystem } from './systems/Wake'
 import { DamageSystem } from './systems/Damage'
 import { Effects } from './systems/Effects'
@@ -70,17 +67,14 @@ import { ChapterProgress } from '../progress/Chapters'
 import { TrainingProgress } from '../progress/Training'
 import { ExpeditionProgress } from '../progress/Expedition'
 import { WakeProgress } from '../progress/Wake'
-import { wakeDef, HUNT_KILLS } from '../data/wake'
 import { TabUnlocks } from '../progress/Tabs'
 import { TabSystem } from './systems/Tabs'
 import { Barriers } from '../world/Barriers'
 import { SwapCard } from '../ui/SwapCard'
-import { josa } from '../ui/josa'
-import { ENEMIES } from '../enemies/Giant'
 import { ChapterHud } from '../ui/ChapterHud'
 import { AutomationProgress } from '../progress/Automation'
 import { Waypoints } from '../progress/Waypoints'
-import { Ending, endingLines } from '../progress/Ending'
+import { Ending } from '../progress/Ending'
 import { DepthProgress } from '../progress/Depth'
 import { DepthSystem } from './systems/Depth'
 import { AutomationSystem } from './systems/Automation'
@@ -97,42 +91,9 @@ import { type PlayEvent, PlayLog } from './PlayLog'
 import { listenWindow } from './WindowEvents'
 import { Viewport } from './Viewport'
 import { HudFeed } from './HudFeed'
-
-export interface GameOptions {
-  /** 처음부터 끼고 시작할 유물 (점검용) */
-  startRelics?: readonly RelicId[]
-  /** 저장 데이터가 있으면 거기서 이어서 시작한다. */
-  load?: SaveData | null
-  /** 진행 상황을 브라우저 저장소에 저장한다. (점검용 실행에서는 끈다) */
-  autosave?: boolean
-  /** 시작 화면부터 띄운다. begin()을 부르기 전까지는 배경만 움직인다. */
-  title?: boolean
-  /** 저해상도 렌더링의 기준 세로 픽셀 수 */
-  renderHeight?: number
-  /** 화면 세로 방향에 보이는 범위 (미터) */
-  viewHeight?: number
-  /** 이 지역에서 시작한다 (점검용 ?region=, 저장한 지역) */
-  region?: string
-  /** 화질을 이것으로 (점검용 ?quality=, 설정에 저장하지 않는다) */
-  quality?: RenderQuality
-  /** 터치 기기(휴대폰): 떠다니는 조이스틱과 두 손가락 확대·축소 (E235) */
-  touch?: boolean
-  /** 게임 밖의 까닭으로 멈춘다 (휴대폰을 가로로 들어 돌려 달라는 안내가 떠 있을 때) */
-  suspended?: () => boolean
-  /** 정보 화면 탭을 처음부터 모두 연다 (점검용 실행, E236-05) */
-  allTabs?: boolean
-  /** 점검용 실행(`?relics=`): 끼고 시작한 신화 유물의 신을 열고, 신의 흔적은 응답하지 않는다 (E238, E305-03) */
-  testRun?: boolean
-}
-
-
-/** 첫 엔딩의 큰 카드 (E22-05): 엔딩 장면 뒤에 무엇이 열렸는지 (엔딩 문의 표에서 뽑는다) */
-const ENDING_CARD: MomentCard = {
-  kind: '첫 엔딩',
-  title: '엔딩 뒤가 열렸다',
-  color: '#ffd27a',
-  lines: endingLines(),
-}
+import { heroSkills } from './skillContext'
+import { ChapterFlow } from './ChapterFlow'
+import type { GameOptions } from './options'
 
 /**
  * 게임 전체를 묶는 최상위 객체. 렌더러, 장면, 카메라, 메인 루프를 갖고 시스템들을 차례로 돌린다.
@@ -209,6 +170,8 @@ export class Game {
   private readonly returnCard: ReturnCard
   /** 목표 한 줄과 장 제목 띠 (E22-04) */
   readonly chapterHud: ChapterHud
+  /** 장 넘어가기와 첫 엔딩 (E22-05) */
+  private readonly chapterFlow: ChapterFlow
   /** 순간의 크기 (E23-01): 사건을 등급에 맞는 크기(작은 알림·카드·큰 카드·장면)로 보인다 */
   readonly moments: MomentSystem
   /** 지금 땅의 성소: 돌 고리와 빛기둥, 한가운데가 귀환 화로 (E304) */
@@ -252,8 +215,8 @@ export class Game {
   readonly appearance: AppearanceSystem
   /** 정보 화면 (탭 여덟). 열려 있는 동안 게임이 멈춘다 */
   readonly menu: GameMenu
-  /** 정보 화면에 보일 것 (탭마다 읽을 값, 능력치, 설명 카드의 지금 상태) */
-  private readonly menuData: MenuData
+  /** 정보 화면 배선: 정보 화면에 보일 것, 탭을 여는 단추와 표시 */
+  private readonly menuWiring: MenuWiring
   /** 일시 정지 메뉴와 설정 (E5) */
   readonly pauseMenu: PauseMenu
   /** 소리 (E5) */
@@ -349,6 +312,7 @@ export class Game {
         pickups: this.pickups,
         drops: this.drops,
         barriers: this.barriers,
+        waypoints: this.waypoints,
         isOpen: (id) => this.chapters.isOpen(id),
       },
       container,
@@ -383,28 +347,8 @@ export class Game {
       },
     })
 
-    const skills: SkillContext = {
-      hero: this.hero,
-      enemies: [],
-      manifested: null,
-      level: 0,
-      area: 1,
-      fx: this.fx.skills,
-      lightning: this.fx.lightning,
-      puffs: this.fx.puffs,
-      slashes: this.fx.slashes,
-      shots: this.fx.shots,
-      flash: (at, color, strength) => this.fx.power.burst(at, color, strength),
-      chips: (at, palette, count, height = 0.8, size = 0.12) => this.fx.debris.burst(at, count, palette, height, size),
-      heal: (amount) => this.combat.heal(amount),
-      heroHp: () => this.combat.health.ratio,
-      hit: (target, damage, dirX, dirZ, knockback, style, source) => this.damage.deal(target, damage, dirX, dirZ, knockback, style, source),
-      shake: (amount) => this.view.shake(amount),
-      sound: (cue, x, z) => this.bus.emit('sound', { cue, x, z }),
-      setDecoy: (decoy) => {
-        this.relics.decoy = decoy
-      },
-    }
+    // 유물 스킬이 세계와 주고받는 것: 피해와 미끼는 시스템이 만들어진 뒤에 부른다
+    const skills = heroSkills({ hero: this.hero, combat: this.combat, fx: this.fx, view: this.view, bus: this.bus, hit: (...hit) => this.damage.deal(...hit), setDecoy: (decoy) => (this.relics.decoy = decoy) })
     this.ctx = {
       bus: this.bus,
       scene: this.scene,
@@ -444,29 +388,9 @@ export class Game {
     this.relics = new RelicSystem(this.ctx)
     this.uniqueSystem = new UniqueSystem(this.ctx)
     this.appearance = new AppearanceSystem(this.ctx)
-    this.menuData = new MenuData({ game: this, ctx: this.ctx, relics: this.relics })
-    this.menu = new GameMenu(this.hud.root, this.menuData.host())
-    const onToggle = (open: boolean) => {
-      this.hover.reset()
-      // 창을 여닫는 클릭이 이동 지시로 새지 않게 입력을 비운다.
-      this.input.endFrame()
-      if (!open) this.orders.release()
-      this.audio.play(open ? 'uiOpen' : 'uiClose')
-      this.audio.setDucked(this.paused)
-    }
-    this.menu.onToggle = onToggle
-    this.pauseMenu = new PauseMenu(this.hud.root, {
-      settings: () => this.viewport.settings,
-      change: (patch) => this.viewport.change(patch),
-      toTitle: () => this.toTitle(),
-    })
-    this.pauseMenu.onToggle = onToggle
-    this.hud.onPortraitClick = () => this.menu.show('status')
-    // 작은 지도를 누르면 지도 탭이 열린다 (성소를 찾기 전이어도. 지금 보고 있으니 카드는 없이)
-    this.minimap.canvas.addEventListener('click', () => {
-      this.tabSystem.open('map', true)
-      this.menu.show('map')
-    })
+    this.menuWiring = new MenuWiring({ game: this, ctx: this.ctx, relics: this.relics, viewport: this.viewport, hover: () => this.hover })
+    this.menu = this.menuWiring.menu
+    this.pauseMenu = this.menuWiring.pauseMenu
     // 대화 장면 (E15-06): 마을 사람을 누르면 걸어가 말을 걸고, 처음 보는 일에는 짧은 장면
     this.storyline = new Storyline({ ctx: this.ctx, scenes: this.scenes, villagers: this.villagers, paused: () => this.paused, holding: () => this.moments.holding })
     this.hudFeed = new HudFeed({ game: this, build: this.ctx.build, container, plates: (show) => this.hover.plates(show) })
@@ -484,46 +408,16 @@ export class Game {
       pixel: this.pixel,
       view: this.view,
       nameplates: this.nameplates,
-      cardContext: (id) => this.menuData.cardContext(id),
+      cardContext: (id) => this.menuWiring.data.cardContext(id),
       hovered: () => this.playerInput.hovered,
       screenPoint: (x, y, z) => this.screenPoint(x, y, z),
       traces: () => this.awakening.spots,
       traceContext: () => ({ waking: this.awaken.waking, fragments: this.awaken.fragments, hunt: this.awaken.hunt, sealedText: this.awakening.sealedText }),
       guardian: () => this.awakening.fighting,
     })
-    // 새 외형은 메뉴 단추의 점과 신 탭의 「외형」 알약으로만 알린다. (유물 이름 알림과 겹치지 않게, 신 탭이 열린 뒤에만)
-    this.bus.on('looksUnlocked', () => {
-      if (this.tabs.has('gods')) this.menu.markNew()
-    })
-    // 가방에 더 좋은 장비가 들어왔다: 메뉴 단추를 누르면 장비 탭부터 (밟거나 눌러서 줍기, 사용자 의견 2026-10-28)
-    this.bus.on('gearBetter', () => {
-      if (this.tabs.has('relics')) this.menu.markTab('relics')
-    })
     // 정보 화면 탭은 쓸 일이 생길 때 하나씩 열린다 (E236-05): 열리면 한 줄짜리 카드와 메뉴 단추 표시
     this.tabSystem = new TabSystem(this.ctx)
-    this.tabSystem.onOpened = (tab, quiet) => {
-      // 카드와 함께 연 탭은 정보 화면을 열 때까지 단추가 부른다 (사용자 의견 2026-10-28: 카드만 잠깐 떴다 마는 것은 모자라다)
-      if (quiet) this.menu.markTab(tab)
-      else this.menu.callTab(tab)
-      this.menu.refresh()
-    }
-    // 수련 (E236): 깨달음을 얻으면 메뉴 단추에 표시하고 알린다. 첫 깨달음은 수련 탭이 열리는 카드가 알린다
-    this.bus.on('insightGained', ({ count, unspent }) => {
-      // 마디를 다 익혔으면 더 얻는 깨달음은 쓸 곳이 없다 (엔딩 뒤)
-      if (this.training.complete) return
-      if (!this.tabs.has('training')) {
-        this.tabSystem.check()
-        return
-      }
-      this.menu.markTab('training')
-      this.bus.emit('moment', { id: 'insight', text: `깨달음 +${count} · 수련에서 익힌다 (남은 깨달음 ${unspent})` })
-    })
-    this.bus.on('outfitChanged', () => this.menu.refresh())
-    this.bus.on('loadoutChanged', () => this.menu.refresh())
-    // HUD 유물 칸: 커서를 올리면 설명 카드, 누르면 신 탭(유물표)
-    const hudRelic = (i: number | null) => (i === null ? null : (this.powers.hudSlots()[i]?.relic ?? null))
-    this.hud.onSlotClick = () => this.menu.show('gods')
-    this.hud.onSlotHover = (i, anchor) => this.hover.slot(hudRelic(i), anchor)
+    this.menuWiring.listen()
     this.growth = new ProgressionSystem(this.ctx)
     this.life = new HeroLife(this.ctx)
     this.depthSystem = new DepthSystem(this.ctx)
@@ -540,17 +434,9 @@ export class Game {
       // 점검용 실행(?relics=)에서는 흔적이 응답하지 않는다: 봇·점검 스크립트의 신화에 다른 신의 힘이 섞이지 않게
       () => options.testRun ?? false,
     )
-    // 다음 장이 열리면 그 땅으로 가는 결계가 풀리고(E22-02) 장 제목 띠가 지나간다 (E22-04)
+    // 목표 한 줄과 장 제목 띠 (E22-04), 장 넘어가기와 첫 엔딩 (E22-05)
     this.chapterHud = new ChapterHud(this.hud.root)
-    // 장 넘어가기는 장면 (E23-02): 그 장의 한마디 뒤에 장 제목 띠
-    this.bus.on('chapterChanged', ({ chapter }) => {
-      this.world.refreshLinks()
-      if (chapter) {
-        this.bus.emit('moment', { id: 'chapterChanged', scene: sceneId('chapter', chapter.id), after: () => this.chapterHud.showChapter(chapter.title, chapter.name, chapterColor(chapter)) })
-      } else if (!this.ending.reached) this.endingMoment(true)
-    })
-    // 지금 장의 땅은 할 일 차례로 열린다 (E236-01): 할 일을 하나 마치면 다음 땅의 결계가 풀린다
-    this.bus.on('goalChanged', () => this.world.refreshLinks())
+    this.chapterFlow = new ChapterFlow({ game: this, fx: this.fx, record: (type) => this.playLog.record(type) })
     this.returnCard = new ReturnCard(this.hud.root)
     this.oathCard = new OathCard(this.hud.root)
     this.expeditionSystem = new ExpeditionSystem(this.ctx, {
@@ -587,23 +473,17 @@ export class Game {
       this.input.frameEnd.push(() => touch.gestures.endFrame())
     }
     this.playerInput.onZoom = (viewHeight, end) => this.viewport.zoom(viewHeight, end)
+    // 개발 지름길은 공용 상태(ctx)에 시스템 몇을 더해 손댄다
     this.dev = new DevTools({
-      bus: this.bus,
+      ...this.ctx,
       relics: this.relics,
-      powers: this.powers,
-      progress: this.progress,
       growth: this.growth,
       life: this.life,
-      hero: this.hero,
-      orders: this.orders,
-      view: this.view,
-      pickups: this.pickups,
-      skills: this.ctx.skills,
-      encounter: this.encounter,
-      training: this.training,
       awakening: this.awakening,
-      depth: this.depth,
       applyDepth: () => this.depthSystem.apply(),
+      chapterSystem: this.chapterSystem,
+      world: this.world,
+      expeditionSystem: this.expeditionSystem,
     })
     this.audio = new AudioEngine(this.viewport.settings.volume, { mobile: this.touch })
     this.attackFx = new AttackFx({ fx: this.fx, hero: this.hero, combat: this.combat, build: this.ctx.build, audio: this.audio })
@@ -631,8 +511,8 @@ export class Game {
       this.chapterSystem.sync()
       this.world.refreshLinks(false)
       // 마지막 보스를 이긴 뒤 엔딩이 끝나기 전에 저장된 판: 엔딩을 다시 보인다 (안 그러면 엔딩 뒤 장치가 영영 닫힌다)
-      if (this.chapters.finished && !this.ending.reached) this.endingMoment(false)
-      this.settleLoaded()
+      if (this.chapters.finished && !this.ending.reached) this.chapterFlow.endingMoment(false)
+      this.world.settleLoaded()
     }
     // 점검용 실행과 엔딩 뒤 판은 정보 화면 탭을 모두 연 채로 (E236-05)
     if (options.allTabs || this.ending.reached) this.tabs.openAll()
@@ -645,7 +525,7 @@ export class Game {
     // 탭 열기는 불러온 뒤에 켠다: 저장에서 빠진 탭이 있으면 카드 없이 연다
     this.tabSystem.ready = true
     this.tabSystem.check(true)
-    if (this.tabs.has('training') && this.training.unspent > 0 && !this.training.complete) this.menu.markTab('training')
+    this.menuWiring.afterLoad()
     // 처음 선 땅도 들어선 땅이다 (점검 주소로 막힌 땅에서 시작해도 거기는 열려 있게)
     if (this.chapters.enter(this.ctx.map.region.id)) {
       this.chapterSystem.sync()
@@ -659,25 +539,6 @@ export class Game {
     this.viewport.fit()
   }
 
-  /**
-   * 불러온 자리가 막혔거나 시작점까지 길이 없으면 가까운 빈 곳이나 시작점에 세운다 (E24-07: 마을을 다시 지어
-   * 옛 저장의 자리가 새 건물·절벽 안일 수 있다). 막힌 곳에 떨어져 있던 물건도 가까운 빈 곳으로 옮긴다
-   */
-  private settleLoaded(): void {
-    const p = this.hero.object.position
-    const spawn = this.ctx.map.region.spawn
-    const free = this.nav.nearestFree({ x: p.x, z: p.z }, 4)
-    if (!free || this.nav.findPath(free, spawn).length === 0) this.hero.teleport(spawn.x, spawn.z)
-    else if (free.x !== p.x || free.z !== p.z) this.hero.teleport(free.x, free.z)
-    for (const item of [...this.pickups.list]) {
-      if (!this.nav.isBlocked(item)) continue
-      const to = this.nav.nearestFree(item) ?? spawn
-      const gear = item.gear
-      this.pickups.remove(item.id)
-      this.pickups.drop(item.id, to.x, to.z, true, gear)
-    }
-  }
-
   /** 플레이 기록: 게임 시간과 사건 (봇 검증과 수치 조정용) */
   get log(): PlayEvent[] {
     return this.playLog.events
@@ -688,32 +549,9 @@ export class Game {
     return this.persistence.snapshot()
   }
 
-  /** 마지막 장을 끝냈다 (E22-05): 느린 동작 → 엔딩 장면(엔딩 곡) → 엔딩 뒤 장치가 열리고 큰 카드. slow면 쓰러진 순간의 느린 동작 */
-  private endingMoment(slow: boolean): void {
-    this.bus.emit('moment', { id: 'ending', scene: 'ending', slow, music: 'ending', card: ENDING_CARD, after: () => this.showEnding() })
-  }
-
-  /** 첫 엔딩 (E22-05): 엔딩 장면 뒤에 엔딩 뒤 장치를 열고 「첫 엔딩」 띠 (무엇이 열렸는지는 ENDING_CARD) */
-  private showEnding(): void {
-    this.reachEnding()
-    const gold = ENDING_CARD.color
-    this.hud.flash(gold)
-    this.fx.power.column(this.hero.object.position, gold)
-    this.view.shake(0.4)
-    this.chapterHud.showChapter('첫 엔딩', '갈라진 하늘이 닫혔다', gold)
-    this.bus.emit('sound', { cue: 'promote' })
-    this.playLog.record('ending')
-  }
-
-  /** 첫 엔딩을 보았다 (E21-06): 엔딩 뒤 장치를 연다. 마지막 보스를 이기면 엔딩 장면 뒤에 부르고(E22-05), 개발 패널과 점검 스크립트도 부른다 */
+  /** 첫 엔딩을 보았다 (E21-06, `ChapterFlow.reachEnding`): 엔딩 뒤 장치를 연다. 개발 패널과 점검 스크립트도 부른다 */
   reachEnding(): void {
-    if (this.ending.reached) return
-    this.ending.reached = true
-    this.chapterSystem.check()
-    // 모든 땅과 정보 화면 탭이 열린다
-    this.world.refreshLinks()
-    this.tabs.openAll()
-    this.menu.refresh()
+    this.chapterFlow.reachEnding()
   }
 
   /** 저장하고 처음 화면(슬롯 고르기)으로 돌아간다. 다시 불러와 시작 화면을 띄운다. */
@@ -810,14 +648,7 @@ export class Game {
 
   /** 원천마다: 장비의 합, 원천 숙련, 합계, 각성 단계 (HUD·정보 화면·봇) */
   sourceRows(): ReturnType<MenuData['sourceRows']> {
-    return this.menuData.sourceRows()
-  }
-
-  /** 성소 워프 (E14-05, E239-05 웨이포인트라 처음부터): 마을이나 켠 성소로 */
-  warpTo(id: string): boolean {
-    if (id === this.ctx.map.region.id) return false
-    if (this.regions[id]?.kind !== 'hub' && !this.waypoints.has(id)) return false
-    return this.world.warpTo(id)
+    return this.menuWiring.data.sourceRows()
   }
 
   /** 출구로 다른 지역에 간다 (`World.travelTo`) */
@@ -885,67 +716,14 @@ export class Game {
     this.audio.update()
   }
 
-  /**
-   * 다음 목표의 자리 (지금 땅 좌표, E22-04): 지금 땅이면 성소(고르기·전설)·보스·대장장이, 다른 땅이면 그쪽 통로 입구.
-   * 작은 지도의 금빛 표시와 봇이 쓴다
-   */
+  /** 다음 목표의 자리 (지금 땅 좌표, E22-04, `HudFeed.goalSpot`): 작은 지도의 금빛 표시와 점검 스크립트가 쓴다 */
   goalSpot(): { x: number; z: number } | null {
-    const goal = this.chapters.goal
-    const region = this.ctx.map.region
-    if (!goal || region.kind === 'endless') return null
-    // 신 깨우기 (E238): 깨우는 신의 다음 조각(사냥하는 땅·수호자 자리), 없으면 응답하는 흔적
-    if (goal.kind === 'awaken') {
-      const target = this.awakening.target(goal.region)
-      if (!target) return null
-      if (target.region !== region.id) return this.world.wayTo(target.region)
-      return this.awakening.placed(target)
-    }
-    if (goal.region !== region.id) return this.world.wayTo(goal.region)
-    if (goal.kind === 'boss') return region.boss
-    if (goal.kind === 'forge') return region.npcs.find((n) => n.name === '대장장이') ?? null
-    return region.sanctuary
+    return this.hudFeed.goalSpot()
   }
 
-  /**
-   * 개발 지름길 (E22): 지금 목표를 한 것으로 한다. 들어설 땅이면 그리로 가고, 깨우기는 조각을 차례로,
-   * 귀환은 승천으로, 보스는 이긴 것으로, 벼리기는 재료를 채워 벼린다
-   */
+  /** 개발 지름길 (E22): 지금 목표를 한 것으로 한다 (`DevTools.skipGoal`, 개발 패널·점검 스크립트) */
   skipGoal(): void {
-    const goal = this.chapters.goal
-    if (!goal) return
-    switch (goal.kind) {
-      case 'enter':
-        // 걸어 넘어가는 동안 기다리지 않게 들어선 것으로 먼저 적는다
-        this.chapters.enter(goal.region)
-        this.world.travelTo(goal.region)
-        break
-      case 'awaken':
-        // 조각을 하나씩 (흔적 → 사냥 → 수호자) 그 할 일을 마칠 때까지
-        for (let i = 0; i < 12 && this.chapters.goal === goal; i++) if (!this.awakening.skip(this.awakening.target(goal.region)?.god)) break
-        break
-      case 'return': {
-        // 귀환 (E304): 떠난 지 2분이 안 됐어도 손의 신 승천(없으면 불꽃 불씨)으로 바로
-        const hand = this.progress.pantheon.hand
-        while (this.expedition.returns < goal.n!) {
-          const ids = this.expeditionSystem.branches().map((b) => b.id)
-          this.expeditionSystem.returnNow(ids.find((id) => id === `ascend:${hand}`) ?? 'flame:flame')
-        }
-        break
-      }
-      case 'boss':
-        this.chapterSystem.bossDown(goal.region)
-        break
-      case 'forge': {
-        const god = this.ctx.build.chosen
-        if (!god) break
-        for (let i = 0; i < goal.n! && this.chapters.goal === goal; i++) {
-          this.dev.fillForge(god)
-          this.dev.forge(god)
-        }
-        break
-      }
-    }
-    this.chapterSystem.check()
+    this.dev.skipGoal()
   }
 
   /** 지금 게임 시간의 빠르기 (점검용: 장면 앞 느린 동작이면 1보다 작다) */
@@ -981,42 +759,14 @@ export class Game {
     return this.menu.open || (this.pauseMenu?.open ?? false) || (this.swapCard?.open ?? false) || this.suspended()
   }
 
-  /** 정보 화면에서 한 신에 몰아 고른다 (손·심장·숨 첫 칸). 닫힌 신화면 false */
-  chooseMyth(god: string): boolean {
-    return this.relics.choose(god, true)
-  }
-
-  /** 신의 자리 셋 (E302): 손·심장·숨, 숨 칸 수, 잠긴 숨 칸마다 열리는 때, 한 신에 몰았으면 그 신 (정보 화면) */
-  pantheonView(): { hand: string | null; heart: string | null; breath: readonly string[]; count: number; locked: readonly string[]; focus: string | null } {
-    const count = this.relics.slots
-    const locked: string[] = []
-    if (this.progress.opened.length < 2) locked.push('두 번째 신이 깨어나면')
-    for (const region of CONQUESTS) {
-      if (this.chapters.bosses.has(region)) continue
-      const boss = REGIONS[region]?.boss
-      locked.push(`${josa(ENEMIES[boss?.enemy ?? 'king']?.name ?? '장 보스', '을')} 이기면`)
-    }
-    const p = this.progress.pantheon
-    return { hand: p.hand, heart: p.heart, breath: p.breath, count, locked: locked.slice(0, Math.max(0, MAX_BREATH - Math.max(1, count))), focus: focusGod(p) }
-  }
-
-  /** 정보 화면에서 그 자리에 낀다 (손·심장은 바꿔 끼고, 숨은 빈 칸에) */
+  /** 그 자리에 낀다 (손·심장은 바꿔 끼고, 숨은 빈 칸에, 점검용. 정보 화면은 `RelicSystem.place`) */
   placeMyth(part: PartKind, god: string): boolean {
     return this.relics.place(part, god)
   }
 
-  /** 정보 화면에서 숨 칸에서 뺀다 */
+  /** 숨 칸에서 뺀다 (점검용) */
   unplaceMyth(god: string): boolean {
     return this.relics.unplace(god)
-  }
-
-  /** 깨우는 중인 신 (E238): 모은 조각과 다음 할 일 (정보 화면 신 탭) */
-  wakingMyth(): { god: string; fragments: number; next: string } | null {
-    const { waking, fragments, hunt } = this.awaken
-    const path = waking ? wakeDef(waking) : undefined
-    if (!waking || !path || this.progress.isOpen(waking)) return null
-    const next = fragments >= 2 ? `${josa(path.guardian.name, '을')} 쓰러뜨린다` : `${REGIONS[path.land]?.name ?? path.land}에서 사냥한다 (${hunt}/${HUNT_KILLS})`
-    return { god: waking, fragments, next }
   }
 
   /** 기본 공격의 대상별 배율 (정예·보스에게 피해) */
@@ -1094,13 +844,8 @@ export class Game {
     this.villagers.update(dt, position, (x, y, z) => this.screenPoint(x, y, z))
     // 말 걸기와 보스 등장 장면 (E15-06)
     this.storyline.update(position)
-    // 성소를 켰다 (E15-04, E239-05 웨이포인트): 성소 결계 안에 들어서면 켜지고, 지도에서 그 땅으로 바로 온다
-    const sanctuary = this.ctx.map.region.sanctuary
-    if (sanctuary && !this.waypoints.has(this.ctx.map.region.id) && Math.hypot(position.x - sanctuary.x, position.z - sanctuary.z) < sanctuary.radius) {
-      this.waypoints.light(this.ctx.map.region.id)
-      this.bus.emit('moment', { id: 'shrineFound', text: '성소를 켰다 · 지도에서 바로 온다' })
-      this.bus.emit('progressChanged', {})
-    }
+    // 성소 결계 안에 들어서면 그 성소가 켜진다 (웨이포인트, E239-05)
+    this.world.lightWaypoint()
     this.hudFeed.updateMinimap(dt)
     // 이웃 땅 조각과 이웃 무리는 한 프레임에 하나씩만 짓는다 (조각이 먼저)
     if (!this.stage.update(this.elapsed)) this.encounter.buildStep()

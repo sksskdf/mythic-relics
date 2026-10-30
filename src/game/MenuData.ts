@@ -1,5 +1,5 @@
 import { activeLayers, LAYER_NAMES } from '../build/layers'
-import { WAKE, WAKE_GODS } from '../data/wake'
+import { HUNT_KILLS, WAKE, WAKE_GODS, wakeDef } from '../data/wake'
 import { awakeningLevel } from '../data/awakening'
 import { REALM_COLORS, REGIONS } from '../data/regions'
 import { CONQUESTS } from '../data/chapters'
@@ -14,6 +14,8 @@ import { MYTH_RELICS, mythRelic, relicMyth, stageName } from '../gear/mythRelic'
 import { GEAR } from '../gear/roll'
 import { TRAINING_UNIQUES } from '../skills/uniques'
 import { levelGains } from '../myth/levelGains'
+import { focusGod, MAX_BREATH } from '../myth/pantheon'
+import { josa } from '../ui/josa'
 import { AUTOMATION_STEPS } from '../progress/Automation'
 import { BRANCHES, insightProgress, TRAINING_NODES } from '../data/training'
 import { statText } from '../myth/alwaysText'
@@ -88,11 +90,11 @@ export class MenuData {
       gods: {
         // 신의 자리는 어디서나 바꾼다 (E302, 막던 전설 판은 E305-03에서 걷음)
         canSwap: () => true,
-        choose: (god) => game.chooseMyth(god),
-        pantheon: () => game.pantheonView(),
-        place: (part, god) => game.placeMyth(part, god),
-        unplace: (god) => game.unplaceMyth(god),
-        waking: () => game.wakingMyth(),
+        choose: (god) => relics.choose(god, true),
+        pantheon: () => this.pantheonView(),
+        place: (part, god) => relics.place(part, god),
+        unplace: (god) => relics.unplace(god),
+        waking: () => this.wakingView(),
         table: () => ({
           relics: MYTH_RELICS.filter((id) => !godDef(relicMyth(id)!).hidden || powers.loadout.lit.includes(id)).map((id) => ({ id, lit: powers.loadout.lit.includes(id), awake: powers.awake(id), stage: powers.loadout.stage(id) })),
           uniques: Object.entries(GEAR.uniques).map(([id, u]) => ({ id, name: u.name, text: u.text, lit: powers.loadout.uniquesSeen.has(id) })),
@@ -207,7 +209,7 @@ export class MenuData {
           const p = ctx.hero.object.position
           return { x: (o.x + p.x) / CELL, y: (o.z + p.z) / CELL }
         },
-        warp: (id) => game.warpTo(id),
+        warp: (id) => game.world.warpTo(id),
       },
       wardrobe: {
         wardrobe: game.wardrobe,
@@ -285,6 +287,32 @@ export class MenuData {
     // 원천 불씨 (E304): 귀환 갈래로 쌓은 영구 몫 (합에 이미 들어 있다)
     const flames = expedition.flamePoints()
     return SOURCE_IDS.map((id) => ({ id, total: state.sources[id], level: awakeningLevel(state.sources[id]), flames: flames[id] }))
+  }
+
+  /** 신의 자리 셋 (E302): 손·심장·숨, 숨 칸 수, 잠긴 숨 칸마다 열리는 때, 한 신에 몰았으면 그 신 (신 탭) */
+  private pantheonView(): ReturnType<MenuHost['gods']['pantheon']> {
+    const { ctx, relics } = this.parts
+    const { progress, chapters } = ctx
+    const count = relics.slots
+    const locked: string[] = []
+    if (progress.opened.length < 2) locked.push('두 번째 신이 깨어나면')
+    for (const region of CONQUESTS) {
+      if (chapters.bosses.has(region)) continue
+      const boss = REGIONS[region]?.boss
+      locked.push(`${josa(ENEMIES[boss?.enemy ?? 'king']?.name ?? '장 보스', '을')} 이기면`)
+    }
+    const p = progress.pantheon
+    return { hand: p.hand, heart: p.heart, breath: p.breath, count, locked: locked.slice(0, Math.max(0, MAX_BREATH - Math.max(1, count))), focus: focusGod(p) }
+  }
+
+  /** 깨우는 중인 신 (E238): 모은 조각과 다음 할 일 (신 탭) */
+  private wakingView(): { god: string; fragments: number; next: string } | null {
+    const { progress, awaken } = this.parts.ctx
+    const { waking, fragments, hunt } = awaken
+    const path = waking ? wakeDef(waking) : undefined
+    if (!waking || !path || progress.isOpen(waking)) return null
+    const next = fragments >= 2 ? `${josa(path.guardian.name, '을')} 쓰러뜨린다` : `${REGIONS[path.land]?.name ?? path.land}에서 사냥한다 (${hunt}/${HUNT_KILLS})`
+    return { god: waking, fragments, next }
   }
 
   /** 정보 화면에 보일 깊이 (읽을 때마다 지금 값) */
