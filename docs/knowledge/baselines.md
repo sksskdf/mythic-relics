@@ -6,8 +6,8 @@ E11은 "기능 그대로"라서 아래 범위 안에 있어야 한다. 마일스
 
 | 무엇 | 어떻게 재나 | 값 |
 | --- | --- | --- |
-| 엔딩까지 봇 | `node scripts/playtest.mjs 1 100 --ending --gate` | 엔딩 19:57, 쓰러짐 0. 장 north 0:09 → greek 12:46 → finale 16:37, 첫 신 6:18, 첫 승천 9:40, 로키 11:58, 제우스 14:58 |
-| 기본 봇 (CI) | `node scripts/playtest.mjs 1 35 --gate` | 2단계(첫 승천) 14:53, 첫 신 7:42 (봇 흔들림, 그 전 11:28) |
+| 엔딩까지 봇 | `node scripts/playtest.mjs 1 100 --ending --gate` | 엔딩 19:57, 쓰러짐 0. 장 north 0:09 → greek 12:46 → finale 16:37, 첫 신 6:18, 첫 승천 9:40, 로키 11:58, 제우스 14:58. `Game.ts` 나눈 뒤(E305-04) 엔딩 26:01(greek 17:32 → finale 22:32), 쓰러짐 0 |
+| 기본 봇 (CI) | `node scripts/playtest.mjs 1 35 --gate` | 2단계(첫 승천) 14:53, 첫 신 7:42 (봇 흔들림, 그 전 11:28). `Game.ts` 나눈 뒤(E305-04) 12:11, 그리고 요툰헤임에서 얼음 마녀를 쫓다 35분을 넘긴 판 하나 |
 | 끝없는 원정 봇 | `node scripts/playtest.mjs 1 40 --endless --relics=mjolnir` | 10층 들어감 13:15(9층 깸), 쓰러짐 0 |
 | 화면 | `node scripts/ui-sheet.mjs` (세 크기, 탭 여덟 + 신 탭 외형) | 잘린 요소 0 |
 
