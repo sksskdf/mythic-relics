@@ -230,7 +230,7 @@ describe('적 데이터 규칙 (E8-01)', () => {
       for (const camp of region.camps) {
         for (const id of camp.members ?? []) {
           expect(ENEMIES[id], `${region.id}: ${id}`).toBeDefined()
-          // 수호자는 깨우는 길에서만 나온다 (무리에 들어가면 균열 층에도 섞인다)
+          // 수호자는 깨우는 길에서만 나온다 (무리에 들어가면 끝없는 원정 층에도 섞인다)
           expect(ENEMIES[id]!.role, `${region.id}: ${id}`).not.toBe('guardian')
           if (region.finale) expect(ENEMIES[id]!.role, `${region.id}: ${id}`).not.toBe('boss')
           else expect(ENEMIES[id]!.realm, `${region.id}: ${id}`).toBe(region.realm)

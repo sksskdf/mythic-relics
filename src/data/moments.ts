@@ -24,7 +24,7 @@ export const MOMENTS = {
   mergedHigh: 3,
   shrineFound: 1,
   oathBroken: 1,
-  riftEnded: 1,
+  endlessEnded: 1,
   insight: 1,
   traceRoused: 1,
   traceBusy: 1,
@@ -37,7 +37,7 @@ export const MOMENTS = {
   automation: 2,
   depthUp: 2,
   oathSworn: 2,
-  riftCleared: 2,
+  endlessCleared: 2,
   tabOpened: 2,
   // 3 큰 카드: 신화 단계, 유물 벼리기, 신의 조각 2(유물)와 두 번째 신부터 깨어남 (엔딩 뒤에는 한계를 깸도)
   mythLevel: 3,

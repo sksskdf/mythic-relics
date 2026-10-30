@@ -101,10 +101,11 @@ export class MenuData {
       },
       cardContext: (id) => this.cardContext(id),
       stats: () => this.heroStats(),
-      afterEnding: () => game.ending.reached,
+      afterEnding: (feature) => game.ending.has(feature),
       nextConquest: () => {
         const region = CONQUESTS.find((r) => !game.chapters.bosses.has(r))
-        return region && !game.ending.reached ? (ENEMIES[REGIONS[region]?.boss?.enemy ?? '']?.name ?? null) : null
+        // 엔딩 뒤에는 신 단계가 4까지 열려 장 정복의 상한이 뜻이 없다
+        return region && !game.ending.has('mythStage4') ? (ENEMIES[REGIONS[region]?.boss?.enemy ?? '']?.name ?? null) : null
       },
       tabOpen: (tab) => game.tabs.has(tab),
       toTitle: () => game.toTitle(),
@@ -118,7 +119,7 @@ export class MenuData {
         // 귀환이 여는 것 (E305-03, `CYCLE.md` 3.5): 엔딩 전에도 보인다. 엔딩을 봤으면 귀환 3 이상으로 친다
         automation: () => {
           const returns = game.expedition.returns
-          const ending = game.ending.reached
+          const ending = game.ending.has('autoPickup')
           return AUTOMATION_STEPS.map((s) => ({ name: s.name, lines: s.lines, on: s.at === null ? ending : ending || returns >= s.at }))
         },
         returns: () => game.expedition.returns,
@@ -149,16 +150,16 @@ export class MenuData {
         take: (id) => game.growth.train(id),
         reset: () => game.growth.untrain(),
       },
-      rift: {
-        open: () => game.riftSystem.open,
+      endless: {
+        open: () => game.endlessSystem.open,
         depth: () => ({ reached: game.depth.reached, limit: DEPTH_LIMIT }),
-        canEnter: () => game.riftSystem.canEnter,
-        enter: () => game.riftSystem.enter(),
+        canEnter: () => game.endlessSystem.canEnter,
+        enter: () => game.endlessSystem.enter(),
         run: () => {
-          const run = game.riftSystem.run
+          const run = game.endlessSystem.run
           return run ? { depth: run.depth } : null
         },
-        best: () => game.rift.best,
+        best: () => game.endless.best,
       },
       world: {
         nodes: () => {

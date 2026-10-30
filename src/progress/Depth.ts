@@ -4,7 +4,7 @@ import { DEPTH_LIMIT, DEPTH_LIMITLESS } from '../data/depth'
 export interface DepthData {
   level: number
   reached: number
-  /** 한계를 깼다: 깊이의 끝이 사라지고 균열이 열린다 */
+  /** 한계를 깼다: 깊이의 끝이 사라지고 끝없는 원정이 열린다 */
   limitBroken: boolean
 }
 

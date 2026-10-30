@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { parseAutomation } from '../src/progress/Automation'
 import { parseDepth } from '../src/progress/Depth'
 import { parseOaths } from '../src/progress/Oaths'
-import { parseRift } from '../src/progress/Rift'
+import { parseEndless } from '../src/progress/Endless'
 import { STEP_TABS } from '../src/progress/Tabs'
 import { parseSave, SAVE_VERSION, type SaveData, saveStorage } from '../src/save/SaveData'
 import { HUNT_KILLS } from '../src/data/awaken'
@@ -33,7 +33,7 @@ const sample: SaveData = {
   conveniences: parseAutomation({ counters: { pickups: 5 }, open: ['autoPickup'] }),
   waypoints: ['midgard', 'jotunheim'],
   oaths: parseOaths({ kept: ['glass', 'slow', 'nope'], best: { glass: 371, nope: 5 } }),
-  rift: parseRift({ best: 12, stars: 3, lit: ['thor', 'odin', 'nobody'] }),
+  rift: parseEndless({ best: 12, stars: 3, lit: ['thor', 'odin', 'nobody'] }),
   ending: true,
   chapters: { entered: ['village', 'midgard', 'olympus'], bosses: ['utgard'] },
   training: { xp: 1500, taken: ['awaken', 'edge'] },

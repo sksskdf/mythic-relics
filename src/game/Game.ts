@@ -82,7 +82,7 @@ import { ENEMIES } from '../enemies/Giant'
 import { ChapterHud } from '../ui/ChapterHud'
 import { AutomationProgress } from '../progress/Automation'
 import { Waypoints } from '../progress/Waypoints'
-import { Ending } from '../progress/Ending'
+import { Ending, endingLines } from '../progress/Ending'
 import { DepthProgress } from '../progress/Depth'
 import { DepthSystem } from './systems/Depth'
 import { AutomationSystem } from './systems/Automation'
@@ -90,8 +90,8 @@ import { OathSystem } from './systems/Oaths'
 import type { OathId } from '../data/oaths'
 import { OathProgress } from '../progress/Oaths'
 import { OathCard } from '../ui/OathCard'
-import { RiftProgress } from '../progress/Rift'
-import { RiftSystem } from './systems/Rift'
+import { EndlessProgress } from '../progress/Endless'
+import { EndlessSystem } from './systems/Endless'
 import { ReturnCard } from '../ui/ReturnCard'
 import { ExpeditionSystem } from './systems/Expedition'
 import { Build } from '../build/Build'
@@ -124,19 +124,19 @@ export interface GameOptions {
 }
 
 
-/** 첫 엔딩의 큰 카드 (E22-05): 엔딩 장면 뒤에 무엇이 열렸는지 */
+/** 첫 엔딩의 큰 카드 (E22-05): 엔딩 장면 뒤에 무엇이 열렸는지 (엔딩 문의 표에서 뽑는다) */
 const ENDING_CARD: MomentCard = {
   kind: '첫 엔딩',
   title: '엔딩 뒤가 열렸다',
   color: '#ffd27a',
-  lines: ['남은 신화권의 결계가 풀렸다', '깊이: 귀환할 때 다음 원정을 한 걸음 더 깊이 고른다', '맹세 다섯이 열렸다, 깊이 10을 넘어서면 균열', '신화 4단계·유물 3·4단계, 땅에 떨어지는 유물'],
+  lines: endingLines(),
 }
 
 /** 플레이 기록: 검증과 수치 조정에 쓴다. */
 export interface PlayEvent {
   /** 게임 시간 (초) */
   t: number
-  type: 'relic' | 'manifest' | 'open' | 'fragment' | 'forge' | 'gear' | 'kill' | 'bossKill' | 'death' | 'promote' | 'hurt' | 'depth' | 'region' | 'oath' | 'rift' | 'chapter' | 'ending'
+  type: 'relic' | 'manifest' | 'open' | 'fragment' | 'forge' | 'gear' | 'kill' | 'bossKill' | 'death' | 'promote' | 'hurt' | 'depth' | 'region' | 'oath' | 'endless' | 'chapter' | 'ending'
   detail?: string
 }
 
@@ -168,8 +168,9 @@ export class Game {
   readonly wardrobe = new Wardrobe()
   readonly depth = new DepthProgress()
   readonly oaths = new OathProgress()
-  readonly rift = new RiftProgress()
-  readonly riftSystem: RiftSystem
+  /** 끝없는 원정 기록 (E17 균열 → E305-03): 가장 깊이 내려간 층 */
+  readonly endless = new EndlessProgress()
+  readonly endlessSystem: EndlessSystem
   readonly oathSystem: OathSystem
   private readonly oathCard: OathCard
   readonly depthSystem: DepthSystem
@@ -189,7 +190,8 @@ export class Game {
       forged: () => Math.max(0, ...this.powers.loadout.ownedRelics.filter(isMythRelic).map((id) => this.powers.loadout.stage(id))),
       returns: () => this.expedition.returns,
     },
-    () => this.ending.reached,
+    // 엔딩 뒤에는 남은 신화권 셋의 결계가 풀린다
+    () => this.ending.has('realms'),
   )
   readonly chapterSystem: ChapterSystem
   /** 수련 (E236): 경험치로 얻은 깨달음과 익힌 마디 */
@@ -442,7 +444,7 @@ export class Game {
       scenesSeen,
       depth: this.depth,
       oaths: this.oaths,
-      rift: this.rift,
+      endless: this.endless,
       automation: this.automation,
       waypoints: this.waypoints,
       ending: this.ending,
@@ -582,7 +584,7 @@ export class Game {
       reapply: () => this.relics.reapply(),
       fillBreath: () => this.relics.fillBreath(),
     })
-    this.riftSystem = new RiftSystem(
+    this.endlessSystem = new EndlessSystem(
       this.ctx,
       this.depthSystem,
       {
@@ -728,8 +730,8 @@ export class Game {
     bus.on('depthChanged', ({ level }) => record('depth', String(level)))
     bus.on('regionEntered', ({ id }) => record('region', id))
     bus.on('chapterChanged', ({ chapter }) => record('chapter', chapter?.id ?? 'end'))
-    bus.on('riftFloor', ({ depth }) => record('rift', `floor:${depth}`))
-    bus.on('riftEnded', ({ depth, reason }) => record('rift', `${reason}:${depth}`))
+    bus.on('endlessFloor', ({ depth }) => record('endless', `floor:${depth}`))
+    bus.on('endlessEnded', ({ depth, reason }) => record('endless', `${reason}:${depth}`))
     bus.on('oathEnded', ({ id, win, seconds }) => record('oath', `${id}:${win ? 'win' : 'fail'}:${Math.round(seconds)}`))
     bus.on('heroDied', () => record('death'))
     bus.on('promoted', ({ title }) => record('promote', title))
@@ -944,7 +946,7 @@ export class Game {
   goalSpot(): { x: number; z: number } | null {
     const goal = this.chapters.goal
     const region = this.ctx.map.region
-    if (!goal || region.kind === 'rift') return null
+    if (!goal || region.kind === 'endless') return null
     // 신 깨우기 (E238): 깨우는 신의 다음 조각(사냥하는 땅·수호자 자리), 없으면 응답하는 흔적
     if (goal.kind === 'awaken') {
       const target = this.awakening.target(goal.region)
@@ -1189,7 +1191,7 @@ export class Game {
     this.sanctuary.update(dt)
     this.awakening.update(dt)
     this.oathSystem.update()
-    this.riftSystem.update(dt)
+    this.endlessSystem.update(dt)
     this.life.update(dt)
     this.appearance.update(dt)
     this.sound.update()

@@ -7,7 +7,7 @@ import type { GameContext } from '../context'
  * 깊이 (E305-03, 옛 위협 단계 E14-03). 엔딩 뒤 장치다.
  * - 귀환 카드에서 다음 원정의 깊이를 「그대로 / +1」로 고른다 (마을 촌장·보스 문은 없앴다)
  * - 지금 깊이의 배율을 적 무리에 건다 (고르면 이미 세운 적도 다시 세운다)
- * - 한계를 깸 (D8): 깊이 10 원정에서 장 보스나 수호자를 이기고 귀환하면 깊이의 끝이 사라지고 균열이 열린다
+ * - 한계를 깸 (D8): 깊이 10 원정에서 장 보스나 수호자를 이기고 귀환하면 깊이의 끝이 사라지고 끝없는 원정이 열린다
  */
 export class DepthSystem {
   /** 이번 원정에서 깊이 10(한계 전 끝)의 장 보스나 수호자를 이겼다: 귀환하면 한계를 깬다 */
@@ -17,8 +17,8 @@ export class DepthSystem {
     const { bus, depth } = ctx
     this.apply()
     bus.on('giantKilled', ({ giant }) => {
-      // 균열 층의 보스는 세지 않는다 (층 세기가 깊이와 따로라)
-      if (depth.limitBroken || depth.level < DEPTH_LIMIT || !ctx.ending.has('depth') || ctx.map.region.kind === 'rift') return
+      // 끝없는 원정 층의 보스는 세지 않는다 (층 세기가 깊이와 따로라)
+      if (depth.limitBroken || depth.level < DEPTH_LIMIT || !ctx.ending.has('depth') || ctx.map.region.kind === 'endless') return
       if (giant.spec.boss !== undefined || isBossLike(giant.spec)) this.deepWin = true
     })
     bus.on('expeditionReturned', () => {
@@ -51,14 +51,14 @@ export class DepthSystem {
     return true
   }
 
-  /** 한계를 깸: 깊이의 끝이 사라지고 균열이 열린다 */
+  /** 한계를 깸: 깊이의 끝이 사라지고 끝없는 원정이 열린다 */
   breakLimit(): void {
     const { depth, view, bus } = this.ctx
     depth.limitBroken = true
     view.shake(0.5)
     bus.emit('moment', {
       id: 'limitBroken',
-      card: { kind: '한계를 깸', title: '세계의 끝이 갈라졌다', color: '#e6d2ff', lines: ['깊이의 끝이 사라졌다', '마을에서 균열에 들어갈 수 있다 (정보 화면 › 균열)'] },
+      card: { kind: '한계를 깸', title: '세계의 끝이 갈라졌다', color: '#e6d2ff', lines: ['깊이의 끝이 사라졌다', '마을에서 끝없는 원정에 나선다 (정보 화면 › 끝없는 원정)'] },
     })
     bus.emit('limitBroken', {})
     bus.emit('progressChanged', {})

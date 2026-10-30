@@ -99,7 +99,7 @@ export class ChapterProgress {
     return enter <= 0 || this.lastDone(chapter) >= enter - 1
   }
 
-  /** 그 땅 보통 적의 세기 (처음 땅 = 1). 장 흐름 밖의 들판(엔딩 뒤)은 가장 센 땅만큼, 균열·마을은 1 (균열은 층이 세기를 정한다) */
+  /** 그 땅 보통 적의 세기 (처음 땅 = 1). 장 흐름 밖의 들판(엔딩 뒤)은 가장 센 땅만큼, 끝없는 원정·마을은 1 (끝없는 원정은 층이 세기를 정한다) */
   power(region: string): number {
     const chapter = chapterOf(region, this.chapters)
     if (chapter) return chapter.lands[region]!

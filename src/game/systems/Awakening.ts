@@ -99,7 +99,7 @@ export class AwakeningSystem {
     const waking = this.waking
     if (waking === god) return 'waking'
     if (waking) return 'busy'
-    return mayWake(progress.opened.length, expedition.returns, chapters.conquered, ending.reached) ? 'open' : 'sealed'
+    return mayWake(progress.opened.length, expedition.returns, chapters.conquered, ending.has('realms')) ? 'open' : 'sealed'
   }
 
   /** 흔적이 잠잠할 때 다음 신이 응답하는 때 (E305-03): 「성소 화로에서 원정을 마치거나 거인 왕을 이기면 응답한다」 */

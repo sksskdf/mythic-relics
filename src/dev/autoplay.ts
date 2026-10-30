@@ -32,12 +32,12 @@ export class Autoplayer {
   deepen = false
   /** 맹세를 하는가: 출발 카드가 뜨면 아직 못 지킨 맹세를 건다 (scripts/playtest.mjs --oaths). 아니면 맹세 없이 떠난다 */
   oaths = false
-  /** 균열을 내려가는가: 마을에서 들어가 층을 깰 때마다 다음 층 문으로 (scripts/playtest.mjs --rift) */
-  rift = false
+  /** 끝없는 원정을 내려가는가: 마을에서 나서 층을 깰 때마다 다음 층 문으로 (scripts/playtest.mjs --endless) */
+  endless = false
   /** 건 맹세와 건 게임 시각 (맹세 봇) */
   readonly oathLog: { id: keyof typeof OATHS; sworn: number }[] = []
-  /** 균열 층마다 깬 게임 시각 (층 번호, 시각) */
-  readonly riftFloors: { depth: number; t: number }[] = []
+  /** 끝없는 원정 층마다 깬 게임 시각 (층 번호, 시각) */
+  readonly endlessFloors: { depth: number; t: number }[] = []
   /** 깊이를 하나씩 처음 내려간 게임 시각 */
   readonly depths: number[] = []
   /** 이 신의 유물만 낀다 (다른 신 유물은 주우면 가방에 넣는다). null이면 가리지 않는다 (scripts/playtest.mjs --god) */
@@ -129,7 +129,7 @@ export class Autoplayer {
   /** 다른 지역으로 가야 하면 이웃으로 가는 통로를 따라 걸어 넘어간다 (마을을 거쳐 간다, E19). 걸었으면 true */
   private travel(): boolean {
     const { region, hero } = this.game
-    if (this.stay || this.rift) return false
+    if (this.stay || this.endless) return false
     const want = this.wantRegion()
     if (want === region.id) return false
     const hop = nextHop(region.id, want, this.game.regions)
@@ -156,7 +156,7 @@ export class Autoplayer {
     // 다른 땅으로 떠나는 길이면 생명이 넉넉한 동안 예고를 피하지 않고 통로로 걸어간다 (E19: 통로를 다 걸어야 넘어가므로
     // 피하기를 되풀이하면 쫓아오는 무리에 막혀 떠나지 못한다. 사람도 그냥 걸어 나간다)
     const hp = combat.health.ratio
-    const leaving = hp >= 0.5 && !this.stay && !this.rift && this.wantRegion() !== this.game.region.id
+    const leaving = hp >= 0.5 && !this.stay && !this.endless && this.wantRegion() !== this.game.region.id
 
     // 신 깨우기 (E239): 흔적·수호자 자리가 멀면 예고를 피하지 않고 걸어간다 (물러서며 던지는 적이 많은 땅에서 둘레가 비기를 기다리면 닿지 못한다)
     const wake = this.awakenSpot()
@@ -219,9 +219,9 @@ export class Autoplayer {
     // 4. 다른 땅으로 가야 하면 출구로 (마을에서 시작하면 필드로, 승급할 때가 되면 그 신의 땅으로)
     if (this.travel()) return void (this.step = 7)
 
-    // 4.4 균열 (E17): 층을 깼으면 다음 층 문으로, 마을이면 들어간다 (축복 고르기는 E305-03에서 걷었다)
-    if (this.rift) {
-      const rs = this.game.riftSystem
+    // 4.4 끝없는 원정 (E17 균열 → E305-03): 층을 깼으면 다음 층 문으로, 마을이면 나선다
+    if (this.endless) {
+      const rs = this.game.endlessSystem
       const run = rs.run
       if (!run && rs.canEnter && hp > 0.9) {
         rs.enter()
@@ -230,7 +230,7 @@ export class Autoplayer {
       }
       if (run && run.cleared) {
         // 층을 깬 때를 처음 한 번 적는다
-        if (this.riftFloors.at(-1)?.depth !== run.depth) this.riftFloors.push({ depth: run.depth, t: this.game.time })
+        if (this.endlessFloors.at(-1)?.depth !== run.depth) this.endlessFloors.push({ depth: run.depth, t: this.game.time })
         if (hp > 0.6) {
           if (!hero.isMoving || dist(here, run.floor.portal) > 2) hero.moveTo(run.floor.portal)
           this.step = 14
@@ -395,7 +395,7 @@ export class Autoplayer {
       const a = (i / 12) * Math.PI * 2
       const point = { x: here.x + Math.sin(a) * 10, z: here.z + Math.cos(a) * 10 }
       if (Math.abs(point.x) > half || Math.abs(point.z) > half) continue
-      // 가는 길에 출구를 밟지 않게 (균열에서는 나가는 문을 밟으면 끝난다)
+      // 가는 길에 출구를 밟지 않게 (끝없는 원정에서는 나가는 문을 밟으면 끝난다)
       if ([0.25, 0.5, 0.75, 1].some((t) => this.nearExit({ x: here.x + (point.x - here.x) * t, z: here.z + (point.z - here.z) * t }))) continue
       let score = Math.min(...near.map((g) => dist(g, point)))
       if (boss?.alive && !near.includes(boss) && dist(boss, point) < 18) score -= 20

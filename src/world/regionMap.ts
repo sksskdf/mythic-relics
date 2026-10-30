@@ -697,7 +697,7 @@ export class Chunk {
 
 /**
  * 지역 하나의 조각을 짓는다. 땅 높이는 지금 땅 원점(`setTerrainOrigin`) 기준이므로, 이웃 조각은 `withTerrainFrame` 안에서 짓는다.
- * links: 이 지역에서 이웃으로 가는 통로 (숲을 이 자리만 비운다). 세계 칸이 없는 균열 층은 예전처럼 네모 둘레를 숲으로 두른다.
+ * links: 이 지역에서 이웃으로 가는 통로 (숲을 이 자리만 비운다). 세계 칸이 없는 끝없는 원정 층은 예전처럼 네모 둘레를 숲으로 두른다.
  */
 export function buildChunk(region: RegionDef, links: readonly RegionLink[] = [], themeAt?: (cell: Cell) => ThemeId): Chunk {
   return finish(chunkSteps(region, links, themeAt))

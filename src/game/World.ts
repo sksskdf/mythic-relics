@@ -127,7 +127,7 @@ export class World {
     if (!announce) this.placeBarriers(region)
   }
 
-  /** 지금 땅 둘레에 그려지는 땅들의 적 배치와, 지금 땅 좌표로 옮길 만큼 (E19). 세계 칸이 없는 균열이면 없음 */
+  /** 지금 땅 둘레에 그려지는 땅들의 적 배치와, 지금 땅 좌표로 옮길 만큼 (E19). 세계 칸이 없는 끝없는 원정이면 없음 */
   neighborLayouts(region: RegionDef): NeighborLayout[] {
     return this.neighborLands(region).map(({ region: r, offset }) => ({
       id: r.id,
@@ -200,15 +200,15 @@ export class World {
    */
   enter(region: RegionDef, at: { x: number; z: number } = region.spawn): void {
     const { stage, nav, encounter, sanctuary, hero, orders, view, pickups, bus } = this.parts
-    // 균열은 층마다 id가 같지만 새 땅이다 (앞 층의 물건을 치우고 「균열 N층」을 띄운다)
-    const moved = region.id !== this.region.id || region.kind === 'rift'
+    // 끝없는 원정은 층마다 id가 같지만 새 땅이다 (앞 층의 물건을 치우고 「끝없는 원정 N층」을 띄운다)
+    const moved = region.id !== this.region.id || region.kind === 'endless'
     if (moved) pickups.clear()
     stage.load(region, this.regions)
     this.dress(region)
     const colliders = stage.map.colliders
     const area = this.areaOf(region)
     nav.rebuild(area, colliders)
-    encounter.reset({ ...region, respawn: region.kind !== 'rift' }, colliders, area)
+    encounter.reset({ ...region, respawn: region.kind !== 'endless' }, colliders, area)
     encounter.setNeighbors(this.neighborLayouts(region))
     sanctuary.moveTo(region.sanctuary && (nav.nearestFree(region.sanctuary) ?? region.sanctuary), region.sanctuary?.radius)
     hero.area = area
@@ -305,13 +305,13 @@ export class World {
       return
     }
     let nearest = Infinity
-    // 균열의 나가는 문은 땅을 눌러 그 문으로 걸어가던 중일 때만 연다:
-    // 밀려나거나, 문 곁의 적을 눌러 다가가다 밟아 균열 판을 잃지 않게
-    const goal = this.region.kind === 'rift' && orders.order?.kind === 'move' ? hero.goal : null
+    // 끝없는 원정의 나가는 문은 땅을 눌러 그 문으로 걸어가던 중일 때만 연다:
+    // 밀려나거나, 문 곁의 적을 눌러 다가가다 밟아 그 판을 잃지 않게
+    const goal = this.region.kind === 'endless' && orders.order?.kind === 'move' ? hero.goal : null
     for (const exit of this.region.exits) {
       const d = Math.hypot(exit.x - p.x, exit.z - p.z)
       nearest = Math.min(nearest, d)
-      if (this.region.kind === 'rift' && (!goal || Math.hypot(exit.x - goal.x, exit.z - goal.z) > EXIT_RADIUS * 1.5)) continue
+      if (this.region.kind === 'endless' && (!goal || Math.hypot(exit.x - goal.x, exit.z - goal.z) > EXIT_RADIUS * 1.5)) continue
       if (this.exitArmed && d < EXIT_RADIUS) return this.travelTo(exit.to)
     }
     if (nearest > EXIT_RADIUS * 2) this.exitArmed = true

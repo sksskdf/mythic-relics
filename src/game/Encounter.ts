@@ -33,7 +33,7 @@ export interface EncounterLayout {
   boss: { x: number; z: number; enemy?: string } | null
   /** 정예 확률에 더하는 값 (깊은 땅, E15) */
   elite?: number
-  /** 무리와 보스가 다시 나타나는가 (균열 층은 한 번뿐, E17) */
+  /** 무리와 보스가 다시 나타나는가 (끝없는 원정의 층은 한 번뿐, E17) */
   respawn?: boolean
 }
 
@@ -330,7 +330,7 @@ export class Encounter {
   }
 
   /** 보스가 싸움에 끼어들었는지 (HUD 표시용) */
-  /** 무리와 보스가 모두 쓰러졌다 (균열 층을 깼다, E17) */
+  /** 무리와 보스가 모두 쓰러졌다 (끝없는 원정의 층을 깼다, E17) */
   get cleared(): boolean {
     return this.camps.every((c) => c.giants.every((g) => !g.alive)) && !this.boss?.alive && this.giants.every((g) => !g.alive)
   }

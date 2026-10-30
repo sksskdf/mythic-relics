@@ -52,6 +52,8 @@ export class ExpeditionSystem {
     private readonly parts: ExpeditionParts,
   ) {
     ctx.bus.on('giantKilled', ({ giant }) => {
+      // 끝없는 원정 층의 보스는 세지 않는다 (귀환 명성이 부풀지 않게)
+      if (ctx.map.region.kind === 'endless') return
       if (giant.spec.boss !== undefined || isBossLike(giant.spec)) ctx.expedition.beatBoss()
     })
     // 귀환 횟수 자동화 (E304-03): 귀환 2부터 보통·좋음, 3부터 희귀를 주울 때 저절로 합친다

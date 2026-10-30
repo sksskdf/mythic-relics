@@ -92,7 +92,7 @@ export class RelicSystem {
   /** 숨 칸 수 (E302): 깨어난 신 수, 정복한 장(E305-02), 지킨 홀로의 맹세(E305-01)로 정한다. 끝은 데모 4, 엔딩 뒤 5 */
   get slots(): number {
     const { progress, chapters, oaths, ending } = this.ctx
-    return breathCount(progress.opened.length, chapters.conquered, oaths.breath, ending.reached ? MAX_BREATH : DEMO_BREATH)
+    return breathCount(progress.opened.length, chapters.conquered, oaths.breath, ending.has('oaths') ? MAX_BREATH : DEMO_BREATH)
   }
 
   /** 그 자리에 그 신을 낀다 (정보 화면 신 탭, 어디서나). 숨은 빈 칸이 있어야 한다 */
@@ -190,7 +190,7 @@ export class RelicSystem {
   private unlock(id: RelicId, announce: boolean): void {
     const { progress, bus, ending } = this.ctx
     const myth = relicMyth(id)
-    if (!myth || !ending.reached) return
+    if (!myth || !ending.has('realms')) return
     for (const god of [myth]) {
       if (!progress.open(god)) continue
       bus.emit('progressChanged', {})

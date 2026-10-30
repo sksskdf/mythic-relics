@@ -298,8 +298,9 @@ export class DevPanel {
           g.depthSystem.breakLimit()
           g.menu.refresh()
         }),
-        button('균열 기록 +5층', () => {
-          g.rift.best += 5
+        // 끝없는 원정 (E305-03): 기록만 더한다. 나서려면 「한계를 깸」 뒤 마을의 끝없는 원정 탭
+        button('끝없는 원정 기록 +5층', () => {
+          g.endless.best += 5
           g.menu.refresh()
         }),
         // 자동화 (E305-03): 귀환 3까지 마친 것으로(원정 번호를 덮어씀), 자동 줍기 세기도 채움 (자동 줍기는 엔딩 뒤)

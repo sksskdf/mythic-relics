@@ -10,7 +10,7 @@ import type { TabUnlocks } from '../progress/Tabs'
 import type { Ending } from '../progress/Ending'
 import type { DepthProgress } from '../progress/Depth'
 import type { OathProgress } from '../progress/Oaths'
-import type { RiftProgress } from '../progress/Rift'
+import type { EndlessProgress } from '../progress/Endless'
 import type * as THREE from 'three'
 
 import type { Wardrobe } from '../looks/outfit'
@@ -82,8 +82,8 @@ export interface GameContext {
   readonly drops: DropTable
   /** 깊이 (E305-03, 옛 위협 단계 E14-03) */
   readonly depth: DepthProgress
-  /** 균열 기록 (E17) */
-  readonly rift: RiftProgress
+  /** 끝없는 원정 기록 (E17 균열 → E305-03) */
+  readonly endless: EndlessProgress
   /** 맹세 기록과 영구 보상 (E305-01) */
   readonly oaths: OathProgress
   /** 자동화 세기 (E305-03: 귀환 횟수·엔딩·주운 수로 켜진다) */

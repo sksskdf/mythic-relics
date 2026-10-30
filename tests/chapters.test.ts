@@ -214,12 +214,12 @@ describe('장 진행 (E22-01)', () => {
     expect(chapters.goal).toBeNull()
   })
 
-  it('땅의 세기와 단계: 장 흐름의 땅은 장 데이터, 그 밖의 들판(엔딩 뒤)은 가장 센 땅만큼, 균열은 1', () => {
+  it('땅의 세기와 단계: 장 흐름의 땅은 장 데이터, 그 밖의 들판(엔딩 뒤)은 가장 센 땅만큼, 끝없는 원정은 1', () => {
     const chapters = new ChapterProgress(world())
     expect(chapters.power('midgard')).toBe(1)
     expect(chapters.power('lycia')).toBe(14)
     expect(chapters.power('sinsi')).toBe(TOP_POWER)
-    expect(chapters.power('rift')).toBe(1)
+    expect(chapters.power('endless')).toBe(1)
     expect(chapters.power('village')).toBe(1)
     expect(chapters.tier('sky')).toBe(3)
     expect(chapters.tier('olympus')).toBe(2)

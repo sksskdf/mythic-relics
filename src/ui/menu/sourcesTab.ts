@@ -63,7 +63,7 @@ export function renderSources(ctx: TabContext, body: HTMLElement): void {
   wrap.append(auto)
 
   // 엔딩 뒤: 깊이 (읽기만, E21-06·E305-03)
-  if (!ctx.host.afterEnding()) {
+  if (!ctx.host.afterEnding('depth')) {
     body.append(wrap)
     return
   }

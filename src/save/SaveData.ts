@@ -10,7 +10,7 @@ import { type AutomationData, parseAutomation } from '../progress/Automation'
 import { parseWaypoints } from '../progress/Waypoints'
 import { type DepthData, parseDepth } from '../progress/Depth'
 import { type OathData, oathsFromTrials, parseOaths } from '../progress/Oaths'
-import { parseRift, type RiftData } from '../progress/Rift'
+import { parseEndless, type EndlessData } from '../progress/Endless'
 import { parseTraining, type TrainingData } from '../progress/Training'
 import { type ExpeditionData, parseExpedition } from '../progress/Expedition'
 import { parseTabs } from '../progress/Tabs'
@@ -92,8 +92,8 @@ export interface SaveData {
   waypoints: string[]
   /** 맹세: 지킨 맹세와 기록 (E305-01, v16 이하는 시련 기록에서) */
   oaths: OathData
-  /** 균열 기록 (E17, 성좌판은 E305-03에서 걷음) */
-  rift: RiftData
+  /** 끝없는 원정 기록 (E17 균열, 성좌판은 E305-03에서 걷음). 키는 옛 이름 그대로 */
+  rift: EndlessData
   /** 첫 엔딩을 보았나 (E21-06): 엔딩 뒤 장치를 연다 */
   ending: boolean
   /** 장 진행 (E22): 들어서 본 땅, 보스를 이긴 땅 */
@@ -218,7 +218,7 @@ export function parseSave(text: string | null): SaveData | null {
   const keep = new Set([...slots.slice(0, SLOT_PARTS.length), ...fullBag, ...ground.map((g) => g.id)])
   const threat = parseDepth(data.threat)
   const oaths = (data.version as number) < 17 ? oathsFromTrials(data.trials) : parseOaths(data.oaths)
-  const rift = parseRift(data.rift)
+  const rift = parseEndless(data.rift)
   // 엔딩 뒤 장치를 해 본 옛 저장은 엔딩 뒤로 친다 (E21-06). 옛 위협 단계는 열린 단계(unlocked)까지 본다
   const oldDanger = (data.version as number) < 10 ? oldThreat(data.threat) : null
   const tried = threat.limitBroken || (oldDanger?.unlocked ?? 1) > 1 || oaths.kept.length > 0 || rift.best > 0

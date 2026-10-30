@@ -71,7 +71,8 @@ export class Persistence {
       conveniences: this.ctx.automation.toData(),
       waypoints: this.ctx.waypoints.toData(),
       oaths: this.ctx.oaths.toData(),
-      rift: this.ctx.rift.toData(),
+      // 끝없는 원정 기록 (E305-03): 저장 키는 옛 균열 이름 그대로
+      rift: this.ctx.endless.toData(),
       ending: this.ctx.ending.reached,
       chapters: this.ctx.chapters.toData(),
       training: this.ctx.training.toData(),
@@ -98,7 +99,7 @@ export class Persistence {
     this.ctx.automation.load(data.conveniences)
     this.ctx.waypoints.load(data.waypoints)
     this.ctx.oaths.load(data.oaths)
-    this.ctx.rift.load(data.rift)
+    this.ctx.endless.load(data.rift)
     for (const [slot, choice] of Object.entries(data.looks.choices) as [LookSlot, string | null][]) wardrobe.choose(slot, choice)
     host.applyLooks()
     for (const [god, record] of Object.entries(data.classes) as [God, { level: number }][]) progress.record(god).level = record.level

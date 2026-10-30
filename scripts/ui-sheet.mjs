@@ -11,7 +11,7 @@ import { chromium } from 'playwright-core'
 const [dir = 'test-results/ui', sizesArg = '1280x720,960x540,390x844'] = process.argv.slice(2)
 const PORT = 4194
 const BROWSER = process.env.CHROMIUM_PATH ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'
-const TABS = ['status', 'sources', 'relics', 'classes', 'training', 'oaths', 'rift', 'map', 'looks']
+const TABS = ['status', 'sources', 'relics', 'classes', 'training', 'oaths', 'endless', 'map', 'looks']
 const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'ignore', detached: true })
 const stop = () => {
   try {
@@ -80,7 +80,7 @@ try {
     })
     await page.goto(`http://localhost:${PORT}/?fresh&relics=&region=village&noscenes`)
     await page.waitForFunction(() => (window.__game?.frame ?? 0) > 3, null, { timeout: 60000 })
-    // 중반쯤: 토르를 고르고 신화 셋을 열고, 장비 몇 개와 재료, 위협 3단계, 지킨 맹세 몇 개, 한계를 깬 뒤 균열 기록 15층
+    // 중반쯤: 토르를 고르고 신화 셋을 열고, 장비 몇 개와 재료, 위협 3단계, 지킨 맹세 몇 개, 한계를 깬 뒤 끝없는 원정 기록 15층
     await page.evaluate(() => {
       const g = window.__game
       g.dev.equip('mjolnir')
@@ -93,12 +93,12 @@ try {
       // 수련 (E236): 깨달음 여덟, 힘 갈래 넷과 손 갈래 둘을 찍고 둘은 남긴다
       g.dev.insight(8)
       for (const id of ['awaken', 'edge', 'fury', 'cleave', 'quick', 'stride']) g.dev.train(id)
-      // 깊이·균열은 엔딩 뒤 장치라 엔딩 뒤로 넘겨 모든 탭을 찍는다 (E21-06): 깊이 10에서 한계를 깼다 (E305-03)
+      // 깊이·끝없는 원정은 엔딩 뒤 장치라 엔딩 뒤로 넘겨 모든 탭을 찍는다 (E21-06): 깊이 10에서 한계를 깼다 (E305-03)
       g.reachEnding()
       for (const id of ['silence', 'glass', 'crowd']) g.oaths.keep(id, 420)
       g.dev.depth(10)
       g.depthSystem.breakLimit()
-      g.rift.reach(15)
+      g.endless.reach(15)
       g.bus.emit('progressChanged', {})
     })
     const wait = async (frames = 3) => {

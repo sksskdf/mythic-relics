@@ -403,13 +403,13 @@ try {
   console.log(`수련 확인: 깨달음을 얻으면 메뉴 단추 표시, 뿌리 마디를 찍으면 피해 ×${(trained.damage / trainBefore.damage).toFixed(2)}`)
   await page.keyboard.press('Escape')
   if (await page.evaluate(() => window.__game.paused)) throw new Error('정보 화면: 닫았는데 게임이 멈춰 있습니다.')
-  // 원천 탭 (E14, E21-06, E305-03): 엔딩 전에는 각성 카드 넷만, 균열 탭은 숨김. 엔딩 뒤에는 깊이 한 줄(읽기만, 고르기는 귀환 카드)
+  // 원천 탭 (E14, E21-06, E305-03): 엔딩 전에는 각성 카드 넷만, 끝없는 원정 탭은 숨김. 엔딩 뒤에는 깊이 한 줄(읽기만, 고르기는 귀환 카드)
   await page.click('.menu-button')
   await page.locator('.menu__tab').nth(1).click()
   if ((await page.locator('.menu-src__source').count()) !== 4) throw new Error('원천 탭: 각성 카드가 넷이 아닙니다.')
   const srcView = () => ({ depth: document.querySelectorAll('.menu-src__depth').length, levels: document.querySelectorAll('.menu-src__level').length, tabs: [...document.querySelectorAll('.menu__tab')].filter((b) => !b.hidden).length })
   const demo = await page.evaluate(srcView)
-  if (demo.depth !== 0 || demo.levels !== 0 || demo.tabs !== 8) throw new Error(`엔딩 전: 깊이나 균열 탭이 보입니다 (${JSON.stringify(demo)})`)
+  if (demo.depth !== 0 || demo.levels !== 0 || demo.tabs !== 8) throw new Error(`엔딩 전: 깊이나 끝없는 원정 탭이 보입니다 (${JSON.stringify(demo)})`)
   await page.evaluate(() => {
     window.__game.reachEnding()
     window.__game.menu.refresh()
@@ -643,7 +643,7 @@ try {
   if (!oathKept.spawned || oathKept.oath !== null || !oathKept.kept || oathKept.noUltimate || !(oathKept.charge >= 0.3)) throw new Error(`맹세: 수호자를 이겨도 지키지 못했습니다 ${JSON.stringify(oathKept)}`)
   console.log(`맹세 확인: 귀환 2에 출발 카드 ${oathCards}장, 침묵의 맹세를 걸면 궁극기가 막히고, 수호자를 이기면 지켜 심장 충전 +${Math.round(oathKept.charge * 100)}%`)
 
-  // 한계를 깸 (E305-03, D8): 깊이 10 원정에서 수호자(장 보스)를 이기고 귀환하면 깊이의 끝이 사라지고 균열이 열린다
+  // 한계를 깸 (E305-03, D8): 깊이 10 원정에서 수호자(장 보스)를 이기고 귀환하면 깊이의 끝이 사라지고 끝없는 원정이 열린다
   const broke = await page.evaluate(() => {
     const g = window.__game
     g.reachEnding()
@@ -666,39 +666,39 @@ try {
     const shallow = g.depth.limitBroken
     g.dev.depth(10)
     win()
-    return { shallow, broken: g.depth.limitBroken, max: g.depth.max, open: g.riftSystem.open }
+    return { shallow, broken: g.depth.limitBroken, max: g.depth.max, open: g.endlessSystem.open }
   })
   if (broke.shallow || !broke.broken || broke.max <= 10 || !broke.open) throw new Error(`한계를 깸: 깊이 10 원정에서 수호자를 이기고 귀환했는데 깨지 않았거나 깊이 9에서 깼습니다 ${JSON.stringify(broke)}`)
-  console.log('한계를 깸 확인: 깊이 9에서 이기고 귀환하면 그대로, 깊이 10에서 이기고 귀환하면 깊이의 끝이 사라지고 균열이 열림')
-  // 균열 (E17): 한계를 깨면 마을의 균열 탭에서 들어가고, 층을 깨면 다음 층 문이 열려 내려가며(축복은 E305-03에서 걷음), 나가는 문으로 나오면 끝
+  console.log('한계를 깸 확인: 깊이 9에서 이기고 귀환하면 그대로, 깊이 10에서 이기고 귀환하면 깊이의 끝이 사라지고 끝없는 원정이 열림')
+  // 끝없는 원정 (E17 균열 → E305-03): 한계를 깨면 마을의 끝없는 원정 탭에서 나서고, 층을 깨면 다음 층 문이 열려 내려가며, 나가는 문으로 나오면 끝
   await page.evaluate(() => {
     const g = window.__game
     g.enterRegion(g.regions.village)
     if (!g.combat.alive) g.dev.revive()
   })
   if (!(await page.locator('.menu').isVisible())) await page.click('.menu-button')
-  await page.locator('.menu__tab', { hasText: '균열' }).click()
-  await page.getByRole('button', { name: '균열에 들어가기' }).click()
-  const floor1 = await page.evaluate(() => ({ region: window.__game.region.id, depth: window.__game.riftSystem.run?.depth }))
-  if (floor1.region !== 'rift' || floor1.depth !== 1) throw new Error(`균열: 1층에 들어가지 않습니다 ${JSON.stringify(floor1)}`)
+  await page.locator('.menu__tab', { hasText: '끝없는 원정' }).click()
+  await page.getByRole('button', { name: '끝없는 원정에 나서기' }).click()
+  const floor1 = await page.evaluate(() => ({ region: window.__game.region.id, depth: window.__game.endlessSystem.run?.depth }))
+  if (floor1.region !== 'endless' || floor1.depth !== 1) throw new Error(`끝없는 원정: 1층에 들어가지 않습니다 ${JSON.stringify(floor1)}`)
   const opened = await page.evaluate(() => {
     window.__game.encounter.clearAll()
-    window.__game.riftSystem.update(0.1)
-    return window.__game.riftSystem.run?.cleared === true
+    window.__game.endlessSystem.update(0.1)
+    return window.__game.endlessSystem.run?.cleared === true
   })
-  if (!opened) throw new Error('균열: 층의 적을 모두 쓰러뜨렸는데 다음 층 문이 열리지 않습니다.')
+  if (!opened) throw new Error('끝없는 원정: 층의 적을 모두 쓰러뜨렸는데 다음 층 문이 열리지 않습니다.')
   const floor2 = await page.evaluate(() => {
     const g = window.__game
-    const p = g.riftSystem.run.floor.portal
+    const p = g.endlessSystem.run.floor.portal
     g.hero.teleport(p.x, p.z)
-    g.riftSystem.update(0.1)
+    g.endlessSystem.update(0.1)
     g.stage.flush()
     g.encounter.flushNeighbors()
-    // 균열은 세계 밖 따로 된 공간 (E19-06): 이웃 땅 조각·무리·통로가 없다
-    return { depth: g.riftSystem.run?.depth, region: g.region.id, chunks: g.stage.others.size, parked: g.encounter.parkedGiants.length, links: g.world.links.length }
+    // 끝없는 원정은 세계 밖 따로 된 공간 (E19-06): 이웃 땅 조각·무리·통로가 없다
+    return { depth: g.endlessSystem.run?.depth, region: g.region.id, chunks: g.stage.others.size, parked: g.encounter.parkedGiants.length, links: g.world.links.length }
   })
-  if (floor2.depth !== 2) throw new Error(`균열: 층을 깨고 문에 닿았는데 2층이 아닙니다 ${JSON.stringify(floor2)}`)
-  if (floor2.chunks || floor2.parked || floor2.links) throw new Error(`균열: 세계 밖인데 이웃 땅이 붙어 있습니다 ${JSON.stringify(floor2)}`)
+  if (floor2.depth !== 2) throw new Error(`끝없는 원정: 층을 깨고 문에 닿았는데 2층이 아닙니다 ${JSON.stringify(floor2)}`)
+  if (floor2.chunks || floor2.parked || floor2.links) throw new Error(`끝없는 원정: 세계 밖인데 이웃 땅이 붙어 있습니다 ${JSON.stringify(floor2)}`)
   // 나가는 문: 밀려서(걸어가던 곳이 아닌데) 밟으면 그대로, 문으로 걸어가면 나간다
   const pushed = await page.evaluate(() => {
     const g = window.__game
@@ -708,9 +708,9 @@ try {
     g.advance(0.2, 1 / 30)
     g.hero.teleport(exit.x, exit.z)
     g.advance(0.5, 1 / 30)
-    return { region: g.region.id, traveling: g.world.traveling, run: g.riftSystem.run !== null }
+    return { region: g.region.id, traveling: g.world.traveling, run: g.endlessSystem.run !== null }
   })
-  if (pushed.region !== 'rift' || pushed.traveling || !pushed.run) throw new Error(`균열: 걸어가지 않았는데 나가는 문이 열립니다 ${JSON.stringify(pushed)}`)
+  if (pushed.region !== 'endless' || pushed.traveling || !pushed.run) throw new Error(`끝없는 원정: 걸어가지 않았는데 나가는 문이 열립니다 ${JSON.stringify(pushed)}`)
   // 땅을 누른 이동이 아니면(문 곁의 적을 쫓을 때 등) 문 위를 지나가도 나가지 않는다
   const chased = await page.evaluate(() => {
     const g = window.__game
@@ -720,9 +720,9 @@ try {
     g.orders.clear()
     g.hero.moveTo(exit)
     g.advance(3, 1 / 30)
-    return { region: g.region.id, traveling: g.world.traveling, run: g.riftSystem.run !== null }
+    return { region: g.region.id, traveling: g.world.traveling, run: g.endlessSystem.run !== null }
   })
-  if (chased.region !== 'rift' || chased.traveling || !chased.run) throw new Error(`균열: 땅을 누르지 않았는데 나가는 문이 열립니다 ${JSON.stringify(chased)}`)
+  if (chased.region !== 'endless' || chased.traveling || !chased.run) throw new Error(`끝없는 원정: 땅을 누르지 않았는데 나가는 문이 열립니다 ${JSON.stringify(chased)}`)
   const left = await page.evaluate(() => {
     const g = window.__game
     const exit = g.region.exits[0]
@@ -730,10 +730,10 @@ try {
     g.advance(0.2, 1 / 30)
     g.orders.press({ x: exit.x, z: exit.z }, null)
     g.advance(3, 1 / 30)
-    return { run: g.riftSystem.run, best: g.rift.best, region: g.region.id }
+    return { run: g.endlessSystem.run, best: g.endless.best, region: g.region.id }
   })
-  if (left.run || left.best < 1 || left.region !== 'village') throw new Error(`균열: 나가는 문으로 걸어갔는데 끝나지 않았습니다 ${JSON.stringify(left)}`)
-  console.log('균열 확인: 한계를 깨고 마을에서 들어가, 1층을 깨면 열린 문으로 2층에, 밀려 밟거나 적을 쫓다 밟은 나가는 문은 닫혀 있고 땅을 눌러 걸어가면 나와 끝')
+  if (left.run || left.best < 1 || left.region !== 'village') throw new Error(`끝없는 원정: 나가는 문으로 걸어갔는데 끝나지 않았습니다 ${JSON.stringify(left)}`)
+  console.log('끝없는 원정 확인: 한계를 깨고 마을에서 나서, 1층을 깨면 열린 문으로 2층에, 밀려 밟거나 적을 쫓다 밟은 나가는 문은 닫혀 있고 땅을 눌러 걸어가면 나와 끝')
 
   // 개발 패널: ?dev 는 평소 플레이에 오른쪽 아래 패널만 더한다 (저장 없이 보려고 점검용 실행 ?relics= 와 함께). 단추로 유물·적·전설을 바로 바꿔 본다.
   await page.goto(`${URL}?dev&relics=&region=midgard`)

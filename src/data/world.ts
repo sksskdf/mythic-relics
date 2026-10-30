@@ -213,7 +213,7 @@ export interface RegionLink {
 
 const linkCache = new WeakMap<object, Map<string, RegionLink[]>>()
 
-/** 그 땅에서 이웃으로 이어지는 통로들 (세계 칸이 없는 균열 층이면 없음) */
+/** 그 땅에서 이웃으로 이어지는 통로들 (세계 칸이 없는 끝없는 원정의 층이면 없음) */
 export function regionLinks(regions: Readonly<Record<string, Omit<PlacedRegion, 'cell'> & { cell: Cell | null }>>, id: string): RegionLink[] {
   let byId = linkCache.get(regions)
   if (!byId) {

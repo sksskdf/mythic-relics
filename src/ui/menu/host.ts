@@ -2,6 +2,7 @@ import type { ClassProgress } from '../../myth/ClassProgress'
 import type { SourceId } from '../../data/schema'
 import type { GearItem } from '../../gear/roll'
 import type { LoadoutState } from '../../myth/manifest'
+import type { EndingFeature } from '../../progress/Ending'
 import type { God, RelicId } from '../../relics/data'
 import type { RelicCardContext } from '../relicCard'
 import type { WardrobeHost } from '../WardrobePane'
@@ -42,15 +43,15 @@ export interface OathsHost {
   renownScale(): number
 }
 
-/** 균열 탭이 게임에서 읽고 부르는 것 (E17) */
-export interface RiftMenuHost {
-  /** 한계를 깼나 (균열이 열렸다) */
+/** 끝없는 원정 탭이 게임에서 읽고 부르는 것 (E17 균열 → E305-03) */
+export interface EndlessMenuHost {
+  /** 한계를 깼나 (끝없는 원정이 열렸다) */
   open(): boolean
   /** 한계를 깨는 길: 가 본 가장 깊은 곳과 한계 전 끝 (E305-03) */
   depth(): { reached: number; limit: number }
   canEnter(): boolean
   enter(): boolean
-  /** 진행 중인 균열의 층 */
+  /** 진행 중인 끝없는 원정의 층 */
   run(): { depth: number } | null
   best(): number
 }
@@ -81,7 +82,7 @@ export interface WorldMapHost {
   goal(): { region: string; text: string } | null
   /** 아직 깨우지 않은 신의 흔적 (E238): 있는 땅, 이름, 그 신의 색, 지금 응답하지 않는가(깨우는 중·주신이 더 자라야 함) */
   traces(): { region: string; name: string; color: string; waking: boolean }[]
-  /** 지도 위 내 자리 (세계 칸 단위). 세계 밖(균열)이면 null */
+  /** 지도 위 내 자리 (세계 칸 단위). 세계 밖(끝없는 원정)이면 null */
   me(): { x: number; y: number } | null
   /** 마을이나 켠 성소로 바로 간다 (웨이포인트, 처음부터) */
   warp(id: string): boolean
@@ -156,10 +157,10 @@ export interface MenuHost {
   readonly sources: SourcesHost
   readonly world: WorldMapHost
   readonly oaths: OathsHost
-  readonly rift: RiftMenuHost
+  readonly endless: EndlessMenuHost
   readonly training: TrainingHost
-  /** 첫 엔딩을 보았나: 엔딩 뒤 장치(깊이·자동 줍기·맹세 다섯·균열)를 보인다 (E21-06) */
-  afterEnding(): boolean
+  /** 그 엔딩 뒤 장치가 열렸나 (E21-06, 엔딩 문 `AFTER_ENDING`) */
+  afterEnding(feature: EndingFeature): boolean
   /** 신 단계 상한을 올려 줄 다음 장 보스의 이름 (E305-02, 데모 끝까지 다 정복했으면 null) */
   nextConquest(): string | null
   /** 연 탭인가 (E236-05: 상태 탭 말고는 쓸 일이 생길 때 하나씩 열린다) */

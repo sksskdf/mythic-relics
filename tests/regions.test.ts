@@ -172,7 +172,7 @@ describe('세계 (E7, E15)', () => {
 
   it('마지막 무대는 올림포스에서 걸어 들어간다 (E22, E239)', () => {
     expect(REGIONS.sky!.exits.map((e) => e.to)).toEqual(['olympus'])
-    // 마지막 보스는 균열의 우트가르드의 왕과 모습·이름이 같고 세기는 따로 (E22-05)
+    // 마지막 보스는 끝없는 원정의 우트가르드의 왕과 모습·이름이 같고 세기는 따로 (E22-05)
     expect(REGIONS.sky!.boss?.enemy).toBe('skyKing')
     const into = regions.filter((r) => r.exits.some((e) => e.to === 'sky')).map((r) => r.id)
     expect(into).toEqual(['olympus'])

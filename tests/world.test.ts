@@ -208,8 +208,8 @@ describe('걸어서 넘어가기 (E19-02)', () => {
     expect(crossingAt(regionLinks(regions, 'midgard'), there.x, there.z)).toBeNull()
   })
 
-  it('세계 칸이 없는 땅(균열 층)은 통로가 없다', () => {
-    expect(regionLinks({ ...regions, rift: { ...regions.village!, id: 'rift', cell: null } }, 'rift')).toEqual([])
+  it('세계 칸이 없는 땅(끝없는 원정 층)은 통로가 없다', () => {
+    expect(regionLinks({ ...regions, endless: { ...regions.village!, id: 'endless', cell: null } }, 'endless')).toEqual([])
   })
 })
 

@@ -28,7 +28,8 @@ export class OathSystem {
   ) {
     ctx.bus.on('giantKilled', ({ giant }) => {
       const oath = ctx.expedition.oath
-      if (!oath || ctx.map.region.kind === 'rift') return
+      // 끝없는 원정 층의 보스는 세지 않는다
+      if (!oath || ctx.map.region.kind === 'endless') return
       if (giant.spec.boss !== undefined || isBossLike(giant.spec)) this.keep(oath)
     })
     // 귀환하면 그 자리에서 다시 떠난다: 맹세가 열렸으면 출발 카드
@@ -40,12 +41,12 @@ export class OathSystem {
 
   /** 맹세를 고를 수 있나: 귀환 2부터 (엔딩 뒤는 언제나) */
   get unlocked(): boolean {
-    return this.ctx.expedition.returns >= OATH.unlock || this.ctx.ending.reached
+    return this.ctx.expedition.returns >= OATH.unlock || this.ctx.ending.has('oaths')
   }
 
   /** 고를 수 있는 맹세: 데모 셋, 엔딩 뒤에는 여덟 */
   available(): OathId[] {
-    return this.ctx.ending.reached ? [...OATH_IDS] : [...DEMO_OATHS]
+    return this.ctx.ending.has('oaths') ? [...OATH_IDS] : [...DEMO_OATHS]
   }
 
   /** 출발 카드에 보일 것 */

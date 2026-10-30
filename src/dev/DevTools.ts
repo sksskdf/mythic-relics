@@ -100,7 +100,7 @@ export class DevTools {
     return true
   }
 
-  /** 한계를 깬 무렵의 빌드 (균열 시험, E17-07): 영웅 장비 여섯을 끼고, 고른 신화를 최고 단계로, 같은 신화권 신화를 모두 연다. 수련은 엔딩 무렵만큼(깨달음 스물, E236) */
+  /** 한계를 깬 무렵의 빌드 (끝없는 원정 시험, E17-07): 영웅 장비 여섯을 끼고, 고른 신화를 최고 단계로, 같은 신화권 신화를 모두 연다. 수련은 엔딩 무렵만큼(깨달음 스물, E236) */
   endgame(): void {
     const { powers, progress, bus } = this.parts
     this.insight(Math.max(0, 20 - insightsAt(this.parts.training.xp)))

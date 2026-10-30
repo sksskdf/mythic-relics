@@ -4,7 +4,7 @@
 // --god=loki 를 붙이면 그 신 유물만 끼고 승급까지 간다.
 // --depth=N 을 붙이면 첫 엔딩 무렵의 빌드(묠니르 2단계·토르 3단계·깨달음 스물)로 원정이 무르익을 때마다 성소 화로에서 귀환하며
 //   귀환 카드에서 「+1」을 골라 깊이 N에 이를 때까지 깊이마다 시간·쓰러짐·피격을 잰다 (E305-03, 옛 --threat). --depth-at=N 이면 귀환 없이 깊이 N에 고정해 제한 시간 동안 잰다.
-// --depth·--rift는 엔딩 뒤 장치라, 시작할 때 엔딩 뒤로 넘긴다 (E21-06).
+// --depth·--endless는 엔딩 뒤 장치라, 시작할 때 엔딩 뒤로 넘긴다 (E21-06).
 // --ending 을 붙이면 장 흐름을 따라 엔딩까지 가고, 장마다 들어선 시각을 잰다 (E22-06).
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -24,8 +24,8 @@ const STACK = process.argv.find((a) => a.startsWith('--stack='))?.slice(8) ?? nu
  * 그 원정의 수호자·장 보스를 이기면 지킨 것. 셋을 다 지키면 끝
  */
 const OATHS = process.argv.includes('--oaths')
-/** --rift 를 붙이면 깊이 10에서 한계를 깬 셈으로 마을에서 시작해 균열을 10층까지 내려간다 (E17-07). --relics=mjolnir 와 함께 쓴다 */
-const RIFT = process.argv.includes('--rift')
+/** --endless 를 붙이면 깊이 10에서 한계를 깬 셈으로 마을에서 시작해 끝없는 원정을 10층까지 내려간다 (E17-07 균열 → E305-03). --relics=mjolnir 와 함께 쓴다 */
+const ENDLESS = process.argv.includes('--endless')
 /** --ending 을 붙이면 장 흐름을 따라 첫 엔딩까지 간다 (E22-06) */
 const ENDING = process.argv.includes('--ending')
 /** --god=loki 처럼 붙이면 봇이 그 신 유물만 끼고 승급까지 간다 (E6-08) */
@@ -76,7 +76,7 @@ try {
     try {
       await page.goto(URL)
       await page.waitForFunction(() => window.__autoplay && window.__game.frame > 2, null, { timeout: 30000 })
-      if (DEPTH > 0 || DEPTH_AT > 0 || RIFT) await page.evaluate(() => window.__game.reachEnding())
+      if (DEPTH > 0 || DEPTH_AT > 0 || ENDLESS) await page.evaluate(() => window.__game.reachEnding())
       // 깊이는 첫 엔딩 뒤의 장치라 첫 엔딩 무렵의 빌드로 시작한다 (E236: 땅이 수련만큼 세져 벼린 유물 없이는 우트가르드의 거인 왕을 못 넘는다)
       // 묠니르 2단계(처음 벼리면 토르가 열림)·토르 3단계·깨달음 스물(봇이 찍는다)
       if (DEPTH > 0 || DEPTH_AT > 0)
@@ -98,7 +98,7 @@ try {
         await page.evaluate((s) => window.__game.dev.pantheon({ hand: s.hand || null, heart: s.heart || null, breath: s.breath ? s.breath.split('+') : [] }), spec)
       }
       if (OATHS) await page.evaluate(() => Object.assign(window.__autoplay, { oaths: true }))
-      if (RIFT)
+      if (ENDLESS)
         await page.evaluate(() => {
           const g = window.__game
           // 깊이 10에서 한계를 깼다
@@ -108,7 +108,7 @@ try {
           // 한계를 깬 무렵이면 맹세 여덟을 지켰다
           for (const id of ['silence', 'emptyHand', 'alone', 'noHeal', 'crowd', 'timed', 'glass', 'slow']) g.oaths.keep(id, 600)
           g.bus.emit('progressChanged', {})
-          window.__autoplay.rift = true
+          window.__autoplay.endless = true
         })
       if (STACK)
         await page.evaluate((source) => {
@@ -122,7 +122,7 @@ try {
         }, STACK)
       if (REGION) await page.evaluate(() => (window.__autoplay.stay = true))
       // 처음부터 하는 판은 장 흐름의 목표를 따라간다 (E22-06)
-      if (!REGION && !RELICS && !DEPTH && !DEPTH_AT && !RIFT) await page.evaluate(() => (window.__autoplay.chapters = true))
+      if (!REGION && !RELICS && !DEPTH && !DEPTH_AT && !ENDLESS) await page.evaluate(() => (window.__autoplay.chapters = true))
       let done = false
       while (!done) {
         const state = await page.evaluate(() => {
@@ -131,9 +131,9 @@ try {
           // 맹세 봇: 걸린 맹세가 없으면 아직 못 지킨 것을 건다 (출발 카드를 기다리지 않고)
           if (bot.oaths && !g.expedition.oath && bot.oathsLeft()) g.oathSystem.swear(g.oathSystem.available().find((id) => !g.oaths.has(id)))
           bot.run(30)
-          return { t: g.time, promoted: g.progress.promotions >= 1, reached: g.depth.reached, oathsLeft: bot.oathsLeft(), depth: window.__game.rift.best, ending: g.ending.reached }
+          return { t: g.time, promoted: g.progress.promotions >= 1, reached: g.depth.reached, oathsLeft: bot.oathsLeft(), depth: window.__game.endless.best, ending: g.ending.reached }
         })
-        done = (ENDING ? state.ending : RIFT ? state.depth >= 10 : OATHS ? !state.oathsLeft : RELICS || DEPTH_AT > 0 ? false : DEPTH > 0 ? state.reached >= DEPTH : state.promoted) || state.t > LIMIT_MIN * 60
+        done = (ENDING ? state.ending : ENDLESS ? state.depth >= 10 : OATHS ? !state.oathsLeft : RELICS || DEPTH_AT > 0 ? false : DEPTH > 0 ? state.reached >= DEPTH : state.promoted) || state.t > LIMIT_MIN * 60
       }
       const depths = await page.evaluate(() => [...window.__autoplay.depths])
       // 끝났을 때 봇이 어디서 무엇을 하고 있었나 (멈춤을 찾을 때)
@@ -180,9 +180,9 @@ try {
         depths,
         // 시련 (E16-05): 시련:난이도:결과:초
         oaths: log.filter((e) => e.type === 'oath').map((e) => e.detail),
-        // 균열 (E17-07): 층마다 들어간 때, 끝난 까닭
-        rift: log.filter((e) => e.type === 'rift').map((e) => `${e.detail}@${Math.round(e.t)}`),
-        riftFloors: await page.evaluate(() => [...window.__autoplay.riftFloors]),
+        // 끝없는 원정 (E17-07): 층마다 들어간 때, 끝난 까닭
+        endless: log.filter((e) => e.type === 'endless').map((e) => `${e.detail}@${Math.round(e.t)}`),
+        endlessFloors: await page.evaluate(() => [...window.__autoplay.endlessFloors]),
         // 장 흐름 (E22-06): 장마다 열린 때와 엔딩
         chapters: log.filter((e) => e.type === 'chapter').map((e) => ({ id: e.detail, t: e.t })),
         ending: first('ending'),
@@ -208,7 +208,7 @@ try {
           `처치 ${result.kills}(첫 신화 뒤 분당 ${result.killRate}), 쓰러짐 ${result.deaths}, 피격 ${result.hurt}` +
           (ENDING ? ` | 조각 ${result.fragments.map((f) => `${f.what} ${fmt(f.t)}`).join(', ')}` : '') +
           (ENDING ? ` | 장 ${result.chapters.map((c) => `${c.id} ${fmt(c.t)}`).join(' → ')} | 엔딩 ${fmt(result.ending)} | 단계 ${result.levels.map((l) => fmt(l.t)).join(', ')} | 제작 ${result.forged.map((f) => `${f.what} ${fmt(f.t)}`).join(', ')}` : '') +
-          (RIFT ? ` | 균열 ${result.riftFloors.map((f) => `${f.depth}층 ${fmt(f.t)}`).join(', ')} | ${result.rift.filter((x) => !x.startsWith('floor')).join(', ')}` : '') +
+          (ENDLESS ? ` | 끝없는 원정 ${result.endlessFloors.map((f) => `${f.depth}층 ${fmt(f.t)}`).join(', ')} | ${result.endless.filter((x) => !x.startsWith('floor')).join(', ')}` : '') +
           (OATHS ? ` | 맹세 ${result.oaths.join(', ')}` : '') +
           (DEPTH > 0 || DEPTH_AT > 0 ? ` | 깊이 ${result.depth.map((x) => `${x.level} ${fmt(x.time)}·처치 ${x.kills}·쓰러짐 ${x.deaths}·피격 ${x.hurt}`).join(' → ')} | 원천 ${result.sources.map((x) => `${x.id} ${x.total}(${x.level})`).join(' ')}` : '') +
           (errors.length ? ` | 오류 ${errors.length}` : ''),

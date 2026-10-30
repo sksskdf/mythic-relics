@@ -2,14 +2,14 @@ import { type PropKind, type RegionDef, REGIONS, type Spot } from '../data/regio
 import { createRng } from './rng'
 
 /**
- * 균열 층 (E17-02, DESIGN.md 9.4): 들어갈 때마다 바뀌는 작은 땅.
+ * 끝없는 원정의 층 (E17-02 균열 → E305-03, DESIGN.md 9.4): 나설 때마다 바뀌는 작은 땅.
  * 시드로 신화권 하나를 골라 그 땅의 얼굴·소품·적을 빌리고, 들어온 문 → 꺾인 길 → 무리 → 다음 층 문 차례로 놓는다.
  * 5층마다 그 신화권 보스, 10층마다 종말 보스(우트가르드의 왕)가 문을 지킨다 (E17-06). 무리는 다시 나타나지 않는다.
  * 지역 생성 규칙(scripts/gen-regions.mjs)을 작은 땅에 맞춘 것이다.
  */
-export const RIFT_HALF = 30
-/** 다음 층으로 가는 문: 층을 깨면 열린다 (RiftSystem이 빛기둥을 세운다) */
-export interface RiftFloor {
+export const ENDLESS_HALF = 30
+/** 다음 층으로 가는 문: 층을 깨면 열린다 (EndlessSystem이 빛기둥을 세운다) */
+export interface EndlessFloor {
   region: RegionDef
   /** 다음 층 문 자리 */
   portal: Spot
@@ -18,7 +18,7 @@ export interface RiftFloor {
   doom: boolean
 }
 
-/** 종말 보스 (E17-06): 균열 10층마다의 문지기 */
+/** 종말 보스 (E17-06): 끝없는 원정 10층마다의 문지기 */
 export const DOOM_BOSS = 'utgardKing'
 
 const fields = () => Object.values(REGIONS).filter((r) => r.kind === 'field')
@@ -44,7 +44,7 @@ const dist = (a: Spot, b: Spot) => Math.hypot(a.x - b.x, a.z - b.z)
 const RING_KINDS: readonly PropKind[] = ['runestone', 'column', 'spire', 'lantern', 'cairn', 'torii', 'jangseung', 'brazier']
 
 /** depth층 (1부터). 같은 runSeed·depth면 같은 땅 */
-export function riftFloor(depth: number, runSeed: number): RiftFloor {
+export function endlessFloor(depth: number, runSeed: number): EndlessFloor {
   const rand = createRng(runSeed * 1009 + depth * 97 + 13)
   const pool = fields()
   const template = pool[Math.floor(rand() * pool.length)]!
@@ -65,7 +65,7 @@ export function riftFloor(depth: number, runSeed: number): RiftFloor {
   const phase = rand() * 6
   const wave = (t: number) => 4 * Math.sin(t / 10 + phase)
   const at = (t: number, s: number): Spot => ({ x: r2(dir.x * t + side.x * s), z: r2(dir.z * t + side.z * s) })
-  const H = RIFT_HALF
+  const H = ENDLESS_HALF
   const main: Spot[] = []
   for (let t = -H; t <= 24; t += 6) main.push(at(t, wave(t)))
   main.push(at(24, wave(24)))
@@ -107,9 +107,9 @@ export function riftFloor(depth: number, runSeed: number): RiftFloor {
     if (clear(p)) props.push({ kind: kind(), x: p.x, z: p.z, size: r2(0.8 + rand() * 0.5), rotation: r2(rand() * Math.PI * 2) })
   }
   const region: RegionDef = {
-    id: 'rift',
-    name: `균열 ${depth}층`,
-    kind: 'rift',
+    id: 'endless',
+    name: `끝없는 원정 ${depth}층`,
+    kind: 'endless',
     zone: null,
     finale: false,
     elite: Math.min(0.4, 0.04 * depth),

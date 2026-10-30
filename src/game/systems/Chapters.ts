@@ -24,15 +24,15 @@ export class ChapterSystem {
     this.index = chapters.index
     this.goal = chapters.goal
     bus.on('regionEntered', ({ id }) => {
-      if (ctx.map.region.kind === 'rift') return
+      if (ctx.map.region.kind === 'endless') return
       if (chapters.enter(id)) this.check()
     })
     bus.on('giantKilled', ({ giant }) => {
       // 무너지는 동안 통로를 넘었으면 지금 땅이 아니라 쓰러진 땅의 처치로 적는다
       const fell = ctx.encounter.fellRegion(giant)
       const region = fell && fell !== ctx.map.region.id ? (REGIONS[fell] ?? ctx.map.region) : ctx.map.region
-      // 땅의 보스만 (성소의 전설·시련·균열 층의 보스는 세지 않는다)
-      if (giant.spec.role !== 'boss' || !region.boss || region.kind === 'rift') return
+      // 땅의 보스만 (끝없는 원정 층의 보스는 세지 않는다)
+      if (giant.spec.role !== 'boss' || !region.boss || region.kind === 'endless') return
       this.bossDown(region.id, giant.spec.id)
     })
     bus.on('mythOpened', () => this.check())

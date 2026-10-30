@@ -470,6 +470,29 @@ const sections = {
     return {}
   },
 
+  /** E305 끝없는 원정: 한계를 깬 뒤 마을의 끝없는 원정 탭과 1층 입구 (층 이름·나가는 문) */
+  async 'e305-endless'(browser) {
+    const page = await fresh(browser)
+    await page.evaluate(() => {
+      const g = window.__game
+      g.dev.choose('thor')
+      g.reachEnding()
+      g.dev.depth(10)
+      g.depthSystem.breakLimit()
+      g.hideCards()
+      g.endless.reach(7)
+      g.menu.show('endless')
+    })
+    await page.waitForTimeout(400)
+    await shot(page, 'e305-endless-tab')
+    await page.getByRole('button', { name: '끝없는 원정에 나서기' }).click()
+    await page.waitForTimeout(800)
+    await shot(page, 'e305-endless-floor')
+    const floor = await page.evaluate(() => ({ region: window.__game.region.id, name: window.__game.region.name, depth: window.__game.endlessSystem.run?.depth ?? null }))
+    await page.close()
+    return { floor }
+  },
+
   /** E21-1 신화 단계를 올리면 확실히 강해진 게 느껴진다: 단계마다 20초 피해·최대 생명, 올리는 순간의 카드 */
   async 'e21-1'(browser) {
     const page = await fresh(browser)

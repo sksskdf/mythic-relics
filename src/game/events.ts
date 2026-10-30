@@ -33,9 +33,9 @@ export interface GameEvents {
   oathEnded: { id: string; win: boolean; seconds: number }
   /** 한계를 깼다 (E17-01) */
   limitBroken: Record<string, never>
-  /** 균열 층에 들어갔다 / 균열에서 나왔다 (E17) */
-  riftFloor: { depth: number }
-  riftEnded: { depth: number; reason: 'left' | 'fell' }
+  /** 끝없는 원정의 층에 들어갔다 / 끝없는 원정을 마쳤다 (E17 균열 → E305-03) */
+  endlessFloor: { depth: number }
+  endlessEnded: { depth: number; reason: 'left' | 'fell' }
   /** 깊이가 바뀌었다 (E305-03, 귀환 카드의 「+1」) */
   depthChanged: { level: number }
   /** 일반 장비를 주웠다 (E13-02) */
