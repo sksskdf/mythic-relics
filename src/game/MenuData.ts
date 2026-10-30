@@ -87,7 +87,7 @@ export class MenuData {
       merge: (uids) => relics.merge(uids) && game.menu.refresh(),
       progress: game.progress,
       myths: {
-        canChoose: () => game.canChooseMyth,
+        canSwap: () => game.canSwapGods,
         choose: (god) => game.chooseMyth(god),
         pantheon: () => game.pantheonView(),
         place: (part, god) => game.placeMyth(part, god),

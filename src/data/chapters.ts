@@ -7,8 +7,8 @@ import { DataError, list, num, type Obj, obj, oneOf, onlyKeys, str, table } from
 import raw from './chapters.json'
 import { REGIONS } from './regions'
 
-/** 할 일의 종류: 땅에 들어섬, 그 신화권 신화를 고름, 신화 단계, 땅의 보스를 이김, 유물을 벼림 */
-export const STEP_KINDS = ['enter', 'choose', 'awaken', 'level', 'boss', 'forge', 'return'] as const
+/** 할 일의 종류: 땅에 들어섬, 그 신화권 신을 깨움, 신화 단계, 땅의 보스를 이김, 유물을 벼림, 귀환 (신화 고르기는 E305-03에서 없앰) */
+export const STEP_KINDS = ['enter', 'awaken', 'level', 'boss', 'forge', 'return'] as const
 export type StepKind = (typeof STEP_KINDS)[number]
 
 /**
@@ -29,12 +29,10 @@ export interface ChapterStep {
   kind: StepKind
   /** 가야 할 땅 (지도 표시) */
   region: string
-  /** choose: 그 신화권 */
+  /** awaken: 그 신화권 */
   realm?: string
   /** level: 신화 단계, forge: 유물 단계 */
   n?: number
-  /** boss: 이기면 그 신화권의 닫힌 신화가 모두 열린다 (E22-03) */
-  opens?: string
   /** HUD 목표 한 줄 */
   goal: string
 }
@@ -77,7 +75,7 @@ export function parseChapters(rawChapters: unknown, regions = REGIONS, path = 'c
     const steps = rows.map((row, i): ChapterStep => {
       const sp = `${p}.steps[${i}]`
       const s: Obj = obj(row, sp)
-      onlyKeys(s, sp, ['kind', 'region', 'realm', 'n', 'opens', 'goal'])
+      onlyKeys(s, sp, ['kind', 'region', 'realm', 'n', 'goal'])
       const kind = oneOf(s, 'kind', sp, STEP_KINDS)
       const regionId = str(s, 'region', sp)
       const region = regions[regionId]
@@ -86,15 +84,12 @@ export function parseChapters(rawChapters: unknown, regions = REGIONS, path = 'c
       const goal = str(s, 'goal', sp)
       if ([...goal].length > GOAL_MAX_CHARS) throw new DataError(`${sp}.goal`, `목표는 ${GOAL_MAX_CHARS}자 안이어야 합니다 (${[...goal].length}자)`)
       const step: ChapterStep = { kind, region: regionId, goal }
-      if (kind === 'choose' || kind === 'awaken') step.realm = oneOf(s, 'realm', sp, REALMS)
-      else if (s.realm !== undefined) throw new DataError(`${sp}.realm`, '신화권은 choose·awaken에만 씁니다')
+      if (kind === 'awaken') step.realm = oneOf(s, 'realm', sp, REALMS)
+      else if (s.realm !== undefined) throw new DataError(`${sp}.realm`, '신화권은 awaken에만 씁니다')
       if (kind === 'level' || kind === 'forge' || kind === 'awaken' || kind === 'return') step.n = num(s, 'n', sp, kind === 'level' ? { min: 2, max: 4 } : { min: 1, max: kind === 'return' ? 9 : 4 })
       else if (s.n !== undefined) throw new DataError(`${sp}.n`, '단계·수는 level·forge·awaken·return에만 씁니다')
       if (kind === 'return' && !region.sanctuary) throw new DataError(`${sp}.region`, `귀환은 성소 화로에서 합니다 ("${regionId}")`)
       if (kind === 'boss' && !region.boss) throw new DataError(`${sp}.region`, `보스가 없는 땅입니다 ("${regionId}")`)
-      if (kind === 'boss' && s.opens !== undefined) step.opens = oneOf(s, 'opens', sp, REALMS)
-      else if (s.opens !== undefined) throw new DataError(`${sp}.opens`, '여는 신화권은 boss에만 씁니다')
-      if (kind === 'choose' && !region.sanctuary) throw new DataError(`${sp}.region`, `성소가 없는 땅입니다 ("${regionId}")`)
       if (kind === 'forge' && region.kind !== 'hub') throw new DataError(`${sp}.region`, '유물은 마을 대장간에서 벼립니다')
       return step
     })

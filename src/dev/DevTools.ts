@@ -49,7 +49,7 @@ export interface DevParts {
 export class DevTools {
   constructor(private readonly parts: DevParts) {}
 
-  /** 유물을 끼운다. 신화 개방 연출도 그대로 나온다. */
+  /** 유물을 유물표에 켠다. 엔딩 뒤에는 그 신화가 열리는 연출도 그대로 나온다 (데모에서는 신을 깨워야 열린다: 신이 필요하면 `choose`) */
   equip(id: RelicId): void {
     const { powers, relics, bus } = this.parts
     // 유물은 유물표에 켜니 칸이 차 있어도 된다 (E303-04)

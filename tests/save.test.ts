@@ -7,6 +7,8 @@ import { parseRift } from '../src/progress/Rift'
 import { STEP_TABS } from '../src/progress/Tabs'
 import { parseSave, SAVE_VERSION, type SaveData, saveStorage } from '../src/save/SaveData'
 import { HUNT_KILLS } from '../src/data/awaken'
+import { ChapterProgress } from '../src/progress/Chapters'
+import { godDef } from '../src/relics/data'
 
 const sample: SaveData = {
   version: SAVE_VERSION,
@@ -260,8 +262,45 @@ describe('저장 v13: 신을 깨우는 조각 (E238)', () => {
   it('옛 저장(v12)·깨우는 길이 없는 신·이미 연 신이면 깨우는 신 없이', () => {
     const empty = { waking: null, fragments: 0, hunt: 0 }
     expect(parseSave(JSON.stringify({ ...sample, version: 12, awaken: undefined }))?.awaken).toEqual(empty)
-    expect(parseSave(JSON.stringify({ ...sample, awaken: { waking: 'zeus', fragments: 1, hunt: 2 } }))?.awaken).toEqual(empty)
+    expect(parseSave(JSON.stringify({ ...sample, awaken: { waking: 'hades', fragments: 1, hunt: 2 } }))?.awaken).toEqual(empty)
     expect(parseSave(JSON.stringify({ ...sample, awaken: { waking: 'thor', fragments: 1, hunt: 2 } }))?.awaken).toEqual(empty)
+  })
+})
+
+describe('그리스 장의 옛 저장 (E305-03: 성소의 신화 고르기 → 제우스 깨우기)', () => {
+  /** 저장의 장 진행을 그 저장의 열린 신으로 다시 판정한다 (없어진 할 일 choose는 사실로) */
+  const progressOf = (data: SaveData) => {
+    const opened = Object.entries(data.classes).filter(([, r]) => (r?.level ?? 0) >= 1).map(([g]) => g)
+    const chapters = new ChapterProgress({
+      awakened: (realm) => opened.filter((g) => godDef(g).realm === realm).length,
+      level: () => 2,
+      forged: () => 1,
+      returns: () => data.expedition.count - 1,
+    })
+    chapters.load(data.chapters)
+    return chapters
+  }
+  const greek = { ...sample, version: 16, ending: false, chapters: { entered: ['village', 'midgard', 'jotunheim', 'utgard', 'olympus'], bosses: ['utgard'] }, expedition: { ...sample.expedition, count: 2 } }
+
+  it('고르기 전: 목표는 올림포스의 흔적, 델포이는 막혀 있다', () => {
+    const data = parseSave(JSON.stringify({ ...greek, classes: { thor: { level: 2, xp: 0 }, odin: { level: 1, xp: 0 } } }))!
+    const chapters = progressOf(data)
+    expect(chapters.goal).toMatchObject({ kind: 'awaken', region: 'olympus', realm: 'greek' })
+    expect(chapters.isOpen('delphi')).toBe(false)
+  })
+
+  it('옛 고르기로 그리스 신을 연 뒤: 깨운 것으로 쳐서 델포이가 열린다. 키마이라가 연 넷도 그대로', () => {
+    const chose = parseSave(JSON.stringify({ ...greek, classes: { thor: { level: 2, xp: 0 }, odin: { level: 1, xp: 0 }, hades: { level: 1, xp: 0 } } }))!
+    expect(progressOf(chose).isOpen('delphi')).toBe(true)
+    const all = { thor: { level: 3, xp: 0 }, odin: { level: 1, xp: 0 }, zeus: { level: 1, xp: 0 }, poseidon: { level: 1, xp: 0 }, hades: { level: 1, xp: 0 }, artemis: { level: 1, xp: 0 } }
+    const after = parseSave(JSON.stringify({ ...greek, classes: all, chapters: { entered: [...greek.chapters.entered, 'delphi', 'lycia'], bosses: ['utgard', 'lycia'] }, expedition: { ...greek.expedition, count: 3 } }))!
+    expect(Object.keys(after.classes).sort()).toEqual(Object.keys(all).sort())
+    expect(progressOf(after).chapter?.id).toBe('finale')
+  })
+
+  it('북유럽 신을 깨우는 중인 채 그리스 장: 깨우는 신은 그대로 남는다 (제우스는 그 뒤에 응답한다)', () => {
+    const data = parseSave(JSON.stringify({ ...greek, classes: { thor: { level: 2, xp: 0 } }, awaken: { waking: 'loki', fragments: 1, hunt: 5 } }))!
+    expect(data.awaken).toEqual({ waking: 'loki', fragments: 1, hunt: 5 })
   })
 })
 

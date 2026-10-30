@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { computeBuild } from '../src/build/BuildState'
-import { AWAKEN, AWAKEN_GODS, canWakeMore, GUARDIAN_LEASH, HUNT_KILLS, TRACE_MODELS } from '../src/data/awaken'
+import { AWAKEN, AWAKEN_GODS, GUARDIAN_LEASH, HUNT_KILLS, mayWake, TRACE_MODELS } from '../src/data/awaken'
 import { REGIONS } from '../src/data/regions'
 import { SCENES, sceneId } from '../src/data/scenes'
 import { ENEMIES } from '../src/enemies/Giant'
@@ -12,8 +12,8 @@ import { godDef } from '../src/relics/data'
 import { traceGrid } from '../src/voxel/models/traces'
 
 describe('신을 깨우는 길 데이터 (E238)', () => {
-  it('북유럽 넷: 흔적·사냥·수호자가 모두 있는 땅과 적을 가리키고, 땅 안에 있다', () => {
-    expect(AWAKEN_GODS.sort()).toEqual(['freyr', 'loki', 'odin', 'thor'])
+  it('북유럽 넷과 제우스(E305-03): 흔적·사냥·수호자가 모두 있는 땅과 적을 가리키고, 땅 안에 있다', () => {
+    expect([...AWAKEN_GODS].sort()).toEqual(['freyr', 'loki', 'odin', 'thor', 'zeus'])
     for (const god of AWAKEN_GODS) {
       const path = AWAKEN[god]!
       for (const [region, x, z] of [
@@ -36,12 +36,14 @@ describe('신을 깨우는 길 데이터 (E238)', () => {
     }
   })
 
-  it('미드가르드에 흔적 둘(토르·오딘), 로키는 요툰헤임·프레이는 무스펠 경계에. 수호자는 그 신의 땅에서 기다린다 (E239)', () => {
+  it('미드가르드에 흔적 둘(토르·오딘), 로키는 요툰헤임·프레이는 무스펠 경계에, 제우스는 올림포스에. 수호자는 그 신의 땅에서 기다린다 (E239)', () => {
     expect(AWAKEN_GODS.filter((g) => AWAKEN[g]!.trace.region === 'midgard').sort()).toEqual(['odin', 'thor'])
     expect(AWAKEN.loki!.trace.region).toBe('jotunheim')
     expect(AWAKEN.freyr!.trace.region).toBe('muspel')
     const lands = Object.fromEntries(AWAKEN_GODS.map((g) => [g, AWAKEN[g]!.land]))
-    expect(lands).toEqual({ thor: 'serpentshore', odin: 'ironwood', loki: 'jotunheim', freyr: 'muspel' })
+    expect(lands).toEqual({ thor: 'serpentshore', odin: 'ironwood', loki: 'jotunheim', freyr: 'muspel', zeus: 'olympus' })
+    // 제우스는 흔적·사냥·수호자가 모두 올림포스 안 (델포이는 그리스 장의 앞 할 일을 마쳐야 열린다)
+    expect(AWAKEN.zeus!.trace.region).toBe('olympus')
     for (const g of AWAKEN_GODS) expect(AWAKEN[g]!.guardian.region, g).toBe(AWAKEN[g]!.land)
     // 첫 신 둘의 땅은 미드가르드 바로 옆
     for (const g of ['thor', 'odin'] as const) expect(REGIONS.midgard!.exits.map((e) => e.to)).toContain(AWAKEN[g]!.land)
@@ -69,7 +71,9 @@ describe('신을 깨우는 길 데이터 (E238)', () => {
     expect(kinds('odin')).toContain('summon')
     expect(guardianSpec('loki')!.keepAway).toBeGreaterThan(6)
     expect(guardianSpec('freyr')!.body.gear).toBe('sword')
-    expect(guardianSpec('zeus')).toBeNull()
+    // 임시 티폰 (E305-03, E241이 바꾼다): 수르트의 싸우는 방식을 이어받은 그리스 수호자
+    expect(guardianSpec('zeus')!.attacks.map((a) => a.name)).toEqual(guardianSpec('freyr')!.attacks.map((a) => a.name))
+    expect(guardianSpec('hades')).toBeNull()
   })
 
   it('조각 2로 받는 유물은 그 신의 유물이고, 그때부터 칸에 들지 않아도 깨어난다', () => {
@@ -84,13 +88,14 @@ describe('신을 깨우는 길 데이터 (E238)', () => {
 })
 
 describe('깨우는 진행 (E238)', () => {
-  it('신을 하나 더 깨우려면 주신이 그만큼 자라야 한다: 첫 신은 언제나, 두 번째 신은 주신 2단계부터 (미드가르드에서 둘을 깨워 전설을 건너뛰지 않게)', () => {
-    expect(canWakeMore(0, 0)).toBe(true)
-    expect(canWakeMore(1, 1)).toBe(false)
-    expect(canWakeMore(1, 2)).toBe(true)
-    expect(canWakeMore(2, 2)).toBe(false)
-    expect(canWakeMore(2, 3)).toBe(true)
-    expect(canWakeMore(3, 1, true)).toBe(true)
+  it('신을 하나 더 깨우려면 귀환이나 장 정복을 하나 더 해야 한다 (E305-03): 첫 신은 언제나, 두 번째 신은 첫 귀환 뒤, 셋째는 거인 왕 뒤', () => {
+    expect(mayWake(0, 0, 0)).toBe(true)
+    expect(mayWake(1, 0, 0)).toBe(false)
+    expect(mayWake(1, 1, 0)).toBe(true)
+    expect(mayWake(2, 1, 0)).toBe(false)
+    expect(mayWake(2, 1, 1)).toBe(true)
+    expect(mayWake(3, 2, 1)).toBe(true)
+    expect(mayWake(4, 0, 0, true)).toBe(true)
   })
 
   it('흔적 → 사냥 → 수호자: 조각마다 하나씩, 깨어나면 처음으로', () => {

@@ -3,8 +3,6 @@ import { REGIONS } from '../data/regions'
 
 /** 장 진행이 게임에서 읽는 것 (신화·장비는 따로 저장되니 여기서는 묻기만 한다) */
 export interface ChapterWorld {
-  /** 그 신화권 신화를 하나라도 열었나 */
-  chose(realm: string): boolean
   /** 그 신화권에서 깨운(연) 신의 수 (E238) */
   awakened(realm: string): number
   /** 열린 신화 가운데 가장 높은 단계 */
@@ -46,8 +44,6 @@ export class ChapterProgress {
     switch (step.kind) {
       case 'enter':
         return this.entered.has(step.region)
-      case 'choose':
-        return world.chose(step.realm!)
       case 'awaken':
         return world.awakened(step.realm!) >= step.n!
       case 'level':

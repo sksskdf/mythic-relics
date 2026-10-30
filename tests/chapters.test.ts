@@ -10,15 +10,13 @@ import { walkArea } from '../src/world/colliders'
 
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T
 
-/** 시험용 세계: 고른 신화권·깨운 신 수·신화 단계·유물 단계를 손으로 정한다 */
-function world(): ChapterWorld & { realms: Set<string>; awake: Map<string, number>; lv: number; stage: number; ret: number } {
+/** 시험용 세계: 깨운 신 수·신화 단계·유물 단계·귀환 수를 손으로 정한다 */
+function world(): ChapterWorld & { awake: Map<string, number>; lv: number; stage: number; ret: number } {
   const w = {
-    realms: new Set<string>(),
     awake: new Map<string, number>(),
     lv: 0,
     ret: 0,
     stage: 0,
-    chose: (realm: string) => w.realms.has(realm) || (w.awake.get(realm) ?? 0) > 0,
     awakened: (realm: string) => w.awake.get(realm) ?? 0,
     level: () => w.lv,
     forged: () => w.stage,
@@ -47,14 +45,14 @@ describe('장 데이터 (E22-01)', () => {
     expect(chapterOf('sinsi')).toBeNull()
   })
 
-  it('북유럽 신은 하나씩 깨운다 (E238: 거인 왕은 신화권을 한꺼번에 열지 않는다). 그리스는 아직 성소에서 고르고 키마이라가 나머지를 연다', () => {
+  it('신은 하나씩 깨운다 (E238: 장 보스는 신화권을 한꺼번에 열지 않는다, E305-03: 그리스도 성소에서 고르지 않고 제우스를 깨운다)', () => {
     const steps = CHAPTERS.flatMap((c) => c.steps)
-    expect(steps.filter((s) => s.opens).map((s) => [s.region, s.opens])).toEqual([['lycia', 'greek']])
-    expect(steps.filter((s) => s.kind === 'choose').map((s) => [s.region, s.realm])).toEqual([['olympus', 'greek']])
     expect(steps.filter((s) => s.kind === 'awaken').map((s) => [s.region, s.realm, s.n])).toEqual([
       ['midgard', 'norse', 1],
       ['jotunheim', 'norse', 2],
+      ['olympus', 'greek', 1],
     ])
+    expect(steps.some((s) => 'opens' in s)).toBe(false)
   })
 
   it('장마다 보스나 대장간으로 끝나고, 목표 한 줄은 짧다', () => {
@@ -77,12 +75,13 @@ describe('장 데이터 (E22-01)', () => {
     bad((d) => (d.north.steps[5].region = 'midgard'), /보스가 없는 땅/)
     bad((d) => (d.finale.steps[0].region = 'midgard'), /대장간/)
     bad((d) => (d.north.steps[0].n = 9), /n/)
-    bad((d) => (d.north.steps[1].realm = 'norse'), /choose·awaken에만/)
+    bad((d) => (d.north.steps[1].realm = 'norse'), /awaken에만/)
     bad((d) => (d.north.steps[0].realm = 'atlantis'), /realm/)
     bad((d) => (d.north.steps[1].goal = '가'.repeat(GOAL_MAX_CHARS + 1)), /자 안/)
     bad((d) => delete d.finale, /마지막 무대의 보스/)
     bad((d) => (d.greek.steps[0].when = 'x'), /모르는 항목/)
-    bad((d) => (d.north.steps[0].opens = 'norse'), /boss에만/)
+    bad((d) => (d.north.steps[5].opens = 'norse'), /모르는 항목/)
+    bad((d) => (d.greek.steps[1].kind = 'choose'), /kind/)
   })
 })
 
@@ -144,7 +143,7 @@ describe('장 진행 (E22-01)', () => {
     expect(chapters.isOpen('utgard')).toBe(true)
   })
 
-  it('그리스와 마지막 무대도 차례로: 델포이는 그리스 신화를 연 뒤, 리키아는 둘째 귀환 뒤, 갈라진 하늘은 유물 2단계 뒤', () => {
+  it('그리스와 마지막 무대도 차례로: 델포이는 제우스를 깨운 뒤, 리키아는 둘째 귀환 뒤, 갈라진 하늘은 유물 2단계 뒤', () => {
     const w = world()
     const chapters = new ChapterProgress(w)
     chapters.enter('midgard')
@@ -152,7 +151,7 @@ describe('장 진행 (E22-01)', () => {
     w.stage = 1
     expect(chapters.isOpen('olympus')).toBe(true)
     expect(chapters.isOpen('delphi')).toBe(false)
-    w.realms.add('greek')
+    w.awake.set('greek', 1)
     expect(chapters.isOpen('delphi')).toBe(true)
     expect(chapters.isOpen('lycia')).toBe(false)
     w.ret = 2

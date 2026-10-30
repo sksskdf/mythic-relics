@@ -105,7 +105,7 @@ export class HoverCards {
       // 신의 흔적 (E238): 무엇을 고르는지 알고 고르게 그 신의 무기·빌려주는 힘
       const now = { ...this.parts.traceContext(), state: trace.state }
       const found = trace
-      this.tooltip.showCard(`trace:${found.god}`, `${found.god}|${now.state}|${now.fragments}|${now.hunt}|${now.sealedUntil}`, () => traceCard(found.god, now), pointer.x, pointer.y)
+      this.tooltip.showCard(`trace:${found.god}`, `${found.god}|${now.state}|${now.fragments}|${now.hunt}|${now.sealedText}`, () => traceCard(found.god, now), pointer.x, pointer.y)
       this.groundTooltip = true
     } else if (this.groundTooltip) {
       this.tooltip.hide()

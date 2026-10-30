@@ -137,10 +137,10 @@ export interface MenuHost {
   /** 셋을 합친다 */
   merge(uids: readonly string[]): void
   readonly progress: ClassProgress
-  /** 신화 탭 (E12-06): 고르기와 별 수치 */
+  /** 신화 탭 (E12-06): 신의 자리와 유물표 */
   readonly myths: {
     /** 지금 신의 자리를 바꿀 수 있는가 (E302: 어디서나, 전설 중에는 못 바꾼다) */
-    canChoose(): boolean
+    canSwap(): boolean
     /** 한 신에 몰아 고른다 (손·심장·숨 첫 칸) */
     choose(god: God): boolean
     /** 신의 자리 셋 (E302): 손·심장·숨, 숨 칸 수, 잠긴 숨 칸마다 열리는 때, 한 신에 몰았으면 그 신 */

@@ -53,6 +53,7 @@ describe('하네스: 고친 파일 규칙', () => {
   it('바꾼 파일에 맞는 점검을 고른다', () => {
     expect(rulesFor('src/data/enemies.json').map((r) => r.id)).toEqual(['enemies'])
     expect(rulesFor('src/data/chapters.json').map((r) => r.id)).toEqual(['growth'])
+    expect(rulesFor('src/game/systems/Awakening.ts').map((r) => r.id)).toEqual(['growth'])
     expect(rulesFor('src/game/HeroOrders.ts').map((r) => r.id)).toEqual(['feel'])
     expect(rulesFor('src/data/moments.ts').map((r) => r.id)).toEqual(['moments'])
     expect(rulesFor('src/audio/music.ts').map((r) => r.id)).toEqual(['music'])

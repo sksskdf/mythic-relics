@@ -55,10 +55,10 @@ E12~E14에서 새 규칙을 넣을 때는 `BuildInputs`에 재료를 더하고 `
 
 | 곳 | 하는 일 |
 | --- | --- |
-| `src/data/chapters.json`·`chapters.ts` | 장 다섯: 제목·이름·땅 단계(`tier`)·열리는 땅과 적 지수(`lands`)·할 일(`steps`: enter·choose·level·boss·forge, 목표 한 줄 `goal`, 보스가 여는 신화권 `opens`). `landScale`(적 지수 → 생명·피해 배율), `chapterOf` |
+| `src/data/chapters.json`·`chapters.ts` | 장 다섯: 제목·이름·땅 단계(`tier`)·열리는 땅과 적 지수(`lands`)·할 일(`steps`: enter·awaken·level·boss·forge·return, 목표 한 줄 `goal`. 성소 고르기 choose와 보스가 여는 신화권 `opens`는 E305-03에서 없앰). `landScale`(적 지수 → 생명·피해 배율), `chapterOf` |
 | `src/progress/Chapters.ts` | `ChapterProgress`: 들어선 땅·이긴 보스(저장), 지금 장(`index`·`chapter`)·목표(`goal`)·열린 땅(`isOpen`)·땅 세기(`power`)·땅 단계(`tier`). 신화·유물은 `ChapterWorld`로 묻기만 한다 |
 | `src/game/systems/Chapters.ts` | 땅 들어섬·보스 처치를 적고 `chapterChanged`·`goalChanged`를 보낸다. `goalView`(목표 한 줄과 채우는 막대) |
-| `src/game/systems/MythChoice.ts` | 성소에서 신화 고르기(`offer`·`here`·`pick`, `ui/MythPicker`), 장 보스가 신화권을 엶(`openRealm`). 데모에서는 `ClassProgress`의 `openByXp`가 꺼져 경험치가 문턱에서 멈춘다 |
+| `src/game/systems/Awakening.ts` | 신을 여는 길은 조각 셋 하나(E305-03: 그리스도 제우스를 깨움, 성소의 신화 고르기 `MythChoice` 없앰). 신을 하나 더 깨우려면 1 + 귀환 + 장 정복보다 적어야 한다(`mayWake`). 유물로 신이 열리는 것은 엔딩 뒤뿐(`Relics.unlock`), 점검용 실행(`?relics=`)은 `Game`이 끼고 시작한 신화 유물의 신을 연다 |
 | `src/world/Barriers.ts`, `World.openLinks`·`refreshLinks` | 막힌 땅으로 가는 통로는 걸을 수 있는 곳에서 빼고 입구에 결계를 세운다. 장이 바뀌면 빛기둥과 함께 풀린다 |
 | `Encounter.landPower` | 땅 id → 적 지수. 무리·보스·전설의 적에 위협 배율과 곱해 건다(`scaled`) |
 | `ui/ChapterHud.ts` | 목표 한 줄(채우는 목표면 막대)과 장 제목 띠. 지도 탭은 `world.goal()`·`nodes().locked`, 작은 지도는 `Game.goalSpot()` |
@@ -70,7 +70,7 @@ E12~E14에서 새 규칙을 넣을 때는 `BuildInputs`에 재료를 더하고 `
 | --- | --- |
 | `src/data/moments.ts` | 사건 id → 등급(1 작은 알림·2 카드·3 큰 카드·4 장면), 느린 동작(1.2초 × 0.25)과 카드 뒤 기다림(2.6초) |
 | `src/game/systems/Moments.ts` | 버스의 `moment`를 받아 등급대로 보인다. 1은 바로, 나머지는 온 차례대로 줄을 세운다. 장면 중·땅을 옮기는 암전 중·느린 동작 중에는 기다리고, 장면이 끝나면 그 순간의 카드와 `after`(장 제목 띠·엔딩 뒤 장치). `holding`이면 `Storyline`이 처음 보는 일의 짧은 대화를 미룬다. 장면은 `storyline.play(id, true)`로 연다 |
-| 보내는 쪽 | `Progression`(신화 단계·신화 개방·보스 재료), `Relics`(벼리기·장비·고른 신화), `MythChoice`(신화권 개방), `Chapters`(장 보스), `Game`(장 넘어가기·엔딩·성소 찾음), 엔딩 뒤 장치(`Threat`·`Trials`·`Rift`) |
+| 보내는 쪽 | `Progression`(신화 단계·신화 개방·보스 재료), `Relics`(벼리기·장비·고른 신화), `Awakening`(신의 조각·깨어남), `Chapters`(장 보스·장 정복), `Game`(장 넘어가기·엔딩·성소 찾음), 엔딩 뒤 장치(`Threat`·`Trials`·`Rift`) |
 | HUD | `Hud.showGains(..., size)`: `card`는 오른쪽 위 작게, `big`은 가운데 크게. 장면 중 HUD는 투명하게만 숨긴다(띠 움직임이 다시 돌지 않게). 위아래 검은 띠는 `Game`의 `.letterbox` |
 | 곡 | `SoundSystem.theme()`이 프레임마다 고른다. 장면·고르기의 곡은 버스의 `music` |
 | 빠르기 | `Feel.slow`·`timeScale`: `Game.update`에서 게임 시간만 느려진다. `Game.advance`(봇·점검의 감기)도 순간을 흘린다 |

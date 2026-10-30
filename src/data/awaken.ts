@@ -6,6 +6,7 @@ import type { God } from '../relics/data'
  * - 조각 2 사냥: 그 신의 땅에서 HUNT_KILLS만큼 잡으면 그 신의 유물이 손에 들어온다
  * - 조각 3 수호자: 그 땅 깊은 곳에 수호자가 나타난다. 쓰러뜨리면 그 신이 깨어난다
  * 깨우는 신은 한 번에 하나. 북유럽 넷 먼저 (E238). 수호자는 E239에서 제 모습과 싸우는 방식(enemies.json의 역할 guardian)과 땅을 얻었다.
+ * 그리스는 제우스 하나 (E305-03, 성소의 신화 고르기를 대신함). 흔적 모양(토르의 참나무)과 수호자 티폰(수르트를 이어받음)은 임시이고 E241이 바꾼다.
  * 자리는 그 땅 안 좌표 (빈 곳이 아니면 가까운 빈 곳으로 옮긴다).
  */
 
@@ -26,15 +27,16 @@ export interface AwakenDef {
   lore: string
 }
 
-/** 흔적이 지금 어떤가: 깨어남(이미 연 신)·깨우는 중·다른 신을 깨우는 중·주신이 더 자라야 함·응답함 */
+/** 흔적이 지금 어떤가: 깨어남(이미 연 신)·깨우는 중·다른 신을 깨우는 중·귀환이나 장 정복을 더 해야 함·응답함 */
 export type TraceState = 'awake' | 'waking' | 'busy' | 'sealed' | 'open'
 
 /**
- * 신을 하나 더 깨울 수 있나: 깨운 신이 주신 단계보다 적어야 한다 (첫 신은 언제나). 주신 2단계 전설을 깨야 두 번째 신이 응답한다.
- * 큰 체크포인트(신 깨우기)가 신 단계(전설) 사이에 하나씩 놓여 몰리지 않게 (MYTHBUILD.md 2장). 엔딩 뒤에는 막지 않는다
+ * 신을 하나 더 깨울 수 있나 (E305-03): 깨운 신이 1 + 귀환한 수 + 정복한 장보다 적어야 한다 (첫 신은 언제나).
+ * 첫 귀환을 해야 두 번째 신이, 거인 왕을 이기면 제우스가 응답한다. 큰 체크포인트(신 깨우기)가 귀환·장 정복 사이에 하나씩 놓여 몰리지 않게.
+ * 엔딩 뒤에는 막지 않는다
  */
-export function canWakeMore(awakened: number, mainLevel: number, afterEnding = false): boolean {
-  return afterEnding || awakened < Math.max(1, mainLevel)
+export function mayWake(awakened: number, returns: number, conquered: number, afterEnding = false): boolean {
+  return afterEnding || awakened < 1 + returns + conquered
 }
 
 /** 조각 2까지 잡아야 하는 적 수 (그 신의 땅에서). E239에서 사냥 땅이 미드가르드 옆 새 땅(세기 1.25)으로 옮겨 가 40 → 30 */
@@ -88,6 +90,18 @@ export const AWAKEN: Readonly<Partial<Record<God, AwakenDef>>> = {
     land: 'muspel',
     guardian: { region: 'muspel', x: 24, z: -16, name: '수르트', enemy: 'surtr' },
     lore: '풍요의 신이 아끼던 멧돼지가 잠든 무덤. 흙이 아직 따뜻하다.',
+  },
+  // 그리스 (E305-03, 임시): 흔적·사냥·수호자 모두 올림포스 안 (델포이는 그 앞 할 일을 마쳐야 열린다). E241이 모양·자리·수호자를 바꾼다
+  zeus: {
+    trace: { region: 'olympus', x: 8, z: 24, name: '도도나의 참나무', model: 'charredOak' },
+    pack: [
+      { enemy: 'harpy', count: 2 },
+      { enemy: 'spartoi', count: 1 },
+      { enemy: 'cyclops', count: 1 },
+    ],
+    land: 'olympus',
+    guardian: { region: 'olympus', x: 6, z: -24, name: '티폰', enemy: 'typhon' },
+    lore: '신탁을 속삭이던 참나무. 잎마다 아직 번개 냄새가 난다.',
   },
 }
 

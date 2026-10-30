@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 
-import { AWAKEN, AWAKEN_GODS, awakenDef, canWakeMore, GUARDIAN_LEASH, GUARDIAN_MEND, GUARDIAN_RADIUS, TRACE_LEASH, TRACE_RADIUS, type TraceState } from '../../data/awaken'
+import { AWAKEN, AWAKEN_GODS, awakenDef, GUARDIAN_LEASH, GUARDIAN_MEND, GUARDIAN_RADIUS, mayWake, TRACE_LEASH, TRACE_RADIUS, type TraceState } from '../../data/awaken'
+import { CONQUESTS } from '../../data/chapters'
 import { REGIONS } from '../../data/regions'
 import { sceneId } from '../../data/scenes'
 import type { GiantSpec } from '../../data/schema'
@@ -94,17 +95,19 @@ export class AwakeningSystem {
 
   /** 흔적이 지금 어떤가 */
   traceState(god: God): TraceState {
-    const { progress, build, ending } = this.ctx
+    const { progress, expedition, chapters, ending } = this.ctx
     if (progress.isOpen(god)) return 'awake'
     const waking = this.waking
     if (waking === god) return 'waking'
     if (waking) return 'busy'
-    return canWakeMore(progress.opened.length, build.level, ending.reached) ? 'open' : 'sealed'
+    return mayWake(progress.opened.length, expedition.returns, chapters.conquered, ending.reached) ? 'open' : 'sealed'
   }
 
-  /** 다음 신이 응답하는 손의 신 단계 (단계가 모자라 흔적이 잠잠할 때. E304에서 승천으로 바뀐다) */
-  get sealedUntil(): number {
-    return this.ctx.progress.opened.length + 1
+  /** 흔적이 잠잠할 때 다음 신이 응답하는 때 (E305-03): 「성소 화로에서 원정을 마치거나 거인 왕을 이기면 응답한다」 */
+  get sealedText(): string {
+    const region = CONQUESTS.find((r) => !this.ctx.chapters.bosses.has(r))
+    const boss = region ? ENEMIES[REGIONS[region]?.boss?.enemy ?? 'king']?.name : undefined
+    return boss ? `성소 화로에서 원정을 마치거나 ${josa(boss, '을')} 이기면 응답한다` : '성소 화로에서 원정을 마치면 응답한다'
   }
 
   /** 나타나 싸우는 수호자 (보스 막대) */
@@ -256,7 +259,7 @@ export class AwakeningSystem {
         else if ((state === 'busy' || state === 'sealed') && this.told !== t.god) {
           this.told = t.god
           const waking = this.waking
-          const text = waking ? `${josa(godDef(waking).name, '이')} 깨어난 뒤에 응답한다` : `손에 쥔 신이 ${this.sealedUntil}단계가 되면 응답한다`
+          const text = waking ? `${josa(godDef(waking).name, '이')} 깨어난 뒤에 응답한다` : this.sealedText
           this.ctx.bus.emit('moment', { id: 'traceBusy', text })
         }
       }

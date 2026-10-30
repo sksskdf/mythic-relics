@@ -200,7 +200,7 @@ export class MythTab {
 
     // 자리 바꾸기 (E302): 어디서나, 전설 중에는 못 바꾼다
     if (level > 0) {
-      const can = myths.canChoose()
+      const can = myths.canSwap()
       const buttons = el('div', 'menu-myth__buttons')
       const button = (label: string, run: () => boolean, ok: boolean, why: string) => {
         const b = el('button', 'menu-myth__choose', label)

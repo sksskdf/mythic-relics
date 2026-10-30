@@ -1,7 +1,7 @@
-/* 신화 고르기 (E22-03): 성소 가운데에 서면 그 신화권 신화 넷이 카드로 선다 */
-.myth-pick {
+/* 두 갈래 카드 (E302-03): 새 신의 손·심장 부품이 왔는데 자리가 차 있을 때 카드 둘 (옛 신화 고르기 E22-03의 틀) */
+.swap-card {
   position: fixed;
-  /* 가운데에 두되 너비는 카드 넷만큼 (left 50%로 옮기면 화면 반 너비에서 줄이 꺾인다) */
+  /* 가운데에 두되 너비는 카드만큼 (left 50%로 옮기면 화면 반 너비에서 줄이 꺾인다) */
   inset: 0;
   margin: auto;
   width: fit-content;
@@ -19,25 +19,25 @@
   font-family: var(--font-body);
   pointer-events: auto;
 }
-.myth-pick[hidden] {
+.swap-card[hidden] {
   display: none;
 }
-.myth-pick__title {
+.swap-card__title {
   font: var(--t-title);
   color: var(--c-moon);
 }
-.myth-pick__note {
+.swap-card__note {
   font: var(--t-small);
   color: var(--c-ink-2);
   text-align: center;
 }
-.myth-pick__row {
+.swap-card__row {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: var(--sp-4);
 }
-.myth-pick__card {
+.swap-card__card {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -51,21 +51,21 @@
   color: var(--c-ink-1);
   cursor: pointer;
 }
-.myth-pick__card img {
+.swap-card__card img {
   width: 48px;
   height: 48px;
   image-rendering: pixelated;
 }
-.myth-pick__card b {
+.swap-card__card b {
   font: var(--t-body);
   font-weight: normal;
   color: var(--glow);
 }
-.myth-pick__card span {
+.swap-card__card span {
   font: var(--t-small);
   color: var(--c-gold-soft);
 }
-.myth-pick__card ul {
+.swap-card__card ul {
   margin: 0;
   padding: 0;
   list-style: none;
@@ -73,7 +73,7 @@
   color: var(--c-ink-2);
   text-align: center;
 }
-.myth-pick__card:hover {
+.swap-card__card:hover {
   background: var(--c-stone-hover);
   outline: 1px solid var(--glow);
 }

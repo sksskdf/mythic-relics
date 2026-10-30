@@ -17,7 +17,6 @@ import type { GameContext } from '../context'
 import type { LoadoutChange } from '../RelicPowers'
 import { godMoment } from './godMoments'
 import { autoFill, breathCount, DEMO_BREATH, fitBreath, inPantheon, MAX_BREATH, oathPantheon, type PartKind, withoutBreath, withPart } from '../../myth/pantheon'
-import { awakenDef } from '../../data/awaken'
 
 /** 클래스가 발현되는 순간 주변 적을 밀어내는 범위와 피해 */
 const MANIFEST_RADIUS = 4
@@ -42,8 +41,6 @@ export class RelicSystem {
   private burstCooldown = 0
   /** 새 부품의 자리가 차 있을 때 두 갈래 카드를 띄운다 (E302-03, 게임이 정한다). 없으면 그대로 둔다 */
   offerSwap: ((part: 'hand' | 'heart', incoming: God, current: God, choose: (take: boolean) => void) => void) | null = null
-  /** 신화의 유물을 손에 넣으면 그 신화가 열리나 (E238: 데모에서는 깨우는 길이 있는 신은 수호자를 쓰러뜨려야 연다. 게임이 정한다) */
-  relicsOpenMyths: () => boolean = () => true
 
   constructor(private readonly ctx: GameContext) {
     ctx.bus.on('targetKilled', ({ target }) => {
@@ -188,16 +185,13 @@ export class RelicSystem {
   }
 
   /**
-   * 유물을 손에 넣었다: 그 신의 신화가 아직 닫혀 있으면 1단계로 연다 (E12-04, 첫 신화는 유물 하나로).
-   * 히든 신화는 그 신 유물을 발현 수만큼 모아야 열린다.
+   * 유물을 손에 넣었다 (엔딩 뒤에만): 그 신의 신화가 아직 닫혀 있으면 1단계로 연다 (E12-04). 히든 신화도 그 유물이 열쇠다.
+   * 데모에서는 신을 깨워야(흔적·사냥·수호자) 열린다 (E238, E305-03: 그리스도 제우스를 깨운다). 점검용 실행은 Game이 따로 연다
    */
   private unlock(id: RelicId, announce: boolean): void {
-    const { progress, bus } = this.ctx
-    // 신화의 유물(E13-03)을 손에 넣으면 그 신화가 열린다. 히든 신화도 그 유물이 열쇠다
+    const { progress, bus, ending } = this.ctx
     const myth = relicMyth(id)
-    if (!myth) return
-    // 깨우는 길(흔적·사냥·수호자)이 있는 신은 유물로 열리지 않는다 (E238). 유물은 조각 2로 먼저 손에 들어온다
-    if (awakenDef(myth) && !this.relicsOpenMyths()) return
+    if (!myth || !ending.reached) return
     for (const god of [myth]) {
       if (!progress.open(god)) continue
       bus.emit('progressChanged', {})

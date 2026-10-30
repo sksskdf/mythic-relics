@@ -15,7 +15,7 @@ import { Wardrobe } from '../looks/outfit'
 import { DropTable } from '../gear/DropTable'
 import { worldToScreen } from '../render/picking'
 import { Pickups } from '../gear/Pickups'
-import { DEMO_RELIC_STAGES, isMythRelic, RELIC_STAGES } from '../gear/mythRelic'
+import { DEMO_RELIC_STAGES, isMythRelic, RELIC_STAGES, relicMyth } from '../gear/mythRelic'
 import type { SaveData } from '../save/SaveData'
 import { ClassProgress } from '../myth/ClassProgress'
 import { focusGod, MAX_BREATH, type PartKind } from '../myth/pantheon'
@@ -53,7 +53,6 @@ import { RelicPowers } from './RelicPowers'
 import { Stage } from './Stage'
 import { AppearanceSystem } from './systems/Appearance'
 import { chapterColor, ChapterSystem } from './systems/Chapters'
-import { MythChoiceSystem, realmGods } from './systems/MythChoice'
 import { AwakeningSystem } from './systems/Awakening'
 import { DamageSystem } from './systems/Damage'
 import { Effects } from './systems/Effects'
@@ -76,7 +75,7 @@ import { awakenDef, HUNT_KILLS } from '../data/awaken'
 import { TabUnlocks } from '../progress/Tabs'
 import { TabSystem } from './systems/Tabs'
 import { Barriers } from '../world/Barriers'
-import { MythPicker } from '../ui/MythPicker'
+import { SwapCard } from '../ui/SwapCard'
 import { josa } from '../ui/josa'
 import { ENEMIES } from '../enemies/Giant'
 import { ChapterHud } from '../ui/ChapterHud'
@@ -117,8 +116,8 @@ export interface GameOptions {
   suspended?: () => boolean
   /** 정보 화면 탭을 처음부터 모두 연다 (점검용 실행, E236-05) */
   allTabs?: boolean
-  /** 신화의 유물을 손에 넣으면 그 신화가 열린다 (점검용 실행. 데모에서는 신을 깨워야 열린다, E238) */
-  relicsOpenMyths?: boolean
+  /** 점검용 실행(`?relics=`): 끼고 시작한 신화 유물의 신을 열고, 신의 흔적은 응답하지 않는다 (E238, E305-03) */
+  testRun?: boolean
 }
 
 
@@ -179,7 +178,6 @@ export class Game {
   /** 장 진행 (E22): 지금 장·목표·열린 땅 */
   readonly chapters: ChapterProgress = new ChapterProgress(
     {
-      chose: (realm) => this.progress.opened.some((god) => godDef(god).realm === realm),
       awakened: (realm) => this.progress.opened.filter((god) => godDef(god).realm === realm).length,
       level: () => Math.max(0, ...this.progress.opened.map((god) => this.progress.level(god))),
       forged: () => Math.max(0, ...this.powers.loadout.ownedRelics.filter(isMythRelic).map((id) => this.powers.loadout.stage(id))),
@@ -201,9 +199,8 @@ export class Game {
   readonly tabSystem: TabSystem
   /** 막힌 땅으로 가는 통로의 결계 (E22-02) */
   private readonly barriers = new Barriers()
-  /** 성소에서 신화 고르기 (E22-03) */
-  readonly mythChoice: MythChoiceSystem
-  private readonly mythPicker: MythPicker
+  /** 두 갈래 카드 (E302-03): 새 신의 손·심장 부품이 왔는데 자리가 차 있을 때 */
+  private readonly swapCard: SwapCard
   private readonly uniqueSystem: UniqueSystem
   /** 원정과 귀환 (E304) */
   readonly expeditionSystem: ExpeditionSystem
@@ -500,7 +497,7 @@ export class Game {
       hovered: () => this.playerInput.hovered,
       screenPoint: (x, y, z) => this.screenPoint(x, y, z),
       traces: () => this.awakening.spots,
-      traceContext: () => ({ waking: this.awaken.waking, fragments: this.awaken.fragments, hunt: this.awaken.hunt, sealedUntil: this.awakening.sealedUntil }),
+      traceContext: () => ({ waking: this.awaken.waking, fragments: this.awaken.fragments, hunt: this.awaken.hunt, sealedText: this.awakening.sealedText }),
       guardian: () => this.awakening.fighting,
     })
     // 새 외형은 메뉴 단추의 점으로만 알린다. (유물 이름 알림과 겹치지 않게, 외형 탭이 열린 뒤에만)
@@ -540,19 +537,16 @@ export class Game {
     this.life = new HeroLife(this.ctx)
     this.threatSystem = new ThreatSystem(this.ctx)
     this.chapterSystem = new ChapterSystem(this.ctx)
-    this.mythPicker = new MythPicker(this.hud.root)
-    this.mythChoice = new MythChoiceSystem(this.ctx, this.mythPicker)
+    this.swapCard = new SwapCard(this.hud.root)
     // 새 신의 손·심장 부품이 왔는데 자리가 차 있으면 두 갈래 카드 (E302-03)
-    this.relics.offerSwap = (part, incoming, current, choose) => this.mythPicker.swap(part, incoming, current, choose)
+    this.relics.offerSwap = (part, incoming, current, choose) => this.swapCard.show(part, incoming, current, choose)
     this.awakening = new AwakeningSystem(
       this.ctx,
       (p) => this.nav.nearestFree(p),
       (relic, announce) => this.relics.equip(relic, announce),
       // 점검용 실행(?relics=)에서는 흔적이 응답하지 않는다: 봇·점검 스크립트의 신화에 다른 신의 힘이 섞이지 않게
-      () => options.relicsOpenMyths ?? false,
+      () => options.testRun ?? false,
     )
-    // 데모에서는 신화의 유물을 손에 넣어도 신화가 열리지 않는다: 신을 깨워야 연다 (E238). 점검용 실행과 엔딩 뒤에는 예전처럼
-    this.relics.relicsOpenMyths = () => (options.relicsOpenMyths ?? false) || this.ending.reached
     // 다음 장이 열리면 그 땅으로 가는 결계가 풀리고(E22-02) 장 제목 띠가 지나간다 (E22-04)
     this.chapterHud = new ChapterHud(this.hud.root)
     // 장 넘어가기는 장면 (E23-02): 그 장의 한마디 뒤에 장 제목 띠
@@ -652,7 +646,12 @@ export class Game {
     }
     // 점검용 실행과 엔딩 뒤 판은 정보 화면 탭을 모두 연 채로 (E236-05)
     if (options.allTabs || this.ending.reached) this.tabs.openAll()
-    for (const id of options.startRelics ?? []) this.relics.equip(id, false)
+    // 점검용 실행(?relics=): 데모에서는 유물로 신이 열리지 않으니(엔딩 뒤에만) 끼고 시작한 신화 유물의 신을 여기서 연다. 첫 신을 손·심장·숨에
+    for (const id of options.startRelics ?? []) {
+      this.relics.equip(id, false)
+      const god = relicMyth(id)
+      if (god && this.progress.open(god) && !this.progress.pantheon.hand) this.relics.choose(god, false)
+    }
     // 탭 열기는 불러온 뒤에 켠다: 저장에서 빠진 탭이 있으면 카드 없이 연다
     this.tabSystem.ready = true
     this.tabSystem.check(true)
@@ -952,8 +951,8 @@ export class Game {
   }
 
   /**
-   * 개발 지름길 (E22): 지금 목표를 한 것으로 한다. 들어설 땅이면 그리로 가고, 고르기는 그 신화권 첫 신화,
-   * 신화 단계는 고른 신화를 그 단계까지, 보스는 이긴 것으로(여는 신화권도), 벼리기는 재료를 채워 벼린다
+   * 개발 지름길 (E22): 지금 목표를 한 것으로 한다. 들어설 땅이면 그리로 가고, 깨우기는 조각을 차례로,
+   * 신화 단계는 고른 신화를 그 단계까지, 귀환은 승천으로, 보스는 이긴 것으로, 벼리기는 재료를 채워 벼린다
    */
   skipGoal(): void {
     const goal = this.chapters.goal
@@ -964,11 +963,6 @@ export class Game {
         this.chapters.enter(goal.region)
         this.world.travelTo(goal.region)
         break
-      case 'choose': {
-        const god = realmGods(goal.realm!).find((g) => !this.progress.isOpen(g))
-        if (god && this.progress.open(god)) this.bus.emit('mythOpened', { god })
-        break
-      }
       case 'awaken':
         // 조각을 하나씩 (흔적 → 사냥 → 수호자) 그 할 일을 마칠 때까지
         for (let i = 0; i < 12 && this.chapters.goal === goal; i++) if (!this.awakening.skip(this.awakening.target(goal.region)?.god)) break
@@ -986,11 +980,9 @@ export class Game {
         }
         break
       }
-      case 'boss': {
+      case 'boss':
         this.chapterSystem.bossDown(goal.region)
-        if (goal.opens) this.mythChoice.openRealm(goal.opens)
         break
-      }
       case 'forge': {
         const god = this.ctx.build.chosen
         if (!god) break
@@ -1019,22 +1011,22 @@ export class Game {
     return this.barriers.spots
   }
 
-  /** 신화 고르기 카드가 떠 있나 (봇·점검용) */
   /** 두 갈래 카드에 답한다 (봇·점검용): 그 카드의 「새 것으로」나 「지금 그대로」를 누른다 */
   answerSwap(take: boolean): boolean {
-    const card = document.querySelectorAll<HTMLButtonElement>('.myth-pick__card')[take ? 0 : 1]
-    if (!this.mythPicker.open || !card) return false
+    const card = document.querySelectorAll<HTMLButtonElement>('.swap-card__card')[take ? 0 : 1]
+    if (!this.swapCard.open || !card) return false
     card.click()
     return true
   }
 
-  get mythPickerOpen(): boolean {
-    return this.mythPicker.open
+  /** 두 갈래 카드가 떠 있나 (봇·점검용) */
+  get swapOpen(): boolean {
+    return this.swapCard.open
   }
 
-  /** 정보 화면·일시 정지 메뉴·신화 고르기가 열려 있어 게임이 멈췄는가 */
+  /** 정보 화면·일시 정지 메뉴·두 갈래 카드가 열려 있어 게임이 멈췄는가 */
   get paused(): boolean {
-    return this.menu.open || (this.pauseMenu?.open ?? false) || (this.mythPicker?.open ?? false) || this.suspended()
+    return this.menu.open || (this.pauseMenu?.open ?? false) || (this.swapCard?.open ?? false) || this.suspended()
   }
 
   /**
@@ -1091,14 +1083,14 @@ export class Game {
     }
   }
 
-  /** 신의 자리를 바꿀 수 있는가 (E302: 어디서나). 전설·시련 중에는 못 바꾼다 (도전한 신화가 승급하도록) */
-  get canChooseMyth(): boolean {
+  /** 신의 자리를 바꿀 수 있는가 (E302: 어디서나). 전설 중에는 못 바꾼다 (도전한 신화가 승급하도록) */
+  get canSwapGods(): boolean {
     return !this.legend.active
   }
 
   /** 정보 화면에서 한 신에 몰아 고른다 (손·심장·숨 첫 칸). 닫힌 신화면 false */
   chooseMyth(god: string): boolean {
-    return this.canChooseMyth && this.relics.choose(god, true)
+    return this.canSwapGods && this.relics.choose(god, true)
   }
 
   /** 신의 자리 셋 (E302): 손·심장·숨, 숨 칸 수, 잠긴 숨 칸마다 열리는 때, 한 신에 몰았으면 그 신 (정보 화면) */
@@ -1117,12 +1109,12 @@ export class Game {
 
   /** 정보 화면에서 그 자리에 낀다 (손·심장은 바꿔 끼고, 숨은 빈 칸에) */
   placeMyth(part: PartKind, god: string): boolean {
-    return this.canChooseMyth && this.relics.place(part, god)
+    return this.canSwapGods && this.relics.place(part, god)
   }
 
   /** 정보 화면에서 숨 칸에서 뺀다 */
   unplaceMyth(god: string): boolean {
-    return this.canChooseMyth && this.relics.unplace(god)
+    return this.canSwapGods && this.relics.unplace(god)
   }
 
   /** 깨우는 중인 신 (E238): 모은 조각과 다음 할 일 (정보 화면 신화 탭) */
@@ -1196,7 +1188,6 @@ export class Game {
     this.updateEnemies(dt)
     this.growth.update(dt)
     this.expeditionSystem.update(dt)
-    this.mythChoice.update()
     this.awakening.update(dt)
     this.oathSystem.update()
     this.riftSystem.update(dt)
@@ -1220,7 +1211,7 @@ export class Game {
     this.minimap.update(dt, {
       hero: position,
       relics: this.pickups.list,
-      sanctuaryReady: this.legend.present && (this.growth.sanctuaryOpen || this.mythChoice.here !== null),
+      sanctuaryReady: this.legend.present && this.growth.sanctuaryOpen,
       goal: this.goalSpot(),
       // 신의 흔적 (E238): 응답하는 흔적만 그 신의 색으로
       traces: this.awakening.spots.filter((t) => t.state === 'open').map((t) => ({ x: t.x, z: t.z, color: godDef(t.god).color })),
@@ -1298,7 +1289,7 @@ export class Game {
       realDt,
     )
     // 장면과 신화 고르기에는 위아래 검은 띠 (E23-02)
-    this.letterbox.classList.toggle('is-on', this.scenes.active || this.mythPicker.open)
+    this.letterbox.classList.toggle('is-on', this.scenes.active || this.swapCard.open)
     // 목표 한 줄 (E22-04): 보스 막대가 서거나 전설·대화 중이면 잠깐 감춘다
     const fighting = this.legend.active || (boss !== null && this.encounter.bossEngaged) || this.awakening.fighting !== null
     this.chapterHud.setGoal(this.chapterSystem.goalView(), fighting || this.scenes.active || this.world.traveling)

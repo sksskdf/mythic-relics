@@ -101,9 +101,6 @@ export class Autoplayer {
     const { powers, progress, region, regions } = this.game
     const fieldOf = (god: God) => Object.values(regions).find((r) => r.realm === godDef(god).realm && r.zone === 'entrance')?.id
     const manifested = powers.manifested
-    // 성소에서 신화를 고를 수 있으면 그 땅으로 (E22-03)
-    const offer = this.game.mythChoice.offer()
-    if (offer) return offer.region
     if (this.chapters) {
       const goal = this.chapterRegion()
       if (goal) return goal
@@ -179,16 +176,13 @@ export class Autoplayer {
     const hp = combat.health.ratio
     const leaving = hp >= 0.5 && !legend.active && !this.stay && !this.rift && this.wantRegion() !== this.game.region.id
 
-    // 신화 고르기 성소로 가는 길(E22-03)도 떠날 때처럼 예고를 피하지 않고 걸어간다 (쫓아오는 무리를 다 피하면 닿지 못한다)
-    const offer = this.game.mythChoice.here
-    const toChoose = offer !== null && hp >= 0.5 && !legend.active
     // 신 깨우기 (E239): 흔적·수호자 자리가 멀면 예고를 피하지 않고 걸어간다 (물러서며 던지는 적이 많은 땅에서 둘레가 비기를 기다리면 닿지 못한다)
     const wake = this.awakenSpot()
     const toWake = wake !== null && hp >= 0.6 && !legend.active && dist(here, wake) > 6
     // 수호자와 싸울 때 (E239): 생명이 넉넉하면 떨어지는 것(독·화살·불덩이)은 맞으며 붙는다. 멀리서 던지는 수호자를 피하기만 하면 끝나지 않는다
     const guarding = this.game.awakening.fighting !== null && hp > 0.5
     // 1. 예고 범위 안에 있으면 빠져나간다.
-    const dangers = leaving || toChoose || toWake ? [] : enemies.flatMap((g) => g.dangers).filter((d) => !guarding || d.kind !== 'circle')
+    const dangers = leaving || toWake ? [] : enemies.flatMap((g) => g.dangers).filter((d) => !guarding || d.kind !== 'circle')
     if (dangers.some((d) => inDanger(here, d, MARGIN))) {
       const escape = this.findEscape(here, dangers)
       if (escape) hero.moveTo(escape)
@@ -284,20 +278,9 @@ export class Autoplayer {
     }
 
     // 두 갈래 카드 (E302-03): 새 신의 손·심장이 왔는데 자리가 차 있으면, 정한 신이면 새 것을, 아니면 지금 그대로
-    if (!offer && this.game.mythPickerOpen) {
-      const incoming = document.querySelector<HTMLElement>('.myth-pick__card')?.dataset.god
+    if (this.game.swapOpen) {
+      const incoming = document.querySelector<HTMLElement>('.swap-card__card')?.dataset.god
       this.game.answerSwap(!!this.god && incoming === this.god)
-      return
-    }
-    // 4.8 신화 고르기 (E22-03): 카드가 떠 있으면 정한 신(없으면 첫 신화)을 고르고, 아니면 성소 가운데로 간다
-    if (offer && this.game.mythPickerOpen) {
-      this.game.mythChoice.pick(this.god && offer.gods.includes(this.god) ? this.god : offer.gods[0]!)
-      this.step = 15
-      return
-    }
-    if (toChoose) {
-      if (dist(here, legend.center) > 1.2 && (!hero.isMoving || dist(hero.goal ?? here, legend.center) > 1)) hero.moveTo(legend.center)
-      this.step = 15
       return
     }
 
