@@ -45,11 +45,6 @@ export function renderStatus(ctx: TabContext, body: HTMLElement): void {
     ctx.hintOn(portrait, '신의 흔적·사냥·수호자, 조각 셋을 모으면 그 신이 깨어난다.')
   }
   const tags = el('div', 'menu-status__tags')
-  for (const g of host.loadout.blessings) {
-    const tag = el('span', 'ui-tag', `잠든 ${godDef(g).name}의 유물`)
-    tag.style.setProperty('--tag', godDef(g).color)
-    tags.append(tag)
-  }
   who.append(tags)
   layout.append(who)
 
@@ -74,7 +69,7 @@ export function renderStatus(ctx: TabContext, body: HTMLElement): void {
   row('boot', '이동 속도', `${Math.round(stats.moveSpeed * 100)}%`, '낀 유물의 지속 효과', changed(stats.moveSpeed, true))
   row('push', '밀쳐 내기', `×${stats.knockbackDealt.toFixed(2)}`, '내 공격이 적을 미는 힘', changed(stats.knockbackDealt, true))
   row('stand', '버티기', `×${stats.knockbackTaken.toFixed(2)}`, '내가 밀려나는 정도. 낮을수록 잘 버틴다.', changed(stats.knockbackTaken, false))
-  row('divine', '궁극기 충전', `${Math.round(stats.divine * 100)}%`, '궁극기 충전\n스킬로 맞히고 적을 쓰러뜨릴수록 차오른다. 가득 차면 지금 신화의 궁극기가 저절로 나간다.')
+  row('divine', '심장 게이지', `${Math.round(stats.heartGauge * 100)}%`, '심장 게이지\n스킬로 맞히고 적을 쓰러뜨릴수록 차오른다. 가득 차면 심장에 둔 신의 궁극기가 저절로 나간다.')
   row('promote', '승천', `${stats.promotions}`, `승천\n어느 신이든 귀환할 때 승천을 고르면 그 신이 한 단계 오르고, 하나마다 최대 생명 +${Math.round(PER_PROMOTION.maxHpPct * 100)}%, 모든 피해 ×${PER_PROMOTION.damage}. 자리를 바꿔도 남는다.`)
   right.append(grid)
 

@@ -40,7 +40,7 @@ export interface SkillContext {
   heroHp(): number
   /** 상시 효과의 범위 배율 (파동·하늘 공격 넓이) */
   area: number
-  /** 주인공이 적에게 피해를 준다. 배율, 피해 숫자, 신위 게이지는 Game이 처리한다. source는 상시 효과 수치를 고른다 */
+  /** 주인공이 적에게 피해를 준다. 배율, 피해 숫자, 심장 게이지는 Game이 처리한다. source는 상시 효과 수치를 고른다 */
   hit(target: CombatTarget, damage: number, dirX: number, dirZ: number, knockback: number, style: DamageStyle, source?: DamageSource): void
   shake(amount: number): void
   /** 소리를 낸다. x·z가 있으면 그 자리에서 */

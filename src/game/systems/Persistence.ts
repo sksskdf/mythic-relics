@@ -62,7 +62,7 @@ export class Persistence {
       classes,
       pantheon: { ...progress.pantheon, breath: [...progress.pantheon.breath] },
       dropMisses: drops.misses,
-      divine: combat.divine,
+      heartGauge: combat.heartGauge,
       looks: { unlocked: [...wardrobe.unlocked], choices: Object.fromEntries(wardrobe.choices) },
       body: { ...wardrobe.body },
       // 깊이 (E305-03): 저장 키는 옛 위협 단계 이름 그대로
@@ -119,7 +119,7 @@ export class Persistence {
     powers.loadout.bag.push(...data.bag)
     for (const item of data.ground) pickups.drop(item.id, item.x, item.z, true, gear.get(item.id))
     drops.misses = data.dropMisses
-    combat.divine = data.divine
+    combat.heartGauge = data.heartGauge
     for (const id of data.scenes) this.ctx.scenesSeen.add(id)
     // 저장한 지역에서 시작했으면 그 자리로 (지역은 Game이 저장을 보고 골라 둔다)
     if (data.region && data.region.id === this.ctx.map.region.id) this.ctx.hero.teleport(data.region.x, data.region.z)

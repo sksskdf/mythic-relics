@@ -53,7 +53,7 @@ export function relicOwner(id: RelicId): God {
   return relicMyth(id) ?? relicDef(id).god
 }
 
-/** 유물의 힘(지속·행동 효과)은 그 신화가 신위 칸에 있을 때만 깨어난다 (E21-04, 빌린 칸도 E237). 아니면 기본 수치만 */
+/** 유물의 힘(지속·행동 효과)은 그 신이 자리(손·심장·숨)에 있을 때만 깨어난다 (E21-04 → E302) */
 export function relicAwake(id: RelicId, chosen: God | null, borrowed: readonly God[] = []): boolean {
   const owner = relicOwner(id)
   return (chosen !== null && owner === chosen) || borrowed.includes(owner)

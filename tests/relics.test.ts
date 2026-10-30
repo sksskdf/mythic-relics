@@ -6,15 +6,19 @@ import { createRng } from '../src/world/rng'
 import { hiddenUnlocked, legacyManifest, resolveLoadout } from '../src/myth/manifest'
 import { godDef, RELIC_IDS, relicDef } from '../src/relics/data'
 
-describe('고른 신화와 가호 (E12-04)', () => {
-  it('유물이 없고 고른 신화도 없으면 아무것도 없다', () => {
-    expect(resolveLoadout([null, null, null, null], null)).toEqual({ manifested: null, blessings: [] })
+describe('지금 신화 (E12-04 → E302, 가호는 E305-04에서 없앰)', () => {
+  it('지금 신화는 유물 수가 아니라 손에 쥔 신이다', () => {
+    expect(resolveLoadout(null)).toEqual({ manifested: null })
+    expect(resolveLoadout('zeus')).toEqual({ manifested: 'zeus' })
   })
 
-  it('지금 신화는 유물 수가 아니라 고른 신화다. 장착한 다른 신 유물은 가호', () => {
-    expect(resolveLoadout(['mjolnir', 'megingjord', 'jarngreipr', 'lokiMask'], null)).toEqual({ manifested: null, blessings: ['thor', 'loki'] })
-    expect(resolveLoadout(['mjolnir', 'lokiMask', null, null], 'zeus')).toEqual({ manifested: 'zeus', blessings: ['thor', 'loki'] })
-    expect(resolveLoadout(['mjolnir', 'lokiMask', null, null], 'thor')).toEqual({ manifested: 'thor', blessings: ['loki'] })
+  it('유물표에 다른 신의 유물을 켜도 지금 신화는 손의 신 그대로다', () => {
+    const loadout = new Loadout()
+    loadout.light('mjolnir')
+    loadout.light('lokiMask')
+    expect(loadout.state).toEqual({ manifested: null })
+    loadout.pantheon = { hand: 'thor', heart: 'thor', breath: ['thor'] }
+    expect(loadout.state).toEqual({ manifested: 'thor' })
   })
 
   it('1차 스프린트 규칙은 옛 저장 옮기기와 히든 신화에만 남는다', () => {

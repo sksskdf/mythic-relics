@@ -40,7 +40,7 @@ export interface GameEvents {
   depthChanged: { level: number }
   /** 일반 장비를 주웠다 (E13-02) */
   gearPicked: { item: GearItem }
-  /** 신위 칸의 빌린 칸에 신을 넣었다 (E237) */
+  /** 숨 칸에 신을 넣었다 (E237 → E302) */
   mythLent: { god: God }
   /** 주운 장비가 가방으로 갔는데 지금 낀 것보다 좋다 (메뉴 단추로 장비 탭을 부른다) */
   gearBetter: { item: GearItem }

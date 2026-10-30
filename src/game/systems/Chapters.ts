@@ -4,7 +4,7 @@ import { breathCount } from '../../myth/pantheon'
 import { REGIONS } from '../../data/regions'
 import { sceneId } from '../../data/scenes'
 import { missing, nextRecipe } from '../../gear/forge'
-import { awakenDef, HUNT_KILLS } from '../../data/awaken'
+import { wakeDef, HUNT_KILLS } from '../../data/wake'
 import { godDef } from '../../relics/data'
 import { josa } from '../../ui/josa'
 import type { GoalView } from '../../ui/ChapterHud'
@@ -103,7 +103,7 @@ export class ChapterSystem {
     let ratio: number | null = null
     const waking = awaken.waking && !progress.isOpen(awaken.waking) ? awaken.waking : null
     if (goal.kind === 'awaken' && waking) {
-      const path = awakenDef(waking)!
+      const path = wakeDef(waking)!
       const name = godDef(waking).name
       if (awaken.fragments >= 2) return { text: `${josa(path.guardian.name, '을')} 쓰러뜨려 ${josa(name, '을')} 깨운다`, ratio: null }
       return { text: `${REGIONS[path.land]?.name ?? path.land}에서 사냥한다 ${awaken.hunt}/${HUNT_KILLS}`, ratio: awaken.huntRatio }

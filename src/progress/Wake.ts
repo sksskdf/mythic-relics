@@ -1,19 +1,19 @@
-import { AWAKEN, HUNT_KILLS } from '../data/awaken'
+import { WAKE, HUNT_KILLS } from '../data/wake'
 import type { God } from '../relics/data'
 
 /** 저장 모양 (E238): 깨우는 중인 신과 모은 조각, 사냥한 수 */
-export interface AwakenData {
+export interface WakeData {
   waking: God | null
   fragments: number
   hunt: number
 }
 
 /**
- * 신을 깨우는 진행 (E238, `src/data/awaken.ts`). 깨우는 신은 한 번에 하나:
+ * 신을 깨우는 진행 (E238, `src/data/wake.ts`). 깨우는 신은 한 번에 하나:
  * 흔적의 무리를 물리치면 조각 1(깨우기 시작), 그 신의 땅에서 사냥하면 조각 2, 수호자를 쓰러뜨리면 깨어나 처음으로.
  * 깨어난 신은 신화 진행(ClassProgress)이 연 신으로 센다.
  */
-export class AwakenProgress {
+export class WakeProgress {
   waking: God | null = null
   /** 깨우는 신이 모은 조각 (1~2, 셋째는 깨어남) */
   fragments = 0
@@ -58,11 +58,11 @@ export class AwakenProgress {
     this.hunt = 0
   }
 
-  toData(): AwakenData {
+  toData(): WakeData {
     return { waking: this.waking, fragments: this.fragments, hunt: this.hunt }
   }
 
-  load(data: AwakenData): void {
+  load(data: WakeData): void {
     this.waking = data.waking
     this.fragments = data.fragments
     this.hunt = data.hunt
@@ -70,11 +70,11 @@ export class AwakenProgress {
 }
 
 /** 저장에서 읽는다: 길이 없는 신이나 어긋난 값은 처음으로 */
-export function parseAwaken(raw: unknown): AwakenData {
-  const empty: AwakenData = { waking: null, fragments: 0, hunt: 0 }
+export function parseWake(raw: unknown): WakeData {
+  const empty: WakeData = { waking: null, fragments: 0, hunt: 0 }
   if (typeof raw !== 'object' || raw === null) return empty
   const o = raw as Record<string, unknown>
-  const god = typeof o.waking === 'string' && Object.hasOwn(AWAKEN, o.waking) ? (o.waking as God) : null
+  const god = typeof o.waking === 'string' && Object.hasOwn(WAKE, o.waking) ? (o.waking as God) : null
   if (!god) return empty
   const hunt = typeof o.hunt === 'number' && Number.isFinite(o.hunt) ? Math.max(0, Math.min(HUNT_KILLS, Math.round(o.hunt))) : 0
   // 사냥 수를 줄인 뒤(E238 40 → E239 30) 이미 30을 넘게 잡은 옛 저장은 조각 2로 (유물은 settle이 준다)

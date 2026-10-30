@@ -42,7 +42,7 @@ export class Loadout {
   waking: God | null = null
 
   get state(): LoadoutState {
-    return resolveLoadout(this.relics, this.pantheon.hand)
+    return resolveLoadout(this.pantheon.hand)
   }
 
   /** 유물표에 켠 유물들 (얻은 차례) */
@@ -199,10 +199,5 @@ export class Loadout {
     this.bag.splice(index, 1)
     if (isGearUid(id)) this.gear.delete(id)
     return true
-  }
-
-  /** 바꿔 끼면 고른 신화·가호가 어떻게 되는지 미리 본다 (유물은 칸에 들지 않아 장비를 바꿔도 같다) */
-  preview(_slot: number, _id: EquipId | null): LoadoutState {
-    return this.state
   }
 }

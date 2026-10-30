@@ -1,21 +1,21 @@
 import { describe, expect, it } from 'vitest'
 
 import { computeBuild } from '../src/build/BuildState'
-import { AWAKEN, AWAKEN_GODS, GUARDIAN_LEASH, HUNT_KILLS, mayWake, TRACE_MODELS } from '../src/data/awaken'
+import { WAKE, WAKE_GODS, GUARDIAN_LEASH, HUNT_KILLS, mayWake, TRACE_MODELS } from '../src/data/wake'
 import { REGIONS } from '../src/data/regions'
 import { SCENES, sceneId } from '../src/data/scenes'
 import { ENEMIES } from '../src/enemies/Giant'
-import { guardianSpec } from '../src/game/systems/Awakening'
+import { guardianSpec } from '../src/game/systems/Wake'
 import { mythRelic } from '../src/gear/mythRelic'
-import { AwakenProgress, parseAwaken } from '../src/progress/Awakening'
+import { WakeProgress, parseWake } from '../src/progress/Wake'
 import { godDef } from '../src/relics/data'
 import { traceGrid } from '../src/voxel/models/traces'
 
 describe('신을 깨우는 길 데이터 (E238)', () => {
   it('북유럽 넷과 제우스(E305-03): 흔적·사냥·수호자가 모두 있는 땅과 적을 가리키고, 땅 안에 있다', () => {
-    expect([...AWAKEN_GODS].sort()).toEqual(['freyr', 'loki', 'odin', 'thor', 'zeus'])
-    for (const god of AWAKEN_GODS) {
-      const path = AWAKEN[god]!
+    expect([...WAKE_GODS].sort()).toEqual(['freyr', 'loki', 'odin', 'thor', 'zeus'])
+    for (const god of WAKE_GODS) {
+      const path = WAKE[god]!
       for (const [region, x, z] of [
         [path.trace.region, path.trace.x, path.trace.z],
         [path.guardian.region, path.guardian.x, path.guardian.z],
@@ -37,23 +37,23 @@ describe('신을 깨우는 길 데이터 (E238)', () => {
   })
 
   it('미드가르드에 흔적 둘(토르·오딘), 로키는 요툰헤임·프레이는 무스펠 경계에, 제우스는 올림포스에. 수호자는 그 신의 땅에서 기다린다 (E239)', () => {
-    expect(AWAKEN_GODS.filter((g) => AWAKEN[g]!.trace.region === 'midgard').sort()).toEqual(['odin', 'thor'])
-    expect(AWAKEN.loki!.trace.region).toBe('jotunheim')
-    expect(AWAKEN.freyr!.trace.region).toBe('muspel')
-    const lands = Object.fromEntries(AWAKEN_GODS.map((g) => [g, AWAKEN[g]!.land]))
+    expect(WAKE_GODS.filter((g) => WAKE[g]!.trace.region === 'midgard').sort()).toEqual(['odin', 'thor'])
+    expect(WAKE.loki!.trace.region).toBe('jotunheim')
+    expect(WAKE.freyr!.trace.region).toBe('muspel')
+    const lands = Object.fromEntries(WAKE_GODS.map((g) => [g, WAKE[g]!.land]))
     expect(lands).toEqual({ thor: 'serpentshore', odin: 'ironwood', loki: 'jotunheim', freyr: 'muspel', zeus: 'olympus' })
     // 제우스는 흔적·사냥·수호자가 모두 올림포스 안 (델포이는 그리스 장의 앞 할 일을 마쳐야 열린다)
-    expect(AWAKEN.zeus!.trace.region).toBe('olympus')
-    for (const g of AWAKEN_GODS) expect(AWAKEN[g]!.guardian.region, g).toBe(AWAKEN[g]!.land)
+    expect(WAKE.zeus!.trace.region).toBe('olympus')
+    for (const g of WAKE_GODS) expect(WAKE[g]!.guardian.region, g).toBe(WAKE[g]!.land)
     // 첫 신 둘의 땅은 미드가르드 바로 옆
-    for (const g of ['thor', 'odin'] as const) expect(REGIONS.midgard!.exits.map((e) => e.to)).toContain(AWAKEN[g]!.land)
+    for (const g of ['thor', 'odin'] as const) expect(REGIONS.midgard!.exits.map((e) => e.to)).toContain(WAKE[g]!.land)
   })
 
   it('수호자는 제 모습과 싸우는 방식이 있다 (E239-03): 보스 재료를 떨어뜨리지 않고, 맞아도 끊기지 않으며, 넷이 서로 다르게 싸운다', () => {
-    const specs = AWAKEN_GODS.map((g) => guardianSpec(g)!)
+    const specs = WAKE_GODS.map((g) => guardianSpec(g)!)
     for (const [i, spec] of specs.entries()) {
-      const god = AWAKEN_GODS[i]!
-      expect(spec.name, god).toBe(AWAKEN[god]!.guardian.name)
+      const god = WAKE_GODS[i]!
+      expect(spec.name, god).toBe(WAKE[god]!.guardian.name)
       expect(spec.role, god).toBe('guardian')
       expect(spec.boss, god).toBeUndefined()
       expect(spec.poise, god).toBe(Infinity)
@@ -77,7 +77,7 @@ describe('신을 깨우는 길 데이터 (E238)', () => {
   })
 
   it('조각 2로 받는 유물은 그 신의 유물이고, 그때부터 칸에 들지 않아도 깨어난다', () => {
-    for (const god of AWAKEN_GODS) expect(mythRelic(god)).toBe(godDef(god).relic)
+    for (const god of WAKE_GODS) expect(mythRelic(god)).toBe(godDef(god).relic)
     const base = { open: new Map<string, number>(), gear: ['lokiMask' as const], promotions: 0, hand: null }
     const asleep = computeBuild(base)
     const waking = computeBuild({ ...base, waking: 'loki' })
@@ -99,7 +99,7 @@ describe('깨우는 진행 (E238)', () => {
   })
 
   it('흔적 → 사냥 → 수호자: 조각마다 하나씩, 깨어나면 처음으로', () => {
-    const a = new AwakenProgress()
+    const a = new WakeProgress()
     expect(a.addKill()).toBe(false)
     expect(a.trace('thor')).toBe(true)
     expect(a.fragments).toBe(1)
@@ -116,7 +116,7 @@ describe('깨우는 진행 (E238)', () => {
   })
 
   it('깨우는 신은 한 번에 하나: 다른 흔적은 응답하지 않고, 같은 흔적을 다시 만져도 처음으로 돌아가지 않는다', () => {
-    const a = new AwakenProgress()
+    const a = new WakeProgress()
     a.trace('odin')
     a.addKill()
     expect(a.trace('thor')).toBe(false)
@@ -126,13 +126,13 @@ describe('깨우는 진행 (E238)', () => {
 
   it('저장에서 읽기: 깨우는 길이 없는 신·깨진 값은 처음으로, 사냥한 수는 범위 안으로', () => {
     // 사냥 수가 다 찬 옛 저장(E238은 40)은 조각 2로
-    expect(parseAwaken({ waking: 'loki', fragments: 1, hunt: 99 })).toEqual({ waking: 'loki', fragments: 2, hunt: HUNT_KILLS })
-    expect(parseAwaken({ waking: 'loki', fragments: 1, hunt: HUNT_KILLS - 1 })).toEqual({ waking: 'loki', fragments: 1, hunt: HUNT_KILLS - 1 })
-    expect(parseAwaken({ waking: 'loki', fragments: 7, hunt: 2 })).toEqual({ waking: 'loki', fragments: 1, hunt: 2 })
-    expect(parseAwaken({ waking: 'hades', fragments: 1, hunt: 2 })).toEqual({ waking: null, fragments: 0, hunt: 0 })
-    expect(parseAwaken('broken')).toEqual({ waking: null, fragments: 0, hunt: 0 })
-    const a = new AwakenProgress()
-    a.load(parseAwaken({ waking: 'freyr', fragments: 2, hunt: 0 }))
+    expect(parseWake({ waking: 'loki', fragments: 1, hunt: 99 })).toEqual({ waking: 'loki', fragments: 2, hunt: HUNT_KILLS })
+    expect(parseWake({ waking: 'loki', fragments: 1, hunt: HUNT_KILLS - 1 })).toEqual({ waking: 'loki', fragments: 1, hunt: HUNT_KILLS - 1 })
+    expect(parseWake({ waking: 'loki', fragments: 7, hunt: 2 })).toEqual({ waking: 'loki', fragments: 1, hunt: 2 })
+    expect(parseWake({ waking: 'hades', fragments: 1, hunt: 2 })).toEqual({ waking: null, fragments: 0, hunt: 0 })
+    expect(parseWake('broken')).toEqual({ waking: null, fragments: 0, hunt: 0 })
+    const a = new WakeProgress()
+    a.load(parseWake({ waking: 'freyr', fragments: 2, hunt: 0 }))
     expect(a.fragments).toBe(2)
     expect(a.huntRatio).toBe(1)
   })

@@ -5,7 +5,7 @@ import type { Waypoints } from '../progress/Waypoints'
 import type { ChapterProgress } from '../progress/Chapters'
 import type { ExpeditionProgress } from '../progress/Expedition'
 import type { TrainingProgress } from '../progress/Training'
-import type { AwakenProgress } from '../progress/Awakening'
+import type { WakeProgress } from '../progress/Wake'
 import type { TabUnlocks } from '../progress/Tabs'
 import type { Ending } from '../progress/Ending'
 import type { DepthProgress } from '../progress/Depth'
@@ -99,7 +99,7 @@ export interface GameContext {
   /** 원정 (E304) */
   readonly expedition: ExpeditionProgress
   /** 신을 깨우는 진행: 깨우는 신과 모은 조각 (E238) */
-  readonly awaken: AwakenProgress
+  readonly awaken: WakeProgress
   /** 차례로 연 정보 화면 탭 (E236-05) */
   readonly tabs: TabUnlocks
   /** 외형 보관함 (얻은 외형, 칸마다 고른 것) */

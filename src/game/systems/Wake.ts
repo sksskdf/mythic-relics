@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 
-import { AWAKEN, AWAKEN_GODS, awakenDef, GUARDIAN_LEASH, GUARDIAN_MEND, GUARDIAN_RADIUS, mayWake, TRACE_LEASH, TRACE_RADIUS, type TraceState } from '../../data/awaken'
+import { WAKE, WAKE_GODS, wakeDef, GUARDIAN_LEASH, GUARDIAN_MEND, GUARDIAN_RADIUS, mayWake, TRACE_LEASH, TRACE_RADIUS, type TraceState } from '../../data/wake'
 import { CONQUESTS } from '../../data/chapters'
 import { REGIONS } from '../../data/regions'
 import { sceneId } from '../../data/scenes'
@@ -37,7 +37,7 @@ const BEAM_HEIGHT = 9
  * 수호자는 그 신의 신화권 적이고(재료·경험치), 물러나는 거리는 수호자 규칙(GUARDIAN_LEASH)을 따른다
  */
 export function guardianSpec(god: God): GiantSpec | null {
-  const def = awakenDef(god)
+  const def = wakeDef(god)
   const enemy = def ? ENEMIES[def.guardian.enemy] : undefined
   if (!def || !enemy) return null
   return { ...enemy, realm: godDef(god).realm, leashRange: GUARDIAN_LEASH }
@@ -51,7 +51,7 @@ export function guardianSpec(god: God): GiantSpec | null {
  * 깨우는 신은 한 번에 하나. 쓰러지면 무리와 수호자는 물러나고 조각은 그대로 남는다.
  * 무리의 마지막·수호자는 생명이 다한 순간 조각을 준다 (무너지는 동안 쓰러지거나 땅을 넘어도 잃지 않게).
  */
-export class AwakeningSystem {
+export class WakeSystem {
   private readonly group = new THREE.Group()
   /** 지금 땅의 흔적 (지금 땅 좌표) */
   private traces: { god: God; x: number; z: number; beam: THREE.Mesh }[] = []
@@ -137,14 +137,14 @@ export class AwakeningSystem {
     const { awaken, chapters } = this.ctx
     const waking = this.waking
     if (waking) {
-      const def = awakenDef(waking)!
+      const def = wakeDef(waking)!
       if (awaken.fragments >= 2) return { god: waking, kind: 'guardian', region: def.guardian.region, spot: { x: def.guardian.x, z: def.guardian.z } }
       if (awaken.fragments >= 1) return { god: waking, kind: 'hunt', region: def.land, spot: null }
     }
-    const open = AWAKEN_GODS.filter((g) => this.traceState(g) === 'open' && chapters.isOpen(AWAKEN[g]!.trace.region))
-    const god = open.find((g) => AWAKEN[g]!.trace.region === prefer) ?? open[0]
+    const open = WAKE_GODS.filter((g) => this.traceState(g) === 'open' && chapters.isOpen(WAKE[g]!.trace.region))
+    const god = open.find((g) => WAKE[g]!.trace.region === prefer) ?? open[0]
     if (!god) return null
-    const t = AWAKEN[god]!.trace
+    const t = WAKE[god]!.trace
     return { god, kind: 'trace', region: t.region, spot: { x: t.x, z: t.z } }
   }
 
@@ -166,8 +166,8 @@ export class AwakeningSystem {
     this.lair = null
     const region = this.ctx.map.region
     if (region.kind !== 'field') return
-    for (const god of AWAKEN_GODS) {
-      const def = AWAKEN[god]!
+    for (const god of WAKE_GODS) {
+      const def = WAKE[god]!
       if (def.trace.region !== region.id) continue
       const spot = this.free(def.trace) ?? def.trace
       const root = new THREE.Group()
@@ -185,7 +185,7 @@ export class AwakeningSystem {
   private placeLair(): void {
     const { awaken, map } = this.ctx
     const god = awaken.waking
-    const def = god ? awakenDef(god) : undefined
+    const def = god ? wakeDef(god) : undefined
     if (this.lair || !god || !def || awaken.fragments < 2 || def.guardian.region !== map.region.id) return
     const spot = this.free(def.guardian) ?? def.guardian
     const beam = this.beam(godDef(god).color)
@@ -272,7 +272,7 @@ export class AwakeningSystem {
 
   /** 흔적에 다가갔다: 지키는 무리가 흔적 둘레에서 깨어난다 */
   private rouse(t: { god: God; x: number; z: number }): void {
-    const def = awakenDef(t.god)!
+    const def = wakeDef(t.god)!
     const giants: Giant[] = []
     const members = def.pack.flatMap((m) => Array.from({ length: m.count }, () => m.enemy))
     members.forEach((enemy, i) => {
@@ -326,7 +326,7 @@ export class AwakeningSystem {
     if (this.ours.has(giant)) return
     // 사냥: 그 신의 땅에서 잡을 때마다 (성소의 전설·시련 싸움은 빼고)
     const waking = this.waking
-    if (!waking || awaken.fragments !== 1 || map.region.id !== awakenDef(waking)?.land) return
+    if (!waking || awaken.fragments !== 1 || map.region.id !== wakeDef(waking)?.land) return
     if (awaken.addKill()) this.piece2(waking)
     else bus.emit('progressChanged', {})
   }
@@ -336,7 +336,7 @@ export class AwakeningSystem {
     const { awaken, bus, fx, hero, hud } = this.ctx
     if (!awaken.trace(god)) return
     const def = godDef(god)
-    const path = awakenDef(god)!
+    const path = wakeDef(god)!
     hud.flash(def.color)
     fx.power.burst(hero.object.position, def.color, 3)
     const card = {
@@ -361,7 +361,7 @@ export class AwakeningSystem {
     if (!powers.loadout.has(relic)) this.give(relic, true)
     const worn = powers.loadout.slots.includes(relic)
     const def = godDef(god)
-    const path = awakenDef(god)!
+    const path = wakeDef(god)!
     fx.power.burst(p, def.color, 4)
     const card = {
       kind: '신의 조각 2/3',
@@ -428,7 +428,7 @@ export class AwakeningSystem {
     const { awaken } = this.ctx
     const waking = this.waking
     if (!waking) {
-      const next = god ?? AWAKEN_GODS.find((g) => this.traceState(g) === 'open')
+      const next = god ?? WAKE_GODS.find((g) => this.traceState(g) === 'open')
       if (!next || this.traceState(next) !== 'open') return false
       this.calm()
       this.piece1(next)

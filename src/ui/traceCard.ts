@@ -1,4 +1,4 @@
-import { awakenDef, HUNT_KILLS, type TraceState } from '../data/awaken'
+import { wakeDef, HUNT_KILLS, type TraceState } from '../data/wake'
 import { levelGains, lendText } from '../myth/levelGains'
 import { type God, godDef } from '../relics/data'
 import { classIcon } from './classIcons'
@@ -28,7 +28,7 @@ export interface TraceCardContext {
  */
 export function traceCard(god: God, ctx: TraceCardContext): HTMLElement {
   const def = godDef(god)
-  const path = awakenDef(god)
+  const path = wakeDef(god)
   const card = el('div', 'rc')
   card.style.setProperty('--god', def.color)
 

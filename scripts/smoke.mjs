@@ -359,7 +359,7 @@ try {
   await page.evaluate(() => window.__game.dev.fillForge('thor'))
   await tab('수련').click()
   await tab('장비').click()
-  const forgeRow = page.locator('.menu-forge__row', { hasText: '각성한 묠니르' })
+  const forgeRow = page.locator('.menu-forge__row', { hasText: '벼린 묠니르' })
   if (!(await forgeRow.count())) throw new Error('대장간: 묠니르를 올리는 제작법이 보이지 않습니다.')
   await forgeRow.getByRole('button', { name: '벼리기' }).click()
   if ((await page.evaluate(() => window.__game.powers.loadout.stage('mjolnir'))) !== 2) throw new Error('대장간: 벼렸는데 묠니르가 2단계가 아닙니다.')
@@ -448,7 +448,7 @@ try {
   // 보관함에서 무기를 짧은 검으로 고르면 묠니르를 껴도 검을 든다. (새로 고침 뒤에도 유지되는지 아래에서 확인)
   await page.evaluate(() => window.__game.appearance.choose('weapon', 'shortSword'))
   if ((await page.evaluate(() => window.__game.hero.rig.outfit.weapon)) !== 'shortSword') throw new Error('외형: 보관함 선택이 적용되지 않습니다.')
-  console.log('장비·유물 확인: 장화 줍기와 발 칸, 조각 셋으로 토르 깨우기(묠니르는 조각 2), 메긴교르드는 재료, 장비 탭 칸 7, 대장간에서 각성한 묠니르 (test-results/look-*.png)')
+  console.log('장비·유물 확인: 장화 줍기와 발 칸, 조각 셋으로 토르 깨우기(묠니르는 조각 2), 메긴교르드는 재료, 장비 탭 칸 7, 대장간에서 벼린 묠니르 (test-results/look-*.png)')
 
   // 지역 (E7): 새로 시작하면 마을. 마을 사람 곁에 가면 말풍선, 출구를 밟으면 암전 뒤 그 땅으로 넘어간다.
   if ((await page.evaluate(() => window.__game.region.id)) !== 'village') throw new Error('지역: 새로 시작했는데 마을이 아닙니다.')

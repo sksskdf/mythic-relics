@@ -338,12 +338,12 @@ export class RelicSystem {
       powers.update(dt, skills)
     }
 
-    // 궁극기: 발현 상태에서 신위 게이지가 가득 차고, 쓸 만한 때가 오면 저절로 나간다.
+    // 궁극기: 심장에 신이 있고 심장 게이지가 가득 차고, 쓸 만한 때가 오면 저절로 나간다.
     const boss = encounter.boss
     const bossNear = !!boss && boss.alive && Math.hypot(boss.x - position.x, boss.z - position.z) < 10
     const ultimate = powers.ultimate
-    if (combat.alive && ultimate && combat.divine >= 1 && !powers.ultimateActive && !this.ctx.build.state.noUltimate && ultimate.worthUsing(skills, bossNear)) {
-      combat.divine = 0
+    if (combat.alive && ultimate && combat.heartGauge >= 1 && !powers.ultimateActive && !this.ctx.build.state.noUltimate && ultimate.worthUsing(skills, bossNear)) {
+      combat.heartGauge = 0
       ultimate.start(skills)
       this.ctx.bus.emit('ultimateCast', {})
       feel.stop(0.12)
@@ -365,7 +365,7 @@ export class RelicSystem {
     combat.bonusRegen = build.noHeal ? 0 : stats.regen
     // 장비·별·수련(불굴)을 겹쳐도 피해를 아예 안 받게 되지는 않게 (받는 피해와 같은 하한)
     combat.lowHpTakenScale = Math.max(0.1, 1 + stats.lowHpGuard)
-    combat.divineScale = 1 + stats.ultCharge
+    combat.heartScale = 1 + stats.ultCharge
     skills.area = 1 + stats.areaSize
     const awakening = this.ctx.powers.awakening
     awakening.levels = build.awakening

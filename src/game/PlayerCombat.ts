@@ -30,8 +30,8 @@ export interface CombatHooks {
   onShot?(target: CombatTarget, strong: boolean): void
 }
 
-/** 신위 게이지: 한 번 맞힐 때마다 차오르는 양 */
-const DIVINE_PER_HIT = 0.015
+/** 심장 게이지: 한 번 맞힐 때마다 차오르는 양 */
+const HEART_PER_HIT = 0.015
 /** 맞은 뒤 다시 맞지 않는 시간 (초) */
 const INVULNERABLE_AFTER_HIT = 0.3
 /** 마지막으로 맞은 뒤 이 시간이 지나면 생명력이 차오른다. */
@@ -48,8 +48,8 @@ const LOW_HP = 0.35
 export class PlayerCombat {
   readonly combo = new ComboState(BASIC_COMBO)
   readonly health = new Health(100)
-  /** 신위 게이지 0~1. 궁극기는 M4에서 붙는다. */
-  divine = 0
+  /** 심장 게이지 0~1. 궁극기는 M4에서 붙는다. */
+  heartGauge = 0
   target: CombatTarget | null = null
   /** 공격하라고 지정한 적. 있으면 가까운 다른 적 대신 이 적만 친다. */
   focus: CombatTarget | null = null
@@ -69,12 +69,12 @@ export class PlayerCombat {
   knockbackScale = 1
   damageTakenScale = 1
   knockbackTakenScale = 1
-  /** 상시 효과 (E12-03): 대상별 피해 배율, 받는 회복, 늘 도는 재생, 생명이 낮을 때 받는 피해, 신위 게이지 충전 */
+  /** 상시 효과 (E12-03): 대상별 피해 배율, 받는 회복, 늘 도는 재생, 생명이 낮을 때 받는 피해, 심장 게이지 충전 */
   targetScale: (target: CombatTarget) => number = () => 1
   healScale = 1
   bonusRegen = 0
   lowHpTakenScale = 1
-  divineScale = 1
+  heartScale = 1
 
   private invulnerable = 0
   private sinceHurt = REGEN_DELAY
@@ -168,8 +168,8 @@ export class PlayerCombat {
     this.sinceHurt = REGEN_DELAY
   }
 
-  addDivine(amount: number): void {
-    this.divine = Math.min(1, this.divine + amount * this.divineScale)
+  addHeart(amount: number): void {
+    this.heartGauge = Math.min(1, this.heartGauge + amount * this.heartScale)
   }
 
   /** 생명을 되찾는다 (받는 회복 배율을 곱한다) */
@@ -211,7 +211,7 @@ export class PlayerCombat {
       if (dealt > 0) hits.push({ target: enemy, damage: dealt, strong })
     }
     if (swing.shape === 'shot') for (const target of struck.slice(0, swing.shots ?? 1)) hooks?.onShot?.(target, strong)
-    if (hits.length > 0) this.addDivine(DIVINE_PER_HIT * hits.length)
+    if (hits.length > 0) this.addHeart(HEART_PER_HIT * hits.length)
     return hits
   }
 

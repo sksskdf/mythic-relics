@@ -53,7 +53,7 @@ import { RelicPowers } from './RelicPowers'
 import { Stage } from './Stage'
 import { AppearanceSystem } from './systems/Appearance'
 import { chapterColor, ChapterSystem } from './systems/Chapters'
-import { AwakeningSystem } from './systems/Awakening'
+import { WakeSystem } from './systems/Wake'
 import { DamageSystem } from './systems/Damage'
 import { Effects } from './systems/Effects'
 import { HeroLife } from './systems/HeroLife'
@@ -70,8 +70,8 @@ import { DevTools } from '../dev/DevTools'
 import { ChapterProgress } from '../progress/Chapters'
 import { TrainingProgress } from '../progress/Training'
 import { ExpeditionProgress } from '../progress/Expedition'
-import { AwakenProgress } from '../progress/Awakening'
-import { awakenDef, HUNT_KILLS } from '../data/awaken'
+import { WakeProgress } from '../progress/Wake'
+import { wakeDef, HUNT_KILLS } from '../data/wake'
 import { TabUnlocks } from '../progress/Tabs'
 import { insightProgress } from '../data/training'
 import { TabSystem } from './systems/Tabs'
@@ -199,9 +199,9 @@ export class Game {
   /** 원정 (E304): 원정 번호·명성·원천 불씨·기록 */
   readonly expedition = Object.assign(new ExpeditionProgress(), { conquests: (): number => this.chapters.conquered, automation: () => this.automation.now })
   /** 신을 깨우는 진행 (E238): 깨우는 신과 모은 조각 */
-  readonly awaken = new AwakenProgress()
+  readonly awaken = new WakeProgress()
   /** 신을 깨우는 길 (E238): 흔적·사냥·수호자 */
-  readonly awakening: AwakeningSystem
+  readonly awakening: WakeSystem
   /** 연 정보 화면 탭 (E236-05): 쓸 일이 생길 때 하나씩 열린다 */
   readonly tabs = new TabUnlocks()
   readonly tabSystem: TabSystem
@@ -551,7 +551,7 @@ export class Game {
     this.swapCard = new SwapCard(this.hud.root)
     // 새 신의 손·심장 부품이 왔는데 자리가 차 있으면 두 갈래 카드 (E302-03)
     this.relics.offerSwap = (part, incoming, current, choose) => this.swapCard.show(part, incoming, current, choose)
-    this.awakening = new AwakeningSystem(
+    this.awakening = new WakeSystem(
       this.ctx,
       (p) => this.nav.nearestFree(p),
       (relic, announce) => this.relics.equip(relic, announce),
@@ -1121,7 +1121,7 @@ export class Game {
   /** 깨우는 중인 신 (E238): 모은 조각과 다음 할 일 (정보 화면 신 탭) */
   wakingMyth(): { god: string; fragments: number; next: string } | null {
     const { waking, fragments, hunt } = this.awaken
-    const path = waking ? awakenDef(waking) : undefined
+    const path = waking ? wakeDef(waking) : undefined
     if (!waking || !path || this.progress.isOpen(waking)) return null
     const next = fragments >= 2 ? `${josa(path.guardian.name, '을')} 쓰러뜨린다` : `${REGIONS[path.land]?.name ?? path.land}에서 사냥한다 (${hunt}/${HUNT_KILLS})`
     return { god: waking, fragments, next }
@@ -1261,7 +1261,7 @@ export class Game {
     this.hud.update(
       {
         life: this.combat.health.ratio,
-        divine: this.combat.divine,
+        heartGauge: this.combat.heartGauge,
         // 보스 막대: 싸우는 지역 보스, 아니면 깨어난 수호자
         boss: boss && this.encounter.bossEngaged ? boss.health.ratio : this.awakening.fighting ? this.awakening.fighting.health.ratio : null,
         bossName: boss && this.encounter.bossEngaged ? boss.spec.name : (this.awakening.fighting?.spec.name ?? null),
@@ -1275,7 +1275,6 @@ export class Game {
           : null,
         // 빌린 신(E237)은 밝은 칩, 그 밖에 낀 유물의 신은 잠든 가호
         lent: this.ctx.build.borrowed.map((g) => ({ name: godDef(g).name, color: godDef(g).color })),
-        blessings: this.powers.state.blessings.filter((g) => !this.ctx.build.borrowed.includes(g)).map((g) => ({ name: godDef(g).name, color: godDef(g).color })),
         promote: manifested !== null && this.expeditionSystem.canReturn,
         sources: Object.fromEntries(this.sourceRows().map((r) => [r.id, { value: r.total, level: r.level }])),
       },

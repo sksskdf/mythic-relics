@@ -14,7 +14,7 @@
 | 신·클래스 (칭호, 원천, 발현 패시브) | `src/data/gods.json` |
 | 적 (생명력, 공격, 경험치, 확정 드랍) | `src/data/enemies.json` |
 | 기본 공격 3연타 | `src/combat/combo.ts` |
-| 주인공 생명력·회복·신위 게이지 | `src/game/PlayerCombat.ts`, `src/game/systems/Damage.ts`, `src/game/systems/Progression.ts` |
+| 주인공 생명력·회복·심장 게이지 | `src/game/PlayerCombat.ts`, `src/game/systems/Damage.ts`, `src/game/systems/Progression.ts` |
 | 경험치 곡선, 단계마다 큰 걸음, 열린 신화의 생명·유물표 배율(`PER_OPENED`·`PER_LIT`) | `src/myth/ClassProgress.ts` |
 | 드랍 확률 | `src/gear/DropTable.ts` |
 | 궁극기 | `src/skills/Ultimate.ts` |
@@ -267,7 +267,7 @@ E17까지 검·창·지팡이를 여러 신화가 같이 썼다. E18에서 아�
 
 칸 수(`src/myth/slots.ts`): 첫 신이 깨어나면 1, 두 번째 신 2, 거인 왕(우트가르드)·키마이라(리키아)를 이길 때마다 하나 더, 넷까지. 주신은 지금까지의 고른 신화 그대로(패시브 전부·피해 배율·궁극기). 빌린 칸은 그 신의 대표 패시브 하나(`gods.json`의 `lend`)를 그 신 단계로 돌리고(주신일 때 늦게 켜지는 부품도 단계 1부터), 그 신의 유물을 깨운다(단계 +1 보정은 주신만). 빌려주는 힘: 토르 기본 공격 번개, 로키·오딘·손오공 동료, 프레이·바리 각각 꽃핌·버팀, 제우스·용왕·아마테라스·마고 하늘 공격, 포세이돈·라이진 파동, 하데스 저주, 아르테미스·해모수 화살 갈래, 항아·츠쿠요미·도깨비 도는 것, 나타 불꽃 길, 아수라왕·스사노오 칼날 폭풍.
 
-### 6.4 신의 조각 셋 (E238, `src/data/awaken.ts`)
+### 6.4 신의 조각 셋 (E238, `src/data/wake.ts`)
 
 | 조각 | 하는 일 | 수 | 얻는 것 |
 | --- | --- | --- | --- |

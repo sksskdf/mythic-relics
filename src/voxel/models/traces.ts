@@ -1,9 +1,9 @@
-import type { TraceModel } from '../../data/awaken'
+import type { TraceModel } from '../../data/wake'
 import { createRng } from '../../world/rng'
 import { VoxelGrid } from '../VoxelGrid'
 
 /**
- * 신의 흔적 (E238, `src/data/awaken.ts`): 잠든 신이 남긴 자리. 바닥 가운데가 원점, 칸 0.16m (둘레 소품보다 한 뼘 크게).
+ * 신의 흔적 (E238, `src/data/wake.ts`): 잠든 신이 남긴 자리. 바닥 가운데가 원점, 칸 0.16m (둘레 소품보다 한 뼘 크게).
  * 벼락 맞은 참나무(토르)·룬 돌과 까마귀(오딘)·묶인 바위(로키)·황금 멧돼지 무덤(프레이).
  * 신의 색은 빛 한 군데에만 두고 나머지는 그 땅의 흙·돌·나무 색이라, 주변 소품보다 크고 빛나는 곳으로 알아본다.
  */

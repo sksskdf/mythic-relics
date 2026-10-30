@@ -112,7 +112,7 @@ export function autoFill(p: Pantheon, god: God, parts: readonly PartKind[], brea
   return { next, placed }
 }
 
-/** 옛 신위 칸(E237: 첫째가 주신, 뒤가 빌린 신) → 자리 셋. 옛 주신은 손·심장·숨 첫 칸으로 (한 신에 몰기라 힘이 거의 같다) */
+/** 옛 주신·빌린 신 칸(E237: 첫째가 주신, 뒤가 빌린 신) → 자리 셋. 옛 주신은 손·심장·숨 첫 칸으로 (한 신에 몰기라 힘이 거의 같다) */
 export function fromChosen(chosen: readonly God[]): Pantheon {
   const main = chosen[0] ?? null
   return { hand: main, heart: main, breath: [...chosen].slice(0, MAX_BREATH) }

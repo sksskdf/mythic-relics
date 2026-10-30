@@ -230,21 +230,11 @@
   background: color-mix(in srgb, var(--god) 12%, transparent);
   cursor: help;
 }
-.menu-relics__manifest img,
-.menu-relics__blessing img {
+.menu-relics__manifest img {
   /* 클래스 아이콘은 16픽셀 그림이라 정수배로만 키운다 */
   width: 32px;
   height: 32px;
   image-rendering: pixelated;
-}
-.menu-relics__blessing {
-  display: inline-grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border: 1px dashed var(--god);
-  opacity: 0.8;
-  cursor: help;
 }
 .menu-relics__slots,
 .menu-relics__bag {
@@ -347,7 +337,7 @@
   border-style: dashed;
   border-color: var(--c-line-2);
 }
-/* 신위 칸 (E237): 주신·빌린 힘·빈 칸·잠긴 칸이 한 줄로 */
+/* 신의 자리 (E237 → E302): 손·심장·숨·빈 칸·잠긴 칸이 한 줄로 */
 .menu-slots {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

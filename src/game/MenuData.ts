@@ -1,5 +1,5 @@
 import { activeLayers, LAYER_NAMES } from '../build/layers'
-import { AWAKEN, AWAKEN_GODS } from '../data/awaken'
+import { WAKE, WAKE_GODS } from '../data/wake'
 import { awakeningLevel } from '../data/awakening'
 import { REALM_COLORS, REGIONS } from '../data/regions'
 import { CONQUESTS } from '../data/chapters'
@@ -78,7 +78,6 @@ export class MenuData {
       get loadout() {
         return powers.state
       },
-      preview: (slot, id) => powers.loadout.preview(slot, id),
       wield: (id, slot) => relics.wield(id, slot),
       stow: (slot) => relics.stow(slot),
       drop: (slot) => relics.unequip(slot, true),
@@ -194,9 +193,9 @@ export class MenuData {
           return { region: goal.region, text: goal.goal }
         },
         traces: () =>
-          AWAKEN_GODS.filter((g) => game.awakening.traceState(g) !== 'awake').map((g) => ({
-            region: AWAKEN[g]!.trace.region,
-            name: AWAKEN[g]!.trace.name,
+          WAKE_GODS.filter((g) => game.awakening.traceState(g) !== 'awake').map((g) => ({
+            region: WAKE[g]!.trace.region,
+            name: WAKE[g]!.trace.name,
             color: godDef(g).color,
             // 응답하는 흔적은 채운 마름모, 깨우는 중·아직 잠잠한 흔적은 테만
             waking: game.awakening.traceState(g) !== 'open',
@@ -225,7 +224,7 @@ export class MenuData {
     const { game, ctx } = this.parts
     const build = ctx.build.state
     const mods = build.modifiers
-    const { manifested, blessings } = game.powers.state
+    const { manifested } = game.powers.state
     const powers: HeroStats['powers'] = []
     if (manifested) {
       const god = godDef(manifested)
@@ -237,10 +236,6 @@ export class MenuData {
       for (let lv = 2; lv <= level; lv++) for (const g of levelGains(manifested, lv)) if (g.kind === 'power') what.push(g.text)
       what.push(`궁극기 「${god.ultimate.name}」`)
       powers.push({ kind: 'god', name: god.name, color: god.color, label: game.progress.title(manifested), what: what.join(' · ') })
-    }
-    for (const g of blessings) {
-      const god = godDef(g)
-      powers.push({ kind: 'god', name: god.name, color: god.color, label: `${god.name}의 유물`, what: '잠듦: 그 신화를 고르면 유물의 힘이 깨어난다' })
     }
     for (const id of game.powers.loadout.relics) {
       if (!id) continue
@@ -256,7 +251,7 @@ export class MenuData {
       moveSpeed: mods.moveSpeed,
       knockbackDealt: mods.knockbackDealt,
       knockbackTaken: mods.knockbackTaken,
-      divine: game.combat.divine,
+      heartGauge: game.combat.heartGauge,
       promotions: game.progress.promotions,
       collected: build.collected,
       lit: build.lit,

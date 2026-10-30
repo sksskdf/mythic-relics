@@ -25,12 +25,12 @@ function isBig(target: CombatTarget): boolean {
   return !!t.elite || !!t.spec?.boss || (!!t.spec && isBossLike(t.spec))
 }
 
-/** 신위 게이지: 스킬로 맞힐 때, 쓰러뜨릴 때 차오르는 양 */
-const DIVINE_PER_SKILL_HIT = 0.01
-const DIVINE_PER_KILL = 0.05
+/** 심장 게이지: 스킬로 맞힐 때, 쓰러뜨릴 때 차오르는 양 */
+const HEART_PER_SKILL_HIT = 0.01
+const HEART_PER_KILL = 0.05
 
 /**
- * 피해 처리: 주인공이 주는 피해(배율, 숫자, 신위 게이지)와 받는 피해.
+ * 피해 처리: 주인공이 주는 피해(배율, 숫자, 심장 게이지)와 받는 피해.
  * 대상을 쓰러뜨리면 targetKilled, 주인공이 맞으면 heroHurt를 보낸다.
  */
 export class DamageSystem {
@@ -49,7 +49,7 @@ export class DamageSystem {
     return isBig(target) ? 1 + state.stats.bossDamage : 1
   }
 
-  /** 스킬로 적에게 피해를 준다. 배율, 피해 숫자, 신위 게이지를 함께 처리한다. */
+  /** 스킬로 적에게 피해를 준다. 배율, 피해 숫자, 심장 게이지를 함께 처리한다. */
   deal(target: CombatTarget, damage: number, dirX: number, dirZ: number, knockback: number, style: DamageStyle, source: DamageSource = 'other'): void {
     if (!target.alive) return
     const { combat, numbers, build, bus } = this.ctx
@@ -60,7 +60,7 @@ export class DamageSystem {
     if (style === 'thunder') bus.emit('sound', { cue: 'thunder', x: target.x, z: target.z })
     this.scratch.set(target.x, heightAt(target.x, target.z) + target.radius * 3, target.z)
     numbers.show(this.scratch, dealt, style)
-    combat.addDivine(DIVINE_PER_SKILL_HIT + (target.alive ? 0 : DIVINE_PER_KILL))
+    combat.addHeart(HEART_PER_SKILL_HIT + (target.alive ? 0 : HEART_PER_KILL))
   }
 
   /** 기본 공격이 맞았다: 피해 숫자, 유물 연타 연동, 발현 패시브(번개) */
@@ -72,7 +72,7 @@ export class DamageSystem {
       this.scratch.set(x, heightAt(x, z) + radius * 3, z)
       numbers.show(this.scratch, hit.damage, hit.strong ? 'strong' : 'normal')
       if (!hit.target.alive) {
-        combat.addDivine(DIVINE_PER_KILL)
+        combat.addHeart(HEART_PER_KILL)
         bus.emit('targetKilled', { target: hit.target })
       }
     }

@@ -19,8 +19,8 @@ export interface HeroStats {
   knockbackDealt: number
   /** 받는 밀침 배율 (낮을수록 잘 버틴다) */
   knockbackTaken: number
-  /** 신위 게이지 0~1 */
-  divine: number
+  /** 심장 게이지 0~1 (궁극기 충전) */
+  heartGauge: number
   /** 총 승급 횟수 */
   promotions: number
   /** 열린 신화 수 (하나마다 최대 생명) */
@@ -123,8 +123,6 @@ export interface MenuHost {
     make(god: God): boolean
   }
   readonly loadout: LoadoutState
-  /** slot에 id를 끼우면(null이면 비우면) 어떻게 되는지 */
-  preview(slot: number, id: RelicId | null): LoadoutState
   wield(id: RelicId, slot: number): void
   stow(slot: number): void
   drop(slot: number): void

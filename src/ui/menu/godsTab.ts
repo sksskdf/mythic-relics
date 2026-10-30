@@ -5,7 +5,7 @@ import { allLevelGains, lendText, levelGains } from '../../myth/levelGains'
 import { type God, godDef, relicDef } from '../../relics/data'
 import { relicMyth, stageName } from '../../gear/mythRelic'
 import { DEMO_MAX_LEVEL, MAX_LEVEL, PER_LIT } from '../../myth/ClassProgress'
-import { awakenDef } from '../../data/awaken'
+import { wakeDef } from '../../data/wake'
 import { josa } from '../josa'
 import { relicIcon } from '../relicCard'
 import { classIcon } from '../classIcons'
@@ -223,7 +223,7 @@ export class GodsTab {
     if (level === 0) {
       const open = el('div', 'menu-myth__part')
       open.append(el('b', '', '여는 법'))
-      const path = awakenDef(god)
+      const path = wakeDef(god)
       const how = path
         ? `${path.trace.name}에서 흔적을 지키는 것들을 물리치고, 그 땅에서 사냥하고, ${josa(path.guardian.name, '을')} 쓰러뜨리면 깨어난다.`
         : def.hidden

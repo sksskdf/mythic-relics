@@ -5,7 +5,7 @@ import type { ClassProgress } from '../myth/ClassProgress'
 import { OATH_IDS, type OathId, oathRules } from '../data/oaths'
 import type { OathProgress } from '../progress/Oaths'
 import type { TrainingProgress } from '../progress/Training'
-import type { AwakenProgress } from '../progress/Awakening'
+import type { WakeProgress } from '../progress/Wake'
 import type { ExpeditionProgress } from '../progress/Expedition'
 import { isGearUid } from '../gear/roll'
 import type { ClassPassive } from '../data/classKit'
@@ -19,7 +19,7 @@ import { type BuildInputs, type BuildState, computeBuild } from './BuildState'
  * 피해·능력치를 쓰는 곳(Damage, Relics, 정보 화면)은 여기서 값을 읽는다.
  */
 export class Build {
-  constructor(private readonly from: { powers: RelicPowers; progress: ClassProgress; oaths?: OathProgress; oath?: () => OathId | null; training?: TrainingProgress; awaken?: AwakenProgress; expedition?: ExpeditionProgress }) {}
+  constructor(private readonly from: { powers: RelicPowers; progress: ClassProgress; oaths?: OathProgress; oath?: () => OathId | null; training?: TrainingProgress; awaken?: WakeProgress; expedition?: ExpeditionProgress }) {}
 
   /** 지금의 재료 */
   inputs(): BuildInputs {

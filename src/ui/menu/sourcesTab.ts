@@ -8,7 +8,7 @@ import { el, img, type TabContext } from './dom'
 /** 원천 탭의 ? 설명 */
 const SOURCE_HELP = {
   expedition: '원정\n성소 화로에서 원정을 마치면(귀환) 명성이 쌓여 모든 힘이 곱해진다. 기세와 장비는 지워지고 가보만 남는다.',
-  awaken: '원천 각성\n장비마다 붙은 원천 수치를 더한 값이 5·10·20을 넘을 때마다 그 원천이 한 단계씩 깨어난다. 한 원천에 몰면 3단계, 나누면 두 원천이 2단계쯤.',
+  awaken: '원천 각성\n장비마다 붙은 원천 수치를 더한 값이 5·10·20을 넘을 때마다 그 원천이 한 단계씩 각성한다. 한 원천에 몰면 3단계, 나누면 두 원천이 2단계쯤.',
   depth: '깊이\n세계 전체의 난이도. 깊을수록 적이 세지고 정예가 늘며, 장비 등급과 재료가 좋아진다. 귀환 카드에서 다음 원정을 그대로나 한 걸음 더 깊이 고른다.',
   automation: '귀환이 여는 것\n귀환할수록 손이 덜 가는 일이 하나씩 저절로 된다. 엔딩을 봤으면 귀환 3 이상으로 친다. 싸움은 그대로 내 몫이다.',
 }
@@ -60,7 +60,7 @@ export function renderSources(ctx: TabContext, body: HTMLElement): void {
     card.append(amount)
     AWAKENING_TEXT[row.id].forEach((text, i) => card.append(el('div', `menu-src__line${i < row.level ? ' is-on' : ''}`, `${i + 1} · ${text}`)))
     const next = AWAKEN_AT.find((at) => row.total < at)
-    card.append(el('div', 'menu-src__next', next === undefined ? '모두 깨어났다' : `다음 각성까지 ${next - row.total}`))
+    card.append(el('div', 'menu-src__next', next === undefined ? '모두 각성했다' : `다음 각성까지 ${next - row.total}`))
     grid.append(card)
   }
   awaken.append(grid)

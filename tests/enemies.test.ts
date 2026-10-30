@@ -132,7 +132,7 @@ describe('주인공 자동 공격', () => {
     const { combat, dummy, taken, hooks } = setup()
     for (let i = 0; i < 90; i++) combat.update(1 / 60, [dummy], hooks)
     expect(taken.length).toBeGreaterThanOrEqual(2)
-    expect(combat.divine).toBeGreaterThan(0)
+    expect(combat.heartGauge).toBeGreaterThan(0)
   })
 
   it('사거리 밖의 적은 때리지 않는다', () => {

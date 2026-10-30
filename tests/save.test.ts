@@ -6,7 +6,7 @@ import { parseOaths } from '../src/progress/Oaths'
 import { parseEndless } from '../src/progress/Endless'
 import { STEP_TABS } from '../src/progress/Tabs'
 import { parseSave, SAVE_VERSION, type SaveData, saveStorage } from '../src/save/SaveData'
-import { HUNT_KILLS } from '../src/data/awaken'
+import { HUNT_KILLS } from '../src/data/wake'
 import { ChapterProgress } from '../src/progress/Chapters'
 import { godDef } from '../src/relics/data'
 
@@ -23,7 +23,7 @@ const sample: SaveData = {
   stages: {},
   materials: {},
   dropMisses: 3,
-  divine: 0.5,
+  heartGauge: 0.5,
   looks: {
     unlocked: ['adventurerHair', 'adventurerTunic', 'adventurerSleeves', 'adventurerBoots', 'shortSword', 'adventurerHood', 'mjolnirHammer', 'thorCape'],
     choices: { weapon: 'shortSword', cape: null },
@@ -94,7 +94,7 @@ describe('저장 데이터', () => {
     expect(parseSave(JSON.stringify({ ...sample, classes: { ...sample.classes, zeus: { level: 0, xp: 120 } } }))?.classes.zeus).toEqual({ level: 0, xp: 120 })
   })
 
-  it('v13 이하의 신위 칸(주신 + 빌린 신)은 주신을 손·심장·숨 첫 칸으로, 빌린 신을 숨으로 옮긴다', () => {
+  it('v13 이하의 주신·빌린 신 칸은 주신을 손·심장·숨 첫 칸으로, 빌린 신을 숨으로 옮긴다', () => {
     const many = { thor: { level: 2, xp: 0 }, loki: { level: 1, xp: 0 }, odin: { level: 1, xp: 0 } }
     const { pantheon: _, ...rest } = sample
     const v13 = { ...rest, version: 13, classes: many, chosen: ['thor', 'loki', 'odin', 'nobody'] }
@@ -114,7 +114,7 @@ describe('저장 데이터', () => {
         slots: ['mjolnir', 'mjolnir', 'excalibur', null, null, null, null],
         ground: [{ id: 'mjolnir', x: 1, z: 1 }, { id: 'lokiMask', x: 1, z: 'x' }],
         classes: { thor: { level: 9, xp: -5 }, nobody: { level: 2, xp: 0 } },
-        divine: 3,
+        heartGauge: 3,
       }),
     )
     // v15는 칸에 유물을 두지 않는다 (유물표, E303-04)
@@ -122,7 +122,14 @@ describe('저장 데이터', () => {
     expect(data?.lit).toEqual(['mjolnir'])
     expect(data?.ground).toEqual([])
     expect(data?.classes).toEqual({ thor: { level: 4, xp: 0 } })
-    expect(data?.divine).toBe(1)
+    expect(data?.heartGauge).toBe(1)
+  })
+
+  it('심장 게이지 (E305-04 D11): 옛 키 divine(v16 이하와 E305-04 전의 v17 개발판)도 읽고, 새 키가 있으면 그것을', () => {
+    const { heartGauge: _, ...old } = sample
+    expect(parseSave(JSON.stringify({ ...old, divine: 0.3 }))?.heartGauge).toBe(0.3)
+    expect(parseSave(JSON.stringify({ ...old, version: 16, divine: 0.7 }))?.heartGauge).toBe(0.7)
+    expect(parseSave(JSON.stringify({ ...sample, divine: 0.9 }))?.heartGauge).toBe(0.5)
   })
 
   it('외형 보관함: 얻지 않은 외형이나 다른 칸의 외형을 고른 것은 버린다', () => {

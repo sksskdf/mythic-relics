@@ -52,7 +52,7 @@ describe('신의 자리 셋 (E302)', () => {
     expect(pantheonGods(second.next)).toEqual(['thor', 'odin'])
   })
 
-  it('옛 신위 칸은 주신을 손·심장·숨 첫 칸으로, 빌린 신을 숨으로', () => {
+  it('옛 주신·빌린 신 칸은 주신을 손·심장·숨 첫 칸으로, 빌린 신을 숨으로', () => {
     expect(fromChosen([])).toEqual(emptyPantheon())
     expect(fromChosen(['thor', 'loki'])).toEqual({ hand: 'thor', heart: 'thor', breath: ['thor', 'loki'] })
   })

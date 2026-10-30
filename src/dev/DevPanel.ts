@@ -203,7 +203,7 @@ export class DevPanel {
           g.dev.awaken()
           g.menu.refresh()
         }),
-        // 신위 칸 (E237): 북유럽 넷을 열고 빈 빌린 칸을 채운다 (칸 수는 장 진행 그대로)
+        // 신의 자리 (E237 → E302): 북유럽 넷을 열고 빈 빌린 칸을 채운다 (칸 수는 장 진행 그대로)
         button('빌린 칸 채우기', () => {
           g.dev.lend('thor', 'loki', 'odin', 'freyr')
           g.menu.refresh()
@@ -224,7 +224,7 @@ export class DevPanel {
         button('대장간 재료', () => g.dev.fillForge()),
       ),
       row(
-        button('궁극기 충전', () => (g.combat.divine = 1)),
+        button('궁극기 충전', () => (g.combat.heartGauge = 1)),
         button('유물 행동', () => g.dev.fireRelic()),
         button('외형 모두 얻기', () => {
           g.wardrobe.unlock(LOOK_IDS)
@@ -491,7 +491,7 @@ export class DevPanel {
     const cls = god ? `${godDef(god).titles[g.progress.level(god) - 1]} ${g.progress.level(god)}단계` : '신화 개방 없음'
     return [
       `${Math.floor(g.time / 60)}:${String(Math.floor(g.time % 60)).padStart(2, '0')} · (${p.x.toFixed(0)}, ${p.z.toFixed(0)}) · ${g.view.viewHeight.toFixed(0)}m`,
-      `♥${Math.round(g.combat.health.hp)}/${g.combat.health.max} ✦${Math.round(g.combat.divine * 100)}% · ${cls}`,
+      `♥${Math.round(g.combat.health.hp)}/${g.combat.health.max} ✦${Math.round(g.combat.heartGauge * 100)}% · ${cls}`,
       `적 ${g.encounter.alive.length} · 땅 유물 ${g.pickups.list.length} · 성소 ${g.sanctuary.present ? (g.sanctuary.lit ? '빛기둥' : '있음') : '없음'}`,
       `소리 ${g.audio.unlocked ? `${g.audio.voices}개` : '꺼짐(누르면 켜짐)'} · 곡 ${g.audio.theme ?? '없음'}`,
     ].join('\n')

@@ -33,7 +33,7 @@ describe('신화의 유물 (E13-03)', () => {
   })
 
   it('단계 이름: 데이터에 있으면 그것, 없으면 지어 준다', () => {
-    expect([1, 2, 3, 4].map((s) => stageName('mjolnir', s))).toEqual(['묠니르', '각성한 묠니르', '폭풍의 묠니르', '거인을 부수는 묠니르'])
+    expect([1, 2, 3, 4].map((s) => stageName('mjolnir', s))).toEqual(['묠니르', '벼린 묠니르', '폭풍의 묠니르', '거인을 부수는 묠니르'])
     expect(stageName('gungnir', 2)).toContain('궁니르')
   })
 

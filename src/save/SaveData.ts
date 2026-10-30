@@ -14,7 +14,7 @@ import { parseEndless, type EndlessData } from '../progress/Endless'
 import { parseTraining, type TrainingData } from '../progress/Training'
 import { type ExpeditionData, parseExpedition } from '../progress/Expedition'
 import { parseTabs } from '../progress/Tabs'
-import { type AwakenData, parseAwaken } from '../progress/Awakening'
+import { type WakeData, parseWake } from '../progress/Wake'
 import { type BodyLook, parseBody } from '../looks/body'
 import { isLookId, lookDef, type LookSlot, STARTING_LOOKS, WARDROBE_SLOTS } from '../looks/catalog'
 import type { LookChoice } from '../looks/outfit'
@@ -51,6 +51,7 @@ import { legacySlots, legacyStarRenown, migrateLooks, oldChapters, oldThreat, ol
  *   균열의 성좌판을 걷었다(E305-03): rift는 깊이 기록만, 밝힌 별과 남은 별 하나마다 명성 20
  *   위협 단계는 깊이로(E305-03): 키 threat는 그대로 {level, reached, limitBroken}, 열린 단계·신화권마다 이긴 단계는 버린다(v9 이하 옮기기만 `oldThreat`로 읽는다)
  *   편의는 자동화로(E305-03): 키 conveniences는 그대로 {counters:{pickups}}만, 켠 성소(visited)는 새 키 waypoints로. 원정에 지난번 갈래(expedition.lastBranch)
+ *   균열은 끝없는 원정으로(E305-03): 키 rift는 그대로 {best}. 탭 일곱(E305-04): 연 탭의 classes·looks → gods, trials → oaths. 신위 게이지 divine → 심장 게이지 heartGauge (E305-04, 옛 키도 읽는다)
  */
 export const SAVE_VERSION = 17
 
@@ -78,8 +79,8 @@ export interface SaveData {
   pantheon: Pantheon
   /** 불운 보정: 마지막 유물 뒤로 놓친 횟수 */
   dropMisses: number
-  /** 신위 게이지 */
-  divine: number
+  /** 심장 게이지 (궁극기 충전, E305-04 D11: 옛 키 `divine`) */
+  heartGauge: number
   /** 외형 보관함: 얻은 외형과 칸마다 고른 것 ('auto', 외형 id, 비우기 null) */
   looks: { unlocked: string[]; choices: Partial<Record<LookSlot, LookChoice>> }
   /** 처음에 고른 기본 모습. 옛 저장에는 없어서 기본값 */
@@ -105,7 +106,7 @@ export interface SaveData {
   /** 차례로 연 정보 화면 탭 (E236-05) */
   tabs: string[]
   /** 신을 깨우는 진행 (E238): 깨우는 신과 모은 조각 */
-  awaken: AwakenData
+  awaken: WakeData
   /** 지금 있는 지역과 자리 (E7). 옛 저장이거나 모르는 지역이면 null (마을에서 시작) */
   region: { id: string; x: number; z: number } | null
   /** 본 대화 장면 (E12-10). 옛 저장에는 없어서 빈 목록 */
@@ -226,7 +227,7 @@ export function parseSave(text: string | null): SaveData | null {
   // 웨이포인트는 키가 있는지로 옛 모양을 알아본다 (E305-03 전의 v17 개발판도 편의에 담았다)
   const waypoints = Array.isArray(data.waypoints) ? parseWaypoints(data.waypoints) : oldVisited(data.conveniences)
   const chapters = oldDanger ? oldChapters(region, waypoints, oldDanger.cleared, materials, relicsOwned) : parseChapterData(data.chapters)
-  const awaken = openedAwaken(parseAwaken(data.awaken), myths)
+  const awaken = openedAwaken(parseWake(data.awaken), myths)
   return {
     version: SAVE_VERSION,
     slots: slots.slice(0, SLOT_PARTS.length),
@@ -240,7 +241,8 @@ export function parseSave(text: string | null): SaveData | null {
     classes: myths,
     pantheon: (data.version as number) < 14 ? fromChosen(parseChosen(data.chosen, legacySlots(data.slots), myths)) : parsePantheon(data.pantheon, myths, awaken.fragments >= 2 ? awaken.waking : null),
     dropMisses: Math.round(num(data.dropMisses, 0, 1000, 0)),
-    divine: num(data.divine, 0, 1, 0),
+    // 옛 키 divine은 키가 있는지로 알아본다 (v16 이하와 E305-04 전의 v17 개발판)
+    heartGauge: num(data.heartGauge ?? data.divine, 0, 1, 0),
     looks: data.version === 1 ? migrateLooks(legacySlots(data.slots), legacySlots(data.bag) as RelicId[], classes) : parseLooks(data.looks),
     body: parseBody(data.body),
     threat,
@@ -276,7 +278,7 @@ function parseUniques(raw: unknown, owned: readonly GearItem[]): string[] {
 }
 
 /** 깨우는 신이 이미 열린 신이면 (어긋난 저장) 처음으로 */
-function openedAwaken(awaken: AwakenData, classes: SaveData['classes']): AwakenData {
+function openedAwaken(awaken: WakeData, classes: SaveData['classes']): WakeData {
   return awaken.waking && (classes[awaken.waking]?.level ?? 0) >= 1 ? { waking: null, fragments: 0, hunt: 0 } : awaken
 }
 

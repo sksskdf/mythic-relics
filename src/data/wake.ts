@@ -14,7 +14,7 @@ import type { God } from '../relics/data'
 export const TRACE_MODELS = ['charredOak', 'runeRaven', 'boundRock', 'boarMound'] as const
 export type TraceModel = (typeof TRACE_MODELS)[number]
 
-export interface AwakenDef {
+export interface WakeDef {
   /** 흔적: 그 땅·자리·이름·모양 */
   trace: { region: string; x: number; z: number; name: string; model: TraceModel }
   /** 흔적을 지키는 무리 */
@@ -52,7 +52,7 @@ export const GUARDIAN_LEASH = 30
 /** 물러난 수호자의 상처가 아무는 빠르기 (초당 최대 생명의 몫, E239): 물러났다 와도 깎아 둔 생명이 한 번에 차지 않는다 */
 export const GUARDIAN_MEND = 0.01
 
-export const AWAKEN: Readonly<Partial<Record<God, AwakenDef>>> = {
+export const WAKE: Readonly<Partial<Record<God, WakeDef>>> = {
   thor: {
     trace: { region: 'midgard', x: 14, z: 18, name: '벼락 맞은 참나무', model: 'charredOak' },
     pack: [
@@ -106,6 +106,6 @@ export const AWAKEN: Readonly<Partial<Record<God, AwakenDef>>> = {
 }
 
 /** 깨울 수 있는 신들 (데이터에 길이 있는 신) */
-export const AWAKEN_GODS = Object.keys(AWAKEN) as God[]
+export const WAKE_GODS = Object.keys(WAKE) as God[]
 
-export const awakenDef = (god: God): AwakenDef | undefined => AWAKEN[god]
+export const wakeDef = (god: God): WakeDef | undefined => WAKE[god]

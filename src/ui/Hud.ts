@@ -20,8 +20,8 @@ export interface HudSlot {
 export interface HudState {
   /** 생명력 비율 0~1 */
   life: number
-  /** 신위 게이지 비율 0~1 */
-  divine: number
+  /** 심장 게이지 비율 0~1 (궁극기 충전) */
+  heartGauge: number
   /** 보스 생명력 비율 0~1. 보스와 싸우지 않을 때는 null */
   boss: number | null
   /** 보스 막대 위에 보이는 이름 (E12-09). 이름 없는 막대(내기 전설의 처치 수)는 null */
@@ -37,10 +37,8 @@ export interface HudState {
   portrait: { name: string; title: string; color: string; level: number } | null
   /** 원천 수치 (장비의 합 + 원천 숙련)와 각성 단계 0~3 (E14-02). 모두 0이면 감춘다 */
   sources: Readonly<Record<string, { value: number; level: number }>>
-  /** 신위 칸의 빌린 신들 (E237): 초상 옆에 밝게 */
+  /** 숨 칸에 든 신들 (E237 → E302): 초상 옆에 밝게 */
   lent: readonly { name: string; color: string }[]
-  /** 잠든 유물의 신들 (가호, E21-04에서 유물의 힘은 잠든다) */
-  blessings: readonly { name: string; color: string }[]
   /** 원정이 무르익어 성소 화로에서 귀환(승천)할 수 있다 (E305-03: 성소 전설 대신) */
   promote: boolean
 }
@@ -59,7 +57,7 @@ const TITLE_REPLAY_MS = 3000
  * - 지금의 나: 발현한 클래스 초상, 레벨 보석, 걸린 힘 칩(가호, 승급 대기). 누르면 정보 화면의 상태 탭.
  * - 생명: 금속 테 안의 막대(parts.css). 깎인 만큼 밝은 잔상이 잠깐 남았다가 따라 줄어든다.
  * - 유물 칸 4개: 충전은 칸 위를 시계 방향으로 걷어 내는 그늘로, 다 차면 칸이 빛난다.
- * - 궁극기: 마름모 칸. 신위가 차는 만큼 둘레의 금빛 고리가 채워지고, 다 차면 숨 쉬듯 빛난다.
+ * - 궁극기: 마름모 칸. 심장 게이지가 차는 만큼 둘레의 금빛 고리가 채워지고, 다 차면 숨 쉬듯 빛난다.
  * - 경험치: 화면 맨 아래 끝에서 끝까지 이어진 가는 줄 (발현했을 때만).
  * 스킬과 궁극기는 자동으로 나가므로 키 표시가 없고, 글 대신 막대와 그림으로 보여 준다. (텍스트 최소화)
  * 유물 칸에 커서를 올리면 설명 카드가 뜨고, 누르면 유물 화면이 열린다. (E4)
@@ -131,7 +129,7 @@ export class Hud {
       e.stopPropagation()
       this.onPortraitClick()
     })
-    this.tipOn(this.portrait, () => (this.statusTip || '이름 없는 모험가\n한 신의 유물을 모두 끼면 그 신의 힘이 깨어난다.') + '\n누르면 자세한 상태')
+    this.tipOn(this.portrait, () => (this.statusTip || '이름 없는 모험가\n신의 흔적·사냥·수호자, 조각 셋을 모으면 그 신이 깨어난다.') + '\n누르면 자세한 상태')
     this.portraitIcon = document.createElement('img')
     this.portraitIcon.alt = ''
     this.portraitIcon.src = unknownSigil()
@@ -150,7 +148,7 @@ export class Hud {
       count.textContent = '0'
       this.essenceEls.set(id, { cell, count, shown: '0', level: 0 })
     }
-    this.tipOn(essence, '원천\n장비에 붙은 원천 수치의 합. 5·10·20을 넘을 때마다 그 원천이 한 단계씩 각성한다. 처음 각성하면 정보 화면에 원천 탭이 열린다.')
+    this.tipOn(essence, '원천\n장비에 붙은 원천 수치의 합. 5·10·20을 넘을 때마다 그 원천이 한 단계씩 각성한다. 정보 화면의 원천 탭은 첫 귀환에 열린다.')
 
     this.banner = this.el('div', 'hud__banner', this.root)
     this.card = this.el('div', 'hud__card', this.root)
@@ -257,9 +255,9 @@ export class Hud {
       this.xpBar.classList.toggle('is-full', state.promote)
     }
 
-    this.ultimate.style.setProperty('--charge', state.ultimate ? state.divine.toFixed(3) : '0')
+    this.ultimate.style.setProperty('--charge', state.ultimate ? state.heartGauge.toFixed(3) : '0')
     this.ultimate.classList.toggle('is-locked', !state.ultimate)
-    this.ultimate.classList.toggle('is-ready', state.ultimate && state.divine >= 1)
+    this.ultimate.classList.toggle('is-ready', state.ultimate && state.heartGauge >= 1)
 
     this.bossBar.classList.toggle('is-visible', state.boss !== null)
     if (state.boss !== null) {
@@ -277,10 +275,10 @@ export class Hud {
 
   /** 왼쪽 위 지금의 나: 바뀌었을 때만 다시 그린다. */
   private updateStatus(state: HudState): void {
-    const { portrait, lent, blessings, promote } = state
+    const { portrait, lent, promote } = state
     const borrowed = lent.length ? `\n빌린 힘: ${lent.map((b) => b.name).join('·')}` : ''
     this.statusTip = portrait ? `${portrait.title}\n${portrait.name} ${portrait.level}단계${borrowed}${promote ? ' · 성소 화로에서 귀환할 수 있다' : ''}` : ''
-    const key = `${portrait?.name}|${portrait?.level}|${lent.map((b) => b.name).join()}|${blessings.map((b) => b.name).join()}|${promote}`
+    const key = `${portrait?.name}|${portrait?.level}|${lent.map((b) => b.name).join()}|${promote}`
     if (key === this.statusKey) return
     this.statusKey = key
     this.portrait.classList.toggle('is-empty', !portrait)
@@ -291,11 +289,6 @@ export class Hud {
     this.chips.replaceChildren()
     for (const b of lent) {
       const chip = this.el('span', 'ui-chip is-lent', this.chips)
-      chip.style.setProperty('--glow', b.color)
-      chip.append(this.img(classIcon(b.name)))
-    }
-    for (const b of blessings) {
-      const chip = this.el('span', 'ui-chip', this.chips)
       chip.style.setProperty('--glow', b.color)
       chip.append(this.img(classIcon(b.name)))
     }
