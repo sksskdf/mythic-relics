@@ -22,8 +22,10 @@ export const BODY_KINDS = ['giant', 'beast', 'humanoid', 'flyer', 'spirit', 'ser
 export type BodyKind = (typeof BODY_KINDS)[number]
 /** 손에 든 것 */
 export const BODY_GEAR = ['club', 'rock', 'shield', 'staff', 'spear', 'sword', 'bow', 'none'] as const
-/** 머리 장식 */
-export const BODY_HEADS = ['plain', 'horns', 'crown', 'beak', 'skull', 'hood', 'oneEye', 'bull'] as const
+/**
+ * 머리 장식. E241: 뱀 머리 무더기(티폰, 거인), 위로 휜 엄니와 등 갈기(칼리돈의 멧돼지, 짐승), 지느러미와 넓은 턱(케토스, 뱀)
+ */
+export const BODY_HEADS = ['plain', 'horns', 'crown', 'beak', 'skull', 'hood', 'oneEye', 'bull', 'serpents', 'tusks', 'fins'] as const
 
 export interface BodySpec {
   kind: BodyKind
@@ -35,6 +37,8 @@ export interface BodySpec {
   eye: number
   gear: (typeof BODY_GEAR)[number]
   head: (typeof BODY_HEADS)[number]
+  /** 머리 수 (E241, 기본 1): 짐승은 곁머리(케르베로스 셋), 뱀은 양옆으로 든 머리(오로치·요르문간드 셋) */
+  heads: number
 }
 
 /** 던진 것이 날아가는 모양 */
@@ -170,9 +174,15 @@ function parseArea(raw: unknown, path: string): AttackArea {
   }
 }
 
+/** 머리 수처럼 셈하는 값은 자연수여야 한다 */
+function whole(n: number, path: string): number {
+  if (!Number.isInteger(n)) throw new DataError(path, '자연수여야 합니다')
+  return n
+}
+
 function parseBody(raw: unknown, path: string): BodySpec {
   const o = obj(raw, path)
-  onlyKeys(o, path, ['kind', 'main', 'shade', 'dark', 'accent', 'eye', 'gear', 'head'])
+  onlyKeys(o, path, ['kind', 'main', 'shade', 'dark', 'accent', 'eye', 'gear', 'head', 'heads'])
   const hex = (key: string) => parseInt(color(o, key, path).slice(1), 16)
   return {
     kind: oneOf(o, 'kind', path, BODY_KINDS),
@@ -183,6 +193,7 @@ function parseBody(raw: unknown, path: string): BodySpec {
     eye: hex('eye'),
     gear: o.gear === undefined ? 'none' : oneOf(o, 'gear', path, BODY_GEAR),
     head: o.head === undefined ? 'plain' : oneOf(o, 'head', path, BODY_HEADS),
+    heads: o.heads === undefined ? 1 : whole(num(o, 'heads', path, { min: 1, max: 9 }), `${path}.heads`),
   }
 }
 

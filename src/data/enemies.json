@@ -1501,7 +1501,8 @@
       "dark": "#2a2236",
       "accent": "#c84a4a",
       "eye": "#ffe070",
-      "head": "horns"
+      "head": "horns",
+      "heads": 3
     },
     "attacks": [
       {
@@ -1676,7 +1677,8 @@
       "dark": "#1e3a38",
       "accent": "#c8e0a0",
       "eye": "#f0ff8a",
-      "head": "horns"
+      "head": "horns",
+      "heads": 3
     },
     "attacks": [
       {
@@ -2036,21 +2038,358 @@
     "leashRange": 40
   },
   "typhon": {
-    "extends": "surtr",
     "name": "티폰",
     "realm": "greek",
-    "minion": "harpy",
-    "hp": 800,
+    "role": "guardian",
     "xp": 170,
+    "voxelSize": 0.22,
+    "radius": 1.9,
+    "hp": 800,
+    "speed": 2.3,
+    "aggroRange": 16,
+    "leashRange": 30,
+    "returnRegen": 0.005,
+    "superArmor": true,
+    "minion": "harpy",
     "body": {
       "kind": "giant",
-      "main": "#4a5a6a",
-      "shade": "#3a4858",
-      "dark": "#1e2632",
-      "accent": "#9ad8ff",
-      "eye": "#e8f4ff",
+      "main": "#56695c",
+      "shade": "#435448",
+      "dark": "#222c26",
+      "accent": "#3a4636",
+      "eye": "#ffb040",
       "gear": "none",
-      "head": "horns"
-    }
+      "head": "serpents"
+    },
+    "attacks": [
+      {
+        "name": "bite",
+        "windup": 0.9,
+        "recover": 0.8,
+        "damage": 15,
+        "knockback": 10,
+        "area": {
+          "kind": "sector",
+          "range": 6.5,
+          "halfAngleDeg": 75
+        },
+        "reach": 6,
+        "cooldown": 2.6
+      },
+      {
+        "name": "cast",
+        "windup": 1,
+        "recover": 0.8,
+        "damage": 14,
+        "knockback": 8,
+        "area": {
+          "kind": "circle",
+          "radius": 3.2
+        },
+        "reach": 18,
+        "cooldown": 4.5,
+        "projectile": {
+          "speed": 12,
+          "look": "wind"
+        }
+      },
+      {
+        "name": "throw",
+        "windup": 1.1,
+        "recover": 0.9,
+        "damage": 16,
+        "knockback": 8,
+        "area": {
+          "kind": "circle",
+          "radius": 2.8
+        },
+        "reach": 16,
+        "cooldown": 5.5,
+        "projectile": {
+          "speed": 10,
+          "look": "fire"
+        }
+      },
+      {
+        "name": "charge",
+        "windup": 1.1,
+        "recover": 1.1,
+        "damage": 18,
+        "knockback": 12,
+        "area": {
+          "kind": "line",
+          "length": 12,
+          "width": 2.6
+        },
+        "reach": 12,
+        "cooldown": 6
+      },
+      {
+        "name": "roar",
+        "windup": 1,
+        "recover": 1.2,
+        "damage": 14,
+        "knockback": 10,
+        "area": {
+          "kind": "ring",
+          "speed": 9,
+          "startRadius": 3.6,
+          "maxRadius": 13,
+          "width": 1.2
+        },
+        "reach": 30,
+        "cooldown": 16
+      }
+    ]
+  },
+  "ketos": {
+    "name": "케토스",
+    "realm": "greek",
+    "role": "guardian",
+    "xp": 160,
+    "voxelSize": 0.22,
+    "radius": 1.9,
+    "hp": 700,
+    "speed": 2.6,
+    "aggroRange": 16,
+    "leashRange": 30,
+    "returnRegen": 0.005,
+    "superArmor": true,
+    "body": {
+      "kind": "serpent",
+      "main": "#2e4e6a",
+      "shade": "#d8e4e6",
+      "dark": "#142636",
+      "accent": "#5f93b0",
+      "eye": "#ffe070",
+      "head": "fins"
+    },
+    "attacks": [
+      {
+        "name": "bite",
+        "windup": 0.8,
+        "recover": 0.7,
+        "damage": 12,
+        "knockback": 8,
+        "area": {
+          "kind": "sector",
+          "range": 5,
+          "halfAngleDeg": 55
+        },
+        "reach": 4.5,
+        "cooldown": 2.2
+      },
+      {
+        "name": "cast",
+        "windup": 0.9,
+        "recover": 0.7,
+        "damage": 10,
+        "knockback": 6,
+        "area": {
+          "kind": "circle",
+          "radius": 3.4
+        },
+        "reach": 16,
+        "cooldown": 3.6,
+        "projectile": {
+          "speed": 11,
+          "look": "water"
+        }
+      },
+      {
+        "name": "charge",
+        "windup": 1,
+        "recover": 1,
+        "damage": 16,
+        "knockback": 12,
+        "area": {
+          "kind": "line",
+          "length": 12,
+          "width": 2.6
+        },
+        "reach": 12,
+        "cooldown": 5.5
+      },
+      {
+        "name": "sweep",
+        "windup": 1.1,
+        "recover": 1,
+        "damage": 15,
+        "knockback": 16,
+        "area": {
+          "kind": "sector",
+          "range": 6.5,
+          "halfAngleDeg": 110
+        },
+        "reach": 6,
+        "cooldown": 6.5
+      }
+    ]
+  },
+  "cerberus": {
+    "name": "케르베로스",
+    "realm": "greek",
+    "role": "guardian",
+    "xp": 160,
+    "voxelSize": 0.22,
+    "radius": 1.6,
+    "hp": 450,
+    "speed": 4.2,
+    "aggroRange": 16,
+    "leashRange": 30,
+    "returnRegen": 0.005,
+    "superArmor": true,
+    "minion": "spartoi",
+    "body": {
+      "kind": "beast",
+      "main": "#3a2c40",
+      "shade": "#2c2132",
+      "dark": "#150e18",
+      "accent": "#5e3a62",
+      "eye": "#ff7a2a",
+      "heads": 3
+    },
+    "attacks": [
+      {
+        "name": "bite",
+        "windup": 0.75,
+        "recover": 0.6,
+        "damage": 12,
+        "knockback": 8,
+        "area": {
+          "kind": "sector",
+          "range": 4.4,
+          "halfAngleDeg": 80
+        },
+        "reach": 4,
+        "cooldown": 1.8
+      },
+      {
+        "name": "cast",
+        "windup": 1,
+        "recover": 0.8,
+        "damage": 14,
+        "knockback": 6,
+        "area": {
+          "kind": "circle",
+          "radius": 3
+        },
+        "reach": 14,
+        "cooldown": 4.5,
+        "projectile": {
+          "speed": 11,
+          "look": "fire"
+        }
+      },
+      {
+        "name": "charge",
+        "windup": 0.9,
+        "recover": 0.9,
+        "damage": 15,
+        "knockback": 12,
+        "area": {
+          "kind": "line",
+          "length": 13,
+          "width": 2.4
+        },
+        "reach": 12,
+        "cooldown": 5
+      },
+      {
+        "name": "slam",
+        "windup": 1,
+        "recover": 1,
+        "damage": 16,
+        "knockback": 10,
+        "area": {
+          "kind": "circle",
+          "radius": 3.2
+        },
+        "reach": 9,
+        "cooldown": 6.5
+      },
+      {
+        "name": "roar",
+        "windup": 1,
+        "recover": 1.2,
+        "damage": 12,
+        "knockback": 10,
+        "area": {
+          "kind": "ring",
+          "speed": 9,
+          "startRadius": 3.6,
+          "maxRadius": 13,
+          "width": 1.2
+        },
+        "reach": 30,
+        "cooldown": 16
+      }
+    ]
+  },
+  "calydonianBoar": {
+    "name": "칼리돈의 멧돼지",
+    "realm": "greek",
+    "role": "guardian",
+    "xp": 150,
+    "voxelSize": 0.22,
+    "radius": 1.6,
+    "hp": 650,
+    "speed": 4.5,
+    "aggroRange": 16,
+    "leashRange": 30,
+    "returnRegen": 0.005,
+    "superArmor": true,
+    "body": {
+      "kind": "beast",
+      "main": "#6a4a32",
+      "shade": "#55392a",
+      "dark": "#2e2018",
+      "accent": "#8a5c3a",
+      "eye": "#ffb040",
+      "head": "tusks"
+    },
+    "attacks": [
+      {
+        "name": "bite",
+        "windup": 0.8,
+        "recover": 0.7,
+        "damage": 15,
+        "knockback": 18,
+        "area": {
+          "kind": "sector",
+          "range": 4.2,
+          "halfAngleDeg": 35
+        },
+        "reach": 3.8,
+        "cooldown": 2.2
+      },
+      {
+        "name": "charge",
+        "windup": 1,
+        "recover": 1.2,
+        "damage": 18,
+        "knockback": 14,
+        "area": {
+          "kind": "line",
+          "length": 16,
+          "width": 2.4
+        },
+        "reach": 15,
+        "cooldown": 3.5
+      },
+      {
+        "name": "slam",
+        "windup": 0.9,
+        "recover": 0.9,
+        "damage": 13,
+        "knockback": 10,
+        "area": {
+          "kind": "circle",
+          "radius": 3
+        },
+        "reach": 7,
+        "cooldown": 5
+      }
+    ]
   }
 }

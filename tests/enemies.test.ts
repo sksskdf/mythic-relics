@@ -243,6 +243,41 @@ describe('적 데이터 규칙 (E8-01)', () => {
     }
   })
 
+  it('외침(충격파)이 있는 적은 부를 졸개를 적어 둔다: 없으면 어느 땅에서든 북유럽 서리 거인을 부른다', () => {
+    for (const e of ALL) if (e.attacks.some((a) => a.area.kind === 'ring')) expect(e.minion, e.id).toBeDefined()
+  })
+
+  it('수호자마다 모습 서명(몸·머리·머리 수·든 것)이 다르다 (E241): 티폰은 수르트, 케토스는 요르문간드와 겹치지 않는다', () => {
+    const guardians = ALL.filter((e) => e.role === 'guardian')
+    const sign = (e: (typeof ALL)[number]) => [e.body.kind, e.body.head, e.body.heads, e.body.gear].join('·')
+    expect(new Set(guardians.map(sign)).size).toBe(guardians.length)
+    expect(spec('typhon').body.head).toBe('serpents')
+    expect(spec('ketos').body.head).toBe('fins')
+    expect(spec('cerberus').body.heads).toBe(3)
+    expect(spec('calydonianBoar').body.head).toBe('tusks')
+    // 머리가 여럿인 뱀은 데이터에 적는다 (E241 전에는 역할로 정했다)
+    expect(spec('orochi').body.heads).toBe(3)
+    expect(spec('jormungandr').body.heads).toBe(3)
+    expect(spec('seaSerpent').body.heads).toBe(1)
+  })
+
+  it('그리스 수호자 넷은 물러서지 않고, 공격 범위가 셋 넘게 다르다 (E241): 거리 두는 적은 싸움을 줄 끝으로 끌고 간다', () => {
+    const greek = ['typhon', 'ketos', 'cerberus', 'calydonianBoar'].map(spec)
+    for (const e of greek) {
+      expect(e.realm, e.id).toBe('greek')
+      expect(e.role, e.id).toBe('guardian')
+      expect(e.keepAway, e.id).toBeUndefined()
+      expect(new Set(e.attacks.map((a) => a.area.kind)).size, e.id).toBeGreaterThanOrEqual(3)
+    }
+    // 티폰은 수르트를 이어받지 않는다: 쓸기·내려찍기 대신 물기·폭풍(바람)·불 바위·똬리 돌진
+    expect(spec('typhon').attacks.map((a) => a.name)).not.toEqual(spec('surtr').attacks.map((a) => a.name))
+    expect(spec('typhon').attacks.some((a) => a.projectile?.look === 'wind')).toBe(true)
+    expect(spec('typhon').attacks.some((a) => a.area.kind === 'line')).toBe(true)
+    // 칼리돈의 멧돼지의 표지는 길고 잦은 돌진
+    const charge = spec('calydonianBoar').attacks.find((a) => a.area.kind === 'line')!
+    expect(charge.area.kind === 'line' && charge.area.length).toBeGreaterThanOrEqual(16)
+  })
+
   it('모든 적의 모델을 만들 수 있고 몸 종류가 모양에 드러난다', () => {
     for (const e of ALL) {
       const rig = buildEnemyRig(e, 3)

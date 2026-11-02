@@ -71,9 +71,13 @@ describe('신을 깨우는 길 데이터 (E238)', () => {
     expect(kinds('odin')).toContain('summon')
     expect(guardianSpec('loki')!.keepAway).toBeGreaterThan(6)
     expect(guardianSpec('freyr')!.body.gear).toBe('sword')
-    // 임시 티폰 (E305-03, E241이 바꾼다): 수르트의 싸우는 방식을 이어받은 그리스 수호자
-    expect(guardianSpec('zeus')!.attacks.map((a) => a.name)).toEqual(guardianSpec('freyr')!.attacks.map((a) => a.name))
-    expect(guardianSpec('hades')).toBeNull()
+    // 티폰 (E241): 수르트를 이어받지 않은 제 모습과 싸우는 방식. 폭풍(바람)을 던지고 똬리로 돌진하며, 외침으로 그리스 졸개를 부른다
+    const typhon = guardianSpec('zeus')!
+    expect(typhon.attacks.map((a) => a.name)).not.toEqual(guardianSpec('freyr')!.attacks.map((a) => a.name))
+    expect(typhon.attacks.some((a) => a.projectile?.look === 'wind')).toBe(true)
+    expect(typhon.attacks.some((a) => a.area.kind === 'line')).toBe(true)
+    expect(ENEMIES[typhon.minion!]?.realm).toBe('greek')
+    expect(guardianSpec('wukong')).toBeNull()
   })
 
   it('조각 2로 받는 유물은 그 신의 유물이고, 그때부터 칸에 들지 않아도 깨어난다', () => {
