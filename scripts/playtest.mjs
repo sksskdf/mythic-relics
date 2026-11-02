@@ -6,6 +6,7 @@
 //   귀환 카드에서 「+1」을 골라 깊이 N에 이를 때까지 깊이마다 시간·쓰러짐·피격을 잰다 (E305-03, 옛 --threat). --depth-at=N 이면 귀환 없이 깊이 N에 고정해 제한 시간 동안 잰다.
 // --depth·--endless는 엔딩 뒤 장치라, 시작할 때 엔딩 뒤로 넘긴다 (E21-06).
 // --ending 을 붙이면 장 흐름을 따라 엔딩까지 가고, 장마다 들어선 시각을 잰다 (E22-06).
+// 판마다 처치가 끊긴 가장 긴 구간(killGap: 첫 신 뒤, 유물을 끼고 시작하면 처음부터)과 그 땅을 남긴다 (E241). --gate면 그 구간이 STALL초를 넘는 순간 그 판을 멈추고 실패로 친다.
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { chromium } from 'playwright-core'
@@ -39,6 +40,8 @@ const RELIC_IDS = Object.keys(JSON.parse(readFileSync(new globalThis.URL('../src
 /** --region=midgard 처럼 붙이면 그 지역에서 시작해 떠나지 않는다 (신화 비교를 같은 땅에서) */
 const REGION = process.argv.find((a) => a.startsWith('--region='))?.slice(9) ?? null
 const PORT = 4183
+/** --gate에서 처치 없이 이만큼(초) 지나면 멈춘 판으로 치고 끝낸다 (E241: 35분 제한까지 기다리지 않고 몇 분 만에 드러나게) */
+const STALL = 300
 const URL = (RELICS ? `http://localhost:${PORT}/?relics=${RELICS}&autoplay` : `http://localhost:${PORT}/?fresh&autoplay`) + (REGION ? `&region=${REGION}` : '')
 const BROWSER = process.env.CHROMIUM_PATH ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'
 
@@ -61,6 +64,22 @@ async function waitForServer() {
 
 // 초를 먼저 반올림해야 7:60 같은 표시가 나오지 않는다.
 const fmt = (t) => (t === undefined ? '-' : `${Math.floor(Math.round(t) / 60)}:${String(Math.round(t) % 60).padStart(2, '0')}`)
+
+/** 처치 기록 (보스 포함) */
+const isKill = (e) => e.type === 'kill' || e.type === 'bossKill'
+
+/**
+ * 처치가 끊긴 가장 긴 구간 (E241): from(초) 뒤의 처치와 처치 사이, 마지막 처치에서 end까지.
+ * 구간이 시작한 때(at)와 그때 있던 땅(region)을 함께 돌려준다
+ */
+function killGap(log, from, end) {
+  if (from === undefined) return null
+  const marks = [from, ...log.filter((e) => isKill(e) && e.t >= from).map((e) => e.t), end]
+  let best = { seconds: 0, at: from }
+  for (let i = 1; i < marks.length; i++) if (marks[i] - marks[i - 1] > best.seconds) best = { seconds: marks[i] - marks[i - 1], at: marks[i - 1] }
+  const region = log.filter((e) => e.type === 'region' && e.t <= best.at).at(-1)?.detail ?? REGION ?? null
+  return { seconds: Math.round(best.seconds), at: Math.round(best.at), region }
+}
 
 const results = []
 try {
@@ -121,9 +140,13 @@ try {
           })
         }, STACK)
       if (REGION) await page.evaluate(() => (window.__autoplay.stay = true))
+      // 유물을 끼고(또는 엔딩 뒤 빌드로) 시작하는 판은 처음부터 처치가 끊긴 때를 잰다
+      if (RELICS || DEPTH || DEPTH_AT || ENDLESS) await page.evaluate(() => (window.__killFrom = 0))
       // 처음부터 하는 판은 장 흐름의 목표를 따라간다 (E22-06)
       if (!REGION && !RELICS && !DEPTH && !DEPTH_AT && !ENDLESS) await page.evaluate(() => (window.__autoplay.chapters = true))
       let done = false
+      let stalled = false
+      let endTime = 0
       while (!done) {
         const state = await page.evaluate(() => {
           const bot = window.__autoplay
@@ -131,9 +154,16 @@ try {
           // 맹세 봇: 걸린 맹세가 없으면 아직 못 지킨 것을 건다 (출발 카드를 기다리지 않고)
           if (bot.oaths && !g.expedition.oath && bot.oathsLeft()) g.oathSystem.swear(g.oathSystem.available().find((id) => !g.oaths.has(id)))
           bot.run(30)
-          return { t: g.time, promoted: g.progress.promotions >= 1, reached: g.depth.reached, oathsLeft: bot.oathsLeft(), depth: window.__game.endless.best, ending: g.ending.reached }
+          // 처치가 끊긴 때를 재는 기준: 첫 신(유물을 끼고 시작하면 처음), 마지막 처치
+          const events = g.log
+          const from = window.__killFrom ?? events.find((e) => e.type === 'manifest' || e.type === 'open')?.t
+          const lastKill = events.findLast((e) => e.type === 'kill' || e.type === 'bossKill')?.t
+          return { t: g.time, from, lastKill, promoted: g.progress.promotions >= 1, reached: g.depth.reached, oathsLeft: bot.oathsLeft(), depth: window.__game.endless.best, ending: g.ending.reached }
         })
-        done = (ENDING ? state.ending : ENDLESS ? state.depth >= 10 : OATHS ? !state.oathsLeft : RELICS || DEPTH_AT > 0 ? false : DEPTH > 0 ? state.reached >= DEPTH : state.promoted) || state.t > LIMIT_MIN * 60
+        endTime = state.t
+        // 멈춘 판 (E241): 첫 신 뒤 처치 없이 STALL초가 지났으면 끝낸다
+        stalled = GATE && state.from !== undefined && state.t - Math.max(state.from, state.lastKill ?? 0) > STALL
+        done = (ENDING ? state.ending : ENDLESS ? state.depth >= 10 : OATHS ? !state.oathsLeft : RELICS || DEPTH_AT > 0 ? false : DEPTH > 0 ? state.reached >= DEPTH : state.promoted) || state.t > LIMIT_MIN * 60 || stalled
       }
       const depths = await page.evaluate(() => [...window.__autoplay.depths])
       // 끝났을 때 봇이 어디서 무엇을 하고 있었나 (멈춤을 찾을 때)
@@ -174,6 +204,15 @@ try {
           return to > from ? Math.round((kills / ((to - from) / 60)) * 10) / 10 : 0
         })(),
         deaths: count('death'),
+        // 처치가 끊긴 가장 긴 구간 (E241), --gate에서 STALL초를 넘겨 멈춘 판인가
+        killGap: killGap(log, RELICS || DEPTH || DEPTH_AT || ENDLESS ? 0 : (first('manifest') ?? first('open')), endTime),
+        stalled,
+        // 봇이 처치 없이 오래 싸워 그 적을 잠시 피한 횟수 (E241 멈춤 끊기)
+        stallBreaks: await page.evaluate(() => window.__autoplay.stallBreaks),
+        // 탈것 (E241): 얻은 때, 올라탄 횟수, 고개에 처음 들어선 때
+        mount: first('mount'),
+        rides: count('ride'),
+        pass: first('region', 'pass'),
         hurt: count('hurt'),
         damageTaken: log.filter((e) => e.type === 'hurt').reduce((s, e) => s + Number(e.detail), 0),
         end: log.at(-1)?.t,
@@ -206,6 +245,8 @@ try {
         `#${run} 2단계 ${fmt(result.promote)} | 첫 신화 ${fmt(result.manifest)} | 신화 둘 ${fmt(result.opened[1]?.t)} (연 신화 ${result.opened.length}: ${result.opened.map((o) => o.god).join(', ')}) | 거인 왕 ${fmt(result.bossKill)} | 장비 ${result.gear}, 첫 제작 ${fmt(result.forged[0]?.t)}${result.forged[0] ? ` (${result.forged[0].what})` : ''} | ` +
           `유물 ${Object.entries(result.relics).map(([k, v]) => `${k} ${fmt(v)}`).join(', ')} | ` +
           `처치 ${result.kills}(첫 신화 뒤 분당 ${result.killRate}), 쓰러짐 ${result.deaths}, 피격 ${result.hurt}` +
+          ` | 처치 끊김 ${result.killGap ? `${result.killGap.seconds}초(${fmt(result.killGap.at)} ${result.killGap.region})` : '-'}${stalled ? ' 멈춤' : ''}, 멈춤 끊기 ${result.stallBreaks}` +
+          (ENDING ? ` | 고개 ${fmt(result.pass)} · 탈것 ${fmt(result.mount)} · 탄 횟수 ${result.rides}` : '') +
           (ENDING ? ` | 조각 ${result.fragments.map((f) => `${f.what} ${fmt(f.t)}`).join(', ')}` : '') +
           (ENDING ? ` | 장 ${result.chapters.map((c) => `${c.id} ${fmt(c.t)}`).join(' → ')} | 엔딩 ${fmt(result.ending)} | 단계 ${result.levels.map((l) => fmt(l.t)).join(', ')} | 제작 ${result.forged.map((f) => `${f.what} ${fmt(f.t)}`).join(', ')}` : '') +
           (ENDLESS ? ` | 끝없는 원정 ${result.endlessFloors.map((f) => `${f.depth}층 ${fmt(f.t)}`).join(', ')} | ${result.endless.filter((x) => !x.startsWith('floor')).join(', ')}` : '') +
@@ -236,11 +277,11 @@ try {
 }
 
 if (GATE) {
-  const failed = results.filter((r) => (ENDING ? r.ending === undefined : r.promote === undefined) || r.errors.length > 0)
+  const failed = results.filter((r) => (ENDING ? r.ending === undefined : r.promote === undefined) || r.errors.length > 0 || r.stalled)
   if (failed.length > 0) {
-    console.error(`봇 검증 실패: ${failed.length}판이 ${LIMIT_MIN}분 안에 승급하지 못했거나 오류가 났습니다.`)
+    console.error(`봇 검증 실패: ${failed.length}판이 ${LIMIT_MIN}분 안에 승급하지 못했거나, 처치 없이 ${STALL}초가 지났거나, 오류가 났습니다.`)
     // CI 기록만으로도 원인을 볼 수 있게 끝난 자리와 살아 있는 적을 남긴다
-    for (const r of failed) console.error(`#${r.run} 끝: ${JSON.stringify({ step: r.last?.step, region: r.last?.region, at: [r.last?.x, r.last?.z], moving: r.last?.moving, foes: r.last?.foes })}`)
+    for (const r of failed) console.error(`#${r.run} 끝: ${JSON.stringify({ step: r.last?.step, region: r.last?.region, at: [r.last?.x, r.last?.z], moving: r.last?.moving, killGap: r.killGap, foes: r.last?.foes })}`)
     process.exit(1)
   }
   console.log('봇 검증 통과')
