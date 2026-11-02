@@ -305,7 +305,7 @@ describe('저장 v13: 신을 깨우는 조각 (E238)', () => {
   it('옛 저장(v12)·깨우는 길이 없는 신·이미 연 신이면 깨우는 신 없이', () => {
     const empty = { waking: null, fragments: 0, hunt: 0 }
     expect(parseSave(JSON.stringify({ ...sample, version: 12, awaken: undefined }))?.awaken).toEqual(empty)
-    expect(parseSave(JSON.stringify({ ...sample, awaken: { waking: 'hades', fragments: 1, hunt: 2 } }))?.awaken).toEqual(empty)
+    expect(parseSave(JSON.stringify({ ...sample, awaken: { waking: 'wukong', fragments: 1, hunt: 2 } }))?.awaken).toEqual(empty)
     expect(parseSave(JSON.stringify({ ...sample, awaken: { waking: 'thor', fragments: 1, hunt: 2 } }))?.awaken).toEqual(empty)
   })
 })

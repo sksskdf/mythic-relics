@@ -226,8 +226,12 @@ export class GodsTab {
       const open = el('div', 'menu-myth__part')
       open.append(el('b', '', '여는 법'))
       const path = wakeDef(god)
+      const steps = `흔적을 지키는 것들을 물리치고, 그 땅에서 사냥하고, ${josa(path?.guardian.name ?? '', '을')} 쓰러뜨리면 깨어난다.`
+      // 데모의 그리스 셋 (E241): 흔적은 서 있되 엔딩 뒤에 응답한다
       const how = path
-        ? `${path.trace.name}에서 흔적을 지키는 것들을 물리치고, 그 땅에서 사냥하고, ${josa(path.guardian.name, '을')} 쓰러뜨리면 깨어난다.`
+        ? path.afterEnding && !this.ctx.host.afterEnding('realms')
+          ? `엔딩 뒤에 ${josa(path.trace.name, '이')} 응답한다. ${steps}`
+          : `${path.trace.name}에서 ${steps}`
         : def.hidden
           ? '숨겨진 신화. 엔딩 뒤 이 신의 유물을 모두 모으면 열린다.'
           : `엔딩 뒤 ${def.name}의 유물을 손에 넣으면 열린다.`
