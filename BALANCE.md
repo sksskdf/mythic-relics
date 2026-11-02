@@ -13,6 +13,8 @@
 | 유물 (지속 효과, 행동 연동 효과) | `src/data/relics.json` |
 | 신·클래스 (칭호, 원천, 발현 패시브) | `src/data/gods.json` |
 | 적 (생명력, 공격, 경험치, 확정 드랍) | `src/data/enemies.json` |
+| 적의 줄 되돌림 이력·물러서기 줄 (E241) | `src/enemies/Giant.ts`의 `LEASH_REENGAGE`·`BACKOFF_LEASH_MARGIN` |
+| 탈것 (E241) | `src/data/mount.ts` |
 | 기본 공격 3연타 | `src/combat/combo.ts` |
 | 주인공 생명력·회복·심장 게이지 | `src/game/PlayerCombat.ts`, `src/game/systems/Damage.ts`, `src/game/systems/Progression.ts` |
 | 경험치 곡선 (수련 깨달음 문턱 `INSIGHT_COST`, E305-03부터 처치 경험치는 수련에만) | `src/data/training.ts` |
@@ -199,6 +201,8 @@ E17까지 검·창·지팡이를 여러 신화가 같이 썼다. E18에서 아�
 | 신시 | 불가사리 | 앞을 막는다(피해 ×0.35). 돌진이나 내려꽂기 뒤 옆·뒤로 돌아 친다. 도깨비불을 부른다 |
 
 - 제자리에서 너무 멀어지면(졸개 24m, 보스 30m) 돌아갑니다. 돌아가는 동안 졸개는 초당 50%, 보스는 초당 2%씩 회복합니다.
+- 돌아가기 시작한 적은 제자리에서 줄의 3/4(졸개 18m, 보스·수호자 22.5m) 안으로 들어온 뒤에만 다시 쫓습니다. 그 밖에서는 맞아도 계속 돌아갑니다(E241, `LEASH_REENGAGE` 0.75, `src/enemies/Giant.ts`). 줄 끝에서 돌아가기와 쫓기를 프레임마다 오가며 싸우는 중에도 초당 50%씩 차던 것을 막습니다.
+- 거리 두는 적(`keepAway`)은 제자리에서 (줄 − 3)m(졸개 21m)까지만 물러섭니다(E241, `BACKOFF_LEASH_MARGIN`). 그 너머에서는 그 자리에서 쏘고 부릅니다.
 - 거인 왕은 묠니르가 아직 없으면 반드시 떨어뜨립니다(`fixedDrop`, 북유럽 땅에서만). 지역 보스는 그다음 그 땅 신들의 대표 유물(신마다 첫 유물) 가운데 없는 것을 반드시 떨어뜨립니다 (E7-06).
 - 보스는 알아채는 거리 15m, 제자리에서 30m 넘게 쫓아오지 않습니다(E7에서 60 → 30).
 
