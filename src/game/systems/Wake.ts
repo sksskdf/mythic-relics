@@ -127,6 +127,11 @@ export class WakeSystem {
     return this.pack !== null
   }
 
+  /** 흔적을 지키는 무리 (봇: 조각 1은 무리를 다 잡아야 하니 멈춤 끊기에서도 피하지 않는다, E241) */
+  get guards(): readonly Giant[] {
+    return this.pack?.giants ?? []
+  }
+
   /** 수호자 자리 (작은 지도) */
   get lairSpot(): Point2 | null {
     return this.lair ? { x: this.lair.x, z: this.lair.z } : null

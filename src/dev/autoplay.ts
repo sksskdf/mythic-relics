@@ -2,7 +2,7 @@ import { SAMPLE_ORDER } from '../data/training'
 import type { Giant, GiantDanger } from '../enemies/Giant'
 import type { Game } from '../game/Game'
 import { angleDiff, angleTo, inLine } from '../combat/arc'
-import { nextHop } from '../data/regions'
+import { nextHop, PASSES } from '../data/regions'
 import { regionLinks } from '../data/world'
 import { OATHS } from '../data/oaths'
 import { forgeReady, missing, nextRecipe } from '../gear/forge'
@@ -18,7 +18,15 @@ const THINK = 0.25
 const MARGIN = 0.7
 /** 피하거나 물러날 때 출구에서 이만큼은 떨어진다 */
 const EXIT_CLEAR = 3.5
-/** 싸울 상대가 없을 때 돌아다니는 길 (사람이 적을 찾아 맵을 둘러보는 것처럼) */
+/** 대상 붙잡기 (E241): 지금 대상이 가장 가까운 적보다 이만큼(m) 넘게 멀어지기 전에는 바꾸지 않는다 (둘 사이를 지그재그로 오가지 않게) */
+const KEEP_TARGET = 3
+/** 멈춤 끊기 (E241): 처치 없이 이만큼(초) 싸우면(피하기·물러나기 포함) 지금 대상(목표 적이 아니면)을 STALL_SHUN초 피하고 가장 먼 무리로 간다 */
+const STALL_BREAK = 60
+const STALL_SHUN = 30
+/** 멈춤 끊기로 가장 먼 무리로 가는 길은 이만큼(초)까지만 (닿지 못하면 다시 싸운다) */
+const STALL_ROAM = 20
+/** 싸우는 생각 단계: 예고 피하기·기다리기·물러나기·쉬기·목표가 아닌 적과 싸우기 (멈춤 끊기가 처치 없이 싸운 시간을 잰다) */
+const FIGHT_STEPS = new Set([2, 3, 4, 5, 99])
 
 /**
  * 자동 플레이 검증용 봇.
@@ -48,6 +56,15 @@ export class Autoplayer {
   chapters = false
   /** 마지막 생각이 끝난 단계 (멈춤을 찾을 때) */
   step = 0
+  /** 붙잡은 싸움 상대 (E241) */
+  private engaged: Giant | null = null
+  /** 멈춤 끊기 (E241): 피하는 적과 피하기를 끝낼 게임 시각, 마지막 처치 뒤 싸운 시간(초), 읽은 기록 수, 가장 먼 무리로 가는 길 */
+  private readonly shunned = new Map<Giant, number>()
+  private fightClock = 0
+  private logSeen = 0
+  private roam: { to: Point2; until: number; region: string } | null = null
+  /** 멈춤 끊기를 한 횟수 (점검용) */
+  stallBreaks = 0
 
   constructor(private readonly game: Game) {}
 
@@ -59,6 +76,7 @@ export class Autoplayer {
       if (this.thinkTimer <= 0) {
         this.thinkTimer = THINK
         this.think()
+        if (FIGHT_STEPS.has(this.step)) this.fightClock += THINK
       }
       this.game.advance(step, step)
     }
@@ -90,7 +108,8 @@ export class Autoplayer {
   /** 가야 할 필드 (E7): 장 목표의 땅, 벼릴 재료가 차면 마을, 한 신만 쓰면 그 신의 땅, 아니면 지금 필드(마을이면 미드가르드) */
   private wantRegion(): string {
     const { powers, region, regions } = this.game
-    const fieldOf = (god: God) => Object.values(regions).find((r) => r.realm === godDef(god).realm && r.zone === 'entrance')?.id
+    // 그 신화권의 입구 들판 (들판 사이 길목인 고개는 빼고, E241)
+    const fieldOf = (god: God) => Object.values(regions).find((r) => r.realm === godDef(god).realm && r.zone === 'entrance' && !PASSES.has(r.id))?.id
     const manifested = powers.manifested
     if (this.chapters) {
       const goal = this.chapterRegion()
@@ -143,11 +162,14 @@ export class Autoplayer {
         ? { x: link.dir > 0 ? r.maxX - 0.5 : r.minX + 0.5, z: (r.minZ + r.maxZ) / 2 }
         : { x: (r.minX + r.maxX) / 2, z: link.dir > 0 ? r.maxZ - 0.5 : r.minZ + 0.5 }
     if (!hero.isMoving || dist(hero.goal ?? across, across) > 1) hero.moveTo(across)
+    // 먼 걸음이면 탈것에 오른다 (E241: 사람이 멀리 누르는 것과 같다)
+    this.game.orders.tryRide()
     return true
   }
 
   private think(): void {
     const { hero, combat, encounter, pickups, sanctuary, progress, powers } = this.game
+    this.noteKills()
     if (!combat.alive) return void (this.step = 1)
     const p = hero.object.position
     const here = { x: p.x, z: p.z }
@@ -253,6 +275,7 @@ export class Autoplayer {
     // 사냥은 그 땅에서 싸우면 찬다). 멀면 둘레의 적을 달고서라도 가고, 가까우면 둘레가 빌 때 간다
     if (wake && (toWake || (hp > 0.75 && near.length === 0))) {
       if (dist(here, wake) > 1.5 && (!hero.isMoving || dist(hero.goal ?? here, wake) > 1)) hero.moveTo(wake)
+      this.game.orders.tryRide()
       this.step = 17
       return
     }
@@ -288,7 +311,10 @@ export class Autoplayer {
         this.game.hideCards()
         this.game.expeditionSystem.returnNow(ids.find((id) => id === `ascend:${hand}`) ?? ids.find((id) => id.startsWith('ascend:')) ?? 'flame:flame', deeper)
         if (deeper !== undefined && depth.level === deeper) this.depths.push(this.game.time)
-      } else if (dist(here, sanctuary.center) > 1.2 && (!hero.isMoving || dist(hero.goal ?? here, sanctuary.center) > 1)) hero.moveTo(sanctuary.center)
+      } else {
+        if (dist(here, sanctuary.center) > 1.2 && (!hero.isMoving || dist(hero.goal ?? here, sanctuary.center) > 1)) hero.moveTo(sanctuary.center)
+        this.game.orders.tryRide()
+      }
       this.step = 16
       return
     }
@@ -321,15 +347,33 @@ export class Autoplayer {
     })
     // 거인 왕 둘레의 무리밖에 남지 않았으면 생명력이 넉넉할 때 그 졸개들과 싸운다 (빈 진지만 맴돌지 않게)
     if (candidates.length === 0 && hp > 0.6) candidates = enemies.filter((g) => g !== boss)
-    const target = nearest(candidates, here)
+    // 멈춤 끊기 (E241): 피하는 중인 적은 고르지 않는다 (목표 적은 늘 고른다)
+    const goalFoes = this.goalFoes(bossGoal)
+    candidates = candidates.filter((g) => goalFoes.has(g) || (this.shunned.get(g) ?? 0) <= t)
+    // 가장 먼 무리로 가는 중이면 (목표 적이 둘레에 없는 동안) 걷는다. 걷는 동안은 싸우지 않으니 쫓아오는 적은 거기서 맞는다
+    if (this.roam && (t > this.roam.until || this.roam.region !== this.game.region.id || dist(here, this.roam.to) < 3 || candidates.some((g) => goalFoes.has(g)))) this.roam = null
+    if (this.roam) {
+      if (!hero.isMoving || dist(hero.goal ?? here, this.roam.to) > 1) hero.moveTo(this.roam.to)
+      this.game.orders.tryRide()
+      this.step = 21
+      return
+    }
+    const target = this.pickTarget(candidates, here)
+    // 처치 없이 오래 싸우면 (멀리서 맴도는 적·줄 끝에서 돌아가는 적에 붙들림) 그 적을 잠시 피하고 가장 먼 무리로 간다
+    if (target && this.stalled(target, goalFoes)) {
+      for (const [giant, until] of this.shunned) if (until <= t || !giant.alive) this.shunned.delete(giant)
+      this.shunned.set(target, t + STALL_SHUN)
+      this.fightClock = 0
+      this.engaged = null
+      this.stallBreaks += 1
+      const far = this.farthestCamp(here)
+      if (far) this.roam = { to: far, until: t + STALL_ROAM, region: this.game.region.id }
+      this.step = 20
+      return
+    }
     if (!target) {
       // 적이 없으면 무리 자리 근처를 돌며 다시 나타나기를 기다린다 (너무 붙으면 무리가 다시 나타나지 않는다)
-      const spawn = this.game.region.spawn
-      const patrol = encounter.spots.camps.map((c) => {
-        const len = dist(c, spawn) || 1
-        const k = Math.min(1, 11 / len)
-        return { x: c.x + (spawn.x - c.x) * k, z: c.z + (spawn.z - c.z) * k }
-      })
+      const patrol = this.patrolPoints()
       if (patrol.length === 0) return void (this.step = 9)
       const point = patrol[this.patrol % patrol.length]!
       if (dist(here, point) < 2) this.patrol += 1
@@ -339,6 +383,61 @@ export class Autoplayer {
     }
     this.step = 99
     this.engage(here, target)
+  }
+
+  /** 처치 기록을 읽어 처치가 있었으면 싸운 시간을 0으로 (E241, 지난번에 읽은 뒤부터만) */
+  private noteKills(): void {
+    const log = this.game.log
+    for (; this.logSeen < log.length; this.logSeen++) {
+      const type = log[this.logSeen]!.type
+      if (type === 'kill' || type === 'bossKill') this.fightClock = 0
+    }
+  }
+
+  /** 멈춤 끊기에서도 피하지 않는 적 (E241): 흔적을 지키는 무리·수호자·목표인 보스. 끝없는 원정에서는 층의 적 모두 */
+  private goalFoes(bossGoal: boolean): Set<Giant> {
+    const { awakening, encounter } = this.game
+    if (this.endless) return new Set(encounter.alive)
+    const out = new Set<Giant>(awakening.guards)
+    if (awakening.fighting) out.add(awakening.fighting)
+    if (bossGoal && encounter.boss) out.add(encounter.boss)
+    return out
+  }
+
+  /**
+   * 싸울 상대 (E241 대상 붙잡기): 지금 대상이 살아 있고 후보이고 집으로 돌아가는 중이 아니며
+   * 가장 가까운 적보다 KEEP_TARGET m 넘게 멀지 않으면 그대로, 아니면 가장 가까운 적
+   */
+  private pickTarget(candidates: Giant[], here: Point2): Giant | null {
+    const closest = nearest(candidates, here)
+    const kept = this.engaged
+    const keep = kept !== null && kept.alive && kept.state !== 'return' && candidates.includes(kept) && closest !== null && dist(kept, here) <= dist(closest, here) + KEEP_TARGET
+    this.engaged = keep ? kept : closest
+    return this.engaged
+  }
+
+  /** 처치 없이 STALL_BREAK초 싸웠고, 그 적이 목표 적·보스·수호자가 아니고, 갈 무리가 있다 (마을 시험장에서는 끊지 않는다) */
+  private stalled(target: Giant, goalFoes: Set<Giant>): boolean {
+    if (this.fightClock <= STALL_BREAK) return false
+    if (goalFoes.has(target) || target.spec.role === 'boss' || target.spec.role === 'guardian') return false
+    return this.game.encounter.spots.camps.length > 0
+  }
+
+  /** 무리 자리마다 시작점 쪽으로 11m 당긴 자리 (너무 붙으면 무리가 다시 나타나지 않는다) */
+  private patrolPoints(): Point2[] {
+    const spawn = this.game.region.spawn
+    return this.game.encounter.spots.camps.map((c) => {
+      const len = dist(c, spawn) || 1
+      const k = Math.min(1, 11 / len)
+      return { x: c.x + (spawn.x - c.x) * k, z: c.z + (spawn.z - c.z) * k }
+    })
+  }
+
+  /** 가장 먼 무리 자리 (멈춤 끊기) */
+  private farthestCamp(here: Point2): Point2 | null {
+    let best: Point2 | null = null
+    for (const point of this.patrolPoints()) if (!best || dist(point, here) > dist(best, here)) best = point
+    return best
   }
 
   /** 신 깨우기 목표에서 걸어갈 자리 (지금 땅의 흔적, 수호자가 아직 안 나온 수호자 자리). 장 흐름을 따르지 않거나 사냥이면 null */
@@ -353,9 +452,11 @@ export class Autoplayer {
     return awakening.placed(target)
   }
 
-  /** 사거리 안까지 다가가 멈춘다. 멈추면 기본 공격이 자동으로 나간다. */
+  /** 사거리 안까지 다가가 멈춘다. 멈추면 기본 공격이 자동으로 나간다. 탄 채면 내린다 (E241: 적을 누르는 것과 같다) */
   private engage(here: Point2, target: Giant): void {
-    const { hero } = this.game
+    const { hero, orders } = this.game
+    hero.riding = false
+    orders.wantRide = false
     const d = dist(here, target)
     const reach = 2 + target.radius
     if (d <= reach - 0.3) {

@@ -1,4 +1,4 @@
-import { type PropKind, type RegionDef, REGIONS, type Spot } from '../data/regions'
+import { PASSES, type PropKind, type RegionDef, REGIONS, type Spot } from '../data/regions'
 import { createRng } from './rng'
 
 /**
@@ -20,9 +20,6 @@ export interface EndlessFloor {
 
 /** 종말 보스 (E17-06): 끝없는 원정 10층마다의 문지기 */
 export const DOOM_BOSS = 'utgardKing'
-
-/** 들판 사이 길목 (E241): 층의 얼굴로 쓰지 않는다 (씨앗을 고정한 층 모습과 신화권 적 목록이 그대로이게) */
-const PASSES: ReadonlySet<string> = new Set(['pass'])
 
 const fields = () => Object.values(REGIONS).filter((r) => r.kind === 'field' && !PASSES.has(r.id))
 
