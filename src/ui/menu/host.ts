@@ -31,6 +31,8 @@ export interface HeroStats {
   layers: { name: string; text: string }[]
   /** 지금 걸린 힘: 발현, 가호, 낀 유물의 지속 효과 */
   powers: { kind: 'god' | 'relic'; name: string; color: string; label: string; what: string }[]
+  /** 탈것 (E241): 얻었으면 탄 동안의 빠르기 배율, 아니면 null */
+  mount: number | null
 }
 
 /** 맹세 탭이 게임에서 읽는 것 (E305-01) */

@@ -7,15 +7,17 @@ export interface Shovable extends Point2 {
   shove(dirX: number, dirZ: number, speed: number): boolean
 }
 
-/** 밀어내는 속도 (m/s). 주인공 걷는 속도(6)보다 빨라야 길이 열린다. */
+/** 밀어내는 속도 (m/s). 주인공 걷는 속도(6)보다 빨라야 길이 열린다. 탄 채 달리면(E241) 주인공 빠르기의 1.5배 */
 const SHOVE_SPEED = 9
 
 /**
  * 적을 무시하고 걷는 주인공이 졸개 무리를 밀고 지나간다.
  * 주인공 몸에 겹친 적을 진행 방향의 옆쪽(겹친 쪽 바깥)으로 밀어낸다.
+ * heroSpeed: 주인공이 지금 나아가는 빠르기 (m/s). 밀어내는 속도가 이보다 넉넉히 빨라야 길이 열린다
  * @returns 이번에 밀어낸 적 수
  */
-export function plowThrough(hero: Point2, heroRadius: number, heading: Point2, enemies: readonly Shovable[]): number {
+export function plowThrough(hero: Point2, heroRadius: number, heading: Point2, enemies: readonly Shovable[], heroSpeed = 0): number {
+  const speed = Math.max(SHOVE_SPEED, heroSpeed * 1.5)
   let shoved = 0
   const len = Math.hypot(heading.x, heading.z) || 1
   const hx = heading.x / len
@@ -36,7 +38,7 @@ export function plowThrough(hero: Point2, heroRadius: number, heading: Point2, e
       px = hz * s * 0.8 + hx * 0.2
       pz = -hx * s * 0.8 + hz * 0.2
     }
-    if (enemy.shove(px, pz, SHOVE_SPEED)) shoved += 1
+    if (enemy.shove(px, pz, speed)) shoved += 1
   }
   return shoved
 }

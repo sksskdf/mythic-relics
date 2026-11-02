@@ -611,6 +611,107 @@ try {
   if (!(await page.evaluate(() => window.__game.powers.loadout.has('mjolnir')))) throw new Error('처음 화면에서 슬롯을 골랐는데 유물이 없습니다.')
   console.log('처음 화면 확인: 정보 화면에서 처음 화면으로, 슬롯을 골라 그대로 이어 감')
 
+  // 탈것 (E241): 고개지기의 산양. 멀리(15m 넘게) 누르면 올라타 1.8배로 달리고, 탄 동안은 싸우지 않으며, 적을 누르거나 멈추면 내린다
+  const rode = await page.evaluate(() => {
+    const g = window.__game
+    g.enterRegion(g.regions.midgard)
+    g.encounter.clearAll()
+    if (!g.combat.alive) g.dev.revive()
+    g.dev.mount(false)
+    g.advance(3.2, 1 / 30)
+    const home = { x: g.hero.object.position.x, z: g.hero.object.position.z }
+    const nav = g.hero.nav
+    // 시작점에서 dist m 떨어진, 곧장 보이는 걸을 수 있는 땅
+    const ahead = (dist) => {
+      for (let i = 0; i < 32; i++) {
+        const a = (i / 32) * Math.PI * 2
+        const to = { x: home.x + Math.sin(a) * dist, z: home.z + Math.cos(a) * dist }
+        if (!nav.isBlocked(to) && nav.hasLineOfSight(home, to)) return to
+      }
+      return null
+    }
+    const from = (to) => {
+      g.orders.clear()
+      g.dev.teleport(home.x, home.z)
+      g.orders.press(to, null)
+      return g.hero.riding
+    }
+    // frames 프레임 동안 실제로 걸은 길이
+    const walked = (frames) => {
+      let sum = 0
+      for (let i = 0; i < frames; i++) {
+        const { x, z } = g.hero.object.position
+        g.advance(1 / 30, 1 / 30)
+        sum += Math.hypot(g.hero.object.position.x - x, g.hero.object.position.z - z)
+      }
+      return sum
+    }
+    const far = ahead(20)
+    const near = ahead(10)
+    if (!far || !near) return { error: '시작점 둘레에 곧장 보이는 땅이 없습니다' }
+    const unowned = from(far)
+    g.dev.mount()
+    const nearRide = from(near)
+    const walk = walked(12)
+    const ride = from(far)
+    const run = walked(12)
+    const goat = g.mountSystem.showing
+    // 길 옆(1.6m)에 멈춰 둔 졸개를 지나는 동안 휘두르지 않고, 대상도 없고, 유물도 맞히지 않는다
+    const len = Math.hypot(far.x - home.x, far.z - home.z)
+    const dir = { x: (far.x - home.x) / len, z: (far.z - home.z) / len }
+    const foe = g.encounter.spawnGrunt(home.x + dir.x * 8 - dir.z * 1.6, home.z + dir.z * 8 + dir.x * 1.6)
+    foe.update = () => {}
+    const hp = foe.health.hp
+    from(far)
+    let swung = false
+    let targeted = false
+    for (let i = 0; i < 40 && g.hero.riding; i++) {
+      g.advance(1 / 30, 1 / 30)
+      swung ||= g.combat.combo.swinging
+      targeted ||= g.combat.target !== null
+    }
+    const passed = { swung, targeted, hurt: foe.health.hp < hp }
+    // 탄 채 그 졸개를 누르면 내려서 치러 간다
+    from(far)
+    g.advance(0.2, 1 / 30)
+    g.orders.press(null, foe)
+    const attack = { riding: g.hero.riding, target: g.orders.attackTarget === foe }
+    g.encounter.clearAll()
+    // 멈추면 2프레임 안에 내리고 산양이 숨는다
+    from(far)
+    g.hero.stop()
+    g.advance(2 / 30, 1 / 30)
+    const stopped = { riding: g.hero.riding, goat: g.mountSystem.showing }
+    // 맞은 직후에는 멀리 눌러도 걸어서 빠져나간다 (싸우는 중)
+    g.combat.takeHit(1, home.x, home.z + 1, 0)
+    const hurt = from(far)
+    g.advance(3.2, 1 / 30)
+    // 탄 채 통로를 넘어 이웃 땅(마을, 남쪽 통로)으로 가도 계속 탄다. 통로를 따라 그 너머를 누른다
+    const exit = g.region.exits.find((e) => e.to === 'village')
+    g.orders.clear()
+    const gate = nav.nearestFree({ x: exit.x, z: exit.z - 12 }) ?? { x: exit.x, z: exit.z - 12 }
+    g.dev.teleport(gate.x, gate.z)
+    g.orders.press({ x: exit.x, z: exit.z + 40 }, null)
+    const crossRide = g.hero.riding
+    for (let i = 0; i < 150 && g.region.id === 'midgard'; i++) g.advance(1 / 30, 1 / 30)
+    const crossed = { region: g.region.id, riding: g.hero.riding, rode: crossRide }
+    g.dev.mount(false)
+    g.orders.clear()
+    g.hero.stop()
+    return { unowned, nearRide, walk, ride, goat, run, passed, attack, stopped, hurt, crossed }
+  })
+  if (rode.error) throw new Error(`탈것: ${rode.error}`)
+  if (rode.unowned) throw new Error(`탈것: 산양을 얻기 전인데 멀리 누르면 올라탑니다 ${JSON.stringify(rode)}`)
+  if (!rode.ride || !rode.goat) throw new Error(`탈것: 20m 밖을 눌렀는데 올라타지 않거나 산양이 보이지 않습니다 ${JSON.stringify(rode)}`)
+  if (rode.nearRide) throw new Error(`탈것: 10m를 눌렀는데 올라탑니다 ${JSON.stringify(rode)}`)
+  if (!(rode.run >= rode.walk * 1.6)) throw new Error(`탈것: 탄 채 같은 프레임에 간 거리가 걸을 때의 1.6배가 안 됩니다 ${JSON.stringify(rode)}`)
+  if (rode.passed.swung || rode.passed.targeted || rode.passed.hurt) throw new Error(`탈것: 탄 채 졸개 곁을 지나며 싸웁니다 ${JSON.stringify(rode.passed)}`)
+  if (rode.attack.riding || !rode.attack.target) throw new Error(`탈것: 탄 채 적을 눌렀는데 내려서 치러 가지 않습니다 ${JSON.stringify(rode.attack)}`)
+  if (rode.stopped.riding || rode.stopped.goat) throw new Error(`탈것: 멈췄는데 내리지 않거나 산양이 남아 있습니다 ${JSON.stringify(rode.stopped)}`)
+  if (rode.hurt) throw new Error(`탈것: 맞은 직후인데 멀리 누르면 올라탑니다 ${JSON.stringify(rode)}`)
+  if (!rode.crossed.rode || rode.crossed.region !== 'village' || !rode.crossed.riding) throw new Error(`탈것: 탄 채 통로를 넘으면 내리거나 넘어가지 않습니다 ${JSON.stringify(rode.crossed)}`)
+  console.log(`탈것 확인: 얻기 전엔 걷고, 20m 밖을 누르면 산양에 올라 0.4초에 ${rode.run.toFixed(1)}m(걸으면 ${rode.walk.toFixed(1)}m), 10m·맞은 직후는 걸음, 졸개 곁을 지나도 싸우지 않고, 적을 누르거나 멈추면 내림, 탄 채 통로를 넘어 마을로`)
+
   // 맹세 (E305-01): 귀환 2에 다시 떠날 때 출발 카드에서 건다. 건 동안 제약이 돌고, 그 원정에서 수호자·장 보스를 이기면 지킨다
   await page.evaluate(() => {
     const g = window.__game
@@ -957,6 +1058,33 @@ try {
   await phoneFrames(2)
   const p2 = await phoneState()
   if (p2.stick || p2.moving) throw new Error(`휴대폰: 손을 떼도 멈추지 않습니다 ${JSON.stringify(p2)}`)
+  // 탈것 (E241): 버튼 없이 같은 조이스틱으로. 짧게 끌면 걷고, 원 밖으로 멀리(반지름의 1.6배 넘게) 끌면 산양에 올라타며, 떼면 멈춰 내린다
+  await phone.evaluate(() => {
+    const g = window.__game
+    g.encounter.clearAll()
+    g.dev.mount()
+  })
+  const mounted = () => phone.evaluate(() => ({ riding: window.__game.hero.riding, moving: window.__game.hero.isMoving, far: document.querySelector('.stick').classList.contains('is-far'), stick: !document.querySelector('.stick').hidden }))
+  await finger('pointerdown', 1, 195, 650)
+  for (const y of [640, 625, 610]) {
+    await finger('pointermove', 1, 195, y)
+    await phoneFrames(1)
+  }
+  await phoneFrames(6)
+  const m1 = await mounted()
+  if (!m1.moving || m1.riding || m1.far) throw new Error(`휴대폰 탈것: 40px 끌었는데 걷지 않거나 올라탑니다 ${JSON.stringify(m1)}`)
+  for (const y of [590, 565, 540]) {
+    await finger('pointermove', 1, 195, y)
+    await phoneFrames(1)
+  }
+  await phoneFrames(6)
+  const m2 = await mounted()
+  if (!m2.riding || !m2.far || !m2.moving) throw new Error(`휴대폰 탈것: 110px 끌었는데 올라타지 않습니다 ${JSON.stringify(m2)}`)
+  await finger('pointerup', 1, 195, 540)
+  await phoneFrames(2)
+  const m3 = await mounted()
+  if (m3.riding || m3.moving || m3.stick) throw new Error(`휴대폰 탈것: 손을 뗐는데 내리지 않거나 조이스틱이 남아 있습니다 ${JSON.stringify(m3)}`)
+  await phone.evaluate(() => window.__game.dev.mount(false))
   // 땅 톡: 조이스틱으로 걸은 거리가 프레임 빠르기마다 달라 정한 화면 자리는 나무·막힌 땅일 수 있다.
   // 주인공에게서 4m 떨어진 걸을 수 있고 곧장 보이는 땅을 골라 그 화면 자리를 누른다 (근처 적을 누른 것이 되지 않게 적은 치운다)
   await phone.evaluate(() => window.__game.encounter.clearAll())
@@ -1031,7 +1159,7 @@ try {
     throw new Error('휴대폰: 다시 세로로 들어도 안내가 남아 있습니다.')
   })
   await phone.close()
-  console.log(`휴대폰 확인: 세로 화면 가로 ${p0.across.toFixed(1)}m, 끌기 → 조이스틱으로 걷기, 떼면 멈춤, 톡 → 그곳까지·적이면 공격, 두 손가락 ${p3.view.toFixed(0)}m → ${p4.view.toFixed(0)}m, 가로로 들면 안내와 멈춤`)
+  console.log(`휴대폰 확인: 세로 화면 가로 ${p0.across.toFixed(1)}m, 끌기 → 조이스틱으로 걷기, 떼면 멈춤, 멀리 끌면 산양에 올라타고 떼면 내림, 톡 → 그곳까지·적이면 공격, 두 손가락 ${p3.view.toFixed(0)}m → ${p4.view.toFixed(0)}m, 가로로 들면 안내와 멈춤`)
   await browser.close()
 
   if (errors.length) {

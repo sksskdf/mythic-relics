@@ -50,6 +50,7 @@ const sample: SaveData = {
   expedition: { count: 2, renown: 20, flames: { stone: 1 }, best: [900], elapsed: 30, bosses: 0, deepest: 1, lastTaken: ['awaken'], bestXp: 1200, heirloom: [], oath: 'silence', oathPending: false, lastBranch: 'ascend:thor', deepWin: true },
   tabs: ['relics', 'training'],
   awaken: { waking: 'odin', fragments: 1, hunt: 7 },
+  mount: true,
   region: { id: 'olympus', x: 3.5, z: -12 },
   scenes: ['opening'],
 }
@@ -59,7 +60,7 @@ const sample: SaveData = {
  * 원정 기록은 v16부터, 건 맹세·출발 카드·지난번 갈래·깊이 한계 보스는 v17부터라 뺀다
  */
 function asOld(data: SaveData, version: number): Record<string, unknown> {
-  const { depth, automation, endless, oaths: _oaths, expedition, waypoints, heartGauge, ...rest } = data
+  const { depth, automation, endless, oaths: _oaths, expedition, waypoints, heartGauge, mount: _mount, ...rest } = data
   const { oath: _oath, oathPending: _pending, lastBranch: _branch, deepWin: _deep, ...v16 } = expedition
   return {
     ...rest,
@@ -318,6 +319,7 @@ describe('그리스 장의 옛 저장 (E305-03: 성소의 신화 고르기 → �
       awakened: (realm) => opened.filter((g) => godDef(g).realm === realm).length,
       forged: () => 1,
       returns: () => data.expedition.count - 1,
+      mounted: () => data.mount,
     })
     chapters.load(data.chapters)
     return chapters
@@ -501,8 +503,10 @@ describe('저장 v17: 맹세·깊이·자동화·끝없는 원정 (E305)', () =>
     expect(estimateExpeditions({ entered: ['midgard', 'jotunheim'], bosses: [] }, norse(1), 1)).toBe(1)
     // 둘째 신을 깨웠다(귀환 1 뒤의 할 일): 귀환 1은 지나왔다
     expect(estimateExpeditions({ entered: ['midgard', 'jotunheim'], bosses: [] }, norse(2), 1)).toBe(2)
-    // 그리스 장 들머리: 델포이의 귀환 2는 아직 앞에 있다 (CYCLE의 「1 + 보스 + ⌊신 ÷ 2⌋ = 3」이면 제우스 목표를 건너뛴다)
-    expect(estimateExpeditions({ entered: ['midgard', 'jotunheim', 'utgard', 'olympus'], bosses: ['utgard'] }, norse(2), 1)).toBe(2)
+    // 거인 왕을 이겼다: 고개 성소의 귀환 2는 아직 앞에 있다 (E241)
+    expect(estimateExpeditions({ entered: ['midgard', 'jotunheim', 'utgard'], bosses: ['utgard'] }, norse(2), 1)).toBe(2)
+    // 올림포스에 들어섰다(고개가 생기기 전의 저장): 고개의 귀환 2는 그 앞의 할 일이라 지나왔다. 제우스 목표는 그대로 남는다 (E241)
+    expect(estimateExpeditions({ entered: ['midgard', 'jotunheim', 'utgard', 'olympus'], bosses: ['utgard'] }, norse(2), 1)).toBe(3)
     // 리키아에 닿았다: 귀환 2도 지나왔다
     expect(estimateExpeditions({ entered: ['midgard', 'jotunheim', 'utgard', 'olympus', 'delphi', 'lycia'], bosses: ['utgard'] }, norse(2), 1)).toBe(3)
     // v16부터는 적힌 그대로
@@ -623,8 +627,8 @@ const SAMPLES: { name: string; raw: Record<string, unknown>; awakened: string[];
     awakened: ['odin', 'thor', 'zeus'],
     chapters: { entered: ['village', 'midgard', 'ironwood', 'jotunheim', 'utgard', 'olympus', 'delphi'], bosses: ['utgard'] },
     waypoints: ['midgard', 'jotunheim', 'utgard', 'olympus', 'delphi'],
-    // 델포이까지 왔으니 다음은 그 성소의 귀환 (북유럽의 귀환 1은 지나와서 원정 2, 한 번 남음)
-    goal: 'greek:return:delphi',
+    // 델포이까지 왔으니 다음은 리키아 (고개의 귀환 2는 올림포스에 들어서며 지나와 원정 3, E241)
+    goal: 'greek:enter:lycia',
   },
   {
     name: 'v15 엔딩 뒤: 위협 단계·시련 셋·자동 줍기',
@@ -666,6 +670,7 @@ describe('저장 v17: 실제 모양의 옛 저장 견본 (v1·v9·v12·v13·v15�
       awakened: (realm) => Object.entries(data.classes).filter(([g, r]) => (r?.level ?? 0) >= 1 && godDef(g).realm === realm).length,
       forged: () => Object.values(data.stages).filter((n) => (n ?? 1) >= 2).length,
       returns: () => data.expedition.count - 1,
+      mounted: () => data.mount,
     }, () => data.ending)
     chapters.load(data.chapters)
     return chapters
@@ -703,14 +708,27 @@ describe('저장 v17: 실제 모양의 옛 저장 견본 (v1·v9·v12·v13·v15�
     })
   }
 
-  it('그리스 장 한가운데 v15 저장: 지나온 북유럽의 귀환 1은 찼고(원정 2), 델포이의 귀환 2만 새 순환대로 한 번 남는다', () => {
+  it('그리스 장 한가운데 v15 저장 (고개가 생기기 전): 올림포스에 들어섰으니 고개의 귀환 2까지 지나왔고(원정 3), 탈것도 얻은 것으로 친다 (E241)', () => {
     const data = parseSave(JSON.stringify(SAMPLES[4]!.raw))!
-    expect(data.expedition.count).toBe(2)
+    expect(data.expedition.count).toBe(3)
     expect(data.expedition.renown).toBe(0)
+    expect(data.mount).toBe(true)
     const chapters = progressOf(data)
-    expect(chapters.isOpen('lycia')).toBe(false)
-    data.expedition.count += 1
-    expect(progressOf(data).isOpen('lycia')).toBe(true)
+    expect(chapters.isOpen('pass')).toBe(true)
+    expect(chapters.isOpen('lycia')).toBe(true)
+  })
+
+  it('탈것 (E241): 키가 있으면 그대로, 없으면 고개나 그리스 땅에 들어선 적이 있을 때만 얻은 것으로', () => {
+    expect(parseSave(JSON.stringify({ ...sample, mount: false }))?.mount).toBe(false)
+    expect(parseSave(JSON.stringify({ ...sample, mount: 'yes' }))?.mount).toBe(false)
+    const { mount: _, ...noKey } = sample
+    const at = (entered: string[]) => parseSave(JSON.stringify({ ...noKey, chapters: { entered, bosses: [] } }))?.mount
+    expect(at(['village', 'midgard', 'jotunheim', 'utgard'])).toBe(false)
+    expect(at(['village', 'midgard', 'pass'])).toBe(true)
+    expect(at(['village', 'midgard', 'olympus'])).toBe(true)
+    // 옛 견본: 요툰헤임까지는 없고, 올림포스에 들어선 판은 있다
+    expect(parseSave(JSON.stringify(SAMPLES[2]!.raw))?.mount).toBe(false)
+    expect(parseSave(JSON.stringify(SAMPLES[3]!.raw))?.mount).toBe(true)
   })
 
   it('엔딩 뒤 저장: 깊이·가 본 곳·자동 줍기가 남고, 시련은 맹세로, 연 탭은 신 탭으로', () => {

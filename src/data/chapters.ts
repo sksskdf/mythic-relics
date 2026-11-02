@@ -5,10 +5,14 @@
  */
 import { DataError, list, num, type Obj, obj, oneOf, onlyKeys, str, table } from './check'
 import raw from './chapters.json'
+import { KEEPER } from './mount'
 import { REGIONS } from './regions'
 
-/** 할 일의 종류: 땅에 들어섬, 그 신화권 신을 깨움, 땅의 보스를 이김, 유물을 벼림, 귀환 (신화 고르기·신화 단계는 E305-03에서 없앰) */
-export const STEP_KINDS = ['enter', 'awaken', 'boss', 'forge', 'return'] as const
+/**
+ * 할 일의 종류: 땅에 들어섬, 그 신화권 신을 깨움, 땅의 보스를 이김, 유물을 벼림, 귀환, 탈것을 얻음(E241: 그 땅의 고개지기를 만남).
+ * 신화 고르기·신화 단계는 E305-03에서 없앰
+ */
+export const STEP_KINDS = ['enter', 'awaken', 'boss', 'forge', 'return', 'mount'] as const
 export type StepKind = (typeof STEP_KINDS)[number]
 
 /**
@@ -91,6 +95,7 @@ export function parseChapters(rawChapters: unknown, regions = REGIONS, path = 'c
       if (kind === 'return' && !region.sanctuary) throw new DataError(`${sp}.region`, `귀환은 성소 화로에서 합니다 ("${regionId}")`)
       if (kind === 'boss' && !region.boss) throw new DataError(`${sp}.region`, `보스가 없는 땅입니다 ("${regionId}")`)
       if (kind === 'forge' && region.kind !== 'hub') throw new DataError(`${sp}.region`, '유물은 마을 대장간에서 벼립니다')
+      if (kind === 'mount' && !region.npcs.some((n) => n.name === KEEPER)) throw new DataError(`${sp}.region`, `탈것은 ${KEEPER}에게서 얻습니다 (그 땅의 npcs에 없음, "${regionId}")`)
       return step
     })
     out.push({ id, title: str(o, 'title', p), name: str(o, 'name', p), tier, lands, steps })

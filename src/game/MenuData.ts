@@ -8,6 +8,7 @@ import { CELL, cellOrigin } from '../data/world'
 import { SOURCE_IDS, type SourceId } from '../data/schema'
 import { DEPTH_LIMIT } from '../data/depth'
 import { OATHS } from '../data/oaths'
+import { MOUNT } from '../data/mount'
 import { nextRecipe } from '../gear/forge'
 import { materialName } from '../gear/materials'
 import { MYTH_RELICS, mythRelic, relicMyth, stageName } from '../gear/mythRelic'
@@ -259,6 +260,7 @@ export class MenuData {
       lit: build.lit,
       layers: activeLayers(build.layers).map((l) => ({ name: LAYER_NAMES[l.id], text: l.kind === 'mul' ? `×${l.value.toFixed(2)}` : `${l.value > 0 ? '+' : '−'}${Math.round(Math.abs(l.value) * 100)}%` })),
       powers,
+      mount: ctx.mount.owned ? MOUNT.speed : null,
     }
   }
 

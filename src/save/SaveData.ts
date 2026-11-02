@@ -15,6 +15,7 @@ import { parseTraining, type TrainingData } from '../progress/Training'
 import { type ExpeditionData, parseExpedition } from '../progress/Expedition'
 import { parseTabs } from '../progress/Tabs'
 import { type WakeData, parseWake } from '../progress/Wake'
+import { parseMount } from '../progress/Mount'
 import { type BodyLook, parseBody } from '../looks/body'
 import { isLookId, lookDef, type LookSlot, STARTING_LOOKS, WARDROBE_SLOTS } from '../looks/catalog'
 import type { LookChoice } from '../looks/outfit'
@@ -59,6 +60,7 @@ import { CONQUESTS } from '../data/chapters'
  *   - 편의(conveniences) → 자동화 세기(automation {counters:{pickups}}): 자동화는 귀환 횟수·엔딩에서 다시 셈하고, 켠 성소(visited)는 waypoints로. 지난번 갈래(expedition.lastBranch)
  *   - 신위 게이지(divine) → 심장 게이지(heartGauge). 신화 경험치(classes[*].xp)는 내보내지 않는다 (v10 이하 수련 짐작만 원본에서 읽는다)
  *   - 연 탭: classes·looks → gods, trials → oaths. 원정 기록이 없던 저장(v15 이하)은 원정 번호를 장 진행이 지나온 할 일 「귀환」으로 짐작한다
+ *   - E241: 탈것(mount, 참·거짓). 키가 없으면 고개나 그리스 땅에 들어선 적이 있을 때 얻은 것으로 친다. 탄 상태는 저장하지 않는다
  */
 export const SAVE_VERSION = 17
 
@@ -114,6 +116,8 @@ export interface SaveData {
   tabs: string[]
   /** 신을 깨우는 진행 (E238): 깨우는 신과 모은 조각 */
   awaken: WakeData
+  /** 탈것을 얻었나 (E241: 고개지기의 산양). 키가 없던 저장은 그리스 땅에 들어선 적이 있으면 참 */
+  mount: boolean
   /** 지금 있는 지역과 자리 (E7). 옛 저장이거나 모르는 지역이면 null (마을에서 시작) */
   region: { id: string; x: number; z: number } | null
   /** 본 대화 장면 (E12-10). 옛 저장에는 없어서 빈 목록 */
@@ -268,6 +272,7 @@ export function parseSave(text: string | null): SaveData | null {
     training: parseTraining(data.training, (data.version as number) < 11 ? oldTrainingXp(myths, oldXp) : 0),
     tabs: parseTabs(data.tabs, (data.version as number) < 11),
     awaken,
+    mount: parseMount(data.mount, has('mount'), chapters.entered),
     region,
     scenes: Array.isArray(data.scenes) ? [...new Set(data.scenes.filter((s): s is string => typeof s === 'string' && s.length < 40))] : [],
   }

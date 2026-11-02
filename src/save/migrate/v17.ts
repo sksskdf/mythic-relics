@@ -119,7 +119,8 @@ export function oldAutomation(conveniences: unknown): AutomationData {
  * 제우스를 깨우는 목표를 건너뛰게 한다. 명성·불씨는 주지 않는다 (신 단계가 그대로라 힘이 같다)
  */
 export function estimateExpeditions(chapters: ChapterData, awakened: (realm: string) => number, forged: number): number {
-  const progress = new ChapterProgress({ awakened, forged: () => forged, returns: () => 0 })
+  // 탈것(E241)은 원정 번호와 상관없다 (고개의 귀환은 그 뒤 할 일인 올림포스에 들어섰는지로 센다)
+  const progress = new ChapterProgress({ awakened, forged: () => forged, returns: () => 0, mounted: () => false })
   progress.load(chapters)
   let returns = 0
   for (const chapter of progress.chapters) {

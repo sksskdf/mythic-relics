@@ -41,6 +41,9 @@ export class SoundSystem {
     bus.on('heroHurt', () => audio.play('hurt', here()))
     bus.on('heroDied', () => audio.play('death'))
     bus.on('heroRevived', () => audio.play('revive'))
+    // 탈것 (E241): 올라탈 때 발굽, 얻을 때 장비를 얻은 소리
+    bus.on('rode', ({ on }) => on && audio.play('hoof', here()))
+    bus.on('mountGained', () => audio.play('equip'))
     // 고르기 창처럼 게임이 멈춘 동안에도 바로 바뀐다
     bus.on('music', ({ theme }) => {
       this.scene = theme
@@ -68,9 +71,12 @@ export class SoundSystem {
     this.last.z = p.z
     if (!this.ctx.hero.isMoving || step > 1) return
     this.walked += step
-    if (this.walked >= STEP_EVERY) {
-      this.walked -= STEP_EVERY
-      this.audio.play('step', { x: p.x, z: p.z })
+    // 탄 동안(E241)은 발굽 소리를 성큼성큼 (걸음 폭이 넓다)
+    const riding = this.ctx.hero.riding
+    const every = riding ? STEP_EVERY * 1.6 : STEP_EVERY
+    if (this.walked >= every) {
+      this.walked -= every
+      this.audio.play(riding ? 'hoof' : 'step', { x: p.x, z: p.z })
     }
   }
 }

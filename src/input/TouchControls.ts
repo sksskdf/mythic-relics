@@ -1,5 +1,6 @@
 import '../ui/touch.css'
 
+import { MOUNT } from '../data/mount'
 import { STICK_DEAD, TouchGestures } from './touch'
 
 /**
@@ -67,6 +68,11 @@ export class TouchControls {
     return this.gestures.stick !== null
   }
 
+  /** 손가락을 원 반지름의 MOUNT.stickFar배보다 멀리 끌었나 (E241: 탈것에 오른다) */
+  get far(): boolean {
+    return this.gestures.stretch > MOUNT.stickFar
+  }
+
   takeTap(): { x: number; y: number } | null {
     return this.gestures.takeTap()
   }
@@ -74,6 +80,8 @@ export class TouchControls {
   private draw(): void {
     const stick = this.gestures.stick
     this.ring.hidden = !stick
+    // 멀리 끈 동안은 원이 달리는 모양으로 (E241)
+    this.ring.classList.toggle('is-far', this.far)
     if (!stick) return
     this.ring.style.left = `${stick.x}px`
     this.ring.style.top = `${stick.y}px`

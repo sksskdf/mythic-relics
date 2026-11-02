@@ -20,7 +20,7 @@
 | --- | --- |
 | `src/game/Game.ts` | 957줄 → 870줄 안팎. 지역 이동은 `World`, 개발 지름길은 `src/dev/DevTools.ts`(`game.dev.*`), 시작 화면 뒤 장면은 `TitleBackdrop`. Game에는 `enterRegion`·`travelTo`·`regions`·`exitsLocked` 위임만 남김 |
 | 빌드 상태 | `src/build/BuildState.ts`의 `computeBuild(inputs)`: 열린 신화(수집 보너스 `collected`)·올린 단계(×1.35^n)·고른 신화·장비(일반 장비 수치, 유물 기본 수치는 `Build`가 `relicStats`로 넣음)·원천 → 피해 배율·지속 효과(깨어난 유물만)·받는 피해·이동 속도·공격 리듬·최대 생명, 수치 합 `stats`(별을 밝힌 신화의 수치 포함). 게임 안에서는 `ctx.build`(`Build`, 부를 때마다 계산, `chosen`·`level`은 가볍게). `tests/build.test.ts`가 E21 공식을 지킨다 |
-| 세계 (E15) | 지역 16곳: `RegionDef.zone`(entrance·deep·boss)·`elite`. `nextHop`(봇·지도의 다음 이웃). 지도 자리는 세계 칸(`world.ts`의 CELLS, E239). 대화 장면은 `Game.story(id)`가 처음 보는 일에만 열고, 대화 중에는 세계가 멈춘다 |
+| 세계 (E15) | 지역 16곳(E239 북유럽 여섯으로 19곳, E241 고개로 20곳과 마지막 무대): `RegionDef.zone`(entrance·deep·boss)·`elite`. `nextHop`(봇·지도의 다음 이웃). 지도 자리는 세계 칸(`world.ts`의 CELLS, E239). 대화 장면은 `Game.story(id)`가 처음 보는 일에만 열고, 대화 중에는 세계가 멈춘다 |
 | `src/gear/` | `Loadout`(칸 7·가방·일반 장비 `gear`·유물 단계 `stages`·재료 `materials`), `roll.ts`(일반 장비 굴리기와 단계 `tier`·`landTier`·`landChances`, id는 `g:`로 시작), `mythRelic.ts`(신화마다 유물 하나와 부위·단계, 기본 수치 `relicStats`, 깨어남 `relicAwake`, 효과 배율 `effectScale`, 나머지 유물은 엔딩 뒤 재료), `materials.ts`(신화권 재료·보스 재료와 드랍), `forge.ts`(장 보스 규칙으로 만드는 제작법·제작·분해), `Pickups`, `DropTable`(엔딩 뒤 유물 드랍). 칸에는 유물 id와 장비 id가 섞여 들어가므로 유물만 다루는 곳은 `isRelicId`나 `loadout.relics`로 거른다 |
 | `src/myth/` | `manifest.ts`(고른 신화·가호 판정, 옛 발현 규칙 `legacyManifest`는 옛 저장과 히든 신화만), `ClassProgress`(개방 단계 0~4, 열기 `open`·승천 `ascend`, 단계 상한 `levelCap`(데모 2에서 장 정복마다 +1·끝 3, 엔딩 뒤 4), 큰 걸음 `PER_PROMOTION`·수집 보너스 `PER_OPENED`. 신화 경험치는 E305-03에서 없앰), `levelGains`, `alwaysText`(수치·수집 보너스·별 글) |
 | `src/progress/Ending.ts` | 엔딩 뒤 장치를 여는 한 곳 (E21-06, E305-03에서 일곱으로): 남은 신화권 셋(결계·땅에 떨어지는 신화 유물)·깊이·끝없는 원정·맹세 다섯(숨 칸 끝 5)·자동 줍기(지난번 갈래)·신 4단계·유물 3·4단계. 읽는 곳은 모두 `ending.has(키)`, 첫 엔딩 큰 카드는 `endingLines()`. `game.reachEnding()`이 열고 저장에 남는다 |
@@ -63,10 +63,11 @@ E12~E14에서 새 규칙을 넣을 때는 `BuildInputs`에 재료를 더하고 `
 
 | 곳 | 하는 일 |
 | --- | --- |
-| `src/data/chapters.json`·`chapters.ts` | 장 다섯: 제목·이름·땅 단계(`tier`)·열리는 땅과 적 지수(`lands`)·할 일(`steps`: enter·awaken·level·boss·forge·return, 목표 한 줄 `goal`. 성소 고르기 choose와 보스가 여는 신화권 `opens`는 E305-03에서 없앰). `landScale`(적 지수 → 생명·피해 배율), `chapterOf` |
+| `src/data/chapters.json`·`chapters.ts` | 장 다섯: 제목·이름·땅 단계(`tier`)·열리는 땅과 적 지수(`lands`)·할 일(`steps`: enter·awaken·boss·forge·return·mount(E241: 그 땅의 고개지기를 만남, `ChapterWorld.mounted`), 목표 한 줄 `goal`. 성소 고르기 choose와 보스가 여는 신화권 `opens`는 E305-03에서 없앰). `landScale`(적 지수 → 생명·피해 배율), `chapterOf` |
 | `src/progress/Chapters.ts` | `ChapterProgress`: 들어선 땅·이긴 보스(저장), 지금 장(`index`·`chapter`)·목표(`goal`)·열린 땅(`isOpen`)·땅 세기(`power`)·땅 단계(`tier`). 신화·유물은 `ChapterWorld`로 묻기만 한다 |
 | `src/game/systems/Chapters.ts` | 땅 들어섬·보스 처치를 적고 `chapterChanged`·`goalChanged`를 보낸다. `goalView`(목표 한 줄과 채우는 막대) |
 | `src/game/systems/Wake.ts` (옛 `Awakening`, 데이터 `src/data/wake.ts`, E305-04에서 원천 「각성」과 이름을 가름) | 신을 여는 길은 조각 셋 하나(E305-03: 그리스도 제우스를 깨움, 성소의 신화 고르기 `MythChoice` 없앰). 흔적의 형편은 순수 함수 `traceStateOf`(E241)가 정하고, 데모의 그리스 셋(`afterEnding`)은 엔딩 전에는 `later`라 무리·빛기둥·목표·봇 대상이 되지 않는다. 신을 하나 더 깨우려면 1 + 귀환 + 장 정복보다 적어야 한다(`mayWake`). 유물로 신이 열리는 것은 엔딩 뒤뿐(`Relics.unlock`), 점검용 실행(`?relics=`)은 `Game`이 끼고 시작한 신화 유물의 신을 연다 |
+| 탈것 (E241) | `src/data/mount.ts`(`MOUNT`·`KEEPER`), `progress/Mount.ts`(얻었나, 저장 키 `mount`), `systems/Mount.ts`(`MountSystem`: 고개지기 2.5m 안이면 `give()` → 버스 `mountGained`·카드, 타려는 걸음 `orders.wantRide`이면 `canRide()` = 얻음·살아 있음·`combat.calm`·묶이지 않음일 때 태우고 `rode`, 탄 산양·고개지기 곁 산양). 타는 규칙은 `HeroOrders.press`(15m 넘게 누르면 `wantRide`, 적을 누르면 내림)·`tryRide`(봇)·`steer(ground, far)`(조이스틱을 멀리 끎), 내리는 것은 `HeroController.update`(길이 끝나면, `holding`이면 그대로)·`stop`·`teleport`. 탄 동안 `PlayerCombat`은 싸우지 않고 `RelicSystem`은 `skills.enemies = []`로 유물을 재우며 `Damage.hitHero`는 유물의 끼어들기를 건너뜀(바람 각성 피하기는 그대로). 모델 `voxel/models/mount.ts`·`world/mountModel.ts`(`buildGoat`, 앉는 높이 `GOAT_SEAT`) |
 | `src/world/Barriers.ts`, `World.openLinks`·`refreshLinks` | 막힌 땅으로 가는 통로는 걸을 수 있는 곳에서 빼고 입구에 결계를 세운다. 장이 바뀌면 빛기둥과 함께 풀린다 |
 | `Encounter.landPower` | 땅 id → 적 지수. 무리·보스·수호자에 깊이 배율과 곱해 건다(`scaled`) |
 | `ui/ChapterHud.ts` | 목표 한 줄(채우는 목표면 막대)과 장 제목 띠. 지도 탭은 `world.goal()`·`nodes().locked`, 작은 지도는 `HudFeed.goalSpot()`(게임에서는 `game.goalSpot()`) |

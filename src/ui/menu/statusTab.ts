@@ -68,6 +68,8 @@ export function renderStatus(ctx: TabContext, body: HTMLElement): void {
   row('sword', '주는 피해', `×${stats.damage.toFixed(2)}`, `주는 피해\n승천 하나마다 ×${PER_PROMOTION.damage}, 유물표에 켠 칸 하나마다 +${Math.round(PER_LIT * 100)}%, 손에 쥔 신의 힘이 곱해진다.`, changed(stats.damage, true))
   row('shield', '받는 피해', `×${stats.damageTaken.toFixed(2)}`, '낀 유물의 지속 효과', changed(stats.damageTaken, false))
   row('boot', '이동 속도', `${Math.round(stats.moveSpeed * 100)}%`, '낀 유물의 지속 효과', changed(stats.moveSpeed, true))
+  // 탈것 (E241): 얻은 뒤에만 한 줄
+  if (stats.mount !== null) row('boot', '탈것', `×${stats.mount}`, '고개지기의 산양\n멀리 누르면 올라타 달린다. 탄 동안은 싸우지 않고, 적을 누르거나 멈추면 내린다.')
   row('push', '밀쳐 내기', `×${stats.knockbackDealt.toFixed(2)}`, '내 공격이 적을 미는 힘', changed(stats.knockbackDealt, true))
   row('stand', '버티기', `×${stats.knockbackTaken.toFixed(2)}`, '내가 밀려나는 정도. 낮을수록 잘 버틴다.', changed(stats.knockbackTaken, false))
   row('divine', '심장 게이지', `${Math.round(stats.heartGauge * 100)}%`, '심장 게이지\n스킬로 맞히고 적을 쓰러뜨릴수록 차오른다. 가득 차면 심장에 둔 신의 궁극기가 저절로 나간다.')

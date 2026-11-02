@@ -4,7 +4,7 @@ import type { EventBus, GameEvents } from './events'
 export interface PlayEvent {
   /** 게임 시간 (초) */
   t: number
-  type: 'relic' | 'manifest' | 'open' | 'fragment' | 'forge' | 'gear' | 'kill' | 'bossKill' | 'death' | 'promote' | 'hurt' | 'depth' | 'region' | 'oath' | 'endless' | 'chapter' | 'ending'
+  type: 'relic' | 'manifest' | 'open' | 'fragment' | 'forge' | 'gear' | 'kill' | 'bossKill' | 'death' | 'promote' | 'hurt' | 'depth' | 'region' | 'oath' | 'endless' | 'chapter' | 'ending' | 'mount' | 'ride'
   detail?: string
 }
 
@@ -37,6 +37,9 @@ export class PlayLog {
     bus.on('oathEnded', ({ id, win, seconds }) => record('oath', `${id}:${win ? 'win' : 'fail'}:${Math.round(seconds)}`))
     bus.on('heroDied', () => record('death'))
     bus.on('promoted', ({ title }) => record('promote', title))
+    // 탈것 (E241): 얻은 때와 올라탄 때 (내린 때는 남기지 않는다)
+    bus.on('mountGained', () => record('mount'))
+    bus.on('rode', ({ on }) => on && record('ride'))
   }
 
   /** 지금 게임 시간으로 하나 남긴다 (0.1초 단위) */

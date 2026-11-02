@@ -1,3 +1,4 @@
+import { MOUNT } from '../data/mount'
 import type { Point2 } from '../world/colliders'
 import type { HeroController } from './HeroController'
 import type { CombatTarget, PlayerCombat } from './PlayerCombat'
@@ -17,6 +18,8 @@ export type Order =
  * - 적을 누르면: 그 적에게 가서 쓰러질 때까지 자동으로 친다.
  * - 땅을 누르면: 싸우던 중이어도 그곳까지 끝까지 걷는다. 졸개는 밀고 지나간다. (빠져나가기, 공격 피하기)
  * - 아무 지시가 없으면(도착해 멈추면): 멈춰 선 채 사거리 안의 가장 가까운 적을 자동으로 친다.
+ * - 탈것(E241): 탈것을 가졌으면 멀리(15m 넘게) 누른 땅은 올라타 달려간다. 싸우는 중이면 걸어서 빠져나가다 싸움이 풀리는 순간 탄다.
+ *   적을 누르거나 멈추면 내린다. 같은 클릭 하나라 버튼이 늘지 않는다
  * (1차 스프린트에는 땅 한 번 = 가다가 적을 만나면 싸움, 두 번 = 적 무시였다. 한 번으로 빠져나가지 못해 불편하다는 의견으로 바꿈)
  */
 export class HeroOrders {
@@ -27,6 +30,10 @@ export class HeroOrders {
   destination: Point2 | null = null
   /** 버튼을 누른 채로 커서를 따라가는 중인가 */
   private following = false
+  /** 탈 수 있나 (E241: 탈것을 가졌고 싸우는 중이 아니다). MountSystem이 정한다 */
+  mayRide: () => boolean = () => false
+  /** 이번 걸음은 타고 가려 한다 (멀리 눌렀다). 멈추면 지운다 */
+  wantRide = false
 
   constructor(
     private readonly hero: HeroController,
@@ -47,6 +54,9 @@ export class HeroOrders {
   press(ground: Point2 | null, enemy: CombatTarget | null): void {
     if (this.hero.locked) return
     if (enemy?.alive) {
+      // 적을 누르면 내려서 싸운다 (E241)
+      this.hero.riding = false
+      this.wantRide = false
       this.attack(enemy, true)
       this.following = false
       return
@@ -54,10 +64,30 @@ export class HeroOrders {
     if (!ground) return
     this.order = { kind: 'move' }
     this.combat.focus = null
+    // 탄 채 누르면 그대로 타고 가고, 멀리 누르면 올라탄다 (E241)
+    this.wantRide = this.hero.riding || this.far(ground)
     this.hero.moveTo(ground)
     this.destination = { ...ground }
     this.lastMoveTarget = { ...ground }
     this.following = true
+    this.tryRide()
+  }
+
+  /**
+   * 타려는 걸음이면 지금 올라탄다 (E241). 탈 수 없으면(싸우는 중) 그대로 걷고, 그 걸음 동안 싸움이 풀리면 MountSystem이 태운다.
+   * 걸음을 직접 내리는 봇은 걸음을 내린 뒤 이것을 부른다 (가는 곳이 멀면 타려는 걸음이 된다). 탔으면 true
+   */
+  tryRide(): boolean {
+    const goal = this.hero.goal
+    if (!this.wantRide && goal && this.far(goal)) this.wantRide = true
+    if (this.wantRide && !this.hero.riding && this.hero.isMoving && this.mayRide()) this.hero.riding = true
+    return this.hero.riding
+  }
+
+  /** 주인공에서 탈 만큼 먼 곳인가 */
+  private far(p: Point2): boolean {
+    const h = this.hero.object.position
+    return Math.hypot(p.x - h.x, p.z - h.z) > MOUNT.farPress
   }
 
   /** 누른 채로 커서를 움직이고 있다. */
@@ -72,6 +102,9 @@ export class HeroOrders {
     }
     this.hero.moveTo(ground)
     this.destination = { ...ground }
+    // 누른 채 커서를 멀리 끌고 가도 탄다 (E241)
+    if (this.far(ground)) this.wantRide = true
+    this.tryRide()
   }
 
   release(): void {
@@ -81,17 +114,23 @@ export class HeroOrders {
   /**
    * 조이스틱으로 그쪽으로 걷는다 (E235). 이동 지시가 이어지면 목적지만 바꾸고,
    * 끊겼으면(가장자리·무리에 막혀 멈춤, 쓰러짐, 장면, 땅 넘어가기) 쥔 채로도 다시 내린다.
-   * 다시 내릴 때도 길 찾는 간격을 지킨다 (막힌 채 밀면 프레임마다 길을 찾지 않게)
+   * 다시 내릴 때도 길 찾는 간격을 지킨다 (막힌 채 밀면 프레임마다 길을 찾지 않게).
+   * far: 손가락을 멀리 끌었다 (E241) → 거리와 상관없이 타려는 걸음
    */
-  steer(ground: Point2): void {
+  steer(ground: Point2, far = false): void {
     if (this.following && this.order?.kind === 'move') this.hold(ground)
     else if (this.hero.canRepath) this.press(ground, null)
+    if (far) {
+      this.wantRide = true
+      this.tryRide()
+    }
   }
 
   /** 지시를 모두 지운다. (쓰러졌을 때 등) */
   clear(): void {
     this.order = null
     this.following = false
+    this.wantRide = false
     this.combat.focus = null
   }
 
@@ -109,6 +148,8 @@ export class HeroOrders {
   }
 
   update(_enemies: readonly CombatTarget[]): void {
+    // 멈췄으면 타려는 걸음도 끝났다 (조이스틱을 쥔 동안 길이 잠깐 빈 것은 빼고)
+    if (!this.hero.isMoving && !this.hero.holding) this.wantRide = false
     const order = this.order
     if (!order) return
     if (order.kind === 'attack') {

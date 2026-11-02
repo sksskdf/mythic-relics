@@ -216,6 +216,15 @@ const DEEP_THEMES = {
     light: { sky: 0x5f6a7a, hemiSky: 0x9aa8c8, hemiGround: 0x2a3040, hemi: 0.75, sun: 0xffd8b0, sunIntensity: 2.7 },
     particles: { kind: 'snow', color: 0xc8d0dc },
   }),
+  /** 올림포스 고개 (E241): 우트가르드 너머 눈 남은 바위 고갯길, 밝은 돌길과 찬 바람에 날리는 눈 */
+  pass: variant(BASE_THEMES.olympus, {
+    ground: { base: 0xb6baa2, shade: 0x9ea28e, alt: 0xd6dad4, path: 0xddd8ca, earth: 0x8a7458, stone: 0x9a9890 },
+    scatter: { tuft: [0x7a8a58, 0x8c9a62, 0x66764a], pebble: [0xa8a49a, 0x8a8680] },
+    light: { sky: 0xa8bccc, hemiSky: 0xdce8f4, hemiGround: 0x545a50, hemi: 0.88, sun: 0xfff0d8, sunIntensity: 2.8 },
+    particles: { kind: 'snow', color: 0xf0f4f8 },
+    border: ['rock', 'rock', 'pine', 'cypress', 'olive', 'mound'],
+    recolor: { [C.snow]: 0xe8eef2, [C.snowShade]: 0xccd6de, [C.snowBlue]: 0x9aaa88 },
+  }),
   /** 델포이 골짜기: 그늘진 녹음 */
   delphi: variant(BASE_THEMES.olympus, {
     ground: { base: 0x94ad62, shade: 0x7f9852, alt: 0xa6b86e },

@@ -5,6 +5,7 @@
  */
 export type SoundCue =
   | 'step'
+  | 'hoof'
   | 'swing'
   | 'hit'
   | 'hitStrong'
@@ -119,6 +120,15 @@ export const SOUNDS: Record<SoundCue, SoundRecipe> = {
     duration: 0.08,
     volume: 0.22,
     play: (s, t) => s.noise(t, { from: vary(900, 0.2), to: 400, q: 0.8, duration: 0.07, gain: 1 }),
+  },
+  // 산양 발굽 (E241): 돌을 딛는 짧고 마른 딸깍, 낮은 울림을 살짝
+  hoof: {
+    duration: 0.09,
+    volume: 0.26,
+    play: (s, t) => {
+      s.noise(t, { filter: 'highpass', from: vary(2200, 0.15), q: 1.2, duration: 0.04, gain: 0.8 })
+      s.tone(t, { type: 'triangle', from: vary(320, 0.1), to: 180, duration: 0.07, gain: 0.5 })
+    },
   },
   swing: {
     duration: 0.14,

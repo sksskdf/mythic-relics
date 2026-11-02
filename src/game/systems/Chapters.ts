@@ -56,11 +56,15 @@ export class ChapterSystem {
     const conquest = CONQUESTS.includes(region)
     if (step && step !== last) {
       const breath = breathSlots(this.ctx)
+      // 다음 장의 첫 할 일이 땅에 들어서는 것이면 그 땅이 바로 열린다 (E241: 거인 왕 → 올림포스 고개)
+      const next = chapters.chapters[chapters.chapters.findIndex((c) => c.steps.includes(step)) + 1]
+      const opens = next?.steps[0]?.kind === 'enter' ? REGIONS[next.steps[0].region] : undefined
       const lines = conquest
         ? [
             ...(breath > before.breath ? [`숨 칸 ${before.breath} → ${breath}`] : []),
             ...(progress.levelCap > before.cap ? [`신 단계 끝 ${before.cap} → ${progress.levelCap}`] : []),
             `명성 배율 ×${before.mult.toFixed(2)} → ×${expedition.multiplier.toFixed(2)}`,
+            ...(opens ? [`${josa(opens.name, '이')} 열렸다`] : []),
           ]
         : []
       const name = ENEMIES[enemy]?.name ?? '장 보스'

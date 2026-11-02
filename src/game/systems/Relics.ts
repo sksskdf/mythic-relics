@@ -304,9 +304,11 @@ export class RelicSystem {
     this.updateGlow()
 
     // 걸은 거리 (이동 연동 효과). 순간이동처럼 한 번에 크게 옮긴 것은 빼고, 밀려난 것은 걸음으로 치지 않는다.
+    // 탄 동안(E241)은 걸음으로 치지 않는다 (걸음 충전·회오리 걸음이 쉰다)
     const step = Math.hypot(position.x - this.lastWalk.x, position.z - this.lastWalk.y)
-    if (hero.isMoving && step < 1) powers.onWalk(step, skills)
-    this.walked = hero.isMoving && step < 1 ? step : 0
+    const walking = hero.isMoving && !hero.riding && step < 1
+    if (walking) powers.onWalk(step, skills)
+    this.walked = walking ? step : 0
     this.lastWalk.set(position.x, position.z)
 
     if (combat.alive) {
@@ -329,6 +331,8 @@ export class RelicSystem {
         (id, gear) => (!auto ? 0 : gear ? AUTOMATION.pickup.radius : !isMythRelic(id) ? Infinity : 0),
       )
       for (const { id, gear } of picked) this.take(id, gear)
+      // 탄 동안(E241)은 유물 행동·오라·동료가 쉰다: 쓰러졌을 때처럼 적을 비워 새로 맞히지 않는다 (날아가던 것은 마저 간다)
+      if (hero.riding) skills.enemies = []
       powers.update(dt, skills)
     } else {
       pickups.update(dt, position.x, position.z, () => false)
@@ -341,7 +345,7 @@ export class RelicSystem {
     const boss = encounter.boss
     const bossNear = !!boss && boss.alive && Math.hypot(boss.x - position.x, boss.z - position.z) < 10
     const ultimate = powers.ultimate
-    if (combat.alive && ultimate && combat.heartGauge >= 1 && !powers.ultimateActive && !this.ctx.build.state.noUltimate && ultimate.worthUsing(skills, bossNear)) {
+    if (combat.alive && !hero.riding && ultimate && combat.heartGauge >= 1 && !powers.ultimateActive && !this.ctx.build.state.noUltimate && ultimate.worthUsing(skills, bossNear)) {
       combat.heartGauge = 0
       ultimate.start(skills)
       this.ctx.bus.emit('ultimateCast', {})

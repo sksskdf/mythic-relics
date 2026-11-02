@@ -273,7 +273,10 @@ const LANDS = {
     ring: 'runestone',
     count: 110,
   },
-  /** 우트가르드: 가장 북쪽. 남쪽 두 문(요툰헤임·무스펠)에서 모인 길이 성터 가운데 거인 왕을 지나 북쪽 고개(올림포스)로 */
+  /**
+   * 우트가르드: 가장 북쪽. 남쪽 두 문(요툰헤임·무스펠)에서 모인 길이 성터 가운데 거인 왕의 자리에서 끝나고,
+   * 동쪽 문은 올림포스 고개로 (E241: 올림포스로 가던 북쪽 문을 고개 문으로 옮김. 지금 데이터는 gen-pass·place-world가 낸 것과 같다)
+   */
   utgard: {
     name: '우트가르드',
     theme: 'utgard',
@@ -282,12 +285,13 @@ const LANDS = {
     doors: [
       { to: 'jotunheim', edge: 's', at: -25 },
       { to: 'muspel', edge: 's', at: 25 },
-      { to: 'olympus', edge: 'n', at: 19 },
+      { to: 'pass', edge: 'e', at: 15 },
     ],
     hub: { x: 0, z: 16 },
     roads: [
-      ['door:jotunheim', [-14, 26], 'hub', [-4, 2], [0, -12], [10, -24], 'door:olympus'],
+      ['door:jotunheim', [-14, 26], 'hub', [-4, 2], [0, -12]],
       ['door:muspel', [14, 26], 'hub'],
+      [[21, 31], 'door:pass'],
     ],
     boss: { x: 0, z: -14 },
     sanctuary: { x: -26, z: 2, radius: 9, branch: 0 },

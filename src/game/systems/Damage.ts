@@ -177,7 +177,7 @@ export class DamageSystem {
     const { combat, powers, skills, feel, view, numbers, hero, bus } = this.ctx
     if (!combat.canBeHit) return
     // 달빛 방패(고유 효과, E303)가 먼저 막는다
-    const reduced = this.ctx.uniques.absorb(powers.beforeHeroHit(damage, fromX, fromZ, skills))
+    const reduced = this.ctx.uniques.absorb(powers.beforeHeroHit(damage, fromX, fromZ, skills, hero.riding))
     // 보호막 등이 다 막았으면 맞지 않은 것으로 친다 (밀리지도, 무적 시간이 돌지도 않게)
     if (reduced <= 0) return
     const dealt = combat.takeHit(reduced, fromX, fromZ, knockback)

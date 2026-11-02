@@ -25,3 +25,12 @@
   border-radius: 50%;
   background: var(--c-bg-3);
 }
+/* 멀리 끈 동안 (E241): 탈것에 올라 달린다. 원과 손잡이가 안내 빛으로 */
+.stick.is-far {
+  border-color: var(--c-guide);
+  opacity: 0.85;
+}
+.stick.is-far .stick__knob {
+  border-color: var(--c-guide);
+  background: var(--c-gold);
+}

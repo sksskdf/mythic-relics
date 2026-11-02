@@ -257,6 +257,17 @@ export class Autoplayer {
       return
     }
 
+    // 4.8 탈것 (E241): 목표가 고개지기를 만나는 것이면 그에게 걸어간다 (가까이 가면 산양을 준다)
+    const meet = this.chapters ? this.game.chapters.goal : null
+    if (meet?.kind === 'mount' && meet.region === this.game.region.id && hp > 0.6) {
+      const keeper = this.game.goalSpot()
+      if (keeper && dist(here, keeper) > 1.5) {
+        if (!hero.isMoving || dist(hero.goal ?? here, keeper) > 1) hero.moveTo(keeper)
+        this.step = 19
+        return
+      }
+    }
+
     // 두 갈래 카드 (E302-03): 새 신의 손·심장이 왔는데 자리가 차 있으면, 정한 신이면 새 것을, 아니면 지금 그대로
     if (this.game.swapOpen) {
       const incoming = document.querySelector<HTMLElement>('.swap-card__card')?.dataset.god

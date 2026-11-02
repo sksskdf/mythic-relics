@@ -2,7 +2,7 @@
  * 손가락 몸짓 알아보기 (E235, 휴대폰). 좌표는 화면의 CSS 픽셀이다.
  * - 톡: 짧게 누르고 거의 움직이지 않고 뗀다 → 컴퓨터의 클릭과 같다 (적이면 공격, 땅이면 그곳까지)
  * - 끌기: 누른 자리에 떠다니는 조이스틱이 생기고, 손잡이 쪽으로 걷는다. 원은 뗄 때까지 그 자리에 있고, 손잡이만 원 안에서 움직인다
- *   (원이 손가락을 따라오면 패드가 움직여 보인다는 사용자 의견, 2026-10-28)
+ *   (원이 손가락을 따라오면 패드가 움직여 보인다는 사용자 의견, 2026-10-28). 원 밖으로 멀리 끌면 탈것에 오른다 (E241, `stretch`)
  * - 두 손가락: 벌리고 오므려 확대·축소. 두 손가락을 댄 뒤로는 손을 다 뗄 때까지 걷거나 톡이 되지 않는다
  */
 
@@ -92,6 +92,16 @@ export class TouchGestures {
     const dy = finger.y - this.origin.y
     const k = Math.min(1, STICK_RADIUS / (Math.hypot(dx, dy) || 1))
     return { x: this.origin.x, y: this.origin.y, dx: dx * k, dy: dy * k }
+  }
+
+  /**
+   * 조이스틱 손가락이 원의 가운데에서 얼마나 멀리 끌렸나 (원 반지름의 배, 손잡이를 자르기 전 손가락 자리로).
+   * 조이스틱을 잡지 않았으면 0. 멀리 끌면 탈것에 오른다 (E241)
+   */
+  get stretch(): number {
+    const finger = this.stickId === null ? null : this.fingers.get(this.stickId)
+    if (!finger) return 0
+    return Math.hypot(finger.x - this.origin.x, finger.y - this.origin.y) / STICK_RADIUS
   }
 
   /** 두 손가락 거리가 처음의 몇 배인가 (확대·축소 중이 아니면 null) */

@@ -1,8 +1,10 @@
 import * as THREE from 'three'
 
 import { angleDiff } from '../combat/arc'
+import { MOUNT } from '../data/mount'
 import { type CircleCollider, clampToArea, type Point2, pushOut, squareArea, type WalkArea } from '../world/colliders'
 import type { HeroRig } from '../world/heroModel'
+import { GOAT_SEAT } from '../world/mountModel'
 import type { NavGrid } from '../world/navGrid'
 import { heightAt } from '../world/terrain'
 
@@ -42,6 +44,13 @@ export class HeroController {
   boostScale = 1
   /** 쓰러졌을 때 등, 이동을 막는다. */
   locked = false
+  /**
+   * 탈것에 탔나 (E241): 걸음이 MOUNT.speed배이고 앉은 자세. 길이 다 끝나면(도착·막힘·멈춤) 내린다.
+   * 올라타는 때는 HeroOrders·MountSystem이 정한다
+   */
+  riding = false
+  /** 조이스틱을 쥐고 있나 (E241, 휴대폰): 탄 채 길을 다시 찾는 사이 길이 잠깐 비어도 내리지 않는다 */
+  holding = false
   /** 길을 막고 선 거인처럼 움직이는 장애물. 부딪혀 제자리걸음하지 않게 옆으로 비켜 간다. */
   obstacles: () => readonly CircleCollider[] = () => []
 
@@ -71,6 +80,11 @@ export class HeroController {
 
   get isMoving(): boolean {
     return this.path.length > 0
+  }
+
+  /** 지금 걸음 빠르기 (m/s): 빌드 이동 속도·잠깐 붙는 배율, 탔으면 MOUNT.speed배 (E241) */
+  get speed(): number {
+    return this.tuning.moveSpeed * this.speedScale * this.boostScale * (this.riding ? MOUNT.speed : 1)
   }
 
   /** 지금 걸어가는 방향 (다음 경유지 쪽). 서 있으면 null */
@@ -104,6 +118,8 @@ export class HeroController {
       this.knock.multiplyScalar(Math.exp(-10 * dt))
     }
     if (!this.locked) this.stepPath(dt)
+    // 멈추면 내린다 (E241): 도착·막힘·빈 길·쓰러짐. 조이스틱을 쥔 동안은 길이 잠깐 비어도 그대로
+    if (this.riding && (this.locked || (this.path.length === 0 && !this.holding))) this.riding = false
     this.animate(dt)
   }
 
@@ -118,8 +134,10 @@ export class HeroController {
     this.repathTimer = this.tuning.repathInterval
   }
 
+  /** 멈춘다 (탔으면 내린다) */
   stop(): void {
     this.path = []
+    this.riding = false
   }
 
   /** 지정한 각도를 바라본다. */
@@ -145,11 +163,13 @@ export class HeroController {
   teleport(x: number, z: number): void {
     this.object.position.set(x, heightAt(x, z), z)
     this.path = []
+    this.riding = false
     this.knock.set(0, 0)
   }
 
   private stepPath(dt: number): void {
-    const wanted = this.tuning.moveSpeed * this.speedScale * this.boostScale * dt
+    // 탄 동안은 걸음만 빨라진다 (빌드 이동 속도·상태 탭 수치는 그대로)
+    const wanted = this.speed * dt
     let remaining = wanted
     const position = this.object.position
     const fromX = position.x
@@ -224,9 +244,22 @@ export class HeroController {
     this.object.rotation.y += turn * (1 - Math.exp(-TURN_SPEED * dt))
     const { body, head, leftArm, rightArm, leftLeg, rightLeg, cape } = this.rig
     body.rotation.y = 0
-    // 공격 모션이 옆으로 든 팔을 제자리로 (E6-10)
+    // 공격 모션이 옆으로 든 팔을 제자리로 (E6-10), 탄 자세가 벌린 다리도 (E241)
     leftArm.rotation.z = rightArm.rotation.z = 0
-    if (this.path.length > 0) {
+    leftLeg.rotation.z = rightLeg.rotation.z = 0
+    if (this.riding) {
+      // 산양 등에 앉은 자세 (E241): 엉덩이를 안장에, 다리는 벌려 옆구리를 감싸고, 두 손은 앞으로 (고삐). 달리면 안장에서 가볍게 튄다
+      const moving = this.path.length > 0
+      this.walkCycle += dt * (moving ? 16 : 2)
+      body.position.y = GOAT_SEAT + (moving ? Math.abs(Math.sin(this.walkCycle)) * 0.03 : 0)
+      body.rotation.x = 0.14
+      leftLeg.rotation.x = rightLeg.rotation.x = -0.55
+      leftLeg.rotation.z = -0.6
+      rightLeg.rotation.z = 0.6
+      leftArm.rotation.x = rightArm.rotation.x = -0.75
+      head.rotation.x = -0.12
+      cape.rotation.x = moving ? 0.7 + Math.abs(Math.sin(this.walkCycle)) * 0.2 : 0.2
+    } else if (this.path.length > 0) {
       this.walkCycle += dt * 11
       const swing = Math.sin(this.walkCycle)
       body.rotation.x = 0.1

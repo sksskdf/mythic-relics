@@ -54,6 +54,9 @@ export interface DevParts {
   expedition: ExpeditionProgress
   expeditionSystem: { branches(): readonly { id: string }[]; returnNow(id: string): number }
   build: Build
+  /** 탈것 (E241): 산양을 얻게 한다 (quiet면 카드 없이) */
+  mountSystem: { give(quiet?: boolean): void }
+  mount: { owned: boolean }
 }
 
 /**
@@ -268,6 +271,10 @@ export class DevTools {
       case 'boss':
         chapterSystem.bossDown(goal.region)
         break
+      case 'mount':
+        // 고개지기를 만난 것으로 (E241)
+        this.mount()
+        break
       case 'forge': {
         const god = build.chosen
         if (!god) break
@@ -294,6 +301,33 @@ export class DevTools {
   /** 신화 성장(개방 단계·경험치)을 처음으로 되돌린다. */
   resetMyths(): void {
     this.parts.growth.reset()
+  }
+
+  /** 탈것 (E241): own이면 고개지기의 산양을 조용히 얻고(카드 없이), 아니면 도로 잃는다 (점검이 다른 검사에 새지 않게) */
+  mount(own = true): void {
+    const { mountSystem, mount, hero, bus } = this.parts
+    if (own) mountSystem.give(true)
+    else {
+      mount.owned = false
+      hero.riding = false
+    }
+    bus.emit('progressChanged', {})
+  }
+
+  /**
+   * 탈것 (E241): 주인공이 보는 쪽으로 dist m 앞 땅을 눌러 올라탄다 (갖지 않았으면 먼저 얻는다). 탔으면 true.
+   * 막혀 길이 없으면 그 반대쪽으로
+   */
+  ride(dist = 20): boolean {
+    const { hero, orders } = this.parts
+    this.mount()
+    const p = hero.object.position
+    for (const turn of [0, Math.PI, Math.PI / 2, -Math.PI / 2]) {
+      const a = hero.facing + turn
+      orders.press({ x: p.x + Math.sin(a) * dist, z: p.z + Math.cos(a) * dist }, null)
+      if (hero.riding) return true
+    }
+    return false
   }
 
   teleport(x: number, z: number): void {

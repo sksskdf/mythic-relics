@@ -69,6 +69,10 @@ export interface GameEvents {
   heroRevived: Record<string, never>
   /** 지역에 들어갔다 (E7) */
   regionEntered: { id: string }
+  /** 고개지기를 만나 탈것(산양)을 얻었다 (E241). quiet면 카드·안내 없이 (개발 지름길) */
+  mountGained: { quiet: boolean }
+  /** 탈것에 올라탔다 / 내렸다 (E241): 먼지·발굽 소리, 플레이 기록 */
+  rode: { on: boolean }
   /** 다음 장이 열렸다 (E22): 그 장의 땅이 열린다. 마지막 장을 끝냈으면 chapter가 null */
   chapterChanged: { chapter: ChapterDef | null; index: number }
   /** 장을 정복했다 (E305-02): 장 보스(거인 왕·키마이라)를 처음 이겼다. 숨 칸·신 단계 상한·명성 지수가 오른다 */
