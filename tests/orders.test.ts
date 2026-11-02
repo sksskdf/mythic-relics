@@ -281,12 +281,13 @@ describe('탈것 (E241)', () => {
     const s = setup(enemies)
     s.orders.mayRide = () => owned && s.combat.calm
     const hooks = { onSwing: () => {}, onHits: () => {} }
+    // 게임 루프 차례대로: 지시 → 걸음 → 자동 전투 → 탈것 (걷기 시작한 프레임에 전투가 휘두르기·대상을 비운 뒤에 본다)
     const step = (seconds: number) => {
       for (let t = 0; t < seconds; t += 1 / 60) {
         s.orders.update(enemies)
-        if (s.orders.wantRide && s.hero.isMoving && !s.hero.riding && s.orders.mayRide()) s.hero.riding = true
         s.hero.update(1 / 60)
         s.combat.update(1 / 60, enemies, hooks)
+        if (s.orders.wantRide && s.hero.isMoving && !s.hero.riding && s.orders.mayRide()) s.hero.riding = true
       }
     }
     return { ...s, step }
@@ -382,6 +383,26 @@ describe('탈것 (E241)', () => {
     step(2.5)
     expect(hero.riding).toBe(false)
     step(0.7)
+    expect(combat.calm).toBe(true)
+    expect(hero.riding).toBe(true)
+  })
+
+  it('맞지 않았어도 자동 공격 중에 멀리 누르면 바로 타지 않고, 싸운 지 3초가 지나야 걸음 동안 탄다', () => {
+    const { target } = dummy(0, 19.6)
+    const { hero, combat, orders, step } = mounted([target])
+    hero.teleport(0, 18)
+    step(0.5)
+    expect(combat.engaged).toBe(true)
+    orders.press({ x: 0, z: -19 }, null)
+    expect(hero.riding).toBe(false)
+    // 걷기 시작한 프레임에 휘두르기·대상이 비어도 싸움은 남는다 (고치기 전: 다음 프레임에 적 곁에서 올라탐)
+    step(1 / 60)
+    expect(combat.engaged).toBe(false)
+    expect(combat.calm).toBe(false)
+    expect(hero.riding).toBe(false)
+    step(2.7)
+    expect(hero.riding).toBe(false)
+    step(0.5)
     expect(combat.calm).toBe(true)
     expect(hero.riding).toBe(true)
   })

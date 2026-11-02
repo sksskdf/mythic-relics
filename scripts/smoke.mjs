@@ -1001,7 +1001,21 @@ try {
     for (let k = 0; k < 60 && !g.ending.reached; k++) g.advance(1, 1 / 30)
     g.advance(1, 1 / 30)
     later.after = g.awakening.traceState('poseidon')
-    return { chapters, early, woke, later, greek: g.progress.opened.filter((god) => ['zeus', 'poseidon', 'hades', 'artemis'].includes(god)), ending: g.ending.reached, region: g.region.id, barriers: g.barrierSpots.length, log: g.log.filter((e) => e.type === 'ending').length, frame: g.frame }
+    const greek = g.progress.opened.filter((god) => ['zeus', 'poseidon', 'hades', 'artemis'].includes(god))
+    // 엔딩 뒤 그리스 셋은 흔적 → 사냥 → 수호자로 깨운다 (E241): 조각 2로 받은 유물이 신을 바로 열지 않는다
+    g.awakening.skip('poseidon')
+    g.awakening.skip()
+    later.relic = g.powers.loadout.has('triaina')
+    later.openAt2 = g.progress.isOpen('poseidon')
+    later.next = g.awakening.target()?.kind ?? null
+    g.awakening.skip()
+    later.woke = g.progress.isOpen('poseidon')
+    // 깨우는 중에 다른 길(대장간·떨어진 유물)로 열린 신은 그 길을 비워 다른 흔적이 다시 응답한다
+    g.awakening.skip('artemis')
+    g.progress.open('artemis')
+    g.advance(0.1, 1 / 30)
+    later.forgot = g.awaken.waking === null && g.awakening.traceState('hades') === 'open'
+    return { chapters, early, woke, later, greek, ending: g.ending.reached, region: g.region.id, barriers: g.barrierSpots.length, log: g.log.filter((e) => e.type === 'ending').length, frame: g.frame }
   })
   // 목표 한 줄은 화면을 그릴 때 바뀐다
   await end.waitForFunction((f) => window.__game.frame > f + 2, ending.frame, { timeout: 60000 })
@@ -1011,6 +1025,8 @@ try {
   // 그리스는 성소에서 고르지 않고 제우스를 깨운다 (E305-03): 키마이라도 신화권을 통째로 열지 않는다
   if (ending.greek.join() !== 'zeus') throw new Error(`장 흐름: 그리스에서 제우스 하나만 깨어나야 합니다 ${JSON.stringify(ending.greek)}`)
   if (ending.later.before !== 'later' || ending.later.after !== 'open') throw new Error(`장 흐름: 포세이돈의 흔적이 엔딩 전에는 잠자코(later), 엔딩 뒤에는 응답(open)해야 합니다 ${JSON.stringify(ending.later)}`)
+  if (!ending.later.relic || ending.later.openAt2 || ending.later.next !== 'guardian' || !ending.later.woke) throw new Error(`엔딩 뒤 깨우기: 포세이돈이 조각 2(삼지창)에서 바로 열리거나 케토스를 쓰러뜨려도 깨어나지 않습니다 ${JSON.stringify(ending.later)}`)
+  if (!ending.later.forgot) throw new Error(`엔딩 뒤 깨우기: 깨우던 신이 다른 길로 열렸는데 그 길이 남아 다른 흔적이 응답하지 않습니다 ${JSON.stringify(ending.later)}`)
   if (!ending.early || ending.early.jotunheim || ending.early.utgard) throw new Error(`땅 차례: 첫 신을 깨우기 전에 요툰헤임·우트가르드가 열려 있습니다 ${JSON.stringify(ending.early)}`)
   if (!ending.early.ironwood || !ending.early.serpentshore) throw new Error(`땅 차례: 첫 신의 수호자 땅(철의 숲·바닷가)이 제1장에 열려 있지 않습니다 ${JSON.stringify(ending.early)}`)
   const w = ending.woke

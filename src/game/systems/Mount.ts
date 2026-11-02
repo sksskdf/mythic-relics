@@ -57,7 +57,7 @@ export class MountSystem {
 
   update(dt: number): void {
     const { hero, orders, bus, mount, fx } = this.ctx
-    // 싸우다 멀리 누른 걸음: 걸어서 빠져나가다 싸움이 풀리는 순간 올라탄다
+    // 싸우다 멀리 누른 걸음: 걸어서 빠져나가다 싸움이 풀리는 순간(맞은 지·싸운 지 3초) 올라탄다
     if (orders.wantRide && hero.isMoving && !hero.riding && this.canRide()) hero.riding = true
     if (hero.riding !== this.wasRiding) {
       this.wasRiding = hero.riding

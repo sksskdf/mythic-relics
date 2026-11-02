@@ -240,6 +240,9 @@ export class WakeSystem {
   update(dt: number): void {
     this.time += dt
     this.settleDeaths()
+    // 깨우는 신이 다른 길(엔딩 뒤 대장간·떨어진 유물)로 먼저 열렸다: 그 길을 비워 다른 흔적이 응답하게 (E241)
+    const stale = this.ctx.awaken.waking
+    if (stale && this.ctx.progress.isOpen(stale)) this.forget(stale)
     const pulse = 0.22 + Math.sin(this.time * 2.6) * 0.08
     for (const t of this.traces) {
       // 응답하는 흔적에만 빛기둥 (깨운 신·다른 신을 깨우는 중이면 꺼진다)
@@ -318,6 +321,21 @@ export class WakeSystem {
     if (this.guardian.alive) this.ctx.encounter.remove(this.guardian)
     this.guardian = null
     this.ctx.bus.emit('music', { theme: null })
+  }
+
+  /** 이미 열린 신의 깨우는 길을 비운다: 수호자와 그 빛기둥을 거두고, 모은 조각을 처음으로 */
+  private forget(god: God): void {
+    const { awaken, powers, bus } = this.ctx
+    if (this.lair?.god === god) {
+      this.dismiss()
+      this.group.remove(this.lair.beam)
+      this.dispose(this.lair.beam)
+      this.lair = null
+    }
+    if (this.wound?.god === god) this.wound = null
+    if (powers.loadout.waking === god) powers.loadout.waking = null
+    awaken.reset()
+    bus.emit('progressChanged', {})
   }
 
   /** 무리와 수호자를 거둔다 (땅을 옮김·쓰러짐·전설 시작). 이미 쓰러뜨린 것은 조각으로 */

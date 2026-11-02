@@ -184,12 +184,13 @@ export class RelicSystem {
 
   /**
    * 유물을 손에 넣었다 (엔딩 뒤에만): 그 신의 신화가 아직 닫혀 있으면 1단계로 연다 (E12-04). 히든 신화도 그 유물이 열쇠다.
-   * 데모에서는 신을 깨워야(흔적·사냥·수호자) 열린다 (E238, E305-03: 그리스도 제우스를 깨운다). 점검용 실행은 Game이 따로 연다
+   * 데모에서는 신을 깨워야(흔적·사냥·수호자) 열린다 (E238, E305-03: 그리스도 제우스를 깨운다). 점검용 실행은 Game이 따로 연다.
+   * 엔딩 뒤에도 깨우는 길의 조각 2로 받은 유물은 신을 열지 않는다 (받을 때도, 불러와 다시 낄 때도): 그 신은 수호자를 쓰러뜨려야 깨어난다 (E241)
    */
   private unlock(id: RelicId, announce: boolean): void {
-    const { progress, bus, ending } = this.ctx
+    const { progress, bus, ending, awaken } = this.ctx
     const myth = relicMyth(id)
-    if (!myth || !ending.has('realms')) return
+    if (!myth || !ending.has('realms') || (awaken.waking === myth && awaken.fragments >= 2)) return
     for (const god of [myth]) {
       if (!progress.open(god)) continue
       bus.emit('progressChanged', {})

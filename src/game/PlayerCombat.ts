@@ -79,6 +79,8 @@ export class PlayerCombat {
 
   private invulnerable = 0
   private sinceHurt: number = REGEN_DELAY
+  /** 마지막으로 싸운 뒤(휘두르거나 칠 적이 있던 때) 지난 시간: 걷기 시작하면 휘두르기·대상이 바로 비어도 싸움은 남는다 (E241) */
+  private sinceFought: number = MOUNT.calmSeconds
 
   constructor(private readonly hero: HeroController) {}
 
@@ -97,11 +99,11 @@ export class PlayerCombat {
   }
 
   /**
-   * 싸움이 풀렸나 (E241: 탈것에 오를 수 있다): 휘두르지 않고, 칠 적이 없고, 맞은 지 MOUNT.calmSeconds가 지났다
-   * (생명이 다시 차기 시작하는 때와 같다)
+   * 싸움이 풀렸나 (E241: 탈것에 오를 수 있다): 휘두르지 않고, 칠 적이 없고, 맞은 지도 싸운 지도 MOUNT.calmSeconds가 지났다
+   * (맞은 지는 생명이 다시 차기 시작하는 때와 같다)
    */
   get calm(): boolean {
-    return !this.engaged && this.sinceHurt >= MOUNT.calmSeconds
+    return !this.engaged && this.sinceHurt >= MOUNT.calmSeconds && this.sinceFought >= MOUNT.calmSeconds
   }
 
   /** 자동 공격을 시작하는 거리: 첫 타 사거리 + 적 몸 반지름 */
@@ -119,6 +121,8 @@ export class PlayerCombat {
   update(dt: number, enemies: readonly CombatTarget[], hooks: CombatHooks): void {
     this.invulnerable = Math.max(0, this.invulnerable - dt)
     this.sinceHurt += dt
+    // 지난 프레임까지 싸웠으면 (걷기 시작해 아래에서 휘두르기·대상을 비우기 전에 본다)
+    this.sinceFought = this.engaged ? 0 : this.sinceFought + dt
     if (this.alive && this.sinceHurt > REGEN_DELAY) this.heal(REGEN_PER_SECOND * dt)
     if (this.alive && this.bonusRegen > 0) this.heal(this.bonusRegen * dt)
 
@@ -176,6 +180,7 @@ export class PlayerCombat {
     this.combo.cancel()
     this.invulnerable = 1.5
     this.sinceHurt = REGEN_DELAY
+    this.sinceFought = MOUNT.calmSeconds
   }
 
   addHeart(amount: number): void {

@@ -158,7 +158,7 @@ const pass = {
   paths,
   camps,
   exits: doors,
-  npcs: [{ ...keeper, name: KEEPER, lines: ['산을 넘는 길은 길고 험하지.', '이 산양을 데려가게. 먼 길은 녀석이 안다네.'], body: [1, 0, 2] }],
+  npcs: [{ ...keeper, name: KEEPER, lines: ['산을 넘는 길은 길고 험하지.', '산양은 먼 길을 안다네. 멀리 가려거든 올라타게.'], body: [1, 0, 2] }],
   props,
 }
 // 우트가르드: 거인 왕 너머 북쪽 숲으로 가던 옛 올림포스 길은 왕의 자리에서 끝낸다 (고개 문은 동쪽, 길은 place-world가 낸다)

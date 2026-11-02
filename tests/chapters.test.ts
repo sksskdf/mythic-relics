@@ -1,3 +1,4 @@
+import * as THREE from 'three'
 import { describe, expect, it } from 'vitest'
 
 import { DataError } from '../src/data/check'
@@ -5,6 +6,10 @@ import raw from '../src/data/chapters.json'
 import { CHAPTERS, chapterOf, CONQUESTS, GOAL_MAX_CHARS, landScale, parseChapters, TOP_POWER } from '../src/data/chapters'
 import { REGIONS } from '../src/data/regions'
 import { ChapterProgress, type ChapterWorld } from '../src/progress/Chapters'
+import { MountProgress } from '../src/progress/Mount'
+import { EventBus, type GameEvents } from '../src/game/events'
+import { ChapterSystem } from '../src/game/systems/Chapters'
+import { MountSystem } from '../src/game/systems/Mount'
 import { Encounter } from '../src/game/Encounter'
 import { walkArea } from '../src/world/colliders'
 
@@ -340,5 +345,33 @@ describe('장 정복 (E305-02)', () => {
     expect(chapters.conquered).toBe(1)
     chapters.bossDefeated('lycia')
     expect(chapters.conquered).toBe(2)
+  })
+})
+
+describe('장 진행 시스템과 탈것 (E241)', () => {
+  it('귀환 2를 먼저 한 판은 고개지기를 만나면 바로 목표가 올림포스로 넘어간다 (goalChanged: 결계·작은 지도가 다시 셈한다)', () => {
+    const bus = new EventBus<GameEvents>()
+    const w = world()
+    const chapters = new ChapterProgress(w)
+    const mount = new MountProgress()
+    w.mounted = () => mount.owned
+    chapters.enter('midgard')
+    w.awake.set('norse', 2)
+    chapters.enter('jotunheim')
+    chapters.enter('utgard')
+    w.ret = 2
+    chapters.bossDefeated('utgard')
+    const ctx = { bus, chapters, mount, map: { region: REGIONS.pass }, hero: { rig: { root: new THREE.Group() } }, orders: {} }
+    new ChapterSystem(ctx as never)
+    const keeper = new MountSystem(ctx as never, new THREE.Scene(), false)
+    const goals: (string | undefined)[] = []
+    bus.on('goalChanged', ({ goal }) => goals.push(goal?.goal))
+    bus.emit('regionEntered', { id: 'pass' })
+    expect(goals).toEqual(['고개지기를 만난다'])
+    expect(chapters.isOpen('olympus')).toBe(false)
+    // 고치기 전: 목표는 올림포스로 넘어갔는데 알리지 않아 결계가 그대로 섰다
+    keeper.give()
+    expect(goals).toEqual(['고개지기를 만난다', '올림포스 기슭으로'])
+    expect(chapters.isOpen('olympus')).toBe(true)
   })
 })
