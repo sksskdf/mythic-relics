@@ -3,17 +3,19 @@
 // 예: node scripts/enemy-trial.mjs mjolnir,megingjord,jarngreipr silverBow,cerynitian,houndLeash
 // 묶음을 주지 않으면 토르·아르테미스·아마테라스로 잰다. 결과는 test-results/enemy-trial.json
 // --gate 를 붙이면 지역 보스를 못 쓰러뜨린 클래스가 있거나 오류가 나면 실패로 끝난다.
+// --only=적,적 이면 그 적만 잰다 (E241: 예 --only=typhon,ketos,cerberus,calydonianBoar)
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { chromium } from 'playwright-core'
 
 const GATE = process.argv.includes('--gate')
 const SETS = process.argv.slice(2).filter((a) => !a.startsWith('--'))
+const ONLY = process.argv.find((a) => a.startsWith('--only='))?.slice('--only='.length).split(',') ?? null
 const CLASSES = SETS.length > 0 ? SETS : ['mjolnir,megingjord,jarngreipr', 'silverBow,cerynitian,houndLeash', 'yataMirror,sunSilk,uzumeBells']
 const ENEMIES = JSON.parse(readFileSync(new globalThis.URL('../src/data/enemies.json', import.meta.url), 'utf8'))
 /** 시험할 적: 지역에 나오는 졸개는 셋씩, 보스·수호자는 혼자 (우트가르드의 왕은 승급 전설 보스라 뺀다, 마지막 무대의 왕 skyKing도 보스로 잰다) */
 const TARGETS = Object.entries(ENEMIES)
-  .filter(([id, e]) => id !== 'utgardKing' && (e.realm || e.extends))
+  .filter(([id, e]) => id !== 'utgardKing' && (e.realm || e.extends) && (!ONLY || ONLY.includes(id)))
   .map(([id, e]) => {
     // 이어받은 적(extends)은 역할을 부모에게서 받는다
     const role = e.role ?? ENEMIES[e.extends]?.role
