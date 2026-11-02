@@ -765,6 +765,123 @@ const sections = {
    * E23-1 큰 걸음마다 「강해졌다」가 크게 보인다: 첫 신 깨우기(장면) → 주신 큰 카드, 신화 단계·유물 벼리기(큰 카드),
    * 장 보스 처치(느린 동작 → 장면) → 장 넘어가기 장면 → 신화 개방 카드, 엔딩 장면 → 큰 카드
    */
+  /**
+   * E241 탈것 타고 내리기: 고개지기 곁 산양 → 만나면 카드 → 멀리 누르면 올라탐(달리는 모습) → 적을 누르면 내려서 침.
+   * 휴대폰은 같은 조이스틱으로 멀리 끌면 올라타고(원이 바뀜) 떼면 내린다. 버튼이 늘지 않았는지 화면으로 본다
+   */
+  async 'e241-mount'(browser) {
+    const page = await fresh(browser, '?fresh&relics=mjolnir&region=pass&noscenes')
+    const keeper = await page.evaluate(() => {
+      const g = window.__game
+      g.encounter.clearAll()
+      const k = g.mountSystem.keeper
+      g.dev.teleport(k.x - 5, k.z + 1)
+      return { x: k.x, z: k.z }
+    })
+    const before = await shot(page, 'e241-keeper')
+    // 고개지기에게 걸어가 만난다 (따로 누르지 않음)
+    await page.evaluate((k) => {
+      const g = window.__game
+      g.orders.press({ x: k.x - 1, z: k.z }, null)
+      for (let i = 0; i < 120 && !g.mount.owned; i++) g.advance(1 / 30, 1 / 30)
+    }, keeper)
+    const card = await shot(page, 'e241-mount-card')
+    const rode = await page.evaluate(() => {
+      const g = window.__game
+      g.hideCards()
+      g.encounter.clearAll()
+      g.advance(3.2, 1 / 30)
+      const p = g.hero.object.position
+      const from = { x: p.x, z: p.z }
+      const rode = g.dev.ride(20)
+      g.advance(0.5, 1 / 30)
+      const q = g.hero.object.position
+      return { rode, riding: g.hero.riding, goat: g.mountSystem.showing, ran: Math.round(Math.hypot(q.x - from.x, q.z - from.z) * 10) / 10 }
+    })
+    const riding = await shot(page, 'e241-ride')
+    // 탄 채 앞의 졸개를 누르면 내려서 치러 간다
+    const off = await page.evaluate(() => {
+      const g = window.__game
+      const p = g.hero.object.position
+      const a = g.hero.facing
+      const foe = g.encounter.spawnGrunt(p.x + Math.sin(a) * 4, p.z + Math.cos(a) * 4)
+      foe.update = () => {}
+      g.orders.press(null, foe)
+      const at = { riding: g.hero.riding, attack: g.orders.attackTarget === foe }
+      g.advance(0.6, 1 / 30)
+      return { ...at, goat: g.mountSystem.showing, swinging: g.combat.combo.swinging || g.combat.target === foe }
+    })
+    const dismount = await shot(page, 'e241-dismount')
+    await page.close()
+
+    // 휴대폰: 짧게 끌면 걷고, 멀리 끌면 올라타며 원이 바뀌고, 떼면 내린다
+    const phone = await browser.newPage({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true })
+    phone.on('pageerror', (e) => errors.push(e.message))
+    await phone.goto(`${URL}?relics=mjolnir&region=midgard&noscenes`, { timeout: 90000 })
+    await phone.waitForFunction(() => (window.__game?.frame ?? 0) > 3 && window.__game.playing, null, { timeout: 90000 })
+    const frames = async (n) => {
+      const f = await phone.evaluate(() => window.__game.frame)
+      await phone.waitForFunction((t) => window.__game.frame >= t, f + n, { timeout: 60000 })
+    }
+    const finger = (type, x, y) =>
+      phone.evaluate(([type, x, y]) => {
+        const target = type === 'pointerdown' ? window.__game.pixel.renderer.domElement : window
+        target.dispatchEvent(new PointerEvent(type, { pointerId: 1, pointerType: 'touch', clientX: x, clientY: y, bubbles: true, isPrimary: true }))
+      }, [type, x, y])
+    const state = () => phone.evaluate(() => ({ riding: window.__game.hero.riding, moving: window.__game.hero.isMoving, far: document.querySelector('.stick').classList.contains('is-far'), stick: !document.querySelector('.stick').hidden }))
+    await phone.evaluate(() => {
+      window.__game.encounter.clearAll()
+      window.__game.dev.mount()
+    })
+    await finger('pointerdown', 195, 650)
+    for (const y of [640, 625, 610]) {
+      await finger('pointermove', 195, y)
+      await frames(1)
+    }
+    await frames(4)
+    const short = await state()
+    const walkPhone = await shot(phone, 'e241-walk-phone')
+    for (const y of [590, 565, 540]) {
+      await finger('pointermove', 195, y)
+      await frames(1)
+    }
+    await frames(6)
+    const far = await state()
+    const ridePhone = await shot(phone, 'e241-ride-phone')
+    await finger('pointerup', 195, 540)
+    await frames(3)
+    const released = await state()
+    const releasePhone = await shot(phone, 'e241-release-phone')
+    await phone.close()
+    return { shots: [before, card, riding, dismount, walkPhone, ridePhone, releasePhone], rode, off, phone: { short, far, released } }
+  },
+
+  /** E241 티폰 실루엣: 올림포스 깊은 곳 수호자 자리에 세우고 주인공과 함께 찍는다 (쉬는 모습, 외침 예고) */
+  async 'e241-typhon'(browser) {
+    const page = await fresh(browser, '?fresh&relics=mjolnir&region=olympus&noscenes')
+    await page.evaluate(() => {
+      const g = window.__game
+      g.encounter.clearAll()
+      g.combat.godMode = true
+      g.dev.teleport(6, -15)
+      const typhon = g.encounter.spawnById('typhon', { x: 6, z: -24 }, false)
+      typhon.update = (dt) => typhon.rest(dt)
+      window.__typhon = typhon
+    })
+    const idle = await shot(page, 'e241-typhon')
+    const attack = await page.evaluate(() => {
+      const g = window.__game
+      const typhon = window.__typhon
+      delete typhon.update
+      typhon.alert()
+      for (let i = 0; i < 300 && typhon.state !== 'windup'; i++) g.advance(1 / 30, 1 / 30)
+      return { state: typhon.state, attack: typhon.currentAttack?.name ?? null }
+    })
+    const windup = await shot(page, 'e241-typhon-windup')
+    await page.close()
+    return { shots: [idle, windup], attack }
+  },
+
   async 'e23-1'(browser) {
     const page = await fresh(browser, '?fresh&noscenes')
     const moments = []
