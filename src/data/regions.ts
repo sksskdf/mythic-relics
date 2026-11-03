@@ -101,6 +101,12 @@ export interface RegionDef {
 /** 시작점 둘레에 소품을 두지 않는 반지름 */
 export const SPAWN_CLEAR = 4
 
+/**
+ * 들판 사이 길목 (E241): 두 장을 잇는 작은 땅. 끝없는 원정 층의 얼굴로 쓰지 않고(씨앗을 고정한 층 모습·신화권 적 목록이 그대로이게),
+ * 봇이 그 신화권의 사냥 들판으로 고르지 않는다
+ */
+export const PASSES: ReadonlySet<string> = new Set(['pass'])
+
 function spot(raw: unknown, path: string, extra: readonly string[], half: number): Obj & Spot {
   const o = obj(raw, path)
   onlyKeys(o, path, ['x', 'z', ...extra])

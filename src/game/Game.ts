@@ -67,6 +67,8 @@ import { ChapterProgress } from '../progress/Chapters'
 import { TrainingProgress } from '../progress/Training'
 import { ExpeditionProgress } from '../progress/Expedition'
 import { WakeProgress } from '../progress/Wake'
+import { MountProgress } from '../progress/Mount'
+import { MountSystem } from './systems/Mount'
 import { TabUnlocks } from '../progress/Tabs'
 import { TabSystem } from './systems/Tabs'
 import { Barriers } from '../world/Barriers'
@@ -144,6 +146,7 @@ export class Game {
       awakened: (realm) => this.progress.opened.filter((god) => godDef(god).realm === realm).length,
       forged: () => Math.max(0, ...this.powers.loadout.ownedRelics.filter(isMythRelic).map((id) => this.powers.loadout.stage(id))),
       returns: () => this.expedition.returns,
+      mounted: () => this.mount.owned,
     },
     // 엔딩 뒤에는 남은 신화권 셋의 결계가 풀린다
     () => this.ending.has('realms'),
@@ -155,6 +158,9 @@ export class Game {
   readonly expedition = Object.assign(new ExpeditionProgress(), { conquests: (): number => this.chapters.conquered, automation: () => this.automation.now, oathScale: (): number => this.oaths.renownScale() })
   /** 신을 깨우는 진행 (E238): 깨우는 신과 모은 조각 */
   readonly awaken = new WakeProgress()
+  /** 탈것 (E241): 고개지기의 산양을 얻었나, 타고 내리기 */
+  readonly mount = new MountProgress()
+  readonly mountSystem: MountSystem
   /** 신을 깨우는 길 (E238): 흔적·사냥·수호자 */
   readonly awakening: WakeSystem
   /** 연 정보 화면 탭 (E236-05): 쓸 일이 생길 때 하나씩 열린다 */
@@ -380,6 +386,7 @@ export class Game {
       expedition: this.expedition,
       tabs: this.tabs,
       awaken: this.awaken,
+      mount: this.mount,
       uniques: new UniqueState(),
       build: new Build({ powers: this.powers, progress: this.progress, oaths: this.oaths, oath: () => this.expedition.oath, training: this.training, awaken: this.awaken, expedition: this.expedition }),
       skills,
@@ -420,6 +427,7 @@ export class Game {
     this.menuWiring.listen()
     this.growth = new ProgressionSystem(this.ctx)
     this.life = new HeroLife(this.ctx)
+    this.mountSystem = new MountSystem(this.ctx, this.scene, this.touch)
     this.depthSystem = new DepthSystem(this.ctx)
     // 자동화 (E305-03): 귀환 횟수가 연 것과 자동 줍기를 카드로 알린다
     new AutomationSystem(this.ctx)
@@ -484,6 +492,7 @@ export class Game {
       chapterSystem: this.chapterSystem,
       world: this.world,
       expeditionSystem: this.expeditionSystem,
+      mountSystem: this.mountSystem,
     })
     this.audio = new AudioEngine(this.viewport.settings.volume, { mobile: this.touch })
     this.attackFx = new AttackFx({ fx: this.fx, hero: this.hero, combat: this.combat, build: this.ctx.build, audio: this.audio })
@@ -809,7 +818,7 @@ export class Game {
     } else this.playerInput.hovered = null
     this.orders.update(this.encounter.alive)
     const heading = this.hero.heading
-    if (this.orders.plowing && heading) plowThrough(this.hero.object.position, HERO_RADIUS, heading, this.encounter.alive)
+    if (this.orders.plowing && heading) plowThrough(this.hero.object.position, HERO_RADIUS, heading, this.encounter.alive, this.hero.speed)
     this.hero.update(dt)
     this.fx.updateMarkers(dt, this.hero, this.orders, this.encounter.alive)
 
@@ -837,6 +846,7 @@ export class Game {
     this.oathSystem.update()
     this.endlessSystem.update(dt)
     this.life.update(dt)
+    this.mountSystem.update(dt)
     this.appearance.update(dt)
     this.sound.update()
 

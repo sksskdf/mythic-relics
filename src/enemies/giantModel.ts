@@ -42,8 +42,8 @@ export interface GiantOptions {
   /** 거인 왕: 왕관, 얼음 수염, 망토, 얼음 몽둥이 */
   king?: boolean
   seed?: number
-  /** 머리 모양 (E8): 외눈(키클롭스), 뿔(오니), 소뿔(우마왕) */
-  head?: 'plain' | 'oneEye' | 'horns' | 'bull'
+  /** 머리 모양 (E8): 외눈(키클롭스), 뿔(오니), 소뿔(우마왕). 뱀 머리 무더기(티폰, E241: 정수리와 어깨의 뱀, 뱀 감긴 다리, 똬리 꼬리) */
+  head?: 'plain' | 'oneEye' | 'horns' | 'bull' | 'serpents'
   /** 손에 든 것 (E8): 몽둥이, 던질 바위, 빈손, 불타는 칼 (E239 수르트, 칼날은 recolor의 장식 색) */
   gear?: 'club' | 'rock' | 'none' | 'sword'
   /** 색 바꾸기 (서리 거인 색 → 다른 거인 색) */
@@ -62,7 +62,7 @@ function leg(): VoxelGrid {
   return g
 }
 
-function torso(king: boolean, rng: () => number): VoxelGrid {
+function torso(king: boolean, rng: () => number, scar: number = FROST.skinDark): VoxelGrid {
   const g = new VoxelGrid(12, 11, 8)
   // 배가 나온 몸통
   g.box(1, 2, 1, 10, 9, 6, FROST.skin)
@@ -77,8 +77,8 @@ function torso(king: boolean, rng: () => number): VoxelGrid {
   // 어깨 뼈 장식
   g.box(0, 9, 2, 2, 10, 5, FROST.bone)
   g.box(9, 9, 2, 11, 10, 5, FROST.bone)
-  // 가슴 흉터
-  for (let i = 0; i < 4; i++) g.set(3 + i, 7 - i, 7, FROST.skinDark)
+  // 가슴 흉터 (티폰은 번개 맞은 자국이 아직 푸르게 빛난다)
+  for (let i = 0; i < 4; i++) g.set(3 + i, 7 - i, 7, scar)
   if (king) g.box(1, 3, 6, 10, 3, 7, FROST.gold)
   return g
 }
@@ -113,8 +113,8 @@ function head(king: boolean, kind: GiantOptions['head'] = 'plain'): VoxelGrid {
     for (const [x, z] of [[1, 7], [8, 7], [1, 0], [8, 0]] as const) g.box(x, 7, z, x, 7, z, FROST.gold)
     g.set(4, 8, 7, FROST.ice)
     g.set(5, 8, 7, FROST.ice)
-  } else {
-    // 듬성듬성한 머리털
+  } else if (kind !== 'serpents') {
+    // 듬성듬성한 머리털 (뱀 머리 무더기는 머리털 대신 정수리에서 뱀이 솟는다)
     g.box(2, 6, 1, 7, 6, 5, FROST.fur)
     g.set(3, 7, 3, FROST.furDark)
     g.set(6, 7, 2, FROST.furDark)
@@ -175,6 +175,69 @@ function sword(): VoxelGrid {
   return g
 }
 
+/** 비늘 감긴 다리 (티폰, E241): 굵은 기둥을 뱀이 비스듬히 감아 내려와 발이 똬리처럼 땅을 짚는다 */
+function scaledLeg(): VoxelGrid {
+  const g = new VoxelGrid(4, 9, 5)
+  g.box(0, 0, 0, 3, 8, 3, FROST.skin)
+  g.box(0, 0, 0, 3, 8, 0, FROST.skinShade)
+  const rim = [[0, 0], [1, 0], [2, 0], [3, 0], [3, 1], [3, 2], [3, 3], [2, 3], [1, 3], [0, 3], [0, 2], [0, 1]] as const
+  for (let y = 2; y <= 8; y++) {
+    for (const k of [0, 1]) {
+      const [x, z] = rim[(y * 3 + k) % rim.length]!
+      g.set(x, y, z, FROST.skinDark)
+    }
+  }
+  g.box(0, 0, 0, 3, 1, 4, FROST.skinDark)
+  g.box(0, 0, 4, 3, 0, 4, FROST.skinShade)
+  return g
+}
+
+/** 뱀 머리 하나: 비늘 목 끝에 둥근 머리, 밖을 보는 눈과 송곳니. (bx, bz)에서 (hx, hy, hz)로 솟는다 */
+function serpentHead(g: VoxelGrid, bx: number, bz: number, hx: number, hy: number, hz: number, out: { x: number; z: number }): void {
+  g.line(bx, 0, bz, hx, hy - 1, hz, FROST.skinShade, 1)
+  g.ellipsoid(hx + 0.5, hy + 0.5, hz + 0.5, 1.6, 1.2, 1.6, FROST.skin)
+  const ex = Math.round(hx + out.x * 1.2)
+  const ez = Math.round(hz + out.z * 1.2)
+  g.set(ex, hy + 1, ez, FROST.eye)
+  g.set(Math.round(hx + out.x * 1.6), hy - 1, Math.round(hz + out.z * 1.6), FROST.bone)
+}
+
+/** 정수리를 둘러 솟은 뱀 머리 다섯 (티폰, E241): 앞은 비워 얼굴이 보이게, 옆과 뒤로 밖을 본다 */
+function serpentCrown(): VoxelGrid {
+  const g = new VoxelGrid(17, 9, 15)
+  const cx = 8
+  const cz = 7
+  for (const deg of [-62, -118, 180, 118, 62]) {
+    const a = (deg * Math.PI) / 180
+    const out = { x: Math.sin(a), z: Math.cos(a) }
+    const tall = Math.abs(deg) === 180 ? 6 : Math.abs(deg) > 90 ? 5 : 4
+    serpentHead(g, Math.round(cx + out.x * 2), Math.round(cz + out.z * 2), Math.round(cx + out.x * 5.5), tall, Math.round(cz + out.z * 5), out)
+  }
+  return g
+}
+
+/** 어깨에서 솟은 뱀 (티폰, E241): 팔 관절에 붙어 물기·외침 자세에 따라 젖혔다 덮친다. side 1이면 오른쪽(+x)으로 기운다 */
+function shoulderSerpent(side: 1 | -1): VoxelGrid {
+  const g = new VoxelGrid(9, 9, 5)
+  const base = side === 1 ? 2 : 6
+  const tip = side === 1 ? 5 : 3
+  serpentHead(g, base, 2, tip, 6, 2, { x: side * 0.7, z: 0.7 })
+  return g
+}
+
+/** 똬리 꼬리 (티폰, E241): 허리 뒤에서 내려와 땅에 두 번 감긴다. 비늘은 띠마다 밝고 어둡게 */
+function coiledTail(): VoxelGrid {
+  const g = new VoxelGrid(15, 10, 17)
+  const scale = (a: number) => (Math.floor(a * 3) % 2 ? FROST.skin : FROST.skinShade)
+  // 허리에서 땅으로 내려오는 꼬리 뿌리
+  for (let t = 0; t <= 1; t += 0.05) g.ellipsoid(7.5, 8 - t * 6.5, 16 - t * 4, 2.2 - t * 0.5, 1.8, 1.8, scale(t * 4))
+  // 땅에 감긴 큰 고리와 그 위의 작은 고리, 끝은 위로 든다
+  for (let a = 0; a < Math.PI * 2; a += 0.08) g.ellipsoid(7.5 + Math.sin(a) * 5, 1.3, 7 + Math.cos(a) * 5, 1.7, 1.4, 1.7, scale(a))
+  for (let a = 0; a < Math.PI * 1.6; a += 0.1) g.ellipsoid(7.5 + Math.sin(a) * 2.6, 3.4, 7 + Math.cos(a) * 2.6, 1.2, 1.1, 1.2, scale(a))
+  g.line(7, 3, 5, 6, 6, 4, FROST.skinDark, 0)
+  return g
+}
+
 function cape(): VoxelGrid {
   const g = new VoxelGrid(10, 13, 1)
   g.box(0, 0, 0, 9, 12, 0, FROST.cape)
@@ -209,13 +272,14 @@ export function buildGiantRig(options: GiantOptions): GiantRig {
     return voxelMesh(grid, { voxelSize: s, pivot }, material)
   }
 
-  const legGrid = leg()
+  const serpents = options.head === 'serpents'
+  const legGrid = serpents ? scaledLeg() : leg()
   const hipY = 9 * s
   const leftLeg = joint(-2.5 * s, hipY, 0, mesh(legGrid, [2, 9, 2]))
   const rightLeg = joint(2.5 * s, hipY, 0, mesh(legGrid, [2, 9, 2]))
   body.add(leftLeg, rightLeg)
 
-  const torsoMesh = mesh(torso(king, rng), [6, 0, 4])
+  const torsoMesh = mesh(torso(king, rng, serpents ? FROST.ice : FROST.skinDark), [6, 0, 4])
   torsoMesh.position.y = hipY
   body.add(torsoMesh)
 
@@ -244,6 +308,20 @@ export function buildGiantRig(options: GiantOptions): GiantRig {
   const headMesh = mesh(head(king, options.head), [5, 0, 4])
   headMesh.position.y = hipY + 10 * s
   body.add(headMesh)
+
+  if (serpents) {
+    const crown = mesh(serpentCrown(), [8.5, 0, 7.5])
+    crown.position.set(0, hipY + 16 * s, 0.5 * s)
+    body.add(crown)
+    for (const [arm, side] of [[rightArm, 1], [leftArm, -1]] as const) {
+      const snake = mesh(shoulderSerpent(side), [side === 1 ? 2.5 : 6.5, 0, 2.5])
+      snake.position.set(side * 0.5 * s, 0.5 * s, 0)
+      arm.add(snake)
+    }
+    const tail = mesh(coiledTail(), [7.5, 0, 16.5])
+    tail.position.set(0, 0, -2.5 * s)
+    body.add(tail)
+  }
 
   if (king) {
     const capeJoint = joint(0, shoulderY + s, -4.5 * s, mesh(cape(), [5, 13, 1]))

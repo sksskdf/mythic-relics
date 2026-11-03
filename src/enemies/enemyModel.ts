@@ -50,9 +50,13 @@ function parts(voxelSize: number): Parts {
 
 // ───────────────────────────── 짐승 ─────────────────────────────
 
+/** 엄니·갈기 색 (칼리돈의 멧돼지): 몸 색과 상관없이 상아빛 */
+const TUSK = 0xece2c8
+
 function beast(b: BodySpec, p: Parts, rng: () => number): EnemyRig {
   const { s, mesh, body } = p
   const armored = b.head === 'horns' || b.head === 'bull'
+  const tusks = b.head === 'tusks'
   // 몸통: 앞이 높고 뒤로 갈수록 낮아지는 둥근 몸, 배는 그늘색, 등줄기는 어두운 색
   const torso = new VoxelGrid(10, 10, 16)
   torso.ellipsoid(4.5, 4.5, 7.5, 4.4, 3.8, 7.6, (x, y) => {
@@ -68,6 +72,8 @@ function beast(b: BodySpec, p: Parts, rng: () => number): EnemyRig {
   torso.ellipsoid(4.5, 5.5, 12.5, 4.9, 4.4, 2.6, () => (rng() < 0.3 ? b.dark : b.accent))
   // 갑옷 등: 등줄기를 따라 솟은 돌기
   if (armored) for (let z = 3; z < 12; z += 3) torso.box(4, 8, z, 5, 9, z, b.accent)
+  // 등 갈기 (멧돼지, E241): 목에서 엉덩이까지 뻣뻣한 털이 들쭉날쭉 선다
+  if (tusks) for (let z = 3; z < 14; z++) torso.box(4, 8, z, 5, 8 + (z % 3 === 0 ? 1 : 0) + (z > 6 && z < 12 ? 1 : 0), z, z % 2 ? b.dark : b.accent)
   const hipY = 6 * s
   const torsoMesh = mesh(torso, [5, 0, 8])
   torsoMesh.position.y = hipY - 2 * s
@@ -87,6 +93,19 @@ function beast(b: BodySpec, p: Parts, rng: () => number): EnemyRig {
     // 뿔: 옆으로 뻗었다가 위로 휜다
     head.box(0, 6, 2, 0, 7, 3, b.accent)
     head.box(7, 6, 2, 7, 7, 3, b.accent)
+  } else if (tusks) {
+    // 넓적한 코와 위로 휜 엄니 둘 (멧돼지, E241). 귀는 작게 뒤로 눕는다
+    head.box(2, 1, 8, 5, 3, 8, b.dark)
+    head.set(3, 2, 8, b.shade)
+    head.set(4, 2, 8, b.shade)
+    for (const x of [1, 6]) {
+      head.box(x, 1, 7, x, 1, 8, TUSK)
+      head.set(x, 2, 8, TUSK)
+      head.set(x, 3, 8, TUSK)
+      head.set(x + (x === 1 ? -1 : 1), 4, 8, TUSK)
+    }
+    head.box(0, 6, 0, 1, 6, 1, b.dark)
+    head.box(6, 6, 0, 7, 6, 1, b.dark)
   } else {
     // 쫑긋한 귀
     head.box(0, 7, 1, 1, 7, 2, b.dark)
@@ -95,6 +114,16 @@ function beast(b: BodySpec, p: Parts, rng: () => number): EnemyRig {
   const headMesh = mesh(head, [4, 0, 1])
   headMesh.position.set(0, hipY + 3 * s, 7 * s)
   body.add(headMesh)
+  // 곁머리 (케르베로스, E241): 가운데 머리 양옆에서 조금 뒤로 물러나 밖을 본다
+  for (let i = 1; i < b.heads; i++) {
+    const side = i % 2 ? -1 : 1
+    const rank = Math.ceil(i / 2)
+    const extra = mesh(head, [4, 0, 1])
+    extra.position.set(side * 4.5 * rank * s, hipY + (3 - rank) * s, (6.5 - rank * 1.5) * s)
+    extra.rotation.y = side * 0.5
+    extra.scale.setScalar(0.85)
+    body.add(extra)
+  }
   // 꼬리: 굵고 위로 든다
   const tail = new VoxelGrid(3, 3, 7)
   tail.box(0, 0, 0, 2, 2, 6, b.dark)
@@ -266,40 +295,50 @@ function spirit(b: BodySpec, p: Parts, rng: () => number): EnemyRig {
 
 // ───────────────────────────── 뱀 ─────────────────────────────
 
-function serpent(b: BodySpec, p: Parts, heads = 1): EnemyRig {
+function serpent(b: BodySpec, p: Parts): EnemyRig {
   const { s, mesh, body } = p
+  const fins = b.head === 'fins'
   // 땅을 기는 몸: 뒤로 갈수록 가늘어지는 마디 다섯
   for (let i = 0; i < 5; i++) {
     const r = 4 - i * 0.5
-    const seg = new VoxelGrid(9, 7, 6)
+    const seg = new VoxelGrid(9, fins ? 11 : 7, 6)
     seg.ellipsoid(4.5, 3, 3, r, r * 0.7, 3, (_x, y) => (y < 2 ? b.shade : b.main))
-    seg.forEach((x, y, z, hex) => {
-      if (hex === b.main && y > 3 && (x + z) % 3 === 0) seg.set(x, y, z, b.accent)
-    })
+    if (fins) {
+      // 바다 괴물 (케토스, E241): 비늘 무늬 대신 마디마다 등지느러미가 솟는다. 앞 마디일수록 높다
+      const top = Math.ceil(3 + r * 0.7)
+      const high = 4 - Math.floor(i * 0.6)
+      for (let z = 1; z <= 4; z++) seg.box(4, top, z, 4, top + Math.max(0, high - Math.abs(z - 2)), z, z === 1 ? b.dark : b.accent)
+    } else
+      seg.forEach((x, y, z, hex) => {
+        if (hex === b.main && y > 3 && (x + z) % 3 === 0) seg.set(x, y, z, b.accent)
+      })
     const m = mesh(seg, [4.5, 0, 3])
     m.position.set(Math.sin(i * 1.3) * 1.5 * s, 0, -i * 5 * s)
     body.add(m)
   }
-  // 고개를 든 머리
-  const head = new VoxelGrid(8, 6, 8)
-  head.box(0, 0, 0, 7, 4, 6, b.main)
-  head.box(1, 0, 6, 6, 2, 7, b.shade)
-  head.set(1, 4, 5, b.eye)
-  head.set(6, 4, 5, b.eye)
+  // 고개를 든 머리 (케토스는 이를 드러내고 벌린 넓은 턱과 귀 지느러미)
+  const head = fins ? jaws(b) : new VoxelGrid(8, 6, 8)
+  if (!fins) {
+    head.box(0, 0, 0, 7, 4, 6, b.main)
+    head.box(1, 0, 6, 6, 2, 7, b.shade)
+    head.set(1, 4, 5, b.eye)
+    head.set(6, 4, 5, b.eye)
+  }
   if (b.head === 'horns') head.box(1, 5, 1, 1, 5, 2, b.accent), head.box(6, 5, 1, 6, 5, 2, b.accent)
+  const pivot: [number, number, number] = fins ? [5, 0, 2] : [4, 0, 2]
   // 머리는 몸통보다 조금 작게 해서 뒤의 긴 몸이 보이게 한다
-  const neck = joint(0, 4 * s, 2 * s, mesh(head, [4, 0, 2]))
+  const neck = joint(0, 4 * s, 2 * s, mesh(head, pivot))
   neck.children[0]!.position.y = 6 * s
   neck.children[0]!.scale.setScalar(0.8)
-  // 보스 뱀(야마타노오로치)은 양옆으로 고개를 더 든다: 머리가 여럿인 큰 뱀
-  if (heads > 1) {
-    for (const side of [-1, 1]) {
-      const extra = mesh(head, [4, 0, 2])
-      extra.position.set(side * 7 * s, 7 * s, -2 * s)
-      extra.rotation.y = side * 0.6
-      extra.scale.setScalar(0.65)
-      body.add(extra)
-    }
+  // 머리가 여럿인 큰 뱀(야마타노오로치·요르문간드)은 양옆으로 고개를 더 든다
+  for (let i = 1; i < b.heads; i++) {
+    const side = i % 2 ? -1 : 1
+    const rank = Math.ceil(i / 2)
+    const extra = mesh(head, pivot)
+    extra.position.set(side * 7 * rank * s, 7 * s, -2 * rank * s)
+    extra.rotation.y = side * 0.6
+    extra.scale.setScalar(0.65)
+    body.add(extra)
   }
   // 팔 관절 = 목 (공격 자세에서 머리가 들썩인다), 나머지는 비어 있다
   const rightArm = neck
@@ -308,6 +347,27 @@ function serpent(b: BodySpec, p: Parts, heads = 1): EnemyRig {
   const rightLeg = joint(0, 0, 0)
   body.add(rightArm, leftArm, leftLeg, rightLeg)
   return { root: p.root, body, leftArm, rightArm, leftLeg, rightLeg, material: p.material, palette: [b.main, b.shade, b.accent], kind: 'serpent' }
+}
+
+/** 바다 괴물의 머리 (케토스, E241): 위턱과 아래턱 사이를 벌려 이가 보이고, 뒤쪽 양옆에 귀 지느러미 */
+function jaws(b: BodySpec): VoxelGrid {
+  const g = new VoxelGrid(10, 8, 10)
+  // 위턱: 넓고 길다, 눈은 뒤쪽 위
+  g.box(0, 3, 0, 9, 6, 8, b.main)
+  g.box(1, 3, 8, 8, 4, 9, b.main)
+  g.set(1, 6, 3, b.eye)
+  g.set(8, 6, 3, b.eye)
+  // 아래턱: 흰 배 색, 앞이 조금 처진다
+  g.box(1, 0, 0, 8, 1, 8, b.shade)
+  // 이: 위턱 아래와 아래턱 위에 드문드문
+  for (let z = 3; z <= 8; z += 2) {
+    for (const x of [1, 8]) g.set(x, 2, z, 0xf2f0e6)
+    g.set(z % 4 === 1 ? 3 : 6, 2, 9, 0xf2f0e6)
+  }
+  // 귀 지느러미
+  for (const x of [0, 9]) g.box(x, 5, 0, x, 7, 1, b.accent)
+  g.box(4, 7, 0, 5, 7, 4, b.dark)
+  return g
 }
 
 /** 적 데이터로 모델을 만든다. 거인은 서리 거인 모델을 그 색으로 바꿔 칠한다 */
@@ -323,7 +383,7 @@ export function buildEnemyRig(spec: GiantSpec, seed = 1): EnemyRig {
       [FROST_COLORS.fur]: b.accent,
       [FROST_COLORS.furDark]: mix(b.accent, 0x000000, 0.25),
     }
-    const head = b.head === 'oneEye' || b.head === 'horns' || b.head === 'bull' ? b.head : 'plain'
+    const head = b.head === 'oneEye' || b.head === 'horns' || b.head === 'bull' || b.head === 'serpents' ? b.head : 'plain'
     const gear = b.gear === 'rock' || b.gear === 'none' || b.gear === 'sword' ? b.gear : 'club'
     return { ...buildGiantRig({ voxelSize: spec.voxelSize, king: spec.king, seed, head, gear, recolor }), kind: 'giant' }
   }
@@ -338,6 +398,6 @@ export function buildEnemyRig(spec: GiantSpec, seed = 1): EnemyRig {
     case 'spirit':
       return spirit(b, p, rng)
     case 'serpent':
-      return serpent(b, p, spec.role === 'boss' || spec.role === 'guardian' ? 3 : 1)
+      return serpent(b, p)
   }
 }

@@ -1254,14 +1254,7 @@
           { "x": -4, "z": 2 },
           { "x": -3.88, "z": -3.01 },
           { "x": -2.55, "z": -7.68 },
-          { "x": 0, "z": -12 },
-          { "x": 4.37, "z": -15.13 },
-          { "x": 7.71, "z": -19.13 },
-          { "x": 10, "z": -24 },
-          { "x": 14.13, "z": -27.55 },
-          { "x": 17.13, "z": -31.89 },
-          { "x": 19, "z": -37 },
-          { "x": 19, "z": -50 }
+          { "x": 0, "z": -12 }
         ],
         "width": 2.4
       },
@@ -1284,6 +1277,14 @@
           { "x": -18, "z": 2 }
         ],
         "width": 2
+      },
+      {
+        "points": [
+          { "x": 21.07, "z": 31.16 },
+          { "x": 37, "z": 15 },
+          { "x": 50, "z": 15 }
+        ],
+        "width": 2.4
       }
     ],
     "camps": [
@@ -1298,7 +1299,7 @@
     "exits": [
       { "x": -25, "z": 37, "to": "jotunheim" },
       { "x": 25, "z": 37, "to": "muspel" },
-      { "x": 19, "z": -37, "to": "olympus" }
+      { "x": 37, "z": 15, "to": "pass" }
     ],
     "npcs": [],
     "props": [
@@ -1363,7 +1364,6 @@
       { "kind": "rock", "x": -11.06, "z": 8.57, "size": 0.93, "rotation": 0.78 },
       { "kind": "mound", "x": 37.25, "z": -22.31, "size": 0.85, "rotation": 3.79 },
       { "kind": "mound", "x": -24.13, "z": -16.03, "size": 0.95, "rotation": 1.14 },
-      { "kind": "rock", "x": 35.9, "z": 11.34, "size": 1.03, "rotation": 6.01 },
       { "kind": "deadTree", "x": 2.64, "z": -0.48, "size": 0.88, "rotation": 4.14 },
       { "kind": "rock", "x": 0.52, "z": -27.05, "size": 1.07, "rotation": 0.68 },
       { "kind": "ruin", "x": -13.59, "z": -34.1, "size": 0.89, "rotation": 0.55 },
@@ -1378,7 +1378,6 @@
       { "kind": "pine", "x": -8.3, "z": 7.09, "size": 1.22, "rotation": 1.69 },
       { "kind": "rock", "x": 12.97, "z": 10.44, "size": 1.18, "rotation": 2.85 },
       { "kind": "rock", "x": -29.12, "z": -21.24, "size": 1.03, "rotation": 4.78 },
-      { "kind": "rock", "x": 26.16, "z": 26.95, "size": 1.03, "rotation": 2.67 },
       { "kind": "pine", "x": -11.36, "z": -19.35, "size": 1.12, "rotation": 1.64 },
       { "kind": "ruin", "x": 0.59, "z": -35.74, "size": 0.91, "rotation": 6.14 },
       { "kind": "pine", "x": -36.14, "z": -7.45, "size": 1.18, "rotation": 5.25 },
@@ -1396,7 +1395,6 @@
       { "kind": "pine", "x": 22.9, "z": -6.7, "size": 1.13, "rotation": 0.21 },
       { "kind": "deadTree", "x": -6.08, "z": -37.69, "size": 1.07, "rotation": 6.25 },
       { "kind": "pine", "x": -11.95, "z": 10.71, "size": 1.13, "rotation": 4.68 },
-      { "kind": "bush", "x": 35.41, "z": 13.64, "size": 1.13, "rotation": 5.63 },
       { "kind": "ruin", "x": -20.86, "z": -35.43, "size": 1.13, "rotation": 5.29 },
       { "kind": "bush", "x": -35.86, "z": 28.1, "size": 0.95, "rotation": 5.89 },
       { "kind": "ruin", "x": 38.76, "z": 5.28, "size": 0.83, "rotation": 0.36 },
@@ -1405,21 +1403,18 @@
       { "kind": "bush", "x": -2.56, "z": -28.57, "size": 1.16, "rotation": 4.84 },
       { "kind": "bush", "x": -37.21, "z": 16.5, "size": 1.05, "rotation": 3.44 },
       { "kind": "pine", "x": 36.13, "z": 1.06, "size": 0.97, "rotation": 5.31 },
-      { "kind": "ruin", "x": 22.3, "z": 26.93, "size": 0.82, "rotation": 6.18 },
       { "kind": "ruin", "x": -14.69, "z": 35.32, "size": 0.85, "rotation": 5.25 },
       { "kind": "ruin", "x": -2.18, "z": -34.44, "size": 0.88, "rotation": 0.27 },
       { "kind": "deadTree", "x": 1.62, "z": 1.74, "size": 1.02, "rotation": 1.03 },
       { "kind": "mound", "x": 14.06, "z": -11.07, "size": 0.81, "rotation": 2.37 },
       { "kind": "rock", "x": 26.2, "z": -24.88, "size": 1.05, "rotation": 6.15 },
       { "kind": "ruin", "x": -38.38, "z": 38.35, "size": 1.25, "rotation": 3.65 },
-      { "kind": "deadTree", "x": 28.61, "z": 25.28, "size": 0.83, "rotation": 2.03 },
       { "kind": "ruin", "x": 29.42, "z": 15.17, "size": 0.85, "rotation": 4.09 },
       { "kind": "pine", "x": 7.85, "z": 35, "size": 1.16, "rotation": 2.14 },
       { "kind": "ruin", "x": -37.64, "z": 11.9, "size": 1.07, "rotation": 6.22 },
       { "kind": "mound", "x": 22.13, "z": -2.27, "size": 1.21, "rotation": 6.21 },
       { "kind": "ruin", "x": -32.19, "z": -27.77, "size": 1.02, "rotation": 1.17 },
       { "kind": "pine", "x": -20.36, "z": 23.17, "size": 0.87, "rotation": 0.42 },
-      { "kind": "ruin", "x": 26.21, "z": 24.08, "size": 1.23, "rotation": 4.55 },
       { "kind": "bush", "x": -16.47, "z": 21.29, "size": 1.26, "rotation": 0.22 },
       { "kind": "rock", "x": -27.73, "z": 21.13, "size": 1.16, "rotation": 5.26 }
     ]
@@ -1440,8 +1435,8 @@
     "paths": [
       {
         "points": [
-          { "x": -31, "z": 50 },
-          { "x": -31, "z": 37 },
+          { "x": 27, "z": 50 },
+          { "x": 27, "z": 37 },
           { "x": 0, "z": 22 },
           { "x": 10, "z": 8 },
           { "x": 4, "z": -10 },
@@ -1496,7 +1491,7 @@
       { "x": 17, "z": -10, "count": 4, "members": ["harpy", "cyclops", "harpy", "spartoi"] }
     ],
     "exits": [
-      { "x": -31, "z": 37, "to": "utgard" },
+      { "x": 27, "z": 37, "to": "pass" },
       { "x": 22.51, "z": -37, "to": "delphi" },
       { "x": -25, "z": -37, "to": "sky" },
       { "x": 37, "z": 10, "to": "hwagwasan" },
@@ -1541,11 +1536,9 @@
       { "kind": "bush", "x": 38.07, "z": 34.59, "size": 1.14, "rotation": 1.11 },
       { "kind": "cypress", "x": 29.71, "z": 2.84, "size": 1.13, "rotation": 1.67 },
       { "kind": "column", "x": 9, "z": 30.22, "size": 0.81, "rotation": 1.05 },
-      { "kind": "olive", "x": 27.71, "z": 34.1, "size": 1.02, "rotation": 3.58 },
       { "kind": "cypress", "x": 36.16, "z": -18.37, "size": 1.39, "rotation": 6.2 },
       { "kind": "olive", "x": 27.32, "z": 15.35, "size": 1.17, "rotation": 6.17 },
       { "kind": "mound", "x": -3.94, "z": 12.42, "size": 1.27, "rotation": 4.19 },
-      { "kind": "cypress", "x": 11.27, "z": 27.31, "size": 1.03, "rotation": 0.19 },
       { "kind": "rock", "x": -23.72, "z": 2.05, "size": 1.29, "rotation": 6.23 },
       { "kind": "cypress", "x": -30.79, "z": 19.44, "size": 1.04, "rotation": 5.73 },
       { "kind": "cypress", "x": 35.96, "z": -36.38, "size": 1.09, "rotation": 1.18 },
@@ -1621,7 +1614,6 @@
       { "kind": "olive", "x": 27.79, "z": -35.61, "size": 1.31, "rotation": 5.36 },
       { "kind": "cypress", "x": -0.67, "z": -6.27, "size": 1.01, "rotation": 0.67 },
       { "kind": "olive", "x": 21.39, "z": -4.27, "size": 1.36, "rotation": 4.04 },
-      { "kind": "mound", "x": 13.45, "z": 32.37, "size": 0.79, "rotation": 2.06 },
       { "kind": "cypress", "x": 25.3, "z": -26.2, "size": 1.33, "rotation": 5.69 },
       { "kind": "rock", "x": -32.43, "z": 17.76, "size": 1.05, "rotation": 2.3 },
       { "kind": "column", "x": 33.12, "z": -33.1, "size": 1.16, "rotation": 4.98 },
@@ -1969,6 +1961,164 @@
       { "kind": "rock", "x": 30.59, "z": 3.27, "size": 1.1, "rotation": 2.81 },
       { "kind": "cypress", "x": -22.4, "z": -36.45, "size": 0.81, "rotation": 1.62 },
       { "kind": "olive", "x": -23.02, "z": -16.85, "size": 1.21, "rotation": 0.56 }
+    ]
+  },
+  "pass": {
+    "name": "올림포스 고개",
+    "kind": "field",
+    "zone": "entrance",
+    "realm": "greek",
+    "theme": "pass",
+    "cell": { "col": 0.5, "row": 3 },
+    "halfExtent": 28,
+    "seed": 41,
+    "spawn": { "x": -19, "z": 15 },
+    "sanctuary": { "x": 12, "z": -2, "radius": 9 },
+    "ponds": [
+      { "x": 20, "z": -23, "radius": 3 }
+    ],
+    "terraces": [
+      {
+        "points": [
+          { "x": -1, "z": -15 },
+          { "x": 10, "z": -18 },
+          { "x": 23, "z": -15 },
+          { "x": 25, "z": -2 },
+          { "x": 22, "z": 10 },
+          { "x": 4, "z": 11 },
+          { "x": -1, "z": 4 }
+        ],
+        "height": 1,
+        "stairs": [
+          {
+            "from": { "x": -5.5, "z": 1 },
+            "to": { "x": 0.5, "z": 1 },
+            "width": 2.6
+          },
+          {
+            "from": { "x": 1, "z": -19.5 },
+            "to": { "x": 1, "z": -14 },
+            "width": 2.6
+          }
+        ]
+      }
+    ],
+    "paths": [
+      {
+        "points": [
+          { "x": -50, "z": 15 },
+          { "x": -25, "z": 15 },
+          { "x": -21.3, "z": 17.3 },
+          { "x": -17, "z": 18 },
+          { "x": -13.1, "z": 16.7 },
+          { "x": -10, "z": 14 },
+          { "x": -7.95, "z": 10.25 },
+          { "x": -7.5, "z": 6 },
+          { "x": -5.5, "z": 1 },
+          { "x": 0.5, "z": 1 },
+          { "x": 2, "z": -6 },
+          { "x": 1, "z": -14 },
+          { "x": 1, "z": -19.5 },
+          { "x": -3.75, "z": -19.85 },
+          { "x": -8, "z": -22 },
+          { "x": -12.74, "z": -24.3 },
+          { "x": -17.74, "z": -25.3 },
+          { "x": -23, "z": -25 },
+          { "x": -23, "z": -50 }
+        ],
+        "width": 2.4
+      },
+      {
+        "points": [
+          { "x": 2, "z": -6 },
+          { "x": 4.57, "z": -4.97 }
+        ],
+        "width": 2
+      }
+    ],
+    "camps": [
+      { "x": -9, "z": 23, "count": 4, "members": ["spartoi", "spartoi", "cyclops", "spartoi"] },
+      { "x": -17, "z": -8, "count": 4, "members": ["cyclops", "spartoi", "harpy", "spartoi"] },
+      { "x": 14, "z": 20, "count": 3, "members": ["spartoi", "cyclops", "spartoi"] }
+    ],
+    "exits": [
+      { "x": -25, "z": 15, "to": "utgard" },
+      { "x": -23, "z": -25, "to": "olympus" }
+    ],
+    "npcs": [
+      { "x": -5, "z": 4.6, "name": "고개지기", "lines": ["산을 넘는 길은 길고 험하지.", "산양은 먼 길을 안다네. 멀리 가려거든 올라타게."], "body": [1, 0, 2] }
+    ],
+    "props": [
+      { "kind": "column", "x": 22.39, "z": 0.11, "size": 1, "rotation": 0.2 },
+      { "kind": "column", "x": 17.86, "z": 6.84, "size": 1, "rotation": 0.99 },
+      { "kind": "column", "x": 9.89, "z": 8.39, "size": 1, "rotation": 1.77 },
+      { "kind": "column", "x": 3.16, "z": 3.86, "size": 1, "rotation": 2.56 },
+      { "kind": "column", "x": 6.14, "z": -10.84, "size": 1, "rotation": 4.13 },
+      { "kind": "column", "x": 14.11, "z": -12.39, "size": 1, "rotation": 4.91 },
+      { "kind": "column", "x": 20.84, "z": -7.86, "size": 1, "rotation": 5.7 },
+      { "kind": "rock", "x": -5.06, "z": -15.52, "size": 1.16, "rotation": 5.09 },
+      { "kind": "pine", "x": -10.26, "z": -12.64, "size": 0.91, "rotation": 2.39 },
+      { "kind": "rock", "x": -18.86, "z": -1.17, "size": 0.82, "rotation": 5.35 },
+      { "kind": "rock", "x": -0.1, "z": 13.87, "size": 1.16, "rotation": 2.88 },
+      { "kind": "bush", "x": -16.18, "z": 3.48, "size": 1.26, "rotation": 3.75 },
+      { "kind": "pine", "x": -15.84, "z": 25.03, "size": 1.16, "rotation": 0.91 },
+      { "kind": "bush", "x": 0.93, "z": -23.59, "size": 1.1, "rotation": 1.61 },
+      { "kind": "pine", "x": -25.08, "z": 25.68, "size": 1.24, "rotation": 5 },
+      { "kind": "rock", "x": -1.1, "z": 12.31, "size": 0.91, "rotation": 1.7 },
+      { "kind": "rock", "x": 24.75, "z": 26.57, "size": 0.85, "rotation": 3.37 },
+      { "kind": "rock", "x": -0.63, "z": 17.77, "size": 1.04, "rotation": 5.34 },
+      { "kind": "rock", "x": 10.92, "z": 24.74, "size": 1.2, "rotation": 4.01 },
+      { "kind": "cypress", "x": 8.32, "z": 20.4, "size": 0.84, "rotation": 0.68 },
+      { "kind": "rock", "x": 22.36, "z": 24.47, "size": 1.16, "rotation": 1.29 },
+      { "kind": "rock", "x": -26.03, "z": -3.8, "size": 0.8, "rotation": 3.9 },
+      { "kind": "cypress", "x": 6.87, "z": -22.85, "size": 0.8, "rotation": 4.12 },
+      { "kind": "pine", "x": -12.5, "z": -16.85, "size": 0.85, "rotation": 0.98 },
+      { "kind": "cypress", "x": 18.97, "z": -13.4, "size": 0.82, "rotation": 2.59 },
+      { "kind": "cypress", "x": 11.37, "z": -21.8, "size": 1.13, "rotation": 4.3 },
+      { "kind": "cypress", "x": -11.48, "z": -4.45, "size": 1.15, "rotation": 2.17 },
+      { "kind": "rock", "x": 21.13, "z": 14.01, "size": 1.12, "rotation": 6.17 },
+      { "kind": "rock", "x": -17.98, "z": -21.59, "size": 0.88, "rotation": 1.73 },
+      { "kind": "rock", "x": -4.41, "z": 16.44, "size": 1.26, "rotation": 3.18 },
+      { "kind": "bush", "x": -3.48, "z": -26.95, "size": 0.98, "rotation": 1.9 },
+      { "kind": "pine", "x": -4.6, "z": -6.24, "size": 1.25, "rotation": 3.88 },
+      { "kind": "pine", "x": -6.15, "z": 17.14, "size": 0.82, "rotation": 6.07 },
+      { "kind": "bush", "x": 1.59, "z": 26.5, "size": 1.21, "rotation": 0.87 },
+      { "kind": "pine", "x": 7.05, "z": -14.74, "size": 1.17, "rotation": 1.87 },
+      { "kind": "cypress", "x": 24.5, "z": 20.57, "size": 1.1, "rotation": 1.79 },
+      { "kind": "pine", "x": 4.34, "z": -26.85, "size": 0.88, "rotation": 6.19 },
+      { "kind": "pine", "x": 24.19, "z": 18.7, "size": 0.83, "rotation": 6.01 },
+      { "kind": "pine", "x": 21.93, "z": -18.58, "size": 1.07, "rotation": 1.78 },
+      { "kind": "cypress", "x": 4.69, "z": 13.54, "size": 1.09, "rotation": 2.76 },
+      { "kind": "pine", "x": -14.07, "z": 1.8, "size": 1.11, "rotation": 2.78 },
+      { "kind": "rock", "x": 23.49, "z": 15.14, "size": 1.08, "rotation": 2.49 },
+      { "kind": "rock", "x": -21.09, "z": -1.89, "size": 1.29, "rotation": 0.64 },
+      { "kind": "pine", "x": -10.18, "z": -9.35, "size": 1.13, "rotation": 1.74 },
+      { "kind": "column", "x": 14.35, "z": -19.8, "size": 1.07, "rotation": 6.02 },
+      { "kind": "rock", "x": 17.58, "z": 15.08, "size": 1.09, "rotation": 1.91 },
+      { "kind": "cypress", "x": 26.88, "z": -7, "size": 1.2, "rotation": 5.56 },
+      { "kind": "olive", "x": 24.31, "z": 9.13, "size": 1.08, "rotation": 4.65 },
+      { "kind": "column", "x": -25.11, "z": 1.05, "size": 0.9, "rotation": 0.57 },
+      { "kind": "pine", "x": -3.39, "z": 26.13, "size": 0.87, "rotation": 3.46 },
+      { "kind": "cypress", "x": -9.59, "z": -1.22, "size": 1.21, "rotation": 5.48 },
+      { "kind": "pine", "x": -12.47, "z": 0.4, "size": 0.83, "rotation": 6.2 },
+      { "kind": "column", "x": 19.59, "z": 21.91, "size": 1.05, "rotation": 5.29 },
+      { "kind": "column", "x": -2.73, "z": 9.66, "size": 0.98, "rotation": 5 },
+      { "kind": "rock", "x": -15.36, "z": -13.35, "size": 1.06, "rotation": 2.82 },
+      { "kind": "rock", "x": 10.43, "z": 14.96, "size": 1.01, "rotation": 2.86 },
+      { "kind": "rock", "x": 8.89, "z": 12.51, "size": 0.88, "rotation": 6.11 },
+      { "kind": "rock", "x": 19.81, "z": 18.06, "size": 1.1, "rotation": 1.17 },
+      { "kind": "rock", "x": -24.62, "z": -5.3, "size": 0.97, "rotation": 4.6 },
+      { "kind": "rock", "x": -24.92, "z": 5.77, "size": 0.98, "rotation": 1.3 },
+      { "kind": "pine", "x": -12.61, "z": -18.95, "size": 1.21, "rotation": 4.53 },
+      { "kind": "bush", "x": 25.05, "z": 14.21, "size": 0.93, "rotation": 0.75 },
+      { "kind": "pine", "x": -26.76, "z": -9.87, "size": 0.95, "rotation": 3.34 },
+      { "kind": "olive", "x": 26.52, "z": -23.26, "size": 1.07, "rotation": 6.13 },
+      { "kind": "pine", "x": -20.28, "z": 0.96, "size": 0.93, "rotation": 3.14 },
+      { "kind": "rock", "x": -15.06, "z": 5.49, "size": 1.22, "rotation": 2.91 },
+      { "kind": "rock", "x": 15.07, "z": -26.5, "size": 0.95, "rotation": 2.79 },
+      { "kind": "rock", "x": -0.39, "z": 9.98, "size": 0.83, "rotation": 1.74 },
+      { "kind": "cypress", "x": -4.65, "z": 13.34, "size": 0.91, "rotation": 5.56 },
+      { "kind": "rock", "x": 5.47, "z": 20.71, "size": 1.19, "rotation": 6.09 }
     ]
   },
   "hwagwasan": {

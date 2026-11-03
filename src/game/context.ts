@@ -3,6 +3,7 @@ import type { UniqueState } from '../skills/uniques'
 import type { AutomationProgress } from '../progress/Automation'
 import type { Waypoints } from '../progress/Waypoints'
 import type { ChapterProgress } from '../progress/Chapters'
+import type { MountProgress } from '../progress/Mount'
 import type { ExpeditionProgress } from '../progress/Expedition'
 import type { TrainingProgress } from '../progress/Training'
 import type { WakeProgress } from '../progress/Wake'
@@ -100,6 +101,8 @@ export interface GameContext {
   readonly expedition: ExpeditionProgress
   /** 신을 깨우는 진행: 깨우는 신과 모은 조각 (E238) */
   readonly awaken: WakeProgress
+  /** 탈것: 고개지기의 산양을 얻었나 (E241) */
+  readonly mount: MountProgress
   /** 차례로 연 정보 화면 탭 (E236-05) */
   readonly tabs: TabUnlocks
   /** 외형 보관함 (얻은 외형, 칸마다 고른 것) */

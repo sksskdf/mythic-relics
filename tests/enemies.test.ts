@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { REGIONS } from '../src/data/regions'
 import { ELITES } from '../src/enemies/elite'
 import { buildEnemyRig } from '../src/enemies/enemyModel'
-import { ENEMIES, Giant, GRUNT, type GiantWorld, KING } from '../src/enemies/Giant'
+import { ENEMIES, Giant, GRUNT, type GiantWorld, KING, LEASH_REENGAGE } from '../src/enemies/Giant'
 import { Encounter } from '../src/game/Encounter'
 import { HeroController } from '../src/game/HeroController'
 import { type CombatTarget, PlayerCombat } from '../src/game/PlayerCombat'
@@ -243,6 +243,41 @@ describe('적 데이터 규칙 (E8-01)', () => {
     }
   })
 
+  it('외침(충격파)이 있는 적은 부를 졸개를 적어 둔다: 없으면 어느 땅에서든 북유럽 서리 거인을 부른다', () => {
+    for (const e of ALL) if (e.attacks.some((a) => a.area.kind === 'ring')) expect(e.minion, e.id).toBeDefined()
+  })
+
+  it('수호자마다 모습 서명(몸·머리·머리 수·든 것)이 다르다 (E241): 티폰은 수르트, 케토스는 요르문간드와 겹치지 않는다', () => {
+    const guardians = ALL.filter((e) => e.role === 'guardian')
+    const sign = (e: (typeof ALL)[number]) => [e.body.kind, e.body.head, e.body.heads, e.body.gear].join('·')
+    expect(new Set(guardians.map(sign)).size).toBe(guardians.length)
+    expect(spec('typhon').body.head).toBe('serpents')
+    expect(spec('ketos').body.head).toBe('fins')
+    expect(spec('cerberus').body.heads).toBe(3)
+    expect(spec('calydonianBoar').body.head).toBe('tusks')
+    // 머리가 여럿인 뱀은 데이터에 적는다 (E241 전에는 역할로 정했다)
+    expect(spec('orochi').body.heads).toBe(3)
+    expect(spec('jormungandr').body.heads).toBe(3)
+    expect(spec('seaSerpent').body.heads).toBe(1)
+  })
+
+  it('그리스 수호자 넷은 물러서지 않고, 공격 범위가 셋 넘게 다르다 (E241): 거리 두는 적은 싸움을 줄 끝으로 끌고 간다', () => {
+    const greek = ['typhon', 'ketos', 'cerberus', 'calydonianBoar'].map(spec)
+    for (const e of greek) {
+      expect(e.realm, e.id).toBe('greek')
+      expect(e.role, e.id).toBe('guardian')
+      expect(e.keepAway, e.id).toBeUndefined()
+      expect(new Set(e.attacks.map((a) => a.area.kind)).size, e.id).toBeGreaterThanOrEqual(3)
+    }
+    // 티폰은 수르트를 이어받지 않는다: 쓸기·내려찍기 대신 물기·폭풍(바람)·불 바위·똬리 돌진
+    expect(spec('typhon').attacks.map((a) => a.name)).not.toEqual(spec('surtr').attacks.map((a) => a.name))
+    expect(spec('typhon').attacks.some((a) => a.projectile?.look === 'wind')).toBe(true)
+    expect(spec('typhon').attacks.some((a) => a.area.kind === 'line')).toBe(true)
+    // 칼리돈의 멧돼지의 표지는 길고 잦은 돌진
+    const charge = spec('calydonianBoar').attacks.find((a) => a.area.kind === 'line')!
+    expect(charge.area.kind === 'line' && charge.area.length).toBeGreaterThanOrEqual(16)
+  })
+
   it('모든 적의 모델을 만들 수 있고 몸 종류가 모양에 드러난다', () => {
     for (const e of ALL) {
       const rig = buildEnemyRig(e, 3)
@@ -348,6 +383,72 @@ describe('적 행동 부품 (E8-02·06)', () => {
     const angles = giants.map((g) => Math.atan2(g.x, g.z))
     const spread = Math.max(...angles) - Math.min(...angles)
     expect(spread).toBeGreaterThan(0.3)
+  })
+})
+
+describe('줄 되돌림 (E241)', () => {
+  const home = { x: -15, z: 0 }
+  const fromHome = (g: Giant) => Math.hypot(g.x - home.x, g.z - home.z)
+
+  it('줄 끝에서 돌아가기와 쫓기를 프레임마다 오가지 않는다', () => {
+    const grunt = new Giant(GRUNT, home)
+    grunt.rig.root.position.set(home.x + 24.5, 0, 0)
+    const { world } = makeWorld({ x: home.x + 25.5, z: 0 })
+    world.giants = [grunt]
+    grunt.alert()
+    let changes = 0
+    let last = grunt.state
+    for (let t = 0; t < 3; t += 1 / 60) {
+      grunt.update(1 / 60, world)
+      if (grunt.state !== last) changes += 1
+      last = grunt.state
+    }
+    expect(changes).toBeLessThanOrEqual(1)
+    expect(grunt.state).toBe('return')
+  })
+
+  it('돌아가는 동안은 맞아도 줄의 3/4 안에 들어온 뒤에야 다시 쫓고, 찬 것은 집으로 걷는 동안뿐이다', () => {
+    const grunt = new Giant(GRUNT, home)
+    grunt.rig.root.position.set(home.x + 24.5, 0, 0)
+    grunt.health.hp = grunt.health.max * 0.3
+    const { world } = makeWorld({ x: home.x + 25.5, z: 0 })
+    world.giants = [grunt]
+    grunt.alert()
+    const reengagedAt: number[] = []
+    let healedOutside = false
+    let hitTimer = 0
+    for (let t = 0; t < 4; t += 1 / 60) {
+      const before = grunt.state
+      const hp = grunt.health.hp
+      // 0.25초마다 약하게 친다 (휘청이지 않을 만큼)
+      if ((hitTimer -= 1 / 60) <= 0) {
+        hitTimer = 0.25
+        grunt.takeHit(0.01, 1, 0, 0)
+      }
+      grunt.update(1 / 60, world)
+      if (before === 'return' && grunt.state === 'chase') reengagedAt.push(fromHome(grunt))
+      if (grunt.state !== 'return' && before !== 'return' && grunt.health.hp > hp + 1e-9) healedOutside = true
+    }
+    expect(LEASH_REENGAGE).toBeLessThan(1)
+    expect(reengagedAt.length).toBeGreaterThan(0)
+    for (const d of reengagedAt) expect(d).toBeLessThan(GRUNT.leashRange * LEASH_REENGAGE)
+    expect(healedOutside).toBe(false)
+  })
+
+  it('거리 두는 적은 줄 끝까지 물러서지 않고 그 자리에서 싸운다', () => {
+    const witch = new Giant(spec('frostWitch'), home)
+    witch.rig.root.position.set(home.x + 21, 0, 0)
+    // 주인공은 집 쪽으로 3m
+    const { world } = makeWorld({ x: home.x + 18, z: 0 })
+    world.giants = [witch]
+    witch.alert()
+    let returned = false
+    for (let t = 0; t < 3; t += 1 / 60) {
+      witch.update(1 / 60, world)
+      returned ||= witch.state === 'return'
+    }
+    expect(returned).toBe(false)
+    expect(fromHome(witch)).toBeLessThan(22)
   })
 })
 

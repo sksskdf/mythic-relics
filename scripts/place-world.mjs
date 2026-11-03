@@ -10,35 +10,41 @@ const FILE = 'src/data/regions.json'
 
 /**
  * 세계 칸 (E239-01, MYTHBUILD.md 4장): 마을은 북유럽 남쪽 끝. 미드가르드 둘레에 철의 숲(서)·세계 뱀의 바닷가(동)·요툰헤임(북서)·무스펠 경계(북동),
- * 가장 북쪽에 우트가르드. 그리스는 우트가르드 너머, 중국(동)·일본(서)·한국(북서)은 그리스 너머로 뻗는다 (엔딩 뒤)
+ * 가장 북쪽에 우트가르드. 그리스는 우트가르드 너머 고개(E241, 우트가르드 동쪽 칸)를 넘어서, 중국(동)·일본(서)·한국(북서)은 그리스 너머로 뻗는다 (엔딩 뒤)
  */
 const CELLS = {
   village: [0, 0],
   midgard: [-0.5, 1], ironwood: [-1.5, 1], serpentshore: [0.5, 1],
   jotunheim: [-1, 2], muspel: [0, 2],
-  utgard: [-0.5, 3],
+  utgard: [-0.5, 3], pass: [0.5, 3],
   olympus: [0, 4], sky: [-0.5, 5], delphi: [0.5, 5], lycia: [1, 6],
   hwagwasan: [1, 4], kunlun: [2, 4], huoyanshan: [3, 4],
   takamagahara: [-1, 4], izumo: [-2, 4], hiikawa: [-3, 4],
   sinsi: [0, 6], taebaek: [-1, 6], songdo: [-2, 6],
 }
 
-/** 이웃 사이 길: 마을 밖 길은 미드가르드 하나, 그다음은 한 줄로 (마지막 무대는 올림포스에서만) */
+/** 이웃 사이 길: 마을 밖 길은 미드가르드 하나, 그다음은 한 줄로 (우트가르드 → 고개 → 올림포스, 마지막 무대는 올림포스에서만) */
 const LINKS = [
   ['village', 'midgard'],
   ['midgard', 'ironwood'], ['midgard', 'serpentshore'], ['midgard', 'jotunheim'],
   ['jotunheim', 'muspel'], ['jotunheim', 'utgard'], ['muspel', 'utgard'],
-  ['utgard', 'olympus'], ['olympus', 'sky'], ['olympus', 'delphi'], ['delphi', 'lycia'],
+  ['utgard', 'pass'], ['pass', 'olympus'], ['olympus', 'sky'], ['olympus', 'delphi'], ['delphi', 'lycia'],
   ['olympus', 'hwagwasan'], ['hwagwasan', 'kunlun'], ['kunlun', 'huoyanshan'],
   ['olympus', 'takamagahara'], ['takamagahara', 'izumo'], ['izumo', 'hiikawa'],
   ['lycia', 'sinsi'], ['sinsi', 'taebaek'], ['taebaek', 'songdo'],
 ]
 
-/** 예전 마을 문을 새 이웃으로 가는 문으로 쓴다 (E239-01: 길 모양을 그대로 두려고). 옮긴 뒤에는 할 일이 없다 */
-const RENAME = { olympus: { village: 'utgard' }, hwagwasan: { village: 'olympus' }, takamagahara: { village: 'olympus' }, sinsi: { village: 'lycia' } }
+/**
+ * 예전 문을 새 이웃으로 가는 문으로 쓴다 (E239-01: 길 모양을 그대로 두려고). 옮긴 뒤에는 할 일이 없다.
+ * 올림포스의 우트가르드 문은 고개로 가는 문이 된다 (E241: 큰길이 새 문까지 그대로 이어지게)
+ */
+const RENAME = { olympus: { village: 'utgard', utgard: 'pass' }, hwagwasan: { village: 'olympus' }, takamagahara: { village: 'olympus' }, sinsi: { village: 'lycia' } }
 
-/** 새로 내는 문의 가장자리를 따른 자리 (없으면 이웃 문과 마주 보는 자리). 올림포스의 다카마가하라 문은 성소를 비켜 북쪽에 */
-const DOOR_AT = { olympus: { takamagahara: -23 } }
+/**
+ * 새로 내는 문의 가장자리를 따른 자리 (없으면 이웃 문과 마주 보는 자리). 올림포스의 다카마가하라 문은 성소를 비켜 북쪽에,
+ * 우트가르드의 고개 문은 동쪽 가장자리 남쪽에 (고개 안 길이 서쪽 문에서 남쪽으로 굽어 북쪽 문까지 넉넉히 돌게, E241)
+ */
+const DOOR_AT = { olympus: { takamagahara: -23 }, utgard: { pass: 15 } }
 
 const r2 = (v) => Math.round(v * 100) / 100
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z)

@@ -39,6 +39,8 @@ export const MOMENTS = {
   oathSworn: 2,
   endlessCleared: 2,
   tabOpened: 2,
+  // 탈것 (E241): 고개지기의 산양을 얻음 (새 장치가 처음 열림)
+  mountGained: 2,
   // 3 큰 카드: 신화 단계, 유물 벼리기, 신의 조각 2(유물)와 두 번째 신부터 깨어남 (엔딩 뒤에는 한계를 깸도)
   mythLevel: 3,
   forged: 3,

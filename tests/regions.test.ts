@@ -4,9 +4,10 @@ import { DataError } from '../src/data/check'
 import regionsText from '../src/data/regions.json?raw'
 import { arrivalSpot, exitColor, formatRegions, nextHop, parseRegions, RAW_REGIONS, REALM_COLORS, REGIONS, SPAWN_CLEAR, START_REGION } from '../src/data/regions'
 import { GRUNT, KING } from '../src/enemies/Giant'
-import { LAND_DAMAGE_EXPONENT } from '../src/data/chapters'
+import { CHAPTERS, LAND_DAMAGE_EXPONENT } from '../src/data/chapters'
 import { Encounter } from '../src/game/Encounter'
-import { CROSS_MARGIN, crossingAt, regionLinks, walkRects } from '../src/data/world'
+import { adjacency, CROSS_MARGIN, crossingAt, regionLinks, walkRects } from '../src/data/world'
+import { KEEPER } from '../src/data/mount'
 import { walkArea } from '../src/world/colliders'
 import { collidersFor, streamColliders } from '../src/world/regionMap'
 import { cliffColliders, heightAt, setLand } from '../src/world/terrain'
@@ -130,24 +131,26 @@ describe.each(regions.map((r) => [r.id, r] as const))('지역 %s', (_id, region)
 })
 
 describe('세계 (E7, E15)', () => {
-  it('마을 하나에 북유럽 여섯, 다른 신화권마다 입구 들판·깊은 땅·보스의 땅, 마지막 무대 하나, 마을에서 시작한다 (E15-01, E22, E239)', () => {
+  it('마을 하나에 북유럽 여섯, 다른 신화권마다 입구 들판·깊은 땅·보스의 땅(그리스는 고개까지 입구 둘), 마지막 무대 하나, 마을에서 시작한다 (E15-01, E22, E239, E241)', () => {
     const hubs = regions.filter((r) => r.kind === 'hub')
     expect(hubs).toHaveLength(1)
     expect(START_REGION).toBe(hubs[0]!.id)
-    expect(realmLands).toHaveLength(19)
+    expect(realmLands).toHaveLength(20)
     expect(regions.filter((r) => r.finale).map((r) => r.id)).toEqual(['sky'])
     const fields = realmLands.filter((r) => r.kind === 'field')
-    for (const realm of ['china', 'greek', 'japan', 'korea']) {
+    for (const realm of ['china', 'japan', 'korea']) {
       expect(fields.filter((r) => r.realm === realm).map((r) => r.zone).sort(), realm).toEqual(['boss', 'deep', 'entrance'])
     }
+    // 그리스: 고개(E241)와 올림포스 기슭이 입구 들판, 델포이가 깊은 땅, 리키아가 보스의 땅
+    expect(fields.filter((r) => r.realm === 'greek').map((r) => `${r.id}:${r.zone}`).sort()).toEqual(['delphi:deep', 'lycia:boss', 'olympus:entrance', 'pass:entrance'])
     // 북유럽: 입구 미드가르드, 둘레의 깊은 땅 넷(철의 숲·바닷가·요툰헤임·무스펠), 가장 북쪽 우트가르드
     const norse = fields.filter((r) => r.realm === 'norse')
     expect(norse.map((r) => r.id).sort()).toEqual(['ironwood', 'jotunheim', 'midgard', 'muspel', 'serpentshore', 'utgard'])
     expect(norse.filter((r) => r.zone === 'deep').map((r) => r.id).sort()).toEqual(['ironwood', 'jotunheim', 'muspel', 'serpentshore'])
-    expect(new Set(fields.filter((r) => r.zone === 'entrance').map((r) => r.theme)).size).toBe(5)
+    expect(new Set(fields.filter((r) => r.zone === 'entrance').map((r) => r.theme)).size).toBe(6)
   })
 
-  it('마을 밖 길은 미드가르드 하나, 북유럽 → 우트가르드 너머 그리스 → 그 너머 다른 신화권으로 한 줄로 이어지고, 이웃은 서로 오간다 (E239-01)', () => {
+  it('마을 밖 길은 미드가르드 하나, 북유럽 → 우트가르드 너머 고개 → 그리스 → 그 너머 다른 신화권으로 한 줄로 이어지고, 이웃은 서로 오간다 (E239-01, E241)', () => {
     const to = (id: string) => REGIONS[id]!.exits.map((e) => e.to).sort()
     expect(to('village')).toEqual(['midgard'])
     expect(to('midgard')).toEqual(['ironwood', 'jotunheim', 'serpentshore', 'village'])
@@ -155,8 +158,9 @@ describe('세계 (E7, E15)', () => {
     expect(to('serpentshore')).toEqual(['midgard'])
     expect(to('jotunheim')).toEqual(['midgard', 'muspel', 'utgard'])
     expect(to('muspel')).toEqual(['jotunheim', 'utgard'])
-    expect(to('utgard')).toEqual(['jotunheim', 'muspel', 'olympus'])
-    expect(to('olympus')).toEqual(['delphi', 'hwagwasan', 'sky', 'takamagahara', 'utgard'])
+    expect(to('utgard')).toEqual(['jotunheim', 'muspel', 'pass'])
+    expect(to('pass')).toEqual(['olympus', 'utgard'])
+    expect(to('olympus')).toEqual(['delphi', 'hwagwasan', 'pass', 'sky', 'takamagahara'])
     expect(to('lycia')).toEqual(['delphi', 'sinsi'])
     // 그리스 너머 신화권은 입구 → 깊은 땅 → 보스의 땅
     for (const entrance of realmLands.filter((r) => r.zone === 'entrance' && r.realm !== 'norse' && r.realm !== 'greek')) {
@@ -182,7 +186,8 @@ describe('세계 (E7, E15)', () => {
     expect(nextHop('village', 'utgard')).toBe('midgard')
     expect(nextHop('midgard', 'utgard')).toBe('jotunheim')
     expect(nextHop('village', 'serpentshore')).toBe('midgard')
-    expect(nextHop('utgard', 'songdo')).toBe('olympus')
+    expect(nextHop('utgard', 'songdo')).toBe('pass')
+    expect(nextHop('pass', 'songdo')).toBe('olympus')
     expect(nextHop('village', 'village')).toBeNull()
     for (const a of regions) {
       for (const b of regions) {
@@ -195,11 +200,15 @@ describe('세계 (E7, E15)', () => {
     }
   })
 
-  it('세계 칸: 마을은 남쪽 끝, 북유럽 위에 그리스, 그 위에 다른 신화권 (E239-01)', () => {
+  it('세계 칸: 마을은 남쪽 끝, 북유럽 위에 그리스, 그 위에 다른 신화권. 고개는 우트가르드 옆 칸 (E239-01, E241)', () => {
     const row = (id: string) => REGIONS[id]!.cell!.row
     for (const r of regions) if (r.id !== 'village') expect(row(r.id), r.id).toBeGreaterThan(row('village'))
     const norse = realmLands.filter((r) => r.realm === 'norse')
-    const greek = realmLands.filter((r) => r.realm === 'greek')
+    // 고개는 우트가르드와 같은 줄에서 올림포스 아래에 끼어 둘 다와 이웃이다
+    expect(row('pass')).toBe(row('utgard'))
+    expect(adjacency(REGIONS.pass!.cell!, REGIONS.utgard!.cell!)).toBe('side')
+    expect(adjacency(REGIONS.pass!.cell!, REGIONS.olympus!.cell!)).toBe('vertical')
+    const greek = realmLands.filter((r) => r.realm === 'greek' && r.id !== 'pass')
     const beyond = realmLands.filter((r) => r.realm && !['norse', 'greek'].includes(r.realm))
     expect(Math.max(...norse.map((r) => r.cell!.row))).toBe(row('utgard'))
     expect(Math.min(...greek.map((r) => r.cell!.row))).toBeGreaterThan(row('utgard'))
@@ -223,7 +232,7 @@ describe('세계 (E7, E15)', () => {
     expect(exitColor(hub.id)).toBe(REALM_COLORS.hub)
   })
 
-  it('마을에는 적·보스·성소가 없고 말을 거는 사람이 있다. 필드에는 사람이 없다', () => {
+  it('마을에는 적·보스·성소가 없고 말을 거는 사람이 있다. 필드의 사람은 탈것을 주는 고개지기 하나뿐 (E241)', () => {
     for (const r of regions) {
       if (r.kind === 'hub') {
         expect(r.camps).toHaveLength(0)
@@ -233,7 +242,9 @@ describe('세계 (E7, E15)', () => {
         for (const npc of r.npcs) expect(npc.lines.length).toBeGreaterThan(0)
       } else {
         expect(r.camps.length).toBeGreaterThanOrEqual(3)
-        expect(r.npcs).toHaveLength(0)
+        // 장 흐름에 탈것 얻기(mount)가 있는 땅에만 고개지기가 선다
+        const mount = CHAPTERS.some((c) => c.steps.some((s) => s.kind === 'mount' && s.region === r.id))
+        expect(r.npcs.map((n) => n.name), r.id).toEqual(mount ? [KEEPER] : [])
       }
     }
   })

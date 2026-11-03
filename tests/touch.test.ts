@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { MOUNT } from '../src/data/mount'
 import { DRAG_START, STICK_RADIUS, TAP_SECONDS, TouchGestures } from '../src/input/touch'
 
 describe('휴대폰 손가락 몸짓 (E235)', () => {
@@ -87,5 +88,23 @@ describe('휴대폰 손가락 몸짓 (E235)', () => {
     g.move(3, 160, 400)
     g.reset()
     expect(g.stick).toBeNull()
+  })
+
+  it('멀리 끈 정도(stretch)는 손잡이를 자르기 전 손가락 거리로 재고, 원 반지름의 1.6배를 넘으면 탈것에 오른다. 떼면 0 (E241)', () => {
+    const g = new TouchGestures()
+    expect(g.stretch).toBe(0)
+    g.down(1, 100, 300, 0, true)
+    g.move(1, 100 + STICK_RADIUS, 300)
+    expect(g.stretch).toBeCloseTo(1)
+    // 손잡이는 원 가장자리에 머물러도 손가락 거리는 그대로 잰다
+    g.move(1, 100 + STICK_RADIUS * 1.5, 300)
+    expect(Math.hypot(g.stick!.dx, g.stick!.dy)).toBeCloseTo(STICK_RADIUS)
+    expect(g.stretch).toBeCloseTo(1.5)
+    expect(g.stretch > MOUNT.stickFar).toBe(false)
+    g.move(1, 100, 300 + STICK_RADIUS * 1.7)
+    expect(g.stretch > MOUNT.stickFar).toBe(true)
+    expect(MOUNT.stickFar).toBe(1.6)
+    g.up(1, 1)
+    expect(g.stretch).toBe(0)
   })
 })

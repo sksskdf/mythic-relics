@@ -1,4 +1,4 @@
-import { type PropKind, type RegionDef, REGIONS, type Spot } from '../data/regions'
+import { PASSES, type PropKind, type RegionDef, REGIONS, type Spot } from '../data/regions'
 import { createRng } from './rng'
 
 /**
@@ -21,7 +21,7 @@ export interface EndlessFloor {
 /** 종말 보스 (E17-06): 끝없는 원정 10층마다의 문지기 */
 export const DOOM_BOSS = 'utgardKing'
 
-const fields = () => Object.values(REGIONS).filter((r) => r.kind === 'field')
+const fields = () => Object.values(REGIONS).filter((r) => r.kind === 'field' && !PASSES.has(r.id))
 
 /** 점에서 꺾은선까지 거리 */
 function toLine(p: Spot, points: readonly Spot[]): number {

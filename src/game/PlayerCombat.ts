@@ -2,6 +2,7 @@ import { angleTo, inArc } from '../combat/arc'
 import { BASIC_COMBO, ComboState, type SwingSpec } from '../combat/combo'
 import { type AttackStyle, STYLES } from '../combat/styles'
 import { Health } from '../combat/Health'
+import { MOUNT } from '../data/mount'
 import type { HeroController } from './HeroController'
 
 /** 주인공이 때릴 수 있는 대상 */
@@ -34,8 +35,8 @@ export interface CombatHooks {
 const HEART_PER_HIT = 0.015
 /** 맞은 뒤 다시 맞지 않는 시간 (초) */
 const INVULNERABLE_AFTER_HIT = 0.3
-/** 마지막으로 맞은 뒤 이 시간이 지나면 생명력이 차오른다. */
-const REGEN_DELAY = 3
+/** 마지막으로 맞은 뒤 이 시간이 지나면 생명력이 차오른다 (탈것에 오를 수 있는 때와 같다, `MOUNT.calmSeconds`) */
+const REGEN_DELAY = MOUNT.calmSeconds
 const REGEN_PER_SECOND = 12
 /** 이 아래면 「생명이 낮을 때」 (바리공주 상시 효과) */
 const LOW_HP = 0.35
@@ -77,7 +78,9 @@ export class PlayerCombat {
   heartScale = 1
 
   private invulnerable = 0
-  private sinceHurt = REGEN_DELAY
+  private sinceHurt: number = REGEN_DELAY
+  /** 마지막으로 싸운 뒤(휘두르거나 칠 적이 있던 때) 지난 시간: 걷기 시작하면 휘두르기·대상이 바로 비어도 싸움은 남는다 (E241) */
+  private sinceFought: number = MOUNT.calmSeconds
 
   constructor(private readonly hero: HeroController) {}
 
@@ -95,6 +98,14 @@ export class PlayerCombat {
     return this.combo.swinging || this.target !== null
   }
 
+  /**
+   * 싸움이 풀렸나 (E241: 탈것에 오를 수 있다): 휘두르지 않고, 칠 적이 없고, 맞은 지도 싸운 지도 MOUNT.calmSeconds가 지났다
+   * (맞은 지는 생명이 다시 차기 시작하는 때와 같다)
+   */
+  get calm(): boolean {
+    return !this.engaged && this.sinceHurt >= MOUNT.calmSeconds && this.sinceFought >= MOUNT.calmSeconds
+  }
+
   /** 자동 공격을 시작하는 거리: 첫 타 사거리 + 적 몸 반지름 */
   reachTo(target: CombatTarget): number {
     return this.combo.swings[0]!.range + target.radius
@@ -110,10 +121,13 @@ export class PlayerCombat {
   update(dt: number, enemies: readonly CombatTarget[], hooks: CombatHooks): void {
     this.invulnerable = Math.max(0, this.invulnerable - dt)
     this.sinceHurt += dt
+    // 지난 프레임까지 싸웠으면 (걷기 시작해 아래에서 휘두르기·대상을 비우기 전에 본다)
+    this.sinceFought = this.engaged ? 0 : this.sinceFought + dt
     if (this.alive && this.sinceHurt > REGEN_DELAY) this.heal(REGEN_PER_SECOND * dt)
     if (this.alive && this.bonusRegen > 0) this.heal(this.bonusRegen * dt)
 
-    if (!this.alive || this.hero.isMoving) {
+    // 걷는 동안·탄 동안(E241)은 싸우지 않는다
+    if (!this.alive || this.hero.isMoving || this.hero.riding) {
       this.combo.cancel()
       this.target = null
       return
@@ -166,6 +180,7 @@ export class PlayerCombat {
     this.combo.cancel()
     this.invulnerable = 1.5
     this.sinceHurt = REGEN_DELAY
+    this.sinceFought = MOUNT.calmSeconds
   }
 
   addHeart(amount: number): void {

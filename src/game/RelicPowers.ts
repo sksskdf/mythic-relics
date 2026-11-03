@@ -226,10 +226,13 @@ export class RelicPowers {
     this.awakening.onWalk(distance, ctx)
   }
 
-  /** 맞기 직전에 유물이 끼어들 기회를 준다. (피격 연동: 야른그레이프르) */
-  beforeHeroHit(damage: number, fromX: number, fromZ: number, ctx: SkillContext): number {
+  /**
+   * 맞기 직전에 유물이 끼어들 기회를 준다. (피격 연동: 야른그레이프르)
+   * 탄 동안(E241, asleep)은 유물이 쉬어 터지지도 막지도 않는다. 바람 각성의 피하기는 몸놀림이라 그대로
+   */
+  beforeHeroHit(damage: number, fromX: number, fromZ: number, ctx: SkillContext, asleep = false): number {
     let result = damage
-    for (const effect of this.live) {
+    for (const effect of asleep ? [] : this.live) {
       if (effect.beforeHeroHit) result = effect.beforeHeroHit(result, fromX, fromZ, ctx)
     }
     return result > 0 ? this.awakening.beforeHeroHit(result, ctx) : result

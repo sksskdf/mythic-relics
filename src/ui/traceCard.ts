@@ -1,4 +1,4 @@
-import { wakeDef, HUNT_KILLS, type TraceState } from '../data/wake'
+import { wakeDef, HUNT_KILLS, LATER_TEXT, type TraceState } from '../data/wake'
 import { levelGains, lendText } from '../myth/levelGains'
 import { type God, godDef } from '../relics/data'
 import { classIcon } from './classIcons'
@@ -50,11 +50,13 @@ export function traceCard(god: God, ctx: TraceCardContext): HTMLElement {
         ? ctx.fragments >= 2
           ? `조각 2/3 · ${path ? josa(path.guardian.name, '을') : '수호자를'} 쓰러뜨린다`
           : `조각 1/3 · 사냥 ${ctx.hunt}/${HUNT_KILLS}`
-        : ctx.state === 'busy' && ctx.waking
-          ? `${josa(godDef(ctx.waking).name, '이')} 깨어난 뒤에 응답한다`
-          : ctx.state === 'sealed'
-            ? ctx.sealedText
-            : '다가가면 흔적을 지키는 것들이 깨어난다'
+        : ctx.state === 'later'
+          ? LATER_TEXT
+          : ctx.state === 'busy' && ctx.waking
+            ? `${josa(godDef(ctx.waking).name, '이')} 깨어난 뒤에 응답한다`
+            : ctx.state === 'sealed'
+              ? ctx.sealedText
+              : '다가가면 흔적을 지키는 것들이 깨어난다'
   card.append(el('div', `rc__place${ctx.state === 'open' ? ' rc__place--ground' : ''}`, now))
 
   // 깨우면 얻는 것: 손(무기)과 심장(궁극기)

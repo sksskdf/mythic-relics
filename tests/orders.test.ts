@@ -274,3 +274,159 @@ describe('뒷걸음치는 적 쫓기', () => {
     expect(hits.length).toBeGreaterThanOrEqual(Math.floor(swings / 2))
   })
 })
+
+describe('탈것 (E241)', () => {
+  /** 탈것을 가진 주인공: 싸움이 풀렸을 때만 탈 수 있고, 타려는 걸음이면 걷다가 싸움이 풀리는 대로 태운다 (MountSystem이 하는 일) */
+  function mounted(enemies: CombatTarget[] = [], owned = true) {
+    const s = setup(enemies)
+    s.orders.mayRide = () => owned && s.combat.calm
+    const hooks = { onSwing: () => {}, onHits: () => {} }
+    // 게임 루프 차례대로: 지시 → 걸음 → 자동 전투 → 탈것 (걷기 시작한 프레임에 전투가 휘두르기·대상을 비운 뒤에 본다)
+    const step = (seconds: number) => {
+      for (let t = 0; t < seconds; t += 1 / 60) {
+        s.orders.update(enemies)
+        s.hero.update(1 / 60)
+        s.combat.update(1 / 60, enemies, hooks)
+        if (s.orders.wantRide && s.hero.isMoving && !s.hero.riding && s.orders.mayRide()) s.hero.riding = true
+      }
+    }
+    return { ...s, step }
+  }
+
+  it('15m 넘게 누르면 타고, 10m는 걸어간다. 탈것이 없으면 멀리 눌러도 걷는다', () => {
+    const far = mounted()
+    far.orders.press({ x: 0, z: 17 }, null)
+    expect(far.hero.riding).toBe(true)
+    const near = mounted()
+    near.orders.press({ x: 0, z: 10 }, null)
+    expect(near.hero.riding).toBe(false)
+    const none = mounted([], false)
+    none.orders.press({ x: 0, z: 17 }, null)
+    expect(none.hero.riding).toBe(false)
+  })
+
+  it('탄 채 1초에 가는 거리는 걸을 때의 1.8배 안팎', () => {
+    const walk = mounted()
+    walk.orders.press({ x: 0, z: 10 }, null)
+    walk.step(1)
+    const ride = mounted()
+    ride.orders.press({ x: 0, z: 19 }, null)
+    ride.step(1)
+    const ratio = ride.hero.object.position.z / walk.hero.object.position.z
+    expect(ratio).toBeGreaterThan(1.7)
+    expect(ratio).toBeLessThan(1.9)
+  })
+
+  it('도착하면·멈추면·순간이동하면 내린다', () => {
+    const { hero, orders, step } = mounted()
+    orders.press({ x: 0, z: 17 }, null)
+    step(2.5)
+    expect(hero.object.position.z).toBeGreaterThan(16)
+    expect(hero.riding).toBe(false)
+    orders.press({ x: 0, z: -2 }, null)
+    expect(hero.riding).toBe(true)
+    hero.stop()
+    expect(hero.riding).toBe(false)
+    orders.press({ x: 0, z: -4 }, null)
+    expect(hero.riding).toBe(true)
+    hero.teleport(0, 0)
+    expect(hero.riding).toBe(false)
+  })
+
+  it('탄 채 가까운 땅을 누르면 그대로 타고 간다', () => {
+    const { hero, orders, step } = mounted()
+    orders.press({ x: 0, z: 18 }, null)
+    step(0.3)
+    orders.press({ x: 4, z: 5 }, null)
+    expect(hero.riding).toBe(true)
+  })
+
+  it('탄 채 적을 누르면 내려서 그 적을 치러 간다', () => {
+    const { target } = dummy(6, 16)
+    const { hero, orders, step } = mounted([target])
+    orders.press({ x: 0, z: 18 }, null)
+    step(0.3)
+    orders.press(null, target)
+    expect(hero.riding).toBe(false)
+    expect(orders.attackTarget).toBe(target)
+  })
+
+  it('탄 동안은 사거리 안을 지나는 허수아비를 치지 않는다', () => {
+    const { target, hits } = dummy(1.7, 8)
+    const { hero, combat, orders, step } = mounted([target])
+    orders.press({ x: 0, z: 18 }, null)
+    for (let i = 0; i < 60; i++) {
+      step(1 / 30)
+      if (hero.riding) expect(combat.target).toBeNull()
+    }
+    expect(hits).toEqual([])
+  })
+
+  it('내리면 벌렸던 다리가 제자리로 (rotation.z = 0)', () => {
+    const { hero, orders, step } = mounted()
+    orders.press({ x: 0, z: 18 }, null)
+    step(0.3)
+    expect(hero.rig.leftLeg.rotation.z).not.toBe(0)
+    hero.stop()
+    step(0.1)
+    expect(hero.rig.leftLeg.rotation.z).toBe(0)
+    expect(hero.rig.rightLeg.rotation.z).toBe(0)
+  })
+
+  it('맞은 뒤 3초는 싸우는 중이라 걸어서 빠져나가고, 그 걸음 동안 싸움이 풀리면 그 자리에서 탄다', () => {
+    const { hero, combat, orders, step } = mounted()
+    hero.teleport(0, -18)
+    combat.takeHit(1, 0, -19, 0)
+    expect(combat.calm).toBe(false)
+    orders.press({ x: 0, z: 19 }, null)
+    expect(hero.riding).toBe(false)
+    step(2.5)
+    expect(hero.riding).toBe(false)
+    step(0.7)
+    expect(combat.calm).toBe(true)
+    expect(hero.riding).toBe(true)
+  })
+
+  it('맞지 않았어도 자동 공격 중에 멀리 누르면 바로 타지 않고, 싸운 지 3초가 지나야 걸음 동안 탄다', () => {
+    const { target } = dummy(0, 19.6)
+    const { hero, combat, orders, step } = mounted([target])
+    hero.teleport(0, 18)
+    step(0.5)
+    expect(combat.engaged).toBe(true)
+    orders.press({ x: 0, z: -19 }, null)
+    expect(hero.riding).toBe(false)
+    // 걷기 시작한 프레임에 휘두르기·대상이 비어도 싸움은 남는다 (고치기 전: 다음 프레임에 적 곁에서 올라탐)
+    step(1 / 60)
+    expect(combat.engaged).toBe(false)
+    expect(combat.calm).toBe(false)
+    expect(hero.riding).toBe(false)
+    step(2.7)
+    expect(hero.riding).toBe(false)
+    step(0.5)
+    expect(combat.calm).toBe(true)
+    expect(hero.riding).toBe(true)
+  })
+
+  it('맞은 뒤 3초 동안은 calm이 아니다 (생명이 다시 차기 시작하는 때와 같다)', () => {
+    const { combat, step } = mounted()
+    expect(combat.calm).toBe(true)
+    combat.takeHit(1, 0, 1, 0)
+    step(2.9)
+    expect(combat.calm).toBe(false)
+    step(0.2)
+    expect(combat.calm).toBe(true)
+  })
+
+  it('조이스틱을 멀리 끌면 거리와 상관없이 타고, 쥐고 있는 동안은 길이 잠깐 비어도 내리지 않는다', () => {
+    const { hero, orders, step } = mounted()
+    orders.steer({ x: 0, z: 2.5 }, true)
+    expect(hero.riding).toBe(true)
+    hero.holding = true
+    step(0.5)
+    expect(hero.isMoving).toBe(false)
+    expect(hero.riding).toBe(true)
+    hero.holding = false
+    step(0.05)
+    expect(hero.riding).toBe(false)
+  })
+})

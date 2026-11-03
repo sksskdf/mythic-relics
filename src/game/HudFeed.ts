@@ -1,3 +1,4 @@
+import { KEEPER, MOUNT } from '../data/mount'
 import { insightProgress } from '../data/training'
 import { godDef } from '../relics/data'
 import type { Build } from '../build/Build'
@@ -19,14 +20,15 @@ export interface HudFeedParts {
  * 장면의 위아래 검은 띠(E23-02), 목표 한 줄과 목표의 자리(E22-04), 작은 지도(E7-08).
  */
 export class HudFeed {
-  /** 조작 안내: 걸어 보면 싸우는 법으로, 싸워 보면 사라진다 (저장하지 않는다) */
-  coach: 'move' | 'fight' | null = null
+  /** 조작 안내: 걸어 보면 싸우는 법으로, 싸워 보면 사라진다. 탈것을 얻으면 타는 법을 처음 타기 전까지 (E241, 저장하지 않는다) */
+  coach: 'move' | 'fight' | 'ride' | null = null
   /** 장면의 위아래 검은 띠 (E23-02) */
   private readonly letterbox = document.createElement('div')
 
   constructor(private readonly parts: HudFeedParts) {
     this.letterbox.className = 'letterbox'
     parts.container.append(this.letterbox)
+    parts.game.bus.on('mountGained', ({ quiet }) => !quiet && (this.coach = 'ride'))
   }
 
   /** 화면 한 프레임 (그릴 때마다, 실제 시간) */
@@ -101,6 +103,8 @@ export class HudFeed {
     if (goal.region !== region.id) return world.wayTo(goal.region)
     if (goal.kind === 'boss') return region.boss
     if (goal.kind === 'forge') return region.npcs.find((n) => n.name === '대장장이') ?? null
+    // 탈것 (E241): 고개지기
+    if (goal.kind === 'mount') return region.npcs.find((n) => n.name === KEEPER) ?? null
     return region.sanctuary
   }
 
@@ -110,10 +114,12 @@ export class HudFeed {
     const { orders } = game
     if (this.coach === 'move' && orders.order?.kind === 'move') this.coach = 'fight'
     if (this.coach === 'fight' && (orders.order?.kind === 'attack' || game.combat.combo.swinging)) this.coach = null
+    if (this.coach === 'ride' && game.hero.riding) this.coach = null
     let text: string | null = null
     if (game.playing && !game.paused && !game.scenes.active && this.coach) {
       const p = game.hero.object.position
       if (this.coach === 'move') text = game.touch ? '화면을 누른 채 끌면 걷는다' : '땅을 누르면 걷는다'
+      else if (this.coach === 'ride') text = game.touch ? `멀리 끌면 산양에 올라탄다 · ×${MOUNT.speed}` : `멀리 누르면 산양에 올라탄다 · ×${MOUNT.speed}`
       else if (game.encounter.alive.some((g) => Math.hypot(g.x - p.x, g.z - p.z) < 9)) text = game.touch ? '적을 톡 누르면 싸운다' : '적을 누르면 싸운다'
     }
     game.hud.setCoach(text)

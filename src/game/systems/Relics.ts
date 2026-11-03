@@ -184,12 +184,13 @@ export class RelicSystem {
 
   /**
    * 유물을 손에 넣었다 (엔딩 뒤에만): 그 신의 신화가 아직 닫혀 있으면 1단계로 연다 (E12-04). 히든 신화도 그 유물이 열쇠다.
-   * 데모에서는 신을 깨워야(흔적·사냥·수호자) 열린다 (E238, E305-03: 그리스도 제우스를 깨운다). 점검용 실행은 Game이 따로 연다
+   * 데모에서는 신을 깨워야(흔적·사냥·수호자) 열린다 (E238, E305-03: 그리스도 제우스를 깨운다). 점검용 실행은 Game이 따로 연다.
+   * 엔딩 뒤에도 깨우는 길의 조각 2로 받은 유물은 신을 열지 않는다 (받을 때도, 불러와 다시 낄 때도): 그 신은 수호자를 쓰러뜨려야 깨어난다 (E241)
    */
   private unlock(id: RelicId, announce: boolean): void {
-    const { progress, bus, ending } = this.ctx
+    const { progress, bus, ending, awaken } = this.ctx
     const myth = relicMyth(id)
-    if (!myth || !ending.has('realms')) return
+    if (!myth || !ending.has('realms') || (awaken.waking === myth && awaken.fragments >= 2)) return
     for (const god of [myth]) {
       if (!progress.open(god)) continue
       bus.emit('progressChanged', {})
@@ -304,9 +305,11 @@ export class RelicSystem {
     this.updateGlow()
 
     // 걸은 거리 (이동 연동 효과). 순간이동처럼 한 번에 크게 옮긴 것은 빼고, 밀려난 것은 걸음으로 치지 않는다.
+    // 탄 동안(E241)은 걸음으로 치지 않는다 (걸음 충전·회오리 걸음이 쉰다)
     const step = Math.hypot(position.x - this.lastWalk.x, position.z - this.lastWalk.y)
-    if (hero.isMoving && step < 1) powers.onWalk(step, skills)
-    this.walked = hero.isMoving && step < 1 ? step : 0
+    const walking = hero.isMoving && !hero.riding && step < 1
+    if (walking) powers.onWalk(step, skills)
+    this.walked = walking ? step : 0
     this.lastWalk.set(position.x, position.z)
 
     if (combat.alive) {
@@ -329,6 +332,8 @@ export class RelicSystem {
         (id, gear) => (!auto ? 0 : gear ? AUTOMATION.pickup.radius : !isMythRelic(id) ? Infinity : 0),
       )
       for (const { id, gear } of picked) this.take(id, gear)
+      // 탄 동안(E241)은 유물 행동·오라·동료가 쉰다: 쓰러졌을 때처럼 적을 비워 새로 맞히지 않는다 (날아가던 것은 마저 간다)
+      if (hero.riding) skills.enemies = []
       powers.update(dt, skills)
     } else {
       pickups.update(dt, position.x, position.z, () => false)
@@ -341,7 +346,7 @@ export class RelicSystem {
     const boss = encounter.boss
     const bossNear = !!boss && boss.alive && Math.hypot(boss.x - position.x, boss.z - position.z) < 10
     const ultimate = powers.ultimate
-    if (combat.alive && ultimate && combat.heartGauge >= 1 && !powers.ultimateActive && !this.ctx.build.state.noUltimate && ultimate.worthUsing(skills, bossNear)) {
+    if (combat.alive && !hero.riding && ultimate && combat.heartGauge >= 1 && !powers.ultimateActive && !this.ctx.build.state.noUltimate && ultimate.worthUsing(skills, bossNear)) {
       combat.heartGauge = 0
       ultimate.start(skills)
       this.ctx.bus.emit('ultimateCast', {})

@@ -77,6 +77,13 @@ const ONE: CircleCollider[] = [{ x: 0, z: 0, radius: 0 }]
 const HERO_CIRCLE: CircleCollider = { x: 0, z: 0, radius: 0 }
 /** 돌진 빠르기 (m/s) */
 const DASH_SPEED = 16
+/**
+ * 줄 되돌림 이력 (E241): 줄(leashRange) 밖으로 나가 집으로 돌아가는 적은 집에서 줄의 이만큼 안으로 들어온 뒤에만 다시 쫓는다.
+ * 줄 끝에서 돌아가기·쫓기를 프레임마다 오가며 돌아가는 동안의 회복이 싸우는 중에도 돌던 것을 막는다
+ */
+export const LEASH_REENGAGE = 0.75
+/** 거리 두기 적은 집에서 (줄 − 이만큼) m까지만 물러선다 (E241: 물러서며 싸움을 줄 끝으로 끌고 가지 않게) */
+export const BACKOFF_LEASH_MARGIN = 3
 
 /** 서리 거인 한 마리. 졸개와 거인 왕이 같은 흐름(대기 → 추격 → 예고 → 공격 → 빈틈)을 쓴다. */
 export class Giant {
@@ -247,7 +254,17 @@ export class Giant {
 
   /** 주인공을 바로 쫓게 한다. (포효로 불려 왔을 때) */
   alert(): void {
-    if (this.state === 'idle' || this.state === 'return') this.setState('chase')
+    if (this.state === 'idle' || (this.state === 'return' && this.mayReengage)) this.setState('chase')
+  }
+
+  /** 집에서 떨어진 거리 */
+  private get fromHome(): number {
+    return Math.hypot(this.x - this.home.x, this.z - this.home.z)
+  }
+
+  /** 돌아가던 적이 다시 쫓아도 되는가 (E241): 집에서 줄의 LEASH_REENGAGE 안으로 들어왔다 */
+  private get mayReengage(): boolean {
+    return this.fromHome < this.spec.leashRange * LEASH_REENGAGE
   }
 
   /** 보스처럼 밀리지 않고 길을 막는 거인인가 */
@@ -299,7 +316,8 @@ export class Giant {
     if (damage >= this.spec.poise && !frontal) {
       this.clearTelegraph()
       this.setState('stagger')
-    } else if (this.state === 'idle' || this.state === 'return') {
+    } else if (this.state === 'idle' || (this.state === 'return' && this.mayReengage)) {
+      // 줄 밖에서 돌아가는 동안은 맞아도 계속 돌아간다 (E241)
       this.setState('chase')
     }
     return dealt
@@ -345,7 +363,7 @@ export class Giant {
         // 배율 받은 최대 생명력 기준 (땅 세기·정예로 커진 적도 같은 빠르기로 찬다)
         this.health.heal(this.health.max * this.spec.returnRegen * dt)
         if (this.walkTo(this.home, dt, world) < 0.5) this.setState('idle')
-        else if (hero.alive && distToHero < this.spec.aggroRange * 0.6) this.setState('chase')
+        else if (hero.alive && distToHero < this.spec.aggroRange * 0.6 && distFromHome < this.spec.leashRange * LEASH_REENGAGE) this.setState('chase')
         break
       case 'chase': {
         if (!hero.alive || distFromHome > this.spec.leashRange) {
@@ -354,7 +372,7 @@ export class Giant {
         }
         const attack = this.chooseAttack(distToHero, world)
         if (attack) this.beginAttack(attack, world)
-        else if (this.spec.keepAway && distToHero < this.spec.keepAway) this.backOff(hero, dt, world)
+        else if (this.spec.keepAway && distToHero < this.spec.keepAway && distFromHome < this.spec.leashRange - BACKOFF_LEASH_MARGIN) this.backOff(hero, dt, world)
         else {
           const point = this.approachPoint(hero, distToHero)
           const stopAt = this.spec.keepAway ?? (point === hero ? this.radius + hero.radius + 0.3 : 0.3)

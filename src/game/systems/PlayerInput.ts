@@ -7,6 +7,7 @@ import { screenRay, screenToGround, worldToScreen } from '../../render/picking'
 import type { PixelRenderer } from '../../render/PixelRenderer'
 import { clampViewHeight, VIEW_HEIGHT } from '../../save/settings'
 import type { Point2 } from '../../world/colliders'
+import { MOUNT } from '../../data/mount'
 import { heightAt, highestLand, rayToLand } from '../../world/terrain'
 import type { GameContext } from '../context'
 
@@ -20,7 +21,8 @@ const ZOOM_STEP = 0.02
 /**
  * 클릭을 지시로 바꾼다. (DESIGN.md 8.2)
  * 땅 = 그곳까지 이동(싸우던 중이어도), 적 = 그 적을 쫓아가 자동 공격. 멈춰 서면 둘레 적을 자동 공격 (E12-08)
- * 휴대폰(E235): 톡 = 클릭, 끌기 = 떠다니는 조이스틱 쪽으로 걷기(떼면 멈춰 자동 공격), 두 손가락 = 확대·축소
+ * 휴대폰(E235): 톡 = 클릭, 끌기 = 떠다니는 조이스틱 쪽으로 걷기(떼면 멈춰 자동 공격), 두 손가락 = 확대·축소.
+ * 탈것(E241): 원 밖으로 멀리 끌면 올라타 달리고, 떼거나 가운데로 오면 멈춰 내린다
  */
 export class PlayerInput {
   private readonly cursor = new THREE.Vector3()
@@ -76,6 +78,8 @@ export class PlayerInput {
    */
   private updateTouch(touch: TouchControls): boolean {
     const { orders, hero, view } = this.ctx
+    // 조이스틱을 쥔 동안은 탄 채 길이 잠깐 비어도 내리지 않는다 (E241)
+    hero.holding = touch.direction !== null
     const pinch = touch.gestures.pinch
     if (pinch !== null) {
       this.pinchView ??= view.viewHeight
@@ -108,7 +112,8 @@ export class PlayerInput {
       const target = this.stickTarget(direction.dx, direction.dy)
       if (target) {
         if (!this.walking) this.onTalk(null)
-        orders.steer(target)
+        // 멀리 끌면 올라탄다 (E241): 버튼 없이 같은 손짓으로
+        orders.steer(target, touch.far)
       }
       this.walking = target !== null
       return true
@@ -138,7 +143,9 @@ export class PlayerInput {
     const gx = b.x - a.x
     const gz = b.z - a.z
     const g = Math.hypot(gx, gz) || 1
-    return { x: p.x + (gx / g) * STICK_AHEAD, z: p.z + (gz / g) * STICK_AHEAD }
+    // 탄 동안은 더 멀리 잡는다 (E241): 길을 다시 찾는 사이에 다 달려 길이 비지 않게
+    const ahead = STICK_AHEAD * (hero.riding ? MOUNT.speed : 1)
+    return { x: p.x + (gx / g) * ahead, z: p.z + (gz / g) * ahead }
   }
 
   /** 화면 한 점이 주인공 발 높이의 수평면과 만나는 곳 */

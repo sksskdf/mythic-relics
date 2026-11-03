@@ -12,7 +12,7 @@ import { RETURN_MIN_LEVEL, RETURN_MIN_SECONDS, RETURN_SIGNAL } from '../../data/
 import type { GameContext } from '../context'
 
 /**
- * 장 진행 (E22-01): 땅에 들어섬·보스 처치를 적고, 신화·유물이 바뀌면 지금 장과 목표를 다시 본다.
+ * 장 진행 (E22-01): 땅에 들어섬·보스 처치를 적고, 신화·유물·귀환·탈것이 바뀌면 지금 장과 목표를 다시 본다.
  * 장이 바뀌면 chapterChanged, 목표가 바뀌면 goalChanged를 보낸다 (HUD 한 줄·장 제목 띠·지도·결계가 듣는다).
  */
 export class ChapterSystem {
@@ -40,6 +40,8 @@ export class ChapterSystem {
     bus.on('forged', () => this.check())
     // 귀환도 할 일이다 (불씨 갈래는 promoted를 내지 않는다): 목표와 결계를 바로 맞춘다
     bus.on('expeditionReturned', () => this.check())
+    // 고개지기를 만난 것도 (E241): 귀환을 이미 넉넉히 했으면 다음 귀환 할 일까지 지나가 올림포스가 바로 열린다
+    bus.on('mountGained', () => this.check())
   }
 
   /**
@@ -56,11 +58,15 @@ export class ChapterSystem {
     const conquest = CONQUESTS.includes(region)
     if (step && step !== last) {
       const breath = breathSlots(this.ctx)
+      // 다음 장의 첫 할 일이 땅에 들어서는 것이면 그 땅이 바로 열린다 (E241: 거인 왕 → 올림포스 고개)
+      const next = chapters.chapters[chapters.chapters.findIndex((c) => c.steps.includes(step)) + 1]
+      const opens = next?.steps[0]?.kind === 'enter' ? REGIONS[next.steps[0].region] : undefined
       const lines = conquest
         ? [
             ...(breath > before.breath ? [`숨 칸 ${before.breath} → ${breath}`] : []),
             ...(progress.levelCap > before.cap ? [`신 단계 끝 ${before.cap} → ${progress.levelCap}`] : []),
             `명성 배율 ×${before.mult.toFixed(2)} → ×${expedition.multiplier.toFixed(2)}`,
+            ...(opens ? [`${josa(opens.name, '이')} 열렸다`] : []),
           ]
         : []
       const name = ENEMIES[enemy]?.name ?? '장 보스'

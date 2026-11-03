@@ -9,6 +9,8 @@ export interface ChapterWorld {
   forged(): number
   /** 귀환한 횟수 (E304) */
   returns(): number
+  /** 탈것을 얻었나 (E241: 고개지기를 만났다) */
+  mounted(): boolean
 }
 
 export interface ChapterData {
@@ -22,7 +24,8 @@ export interface ChapterData {
  * 장 진행 (E22-01, TIMELINE.md 4·7장).
  * - 지금 장: 마지막 할 일을 아직 못 한 첫 장. 지난 장의 땅과 들어서 본 땅이 열려 있다 (마을은 늘)
  * - 지금 장의 땅은 할 일 차례로 열린다 (E236-01): 그 땅에 들어서는 할 일 바로 앞까지 했을 때.
- *   요툰헤임은 첫 신을 깨운 뒤, 우트가르드는 두 번째 신과 2단계 전설 뒤 (준비가 되기 전에 거인 왕을 만나지 않게)
+ *   요툰헤임은 첫 신을 깨운 뒤, 우트가르드는 두 번째 신과 2단계 전설 뒤 (준비가 되기 전에 거인 왕을 만나지 않게).
+ *   그리스 장(E241)은 첫 할 일이 고개에 들어서는 것이라 거인 왕을 이기면 고개가 바로 열리고, 올림포스는 고개 성소에서 귀환한 뒤 열린다
  * - 지금 목표: 지금 장에서 아직 못 한 첫 할 일. 뒤의 할 일을 먼저 했으면 앞의 것은 지나간 것으로 친다
  * - 엔딩 뒤에는 모든 땅이 열리고 목표가 없다
  */
@@ -50,6 +53,8 @@ export class ChapterProgress {
         return world.forged() >= step.n!
       case 'return':
         return world.returns() >= step.n!
+      case 'mount':
+        return world.mounted()
     }
   }
 

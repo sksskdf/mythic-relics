@@ -235,7 +235,15 @@ export class DevPanel {
         }),
       ),
       // 귀환 (E304): 원정을 무르익게(2분·기세 8) 하고 성소 화로에 선다 (빛기둥이 서고 귀환 카드가 뜬다)
-      row(button('귀환 준비', () => this.readyReturn())),
+      // 탈것 (E241): 고개지기의 산양을 카드와 함께 얻고, 보는 쪽 20m 앞을 눌러 올라탄다
+      row(
+        button('귀환 준비', () => this.readyReturn()),
+        button('탈것 얻기', () => {
+          g.mountSystem.give()
+          g.menu.refresh()
+        }),
+        button('타기', () => g.dev.ride()),
+      ),
       // 장 흐름 (E22): 지금 목표를 한 것으로, 장 하나를 통째로
       row(
         button('목표 건너뛰기', () => {
