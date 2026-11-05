@@ -737,7 +737,14 @@ try {
   await page.waitForFunction(() => window.__game.oathCardOpen, null, { timeout: 15000 })
   const oathCards = await page.locator('.oath-card .pick-card__card').count()
   if (oathCards < 3) throw new Error(`맹세: 출발 카드의 맹세가 셋보다 적습니다 (${oathCards})`)
+  // 고르는 카드가 떠 있는 동안 얻은 것 카드는 숨고 줄에서 기다린다 (E306: 「원정 N 출발」 큰 카드가 맹세 카드에 반쯤 가려지던 것)
+  if ((await page.evaluate(() => getComputedStyle(document.querySelector('.hud__gains')).visibility)) !== 'hidden') throw new Error('맹세: 출발 카드가 떠 있는데 얻은 것 카드가 그 위에 보입니다.')
   await page.locator('.oath-card .pick-card__card').filter({ hasText: '침묵의 맹세' }).click()
+  await page
+    .waitForFunction(() => window.__game.hud.gainsShowing === 'big' && document.querySelector('.hud__gains-kind')?.textContent === '귀환' && getComputedStyle(document.querySelector('.hud__gains')).visibility === 'visible', null, { timeout: 20000 })
+    .catch(() => {
+      throw new Error('맹세: 출발 카드를 고른 뒤에 기다리던 「원정 N 출발」 카드가 뜨지 않습니다.')
+    })
   const sworn = await page.evaluate(() => ({ oath: window.__game.expedition.oath, noUltimate: window.__game.ctx.build.state.noUltimate }))
   if (sworn.oath !== 'silence' || !sworn.noUltimate) throw new Error(`맹세: 침묵의 맹세가 걸리지 않습니다 ${JSON.stringify(sworn)}`)
   const oathKept = await page.evaluate(() => {
@@ -752,7 +759,7 @@ try {
   })
   if (!oathKept.spawned || oathKept.oath !== null || !oathKept.kept || oathKept.noUltimate || !(oathKept.charge >= 0.3)) throw new Error(`맹세: 수호자를 이겨도 지키지 못했습니다 ${JSON.stringify(oathKept)}`)
   if (!(oathKept.scale > 1) || oathKept.wired !== oathKept.scale) throw new Error(`맹세: 맹세 기록의 명성 배율이 원정 명성에 걸리지 않습니다 ${JSON.stringify(oathKept)}`)
-  console.log(`맹세 확인: 귀환 2에 출발 카드 ${oathCards}장, 침묵의 맹세를 걸면 궁극기가 막히고, 수호자를 이기면 지켜 심장 충전 +${Math.round(oathKept.charge * 100)}%, 명성 ×${oathKept.wired.toFixed(3)}`)
+  console.log(`맹세 확인: 귀환 2에 출발 카드 ${oathCards}장(떠 있는 동안 얻은 것 카드는 기다림), 침묵의 맹세를 걸면 궁극기가 막히고, 수호자를 이기면 지켜 심장 충전 +${Math.round(oathKept.charge * 100)}%, 명성 ×${oathKept.wired.toFixed(3)}`)
 
   // 한계를 깸 (E305-03, D8): 깊이 10 원정에서 수호자(장 보스)를 이기고 귀환하면 깊이의 끝이 사라지고 끝없는 원정이 열린다
   const broke = await page.evaluate(() => {

@@ -460,6 +460,10 @@ button.hud__slot--empty {
   visibility: visible;
   animation: hud-gains 5s ease-out forwards;
 }
+/* 고르는 카드(귀환·맹세 출발)가 떠 있는 동안은 얻은 것 카드를 숨긴다 (겹치지 않게, 다음 카드는 Hud가 줄에 세워 둔다) */
+.hud:has(.pick-card:not([hidden])) .hud__gains {
+  visibility: hidden;
+}
 @keyframes hud-gains {
   0% { opacity: 0; transform: translate(-50%, 12px) scale(0.96); }
   6% { opacity: 1; transform: translate(-50%, 0) scale(1); }

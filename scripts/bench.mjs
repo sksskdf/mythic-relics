@@ -60,7 +60,15 @@ function measure({ count, boss, ride }) {
   g.combat.health.reset()
   g.orders.clear()
   const p = g.hero.object.position
-  if (ride) g.dev.ride(20)
+  // 탄 채로: 싸움이 풀리게(맞은 지·싸운 지 3초) 잠깐 기다린 뒤 20m 앞을 눌러 올라탄다
+  let rode = false
+  if (ride) {
+    g.advance(3.5, 1 / 30)
+    rode = g.dev.ride(20)
+  }
+  // 적이 재는 동안 쓰러지지 않게 생명을 크게 (예전에는 미드가르드에서 3초 만에 40마리 중 서른이 쓰러져 「둘러싸인 싸움」이 아니었다)
+  const threat = g.encounter.threat
+  g.encounter.threat = { ...threat, hp: Math.max(threat.hp, 30) }
   // 여러 몸 종류를 섞어 둘레에 세운다 (가만히 두면 다가와 싸운다)
   const ids = ['grunt', 'wolf', 'draugr', 'stoneThrower', 'harpy', 'oni', 'dokkaebiFire', 'imugi']
   for (let i = 0; i < count; i++) {
@@ -78,6 +86,7 @@ function measure({ count, boss, ride }) {
     g.combat.health.reset()
   }
   times.sort((a, b) => a - b)
+  g.encounter.threat = threat
   g.view.jumpTo(g.hero.object.position)
   // 세 번 그리고 마지막 값을 센다 (첫 그리기는 셰이더를 지을 수 있다)
   const info = g.pixel.renderer.info
@@ -118,7 +127,7 @@ function measure({ count, boss, ride }) {
     scale: Math.round(g.pixel.size.scale * 1000) / 1000,
     shadows: sun.castShadow,
     shadowBox: Math.round((box.right - box.left) * 10) / 10,
-    riding: g.hero.riding,
+    riding: rode,
     touch: g.touch,
   }
 }
