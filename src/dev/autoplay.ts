@@ -188,6 +188,19 @@ export class Autoplayer {
     const here = { x: p.x, z: p.z }
     const enemies = encounter.alive
 
+    // 0. 맹세 (E305-01): 출발 카드가 뜨면 아직 못 지킨 맹세를 건다(맹세 봇, 지금 장에 맹세 할 일이 남았으면, E306 D6), 아니면 맹세 없이.
+    // 무엇보다 먼저 고른다: 귀환한 뒤 줍기·떠나기로 화로에서 걸어 나가면 맹세 없이 떠나게 된다 (E306 리뷰)
+    if (this.game.oathCardOpen) {
+      const { chapters } = this.game
+      const owed = this.chapters && (chapters.chapter?.steps.some((s) => s.kind === 'oath' && !chapters.done(s)) ?? false)
+      const id = this.oaths || owed ? (this.game.oathSystem.available().find((o) => !this.game.oaths.has(o)) ?? null) : null
+      this.game.hideCards()
+      this.game.oathSystem.swear(id)
+      if (id) this.oathLog.push({ id, sworn: this.game.time })
+      this.step = 12
+      return
+    }
+
     // 다른 땅으로 떠나는 길이면 생명이 넉넉한 동안 예고를 피하지 않고 통로로 걸어간다 (E19: 통로를 다 걸어야 넘어가므로
     // 피하기를 되풀이하면 쫓아오는 무리에 막혀 떠나지 못한다. 사람도 그냥 걸어 나간다)
     const hp = combat.health.ratio
@@ -277,18 +290,6 @@ export class Autoplayer {
           return
         }
       }
-    }
-
-    // 4.5 맹세 (E305-01): 출발 카드가 뜨면 아직 못 지킨 맹세를 건다(맹세 봇, 지금 장에 맹세 할 일이 남았으면, E306 D6), 아니면 맹세 없이
-    if (this.game.oathCardOpen) {
-      const { chapters } = this.game
-      const owed = this.chapters && (chapters.chapter?.steps.some((s) => s.kind === 'oath' && !chapters.done(s)) ?? false)
-      const id = this.oaths || owed ? (this.game.oathSystem.available().find((o) => !this.game.oaths.has(o)) ?? null) : null
-      this.game.hideCards()
-      this.game.oathSystem.swear(id)
-      if (id) this.oathLog.push({ id, sworn: this.game.time })
-      this.step = 12
-      return
     }
 
     // 4.7 신 깨우기 (E238): 생명이 넉넉하면 흔적·수호자 자리로 간다 (지키는 무리·수호자와의 싸움은 아래 싸움이 맡고,

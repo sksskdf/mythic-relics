@@ -1090,6 +1090,8 @@ try {
   await phone.evaluate(() => {
     const g = window.__game
     g.encounter.clearAll()
+    // 앞에서 톡으로 싸운 것이 풀리게 (맞은 지·싸운 지 3초, `MOUNT.calmSeconds`): 화면이 느리면 3초 안에 끌기 시작해 올라타지 못했다
+    g.advance(3.5, 1 / 30)
     g.dev.mount()
   })
   const mounted = () => phone.evaluate(() => ({ riding: window.__game.hero.riding, moving: window.__game.hero.isMoving, far: document.querySelector('.stick').classList.contains('is-far'), stick: !document.querySelector('.stick').hidden }))
