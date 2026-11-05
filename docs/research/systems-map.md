@@ -81,7 +81,7 @@ Ending ──▶ Threat·Conveniences·Trials·Rift·4단계·유물 3·4단계�
 - **편의 셈 `'threat'`**: `CONVENIENCES`에 이 세기를 쓰는 항목이 없다(워프가 쓰던 자리). `Threat.ts` 53행은 세기만 한다.
 - **`DropTable`·`dropMisses`·재료 유물 41개·`DEFAULT_DROPS`**: 엔딩 뒤에만 쓰인다.
 - **글이 낡은 곳**: `src/ui/menu/statusTab.ts` 78행 「개방 단계가 오를 때마다 +5%」. 실제는 ×1.35다.
-- **원천 숙련·갈래·공명**: E21-05에서 없앴다. RI의 "프로모트 갈래" 자리가 지금은 빈칸이다(`REDESIGN.md` 10.3의 "넣음"과 다르다).
+- **원천 숙련·갈래·공명**: E21-05에서 없앴다. RI의 "프로모트 갈래" 자리가 지금은 빈칸이다(`docs/knowledge/past/REDESIGN.md` 10.3의 "넣음"과 다르다).
 - **성능 후보**: `Build.state`는 피해마다 여러 번 불리고, 부를 때마다 `fingerprint`가 30여 값을 다시 적으며 신화 기록을 Map으로 돈다. 장비·칸을 바꿀 때 올리는 판(版) 번호 하나로 바꿀 수 있다. `Build.passives()`도 맞을 때마다 배열을 새로 만든다.
 
 ## 5. 엔딩 뒤로 숨긴 것 (`src/progress/Ending.ts`의 `AFTER_ENDING`)
