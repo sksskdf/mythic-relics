@@ -2,7 +2,7 @@
 // node scripts/timeline-check.mjs [playtest.json=test-results/playtest.json] [power-curve.json=test-results/power-curve.json]
 // - 체크포인트 열(★1~★6, 귀환 1~4)마다 판마다의 봇 분, 세 판 중앙값, 목표(사람 분 가운데 × 0.78), ±15% 판정
 // - 구간 길이(앞 체크포인트에서)와 장마다 걸린 분
-// - power-curve 기록이 있으면 같은 사건 때의 공격 지수와 6장 「공격 지수 (목표)」 열을 나란히 둔다
+// - power-curve 기록이 있으면 같은 사건 때의 공격 지수와 `TIMELINE.md` 4장 「공격 지수 (목표)」 열을 나란히 둔다
 // 결과는 test-results/timeline-check.json과 화면에. 봇 판(`npm run playtest N 120 --ending`)을 돌린 뒤에 쓴다 (브라우저를 띄우지 않는다)
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 

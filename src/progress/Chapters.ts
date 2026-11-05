@@ -93,12 +93,18 @@ export class ChapterProgress {
 
   /**
    * 그 장에서 한 마지막 할 일의 차례 (하나도 안 했으면 -1). 뒤의 것을 했으면 앞의 것은 지나간 것으로 친다.
-   * 이어 세는 할 일(귀환·합치기·맹세, `COUNTED_KINDS`)은 장 밖에서도 쌓이는 수라(앞 장에서 귀환을 더 했거나 영웅을 먼저 만들었을 때)
-   * 건너뛰는 근거로 쓰지 않고, 바로 앞까지 했을 때만 이어 센다
+   * 이어 세는 할 일(귀환·합치기·맹세·벼리기, `COUNTED_KINDS`)은 장 밖에서도 쌓이는 수라(앞 장에서 귀환을 더 했거나 영웅을 먼저 만들었을 때)
+   * 건너뛰는 근거로 쓰지 않고, 바로 앞까지 했을 때만 이어 센다.
+   * 신 깨우기는 스스로 채워야 지나간다 (E306 리뷰): 옛 흐름에서 첫 신만 깨우고 요툰헤임에 들어선 저장이 귀환 둘과 둘째 신을 건너뛰지 않게.
+   * 새 흐름에서는 깨우기 뒤의 땅이 그 깨우기로 열리니 바뀌는 것이 없다. 원정 번호 짐작(`estimateExpeditions`)도 이 셈을 쓴다
    */
-  private lastDone(chapter: ChapterDef): number {
+  lastDone(chapter: ChapterDef): number {
     let last = -1
-    chapter.steps.forEach((s, i) => !COUNTED_KINDS.has(s.kind) && this.done(s) && (last = i))
+    for (const [i, s] of chapter.steps.entries()) {
+      const done = this.done(s)
+      if (s.kind === 'awaken' && !done) break
+      if (done && !COUNTED_KINDS.has(s.kind)) last = i
+    }
     while (last + 1 < chapter.steps.length && this.done(chapter.steps[last + 1]!)) last += 1
     return last
   }

@@ -18,10 +18,11 @@ export const STEP_KINDS = ['enter', 'awaken', 'boss', 'forge', 'return', 'mount'
 export type StepKind = (typeof STEP_KINDS)[number]
 
 /**
- * 이어 세는 할 일 (E305 리뷰, E306 D4): 장 밖에서 먼저 쌓이는 수(귀환 횟수·만든 영웅·지킨 맹세)라
- * 뒤의 할 일을 건너뛰는 근거로 쓰지 않고, 차례에 닿았을 때만 이어 센다
+ * 이어 세는 할 일 (E305 리뷰, E306 D4): 장 밖에서 먼저 쌓이는 수(귀환 횟수·만든 영웅·지킨 맹세·벼린 유물 단계)라
+ * 뒤의 할 일을 건너뛰는 근거로 쓰지 않고, 차례에 닿았을 때만 이어 센다.
+ * 벼리기도 그렇다 (E306 리뷰): 키마이라를 이긴 뒤 귀환 4보다 먼저 마을에서 2단계로 벼려도 귀환 4를 건너뛰지 않는다
  */
-export const COUNTED_KINDS: ReadonlySet<StepKind> = new Set<StepKind>(['return', 'merge', 'oath'])
+export const COUNTED_KINDS: ReadonlySet<StepKind> = new Set<StepKind>(['return', 'merge', 'oath', 'forge'])
 
 /**
  * 땅을 막지 않는 할 일 (E306 D4): 목표 한 줄과 봇 차례만 잡는다. 영웅은 운에 달렸고 맹세는 출발할 때만 걸 수 있어

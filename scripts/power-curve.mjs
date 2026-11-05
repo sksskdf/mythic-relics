@@ -216,6 +216,8 @@ try {
     let lastShownAt = null
     let next = 0
     let moments = 0
+    /** 고르는 카드가 떠 있어 줄을 다 찍지 못했다: 봇이 카드를 닫은 다음 걸음에서 다시 찍는다 */
+    let drainPending = false
     const shoot = async (file) => {
       await page.evaluate(() => window.__game.view.jumpTo(window.__game.hero.object.position))
       await frames(page)
@@ -230,8 +232,15 @@ try {
           const hud = window.__game.hud
           const el = document.querySelector('.hud__gains')
           const lines = (node) => (node?.innerText ?? '').split('\n').map((x) => x.trim()).filter(Boolean).join(' · ')
-          return { queue: hud.gainsQueue.length, at: hud.gainsShownAt, size: hud.gainsShowing, kind: lines(el?.querySelector('.hud__gains-head')), text: lines(el).slice(0, 90) }
+          const choosing = document.querySelector('.pick-card:not([hidden])') !== null
+          return { queue: hud.gainsQueue.length, at: hud.gainsShownAt, size: hud.gainsShowing, kind: lines(el?.querySelector('.hud__gains-head')), text: lines(el).slice(0, 90), choosing }
         })
+        // 고르는 카드(귀환·맹세 출발)가 떠 있는 동안 HUD는 얻은 것 카드를 숨기고 줄을 내보내지 않는다:
+        // 세계가 멈춘 채 기다리지 않고 봇이 고른 뒤에 다시 찍는다
+        if (h.choosing) {
+          drainPending = true
+          return
+        }
         if (h.size && h.at !== lastShownAt) {
           lastShownAt = h.at
           await sleep(CARD_SETTLE)
@@ -244,7 +253,10 @@ try {
           cards.push(row)
           continue
         }
-        if (h.queue === 0) return
+        if (h.queue === 0) {
+          drainPending = false
+          return
+        }
         await sleep(250)
       }
     }
@@ -273,11 +285,12 @@ try {
         console.log(`고르는 카드 ${fmt(s.t)} ${s.pick}`)
       }
       // 이번에 새로 보인 등급 2 이상 순간이 있으면 카드를 하나씩
+      let drain = drainPending
       if (s.moments > moments) {
-        const fresh = await page.evaluate((from) => window.__moments.slice(from).some((m) => m.tier >= 2), moments)
+        drain ||= await page.evaluate((from) => window.__moments.slice(from).some((m) => m.tier >= 2), moments)
         moments = s.moments
-        if (fresh) await drainCards()
       }
+      if (drain) await drainCards()
       // 2분 눈금: 저장과 찍기, 목표 한 줄·연 탭·원정
       if (s.t >= next) {
         const extra = await page.evaluate(() => {

@@ -11,6 +11,8 @@ import { EventBus, type GameEvents } from '../src/game/events'
 import { ChapterSystem } from '../src/game/systems/Chapters'
 import { MountSystem } from '../src/game/systems/Mount'
 import { Encounter } from '../src/game/Encounter'
+import { Loadout } from '../src/gear/Loadout'
+import { rollGear } from '../src/gear/roll'
 import { walkArea } from '../src/world/colliders'
 
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T
@@ -286,11 +288,51 @@ describe('장 진행 (E22-01)', () => {
     const w = world()
     const chapters = new ChapterProgress(w)
     chapters.enter('midgard')
+    w.awake.set('norse', 2)
     chapters.enter('utgard')
     expect(chapters.goal?.kind).toBe('boss')
     // 귀환이 다음 장 목표(고개 귀환 3)에 먼저 닿아도 장은 건너뛰지 않는다
     w.ret = 3
     expect(chapters.chapter?.id).toBe('north')
+  })
+
+  it('신 깨우기는 스스로 채워야 지나간다: 첫 신만 깨우고 요툰헤임에 들어선 옛 저장은 귀환 1 → 둘째 신 차례, 우트가르드는 닫힌 채 (E306 리뷰)', () => {
+    const w = world()
+    const chapters = new ChapterProgress(w)
+    chapters.enter('midgard')
+    w.awake.set('norse', 1)
+    chapters.enter('jotunheim')
+    expect(chapters.goal).toMatchObject({ kind: 'return', n: 1 })
+    expect(chapters.isOpen('jotunheim')).toBe(true)
+    expect(chapters.isOpen('utgard')).toBe(false)
+    w.ret = 1
+    expect(chapters.goal).toMatchObject({ kind: 'awaken', n: 2 })
+    expect(chapters.isOpen('utgard')).toBe(false)
+    // 둘째 신을 깨우면 그 뒤는 여느 옛 저장과 같다: 이미 들어선 요툰헤임이 귀환 2를 지나온 근거라 합치기 (다시 불러오면 원정 번호가 그만큼 오른다, D18)
+    w.awake.set('norse', 2)
+    expect(chapters.goal?.kind).toBe('merge')
+    expect(chapters.isOpen('utgard')).toBe(true)
+  })
+
+  it('종장에서 귀환 4보다 먼저 유물을 2단계로 벼려도 목표는 귀환 4이고 갈라진 하늘은 닫힌 채 (벼리기는 이어 세는 할 일, E306 리뷰)', () => {
+    const w = world()
+    const chapters = new ChapterProgress(w)
+    pastNorth(w, chapters)
+    for (const id of ['pass', 'olympus', 'delphi', 'lycia']) chapters.enter(id)
+    w.goat = true
+    w.ret = 3
+    w.heroes = 1
+    w.kept = 1
+    w.awake.set('greek', 1)
+    chapters.bossDefeated('lycia')
+    w.stage = 2
+    expect(chapters.chapter?.id).toBe('finale')
+    expect(chapters.goal).toMatchObject({ kind: 'return', n: 4 })
+    expect(chapters.isOpen('sky')).toBe(false)
+    // 귀환 4를 마치면 이미 벼린 유물로 벼리기는 바로 지나간다
+    w.ret = 4
+    expect(chapters.goal).toMatchObject({ kind: 'enter', region: 'sky' })
+    expect(chapters.isOpen('sky')).toBe(true)
   })
 
   it('제1장에서 귀환을 세 번 했어도 그리스 장은 고개·고개지기부터 차례로 (귀환 3을 건너뛰는 근거로 쓰지 않는다, E241)', () => {
@@ -426,6 +468,40 @@ describe('장 정복 (E305-02)', () => {
     expect(chapters.conquered).toBe(1)
     chapters.bossDefeated('lycia')
     expect(chapters.conquered).toBe(2)
+  })
+})
+
+describe('목표 한 줄의 합치기 막대 (E306)', () => {
+  it('가방에 든 같은 부위 희귀만 센다: 하나를 끼고 가방에 둘이면 2/3 (합치기는 가방의 것만 받는다, E306 리뷰)', () => {
+    const w = world()
+    const chapters = new ChapterProgress(w)
+    chapters.enter('midgard')
+    w.awake.set('norse', 2)
+    w.ret = 2
+    chapters.enter('jotunheim')
+    expect(chapters.goal?.kind).toBe('merge')
+    const loadout = new Loadout()
+    let seed = 7
+    const rng = () => ((seed = (seed * 16807) % 2147483647) / 2147483647)
+    for (let i = 0; i < 3; i++) {
+      const item = rollGear(rng, { part: 'weapon', grade: 'rare' })
+      loadout.addGear(item)
+      loadout.equip(item.uid)
+    }
+    expect(loadout.bag).toHaveLength(2)
+    const ctx = {
+      bus: new EventBus<GameEvents>(),
+      chapters,
+      progress: { pantheon: { hand: null }, isOpen: () => true },
+      build: { chosen: null },
+      powers: { loadout },
+      awaken: { waking: null },
+      ending: { reached: false },
+      expedition: { preview: () => ({ seconds: 0, now: 1, next: 1 }), returns: 2, elapsed: 0 },
+      training: { insights: 0 },
+    }
+    const view = new ChapterSystem(ctx as never).goalView()
+    expect(view?.ratio).toBeCloseTo(2 / 3, 9)
   })
 })
 

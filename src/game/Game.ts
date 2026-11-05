@@ -452,6 +452,7 @@ export class Game {
     this.expeditionSystem = new ExpeditionSystem(this.ctx, {
       offer: (view, pick, later) => this.returnCard.show(view, pick, later),
       offering: () => this.returnCard.open,
+      close: () => this.returnCard.hide(),
       ascend: (god) => this.growth.promote(god),
       merge: (uids) => void this.relics.merge(uids),
       deepen: (level) => void this.depthSystem.choose(level),
@@ -459,6 +460,8 @@ export class Game {
     // 맹세 (E305-01): 귀환 2부터 다시 떠날 때 출발 카드
     this.oathSystem = new OathSystem(this.ctx, {
       offer: (view, pick) => this.oathCard.show(view, (id) => pick(id as OathId | null)),
+      open: () => this.oathCard.open,
+      close: () => this.oathCard.hide(),
       reapply: () => this.relics.reapply(),
       fillBreath: () => this.relics.fillBreath(),
     })

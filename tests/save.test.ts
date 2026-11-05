@@ -505,15 +505,20 @@ describe('저장 v17: 맹세·깊이·자동화·끝없는 원정 (E305)', () =>
     expect(estimateExpeditions({ entered: ['midgard'], bosses: [] }, norse(1), 1)).toBe(1)
     // 둘째 신을 깨웠다(귀환 1 뒤의 할 일): 귀환 1은 지나왔다
     expect(estimateExpeditions({ entered: ['midgard'], bosses: [] }, norse(2), 1)).toBe(2)
-    // 요툰헤임에 들어섰다: 철의 숲의 귀환 2도 그 앞의 할 일이라 지나왔다 (첫 신만 깨운 옛 저장도)
-    expect(estimateExpeditions({ entered: ['midgard', 'jotunheim'], bosses: [] }, norse(1), 1)).toBe(3)
+    // 요툰헤임에 들어섰다: 철의 숲의 귀환 2도 그 앞의 할 일이라 지나왔다
     expect(estimateExpeditions({ entered: ['midgard', 'jotunheim'], bosses: [] }, norse(2), 1)).toBe(3)
+    // 첫 신만 깨우고 요툰헤임에 들어선 옛 저장(옛 흐름은 첫 신 → 요툰헤임): 둘째 신이 아직 앞에 있어 그 앞의 귀환도 지나오지 않았다 (E306 리뷰)
+    expect(estimateExpeditions({ entered: ['midgard', 'jotunheim'], bosses: [] }, norse(1), 1)).toBe(1)
     // 거인 왕을 이겼다: 고개 성소의 귀환 3은 아직 앞에 있다 (E241)
     expect(estimateExpeditions({ entered: ['midgard', 'jotunheim', 'utgard'], bosses: ['utgard'] }, norse(2), 1)).toBe(3)
     // 올림포스에 들어섰다(고개가 생기기 전의 저장): 고개의 귀환 3은 그 앞의 할 일이라 지나왔다. 제우스 목표는 그대로 남는다 (E241)
     expect(estimateExpeditions({ entered: ['midgard', 'jotunheim', 'utgard', 'olympus'], bosses: ['utgard'] }, norse(2), 1)).toBe(4)
     // 리키아에 닿았다: 리키아 성소의 귀환 4는 종장의 할 일이라 아직 앞에 있다
     expect(estimateExpeditions({ entered: ['midgard', 'jotunheim', 'utgard', 'olympus', 'delphi', 'lycia'], bosses: ['utgard'] }, norse(2), 1)).toBe(4)
+    // 키마이라를 이기고 귀환 4보다 먼저 유물을 2단계로 벼렸다: 벼리기는 귀환 없이 할 수 있어 귀환 4를 지나온 근거가 아니다 (E306 리뷰)
+    const greek = (realm: string) => (realm === 'norse' ? 2 : realm === 'greek' ? 1 : 0)
+    expect(estimateExpeditions({ entered: ['midgard', 'jotunheim', 'utgard', 'pass', 'olympus', 'delphi', 'lycia'], bosses: ['utgard', 'lycia'] }, greek, 2)).toBe(4)
+    expect(estimateExpeditions({ entered: ['midgard', 'jotunheim', 'utgard', 'pass', 'olympus', 'delphi', 'lycia', 'sky'], bosses: ['utgard', 'lycia'] }, greek, 2)).toBe(5)
   })
 
   it('원정 기록이 있는 저장(v16부터)은 적힌 수와 짐작한 수 가운데 큰 쪽 (E306 D18: 고개에서 귀환 2를 기다리던 v17 저장도 귀환 한 번이면 된다)', () => {
@@ -526,6 +531,15 @@ describe('저장 v17: 맹세·깊이·자동화·끝없는 원정 (E305)', () =>
     // 여러 번 불러와도 같다
     expect(parseSave(JSON.stringify(old))!.expedition.count).toBe(3)
     expect(parseSave(JSON.stringify({ ...pass, expedition: { ...sample.expedition, count: 5 } }))!.expedition.count).toBe(5)
+    // 키마이라를 이기고 귀환 4보다 먼저 유물을 2단계로 벼린 새 흐름 저장(원정 4): 다시 불러와도 원정이 늘지 않는다 (E306 리뷰)
+    const forged = {
+      ...pass,
+      classes: { thor: { level: 2 }, odin: { level: 1 }, zeus: { level: 1 } },
+      stages: { ...sample.stages, mjolnir: 2 },
+      chapters: { entered: ['village', 'midgard', 'jotunheim', 'utgard', 'pass', 'olympus', 'delphi', 'lycia'], bosses: ['utgard', 'lycia'] },
+      expedition: { ...sample.expedition, count: 4 },
+    }
+    expect(parseSave(JSON.stringify(forged))!.expedition.count).toBe(4)
   })
 })
 

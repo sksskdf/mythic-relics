@@ -8,6 +8,8 @@ import { ClassProgress } from '../src/myth/ClassProgress'
 import { ExpeditionProgress, parseExpedition } from '../src/progress/Expedition'
 import { OathProgress } from '../src/progress/Oaths'
 import { OATH_IDS } from '../src/data/oaths'
+import { EventBus, type GameEvents } from '../src/game/events'
+import { ExpeditionSystem } from '../src/game/systems/Expedition'
 
 describe('원정과 귀환 (E304)', () => {
   it('명성 배율은 1 + 0.1·√명성, 한 원정 몫은 장 깊이와 이긴 보스로', () => {
@@ -130,5 +132,45 @@ describe('원정과 귀환 (E304)', () => {
     const conquest = build.layers.find((l) => l.id === 'conquest')!
     expect(conquest.value).toBeCloseTo(1.5 ** 0.1)
     expect(layerProduct(build.layers)).toBeCloseTo(computeBuild({ open: new Map(), gear: [], promotions: 0, hand: null }).damageScale * 1.5 ** 1.1)
+  })
+})
+
+describe('귀환 카드 (E304)', () => {
+  it('귀환 카드를 띄운 채 화로를 떠나면 카드가 닫히고, 돌아오면 다시 뜬다 (E306 리뷰: 떠 있는 동안 얻은 것 카드·장면이 끝없이 밀리던 것)', () => {
+    const expedition = new ExpeditionProgress()
+    expedition.elapsed = 300
+    const position = { x: 0, y: 0, z: 0 }
+    const ctx = {
+      bus: new EventBus<GameEvents>(),
+      expedition,
+      chapters: { index: 1 },
+      training: { insights: 30, unspent: 0 },
+      ending: { reached: false, has: () => false },
+      sanctuary: { present: true, center: { x: 0, z: 0 }, beacon: false },
+      hero: { object: { position } },
+      combat: { alive: true },
+      progress: { pantheon: { hand: null, heart: null, breath: [] } },
+      depth: { level: 1, max: 1 },
+      automation: { now: {} },
+      powers: { loadout: { mergeable: () => [] } },
+    }
+    let open = false
+    let offers = 0
+    const system = new ExpeditionSystem(ctx as never, {
+      offer: () => ((offers += 1), (open = true)),
+      offering: () => open,
+      close: () => (open = false),
+      ascend: () => {},
+      merge: () => {},
+      deepen: () => {},
+    })
+    system.update(0)
+    expect([open, offers]).toEqual([true, 1])
+    position.x = 4
+    system.update(0)
+    expect(open).toBe(false)
+    position.x = 0
+    system.update(0)
+    expect([open, offers]).toEqual([true, 2])
   })
 })

@@ -119,7 +119,7 @@ export class ProgressionSystem {
     ]
     // 큰 카드 (E23-03): 그 신의 색으로 번쩍임·하늘 기둥·북소리
     const def = godDef(god)
-    bus.emit('moment', { id: 'mythLevel', card: { kind: `개방 단계 · ${level}단계`, title: progress.title(god), color: def.color, icon: classIcon(def.name), lines } })
+    bus.emit('moment', { id: 'mythLevel', card: { kind: `승천 · ${level}단계`, title: progress.title(god), color: def.color, icon: classIcon(def.name), lines } })
     // 신마다 다른 승급 순간: 레벨이 오를수록 크고 많다
     godMoment(this.ctx, god, level)
     fx.puffs.burst(p, 40, 5)

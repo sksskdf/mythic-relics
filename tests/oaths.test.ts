@@ -21,6 +21,8 @@ function oathGame(data?: ExpeditionData, world = { opened: ['thor', 'loki'], con
   const expedition = new ExpeditionProgress()
   if (data) expedition.load(data)
   let offers = 0
+  let open = false
+  const hero = { object: { position: new THREE.Vector3() } }
   const ctx = {
     bus,
     expedition,
@@ -30,15 +32,23 @@ function oathGame(data?: ExpeditionData, world = { opened: ['thor', 'loki'], con
     ending: { has: () => false },
     encounter: { crowd: 1 },
     map: { region: { kind: 'field' } },
+    hero,
   } as unknown as GameContext
-  const system = new OathSystem(ctx, { offer: () => (offers += 1), reapply: () => {}, fillBreath: () => {} })
+  const parts = {
+    offer: () => ((offers += 1), (open = true)),
+    open: () => open,
+    close: () => (open = false),
+    reapply: () => {},
+    fillBreath: () => {},
+  }
+  const system = new OathSystem(ctx, parts)
   const returned = () => {
     expedition.return({}, 0, [])
     bus.emit('expeditionReturned', { count: expedition.returns, renown: 0, mult: 1, branch: 'flame:stone', deepWin: false })
   }
   /** 저장했다 다시 불러온 판 */
   const reload = () => oathGame(parseExpedition(JSON.parse(JSON.stringify(expedition.toData()))))
-  return { expedition, system, returned, reload, offers: () => offers, ctx }
+  return { expedition, system, returned, reload, offers: () => offers, open: () => open, hero, ctx }
 }
 
 /** 토르를 손·심장·숨에 몰고 일반 장비 여섯 칸을 낀 상태 (맹세는 sworn이 정한다, 도는 자리는 시스템처럼 맞춘다) */
@@ -117,6 +127,20 @@ describe('맹세 제약 (E305-01)', () => {
     const e = d.reload()
     e.system.resume()
     expect([e.offers(), e.expedition.oath]).toEqual([0, 'silence'])
+  })
+
+  it('출발 카드를 띄운 채 걸어 나가면 맹세 없이 떠나고 카드가 닫힌다 (E306 리뷰: 떠 있는 동안 얻은 것 카드·장면이 끝없이 밀리던 것)', () => {
+    const a = oathGame()
+    a.returned()
+    a.returned()
+    expect(a.open()).toBe(true)
+    // 화로 곁에서 조금 움직이는 것은 그대로
+    a.hero.object.position.set(1.5, 0, 0)
+    a.system.update()
+    expect([a.open(), a.expedition.oathPending]).toEqual([true, true])
+    a.hero.object.position.set(4, 0, 0)
+    a.system.update()
+    expect([a.open(), a.expedition.oathPending, a.expedition.oath]).toEqual([false, false, null])
   })
 
   it('엔딩 전에 숨 칸이 이미 끝(4)이면 홀로의 보상은 「엔딩 뒤 숨 칸 5」로 적는다 (D4)', () => {

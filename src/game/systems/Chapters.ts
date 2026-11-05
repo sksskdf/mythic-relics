@@ -137,10 +137,13 @@ export class ChapterSystem {
       const gate = this.levelGate(goal.realm!)
       if (gate !== null) return { text: `기세를 모은다 ${Math.min(level, gate)}/${gate}`, ratio: Math.min(1, level / gate) }
     }
-    // 합치기 (E306): 같은 부위 희귀가 가장 많은 수 ÷ 셋
+    // 합치기 (E306): 가방에 든 같은 부위 희귀가 가장 많은 수 ÷ 셋 (합치기는 가방의 것만 받는다, 낀 것은 세지 않는다)
     if (goal.kind === 'merge') {
       const rare = new Map<string, number>()
-      for (const item of powers.loadout.gear.values()) if (item.grade === 'rare') rare.set(item.part, (rare.get(item.part) ?? 0) + 1)
+      for (const uid of powers.loadout.bag) {
+        const item = powers.loadout.gear.get(uid)
+        if (item?.grade === 'rare') rare.set(item.part, (rare.get(item.part) ?? 0) + 1)
+      }
       ratio = Math.max(0, ...rare.values()) / MERGE_COUNT
     }
     // 맹세 (E306): 건 맹세가 있으면 보스·수호자를, 없으면 다음 출발에 건다

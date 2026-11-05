@@ -4,6 +4,7 @@ import { breathCap, breathSlots, MAX_BREATH } from '../../myth/pantheon'
 import { josa } from '../../ui/josa'
 import type { OathView } from '../../ui/OathCard'
 import type { GameContext } from '../context'
+import { HEARTH_RADIUS } from './Expedition'
 
 const clock = (s: number): string => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`
 
@@ -14,6 +15,10 @@ const ALONE_AFTER_ENDING = `엔딩 뒤 숨 칸 ${MAX_BREATH}`
 export interface OathParts {
   /** 출발 카드를 보인다 (고르면 pick, 「맹세 없음」이면 null) */
   offer(view: OathView, pick: (id: OathId | null) => void): void
+  /** 출발 카드가 떠 있다 */
+  open(): boolean
+  /** 출발 카드를 닫는다 (고르지 않고 걸어 나갔을 때) */
+  close(): void
   /** 도는 자리를 다시 맞춘다 (빈 손·홀로) */
   reapply(): void
   /** 늘어난 숨 칸을 깨어난 신으로 채운다 (홀로의 맹세를 지켰을 때) */
@@ -26,6 +31,9 @@ export interface OathParts {
  * 지키지 못한 채 귀환하면 벌 없이 풀린다. 타는 모래시계는 떠난 지 10분이 지나면 깨진다
  */
 export class OathSystem {
+  /** 출발 카드를 띄운 자리 (닫혔으면 null): 여기서 걸어 나가면 맹세 없이 떠난다 */
+  private offeredAt: { x: number; z: number } | null = null
+
   constructor(
     private readonly ctx: GameContext,
     private readonly parts: OathParts,
@@ -81,6 +89,8 @@ export class OathSystem {
   }
 
   private offer(): void {
+    const p = this.ctx.hero.object.position
+    this.offeredAt = { x: p.x, z: p.z }
     this.parts.offer(this.view(), (id) => this.swear(id))
   }
 
@@ -134,7 +144,15 @@ export class OathSystem {
   }
 
   update(): void {
-    const { expedition } = this.ctx
+    const { expedition, hero } = this.ctx
     if (expedition.oath === 'timed' && expedition.elapsed > OATH.timed) this.broken('timed')
+    // 출발 카드를 띄운 채 걸어 나가면 맹세 없이 떠난다 (E306 리뷰: 떠 있는 동안 얻은 것 카드·장면이 기다리니, 그대로 사냥하면 끝없이 밀렸다)
+    if (this.offeredAt && !this.parts.open()) this.offeredAt = null
+    const p = hero.object.position
+    if (this.offeredAt && Math.hypot(p.x - this.offeredAt.x, p.z - this.offeredAt.z) > HEARTH_RADIUS) {
+      this.offeredAt = null
+      this.parts.close()
+      this.swear(null)
+    }
   }
 }

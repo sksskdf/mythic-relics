@@ -60,11 +60,12 @@ function measure({ count, boss, ride }) {
   g.combat.health.reset()
   g.orders.clear()
   const p = g.hero.object.position
-  // 탄 채로: 싸움이 풀리게(맞은 지·싸운 지 3초) 잠깐 기다린 뒤 20m 앞을 눌러 올라탄다
-  let rode = false
+  // 탄 채로: 싸움이 풀리게(맞은 지·싸운 지 3초) 잠깐 기다린 뒤 멀리 눌러 올라탄다.
+  // 길 끝에 닿으면 내리니(빠르기 ×1.8로 20m는 2초 안) 멀리 누르고, 재는 동안 내렸으면 다시 눌러 탄다 (누르는 것은 재지 않는다)
+  const RIDE_DIST = 200
   if (ride) {
     g.advance(3.5, 1 / 30)
-    rode = g.dev.ride(20)
+    g.dev.ride(RIDE_DIST)
   }
   // 적이 재는 동안 쓰러지지 않게 생명을 크게 (예전에는 미드가르드에서 3초 만에 40마리 중 서른이 쓰러져 「둘러싸인 싸움」이 아니었다)
   const threat = g.encounter.threat
@@ -79,14 +80,24 @@ function measure({ count, boss, ride }) {
   if (boss) g.encounter.spawnById(boss, { x: p.x, z: p.z - 6 }, true)
   // 30프레임 데우고 1/60초씩 180번(3초)을 잰다. 주인공이 쓰러지지 않게 (싸움이 계속되게)
   const times = []
+  let ridden = 0
   for (let i = 0; i < 210; i++) {
+    if (ride && !g.hero.riding) g.dev.ride(RIDE_DIST)
     const t0 = performance.now()
     g.advance(1 / 60, 1 / 60)
-    if (i >= 30) times.push(performance.now() - t0)
+    if (i >= 30) {
+      times.push(performance.now() - t0)
+      if (g.hero.riding) ridden += 1
+    }
     g.combat.health.reset()
   }
   times.sort((a, b) => a - b)
   g.encounter.threat = threat
+  // 그리기도 탄 채로 센다 (산양 모델·먼지가 그려지게)
+  if (ride && !g.hero.riding) {
+    g.dev.ride(RIDE_DIST)
+    g.advance(1 / 60, 1 / 60)
+  }
   g.view.jumpTo(g.hero.object.position)
   // 세 번 그리고 마지막 값을 센다 (첫 그리기는 셰이더를 지을 수 있다)
   const info = g.pixel.renderer.info
@@ -127,7 +138,9 @@ function measure({ count, boss, ride }) {
     scale: Math.round(g.pixel.size.scale * 1000) / 1000,
     shadows: sun.castShadow,
     shadowBox: Math.round((box.right - box.left) * 10) / 10,
-    riding: rode,
+    /** 잰 180프레임 가운데 탄 채로였던 몫과 그릴 때 탔나 (탄 채로 판) */
+    riddenShare: ride ? Math.round((ridden / times.length) * 100) / 100 : null,
+    ridingAtDraw: g.hero.riding,
     touch: g.touch,
   }
 }
@@ -156,8 +169,9 @@ async function bench(browser, c) {
     drawCalls: median(runs.map((r) => r.drawCalls)),
     triangles: median(runs.map((r) => r.triangles)),
     renderMsSoftware: median(runs.map((r) => r.renderMsSoftware)),
-    /** 올라탄 판 수 (탄 채로) */
-    riding: runs.filter((r) => r.riding).length,
+    /** 탄 채로 판: 잰 프레임 가운데 탄 몫(중앙값)과 탄 채로 그린 판 수 */
+    riddenShare: c.ride ? median(runs.map((r) => r.riddenShare)) : null,
+    ridingAtDraw: runs.filter((r) => r.ridingAtDraw).length,
     runs: runs.length,
     errors,
   }
@@ -166,7 +180,7 @@ async function bench(browser, c) {
   console.log(
     `${label(c)}: 적 ${result.enemies}마리, 렌더 ${result.renderSize}(×${result.scale}) | 갱신 중앙값 ${ms(result.updateMs.median)}·95% ${ms(result.updateMs.p95)}·최대 ${ms(result.updateMs.max)} | ` +
       `그리기 호출 ${result.drawCalls}, 삼각형 ${result.triangles}, 메시 ${result.meshes}, 그림자 ${result.shadows ? `켬(상자 ${result.shadowBox}m, 몫 ${sp?.calls ?? 0}호출·${sp?.triangles ?? 0}삼각형)` : '끔'}` +
-      (c.ride ? `, 올라탐 ${result.riding}/${result.runs}` : '') +
+      (c.ride ? `, 탄 프레임 ${Math.round(result.riddenShare * 100)}%·탄 채로 그림 ${result.ridingAtDraw}/${result.runs}` : '') +
       (errors.length ? ` | 오류 ${errors.length}` : ''),
   )
   return result

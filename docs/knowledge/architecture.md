@@ -55,14 +55,14 @@ E12~E14에서 새 규칙을 넣을 때는 `BuildInputs`에 재료를 더하고 `
 | `src/build/layers.ts` | 빌드 층 목록 `[{id, kind: mul·add, value}]`: 승천·유물표·장비·맹세·수련·손의 신·명성·장 정복·불꽃 불씨. `layerProduct` = 곱 층의 곱 × (1 + 덧셈 층의 합). 상태 탭 「무엇으로 얼마나 강해졌나」가 같은 목록을 읽는다 | 순수 |
 | `src/build/BuildState.ts` | `computeBuild`가 층 목록을 곱해 `Build`를 낸다. 판 번호 `version`은 빌드가 바뀔 때만 오른다 | 순수 |
 | `src/myth/pantheon.ts` | 자리 셋 `Pantheon {hand, heart, breath[]}`, 숨 칸 수(`breathSlots`·`breathCount`), 몰기(`focusGod`·`partLevel`), 빈 칸 채우기(`autoFill`), 맹세를 건 동안의 자리(`oathPantheon`) | 순수 |
-| `src/progress/Expedition.ts` | 원정 번호·명성·원천 불씨·기록·가보·출발점·새 불길, 귀환 문턱(`returnMinLevel`) | 순수 + 저장 |
+| `src/progress/Expedition.ts` | 원정 번호·명성·원천 불씨·기록·가보·출발점·새 불길 | 순수 + 저장 |
 | `src/progress/Automation.ts` | `automationAt(returns, ending, pickups)`: 귀환 횟수 → 다시 찍기·가보 칸·출발점·자동 합치기·자동 줍기 | 순수 |
 | `src/progress/Oaths.ts`·`src/data/oaths.ts` | 맹세 제약·지킴·기록·보상 | 순수 |
 | `src/gear/merge.ts` | 셋 → 하나(`mergeGear`), 합칠 묶음(`mergeGroups`), 등급마다 원형 값 | 순수 |
 | `src/skills/uniques.ts` | 고유 효과 열둘과 수련 큰 마디 셋의 상태·규칙. 세계에 손대는 일(피해·회복·연출)은 `systems/Uniques.ts` | 순수 + 버스 |
-| `src/data/cycle.ts` | 명성 식·갈래·새 불길·귀환 문턱 표(`RETURN_MIN_LEVEL`)·귀환 신호(`RETURN_SIGNAL`)·자동화 문턱·장 정복 | 데이터 |
-| `src/game/systems/Expedition.ts` | 성소 화로 → 귀환 카드, 갈래·가보·녹임·출발, 자동 합치기, 다시 찍기 | 시스템 |
-| `src/game/systems/Oaths.ts`·`src/ui/OathCard.ts` | 출발 카드, 지킴·깨짐 | 시스템·UI |
+| `src/data/cycle.ts` | 명성 식·갈래·새 불길·귀환 문턱 표(`RETURN_MIN_LEVEL`, 읽는 함수 `returnMinLevel`)·귀환 신호(`RETURN_SIGNAL`)·자동화 문턱·장 정복 | 데이터 |
+| `src/game/systems/Expedition.ts` | 원정이 무르익었나(귀환 문턱 판정 `minLevel`·`ripe`, 값은 `data/cycle.ts`의 `returnMinLevel`), 성소 화로 → 귀환 카드(화로를 떠나면 닫힘), 갈래·가보·녹임·출발, 자동 합치기, 다시 찍기 | 시스템 |
+| `src/game/systems/Oaths.ts`·`src/ui/OathCard.ts` | 출발 카드(띄운 자리에서 걸어 나가면 맹세 없이 떠남), 지킴·깨짐 | 시스템·UI |
 | `src/game/systems/Automation.ts` | 귀환할 때 새로 켜진 자동화를 카드로 | 시스템 |
 | `src/ui/ReturnCard.ts`·`src/ui/SwapCard.ts` | 귀환 카드(고르는 카드 틀 `pickCard.css`), 두 갈래 카드 | UI |
 | `src/ui/menu/godsTab.ts` | 자리 셋·유물표·외형(옛 신화·외형 탭을 합침) | UI |
