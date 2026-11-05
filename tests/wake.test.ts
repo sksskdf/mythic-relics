@@ -161,9 +161,9 @@ describe('깨우는 진행 (E238)', () => {
     expect(traceStateOf('zeus', { ...now, waking: 'zeus' })).toBe('waking')
   })
 
-  it('흔적은 깨운 차례의 기세에 응답한다 (E306 D11·E306-02): 첫 신 3, 둘째 8, 제우스 12, 그 뒤로는 문턱 없음. 그 아래면 잠잠하고, 엔딩 뒤에는 기세를 보지 않는다', () => {
+  it('흔적은 깨운 차례의 기세에 응답한다 (E306 D11·E306-02): 첫 신 3, 둘째 10, 제우스 12, 그 뒤로는 문턱 없음. 그 아래면 잠잠하고, 엔딩 뒤에는 기세를 보지 않는다', () => {
     expect([0, 1, 2, 3, 9].map(traceLevel)).toEqual([...TRACE_LEVELS, 0, 0].slice(0, 5))
-    expect(TRACE_LEVELS.slice(0, 3)).toEqual([3, 8, 12])
+    expect(TRACE_LEVELS.slice(0, 3)).toEqual([3, 10, 12])
     const now: TraceNow = { open: false, waking: null, awakened: 0, returns: 0, conquered: 0, ending: false, level: 2 }
     for (const god of ['thor', 'odin'] as const) {
       expect(traceStateOf(god, now), god).toBe('sealed')
@@ -171,10 +171,10 @@ describe('깨우는 진행 (E238)', () => {
       expect(traceStateOf(god, { ...now, level: 3 }), god).toBe('open')
       expect(traceStateOf(god, { ...now, ending: true }), god).toBe('open')
     }
-    // 둘째 신: 첫 귀환 뒤에도 기세 8 전에는 잠잠하다
-    const second: TraceNow = { ...now, awakened: 1, returns: 1, level: 7 }
+    // 둘째 신: 첫 귀환 뒤에도 기세 10 전에는 잠잠하다
+    const second: TraceNow = { ...now, awakened: 1, returns: 1, level: 9 }
     expect(traceStateOf('odin', second)).toBe('sealed')
-    expect(traceStateOf('odin', { ...second, level: 8 })).toBe('open')
+    expect(traceStateOf('odin', { ...second, level: 10 })).toBe('open')
     // 제우스 (셋째): 거인 왕을 이겨도 기세 12 전에는 잠잠하다
     const third: TraceNow = { ...now, awakened: 2, returns: 3, conquered: 1, level: 11 }
     expect(traceStateOf('zeus', third)).toBe('sealed')

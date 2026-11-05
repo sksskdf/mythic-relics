@@ -1227,7 +1227,7 @@
     "xp": 120,
     "voxelSize": 0.18,
     "radius": 1.5,
-    "hp": 1600,
+    "hp": 2400,
     "speed": 2.6,
     "aggroRange": 15,
     "leashRange": 30,
@@ -2033,7 +2033,7 @@
     "boss": "skyKing",
     "xp": 0,
     "tint": "#d8c2ff",
-    "hp": 2800,
+    "hp": 4000,
     "aggroRange": 18,
     "leashRange": 40
   },

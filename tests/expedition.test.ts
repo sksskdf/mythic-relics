@@ -17,9 +17,9 @@ describe('원정과 귀환 (E304)', () => {
     expect(renownFor(2, 2)).toBe(40)
   })
 
-  it('귀환 문턱은 귀환 번호마다 (E306 D9): 표 끝을 넘으면 마지막 값, 엔딩 뒤에는 8', () => {
+  it('귀환 문턱은 귀환 번호마다 (E306 D9·E306-02): 첫 귀환 9, 표 끝을 넘으면 마지막 값, 엔딩 뒤에는 8', () => {
     expect([1, 2, 3, 4, 5, 9].map((n) => returnMinLevel(n))).toEqual([...RETURN_MIN_LEVEL, RETURN_MIN_LEVEL.at(-1), RETURN_MIN_LEVEL.at(-1)])
-    expect(returnMinLevel(1)).toBe(8)
+    expect(returnMinLevel(1)).toBe(9)
     for (let i = 1; i < RETURN_MIN_LEVEL.length; i++) expect(RETURN_MIN_LEVEL[i]).toBeGreaterThanOrEqual(RETURN_MIN_LEVEL[i - 1]!)
     expect(returnMinLevel(4, true)).toBe(RETURN_MIN_LEVEL_AFTER_ENDING)
     expect(RETURN_MIN_LEVEL_AFTER_ENDING).toBe(8)

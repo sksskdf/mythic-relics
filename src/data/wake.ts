@@ -66,11 +66,11 @@ export interface TraceNow {
 /**
  * 흔적이 응답하는 기세 레벨 (이번 원정의 수련 깨달음): 깨운 차례(이미 깨운 신 수)마다, 표 끝을 넘으면 마지막 값. 0이면 문턱 없음.
  * - 첫 신 3 (E306 D11): 마을을 나서자마자 흔적·장비·수련·신 탭이 몰려 열리지 않게 (`CYCLE.md` 6장의 2·4·6분)
- * - 둘째 신 8 (E306-02): 첫 귀환 뒤 흔적이 바로 응답하면 오딘의 길(흔적·사냥·펜리르)이 3분에 끝난다. 6장 19~26분처럼 원정이 한 번 무르익은 뒤에
+ * - 둘째 신 10 (E306-02, 첫 바퀴 8 → 둘째 바퀴 10): 첫 귀환 뒤 흔적이 바로 응답하면 오딘의 길(흔적·사냥·펜리르)이 3분에 끝난다. 6장 19~26분처럼 원정이 한 번 무르익은 뒤에
  * - 셋째 신 12 (E306-02, 제우스): 원정 4는 출발점 ½(기세 10쯤)에서 시작하니 두 레벨 더
  * 엔딩 뒤에는 보지 않는다
  */
-export const TRACE_LEVELS: readonly number[] = [3, 8, 12, 0]
+export const TRACE_LEVELS: readonly number[] = [3, 10, 12, 0]
 
 /** 이미 깨운 신이 order일 때 다음 흔적이 응답하는 기세 레벨 (0이면 문턱 없음) */
 export const traceLevel = (order: number): number => TRACE_LEVELS[Math.min(TRACE_LEVELS.length - 1, Math.max(0, order))]!
