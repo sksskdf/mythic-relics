@@ -679,7 +679,7 @@ const SAMPLES: { name: string; raw: Record<string, unknown>; awakened: string[];
   },
 ]
 
-describe('저장 v17: 실제 모양의 옛 저장 견본 (v1·v9·v12·v13·v15·v16 → v17, CYCLE.md 9장)', () => {
+describe('저장 v17: 실제 모양의 옛 저장 견본 (v1·v9·v12·v13·v15·v16 → v17, architecture.md 저장 사슬)', () => {
   /** 장 진행을 그 저장의 사실로 다시 판정한다 (없어진 할 일은 사실로) */
   const progressOf = (data: SaveData) => {
     const chapters = new ChapterProgress({

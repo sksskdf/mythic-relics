@@ -1,5 +1,5 @@
 /**
- * 장 흐름 (E22-01, E306-01: `CYCLE.md` 6장 90분 시각표): 서장 → 제1장 북유럽 → 제2장 그리스 → 종장 (막간은 E238에서 없앰).
+ * 장 흐름 (E22-01, E306-01: `TIMELINE.md` 4장 90분 시각표): 서장 → 제1장 북유럽 → 제2장 그리스 → 종장 (막간은 E238에서 없앰).
  * 장마다 열리는 땅과 그 땅의 적 지수(처음 땅 = 1), 땅 단계(= 장비 단계), 차례로 할 일을 적는다.
  * 할 일의 마지막이 그 장을 끝내는 일이다. 끝내면 다음 장이 열리고 그 장의 땅이 열린다.
  * 귀환 넷의 자리 (E306 D1): 바닷가 성소(1) → 철의 숲 성소(2) → 고개 성소(3) → 리키아 성소(4, 종장의 첫 할 일)
@@ -130,7 +130,7 @@ export function parseChapters(rawChapters: unknown, regions = REGIONS, path = 'c
 export const CHAPTERS: readonly ChapterDef[] = parseChapters(raw)
 
 /**
- * 장 정복 (E305-02, `CYCLE.md` 3.1 층 3): 마지막 장이 아닌 장의 끝 보스(거인 왕·키마이라).
+ * 장 정복 (E305-02, `DESIGN.md` 5.5): 마지막 장이 아닌 장의 끝 보스(거인 왕·키마이라).
  * 이기면 숨 칸·신 단계 상한·명성 지수가 하나씩 오른다. 귀환해도 지워지지 않는다
  */
 export function conquestsOf(chapters: readonly ChapterDef[]): string[] {

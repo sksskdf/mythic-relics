@@ -121,7 +121,7 @@ export class ChapterSystem {
     if (goal.kind === 'return') return toReturn(goal.goal)
     // 깨울 신의 흔적이 잠잠하다 (E305-03: 신을 더 깨우려면 귀환이나 장 정복을 더 해야 함): 깨우기 대신 귀환을 안내한다
     if (this.awaitsReturn()) return toReturn('성소 화로에서 원정을 마친다')
-    // 귀환 신호 (E306 D10, `CYCLE.md` 11장): 첫 귀환 뒤로, 문턱을 넘었고 기세가 느려졌거나 받을 배율이 넉넉하면. 합치기 목표 동안은 알리지 않는다 (D8: 모은 희귀가 원형으로 녹는다)
+    // 귀환 신호 (E306 D10, `DESIGN.md` 5.3): 첫 귀환 뒤로, 문턱을 넘었고 기세가 느려졌거나 받을 배율이 넉넉하면. 합치기 목표 동안은 알리지 않는다 (D8: 모은 희귀가 원형으로 녹는다)
     const quiet = p.seconds - this.levelAt >= RETURN_SIGNAL.quietLevel
     if (goal.kind !== 'merge' && expedition.returns >= 1 && ripe && (quiet || p.next >= p.now * RETURN_SIGNAL.gain)) return { text: `성소 화로에서 원정을 마친다${mult}`, ratio: null }
     let ratio: number | null = null

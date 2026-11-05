@@ -23,7 +23,7 @@ describe('원정과 귀환 (E304)', () => {
     for (let i = 1; i < RETURN_MIN_LEVEL.length; i++) expect(RETURN_MIN_LEVEL[i]).toBeGreaterThanOrEqual(RETURN_MIN_LEVEL[i - 1]!)
     expect(returnMinLevel(4, true)).toBe(RETURN_MIN_LEVEL_AFTER_ENDING)
     expect(RETURN_MIN_LEVEL_AFTER_ENDING).toBe(8)
-    // 귀환 신호 (D10, CYCLE.md 11장): 기세가 3분 넘게 멈췄거나 받을 배율 ×1.25
+    // 귀환 신호 (D10, DESIGN.md 5.3): 기세가 3분 넘게 멈췄거나 받을 배율 ×1.25
     expect(RETURN_SIGNAL).toEqual({ quietLevel: 180, gain: 1.25 })
   })
 

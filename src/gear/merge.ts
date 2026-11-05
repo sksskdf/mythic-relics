@@ -2,7 +2,7 @@ import { GEAR_PARTS, type GearData, type GearPart, type Grade, GRADES } from '..
 import { GEAR, type GearItem, rollGear, roundStat } from './roll'
 
 /**
- * 합치기 (E303, `CYCLE.md` 5장, 템빨용사식): 같은 등급 일반 장비 셋 → 한 등급 위 하나.
+ * 합치기 (E303, `DESIGN.md` 4.3.2, 템빨용사식): 같은 등급 일반 장비 셋 → 한 등급 위 하나.
  * - 보통·좋음은 부위를 가리지 않는다 (먹이를 넓게). 희귀부터는 같은 부위 셋
  * - 결과: 부위 = 가장 단계가 높은 것(보통·좋음은 가장 많은 부위), 단계 = 셋 가운데 가장 높은 단계,
  *   수치는 새 등급대로 다시 굴리되 셋 가운데 가장 좋은 수치 하나를 이어받는다, 원천 = 셋 가운데 가장 큰 것 +1 (다섯까지)

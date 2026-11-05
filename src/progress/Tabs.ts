@@ -7,13 +7,13 @@ import { OATH } from '../data/oaths'
 import { TRAINING_TAB_INSIGHTS } from '../data/training'
 
 /**
- * 차례로 열리는 탭 (정보 화면 탭 id, E305-04: 탭 일곱 = 상태 + 이 여섯, `CYCLE.md` 6장 「새」의 차례).
+ * 차례로 열리는 탭 (정보 화면 탭 id, E305-04: 탭 일곱 = 상태 + 이 여섯, `DESIGN.md` 3.2 새로 열리는 것의 차례).
  * 장비 2분 → 수련 4분 → 신 6분 → 지도 15분 → 원천(첫 귀환) 17분 → 맹세(귀환 2) 35분
  */
 export const STEP_TABS = ['relics', 'training', 'gods', 'map', 'sources', 'oaths'] as const
 export type StepTab = (typeof STEP_TABS)[number]
 
-/** 옛 저장의 탭 id → 지금 탭 (E305-04, `CYCLE.md` 9장 v17): 신화·외형은 신 탭 하나로, 시련은 맹세로. 균열은 저장된 적이 없다 */
+/** 옛 저장의 탭 id → 지금 탭 (E305-04, 저장 v17: `docs/knowledge/architecture.md` 저장 사슬): 신화·외형은 신 탭 하나로, 시련은 맹세로. 균열은 저장된 적이 없다 */
 const OLD_TABS: Readonly<Record<string, StepTab>> = { classes: 'gods', looks: 'gods', trials: 'oaths' }
 
 /** 탭을 여는 때를 가리는 지금 상태 (가볍게: 적을 잡을 때마다 불린다) */

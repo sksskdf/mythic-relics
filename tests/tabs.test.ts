@@ -20,7 +20,7 @@ describe('정보 화면 탭 차례로 열기 (E236-05, E305-04 탭 일곱)', () 
     expect(tabsDue({ ...none, returns: 2 }, new Set())).toEqual(['sources', 'oaths'])
   })
 
-  it('차례는 상태 다음 장비 → 수련 → 신 → 지도 → 원천 → 맹세 (CYCLE.md 6장 「새」)', () => {
+  it('차례는 상태 다음 장비 → 수련 → 신 → 지도 → 원천 → 맹세 (DESIGN.md 3.2)', () => {
     expect([...STEP_TABS]).toEqual(['relics', 'training', 'gods', 'map', 'sources', 'oaths'])
   })
 
@@ -47,7 +47,7 @@ describe('정보 화면 탭 차례로 열기 (E236-05, E305-04 탭 일곱)', () 
     expect(parseTabs(undefined, true)).toEqual(['relics', 'training', 'gods', 'map', 'sources'])
   })
 
-  it('저장 검사 (E305-04, CYCLE.md 9장 v17): 신화·외형 → 신, 시련 → 맹세, 균열은 버리고 원천은 그대로. 여러 번 해도 같다', () => {
+  it('저장 검사 (E305-04, 저장 v17): 신화·외형 → 신, 시련 → 맹세, 균열은 버리고 원천은 그대로. 여러 번 해도 같다', () => {
     const once = parseTabs(['classes', 'looks', 'relics', 'trials', 'rift', 'sources'], false)
     expect(once).toEqual(['relics', 'gods', 'sources', 'oaths'])
     expect(parseTabs(once, false)).toEqual(once)

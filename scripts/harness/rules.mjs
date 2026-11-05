@@ -11,7 +11,7 @@ export const RULES = [
   {
     id: 'growth',
     files: /^src\/data\/(chapters|gear|depth|cycle|wake)\.(json|ts)$|^src\/(gear|progress)\/|^src\/myth\/(ClassProgress|levelGains)\.ts$|^src\/game\/systems\/(Progression|Chapters|Wake)\.ts$|^src\/game\/Encounter\.ts$|^src\/data\/chapters\.ts$/,
-    run: [`${B}node scripts/power-curve.mjs (목표 띠는 TIMELINE.md 4장)`, `${B}node scripts/playtest.mjs 1 100 --ending (엔딩 60~80분)`],
+    run: [`${B}node scripts/power-curve.mjs (목표 띠는 TIMELINE.md 4장)`, `${B}node scripts/playtest.mjs 1 100 --ending (엔딩 65~75분, 시각표 견주기는 node scripts/timeline-check.mjs)`],
     docs: ['BALANCE.md', 'PLAYTEST.md 7장', 'docs/knowledge/baselines.md'],
     note: '수치는 src/data에서 바꾼다.',
   },

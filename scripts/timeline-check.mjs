@@ -1,4 +1,4 @@
-// 시각표 견주기 (E306 D19·D20): 봇 판의 사건 시각을 `CYCLE.md` 6장 90분 시각표와 견준다.
+// 시각표 견주기 (E306 D19·D20): 봇 판의 사건 시각을 `TIMELINE.md` 4장 90분 시각표와 견준다.
 // node scripts/timeline-check.mjs [playtest.json=test-results/playtest.json] [power-curve.json=test-results/power-curve.json]
 // - 체크포인트 열(★1~★6, 귀환 1~4)마다 판마다의 봇 분, 세 판 중앙값, 목표(사람 분 가운데 × 0.78), ±15% 판정
 // - 구간 길이(앞 체크포인트에서)와 장마다 걸린 분
@@ -8,14 +8,14 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 
 const PLAYTEST = process.argv[2] ?? 'test-results/playtest.json'
 const CURVE = process.argv[3] ?? 'test-results/power-curve.json'
-/** 봇은 사람의 0.7~0.85배 (`CYCLE.md` 6장), 체크포인트는 가운데 0.78로 견준다 */
+/** 봇은 사람의 0.7~0.85배 (`TIMELINE.md` 4장), 체크포인트는 가운데 0.78로 견준다 */
 const BOT = 0.78
 const BAND = 0.15
 /** 엔딩은 봇 65~75분 (ROADMAP E306) */
 const ENDING = { lo: 65, hi: 75 }
 
 /**
- * 체크포인트 (`CYCLE.md` 6장): 사람 분(앞·뒤)과 공격 지수 목표, 판의 시각표에서 그 사건의 초를 고르는 법
+ * 체크포인트 (`TIMELINE.md` 4장): 사람 분(앞·뒤)과 공격 지수 목표, 판의 시각표에서 그 사건의 초를 고르는 법
  * awakened는 깨어난 차례(첫 신·둘째 신·셋째 신), 장은 그 장이 열린 때(앞 장의 보스를 이긴 때)
  */
 const CHECKPOINTS = [

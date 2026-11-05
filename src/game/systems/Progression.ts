@@ -144,7 +144,7 @@ export class ProgressionSystem {
     return n
   }
 
-  /** 총 승급 횟수에서 나오는 기본 능력치 (DESIGN.md 6.2) */
+  /** 총 승급 횟수에서 나오는 기본 능력치 (DESIGN.md 6.4) */
   applyStats(): void {
     this.ctx.combat.health.setMax(this.ctx.build.state.maxHp)
   }

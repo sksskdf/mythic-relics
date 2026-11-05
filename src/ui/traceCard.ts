@@ -25,7 +25,7 @@ export interface TraceCardContext {
 }
 
 /**
- * 신의 흔적 카드 (E238, MYTHBUILD.md 3.2): 커서를 올리거나 톡 누르면 뜬다. 무엇을 고르는지 알고 고르게
+ * 신의 흔적 카드 (E238, `DESIGN.md` 4.2.2): 커서를 올리거나 톡 누르면 뜬다. 무엇을 고르는지 알고 고르게
  * 그 신의 무기·궁극기 한 줄과 빌려주는 힘 한 줄, 지금 할 일을 보인다.
  */
 export function traceCard(god: God, ctx: TraceCardContext): HTMLElement {

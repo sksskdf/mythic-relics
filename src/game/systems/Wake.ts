@@ -44,7 +44,7 @@ export function guardianSpec(god: God): GiantSpec | null {
 }
 
 /**
- * 신을 깨우는 길 (E238, MYTHBUILD.md 3.2): 흔적 → 사냥 → 수호자, 조각 셋.
+ * 신을 깨우는 길 (E238, `DESIGN.md` 4.2.2): 흔적 → 사냥 → 수호자, 조각 셋.
  * - 흔적: 그 땅에 흔적 모형과 빛기둥을 세운다. 다가가면 지키는 무리가 깨어나고, 다 쓰러뜨리면 조각 1(대표 힘을 빌린다)
  * - 사냥: 그 신의 땅에서 잡을 때마다 막대가 차고, 다 차면 조각 2(그 신의 유물이 손에 들어온다)
  * - 수호자: 그 땅 깊은 곳에 빛기둥이 서고, 다가가면 수호자가 나타난다. 쓰러뜨리면 그 신이 깨어난다
@@ -382,7 +382,7 @@ export class WakeSystem {
       icon: classIcon(def.name),
       lines: [`빌린 힘: ${lendText(god, 1)}`, `다음 조각: ${REGIONS[path.land]?.name ?? path.land}에서 사냥한다`],
     }
-    // 흔적에서 그 신이 처음 말을 건다 (E23 장면): 첫 흔적을 고르는 것이 곧 첫 신을 고르는 순간 (MYTHBUILD 3.3)
+    // 흔적에서 그 신이 처음 말을 건다 (E23 장면): 첫 흔적을 고르는 것이 곧 첫 신을 고르는 순간 (`DESIGN.md` 4.2.2)
     bus.emit('moment', { id: 'fragment', scene: sceneId('trace', god), card, slow: true })
     bus.emit('fragment', { god, piece: 1 })
     bus.emit('progressChanged', {})

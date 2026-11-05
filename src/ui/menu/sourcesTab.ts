@@ -17,7 +17,7 @@ const SOURCE_HELP = {
 const clock = (s: number): string => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`
 
 /**
- * 원천 탭 (E14 → E305-04 원천(갈래), `CYCLE.md` 7장): 원정 기록(명성·원정 수·걸린 시간·가보), 원천 넷의 각성,
+ * 원천 탭 (E14 → E305-04 원천(갈래), `DESIGN.md` 10.5): 원정 기록(명성·원정 수·걸린 시간·가보), 원천 넷의 각성,
  * 귀환이 여는 것(자동화, 엔딩 전에도). 엔딩 뒤에는 깊이도 (읽기만, 고르기는 귀환 카드, E305-03). 첫 귀환에 열린다
  */
 export function renderSources(ctx: TabContext, body: HTMLElement): void {
@@ -66,7 +66,7 @@ export function renderSources(ctx: TabContext, body: HTMLElement): void {
   awaken.append(grid)
   wrap.append(awaken)
 
-  // 귀환이 여는 것 (E305-03, `CYCLE.md` 3.5): 귀환 1·2·3·엔딩, 켜진 것은 밝게
+  // 귀환이 여는 것 (E305-03, `DESIGN.md` 5.3): 귀환 1·2·3·엔딩, 켜진 것은 밝게
   const auto = el('section', 'menu-src__panel menu-src__auto')
   auto.append(titled(`귀환이 여는 것 · 귀환 ${sources.returns()}`, SOURCE_HELP.automation))
   for (const step of sources.automation()) {

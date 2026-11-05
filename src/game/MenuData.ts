@@ -118,7 +118,7 @@ export class MenuData {
       sources: {
         rows: () => this.sourceRows(),
         depth: this.depthView(),
-        // 귀환이 여는 것 (E305-03, `CYCLE.md` 3.5): 엔딩 전에도 보인다. 엔딩을 봤으면 귀환 3 이상으로 친다
+        // 귀환이 여는 것 (E305-03, `DESIGN.md` 5.3): 엔딩 전에도 보인다. 엔딩을 봤으면 귀환 3 이상으로 친다
         automation: () => {
           const returns = game.expedition.returns
           const ending = game.ending.has('autoPickup')

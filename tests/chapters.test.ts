@@ -81,7 +81,7 @@ describe('장 데이터 (E22-01)', () => {
     expect(CHAPTERS.map((c) => c.steps.at(-1)!.kind)).toEqual(['enter', 'boss', 'boss', 'boss'])
   })
 
-  it('귀환 넷은 바닷가 → 철의 숲 → 고개 → 리키아 성소, 합치기는 제1장 요툰헤임·맹세는 제2장 델포이 (E306 D1·D5·D6, CYCLE.md 6장)', () => {
+  it('귀환 넷은 바닷가 → 철의 숲 → 고개 → 리키아 성소, 합치기는 제1장 요툰헤임·맹세는 제2장 델포이 (E306 D1·D5·D6, TIMELINE.md 4장)', () => {
     const steps = CHAPTERS.flatMap((c) => c.steps)
     expect(steps.filter((s) => s.kind === 'return').map((s) => [s.region, s.n])).toEqual([
       ['serpentshore', 1],
@@ -127,7 +127,7 @@ describe('장 데이터 (E22-01)', () => {
     bad((d) => (d.north.steps[5].realm = 'norse'), /awaken에만/)
   })
 
-  it('그리스 장은 고개부터: 고개 → 고개지기 → 고개 성소 귀환 → 올림포스 → 제우스 → 델포이 → 맹세 → 리키아 → 키마이라 (E241, E306, CYCLE.md 6장)', () => {
+  it('그리스 장은 고개부터: 고개 → 고개지기 → 고개 성소 귀환 → 올림포스 → 제우스 → 델포이 → 맹세 → 리키아 → 키마이라 (E241, E306, TIMELINE.md 4장)', () => {
     const greek = CHAPTERS.find((c) => c.id === 'greek')!
     expect(greek.steps.map((s) => `${s.kind}:${s.region}`)).toEqual([
       'enter:pass',

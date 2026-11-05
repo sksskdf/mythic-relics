@@ -2,7 +2,7 @@ import type { ClassPassive } from '../data/classKit'
 import { type God, godDef } from '../relics/data'
 
 /**
- * 신의 자리 셋 (E302, `CYCLE.md` 4장): 주신 하나가 무기·궁극기·패시브·모습을 통째로 정하던 고정 클래스를 풀었다.
+ * 신의 자리 셋 (E302, `DESIGN.md` 4.2): 주신 하나가 무기·궁극기·패시브·모습을 통째로 정하던 고정 클래스를 풀었다.
  * 깨운 신마다 부품 셋을 내놓고, 신을 가리지 않고 끼워 섞는다.
  * - 손(1칸): 기본 공격 동작·사거리·리듬·기본 공격 배율, 쥔 무기와 표식
  * - 심장(1칸): 궁극기
@@ -18,7 +18,7 @@ export interface Pantheon {
 /** 부품 이름 */
 export type PartKind = 'hand' | 'heart' | 'breath'
 
-/** 숨 칸의 끝: 데모 넷, 엔딩 뒤 다섯 (`CYCLE.md` 4.1: 키마이라·홀로의 맹세를 다 받으면 엔딩 뒤 다섯째) */
+/** 숨 칸의 끝: 데모 넷, 엔딩 뒤 다섯 (`DESIGN.md` 4.2: 키마이라·홀로의 맹세를 다 받으면 엔딩 뒤 다섯째) */
 export const MAX_BREATH = 5
 export const DEMO_BREATH = 4
 

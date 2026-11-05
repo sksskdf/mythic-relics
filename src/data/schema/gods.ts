@@ -25,7 +25,7 @@ export interface GodDef {
   tree: { column: number; row: number }
   /** 발현 패시브 (고른 신화의 추가 효과) */
   passive: ClassPassive
-  /** 빌린 힘 칸에 들면 빌려주는 대표 패시브 부품 하나 (E237, MYTHBUILD.md 3.1) */
+  /** 숨 칸에 들면 1단계부터 도는 대표 패시브 부품 하나 (E237 빌린 힘 → E302, DESIGN.md 4.2) */
   lend: PassivePart
   /** 열린 신화의 상시 효과 (E12-01, DESIGN.md 4.2.1) */
   always: MythAlways

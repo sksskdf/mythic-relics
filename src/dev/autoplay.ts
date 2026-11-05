@@ -27,7 +27,7 @@ const STALL_SHUN = 30
 const STALL_ROAM = 20
 /** 싸우는 생각 단계: 예고 피하기·기다리기·물러나기·쉬기·목표가 아닌 적과 싸우기 (멈춤 끊기가 처치 없이 싸운 시간을 잰다) */
 const FIGHT_STEPS = new Set([2, 3, 4, 5, 99])
-/** 귀환 갈래의 고정 차례 (E306 D15, `CYCLE.md` 11장): n번째 귀환에 승천 → 불꽃 → 승천 → 사냥, 그 뒤로는 승천 (승천은 손의 신부터) */
+/** 귀환 갈래의 고정 차례 (E306 D15, `TIMELINE.md` 9장): n번째 귀환에 승천 → 불꽃 → 승천 → 사냥, 그 뒤로는 승천 (승천은 손의 신부터) */
 const BRANCH_ORDER = ['ascend', 'flame:flame', 'ascend', 'flame:hunt'] as const
 
 /**

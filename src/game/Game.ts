@@ -133,7 +133,7 @@ export class Game {
   readonly depthSystem: DepthSystem
   /** 대화 장면을 언제 여는가: 처음 보는 일, 마을 사람에게 말 걸기, 미룬 장면 (E15-06) */
   private readonly storyline: Storyline
-  /** 자동화 (E305-03, `CYCLE.md` 3.5): 귀환 횟수가 열고, 엔딩을 봤으면 귀환 3 이상으로 친다. 자동 줍기는 엔딩 뒤 */
+  /** 자동화 (E305-03, `DESIGN.md` 5.3): 귀환 횟수가 열고, 엔딩을 봤으면 귀환 3 이상으로 친다. 자동 줍기는 엔딩 뒤 */
   readonly automation = new AutomationProgress(
     () => this.expedition.returns,
     () => this.ending.has('autoPickup'),
