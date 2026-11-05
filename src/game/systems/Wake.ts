@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 
-import { WAKE, WAKE_GODS, wakeDef, GUARDIAN_LEASH, GUARDIAN_MEND, GUARDIAN_RADIUS, LATER_TEXT, TRACE_LEASH, TRACE_RADIUS, traceStateOf, type TraceState } from '../../data/wake'
+import { WAKE, WAKE_GODS, wakeDef, GUARDIAN_LEASH, GUARDIAN_MEND, GUARDIAN_RADIUS, LATER_TEXT, levelSealed, levelText, TRACE_LEASH, TRACE_RADIUS, traceStateOf, type TraceState } from '../../data/wake'
 import { CONQUESTS } from '../../data/chapters'
 import { REGIONS } from '../../data/regions'
 import { sceneId } from '../../data/scenes'
@@ -92,9 +92,9 @@ export class WakeSystem {
     return god && !this.ctx.progress.isOpen(god) ? god : null
   }
 
-  /** 흔적이 지금 어떤가 (데모의 그리스 셋은 엔딩 뒤에 응답한다, E241) */
-  traceState(god: God): TraceState {
-    const { progress, expedition, chapters, ending } = this.ctx
+  /** 흔적이 지금 어떤가 (데모의 다섯은 엔딩 뒤에 응답한다 E241·E306, 기세가 모자라면 잠잠하다 E306). anyLevel이면 기세를 보지 않는다 (개발 지름길) */
+  traceState(god: God, anyLevel = false): TraceState {
+    const { progress, expedition, chapters, ending, training } = this.ctx
     return traceStateOf(god, {
       open: progress.isOpen(god),
       waking: this.waking,
@@ -102,11 +102,22 @@ export class WakeSystem {
       returns: expedition.returns,
       conquered: chapters.conquered,
       ending: ending.has('realms'),
+      level: anyLevel ? Infinity : training.insights,
     })
   }
 
-  /** 흔적이 잠잠할 때 다음 신이 응답하는 때 (E305-03): 「성소 화로에서 원정을 마치거나 거인 왕을 이기면 응답한다」 */
-  get sealedText(): string {
+  /** 흔적이 기세가 모자라 잠잠한가 (E306 D11: 목표 한 줄의 기세 막대) */
+  levelSealed(god: God): boolean {
+    return levelSealed(god, this.ctx.training.insights, this.ctx.ending.has('realms'))
+  }
+
+  /**
+   * 흔적이 잠잠할 때 그 신이 응답하는 때: 기세가 모자라면 「기세 3에 응답한다」(E306), 아니면 (E305-03)
+   * 「성소 화로에서 원정을 마치거나 거인 왕을 이기면 응답한다」
+   */
+  sealedText(god?: God): string {
+    const need = god ? WAKE[god]?.level : undefined
+    if (god && need !== undefined && this.levelSealed(god)) return levelText(need)
     const region = CONQUESTS.find((r) => !this.ctx.chapters.bosses.has(r))
     const boss = region ? ENEMIES[REGIONS[region]?.boss?.enemy ?? 'king']?.name : undefined
     return boss ? `성소 화로에서 원정을 마치거나 ${josa(boss, '을')} 이기면 응답한다` : '성소 화로에서 원정을 마치면 응답한다'
@@ -269,7 +280,7 @@ export class WakeSystem {
         else if ((state === 'busy' || state === 'sealed' || state === 'later') && this.told !== t.god) {
           this.told = t.god
           const waking = this.waking
-          const text = state === 'later' ? LATER_TEXT : waking ? `${josa(godDef(waking).name, '이')} 깨어난 뒤에 응답한다` : this.sealedText
+          const text = state === 'later' ? LATER_TEXT : waking ? `${josa(godDef(waking).name, '이')} 깨어난 뒤에 응답한다` : this.sealedText(t.god)
           this.ctx.bus.emit('moment', { id: 'traceBusy', text })
         }
       }
@@ -454,8 +465,9 @@ export class WakeSystem {
     const { awaken } = this.ctx
     const waking = this.waking
     if (!waking) {
-      const next = god ?? WAKE_GODS.find((g) => this.traceState(g) === 'open')
-      if (!next || this.traceState(next) !== 'open') return false
+      // 개발 지름길은 기세를 기다리지 않는다
+      const next = god ?? WAKE_GODS.find((g) => this.traceState(g, true) === 'open')
+      if (!next || this.traceState(next, true) !== 'open') return false
       this.calm()
       this.piece1(next)
       return true

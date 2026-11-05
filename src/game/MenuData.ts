@@ -1,5 +1,5 @@
 import { activeLayers, LAYER_NAMES } from '../build/layers'
-import { HUNT_KILLS, WAKE, WAKE_GODS, wakeDef } from '../data/wake'
+import { WAKE, WAKE_GODS, wakeDef } from '../data/wake'
 import { awakeningLevel } from '../data/awakening'
 import { REALM_COLORS, REGIONS } from '../data/regions'
 import { CONQUESTS } from '../data/chapters'
@@ -312,10 +312,10 @@ export class MenuData {
   /** 깨우는 중인 신 (E238): 모은 조각과 다음 할 일 (신 탭) */
   private wakingView(): { god: string; fragments: number; next: string } | null {
     const { progress, awaken } = this.parts.ctx
-    const { waking, fragments, hunt } = awaken
+    const { waking, fragments, hunt, need } = awaken
     const path = waking ? wakeDef(waking) : undefined
     if (!waking || !path || progress.isOpen(waking)) return null
-    const next = fragments >= 2 ? `${josa(path.guardian.name, '을')} 쓰러뜨린다` : `${REGIONS[path.land]?.name ?? path.land}에서 사냥한다 (${hunt}/${HUNT_KILLS})`
+    const next = fragments >= 2 ? `${josa(path.guardian.name, '을')} 쓰러뜨린다` : `${REGIONS[path.land]?.name ?? path.land}에서 사냥한다 (${hunt}/${need})`
     return { god: waking, fragments, next }
   }
 

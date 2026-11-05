@@ -5,9 +5,9 @@ import type { God } from '../relics/data'
  * - 조각 1 흔적: 흔적에 다가가면 지키는 무리가 깨어난다. 다 쓰러뜨리면 그 신의 대표 힘을 바로 빌린다
  * - 조각 2 사냥: 그 신의 땅에서 HUNT_KILLS만큼 잡으면 그 신의 유물이 손에 들어온다
  * - 조각 3 수호자: 그 땅 깊은 곳에 수호자가 나타난다. 쓰러뜨리면 그 신이 깨어난다
- * 깨우는 신은 한 번에 하나. 북유럽 넷 먼저 (E238). 수호자는 E239에서 제 모습과 싸우는 방식(enemies.json의 역할 guardian)과 땅을 얻었다.
- * 그리스는 넷 (E241, 성소의 신화 고르기를 대신함 E305-03): 데모에서는 제우스(도도나의 참나무 → 올림포스 사냥 → 티폰)만 깨우고,
- * 포세이돈·아르테미스·하데스의 흔적은 서 있되 엔딩 뒤에 응답한다(afterEnding).
+ * 깨우는 신은 한 번에 하나. 수호자는 E239에서 제 모습과 싸우는 방식(enemies.json의 역할 guardian)과 땅을 얻었다.
+ * 데모에서 깨우는 신은 셋 (E306 D7): 토르·오딘(흔적은 미드가르드, 기세 3부터 응답)과 제우스(도도나의 참나무 → 올림포스 사냥 → 티폰).
+ * 로키·프레이(E306)와 포세이돈·아르테미스·하데스(E241)의 흔적은 서 있되 엔딩 뒤에 응답한다(afterEnding).
  * 자리는 그 땅 안 좌표 (빈 곳이 아니면 가까운 빈 곳으로 옮긴다). 무리·출구·성소·보스·다른 흔적과 수호자에서 10m 넘게 떨어뜨린다 (gen-regions.mjs는 이 표를 모르니 손으로 정한다).
  */
 
@@ -26,8 +26,13 @@ export interface WakeDef {
   guardian: { region: string; x: number; z: number; name: string; enemy: string }
   /** 흔적 카드의 한 줄 이야기 */
   lore: string
-  /** 데모(첫 엔딩 전)에는 흔적만 서 있고 응답하지 않는다 (E241, 그리스 셋). 엔딩 뒤에는 다른 흔적처럼 깨운다 */
+  /** 데모(첫 엔딩 전)에는 흔적만 서 있고 응답하지 않는다 (E241 그리스 셋, E306 로키·프레이). 엔딩 뒤에는 다른 흔적처럼 깨운다 */
   afterEnding?: true
+  /**
+   * 흔적이 응답하는 기세 레벨 (E306 D11, 이번 원정의 수련 깨달음). 이보다 낮으면 잠잠하다(`sealed`, 「기세 3에 응답한다」).
+   * 마을을 나서자마자 흔적·장비·수련·신 탭이 몰려 열리지 않게 미드가르드의 첫 흔적 둘에만 단다. 엔딩 뒤에는 보지 않는다
+   */
+  level?: number
 }
 
 /** 흔적이 지금 어떤가: 깨어남(이미 연 신)·깨우는 중·엔딩 뒤에 응답함(E241)·다른 신을 깨우는 중·귀환이나 장 정복을 더 해야 함·응답함 */
@@ -45,6 +50,9 @@ export function mayWake(awakened: number, returns: number, conquered: number, af
 /** 데모에서 그리스 셋의 흔적에 다가가거나 흔적 카드를 볼 때의 한 줄 (E241) */
 export const LATER_TEXT = '엔딩 뒤에 응답한다'
 
+/** 기세가 모자라 잠잠한 흔적의 한 줄 (E306 D11) */
+export const levelText = (level: number): string => `기세 ${level}에 응답한다`
+
 /** 흔적의 형편을 정하는 지금 값 */
 export interface TraceNow {
   /** 그 신이 이미 열렸다 */
@@ -56,21 +64,37 @@ export interface TraceNow {
   conquered: number
   /** 첫 엔딩을 보았다 */
   ending: boolean
+  /** 이번 원정의 기세 레벨 (수련 깨달음, E306) */
+  level: number
+}
+
+/** 그 신의 흔적이 기세가 모자라 잠잠한가 (E306 D11): 문턱이 있고 이번 원정의 기세가 그 아래다. 엔딩 뒤에는 막지 않는다 */
+export function levelSealed(god: God, level: number, ending = false): boolean {
+  const need = WAKE[god]?.level
+  return !ending && need !== undefined && level < need
 }
 
 /**
- * 흔적이 지금 어떤가 (E241에서 순수 계산으로 뺌): 깨어남 → 데모의 그리스 셋은 엔딩 뒤에 응답 → 깨우는 중 → 다른 신을 깨우는 중 → 응답함·잠잠함
+ * 흔적이 지금 어떤가 (E241에서 순수 계산으로 뺌): 깨어남 → 데모의 다섯은 엔딩 뒤에 응답 → 깨우는 중 → 다른 신을 깨우는 중 →
+ * 기세가 모자라면 잠잠함(E306) → 응답함·잠잠함(귀환·장 정복을 더 해야 함)
  */
 export function traceStateOf(god: God, now: TraceNow): TraceState {
   if (now.open) return 'awake'
   if (WAKE[god]?.afterEnding && !now.ending) return 'later'
   if (now.waking === god) return 'waking'
   if (now.waking) return 'busy'
+  if (levelSealed(god, now.level, now.ending)) return 'sealed'
   return mayWake(now.awakened, now.returns, now.conquered, now.ending) ? 'open' : 'sealed'
 }
 
-/** 조각 2까지 잡아야 하는 적 수 (그 신의 땅에서). E239에서 사냥 땅이 미드가르드 옆 새 땅(세기 1.25)으로 옮겨 가 40 → 30 */
-export const HUNT_KILLS = 30
+/**
+ * 조각 2까지 잡아야 하는 적 수 (그 신의 땅에서): 깨운 차례(이미 깨운 신 수)마다, 표 끝을 넘으면 마지막 값 (E306 D12).
+ * 첫 신(바닷가·철의 숲, 세기 1.25)은 E239에서 40 → 30. 오딘·제우스의 사냥은 `CYCLE.md` 6장의 2~3분 막대에 맞춰 늘린다
+ */
+export const HUNT_KILLS: readonly number[] = [30, 40, 45]
+
+/** 이미 깨운 신이 order일 때 다음 신의 사냥 수 */
+export const huntKills = (order: number): number => HUNT_KILLS[Math.min(HUNT_KILLS.length - 1, Math.max(0, order))]!
 /** 흔적에 이만큼(m) 다가가면 지키는 무리가 깨어난다 */
 export const TRACE_RADIUS = 3
 /** 지키는 무리가 깨어난 뒤 이만큼(m) 넘게 멀어지면 무리가 흩어지고 처음부터 */
@@ -92,6 +116,7 @@ export const WAKE: Readonly<Partial<Record<God, WakeDef>>> = {
     land: 'serpentshore',
     guardian: { region: 'serpentshore', x: 22, z: -20, name: '요르문간드', enemy: 'jormungandr' },
     lore: '천둥이 내리친 자리. 아직 나무 속에서 번개가 운다.',
+    level: 3,
   },
   odin: {
     trace: { region: 'midgard', x: -20, z: 16, name: '룬 돌과 까마귀', model: 'runeRaven' },
@@ -99,6 +124,7 @@ export const WAKE: Readonly<Partial<Record<God, WakeDef>>> = {
     land: 'ironwood',
     guardian: { region: 'ironwood', x: -24, z: -20, name: '펜리르', enemy: 'fenrir' },
     lore: '외눈의 신이 새긴 룬. 까마귀 한 마리가 아직 떠나지 않았다.',
+    level: 3,
   },
   loki: {
     trace: { region: 'jotunheim', x: -26, z: 10, name: '묶인 바위', model: 'boundRock' },
@@ -109,6 +135,7 @@ export const WAKE: Readonly<Partial<Record<God, WakeDef>>> = {
     land: 'jotunheim',
     guardian: { region: 'jotunheim', x: -24, z: -22, name: '스카디', enemy: 'skadi' },
     lore: '사슬로 묶였던 바위. 그릇에 독이 아직 고여 있다.',
+    afterEnding: true,
   },
   freyr: {
     trace: { region: 'muspel', x: 16, z: 22, name: '황금 멧돼지 무덤', model: 'boarMound' },
@@ -120,6 +147,7 @@ export const WAKE: Readonly<Partial<Record<God, WakeDef>>> = {
     land: 'muspel',
     guardian: { region: 'muspel', x: 24, z: -16, name: '수르트', enemy: 'surtr' },
     lore: '풍요의 신이 아끼던 멧돼지가 잠든 무덤. 흙이 아직 따뜻하다.',
+    afterEnding: true,
   },
   // 그리스 (E241): 제우스는 흔적·사냥·수호자가 모두 올림포스 안 (델포이는 그 앞 할 일을 마쳐야 열린다)
   zeus: {

@@ -1,4 +1,4 @@
-import { CHAPTERS, type ChapterDef, type ChapterStep, chapterOf, conquestsOf, TOP_POWER } from '../data/chapters'
+import { CHAPTERS, COUNTED_KINDS, type ChapterDef, type ChapterStep, chapterOf, conquestsOf, SOFT_KINDS, TOP_POWER } from '../data/chapters'
 import { REGIONS } from '../data/regions'
 
 /** 장 진행이 게임에서 읽는 것 (신화·장비는 따로 저장되니 여기서는 묻기만 한다) */
@@ -11,6 +11,10 @@ export interface ChapterWorld {
   returns(): number
   /** 탈것을 얻었나 (E241: 고개지기를 만났다) */
   mounted(): boolean
+  /** 처음 만든 영웅·전설의 수 (E306: 유물표에 켜진 고유 효과 수) */
+  merged(): number
+  /** 지킨 맹세의 수 (E306) */
+  oathsKept(): number
 }
 
 export interface ChapterData {
@@ -21,11 +25,13 @@ export interface ChapterData {
 }
 
 /**
- * 장 진행 (E22-01, TIMELINE.md 4·7장).
+ * 장 진행 (E22-01, E306-01: `CYCLE.md` 6장).
  * - 지금 장: 마지막 할 일을 아직 못 한 첫 장. 지난 장의 땅과 들어서 본 땅이 열려 있다 (마을은 늘)
  * - 지금 장의 땅은 할 일 차례로 열린다 (E236-01): 그 땅에 들어서는 할 일 바로 앞까지 했을 때.
- *   요툰헤임은 첫 신을 깨운 뒤, 우트가르드는 두 번째 신과 2단계 전설 뒤 (준비가 되기 전에 거인 왕을 만나지 않게).
- *   그리스 장(E241)은 첫 할 일이 고개에 들어서는 것이라 거인 왕을 이기면 고개가 바로 열리고, 올림포스는 고개 성소에서 귀환한 뒤 열린다
+ *   땅을 막지 않는 할 일(합치기·맹세, `SOFT_KINDS`)은 건너 그 앞의 할 일을 본다.
+ *   철의 숲·바닷가는 처음부터, 요툰헤임은 귀환 2 뒤, 우트가르드는 요툰헤임에 들어선 뒤 (영웅을 못 만들었어도).
+ *   그리스 장(E241)은 첫 할 일이 고개에 들어서는 것이라 거인 왕을 이기면 고개가 바로 열리고, 올림포스는 고개 성소에서 귀환(3)한 뒤,
+ *   리키아는 델포이에 들어선 뒤(맹세를 못 지켰어도) 열린다
  * - 지금 목표: 지금 장에서 아직 못 한 첫 할 일. 뒤의 할 일을 먼저 했으면 앞의 것은 지나간 것으로 친다
  * - 엔딩 뒤에는 모든 땅이 열리고 목표가 없다
  */
@@ -55,6 +61,10 @@ export class ChapterProgress {
         return world.returns() >= step.n!
       case 'mount':
         return world.mounted()
+      case 'merge':
+        return world.merged() >= step.n!
+      case 'oath':
+        return world.oathsKept() >= step.n!
     }
   }
 
@@ -83,11 +93,12 @@ export class ChapterProgress {
 
   /**
    * 그 장에서 한 마지막 할 일의 차례 (하나도 안 했으면 -1). 뒤의 것을 했으면 앞의 것은 지나간 것으로 친다.
-   * 귀환(`return`)은 장 밖에서도 쌓이는 수라(앞 장에서 귀환을 더 했을 때) 건너뛰는 근거로 쓰지 않고, 바로 앞까지 했을 때만 이어 센다
+   * 이어 세는 할 일(귀환·합치기·맹세, `COUNTED_KINDS`)은 장 밖에서도 쌓이는 수라(앞 장에서 귀환을 더 했거나 영웅을 먼저 만들었을 때)
+   * 건너뛰는 근거로 쓰지 않고, 바로 앞까지 했을 때만 이어 센다
    */
   private lastDone(chapter: ChapterDef): number {
     let last = -1
-    chapter.steps.forEach((s, i) => s.kind !== 'return' && this.done(s) && (last = i))
+    chapter.steps.forEach((s, i) => !COUNTED_KINDS.has(s.kind) && this.done(s) && (last = i))
     while (last + 1 < chapter.steps.length && this.done(chapter.steps[last + 1]!)) last += 1
     return last
   }
@@ -104,8 +115,13 @@ export class ChapterProgress {
     if (at < 0 || at > this.index) return false
     if (at < this.index) return true
     const chapter = this.chapters[at]!
-    const enter = chapter.steps.findIndex((s) => s.kind === 'enter' && s.region === region)
-    return enter <= 0 || this.lastDone(chapter) >= enter - 1
+    const steps = chapter.steps
+    const enter = steps.findIndex((s) => s.kind === 'enter' && s.region === region)
+    if (enter <= 0) return true
+    // 바로 앞이 땅을 막지 않는 할 일이면 그 앞의 할 일이 문이다 (E306)
+    let gate = enter - 1
+    while (gate >= 0 && SOFT_KINDS.has(steps[gate]!.kind)) gate--
+    return gate < 0 || this.lastDone(chapter) >= gate
   }
 
   /** 그 땅 보통 적의 세기 (처음 땅 = 1). 장 흐름 밖의 들판(엔딩 뒤)은 가장 센 땅만큼, 끝없는 원정·마을은 1 (끝없는 원정은 층이 세기를 정한다) */

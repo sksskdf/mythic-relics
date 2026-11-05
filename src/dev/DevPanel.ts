@@ -293,11 +293,11 @@ export class DevPanel {
         }),
         // 맹세 (E305-01): 아직 못 지킨 것 하나를 걸고, 건 맹세를 지킨 것으로
         button('맹세 걸기', () => {
-          g.oathSystem.swear(g.oathSystem.available().find((id) => !g.oaths.has(id)) ?? null)
+          g.dev.swearOath()
           g.menu.refresh()
         }),
         button('맹세 지킴', () => {
-          g.oathSystem.keepNow()
+          g.dev.keepOath()
           g.menu.refresh()
         }),
         button('한계를 깸', () => {

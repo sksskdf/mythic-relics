@@ -1,4 +1,4 @@
-import { wakeDef, HUNT_KILLS, LATER_TEXT, type TraceState } from '../data/wake'
+import { wakeDef, LATER_TEXT, type TraceState } from '../data/wake'
 import { levelGains, lendText } from '../myth/levelGains'
 import { type God, godDef } from '../relics/data'
 import { classIcon } from './classIcons'
@@ -14,12 +14,14 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, te
 /** 흔적 카드에 보일 지금 상태: 흔적의 형편, 깨우는 신이면 모은 조각과 사냥한 수 */
 export interface TraceCardContext {
   state: TraceState
-  /** 잠잠한 흔적이 응답하는 때 (「성소 화로에서 원정을 마치면 응답한다」, E305-03) */
+  /** 잠잠한 흔적이 응답하는 때 (「성소 화로에서 원정을 마치면 응답한다」 E305-03, 「기세 3에 응답한다」 E306) */
   sealedText: string
   /** 지금 깨우는 신 (다른 신을 깨우는 중일 때 이름을 댄다) */
   waking: God | null
   fragments: number
   hunt: number
+  /** 조각 2까지 잡아야 하는 수 (깨운 차례대로, E306) */
+  need: number
 }
 
 /**
@@ -49,7 +51,7 @@ export function traceCard(god: God, ctx: TraceCardContext): HTMLElement {
       : ctx.state === 'waking'
         ? ctx.fragments >= 2
           ? `조각 2/3 · ${path ? josa(path.guardian.name, '을') : '수호자를'} 쓰러뜨린다`
-          : `조각 1/3 · 사냥 ${ctx.hunt}/${HUNT_KILLS}`
+          : `조각 1/3 · 사냥 ${ctx.hunt}/${ctx.need}`
         : ctx.state === 'later'
           ? LATER_TEXT
           : ctx.state === 'busy' && ctx.waking

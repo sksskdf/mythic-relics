@@ -1,5 +1,5 @@
 import { SOURCE_IDS, type SourceId } from '../../data/schema'
-import { FLAME, RETURN_MIN_LEVEL, RETURN_MIN_SECONDS } from '../../data/cycle'
+import { FLAME, RETURN_MIN_SECONDS, returnMinLevel } from '../../data/cycle'
 import { isBossLike } from '../../enemies/grade'
 import { gearName, gearScore, isGearUid } from '../../gear/roll'
 import { pantheonGods } from '../../myth/pantheon'
@@ -95,9 +95,14 @@ export class ExpeditionSystem {
     } else this.declined = false
   }
 
+  /** 이번 귀환에 필요한 기세 레벨 (E306 D9: 귀환 번호마다, 엔딩 뒤에는 8) */
+  get minLevel(): number {
+    return returnMinLevel(this.ctx.expedition.returns + 1, this.ctx.ending.reached)
+  }
+
   /** 원정이 무르익었나: 떠난 지 2분이 지났고 기세 레벨이 문턱을 넘었다 */
   get ripe(): boolean {
-    return this.ctx.expedition.elapsed >= RETURN_MIN_SECONDS && this.ctx.training.insights >= RETURN_MIN_LEVEL
+    return this.ctx.expedition.elapsed >= RETURN_MIN_SECONDS && this.ctx.training.insights >= this.minLevel
   }
 
   /** 지금 귀환할 수 있나: 원정이 무르익었고 살아 있다 */

@@ -83,11 +83,12 @@ export class HudFeed {
   }
 
   /**
-   * 다음 목표의 자리 (지금 땅 좌표, E22-04): 지금 땅이면 성소(고르기·전설)·보스·대장장이, 다른 땅이면 그쪽 통로 입구.
+   * 다음 목표의 자리 (지금 땅 좌표, E22-04): 지금 땅이면 성소(귀환)·보스·대장장이·고개지기, 다른 땅이면 그쪽 통로 입구.
    * 작은 지도의 금빛 표시와 봇이 쓴다
    */
   goalSpot(): { x: number; z: number } | null {
-    const { chapters, awakening, world } = this.parts.game
+    const { game } = this.parts
+    const { chapters, awakening, world } = game
     const goal = chapters.goal
     const region = world.region
     if (!goal || region.kind === 'endless') return null
@@ -99,6 +100,17 @@ export class HudFeed {
       if (!target) return null
       if (target.region !== region.id) return world.wayTo(target.region)
       return awakening.placed(target)
+    }
+    // 합치기 (E306): 가방에서 하는 일이라 자리가 없다
+    if (goal.kind === 'merge') return null
+    // 귀환 (E306 D2): 어느 성소에서 해도 되니 지금 땅에 성소가 있으면 그 화로, 없으면 데이터의 땅으로
+    if (goal.kind === 'return' && region.sanctuary) return region.sanctuary
+    // 맹세 (E306): 건 맹세가 있으면 지금 장의 다음 보스 땅(그 땅이면 보스 자리), 없으면 이 땅의 성소(다음 출발에 건다)
+    if (goal.kind === 'oath') {
+      if (!game.expedition.oath) return region.sanctuary
+      const boss = game.chapters.chapter?.steps.find((s) => s.kind === 'boss')
+      if (!boss) return null
+      return boss.region === region.id ? region.boss : world.wayTo(boss.region)
     }
     if (goal.region !== region.id) return world.wayTo(goal.region)
     if (goal.kind === 'boss') return region.boss

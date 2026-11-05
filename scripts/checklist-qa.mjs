@@ -662,7 +662,7 @@ const sections = {
   async 'e22-1'(browser) {
     const page = await fresh(browser, '?fresh&noscenes')
     const steps = []
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 30; i++) {
       // 목표 한 줄은 화면을 그릴 때 바뀌므로 몇 프레임 기다린 뒤 읽는다
       const f = await page.evaluate(() => window.__game.frame)
       await page.waitForFunction((n) => window.__game.frame > n + 1, f, { timeout: 60000 })
@@ -738,7 +738,7 @@ const sections = {
       return { region: g.region.id, to: b?.to ?? null, barriers: spots.map((x) => x.to) }
     })
     await shot(page, 'e22-3-barrier')
-    // 할 일을 마쳐 결계가 풀리는 순간 (E236: 미드가르드 흔적을 찾으면 요툰헤임 쪽)
+    // 할 일을 마쳐 결계가 풀리는 순간 (E306: 귀환 둘을 마치면 요툰헤임 쪽)
     const opened = await page.evaluate(() => {
       const g = window.__game
       for (let i = 0; i < 6 && g.barrierSpots.some((x) => x.to === 'jotunheim'); i++) g.skipGoal()
@@ -976,7 +976,7 @@ const sections = {
     await page.waitForTimeout(4500)
     await page.evaluate(() => {
       const g = window.__game
-      for (let i = 0; i < 12 && g.chapters.goal && !(g.chapters.goal.kind === 'enter' && g.chapters.goal.region === 'sky'); i++) g.skipGoal()
+      for (let i = 0; i < 16 && g.chapters.goal && !(g.chapters.goal.kind === 'enter' && g.chapters.goal.region === 'sky'); i++) g.skipGoal()
     })
     await settle()
     await page.evaluate(() => {

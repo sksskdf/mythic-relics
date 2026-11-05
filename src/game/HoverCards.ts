@@ -36,7 +36,7 @@ export interface HoverCardsParts {
   /** 지금 땅의 신의 흔적 (E238) */
   traces(): readonly { god: God; x: number; z: number; state: TraceState }[]
   /** 흔적 카드에 보일 깨우는 진행 */
-  traceContext(): Omit<TraceCardContext, 'state'>
+  traceContext(god: God): Omit<TraceCardContext, 'state'>
   /** 보스 막대에 이름이 뜨는 수호자 (머리 위 이름표는 띄우지 않는다) */
   guardian(): unknown
 }
@@ -103,7 +103,7 @@ export class HoverCards {
       this.groundTooltip = true
     } else if ((trace = this.traceUnderPointer(pointer))) {
       // 신의 흔적 (E238): 무엇을 고르는지 알고 고르게 그 신의 무기·빌려주는 힘
-      const now = { ...this.parts.traceContext(), state: trace.state }
+      const now = { ...this.parts.traceContext(trace.god), state: trace.state }
       const found = trace
       this.tooltip.showCard(`trace:${found.god}`, `${found.god}|${now.state}|${now.fragments}|${now.hunt}|${now.sealedText}`, () => traceCard(found.god, now), pointer.x, pointer.y)
       this.groundTooltip = true

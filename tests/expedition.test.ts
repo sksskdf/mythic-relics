@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { LEVEL_CAP_BASE, renownFor, renownMultiplier } from '../src/data/cycle'
+import { LEVEL_CAP_BASE, RETURN_MIN_LEVEL, RETURN_MIN_LEVEL_AFTER_ENDING, RETURN_SIGNAL, returnMinLevel, renownFor, renownMultiplier } from '../src/data/cycle'
 import { computeBuild } from '../src/build/BuildState'
 import { layerProduct } from '../src/build/layers'
 import { DEMO_MAX_LEVEL, MAX_LEVEL } from '../src/myth/ClassProgress'
@@ -15,6 +15,16 @@ describe('원정과 귀환 (E304)', () => {
     expect(renownMultiplier(25)).toBeCloseTo(1.5)
     expect(renownFor(1, 1)).toBe(15)
     expect(renownFor(2, 2)).toBe(40)
+  })
+
+  it('귀환 문턱은 귀환 번호마다 (E306 D9): 표 끝을 넘으면 마지막 값, 엔딩 뒤에는 8', () => {
+    expect([1, 2, 3, 4, 5, 9].map((n) => returnMinLevel(n))).toEqual([...RETURN_MIN_LEVEL, RETURN_MIN_LEVEL.at(-1), RETURN_MIN_LEVEL.at(-1)])
+    expect(returnMinLevel(1)).toBe(8)
+    for (let i = 1; i < RETURN_MIN_LEVEL.length; i++) expect(RETURN_MIN_LEVEL[i]).toBeGreaterThanOrEqual(RETURN_MIN_LEVEL[i - 1]!)
+    expect(returnMinLevel(4, true)).toBe(RETURN_MIN_LEVEL_AFTER_ENDING)
+    expect(RETURN_MIN_LEVEL_AFTER_ENDING).toBe(8)
+    // 귀환 신호 (D10, CYCLE.md 11장): 기세가 3분 넘게 멈췄거나 받을 배율 ×1.25
+    expect(RETURN_SIGNAL).toEqual({ quietLevel: 180, gain: 1.25 })
   })
 
   it('첫 귀환은 ×1.45 언저리 (장 1에서 수호자 하나·둘)', () => {

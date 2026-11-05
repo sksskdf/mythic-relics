@@ -50,19 +50,28 @@ export const FLAME = {
 /** 원정을 떠난 뒤 이 초가 지나야 귀환할 수 있다 (떠나자마자 다시 귀환 카드가 뜨지 않게) */
 export const RETURN_MIN_SECONDS = 120
 /**
- * 원정이 무르익어야 귀환한다: 이번 원정의 기세 레벨(수련 깨달음)이 이만큼은 되어야 귀환 카드가 뜬다.
- * 옛 신 경험치 막대(1500·3000)가 맡던 박자를 기세가 맡는다. 봇 기준 첫 귀환 13~16분 (`CYCLE.md` 6장)
+ * 원정이 무르익어야 귀환한다: 이번 원정의 기세 레벨(수련 깨달음)이 이만큼은 되어야 귀환 카드가 뜬다 (E306 D9: 귀환 번호마다).
+ * n번째 귀환에 필요한 기세 레벨, 표 끝을 넘으면 마지막 값. 뒤 원정일수록 처치가 빠르고 출발점(⅓·½)도 붙어 8에 일찍 닿으니
+ * 문턱을 올려 원정 길이를 `CYCLE.md` 6장(18·15·18·24분)에 맞춘다. 옛 신 경험치 막대(1500·3000)가 맡던 박자를 기세가 맡는다
  */
-export const RETURN_MIN_LEVEL = 8
+export const RETURN_MIN_LEVEL: readonly number[] = [8, 12, 14, 16]
+/** 엔딩을 본 뒤의 귀환 문턱 (깊이 순환은 그대로 빠르게) */
+export const RETURN_MIN_LEVEL_AFTER_ENDING = 8
+
+/** returnNo번째 귀환(1부터)에 필요한 기세 레벨. 엔딩 뒤에는 RETURN_MIN_LEVEL_AFTER_ENDING */
+export function returnMinLevel(returnNo: number, afterEnding = false): number {
+  if (afterEnding) return RETURN_MIN_LEVEL_AFTER_ENDING
+  return RETURN_MIN_LEVEL[Math.min(RETURN_MIN_LEVEL.length - 1, Math.max(0, returnNo - 1))]!
+}
 
 /** 새 불길: 다시 떠난 뒤 이 초 동안 장비 드랍 배율 */
 export const NEW_FIRE = { seconds: 120, drop: 3 } as const
 
 /**
- * 귀환을 알리는 때 (목표 한 줄이 「화로에서 원정을 마친다」로): 첫 귀환 뒤로, 원정을 떠난 지 이 초가 지났고 받을 배율이 지금의 이 배를 넘으면.
- * `CYCLE.md`의 「기세 레벨이 3분을 넘게 걸리면」은 기세 막대가 생기는 E306에서 더한다
+ * 귀환을 알리는 때 (목표 한 줄이 「화로에서 원정을 마친다」로, E306 D10: `CYCLE.md` 11장): 첫 귀환 뒤로, 귀환 문턱을 넘었고,
+ * 지난 기세 레벨에서 quietLevel초가 지났거나(기세가 느려짐) 받을 배율이 지금의 gain배를 넘으면. 목표가 합치기인 동안은 알리지 않는다
  */
-export const RETURN_SIGNAL = { after: 300, gain: 1.1 } as const
+export const RETURN_SIGNAL = { quietLevel: 180, gain: 1.25 } as const
 
 /** 귀환 횟수가 여는 자동화 (`CYCLE.md` 3.5) */
 export const AUTOMATION = {

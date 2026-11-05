@@ -47,7 +47,7 @@ const sample: SaveData = {
   ending: true,
   chapters: { entered: ['village', 'midgard', 'olympus'], bosses: ['utgard'] },
   training: { xp: 1500, taken: ['awaken', 'edge'] },
-  expedition: { count: 2, renown: 20, flames: { stone: 1 }, best: [900], elapsed: 30, bosses: 0, deepest: 1, lastTaken: ['awaken'], bestXp: 1200, heirloom: [], oath: 'silence', oathPending: false, lastBranch: 'ascend:thor', deepWin: true },
+  expedition: { count: 4, renown: 20, flames: { stone: 1 }, best: [900], elapsed: 30, bosses: 0, deepest: 1, lastTaken: ['awaken'], bestXp: 1200, heirloom: [], oath: 'silence', oathPending: false, lastBranch: 'ascend:thor', deepWin: true },
   tabs: ['relics', 'training'],
   awaken: { waking: 'odin', fragments: 1, hunt: 7 },
   mount: true,
@@ -300,7 +300,7 @@ describe('저장 v11: 연 탭 (E236-05)', () => {
 describe('저장 v13: 신을 깨우는 조각 (E238)', () => {
   it('깨우는 신과 조각·사냥한 수는 그대로, 조각 2면 사냥 막대는 찬 것으로', () => {
     expect(parseSave(JSON.stringify(sample))?.awaken).toEqual({ waking: 'odin', fragments: 1, hunt: 7 })
-    expect(parseSave(JSON.stringify({ ...sample, awaken: { waking: 'odin', fragments: 2, hunt: 3 } }))?.awaken).toEqual({ waking: 'odin', fragments: 2, hunt: HUNT_KILLS })
+    expect(parseSave(JSON.stringify({ ...sample, awaken: { waking: 'odin', fragments: 2, hunt: 3 } }))?.awaken).toEqual({ waking: 'odin', fragments: 2, hunt: Math.max(...HUNT_KILLS) })
   })
 
   it('옛 저장(v12)·깨우는 길이 없는 신·이미 연 신이면 깨우는 신 없이', () => {
@@ -320,6 +320,8 @@ describe('그리스 장의 옛 저장 (E305-03: 성소의 신화 고르기 → �
       forged: () => 1,
       returns: () => data.expedition.count - 1,
       mounted: () => data.mount,
+      merged: () => data.uniques.length,
+      oathsKept: () => data.oaths.kept.length,
     })
     chapters.load(data.chapters)
     return chapters
@@ -497,20 +499,33 @@ describe('저장 v17: 맹세·깊이·자동화·끝없는 원정 (E305)', () =>
     for (const k of [0, 1, 2]) expect(renownMultiplier(renownForMultiplier(1.3, k), k)).toBeCloseTo(1.3, 9)
   })
 
-  it('원정 기록이 없던 저장(v15 이하)은 원정 번호를 장 진행이 지나온 할 일 「귀환」으로 짐작한다 (명성은 없이)', () => {
+  it('원정 기록이 없던 저장(v15 이하)은 원정 번호를 장 진행이 지나온 할 일 「귀환」으로 짐작한다 (명성은 없이, E306 흐름: 귀환 넷)', () => {
     const norse = (n: number) => (realm: string) => (realm === 'norse' ? n : 0)
-    // 요툰헤임에 막 닿았다: 귀환 1은 아직 앞에 있다
-    expect(estimateExpeditions({ entered: ['midgard', 'jotunheim'], bosses: [] }, norse(1), 1)).toBe(1)
+    // 첫 신을 깨웠다: 바닷가의 귀환 1은 아직 앞에 있다
+    expect(estimateExpeditions({ entered: ['midgard'], bosses: [] }, norse(1), 1)).toBe(1)
     // 둘째 신을 깨웠다(귀환 1 뒤의 할 일): 귀환 1은 지나왔다
-    expect(estimateExpeditions({ entered: ['midgard', 'jotunheim'], bosses: [] }, norse(2), 1)).toBe(2)
-    // 거인 왕을 이겼다: 고개 성소의 귀환 2는 아직 앞에 있다 (E241)
-    expect(estimateExpeditions({ entered: ['midgard', 'jotunheim', 'utgard'], bosses: ['utgard'] }, norse(2), 1)).toBe(2)
-    // 올림포스에 들어섰다(고개가 생기기 전의 저장): 고개의 귀환 2는 그 앞의 할 일이라 지나왔다. 제우스 목표는 그대로 남는다 (E241)
-    expect(estimateExpeditions({ entered: ['midgard', 'jotunheim', 'utgard', 'olympus'], bosses: ['utgard'] }, norse(2), 1)).toBe(3)
-    // 리키아에 닿았다: 귀환 2도 지나왔다
-    expect(estimateExpeditions({ entered: ['midgard', 'jotunheim', 'utgard', 'olympus', 'delphi', 'lycia'], bosses: ['utgard'] }, norse(2), 1)).toBe(3)
-    // v16부터는 적힌 그대로
+    expect(estimateExpeditions({ entered: ['midgard'], bosses: [] }, norse(2), 1)).toBe(2)
+    // 요툰헤임에 들어섰다: 철의 숲의 귀환 2도 그 앞의 할 일이라 지나왔다 (첫 신만 깨운 옛 저장도)
+    expect(estimateExpeditions({ entered: ['midgard', 'jotunheim'], bosses: [] }, norse(1), 1)).toBe(3)
+    expect(estimateExpeditions({ entered: ['midgard', 'jotunheim'], bosses: [] }, norse(2), 1)).toBe(3)
+    // 거인 왕을 이겼다: 고개 성소의 귀환 3은 아직 앞에 있다 (E241)
+    expect(estimateExpeditions({ entered: ['midgard', 'jotunheim', 'utgard'], bosses: ['utgard'] }, norse(2), 1)).toBe(3)
+    // 올림포스에 들어섰다(고개가 생기기 전의 저장): 고개의 귀환 3은 그 앞의 할 일이라 지나왔다. 제우스 목표는 그대로 남는다 (E241)
+    expect(estimateExpeditions({ entered: ['midgard', 'jotunheim', 'utgard', 'olympus'], bosses: ['utgard'] }, norse(2), 1)).toBe(4)
+    // 리키아에 닿았다: 리키아 성소의 귀환 4는 종장의 할 일이라 아직 앞에 있다
+    expect(estimateExpeditions({ entered: ['midgard', 'jotunheim', 'utgard', 'olympus', 'delphi', 'lycia'], bosses: ['utgard'] }, norse(2), 1)).toBe(4)
+  })
+
+  it('원정 기록이 있는 저장(v16부터)은 적힌 수와 짐작한 수 가운데 큰 쪽 (E306 D18: 고개에서 귀환 2를 기다리던 v17 저장도 귀환 한 번이면 된다)', () => {
+    // 새 흐름의 저장은 늘 짐작 이상이라 그대로
     expect(parseSave(JSON.stringify(asOld(sample, 16)))?.expedition.count).toBe(sample.expedition.count)
+    const pass = { ...sample, classes: { thor: { level: 2 }, odin: { level: 1 } }, chapters: { entered: ['village', 'midgard', 'jotunheim', 'utgard', 'pass'], bosses: ['utgard'] }, mount: true }
+    const old = parseSave(JSON.stringify({ ...pass, expedition: { ...sample.expedition, count: 2 } }))!
+    expect(old.expedition.count).toBe(3)
+    expect(old.expedition.renown).toBe(sample.expedition.renown)
+    // 여러 번 불러와도 같다
+    expect(parseSave(JSON.stringify(old))!.expedition.count).toBe(3)
+    expect(parseSave(JSON.stringify({ ...pass, expedition: { ...sample.expedition, count: 5 } }))!.expedition.count).toBe(5)
   })
 })
 
@@ -596,8 +611,8 @@ const SAMPLES: { name: string; raw: Record<string, unknown>; awakened: string[];
     awakened: ['odin', 'thor'],
     chapters: { entered: ['village', 'midgard', 'jotunheim'], bosses: [] },
     waypoints: ['midgard', 'jotunheim'],
-    // 둘째 신을 깨워 귀환 1은 지나왔고(원정 2), 다음은 우트가르드
-    goal: 'north:enter:utgard',
+    // 요툰헤임에 들어섰으니 귀환 둘은 지나왔고(원정 3), 다음은 영웅 합치기 (E306)
+    goal: 'north:merge:jotunheim',
   },
   {
     name: 'v13 (E238): 신을 깨우는 조각',
@@ -627,8 +642,8 @@ const SAMPLES: { name: string; raw: Record<string, unknown>; awakened: string[];
     awakened: ['odin', 'thor', 'zeus'],
     chapters: { entered: ['village', 'midgard', 'ironwood', 'jotunheim', 'utgard', 'olympus', 'delphi'], bosses: ['utgard'] },
     waypoints: ['midgard', 'jotunheim', 'utgard', 'olympus', 'delphi'],
-    // 델포이까지 왔으니 다음은 리키아 (고개의 귀환 2는 올림포스에 들어서며 지나와 원정 3, E241)
-    goal: 'greek:enter:lycia',
+    // 델포이까지 왔으니 다음은 맹세 (고개의 귀환 3은 올림포스에 들어서며 지나와 원정 4, E241·E306). 맹세는 땅을 막지 않아 리키아도 열려 있다
+    goal: 'greek:oath:delphi',
   },
   {
     name: 'v15 엔딩 뒤: 위협 단계·시련 셋·자동 줍기',
@@ -659,7 +674,8 @@ const SAMPLES: { name: string; raw: Record<string, unknown>; awakened: string[];
     awakened: ['loki', 'thor'],
     chapters: { entered: ['village', 'midgard', 'jotunheim'], bosses: [] },
     waypoints: ['midgard', 'jotunheim'],
-    goal: 'north:enter:utgard',
+    // 원정 2로 적혔지만 요툰헤임에 들어섰으니 원정 3으로 (E306 D18), 다음은 영웅 합치기
+    goal: 'north:merge:jotunheim',
   },
 ]
 
@@ -671,6 +687,8 @@ describe('저장 v17: 실제 모양의 옛 저장 견본 (v1·v9·v12·v13·v15�
       forged: () => Object.values(data.stages).filter((n) => (n ?? 1) >= 2).length,
       returns: () => data.expedition.count - 1,
       mounted: () => data.mount,
+      merged: () => data.uniques.length,
+      oathsKept: () => data.oaths.kept.length,
     }, () => data.ending)
     chapters.load(data.chapters)
     return chapters
@@ -708,9 +726,9 @@ describe('저장 v17: 실제 모양의 옛 저장 견본 (v1·v9·v12·v13·v15�
     })
   }
 
-  it('그리스 장 한가운데 v15 저장 (고개가 생기기 전): 올림포스에 들어섰으니 고개의 귀환 2까지 지나왔고(원정 3), 탈것도 얻은 것으로 친다 (E241)', () => {
+  it('그리스 장 한가운데 v15 저장 (고개가 생기기 전): 올림포스에 들어섰으니 고개의 귀환 3까지 지나왔고(원정 4), 탈것도 얻은 것으로 친다 (E241·E306)', () => {
     const data = parseSave(JSON.stringify(SAMPLES[4]!.raw))!
-    expect(data.expedition.count).toBe(3)
+    expect(data.expedition.count).toBe(4)
     expect(data.expedition.renown).toBe(0)
     expect(data.mount).toBe(true)
     const chapters = progressOf(data)

@@ -279,16 +279,16 @@ export function parseSave(text: string | null): SaveData | null {
 }
 
 /**
- * 원정 기록 (v17 옮기기는 키가 있는지로): 원정 기록이 없던 저장(v15 이하)은 원정 번호를 짐작하고,
+ * 원정 기록 (v17 옮기기는 키가 있는지로): 원정 기록이 없던 저장(v15 이하)은 원정 번호를 짐작하고, 있는 저장도 짐작한 값을 하한으로 둔다
+ * (E306 D18: 장 흐름에 귀환이 늘었다. 새 흐름의 저장은 늘 짐작 이상이라 바뀌지 않고, 명성은 주지 않는다).
  * 성좌판의 별(끝없는 원정 키가 없을 때)과 옛 시련 보상의 피해 몫(맹세 키가 없을 때)은 명성으로 한 번 돌려준다
  */
 function oldExpedition(data: Record<string, unknown>, chapters: ChapterData, classes: SaveData['classes'], stages: SaveData['stages']): ExpeditionData {
   const has = (key: string) => Object.hasOwn(data, key)
   const expedition = parseExpedition(data.expedition)
-  if (!has('expedition')) {
-    const awakened = (realm: string) => Object.entries(classes).filter(([god, r]) => (r?.level ?? 0) >= 1 && godDef(god).realm === realm).length
-    expedition.count = estimateExpeditions(chapters, awakened, Math.max(1, ...Object.values(stages).filter((n): n is number => typeof n === 'number')))
-  }
+  const awakened = (realm: string) => Object.entries(classes).filter(([god, r]) => (r?.level ?? 0) >= 1 && godDef(god).realm === realm).length
+  const estimate = estimateExpeditions(chapters, awakened, Math.max(1, ...Object.values(stages).filter((n): n is number => typeof n === 'number')))
+  expedition.count = has('expedition') ? Math.max(expedition.count, estimate) : estimate
   let refund = 0
   if (!has('endless')) refund += legacyStarRenown(data.rift, data.cycle, data.version as number)
   if (!has('oaths')) refund += legacyTrialRenown(data.trials, CONQUESTS.filter((r) => chapters.bosses.includes(r)).length)

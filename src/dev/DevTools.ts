@@ -22,6 +22,9 @@ import type { ChapterProgress } from '../progress/Chapters'
 import type { ExpeditionProgress } from '../progress/Expedition'
 import type { Build } from '../build/Build'
 import type { SkillContext } from '../skills/Skill'
+import type { OathId } from '../data/oaths'
+import { BAG_SIZE } from '../gear/Loadout'
+import { GRADES } from '../data/gearData'
 
 /** 개발 도구가 손대는 게임의 부품 */
 export interface DevParts {
@@ -57,6 +60,9 @@ export interface DevParts {
   /** 탈것 (E241): 산양을 얻게 한다 (quiet면 카드 없이) */
   mountSystem: { give(quiet?: boolean): void }
   mount: { owned: boolean }
+  /** 맹세 (E305-01, E306): 걸고 지킨 것으로 (개발 패널·장 건너뛰기) */
+  oathSystem: { available(): readonly OathId[]; swear(id: OathId | null): void; keepNow(): void }
+  oaths: { has(id: OathId): boolean }
 }
 
 /**
@@ -197,6 +203,47 @@ export class DevTools {
     return this.parts.relics.merge(uids) !== null
   }
 
+  /** 일반 장비 하나를 녹인다 (E306 봇의 녹이기 대비책·점검, 장비 탭의 「녹이기」와 같은 길) */
+  melt(uid: string): boolean {
+    return this.parts.relics.melt(uid)
+  }
+
+  /** 맹세 (E305-01): 아직 못 지킨 것 하나를 건다 (없으면 침묵). 건 것을 돌려준다 */
+  swearOath(): OathId {
+    const { oathSystem, oaths } = this.parts
+    const id = oathSystem.available().find((o) => !oaths.has(o)) ?? 'silence'
+    oathSystem.swear(id)
+    return id
+  }
+
+  /** 건 맹세를 지킨 것으로 (개발 패널) */
+  keepOath(): void {
+    this.parts.oathSystem.keepNow()
+  }
+
+  /**
+   * 같은 부위 희귀 셋을 가방에 넣고 합쳐 영웅을 만든다 (E306 장 건너뛰기). 가방에 빈 칸이 셋 안 되면 낮은 등급부터 녹인다.
+   * 만들었으면 true
+   */
+  forgeHero(): boolean {
+    const { powers } = this.parts
+    const loadout = powers.loadout
+    const rank = (uid: string) => GRADES.indexOf(loadout.gear.get(uid)?.grade ?? 'legend')
+    const meltable = () => loadout.bag.filter((id) => loadout.gear.has(id)).sort((a, b) => rank(a) - rank(b))
+    while (BAG_SIZE - loadout.bag.length < 3) {
+      const low = meltable()[0]
+      if (!low || !this.melt(low)) return false
+    }
+    const uids: string[] = []
+    for (let i = 0; i < 3; i++) {
+      const item = rollGear(Math.random, { part: 'weapon', grade: 'rare' })
+      loadout.addGear(item)
+      loadout.bag.push(item.uid)
+      uids.push(item.uid)
+    }
+    return this.merge(uids)
+  }
+
   /** 칸의 장비를 가방에 넣는다. */
   stow(slot: number): void {
     this.parts.relics.stow(slot)
@@ -242,8 +289,8 @@ export class DevTools {
   }
 
   /**
-   * 지금 목표를 한 것으로 한다 (E22, 개발 패널·점검 스크립트). 들어설 땅이면 그리로 가고, 깨우기는 조각을 차례로,
-   * 귀환은 승천으로, 보스는 이긴 것으로, 벼리기는 재료를 채워 벼린다
+   * 지금 목표를 한 것으로 한다 (E22, 개발 패널·점검 스크립트). 들어설 땅이면 그리로 가고, 깨우기는 조각을 차례로(기세를 기다리지 않음),
+   * 귀환은 승천으로, 보스는 이긴 것으로, 벼리기는 재료를 채워 벼린다. 합치기는 영웅을 만들고, 맹세는 걸고 바로 지킨다 (E306)
    */
   skipGoal(): void {
     const { chapters, world, awakening, progress, expedition, expeditionSystem, chapterSystem, build } = this.parts
@@ -274,6 +321,13 @@ export class DevTools {
       case 'mount':
         // 고개지기를 만난 것으로 (E241)
         this.mount()
+        break
+      case 'merge':
+        for (let i = 0; i < goal.n! && chapters.goal === goal; i++) if (!this.forgeHero()) break
+        break
+      case 'oath':
+        if (!this.parts.expedition.oath) this.swearOath()
+        this.keepOath()
         break
       case 'forge': {
         const god = build.chosen

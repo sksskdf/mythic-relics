@@ -1,3 +1,4 @@
+import { COUNTED_KINDS } from '../../data/chapters'
 import { AUTOMATION, RENOWN, renownExponent } from '../../data/cycle'
 import { OATH, type OathId, OATHS } from '../../data/oaths'
 import { type AutomationData, parseAutomation } from '../../progress/Automation'
@@ -113,20 +114,22 @@ export function oldAutomation(conveniences: unknown): AutomationData {
 }
 
 /**
- * 원정 기록이 없던 저장(v15 이하)의 원정 번호를 짐작한다: 장 진행이 이미 지나온 할 일 「귀환」의 횟수 + 1.
- * 지나온 귀환 = 같은 장에서 그 뒤의 할 일(귀환 말고)을 이미 했다. 지나온 장의 귀환에 다시 막히지 않고, 지금 장의 귀환은 새 순환대로 한다.
+ * 원정 번호를 짐작한다: 장 진행이 이미 지나온 할 일 「귀환」의 횟수 + 1. 원정 기록이 없던 저장(v15 이하)은 이 값을 쓰고,
+ * 기록이 있는 저장은 이 값을 하한으로 쓴다 (E306 D18: 장 흐름에 귀환이 늘어 고개에서 귀환 2를 기다리던 v17 저장도 귀환 한 번이면 된다).
+ * 지나온 귀환 = 같은 장에서 그 뒤의 할 일(이어 세는 할 일 말고)을 이미 했다. 지나온 장의 귀환에 다시 막히지 않고, 지금 장의 귀환은 새 순환대로 한다.
  * `CYCLE.md` 9장의 「1 + 이긴 장 보스 + ⌊깨운 신 ÷ 2⌋」는 쓰지 않는다: 그리스 장 들머리 저장(거인 왕 + 신 둘 = 3)에서 델포이의 귀환 2까지 채워
  * 제우스를 깨우는 목표를 건너뛰게 한다. 명성·불씨는 주지 않는다 (신 단계가 그대로라 힘이 같다)
  */
 export function estimateExpeditions(chapters: ChapterData, awakened: (realm: string) => number, forged: number): number {
-  // 탈것(E241)은 원정 번호와 상관없다 (고개의 귀환은 그 뒤 할 일인 올림포스에 들어섰는지로 센다)
-  const progress = new ChapterProgress({ awakened, forged: () => forged, returns: () => 0, mounted: () => false })
+  // 탈것(E241)·합치기·맹세(E306)는 원정 번호와 상관없다 (귀환은 그 뒤 할 일인 땅에 들어섰는지로 센다)
+  const progress = new ChapterProgress({ awakened, forged: () => forged, returns: () => 0, mounted: () => false, merged: () => 0, oathsKept: () => 0 })
   progress.load(chapters)
   let returns = 0
-  for (const chapter of progress.chapters) {
+  // 지금 장까지만 (뒤 장의 할 일을 옛 흐름에서 먼저 했어도, 예: 유물 2단계, 그 장의 귀환은 아직 앞에 있다)
+  for (const chapter of progress.chapters.slice(0, progress.index + 1)) {
     chapter.steps.forEach((step, i) => {
       if (step.kind !== 'return') return
-      if (chapter.steps.slice(i + 1).some((s) => s.kind !== 'return' && progress.done(s))) returns = Math.max(returns, step.n ?? 0)
+      if (chapter.steps.slice(i + 1).some((s) => !COUNTED_KINDS.has(s.kind) && progress.done(s))) returns = Math.max(returns, step.n ?? 0)
     })
   }
   return 1 + returns

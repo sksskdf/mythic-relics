@@ -4,7 +4,7 @@ import type { EventBus, GameEvents } from './events'
 export interface PlayEvent {
   /** 게임 시간 (초) */
   t: number
-  type: 'relic' | 'manifest' | 'open' | 'fragment' | 'forge' | 'gear' | 'kill' | 'bossKill' | 'death' | 'promote' | 'hurt' | 'depth' | 'region' | 'oath' | 'endless' | 'chapter' | 'ending' | 'mount' | 'ride'
+  type: 'relic' | 'manifest' | 'open' | 'fragment' | 'forge' | 'gear' | 'kill' | 'bossKill' | 'death' | 'promote' | 'hurt' | 'depth' | 'region' | 'oath' | 'endless' | 'chapter' | 'ending' | 'mount' | 'ride' | 'return' | 'merge'
   detail?: string
 }
 
@@ -40,6 +40,9 @@ export class PlayLog {
     // 탈것 (E241): 얻은 때와 올라탄 때 (내린 때는 남기지 않는다)
     bus.on('mountGained', () => record('mount'))
     bus.on('rode', ({ on }) => on && record('ride'))
+    // 시각표 재기 (E306 D19): 귀환(원정 번호와 고른 갈래), 영웅·전설 합치기(등급)
+    bus.on('expeditionReturned', ({ count, branch }) => record('return', `${count}:${branch}`))
+    bus.on('gearMerged', ({ item }) => (item.grade === 'hero' || item.grade === 'legend') && record('merge', item.grade))
   }
 
   /** 지금 게임 시간으로 하나 남긴다 (0.1초 단위) */

@@ -13,9 +13,11 @@
     "lands": { "ironwood": 1.25, "serpentshore": 1.25, "jotunheim": 4.6, "muspel": 5.4, "utgard": 6.6 },
     "steps": [
       { "kind": "awaken", "region": "midgard", "realm": "norse", "n": 1, "goal": "미드가르드에서 신의 흔적을 찾는다" },
+      { "kind": "return", "region": "serpentshore", "n": 1, "goal": "성소 화로에서 첫 원정을 마친다" },
+      { "kind": "awaken", "region": "midgard", "realm": "norse", "n": 2, "goal": "두 번째 신의 흔적을 찾는다" },
+      { "kind": "return", "region": "ironwood", "n": 2, "goal": "성소 화로에서 둘째 원정을 마친다" },
       { "kind": "enter", "region": "jotunheim", "goal": "요툰헤임 빙하로" },
-      { "kind": "return", "region": "jotunheim", "n": 1, "goal": "요툰헤임 성소 화로에서 원정을 마친다" },
-      { "kind": "awaken", "region": "jotunheim", "realm": "norse", "n": 2, "goal": "두 번째 신을 깨운다" },
+      { "kind": "merge", "region": "jotunheim", "n": 1, "goal": "같은 부위 희귀 셋으로 영웅을 만든다" },
       { "kind": "enter", "region": "utgard", "goal": "우트가르드로" },
       { "kind": "boss", "region": "utgard", "goal": "거인 왕을 쓰러뜨린다" }
     ]
@@ -28,10 +30,11 @@
     "steps": [
       { "kind": "enter", "region": "pass", "goal": "우트가르드 너머 고개로" },
       { "kind": "mount", "region": "pass", "goal": "고개지기를 만난다" },
-      { "kind": "return", "region": "pass", "n": 2, "goal": "고개 성소 화로에서 원정을 마친다" },
+      { "kind": "return", "region": "pass", "n": 3, "goal": "고개 성소 화로에서 원정을 마친다" },
       { "kind": "enter", "region": "olympus", "goal": "올림포스 기슭으로" },
       { "kind": "awaken", "region": "olympus", "realm": "greek", "n": 1, "goal": "올림포스에서 신의 흔적을 찾는다" },
       { "kind": "enter", "region": "delphi", "goal": "델포이 골짜기로" },
+      { "kind": "oath", "region": "delphi", "n": 1, "goal": "맹세 하나를 지킨다" },
       { "kind": "enter", "region": "lycia", "goal": "리키아 화산으로" },
       { "kind": "boss", "region": "lycia", "goal": "키마이라를 쓰러뜨린다" }
     ]
@@ -42,6 +45,7 @@
     "tier": 3,
     "lands": { "sky": 17 },
     "steps": [
+      { "kind": "return", "region": "lycia", "n": 4, "goal": "리키아 성소 화로에서 원정을 마친다" },
       { "kind": "forge", "region": "village", "n": 2, "goal": "마을 대장간에서 유물을 한 단계 더 벼린다" },
       { "kind": "enter", "region": "sky", "goal": "갈라진 하늘로" },
       { "kind": "boss", "region": "sky", "goal": "우트가르드의 왕을 쓰러뜨린다" }
