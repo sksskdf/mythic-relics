@@ -1,10 +1,10 @@
 import './ui/theme.css'
 import './ui/parts.css'
 import { Game } from './game/Game'
-import { coarsePointer, detectTouch } from './input/device'
+import { coarsePointer, detectTouch, phoneScreen } from './input/device'
 import { type God, godDef, isRelicId, RELIC_IDS } from './relics/data'
 import { SLOT_COUNT, saveStorage, TITLE_REQUEST } from './save/SaveData'
-import { RENDER_QUALITIES } from './save/settings'
+import { RENDER_QUALITIES, settingsStorage } from './save/settings'
 import { RotateHint } from './ui/RotateHint'
 import { type SlotSummary, type TitleHandlers, TitleScreen } from './ui/TitleScreen'
 // 세로 화면(휴대폰) 덮어쓰기는 다른 스타일 뒤에 (E235)
@@ -20,6 +20,8 @@ const params = new URLSearchParams(location.search)
 // 컴퓨터에서는 ?touch 로 켜 본다
 const touch = detectTouch(location.search, coarsePointer())
 document.documentElement.classList.toggle('is-touch', touch)
+// 휴대폰은 화질을 고르지 않았으면 「낮음」으로 시작한다 (E306 D22). 설정에서 바꾼 것은 그대로 지킨다
+settingsStorage.useDevice(phoneScreen(touch, innerWidth, innerHeight))
 // 아이폰 사파리의 두 손가락 확대(창·HUD 위에서)는 touch-action으로 막히지 않아 사파리 몸짓 사건을 막는다.
 // 게임 화면의 두 손가락 확대·축소는 포인터 사건으로 따로 받는다 (E235)
 for (const type of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(type, (e) => e.preventDefault(), { passive: false })

@@ -1171,6 +1171,13 @@ try {
   await phoneFrames(2)
   const p4 = await phoneState()
   if (p4.view >= p3.view - 1) throw new Error(`휴대폰: 두 손가락을 벌려도 확대되지 않습니다 (${p3.view} → ${p4.view})`)
+  // 휴대폰은 화질을 고르지 않았으면 낮음, 그림자 끔 (E306 D22). 두 손가락 확대가 설정을 저장한 뒤에도 그대로
+  const phoneQuality = await phone.evaluate(() => {
+    const g = window.__game
+    const saved = JSON.parse(localStorage.getItem('mythic-relics/settings-v2') ?? '{}')
+    return { quality: g.viewport.settings.quality, shadows: g.stage.sun.castShadow, saved: saved.quality, chosen: saved.qualityChosen }
+  })
+  if (phoneQuality.quality !== 'low' || phoneQuality.shadows || phoneQuality.chosen) throw new Error(`휴대폰: 화질 기본값이 낮음(그림자 끔)이 아닙니다 ${JSON.stringify(phoneQuality)}`)
   await phone.setViewportSize({ width: 844, height: 390 })
   await phone.waitForFunction(() => !document.querySelector('.rotate-hint').hidden && window.__game.paused, null, { timeout: 30000 }).catch(() => {
     throw new Error('휴대폰: 가로로 들어도 돌려 달라는 안내가 뜨지 않거나 멈추지 않습니다.')
@@ -1180,7 +1187,7 @@ try {
     throw new Error('휴대폰: 다시 세로로 들어도 안내가 남아 있습니다.')
   })
   await phone.close()
-  console.log(`휴대폰 확인: 세로 화면 가로 ${p0.across.toFixed(1)}m, 끌기 → 조이스틱으로 걷기, 떼면 멈춤, 멀리 끌면 산양에 올라타고 떼면 내림, 톡 → 그곳까지·적이면 공격, 두 손가락 ${p3.view.toFixed(0)}m → ${p4.view.toFixed(0)}m, 가로로 들면 안내와 멈춤`)
+  console.log(`휴대폰 확인: 세로 화면 가로 ${p0.across.toFixed(1)}m, 끌기 → 조이스틱으로 걷기, 떼면 멈춤, 멀리 끌면 산양에 올라타고 떼면 내림, 톡 → 그곳까지·적이면 공격, 두 손가락 ${p3.view.toFixed(0)}m → ${p4.view.toFixed(0)}m(화질 기본값 낮음·그림자 끔), 가로로 들면 안내와 멈춤`)
   await browser.close()
 
   if (errors.length) {

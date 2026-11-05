@@ -70,10 +70,14 @@ export class Autoplayer {
 
   constructor(private readonly game: Game) {}
 
-  /** 게임 시간 seconds초 동안 자동으로 플레이한다. */
-  run(seconds: number): void {
+  /**
+   * 게임 시간 seconds초 동안 자동으로 플레이하고 흐른 초를 돌려준다.
+   * stopOn이 참이 되면 그 걸음에서 멈춘다 (E306 D24: 90분 스크린숏이 고르는 카드를 봇이 닫기 전에 찍을 때)
+   */
+  run(seconds: number, stopOn?: () => boolean): number {
     const step = 1 / 30
-    for (let t = 0; t < seconds; t += step) {
+    let t = 0
+    for (; t < seconds; t += step) {
       this.thinkTimer -= step
       if (this.thinkTimer <= 0) {
         this.thinkTimer = THINK
@@ -81,7 +85,9 @@ export class Autoplayer {
         if (FIGHT_STEPS.has(this.step)) this.fightClock += THINK
       }
       this.game.advance(step, step)
+      if (stopOn?.()) return t + step
     }
+    return t
   }
 
   /** 아직 못 지킨 맹세가 남았나 (점검 스크립트가 끝낼 때를 정한다) */

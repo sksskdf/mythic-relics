@@ -68,9 +68,9 @@ export const RULES = [
   {
     id: 'perf',
     files: /^src\/(world|render|fx)\/|^src\/voxel\/mesher\.ts$|^src\/game\/Stage\.ts$/,
-    run: [`${B}node scripts/bench.mjs (갱신 시간·그리기 호출·삼각형, 기준은 baselines.md)`, `${B}node scripts/shot.mjs <파일.png> ... (화면을 직접 본다)`],
-    docs: [],
-    note: '이 환경은 소프트웨어 렌더링이라 fps는 사용자에게 확인을 부탁한다.',
+    run: [`${B}node scripts/bench.mjs --matrix (데스크톱·휴대폰 × 미드가르드·올림포스 × 화질, 기준은 baselines.md)`, `${B}node scripts/shot.mjs <파일.png> ... (화면을 직접 본다)`],
+    docs: ['ART.md 6장 성능 기준'],
+    note: '이 환경은 소프트웨어 렌더링이라 fps는 사용자에게 확인을 부탁한다. 갱신 시간은 같은 세션의 main 빌드와 견준다 (bench.mjs --dist=).',
   },
   {
     id: 'ui',

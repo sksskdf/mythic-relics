@@ -53,10 +53,10 @@
 - `npm run build && node scripts/source-trial.mjs [판 수=2] [분=3]`: 토르(묠니르)를 고른 채 원천 하나를 각성 3단계로 몰고 미드가르드에서 1분당 처치·피격을 재, 원천 넷이 평균 ±25% 안인지 본다 (`test-results/source-trial.json`). 각성 수치를 바꾸면 돌려 본다. playtest와 같은 포트라 동시에 돌리지 않는다.
 - `npm run build && node scripts/myth-trial.mjs [판 수=2] [분=3] [신 id,...]`: 신화마다 자기 유물을 끼고 그 신화를 고른 채 1분당 처치 수를 재고 중앙값 ±20%를 본다 (`test-results/myth-trial.json`, 21신화에 40분쯤). 신화·유물 수치를 바꾸면 돌려 본다. `npm run playtest`와 같은 포트를 쓰니 동시에 돌리지 않는다.
 - `npm run build && node scripts/feel-qa.mjs [신 id,...] [적 id,...]`: 손맛 점검. 봇 대신 플레이어처럼 적을 눌러(공격 지시) 싸우며, 사람이 보면 어색한 것(시작하자마자 끊긴 휘두르기, 걷기·멈춤 깜박임, 헛휘두르기, 붙잡힘, 못 끝냄)을 잡는다 (`test-results/feel-qa.json`, 기본 신화 21 × 역할별 적 7, 30분쯤). 이동·공격 지시·전투를 바꾸면 돌려 본다. `--strict`면 잡힌 것이 있을 때 실패.
-- `npm run build && node scripts/power-curve.mjs [분=40] [--depth=N]`: 플레이 시간대별로 얼마나 강해지는가. 봇이 2분마다 저장을 남기고, 저장마다 같은 표준 적으로 공격·방어 지수와 그 땅 적 하나 잡는 초·버티는 대를 잰다 (`test-results/power-curve.json`, 목표 띠는 `TIMELINE.md` 4장). 성장·적 수치를 바꾸면 돌려 본다.
+- `npm run build && node scripts/power-curve.mjs [분=40] [--depth=N] [--shots]`: 플레이 시간대별로 얼마나 강해지는가. 봇이 2분마다 저장을 남기고, 저장마다 같은 표준 적으로 공격·방어 지수와 그 땅 적 하나 잡는 초·버티는 대를 잰다 (`test-results/power-curve.json`, 목표 띠는 `TIMELINE.md` 4장). 성장·적 수치를 바꾸면 돌려 본다. `--shots`면 90분 사람 눈 QA(E306): 1280×720 창으로 5초씩 감으며 2분 눈금·등급 2 이상 카드·고르는 카드(귀환·맹세·두 갈래)를 찍고, 2분 저장마다 휴대폰(390×844)으로 다시 찍어 잘린 요소를 센다. 결과는 `test-results/timeline/`(썸네일 `sheet-*.png`, 눈금·순간·자동 표시(새 장치 간격·★ 간격·「정신없다」·「단계가 없다」)는 `timeline.json`). 시각 판정에는 쓰지 않는다.
 - `npm run build && node scripts/checklist-qa.mjs [항목 id 앞부분 ...]`: 직접 플레이 체크리스트를 Claude가 사람 눈으로 확인할 때 쓰는 장면·수치 모음 (예: 신화를 하나 더 열 때 늘어나는 피해, 싸우다 땅을 눌러 빠져나가는 시간, 장비 비교 카드·대장간·귀환 카드의 깊이 고르기·한계를 깸 순간, 탈것 타고 내리기(컴퓨터·휴대폰)와 티폰 `e241`). 스크린숏은 `test-results/checklist/`, 수치는 `test-results/checklist.json`. 판정은 스크린숏을 직접 보고 하고 `PLAYTEST.md` 6.2에 남긴다.
 - `npm run build && node scripts/enemy-trial.mjs [유물 묶음 ...] [--only=적,적]`: 봇이 클래스 셋(기본: 토르·아르테미스·아마테라스)으로 적마다 따로 싸워 역할별 피격 수·처치 시간과 지역 보스 다섯을 잰다 (`test-results/enemy-trial.json`). 적 수치를 바꾸면 돌려 본다. `--only`면 그 적만(E241, 예: 그리스 수호자 넷).
-- `npm run build && node scripts/bench.mjs [적 수=40] [화질=normal|low|high]`: 적에 둘러싸인 싸움의 게임 갱신 시간·그리기 호출·삼각형 수 (`test-results/bench.json`). 모델·맵·연출을 바꾸면 재 본다. 이 환경은 소프트웨어 렌더링이라 fps는 사용자에게 확인을 부탁한다 (개발 패널 오른쪽 위에 fps).
+- `npm run build && node scripts/bench.mjs [적 수=40] [화질=normal|low|high] [--region=] [--boss=] [--size=390x844] [--ride] [--matrix] [--dist=폴더]`: 적에 둘러싸인 싸움의 게임 갱신 시간·그리기 호출·삼각형 수와 그림자 패스 몫 (`test-results/bench.json`). 이웃 땅을 다 지은 뒤 30프레임 데우고 180프레임을 세 번 재 중앙값을 쓴다(E306). `--matrix`는 데스크톱·휴대폰 × 미드가르드·올림포스(티폰) × 화질을 다 돌리고, 갱신 시간은 같은 세션의 main 빌드(`--dist=`)와 견준다. 모델·맵·연출을 바꾸면 재 본다. 이 환경은 소프트웨어 렌더링이라 fps는 사용자에게 확인을 부탁한다 (개발 패널 오른쪽 위에 fps, 「세계」 탭의 「성능 시험: 40마리」가 같은 싸움을 세운다).
 - `npm run build && node scripts/enemy-sheet.mjs [파일.png] [적 id,...]`: 모든 적을 보통·정예로 세운 모습 모음. 적 모델을 바꾸면 찍어 본다.
 - `npm run build && node scripts/class-sheet.mjs [파일.png] [신 id,...]`: 모든 클래스를 자기 유물로 발현시킨 Lv1·Lv4 모습 모음. 클래스·외형을 바꾸면 찍어 본다.
 - `npm run build && node scripts/gear-sheet.mjs [파일.png]`: 일반 장비 바탕마다 그림(16×16, 등급 넷)과 주인공이 입은 모습, 맨 위 줄은 기본 모습의 머리카락 색 다섯 (E24-06). 장비 모델·그림을 바꾸면 찍어 본다.
@@ -67,7 +67,7 @@
 - `node scripts/gen-village.mjs`: 모닥불 마을을 규칙으로 다시 짓는다(E24-07: 언덕 위 광장·족장의 터·계단·길, 개울과 다리, 건물·목책·망루, 사람 자리). 마을을 덮어쓰니 규칙을 바꿀 때만 돌린다.
 - 지도는 개발 패널 「지도」 탭에서 고친다: 편집을 켜고 땅을 누르면 고른 도구가 동작하고, 「저장」은 개발 서버(`pnpm dev`)가 `src/data/regions.json`에 쓴다 (`vite.config.ts`의 saveRegions).
 - 개발 모드: `pnpm dev --dev`(또는 `pnpm dev:tools`), 브라우저는 `?dev`. 플레이는 평소와 똑같고(저장·시작 화면·탭 차례·대화 장면), 오른쪽 아래 접힌 개발 패널(`src/dev/DevPanel.ts`)만 더 뜬다(사용자 의견 2026-10-28). 저장 없이 보려면 `?dev&relics=`. 패널에서 유물·신화·이동·적·전설·시간을 바꾼다. 새 시스템을 만들면 패널에도 시험 단추를 더한다.
-- 점검용 주소: `?relics=all` / `?relics=mjolnir,megingjord` (유물 끼고 시작, 저장 안 함), `?fresh` (저장 지우고 시작), `?region=olympus` (그 지역에서 시작, 새로 시작하면 마을), `?quality=low` (화질, 저장 안 함), `?view=` (시야 높이), `?autoplay` (봇), `?touch` (컴퓨터에서 휴대폰 조작 켜기, E235).
+- 점검용 주소: `?relics=all` / `?relics=mjolnir,megingjord` (유물 끼고 시작, 저장 안 함), `?fresh` (저장 지우고 시작), `?region=olympus` (그 지역에서 시작, 새로 시작하면 마을), `?quality=low` (화질, 저장 안 함. 휴대폰은 고르지 않았으면 낮음, E306), `?view=` (시야 높이), `?autoplay` (봇), `?touch` (컴퓨터에서 휴대폰 조작 켜기, E235).
 - 이 환경의 브라우저는 소프트웨어 렌더링이라 초당 몇 프레임밖에 안 나온다. 실제 속도의 느낌은 사용자에게 확인을 부탁한다.
 - 브라우저 실행 경로: `/opt/pw-browsers/chromium-1194/chrome-linux/chrome` (swiftshader 옵션은 스크립트에 있음).
 

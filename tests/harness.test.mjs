@@ -63,6 +63,13 @@ describe('하네스: 고친 파일 규칙', () => {
     expect(rulesFor('src/game/systems/Foo.ts', true).map((r) => r.id)).toContain('new-system')
   })
 
+  it('렌더·맵을 고치면 bench 견줄 판과 ART.md 6장 성능 기준을 알린다 (E306 D23)', () => {
+    const [perf] = rulesFor('src/game/Stage.ts')
+    expect(perf?.id).toBe('perf')
+    expect(perf?.run.join(' ')).toMatch(/bench\.mjs --matrix/)
+    expect(perf?.docs).toContain('ART.md 6장 성능 기준')
+  })
+
   it('UI CSS의 새 글자 색·흐려지는 글꼴 크기를 짚고, 이미 있던 것과 토큰은 그대로 둔다', () => {
     expect(lint('src/ui/hud.css', 'color: #ff0000;')).toHaveLength(1)
     expect(lint('src/ui/hud.css', 'color: #ff0000;', 'color: #ff0000; top: 0')).toHaveLength(0)

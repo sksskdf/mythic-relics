@@ -441,6 +441,17 @@ export class DevPanel {
         button('적 모두 제거', () => g.encounter.clearAll()),
         button('무리 초기화', () => g.encounter.resetAll()),
       ),
+      // 성능 시험 (E306 D23): scripts/bench.mjs와 같은 여덟 종류 40마리가 주인공을 둘러싼다. 휴대폰에서 패널 오른쪽 위의 fps를 읽을 때
+      row(
+        button('성능 시험: 40마리', () => {
+          const p = g.hero.object.position
+          for (let i = 0; i < 40; i++) {
+            const a = (i / 40) * Math.PI * 2
+            const r = 5 + (i % 3) * 2
+            g.encounter.spawnById(BENCH_FOES[i % BENCH_FOES.length]!, { x: p.x + Math.sin(a) * r, z: p.z + Math.cos(a) * r }, true)
+          }
+        }),
+      ),
     )
   }
 
@@ -531,6 +542,9 @@ function row(...children: HTMLElement[]): HTMLElement {
   r.append(...children)
   return r
 }
+
+/** 성능 시험의 적 여덟 종류 (몸 종류를 섞음, scripts/bench.mjs와 같다) */
+const BENCH_FOES = ['grunt', 'wolf', 'draugr', 'stoneThrower', 'harpy', 'oni', 'dokkaebiFire', 'imugi'] as const
 
 function button(label: string, run: () => void): HTMLButtonElement {
   const b = el('button', '', label)
