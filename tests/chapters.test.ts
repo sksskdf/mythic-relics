@@ -152,7 +152,7 @@ describe('땅 세기 (E22-02)', () => {
     expect(landScale(4).hp).toBe(4)
     expect(landScale(4).damage).toBeGreaterThan(1)
     expect(landScale(4).damage).toBeLessThan(4)
-    expect(TOP_POWER).toBe(17)
+    expect(TOP_POWER).toBe(20)
   })
 })
 
@@ -377,7 +377,7 @@ describe('장 진행 (E22-01)', () => {
   it('땅의 세기와 단계: 장 흐름의 땅은 장 데이터, 그 밖의 들판(엔딩 뒤)은 가장 센 땅만큼, 끝없는 원정은 1', () => {
     const chapters = new ChapterProgress(world())
     expect(chapters.power('midgard')).toBe(1)
-    expect(chapters.power('lycia')).toBe(14)
+    expect(chapters.power('lycia')).toBe(15.5)
     expect(chapters.power('sinsi')).toBe(TOP_POWER)
     expect(chapters.power('endless')).toBe(1)
     expect(chapters.power('village')).toBe(1)

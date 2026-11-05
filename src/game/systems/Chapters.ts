@@ -4,7 +4,7 @@ import { breathSlots } from '../../myth/pantheon'
 import { REGIONS } from '../../data/regions'
 import { sceneId } from '../../data/scenes'
 import { missing, nextRecipe } from '../../gear/forge'
-import { WAKE, WAKE_GODS, wakeDef, mayWake, traceStateOf } from '../../data/wake'
+import { WAKE, WAKE_GODS, wakeDef, mayWake, traceLevel, traceStateOf } from '../../data/wake'
 import type { God } from '../../relics/data'
 import { godDef } from '../../relics/data'
 import { josa } from '../../ui/josa'
@@ -160,7 +160,7 @@ export class ChapterSystem {
   }
 
   /**
-   * 그 신화권 열린 땅의 흔적이 기세만 모자라 잠잠하면 그 문턱 (가장 낮은 것, E306 D11).
+   * 그 신화권 열린 땅의 흔적이 기세만 모자라 잠잠하면 그 문턱 (깨운 차례의 것, E306 D11).
    * 이미 응답하는 흔적이 있거나 기세가 아닌 까닭(귀환·장 정복·엔딩 뒤)으로 잠잠하면 null
    */
   private levelGate(realm: string): number | null {
@@ -169,8 +169,8 @@ export class ChapterSystem {
     const state = (god: God, level: number) =>
       traceStateOf(god, { open: progress.isOpen(god), waking: null, awakened: progress.opened.length, returns: expedition.returns, conquered: chapters.conquered, ending: ending.has('realms'), level })
     if (gods.some((g) => state(g, training.insights) === 'open')) return null
-    const gates = gods.filter((g) => state(g, training.insights) === 'sealed' && state(g, Infinity) === 'open').map((g) => WAKE[g]!.level!)
-    return gates.length > 0 ? Math.min(...gates) : null
+    // 문턱은 깨운 차례마다 하나 (`TRACE_LEVELS`)
+    return gods.some((g) => state(g, training.insights) === 'sealed' && state(g, Infinity) === 'open') ? traceLevel(progress.opened.length) : null
   }
 
   /** 목표가 신 깨우기인데 깨우는 신이 없고 흔적이 잠잠한가 (귀환해야 다음 신이 응답한다). HUD 한 줄과 작은 지도의 목표 자리가 읽는다 */

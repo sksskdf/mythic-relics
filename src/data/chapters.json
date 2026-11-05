@@ -10,7 +10,7 @@
     "title": "제1장",
     "name": "서리 거인의 땅",
     "tier": 1,
-    "lands": { "ironwood": 1.25, "serpentshore": 1.25, "jotunheim": 4.6, "muspel": 5.4, "utgard": 6.6 },
+    "lands": { "ironwood": 1.25, "serpentshore": 1.25, "jotunheim": 5.8, "muspel": 6.8, "utgard": 8.2 },
     "steps": [
       { "kind": "awaken", "region": "midgard", "realm": "norse", "n": 1, "goal": "미드가르드에서 신의 흔적을 찾는다" },
       { "kind": "return", "region": "serpentshore", "n": 1, "goal": "성소 화로에서 첫 원정을 마친다" },
@@ -26,7 +26,7 @@
     "title": "제2장",
     "name": "신들의 산",
     "tier": 2,
-    "lands": { "pass": 7, "olympus": 7.5, "delphi": 8.8, "lycia": 14 },
+    "lands": { "pass": 8.5, "olympus": 9, "delphi": 10, "lycia": 15.5 },
     "steps": [
       { "kind": "enter", "region": "pass", "goal": "우트가르드 너머 고개로" },
       { "kind": "mount", "region": "pass", "goal": "고개지기를 만난다" },
@@ -43,7 +43,7 @@
     "title": "종장",
     "name": "갈라진 하늘",
     "tier": 3,
-    "lands": { "sky": 17 },
+    "lands": { "sky": 20 },
     "steps": [
       { "kind": "return", "region": "lycia", "n": 4, "goal": "리키아 성소 화로에서 원정을 마친다" },
       { "kind": "forge", "region": "village", "n": 2, "goal": "마을 대장간에서 유물을 한 단계 더 벼린다" },

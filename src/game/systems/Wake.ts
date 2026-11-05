@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 
-import { WAKE, WAKE_GODS, wakeDef, GUARDIAN_LEASH, GUARDIAN_MEND, GUARDIAN_RADIUS, LATER_TEXT, levelSealed, levelText, TRACE_LEASH, TRACE_RADIUS, traceStateOf, type TraceState } from '../../data/wake'
+import { WAKE, WAKE_GODS, wakeDef, GUARDIAN_LEASH, GUARDIAN_MEND, GUARDIAN_RADIUS, LATER_TEXT, levelSealed, levelText, TRACE_LEASH, TRACE_RADIUS, traceLevel, traceStateOf, type TraceState } from '../../data/wake'
 import { CONQUESTS } from '../../data/chapters'
 import { REGIONS } from '../../data/regions'
 import { sceneId } from '../../data/scenes'
@@ -106,18 +106,17 @@ export class WakeSystem {
     })
   }
 
-  /** 흔적이 기세가 모자라 잠잠한가 (E306 D11: 목표 한 줄의 기세 막대) */
+  /** 다음 흔적이 기세만 모자라 잠잠한가 (E306 D11: 귀환·장 정복은 넉넉하고 깨운 차례의 기세 문턱 아래) */
   levelSealed(god: God): boolean {
-    return levelSealed(god, this.ctx.training.insights, this.ctx.ending.has('realms'))
+    return levelSealed(this.ctx.progress.opened.length, this.ctx.training.insights, this.ctx.ending.has('realms')) && this.traceState(god, true) === 'open'
   }
 
   /**
-   * 흔적이 잠잠할 때 그 신이 응답하는 때: 기세가 모자라면 「기세 3에 응답한다」(E306), 아니면 (E305-03)
+   * 흔적이 잠잠할 때 그 신이 응답하는 때: 기세만 모자라면 「기세 8에 응답한다」(E306, 깨운 차례의 문턱), 아니면 (E305-03)
    * 「성소 화로에서 원정을 마치거나 거인 왕을 이기면 응답한다」
    */
   sealedText(god?: God): string {
-    const need = god ? WAKE[god]?.level : undefined
-    if (god && need !== undefined && this.levelSealed(god)) return levelText(need)
+    if (god && this.levelSealed(god)) return levelText(traceLevel(this.ctx.progress.opened.length))
     const region = CONQUESTS.find((r) => !this.ctx.chapters.bosses.has(r))
     const boss = region ? ENEMIES[REGIONS[region]?.boss?.enemy ?? 'king']?.name : undefined
     return boss ? `성소 화로에서 원정을 마치거나 ${josa(boss, '을')} 이기면 응답한다` : '성소 화로에서 원정을 마치면 응답한다'

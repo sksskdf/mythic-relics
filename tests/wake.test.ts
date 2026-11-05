@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { computeBuild } from '../src/build/BuildState'
 import { hsv } from '../src/art/palette'
-import { WAKE, WAKE_GODS, GUARDIAN_LEASH, HUNT_KILLS, huntKills, levelSealed, mayWake, TRACE_MODELS, traceStateOf, type TraceNow } from '../src/data/wake'
+import { WAKE, WAKE_GODS, GUARDIAN_LEASH, HUNT_KILLS, huntKills, levelSealed, mayWake, TRACE_LEVELS, TRACE_MODELS, traceLevel, traceStateOf, type TraceNow } from '../src/data/wake'
 import { REGIONS } from '../src/data/regions'
 import { SCENES, sceneId } from '../src/data/scenes'
 import { ENEMIES } from '../src/enemies/Giant'
@@ -161,27 +161,35 @@ describe('깨우는 진행 (E238)', () => {
     expect(traceStateOf('zeus', { ...now, waking: 'zeus' })).toBe('waking')
   })
 
-  it('토르·오딘의 흔적은 기세 3부터 응답한다 (E306 D11): 그 아래면 잠잠하고, 엔딩 뒤에는 기세를 보지 않는다. 제우스는 문턱이 없다', () => {
+  it('흔적은 깨운 차례의 기세에 응답한다 (E306 D11·E306-02): 첫 신 3, 둘째 8, 제우스 12, 그 뒤로는 문턱 없음. 그 아래면 잠잠하고, 엔딩 뒤에는 기세를 보지 않는다', () => {
+    expect([0, 1, 2, 3, 9].map(traceLevel)).toEqual([...TRACE_LEVELS, 0, 0].slice(0, 5))
+    expect(TRACE_LEVELS.slice(0, 3)).toEqual([3, 8, 12])
     const now: TraceNow = { open: false, waking: null, awakened: 0, returns: 0, conquered: 0, ending: false, level: 2 }
     for (const god of ['thor', 'odin'] as const) {
-      expect(WAKE[god]!.level, god).toBe(3)
       expect(traceStateOf(god, now), god).toBe('sealed')
-      expect(levelSealed(god, 2)).toBe(true)
+      expect(levelSealed(0, 2)).toBe(true)
       expect(traceStateOf(god, { ...now, level: 3 }), god).toBe('open')
       expect(traceStateOf(god, { ...now, ending: true }), god).toBe('open')
     }
-    expect(WAKE.zeus!.level).toBeUndefined()
-    expect(levelSealed('zeus', 0)).toBe(false)
+    // 둘째 신: 첫 귀환 뒤에도 기세 8 전에는 잠잠하다
+    const second: TraceNow = { ...now, awakened: 1, returns: 1, level: 7 }
+    expect(traceStateOf('odin', second)).toBe('sealed')
+    expect(traceStateOf('odin', { ...second, level: 8 })).toBe('open')
+    // 제우스 (셋째): 거인 왕을 이겨도 기세 12 전에는 잠잠하다
+    const third: TraceNow = { ...now, awakened: 2, returns: 3, conquered: 1, level: 11 }
+    expect(traceStateOf('zeus', third)).toBe('sealed')
+    expect(traceStateOf('zeus', { ...third, level: 12 })).toBe('open')
+    expect(levelSealed(3, 0)).toBe(false)
   })
 
-  it('사냥 수는 깨운 차례마다 (E306 D12): 첫 신 30, 둘째 40, 셋째 45, 그 뒤로는 마지막 값', () => {
-    expect([0, 1, 2, 3, 9].map(huntKills)).toEqual([30, 40, 45, 45, 45])
+  it('사냥 수는 깨운 차례마다 (E306 D12·E306-02): 첫 신 30, 둘째 70, 셋째 45, 그 뒤로는 마지막 값', () => {
+    expect([0, 1, 2, 3, 9].map(huntKills)).toEqual([30, 70, 45, 45, 45])
     let order = 0
     const a = new WakeProgress(() => order)
     a.trace('odin')
     order = 1
-    for (let i = 1; i < 40; i++) expect(a.addKill()).toBe(false)
-    expect(a.need).toBe(40)
+    for (let i = 1; i < 70; i++) expect(a.addKill()).toBe(false)
+    expect(a.need).toBe(70)
     expect(a.addKill()).toBe(true)
   })
 
