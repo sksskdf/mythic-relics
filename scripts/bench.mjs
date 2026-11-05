@@ -156,6 +156,8 @@ async function bench(browser, c) {
     drawCalls: median(runs.map((r) => r.drawCalls)),
     triangles: median(runs.map((r) => r.triangles)),
     renderMsSoftware: median(runs.map((r) => r.renderMsSoftware)),
+    /** 올라탄 판 수 (탄 채로) */
+    riding: runs.filter((r) => r.riding).length,
     runs: runs.length,
     errors,
   }
@@ -164,7 +166,7 @@ async function bench(browser, c) {
   console.log(
     `${label(c)}: 적 ${result.enemies}마리, 렌더 ${result.renderSize}(×${result.scale}) | 갱신 중앙값 ${ms(result.updateMs.median)}·95% ${ms(result.updateMs.p95)}·최대 ${ms(result.updateMs.max)} | ` +
       `그리기 호출 ${result.drawCalls}, 삼각형 ${result.triangles}, 메시 ${result.meshes}, 그림자 ${result.shadows ? `켬(상자 ${result.shadowBox}m, 몫 ${sp?.calls ?? 0}호출·${sp?.triangles ?? 0}삼각형)` : '끔'}` +
-      (c.ride ? `, 탐 ${result.riding}` : '') +
+      (c.ride ? `, 올라탐 ${result.riding}/${result.runs}` : '') +
       (errors.length ? ` | 오류 ${errors.length}` : ''),
   )
   return result
