@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { detectTouch, wantsPortrait } from '../src/input/device'
+import { detectTouch, phoneScreen, wantsPortrait } from '../src/input/device'
 
 describe('휴대폰 알아보기 (E235)', () => {
   it('주 포인터가 손가락이거나 주소에 ?touch가 있으면 터치 기기', () => {
@@ -17,6 +17,14 @@ describe('휴대폰 알아보기 (E235)', () => {
     // 태블릿 가로(짧은 변 600 이상)는 막지 않는다
     expect(wantsPortrait(true, 1180, 820)).toBe(false)
     expect(wantsPortrait(true, 1024, 768)).toBe(false)
+  })
+
+  it('휴대폰은 터치이고 짧은 변이 600보다 작은 화면 (E306 D22: 화질 기본값)', () => {
+    expect(phoneScreen(true, 390, 844)).toBe(true)
+    expect(phoneScreen(true, 844, 390)).toBe(true)
+    expect(phoneScreen(false, 390, 844)).toBe(false)
+    expect(phoneScreen(true, 1180, 820)).toBe(false)
+    expect(phoneScreen(false, 1280, 720)).toBe(false)
   })
 })
 

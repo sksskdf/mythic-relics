@@ -591,13 +591,14 @@ try {
   await lookShot('5-return')
   const returned = await page.evaluate(() => {
     const g = window.__game
-    const before = { level: g.progress.level('thor'), gear: g.powers.loadout.gear.size, depth: g.depth.level }
+    const before = { level: g.progress.level('thor'), gear: g.powers.loadout.gear.size, depth: g.depth.level, count: g.expedition.count }
     document.querySelector('.return-card .pick-card__card').click()
     return { before, after: { level: g.progress.level('thor'), gear: g.powers.loadout.gear.size, heirloom: g.expedition.heirloom.length, count: g.expedition.count, renown: g.expedition.renown, open: g.returnCardOpen, depth: g.depth.level, reached: g.depth.reached, foeHp: g.encounter.threat.hp, lastBranch: g.expedition.lastBranch } }
   })
   if (returned.before.depth !== 1 || returned.after.depth !== 2 || returned.after.reached !== 2 || !(returned.after.foeHp > 1)) throw new Error(`귀환: 「+1」을 골랐는데 다음 원정이 깊이 2가 아닙니다 ${JSON.stringify(returned)}`)
   if (returned.after.lastBranch !== 'ascend:thor') throw new Error(`귀환: 고른 갈래가 지난번 갈래로 남지 않았습니다 ${JSON.stringify(returned)}`)
-  if (returned.after.count !== 2 || !(returned.after.renown > 0) || returned.after.open) throw new Error(`귀환: 갈래를 눌렀는데 원정이 넘어가지 않았습니다 ${JSON.stringify(returned)}`)
+  // 원정 번호는 하나 오른다 (불러온 저장은 장 진행이 지나온 귀환만큼은 친다, E306 D18)
+  if (returned.after.count !== returned.before.count + 1 || !(returned.after.renown > 0) || returned.after.open) throw new Error(`귀환: 갈래를 눌렀는데 원정이 넘어가지 않았습니다 ${JSON.stringify(returned)}`)
   if (returned.after.level !== returned.before.level + 1 || returned.after.gear !== returned.after.heirloom || returned.after.heirloom > 1) throw new Error(`귀환: 승천·장비 지우기가 맞지 않습니다 ${JSON.stringify(returned)}`)
   console.log(`귀환 확인: 성소 화로에서 빛기둥과 카드, 토르 승천 ${returned.before.level} → ${returned.after.level}, 명성 ${returned.after.renown}, 장비 ${returned.before.gear} → 가보 ${returned.after.heirloom}, 「+1」로 깊이 1 → ${returned.after.depth}(적 생명 ×${returned.after.foeHp.toFixed(1)})`)
 
@@ -736,7 +737,14 @@ try {
   await page.waitForFunction(() => window.__game.oathCardOpen, null, { timeout: 15000 })
   const oathCards = await page.locator('.oath-card .pick-card__card').count()
   if (oathCards < 3) throw new Error(`맹세: 출발 카드의 맹세가 셋보다 적습니다 (${oathCards})`)
+  // 고르는 카드가 떠 있는 동안 얻은 것 카드는 숨고 줄에서 기다린다 (E306: 「원정 N 출발」 큰 카드가 맹세 카드에 반쯤 가려지던 것)
+  if ((await page.evaluate(() => getComputedStyle(document.querySelector('.hud__gains')).visibility)) !== 'hidden') throw new Error('맹세: 출발 카드가 떠 있는데 얻은 것 카드가 그 위에 보입니다.')
   await page.locator('.oath-card .pick-card__card').filter({ hasText: '침묵의 맹세' }).click()
+  await page
+    .waitForFunction(() => window.__game.hud.gainsShowing === 'big' && document.querySelector('.hud__gains-kind')?.textContent === '귀환' && getComputedStyle(document.querySelector('.hud__gains')).visibility === 'visible', null, { timeout: 20000 })
+    .catch(() => {
+      throw new Error('맹세: 출발 카드를 고른 뒤에 기다리던 「원정 N 출발」 카드가 뜨지 않습니다.')
+    })
   const sworn = await page.evaluate(() => ({ oath: window.__game.expedition.oath, noUltimate: window.__game.ctx.build.state.noUltimate }))
   if (sworn.oath !== 'silence' || !sworn.noUltimate) throw new Error(`맹세: 침묵의 맹세가 걸리지 않습니다 ${JSON.stringify(sworn)}`)
   const oathKept = await page.evaluate(() => {
@@ -751,7 +759,7 @@ try {
   })
   if (!oathKept.spawned || oathKept.oath !== null || !oathKept.kept || oathKept.noUltimate || !(oathKept.charge >= 0.3)) throw new Error(`맹세: 수호자를 이겨도 지키지 못했습니다 ${JSON.stringify(oathKept)}`)
   if (!(oathKept.scale > 1) || oathKept.wired !== oathKept.scale) throw new Error(`맹세: 맹세 기록의 명성 배율이 원정 명성에 걸리지 않습니다 ${JSON.stringify(oathKept)}`)
-  console.log(`맹세 확인: 귀환 2에 출발 카드 ${oathCards}장, 침묵의 맹세를 걸면 궁극기가 막히고, 수호자를 이기면 지켜 심장 충전 +${Math.round(oathKept.charge * 100)}%, 명성 ×${oathKept.wired.toFixed(3)}`)
+  console.log(`맹세 확인: 귀환 2에 출발 카드 ${oathCards}장(떠 있는 동안 얻은 것 카드는 기다림), 침묵의 맹세를 걸면 궁극기가 막히고, 수호자를 이기면 지켜 심장 충전 +${Math.round(oathKept.charge * 100)}%, 명성 ×${oathKept.wired.toFixed(3)}`)
 
   // 한계를 깸 (E305-03, D8): 깊이 10 원정에서 수호자(장 보스)를 이기고 귀환하면 깊이의 끝이 사라지고 끝없는 원정이 열린다
   const broke = await page.evaluate(() => {
@@ -930,7 +938,7 @@ try {
     }
     // 그리스 셋의 흔적은 데모에서 응답하지 않는다 (E241): 엔딩 전에는 later, 엔딩 뒤에는 open
     const later = { before: g.awakening.traceState('poseidon') }
-    for (let i = 0; i < 30 && g.chapters.goal; i++) {
+    for (let i = 0; i < 40 && g.chapters.goal; i++) {
       if (!early && g.chapters.chapter?.id === 'north' && g.chapters.goal?.kind === 'awaken') early = { jotunheim: g.chapters.isOpen('jotunheim'), utgard: g.chapters.isOpen('utgard'), ironwood: g.chapters.isOpen('ironwood'), serpentshore: g.chapters.isOpen('serpentshore') }
       if (!woke && g.chapters.goal?.kind === 'awaken' && g.region.id === 'midgard') {
         // 결계 (E22·E239): 첫 신을 깨우기 전에는 요툰헤임으로 가는 통로를 걸어서 넘지 못한다
@@ -943,9 +951,12 @@ try {
         const past = g.hero.object.position
         const sealed = { region: g.region.id, out: Math.max(Math.abs(past.x), Math.abs(past.z)), half: g.region.halfExtent }
         if (g.region.id !== 'midgard') g.enterRegion(g.regions.midgard)
+        // 미드가르드의 흔적은 기세 3부터 응답한다 (E306 D11): 그 아래면 흔적이 잠잠하고 목표 한 줄은 기세 막대
+        const low = { quiet: g.awakening.target('midgard') === null, line: g.chapterSystem.goalView()?.text ?? '' }
+        g.dev.insight(Math.max(0, 3 - g.training.insights))
         const target = g.awakening.target('midgard')
         const spot = g.awakening.placed(target)
-        woke = { god: target.god, sealed }
+        woke = { god: target.god, sealed, low }
         g.hero.teleport(spot.x + 1.5, spot.z + 1)
         g.advance(0.5, 1 / 30)
         woke.pack = g.encounter.alive.filter((e) => Math.hypot(e.x - spot.x, e.z - spot.z) < 8).length
@@ -1031,10 +1042,11 @@ try {
   if (!ending.early.ironwood || !ending.early.serpentshore) throw new Error(`땅 차례: 첫 신의 수호자 땅(철의 숲·바닷가)이 제1장에 열려 있지 않습니다 ${JSON.stringify(ending.early)}`)
   const w = ending.woke
   if (!w || w.sealed.region !== 'midgard' || w.sealed.out > w.sealed.half + 0.6) throw new Error(`장 흐름: 결계가 요툰헤임으로 가는 길을 막지 않습니다 ${JSON.stringify(w?.sealed)}`)
+  if (!w.low.quiet || !w.low.line.startsWith('기세를 모은다')) throw new Error(`신의 흔적: 기세 3 전에 흔적이 응답하거나 목표 한 줄이 기세 막대가 아닙니다 ${JSON.stringify(w.low)}`)
   if (w.fled !== 0 || w.fledGuardian || !(w.wound < 0.7)) throw new Error(`신의 조각 셋: 워프로 떠났는데 조각을 주거나 수호자의 상처를 잊습니다 ${JSON.stringify(w)}`)
   if (!w || w.pack < 4 || w.piece1 !== 1 || !w.lent.includes(w.god) || w.piece2 !== 2 || !w.relic || !w.guardian || !w.opened.includes(w.god))
     throw new Error(`신의 조각 셋: 흔적 → 사냥 → 수호자로 신이 깨어나지 않습니다 ${JSON.stringify(w)}`)
-  console.log(`신의 조각 확인: 흔적에 다가가면 무리 ${w.pack} → 조각 1(빌린 힘 ${w.god}) → ${w.land}에서 사냥 → 조각 2(유물) → 수호자 「${w.guardian}」 → ${w.god} 깨어남 (싸우다 워프하면 조각 없음, 수호자 상처 ${Math.round(w.wound * 100)}%로 기억, 요툰헤임 결계에서 걸음이 막힘)`)
+  console.log(`신의 조각 확인: 기세 3 전에는 흔적이 잠잠(「${w.low.line}」), 흔적에 다가가면 무리 ${w.pack} → 조각 1(빌린 힘 ${w.god}) → ${w.land}에서 사냥 → 조각 2(유물) → 수호자 「${w.guardian}」 → ${w.god} 깨어남 (싸우다 워프하면 조각 없음, 수호자 상처 ${Math.round(w.wound * 100)}%로 기억, 요툰헤임 결계에서 걸음이 막힘)`)
   console.log(`엔딩 확인: ${ending.chapters.join(' → ')} → 갈라진 하늘의 왕을 이기면 엔딩(그리스는 제우스 하나를 깨우고 셋은 엔딩 뒤에 응답), 결계가 모두 풀리고 목표 한 줄이 사라짐 (첫 신을 깨우기 전에는 요툰헤임·우트가르드가 막히고 철의 숲·바닷가는 열림)`)
 
   // 휴대폰 (E235): 세로로 든 터치 기기에서 끌기 = 떠다니는 조이스틱으로 걷기, 떼면 멈춤, 톡 = 그곳까지, 두 손가락 = 확대,
@@ -1078,6 +1090,8 @@ try {
   await phone.evaluate(() => {
     const g = window.__game
     g.encounter.clearAll()
+    // 앞에서 톡으로 싸운 것이 풀리게 (맞은 지·싸운 지 3초, `MOUNT.calmSeconds`): 화면이 느리면 3초 안에 끌기 시작해 올라타지 못했다
+    g.advance(3.5, 1 / 30)
     g.dev.mount()
   })
   const mounted = () => phone.evaluate(() => ({ riding: window.__game.hero.riding, moving: window.__game.hero.isMoving, far: document.querySelector('.stick').classList.contains('is-far'), stick: !document.querySelector('.stick').hidden }))
@@ -1166,6 +1180,13 @@ try {
   await phoneFrames(2)
   const p4 = await phoneState()
   if (p4.view >= p3.view - 1) throw new Error(`휴대폰: 두 손가락을 벌려도 확대되지 않습니다 (${p3.view} → ${p4.view})`)
+  // 휴대폰은 화질을 고르지 않았으면 낮음, 그림자 끔 (E306 D22). 두 손가락 확대가 설정을 저장한 뒤에도 그대로
+  const phoneQuality = await phone.evaluate(() => {
+    const g = window.__game
+    const saved = JSON.parse(localStorage.getItem('mythic-relics/settings-v2') ?? '{}')
+    return { quality: g.viewport.settings.quality, shadows: g.stage.sun.castShadow, saved: saved.quality, chosen: saved.qualityChosen }
+  })
+  if (phoneQuality.quality !== 'low' || phoneQuality.shadows || phoneQuality.chosen) throw new Error(`휴대폰: 화질 기본값이 낮음(그림자 끔)이 아닙니다 ${JSON.stringify(phoneQuality)}`)
   await phone.setViewportSize({ width: 844, height: 390 })
   await phone.waitForFunction(() => !document.querySelector('.rotate-hint').hidden && window.__game.paused, null, { timeout: 30000 }).catch(() => {
     throw new Error('휴대폰: 가로로 들어도 돌려 달라는 안내가 뜨지 않거나 멈추지 않습니다.')
@@ -1175,7 +1196,7 @@ try {
     throw new Error('휴대폰: 다시 세로로 들어도 안내가 남아 있습니다.')
   })
   await phone.close()
-  console.log(`휴대폰 확인: 세로 화면 가로 ${p0.across.toFixed(1)}m, 끌기 → 조이스틱으로 걷기, 떼면 멈춤, 멀리 끌면 산양에 올라타고 떼면 내림, 톡 → 그곳까지·적이면 공격, 두 손가락 ${p3.view.toFixed(0)}m → ${p4.view.toFixed(0)}m, 가로로 들면 안내와 멈춤`)
+  console.log(`휴대폰 확인: 세로 화면 가로 ${p0.across.toFixed(1)}m, 끌기 → 조이스틱으로 걷기, 떼면 멈춤, 멀리 끌면 산양에 올라타고 떼면 내림, 톡 → 그곳까지·적이면 공격, 두 손가락 ${p3.view.toFixed(0)}m → ${p4.view.toFixed(0)}m(화질 기본값 낮음·그림자 끔), 가로로 들면 안내와 멈춤`)
   await browser.close()
 
   if (errors.length) {

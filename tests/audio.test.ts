@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { THEME_IDS, themeForRealm } from '../src/audio/music'
 import { distanceGain, HEARING, MAX_SAME, MAX_VOICES, VoiceLimiter } from '../src/audio/limits'
 import { SOUND_CUES, SOUNDS } from '../src/audio/sounds'
-import { DEFAULT_SETTINGS, parseSettings } from '../src/save/settings'
+import { DEFAULT_SETTINGS, deviceDefaults, parseSettings } from '../src/save/settings'
 
 describe('동시 재생 제한', () => {
   it('같은 소리는 한꺼번에 MAX_SAME개까지만 난다', () => {
@@ -53,13 +53,32 @@ describe('설정', () => {
   })
 
   it('저장한 값을 그대로 되읽고, 틀린 값은 고친다', () => {
-    const s = { viewHeight: 20, volume: { master: 0.5, music: 0, sfx: 1 }, shake: false, flash: false, quality: 'low' as const }
+    const s = { viewHeight: 20, volume: { master: 0.5, music: 0, sfx: 1 }, shake: false, flash: false, quality: 'low' as const, qualityChosen: true }
     expect(parseSettings(JSON.parse(JSON.stringify(s)))).toEqual(s)
     const odd = parseSettings({ viewHeight: 999, volume: { master: 3, music: -1, sfx: 'x' }, shake: 'no', quality: 'ultra' })
     expect(odd.viewHeight).toBe(34)
     expect(odd.volume).toEqual({ master: 1, music: 0, sfx: DEFAULT_SETTINGS.volume.sfx })
     expect(odd.shake).toBe(true)
     expect(odd.quality).toBe('normal')
+    expect(odd.qualityChosen).toBe(false)
+  })
+
+  it('휴대폰은 화질을 고르지 않았으면 낮음, 고른 것은 그대로 (E306 D22)', () => {
+    const phone = deviceDefaults(true)
+    expect(phone.quality).toBe('low')
+    expect(deviceDefaults(false)).toEqual(DEFAULT_SETTINGS)
+    expect(parseSettings({}, phone)).toMatchObject({ quality: 'low', qualityChosen: false })
+    // 메뉴에서 고른 것은 기기 기본값을 이긴다
+    expect(parseSettings({ quality: 'normal', qualityChosen: true }, phone)).toMatchObject({ quality: 'normal', qualityChosen: true })
+    expect(parseSettings({ quality: 'high', qualityChosen: true }, phone).quality).toBe('high')
+    // 고른 표시가 없는 옛 v2: low·high는 메뉴로만 생기니 고른 것, normal은 확대·축소가 함께 저장한 값이라 기기 기본값
+    expect(parseSettings({ quality: 'high' }, phone)).toMatchObject({ quality: 'high', qualityChosen: true })
+    expect(parseSettings({ quality: 'low' }, DEFAULT_SETTINGS)).toMatchObject({ quality: 'low', qualityChosen: true })
+    expect(parseSettings({ viewHeight: 15, quality: 'normal' }, phone)).toMatchObject({ viewHeight: 15, quality: 'low', qualityChosen: false })
+    // 고르지 않은 채 저장된 값은 다시 읽어도 기기 기본값을 따른다 (확대·축소가 저장해도 기본값이 되살아나지 않는다)
+    const saved = JSON.parse(JSON.stringify(parseSettings({ viewHeight: 15 }, phone)))
+    expect(parseSettings(saved, phone).quality).toBe('low')
+    expect(parseSettings(saved, DEFAULT_SETTINGS).quality).toBe('normal')
   })
 })
 

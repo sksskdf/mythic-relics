@@ -46,6 +46,46 @@
 
 E12~E14에서 새 규칙을 넣을 때는 `BuildInputs`에 재료를 더하고 `computeBuild`에서 계산을 늘린다. 시스템이 장비·신화를 직접 읽어 따로 계산하지 않는다.
 
+## 원정 순환 (E301~E305·E306)
+
+설계는 `DESIGN.md` 3~5장(층·신의 자리·합치기·귀환·맹세·장 정복), 시각표는 `TIMELINE.md` 4장, 지난 재편안의 모듈 계획은 `docs/knowledge/past/CYCLE.md` 8장. 실제로 만든 모듈:
+
+| 곳 | 하는 일 | 성격 |
+| --- | --- | --- |
+| `src/build/layers.ts` | 빌드 층 목록 `[{id, kind: mul·add, value}]`: 승천·유물표·장비·맹세·수련·손의 신·명성·장 정복·불꽃 불씨. `layerProduct` = 곱 층의 곱 × (1 + 덧셈 층의 합). 상태 탭 「무엇으로 얼마나 강해졌나」가 같은 목록을 읽는다 | 순수 |
+| `src/build/BuildState.ts` | `computeBuild`가 층 목록을 곱해 `Build`를 낸다. 판 번호 `version`은 빌드가 바뀔 때만 오른다 | 순수 |
+| `src/myth/pantheon.ts` | 자리 셋 `Pantheon {hand, heart, breath[]}`, 숨 칸 수(`breathSlots`·`breathCount`), 몰기(`focusGod`·`partLevel`), 빈 칸 채우기(`autoFill`), 맹세를 건 동안의 자리(`oathPantheon`) | 순수 |
+| `src/progress/Expedition.ts` | 원정 번호·명성·원천 불씨·기록·가보·출발점·새 불길 | 순수 + 저장 |
+| `src/progress/Automation.ts` | `automationAt(returns, ending, pickups)`: 귀환 횟수 → 다시 찍기·가보 칸·출발점·자동 합치기·자동 줍기 | 순수 |
+| `src/progress/Oaths.ts`·`src/data/oaths.ts` | 맹세 제약·지킴·기록·보상 | 순수 |
+| `src/gear/merge.ts` | 셋 → 하나(`mergeGear`), 합칠 묶음(`mergeGroups`), 등급마다 원형 값 | 순수 |
+| `src/skills/uniques.ts` | 고유 효과 열둘과 수련 큰 마디 셋의 상태·규칙. 세계에 손대는 일(피해·회복·연출)은 `systems/Uniques.ts` | 순수 + 버스 |
+| `src/data/cycle.ts` | 명성 식·갈래·새 불길·귀환 문턱 표(`RETURN_MIN_LEVEL`, 읽는 함수 `returnMinLevel`)·귀환 신호(`RETURN_SIGNAL`)·자동화 문턱·장 정복 | 데이터 |
+| `src/game/systems/Expedition.ts` | 원정이 무르익었나(귀환 문턱 판정 `minLevel`·`ripe`, 값은 `data/cycle.ts`의 `returnMinLevel`), 성소 화로 → 귀환 카드(화로를 떠나면 닫힘), 갈래·가보·녹임·출발, 자동 합치기, 다시 찍기 | 시스템 |
+| `src/game/systems/Oaths.ts`·`src/ui/OathCard.ts` | 출발 카드(띄운 자리에서 걸어 나가면 맹세 없이 떠남), 지킴·깨짐 | 시스템·UI |
+| `src/game/systems/Automation.ts` | 귀환할 때 새로 켜진 자동화를 카드로 | 시스템 |
+| `src/ui/ReturnCard.ts`·`src/ui/SwapCard.ts` | 귀환 카드(고르는 카드 틀 `pickCard.css`), 두 갈래 카드 | UI |
+| `src/ui/menu/godsTab.ts` | 자리 셋·유물표·외형(옛 신화·외형 탭을 합침) | UI |
+
+- 계획에 있던 `systems/Pantheon.ts`·`systems/Merge.ts`는 만들지 않았다. 부품 얻기와 빈 칸 채우기는 `systems/Relics.ts`(`autoFill`)와 `systems/Wake.ts`, 두 갈래 카드는 `SwapCard`, 합치기는 장비 탭(`menu/relicsTab.ts`)과 `systems/Expedition.ts`의 자동 합치기가 맡는다. 마이그레이션도 버전마다 파일을 두지 않고 `migrate/legacy.ts`(v16 모양까지)와 `migrate/v17.ts` 둘이다.
+- **버스 사건 (원정 순환에서 더하거나 바꾼 것):** `expeditionReturned {count, renown, mult, branch, deepWin}`(귀환, 자동화·깊이가 받음), `gearMerged {item}`, `oathEnded {id, win, seconds}`, `chapterConquered {region, conquered}`, `ultimateCast`(고유 효과가 받음), `depthChanged {level}`(옛 `threatChanged`), `endlessFloor`·`endlessEnded`(옛 균열), `mountGained`·`rode`(E241). 계획의 `momentumLevel`·`ascended`·`pantheonChanged`·`partGained`·`buildChanged`는 만들지 않고 옛 이름(`insightGained`·`promoted`·`mythLent`·`fragment`)과 판 번호를 그대로 썼다. 없앤 것: `gearSalvaged`, `legendStarted`·`legendFailed`, `riftFloor`·`riftEnded`, `threatChanged`.
+- **성능 원칙:** ① 판 번호: `Build` 지문 대신 판 번호 하나. 장비·자리·원정·명성이 바뀔 때만 올리고 `passives()`는 판마다 한 번 만든다. ② 프레임마다 돌지 않음: 고유 효과·수련 큰 마디·자동 합치기는 버스 사건으로만 돈다. ③ 효과 수 상한: 숨 칸 넷이 함께 돌아도 같은 종류 효과는 풀(`src/fx/Shots.ts`·`Slashes.ts`·`Puffs.ts`)에서 꺼내 쓴다. ④ 땅에 남는 일반 장비는 24개까지(`Pickups`). ⑤ 기준: `bench.mjs --matrix`(데스크톱·휴대폰 × 미드가르드·올림포스 × 화질, `baselines.md`), 그리기 호출은 E18 기준 +30% 안, 갱신 시간은 같은 세션의 main 이하. 휴대폰 기본 화질은 낮음(E306 D22), 휴대폰 fps는 사용자에게 확인을 부탁한다. ⑥ 큰 파일 나누기: 데이터 검사는 `src/data/schema/`, `Game.ts`는 900줄 아래.
+
+## 저장 사슬 v14~v17 (E302~E305)
+
+v1~v12는 「v13 모양으로 올리기」 한 단계(`src/save/migrate/legacy.ts`)로 묶고, 그 뒤는 마일스톤마다 버전 하나씩 올렸다. 옛 버전을 처음 옮길 때 원본을 `…:vN.bak`(localStorage 키)에 한 번 남긴다. 옛 키는 새 키가 없을 때만 읽는다(개발판은 버전이 같고 모양만 옛것일 수 있다).
+
+| 버전 | 마일스톤 | 옛 키 → 새 키 | 규칙 |
+| --- | --- | --- | --- |
+| v14 | E302 | `chosen: God[]` → `pantheon {hand, heart, breath[]}` | hand = heart = `chosen[0]`, breath = `chosen[0]`·`chosen[1..]`을 숨 칸 수까지. 옛 주신은 한 신에 몰기가 되어 힘이 거의 같다 |
+| | | 칸·가방의 신화 유물 id → `relicsLit[]` | 칸을 비우고 유물표에 켬, 유물 단계 그대로 |
+| v15 | E303 | `materials`의 신화권 재료 → `materials.prototype` | 옛 신화권 재료는 원형 셋씩(대장간 값 ×3과 맞춤), 재료 유물은 원형 27. 가방이 12칸을 넘으면 낮은 등급부터 원형으로 녹이고 첫 화면 카드로 알림 |
+| v16 | E304 | `training {xp, taken}` → `expedition {count, …}` | 지금 판을 원정 하나로 본다. 원정 번호는 장 진행이 지나온 할 일 「귀환」으로 짐작(`estimateExpeditions`), 원정 기록이 있으면 적힌 수와 짐작 가운데 큰 쪽(E306 D18). 명성·불씨는 주지 않는다(신 단계가 그대로라 힘이 같다) |
+| v17 | E305 | `trials` → `oaths`, `rift` → `endless`, `threat` → `depth`, `divine` → `heartGauge`, `conveniences` → `automation`(켠 성소는 `waypoints`), 탭 id `classes`·`looks` → `gods`·`trials` → `oaths` | 맹세는 짝인 시련을 깼으면 지킨 것으로(기록 480초), 시련 난이도의 모든 피해 몫과 밝힌 별(하나마다 20)은 명성으로 돌려준다(`migrate/v17.ts`). 엔딩을 봤으면 귀환 횟수를 3 이상으로 쳐 자동화를 유지. 없어진 할 일(`level`·`choose`)은 사실로 다시 판정. 새 키 `expedition.oathPending`·`deepWin`·`mount`는 없으면 거짓(탈것은 고개나 그리스 땅에 들어섰으면 참) |
+
+- **견본 시험 (`tests/save.test.ts`):** v1·v9·v12·v13·v15·v16 실제 모양 견본을 최신으로 올린 뒤 (1) 검사 통과 (2) 공격 지수가 옮기기 전의 0.9~1.1배 (3) 깨운 신·장 진행·웨이포인트가 같음을 본다. 성좌판의 별을 가진 엔딩 뒤 저장은 별 하나마다 명성 20이라 정복 둘에서 공격 지수 ×1.56으로 이 띠 밖이다(`BALANCE.md` 11장, E307에서 다시 본다).
+- 형식을 바꾸면 옮기는 함수와 견본 시험을 함께 만든다(위 「지켜 온 원칙」).
+
 ## 하나로 이어진 세계 (E19, 떠다니는 원점)
 
 | 곳 | 하는 일 |

@@ -12,7 +12,7 @@ export interface ClassRecord {
 }
 
 /**
- * 단계 하나가 큰 걸음이다 (E21-01, TIMELINE.md 5.1): 승급 한 번마다 모든 피해 ×1.35, 최대 생명 +25%.
+ * 단계 하나가 큰 걸음이다 (E21-01, DESIGN.md 5.1): 승급 한 번마다 모든 피해 ×1.35, 최대 생명 +25%.
  * 총 승급 횟수에서 나오므로 다른 신화로 바꿔도 남는다.
  */
 export const PER_PROMOTION = { damage: 1.35, maxHpPct: 0.25 }
@@ -23,7 +23,7 @@ export const PER_OPENED = { maxHp: 5 }
 export const PER_LIT = 0.01
 
 /**
- * 신화 성장 기록. (DESIGN.md 5.2, E12-02 → E21-01 → E305-03)
+ * 신화 성장 기록. (DESIGN.md 5.1, E12-02 → E21-01 → E305-03)
  * - 신은 조각 셋(흔적·사냥·수호자)으로 깨우면 1단계로 열린다 (`open`, 엔딩 뒤에는 유물로도). 한 번 열면 영구다.
  * - 단계는 귀환 갈래 「승천」으로만 오른다 (`ascend`, E304). 신화 경험치와 성소 전설로 오르던 길은 E305-03에서 걷었다.
  *   데모는 2에서 장 정복마다 +1, 끝 3 (levelCap).

@@ -106,6 +106,9 @@ export const SAMPLE_ORDER: readonly string[] = ['awaken', 'edge', 'fury', 'cleav
  */
 export const INSIGHT_COST = { first: 60, step: 25 } as const
 
+/** 수련 탭을 여는 깨달음 수 (E306 D11: 장비·수련·신 탭이 마을을 나서자마자 몰려 열리지 않게, `TIMELINE.md` 4장의 2·4·6분) */
+export const TRAINING_TAB_INSIGHTS = 2
+
 /** 경험치 xp까지 모은 깨달음의 수 */
 export function insightsAt(xp: number): number {
   const { first, step } = INSIGHT_COST

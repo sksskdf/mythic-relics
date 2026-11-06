@@ -1,6 +1,6 @@
 # 사용자 의견 종합 (2026-10-29 기준)
 
-근거 경로는 모두 `/home/user/game/` 아래다. 이 문서에서 많이 인용한 파일은 `PLAYTEST.md`(6장·6.1·6.2), `docs/knowledge/decisions.md`, `REDESIGN.md`, `MYTHBUILD.md`, `TIMELINE.md`, `ROADMAP.md`, `docs/knowledge/handoff.md`다. 1차 스프린트 의견은 `git show 43ca7bd:ROADMAP.md`에서, 2차 개편 초안은 `git show 76c547e:REDESIGN.md`에서 확인했다.
+근거 경로는 모두 `/home/user/game/` 아래다. 이 문서에서 많이 인용한 파일은 `PLAYTEST.md`(6장·6.1·6.2), `docs/knowledge/decisions.md`, `docs/knowledge/past/REDESIGN.md`, `docs/knowledge/past/MYTHBUILD.md`, `TIMELINE.md`, `ROADMAP.md`, `docs/knowledge/handoff.md`다. 1차 스프린트 의견은 `git show 43ca7bd:ROADMAP.md`에서, 2차 개편 초안은 `git show 76c547e:REDESIGN.md`에서 확인했다.
 
 **사용자 질문 「기존 클래스 방식 개선됐냐」에 대한 답: 아직 안 됐다.**
 - `src/build/BuildState.ts` 115~166줄을 보면, 신위 칸 첫째 칸(`chosen[0]`) 하나가 공격 모션·공격 속도·패시브 피해 배율을 통째로 정한다. 궁극기와 외형도 주신을 따른다.

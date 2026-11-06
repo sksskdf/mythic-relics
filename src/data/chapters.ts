@@ -1,19 +1,37 @@
 /**
- * 장 흐름 (E22-01, TIMELINE.md 4·7장): 서장 → 제1장 북유럽 → 제2장 그리스 → 종장 (막간은 E238에서 없앰).
+ * 장 흐름 (E22-01, E306-01: `TIMELINE.md` 4장 90분 시각표): 서장 → 제1장 북유럽 → 제2장 그리스 → 종장 (막간은 E238에서 없앰).
  * 장마다 열리는 땅과 그 땅의 적 지수(처음 땅 = 1), 땅 단계(= 장비 단계), 차례로 할 일을 적는다.
  * 할 일의 마지막이 그 장을 끝내는 일이다. 끝내면 다음 장이 열리고 그 장의 땅이 열린다.
+ * 귀환 넷의 자리 (E306 D1): 바닷가 성소(1) → 철의 숲 성소(2) → 고개 성소(3) → 리키아 성소(4, 종장의 첫 할 일)
  */
 import { DataError, list, num, type Obj, obj, oneOf, onlyKeys, str, table } from './check'
 import raw from './chapters.json'
 import { KEEPER } from './mount'
+import { DEMO_OATHS } from './oaths'
 import { REGIONS } from './regions'
 
 /**
- * 할 일의 종류: 땅에 들어섬, 그 신화권 신을 깨움, 땅의 보스를 이김, 유물을 벼림, 귀환, 탈것을 얻음(E241: 그 땅의 고개지기를 만남).
- * 신화 고르기·신화 단계는 E305-03에서 없앰
+ * 할 일의 종류: 땅에 들어섬, 그 신화권 신을 깨움, 땅의 보스를 이김, 유물을 벼림, 귀환, 탈것을 얻음(E241: 그 땅의 고개지기를 만남),
+ * 영웅 합치기(E306: 처음 만든 영웅·전설 n), 맹세를 지킴(E306: 지킨 맹세 n). 신화 고르기·신화 단계는 E305-03에서 없앰
  */
-export const STEP_KINDS = ['enter', 'awaken', 'boss', 'forge', 'return', 'mount'] as const
+export const STEP_KINDS = ['enter', 'awaken', 'boss', 'forge', 'return', 'mount', 'merge', 'oath'] as const
 export type StepKind = (typeof STEP_KINDS)[number]
+
+/**
+ * 이어 세는 할 일 (E305 리뷰, E306 D4): 장 밖에서 먼저 쌓이는 수(귀환 횟수·만든 영웅·지킨 맹세·벼린 유물 단계)라
+ * 뒤의 할 일을 건너뛰는 근거로 쓰지 않고, 차례에 닿았을 때만 이어 센다.
+ * 벼리기도 그렇다 (E306 리뷰): 키마이라를 이긴 뒤 귀환 4보다 먼저 마을에서 2단계로 벼려도 귀환 4를 건너뛰지 않는다
+ */
+export const COUNTED_KINDS: ReadonlySet<StepKind> = new Set<StepKind>(['return', 'merge', 'oath', 'forge'])
+
+/**
+ * 땅을 막지 않는 할 일 (E306 D4): 목표 한 줄과 봇 차례만 잡는다. 영웅은 운에 달렸고 맹세는 출발할 때만 걸 수 있어
+ * 막으면 데모가 멈출 수 있다. 장을 끝내는 할 일은 될 수 없다
+ */
+export const SOFT_KINDS: ReadonlySet<StepKind> = new Set<StepKind>(['merge', 'oath'])
+
+/** 할 일 종류마다 n의 상한 (n을 쓰는 종류만) */
+const N_MAX: Partial<Record<StepKind, number>> = { forge: 4, awaken: 4, return: 9, merge: 4, oath: DEMO_OATHS.length }
 
 /**
  * 땅 적 피해가 적 지수를 따르는 정도: 생명은 적 지수만큼, 피해는 적 지수의 0.55제곱만큼 (주인공 생명은 공격만큼 크게 늘지 않는다).
@@ -35,7 +53,7 @@ export interface ChapterStep {
   region: string
   /** awaken: 그 신화권 */
   realm?: string
-  /** awaken: 그 신화권에서 깨운 신 수, forge: 유물 단계, return: 귀환 수 */
+  /** awaken: 그 신화권에서 깨운 신 수, forge: 유물 단계, return: 귀환 수, merge: 처음 만든 영웅·전설 수, oath: 지킨 맹세 수 */
   n?: number
   /** HUD 목표 한 줄 */
   goal: string
@@ -90,14 +108,18 @@ export function parseChapters(rawChapters: unknown, regions = REGIONS, path = 'c
       const step: ChapterStep = { kind, region: regionId, goal }
       if (kind === 'awaken') step.realm = oneOf(s, 'realm', sp, REALMS)
       else if (s.realm !== undefined) throw new DataError(`${sp}.realm`, '신화권은 awaken에만 씁니다')
-      if (kind === 'forge' || kind === 'awaken' || kind === 'return') step.n = num(s, 'n', sp, { min: 1, max: kind === 'return' ? 9 : 4 })
-      else if (s.n !== undefined) throw new DataError(`${sp}.n`, '단계·수는 forge·awaken·return에만 씁니다')
+      const nMax = N_MAX[kind]
+      if (nMax !== undefined) step.n = num(s, 'n', sp, { min: 1, max: nMax })
+      else if (s.n !== undefined) throw new DataError(`${sp}.n`, '단계·수는 forge·awaken·return·merge·oath에만 씁니다')
       if (kind === 'return' && !region.sanctuary) throw new DataError(`${sp}.region`, `귀환은 성소 화로에서 합니다 ("${regionId}")`)
       if (kind === 'boss' && !region.boss) throw new DataError(`${sp}.region`, `보스가 없는 땅입니다 ("${regionId}")`)
       if (kind === 'forge' && region.kind !== 'hub') throw new DataError(`${sp}.region`, '유물은 마을 대장간에서 벼립니다')
       if (kind === 'mount' && !region.npcs.some((n) => n.name === KEEPER)) throw new DataError(`${sp}.region`, `탈것은 ${KEEPER}에게서 얻습니다 (그 땅의 npcs에 없음, "${regionId}")`)
+      // 합치기·맹세는 그 장의 땅에서 (목표 한 줄의 자리와 봇이 사냥하는 들판)
+      if (SOFT_KINDS.has(kind) && !(regionId in lands)) throw new DataError(`${sp}.region`, `합치기·맹세는 그 장의 땅에서 합니다 ("${regionId}")`)
       return step
     })
+    if (SOFT_KINDS.has(steps.at(-1)!.kind)) throw new DataError(`${p}.steps`, '합치기·맹세는 장을 끝내는 일이 될 수 없습니다')
     out.push({ id, title: str(o, 'title', p), name: str(o, 'name', p), tier, lands, steps })
   }
   if (out.length === 0) throw new DataError(path, '장이 하나는 있어야 합니다')
@@ -109,7 +131,7 @@ export function parseChapters(rawChapters: unknown, regions = REGIONS, path = 'c
 export const CHAPTERS: readonly ChapterDef[] = parseChapters(raw)
 
 /**
- * 장 정복 (E305-02, `CYCLE.md` 3.1 층 3): 마지막 장이 아닌 장의 끝 보스(거인 왕·키마이라).
+ * 장 정복 (E305-02, `DESIGN.md` 5.5): 마지막 장이 아닌 장의 끝 보스(거인 왕·키마이라).
  * 이기면 숨 칸·신 단계 상한·명성 지수가 하나씩 오른다. 귀환해도 지워지지 않는다
  */
 export function conquestsOf(chapters: readonly ChapterDef[]): string[] {

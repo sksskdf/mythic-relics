@@ -6,7 +6,7 @@ import { ExpeditionProgress } from '../src/progress/Expedition'
 import { parseWaypoints, Waypoints } from '../src/progress/Waypoints'
 import { oldAutomation, oldVisited } from '../src/save/migrate/v17'
 
-describe('자동화: 귀환 횟수가 여는 것 (E305-03, CYCLE.md 3.5)', () => {
+describe('자동화: 귀환 횟수가 여는 것 (E305-03, DESIGN.md 5.3)', () => {
   it('귀환 0·1·2·3마다 다시 찍기·가보·자동 합치기·출발점이 차례로 켜진다', () => {
     expect(automationAt(0, false, 0)).toEqual({ retake: false, heirloomSlots: 0, headShare: 0, autoMerge: { good: false, rare: false }, autoPickup: false, sameBranch: false })
     expect(automationAt(1, false, 0)).toMatchObject({ retake: true, heirloomSlots: 1, headShare: 0, autoMerge: { good: false, rare: false } })

@@ -27,6 +27,8 @@ const STALL_SHUN = 30
 const STALL_ROAM = 20
 /** 싸우는 생각 단계: 예고 피하기·기다리기·물러나기·쉬기·목표가 아닌 적과 싸우기 (멈춤 끊기가 처치 없이 싸운 시간을 잰다) */
 const FIGHT_STEPS = new Set([2, 3, 4, 5, 99])
+/** 귀환 갈래의 고정 차례 (E306 D15, `TIMELINE.md` 9장): n번째 귀환에 승천 → 불꽃 → 승천 → 사냥, 그 뒤로는 승천 (승천은 손의 신부터) */
+const BRANCH_ORDER = ['ascend', 'flame:flame', 'ascend', 'flame:hunt'] as const
 
 /**
  * 자동 플레이 검증용 봇.
@@ -68,10 +70,14 @@ export class Autoplayer {
 
   constructor(private readonly game: Game) {}
 
-  /** 게임 시간 seconds초 동안 자동으로 플레이한다. */
-  run(seconds: number): void {
+  /**
+   * 게임 시간 seconds초 동안 자동으로 플레이하고 흐른 초를 돌려준다.
+   * stopOn이 참이 되면 그 걸음에서 멈춘다 (E306 D24: 90분 스크린숏이 고르는 카드를 봇이 닫기 전에 찍을 때)
+   */
+  run(seconds: number, stopOn?: () => boolean): number {
     const step = 1 / 30
-    for (let t = 0; t < seconds; t += step) {
+    let t = 0
+    for (; t < seconds; t += step) {
       this.thinkTimer -= step
       if (this.thinkTimer <= 0) {
         this.thinkTimer = THINK
@@ -79,7 +85,9 @@ export class Autoplayer {
         if (FIGHT_STEPS.has(this.step)) this.fightClock += THINK
       }
       this.game.advance(step, step)
+      if (stopOn?.()) return t + step
     }
+    return t
   }
 
   /** 아직 못 지킨 맹세가 남았나 (점검 스크립트가 끝낼 때를 정한다) */
@@ -136,6 +144,11 @@ export class Autoplayer {
     if (!goal) return null
     // 신 깨우기 (E238): 깨우는 신의 다음 조각을 하는 땅, 없으면 응답하는 흔적의 땅
     if (goal.kind === 'awaken') return this.game.awakening.target(goal.region)?.region ?? goal.region
+    // 맹세 (E306 D6): 기다리지 않고 그 장의 다음 할 일 땅으로 (맹세는 귀환 3의 출발 카드에서 걸어 티폰에서 지킨다). 합치기는 그 땅에서 사냥한다
+    if (goal.kind === 'oath') {
+      const steps = chapters.chapter?.steps ?? []
+      return steps.slice(steps.indexOf(goal) + 1).find((s) => s.kind !== 'oath' && s.kind !== 'merge')?.region ?? goal.region
+    }
     if (goal.kind !== 'forge') return goal.region
     const god = powers.manifested
     if (!god || forgeReady(powers.loadout, god, powers.maxStage())) return goal.region
@@ -175,6 +188,19 @@ export class Autoplayer {
     const here = { x: p.x, z: p.z }
     const enemies = encounter.alive
 
+    // 0. 맹세 (E305-01): 출발 카드가 뜨면 아직 못 지킨 맹세를 건다(맹세 봇, 지금 장에 맹세 할 일이 남았으면, E306 D6), 아니면 맹세 없이.
+    // 무엇보다 먼저 고른다: 귀환한 뒤 줍기·떠나기로 화로에서 걸어 나가면 맹세 없이 떠나게 된다 (E306 리뷰)
+    if (this.game.oathCardOpen) {
+      const { chapters } = this.game
+      const owed = this.chapters && (chapters.chapter?.steps.some((s) => s.kind === 'oath' && !chapters.done(s)) ?? false)
+      const id = this.oaths || owed ? (this.game.oathSystem.available().find((o) => !this.game.oaths.has(o)) ?? null) : null
+      this.game.hideCards()
+      this.game.oathSystem.swear(id)
+      if (id) this.oathLog.push({ id, sworn: this.game.time })
+      this.step = 12
+      return
+    }
+
     // 다른 땅으로 떠나는 길이면 생명이 넉넉한 동안 예고를 피하지 않고 통로로 걸어간다 (E19: 통로를 다 걸어야 넘어가므로
     // 피하기를 되풀이하면 쫓아오는 무리에 막혀 떠나지 못한다. 사람도 그냥 걸어 나간다)
     const hp = combat.health.ratio
@@ -211,6 +237,11 @@ export class Autoplayer {
     for (const id of SAMPLE_ORDER) if (this.game.training.unspent > 0) this.game.dev.train(id)
     // 가방에 셋이 모이면 합친다 (E303): 낮은 등급부터
     for (const group of powers.loadout.mergeable()) this.game.dev.merge(group.map((i) => i.uid))
+    // 녹이기 대비책 (E306 D17): 가방이 찼는데 합칠 묶음이 없으면 하나를 녹여 자리를 낸다 (사람은 장비 탭의 「녹이기」)
+    if (powers.loadout.bagFull && powers.loadout.mergeable().length === 0) {
+      const melt = this.meltPick()
+      if (melt) this.game.dev.melt(melt)
+    }
     // 가방의 일반 장비가 더 좋으면 바꿔 낀다 (빈 칸이면 그냥 낀다) (E13-08)
     for (const id of [...powers.loadout.bag]) {
       const item = powers.loadout.gear.get(id)
@@ -261,16 +292,6 @@ export class Autoplayer {
       }
     }
 
-    // 4.5 맹세 (E305-01): 출발 카드가 뜨면 아직 못 지킨 맹세를 건다(맹세 봇), 아니면 맹세 없이
-    if (this.game.oathCardOpen) {
-      const id = this.oaths ? (this.game.oathSystem.available().find((o) => !this.game.oaths.has(o)) ?? null) : null
-      this.game.hideCards()
-      this.game.oathSystem.swear(id)
-      if (id) this.oathLog.push({ id, sworn: this.game.time })
-      this.step = 12
-      return
-    }
-
     // 4.7 신 깨우기 (E238): 생명이 넉넉하면 흔적·수호자 자리로 간다 (지키는 무리·수호자와의 싸움은 아래 싸움이 맡고,
     // 사냥은 그 땅에서 싸우면 찬다). 멀면 둘레의 적을 달고서라도 가고, 가까우면 둘레가 빌 때 간다
     if (wake && (toWake || (hp > 0.75 && near.length === 0))) {
@@ -308,8 +329,11 @@ export class Autoplayer {
         const hand = progress.pantheon.hand
         const { depth } = this.game
         const deeper = this.deepen && depth.level < depth.max ? depth.level + 1 : undefined
+        // 장 흐름 봇은 갈래를 고정 차례로 (E306 D15), 깊이 봇은 언제나 승천
+        const order = this.deepen ? 'ascend' : (BRANCH_ORDER[this.game.expedition.returns] ?? 'ascend')
+        const ascend = ids.find((id) => id === `ascend:${hand}`) ?? ids.find((id) => id.startsWith('ascend:'))
         this.game.hideCards()
-        this.game.expeditionSystem.returnNow(ids.find((id) => id === `ascend:${hand}`) ?? ids.find((id) => id.startsWith('ascend:')) ?? 'flame:flame', deeper)
+        this.game.expeditionSystem.returnNow((order === 'ascend' ? ascend : order) ?? 'flame:flame', deeper)
         if (deeper !== undefined && depth.level === deeper) this.depths.push(this.game.time)
       } else {
         if (dist(here, sanctuary.center) > 1.2 && (!hero.isMoving || dist(hero.goal ?? here, sanctuary.center) > 1)) hero.moveTo(sanctuary.center)
@@ -383,6 +407,20 @@ export class Autoplayer {
     }
     this.step = 99
     this.engage(here, target)
+  }
+
+  /**
+   * 녹일 장비 (E306 D17): 가방의 일반 장비 가운데 영웅·전설이 아니면서 등급이 가장 낮고, 합칠 짝(보통·좋음은 같은 등급, 희귀는 같은 등급·부위)이 가장 적은 것
+   */
+  private meltPick(): string | null {
+    const { loadout } = this.game.powers
+    const items = loadout.bag.flatMap((id) => {
+      const item = loadout.gear.get(id)
+      return item && item.grade !== 'hero' && item.grade !== 'legend' ? [item] : []
+    })
+    const rank = (g: string) => ['common', 'good', 'rare'].indexOf(g)
+    const mates = (i: (typeof items)[number]) => items.filter((o) => o.grade === i.grade && (i.grade !== 'rare' || o.part === i.part)).length
+    return [...items].sort((a, b) => rank(a.grade) - rank(b.grade) || mates(a) - mates(b))[0]?.uid ?? null
   }
 
   /** 처치 기록을 읽어 처치가 있었으면 싸운 시간을 0으로 (E241, 지난번에 읽은 뒤부터만) */

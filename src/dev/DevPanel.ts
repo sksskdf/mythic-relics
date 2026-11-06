@@ -234,7 +234,7 @@ export class DevPanel {
           for (const slot of WARDROBE_SLOTS) g.appearance.choose(slot, 'auto')
         }),
       ),
-      // 귀환 (E304): 원정을 무르익게(2분·기세 8) 하고 성소 화로에 선다 (빛기둥이 서고 귀환 카드가 뜬다)
+      // 귀환 (E304): 원정을 무르익게(2분·기세 23, 귀환 문턱 표의 어느 값보다 위) 하고 성소 화로에 선다 (빛기둥이 서고 귀환 카드가 뜬다)
       // 탈것 (E241): 고개지기의 산양을 카드와 함께 얻고, 보는 쪽 20m 앞을 눌러 올라탄다
       row(
         button('귀환 준비', () => this.readyReturn()),
@@ -293,11 +293,11 @@ export class DevPanel {
         }),
         // 맹세 (E305-01): 아직 못 지킨 것 하나를 걸고, 건 맹세를 지킨 것으로
         button('맹세 걸기', () => {
-          g.oathSystem.swear(g.oathSystem.available().find((id) => !g.oaths.has(id)) ?? null)
+          g.dev.swearOath()
           g.menu.refresh()
         }),
         button('맹세 지킴', () => {
-          g.oathSystem.keepNow()
+          g.dev.keepOath()
           g.menu.refresh()
         }),
         button('한계를 깸', () => {
@@ -327,7 +327,7 @@ export class DevPanel {
     const midgard = g.regions.midgard
     if (!g.sanctuary.present && midgard) g.enterRegion(midgard)
     g.expedition.elapsed = Math.max(g.expedition.elapsed, 300)
-    g.training.xp = Math.max(g.training.xp, 5000)
+    g.training.xp = Math.max(g.training.xp, 8000)
     g.dev.teleport(g.sanctuary.center.x, g.sanctuary.center.z)
   }
 
@@ -441,6 +441,17 @@ export class DevPanel {
         button('적 모두 제거', () => g.encounter.clearAll()),
         button('무리 초기화', () => g.encounter.resetAll()),
       ),
+      // 성능 시험 (E306 D23): scripts/bench.mjs와 같은 여덟 종류 40마리가 주인공을 둘러싼다. 휴대폰에서 패널 오른쪽 위의 fps를 읽을 때
+      row(
+        button('성능 시험: 40마리', () => {
+          const p = g.hero.object.position
+          for (let i = 0; i < 40; i++) {
+            const a = (i / 40) * Math.PI * 2
+            const r = 5 + (i % 3) * 2
+            g.encounter.spawnById(BENCH_FOES[i % BENCH_FOES.length]!, { x: p.x + Math.sin(a) * r, z: p.z + Math.cos(a) * r }, true)
+          }
+        }),
+      ),
     )
   }
 
@@ -531,6 +542,9 @@ function row(...children: HTMLElement[]): HTMLElement {
   r.append(...children)
   return r
 }
+
+/** 성능 시험의 적 여덟 종류 (몸 종류를 섞음, scripts/bench.mjs와 같다) */
+const BENCH_FOES = ['grunt', 'wolf', 'draugr', 'stoneThrower', 'harpy', 'oni', 'dokkaebiFire', 'imugi'] as const
 
 function button(label: string, run: () => void): HTMLButtonElement {
   const b = el('button', '', label)

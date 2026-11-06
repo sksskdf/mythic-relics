@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 
-import { WAKE, WAKE_GODS, wakeDef, GUARDIAN_LEASH, GUARDIAN_MEND, GUARDIAN_RADIUS, LATER_TEXT, TRACE_LEASH, TRACE_RADIUS, traceStateOf, type TraceState } from '../../data/wake'
+import { WAKE, WAKE_GODS, wakeDef, GUARDIAN_LEASH, GUARDIAN_MEND, GUARDIAN_RADIUS, LATER_TEXT, levelSealed, levelText, TRACE_LEASH, TRACE_RADIUS, traceLevel, traceStateOf, type TraceState } from '../../data/wake'
 import { CONQUESTS } from '../../data/chapters'
 import { REGIONS } from '../../data/regions'
 import { sceneId } from '../../data/scenes'
@@ -44,7 +44,7 @@ export function guardianSpec(god: God): GiantSpec | null {
 }
 
 /**
- * 신을 깨우는 길 (E238, MYTHBUILD.md 3.2): 흔적 → 사냥 → 수호자, 조각 셋.
+ * 신을 깨우는 길 (E238, `DESIGN.md` 4.2.2): 흔적 → 사냥 → 수호자, 조각 셋.
  * - 흔적: 그 땅에 흔적 모형과 빛기둥을 세운다. 다가가면 지키는 무리가 깨어나고, 다 쓰러뜨리면 조각 1(대표 힘을 빌린다)
  * - 사냥: 그 신의 땅에서 잡을 때마다 막대가 차고, 다 차면 조각 2(그 신의 유물이 손에 들어온다)
  * - 수호자: 그 땅 깊은 곳에 빛기둥이 서고, 다가가면 수호자가 나타난다. 쓰러뜨리면 그 신이 깨어난다
@@ -92,9 +92,9 @@ export class WakeSystem {
     return god && !this.ctx.progress.isOpen(god) ? god : null
   }
 
-  /** 흔적이 지금 어떤가 (데모의 그리스 셋은 엔딩 뒤에 응답한다, E241) */
-  traceState(god: God): TraceState {
-    const { progress, expedition, chapters, ending } = this.ctx
+  /** 흔적이 지금 어떤가 (데모의 다섯은 엔딩 뒤에 응답한다 E241·E306, 기세가 모자라면 잠잠하다 E306). anyLevel이면 기세를 보지 않는다 (개발 지름길) */
+  traceState(god: God, anyLevel = false): TraceState {
+    const { progress, expedition, chapters, ending, training } = this.ctx
     return traceStateOf(god, {
       open: progress.isOpen(god),
       waking: this.waking,
@@ -102,11 +102,21 @@ export class WakeSystem {
       returns: expedition.returns,
       conquered: chapters.conquered,
       ending: ending.has('realms'),
+      level: anyLevel ? Infinity : training.insights,
     })
   }
 
-  /** 흔적이 잠잠할 때 다음 신이 응답하는 때 (E305-03): 「성소 화로에서 원정을 마치거나 거인 왕을 이기면 응답한다」 */
-  get sealedText(): string {
+  /** 다음 흔적이 기세만 모자라 잠잠한가 (E306 D11: 귀환·장 정복은 넉넉하고 깨운 차례의 기세 문턱 아래) */
+  levelSealed(god: God): boolean {
+    return levelSealed(this.ctx.progress.opened.length, this.ctx.training.insights, this.ctx.ending.has('realms')) && this.traceState(god, true) === 'open'
+  }
+
+  /**
+   * 흔적이 잠잠할 때 그 신이 응답하는 때: 기세만 모자라면 「기세 10에 응답한다」처럼(E306, 깨운 차례의 문턱), 아니면 (E305-03)
+   * 「성소 화로에서 원정을 마치거나 거인 왕을 이기면 응답한다」
+   */
+  sealedText(god?: God): string {
+    if (god && this.levelSealed(god)) return levelText(traceLevel(this.ctx.progress.opened.length))
     const region = CONQUESTS.find((r) => !this.ctx.chapters.bosses.has(r))
     const boss = region ? ENEMIES[REGIONS[region]?.boss?.enemy ?? 'king']?.name : undefined
     return boss ? `성소 화로에서 원정을 마치거나 ${josa(boss, '을')} 이기면 응답한다` : '성소 화로에서 원정을 마치면 응답한다'
@@ -269,7 +279,7 @@ export class WakeSystem {
         else if ((state === 'busy' || state === 'sealed' || state === 'later') && this.told !== t.god) {
           this.told = t.god
           const waking = this.waking
-          const text = state === 'later' ? LATER_TEXT : waking ? `${josa(godDef(waking).name, '이')} 깨어난 뒤에 응답한다` : this.sealedText
+          const text = state === 'later' ? LATER_TEXT : waking ? `${josa(godDef(waking).name, '이')} 깨어난 뒤에 응답한다` : this.sealedText(t.god)
           this.ctx.bus.emit('moment', { id: 'traceBusy', text })
         }
       }
@@ -372,7 +382,7 @@ export class WakeSystem {
       icon: classIcon(def.name),
       lines: [`빌린 힘: ${lendText(god, 1)}`, `다음 조각: ${REGIONS[path.land]?.name ?? path.land}에서 사냥한다`],
     }
-    // 흔적에서 그 신이 처음 말을 건다 (E23 장면): 첫 흔적을 고르는 것이 곧 첫 신을 고르는 순간 (MYTHBUILD 3.3)
+    // 흔적에서 그 신이 처음 말을 건다 (E23 장면): 첫 흔적을 고르는 것이 곧 첫 신을 고르는 순간 (`DESIGN.md` 4.2.2)
     bus.emit('moment', { id: 'fragment', scene: sceneId('trace', god), card, slow: true })
     bus.emit('fragment', { god, piece: 1 })
     bus.emit('progressChanged', {})
@@ -454,8 +464,9 @@ export class WakeSystem {
     const { awaken } = this.ctx
     const waking = this.waking
     if (!waking) {
-      const next = god ?? WAKE_GODS.find((g) => this.traceState(g) === 'open')
-      if (!next || this.traceState(next) !== 'open') return false
+      // 개발 지름길은 기세를 기다리지 않는다
+      const next = god ?? WAKE_GODS.find((g) => this.traceState(g, true) === 'open')
+      if (!next || this.traceState(next, true) !== 'open') return false
       this.calm()
       this.piece1(next)
       return true

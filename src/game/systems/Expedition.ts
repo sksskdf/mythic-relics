@@ -1,5 +1,5 @@
 import { SOURCE_IDS, type SourceId } from '../../data/schema'
-import { FLAME, RETURN_MIN_LEVEL, RETURN_MIN_SECONDS } from '../../data/cycle'
+import { FLAME, RETURN_MIN_SECONDS, returnMinLevel } from '../../data/cycle'
 import { isBossLike } from '../../enemies/grade'
 import { gearName, gearScore, isGearUid } from '../../gear/roll'
 import { pantheonGods } from '../../myth/pantheon'
@@ -17,8 +17,8 @@ const FLAME_TEXT: Readonly<Record<SourceId, string>> = {
   wind: `원천 +${FLAME.points}, 공격·이동 ×${FLAME.wind.speed}`,
   hunt: `원천 +${FLAME.points}, 받는 명성 ×${FLAME.hunt.renown}`,
 }
-/** 성소 한가운데에서 이만큼 안에 서면 귀환 카드가 뜬다 */
-const HEARTH_RADIUS = 2.5
+/** 성소 한가운데에서 이만큼 안에 서면 귀환 카드가 뜬다 (맹세 출발 카드도 띄운 자리에서 이만큼 걸어 나가면 닫힌다) */
+export const HEARTH_RADIUS = 2.5
 
 const clock = (s: number): string => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`
 
@@ -28,6 +28,8 @@ export interface ExpeditionParts {
   offer(view: ReturnView, pick: (id: string, depth?: number) => void, later: () => void): void
   /** 귀환 카드가 떠 있다 */
   offering(): boolean
+  /** 귀환 카드를 닫는다 (화로를 떠났을 때) */
+  close(): void
   /** 신을 한 단계 올린다 (승천, 큰 카드와 함께) */
   ascend(god: God): void
   /** 가방의 셋을 합친다 (자동 합치기, 카드와 함께) */
@@ -37,7 +39,7 @@ export interface ExpeditionParts {
 }
 
 /**
- * 원정과 귀환 (E304, `CYCLE.md` 3장): 성소 화로(한가운데)에 서면 귀환 카드. 갈래를 고르면 귀환한다:
+ * 원정과 귀환 (E304, `DESIGN.md` 5.3): 성소 화로(한가운데)에 서면 귀환 카드. 갈래를 고르면 귀환한다:
  * 명성을 받고, 승천이나 원천 불씨를 얻고, 기세(수련 경험치·마디)와 일반 장비(가보 빼고)를 지운 뒤 그 자리에서 새 원정을 떠난다.
  * 귀환 1부터 마디를 지난 차례대로 다시 찍고, 귀환 2부터 기세 출발점이 생긴다. 새 불길: 다시 떠난 뒤 2분 동안 장비가 더 떨어진다
  */
@@ -92,12 +94,21 @@ export class ExpeditionSystem {
     this.ctx.sanctuary.beacon = this.canReturn
     if (this.atHearth()) {
       if (!this.declined && !this.parts.offering() && this.canReturn) this.offer()
-    } else this.declined = false
+    } else {
+      // 카드를 띄운 채 화로를 떠나면 「아직」과 같다 (E306 리뷰: 떠 있는 동안 얻은 것 카드·장면이 기다리니, 걸어 나가 사냥하면 끝없이 밀렸다)
+      if (this.parts.offering()) this.parts.close()
+      this.declined = false
+    }
+  }
+
+  /** 이번 귀환에 필요한 기세 레벨 (E306 D9: 귀환 번호마다, 엔딩 뒤에는 8) */
+  get minLevel(): number {
+    return returnMinLevel(this.ctx.expedition.returns + 1, this.ctx.ending.reached)
   }
 
   /** 원정이 무르익었나: 떠난 지 2분이 지났고 기세 레벨이 문턱을 넘었다 */
   get ripe(): boolean {
-    return this.ctx.expedition.elapsed >= RETURN_MIN_SECONDS && this.ctx.training.insights >= RETURN_MIN_LEVEL
+    return this.ctx.expedition.elapsed >= RETURN_MIN_SECONDS && this.ctx.training.insights >= this.minLevel
   }
 
   /** 지금 귀환할 수 있나: 원정이 무르익었고 살아 있다 */

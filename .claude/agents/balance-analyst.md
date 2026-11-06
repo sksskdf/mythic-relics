@@ -8,7 +8,7 @@ tools: Read, Grep, Glob, Bash
 
 ## 먼저 읽을 것
 
-- 목표: `TIMELINE.md` 4장(목표 성장 곡선)·1.3(E22 곡선), 지금 마일스톤의 완료 기준 `ROADMAP.md` 2장
+- 목표: `TIMELINE.md` 4장(90분 시각표·공격 지수 열)·5장(층마다 목표 배율)·1.5(E306 뒤 봇 띠), 지금 마일스톤의 완료 기준 `ROADMAP.md` 2장
 - 공식과 수치: `BALANCE.md`(피해 공식, 유물·적 수치, 경험치 곡선, 드랍), `src/data/*.json`·`src/data/*.ts`
 - 지난 기준: `docs/knowledge/baselines.md`, `PLAYTEST.md` 7장
 - 결과: `test-results/power-curve.json`, `test-results/playtest.json`, `test-results/enemy-trial.json`, `test-results/myth-trial.json` (있는 것만)

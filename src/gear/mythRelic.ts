@@ -3,7 +3,7 @@ import { LOOKS, type LookSlot } from '../looks/catalog'
 import { type God, godDef, GODS, relicDef, type RelicId, RELIC_IDS } from '../relics/data'
 
 /**
- * 신화의 유물 (E13-03 → E21-04 → E303-04, `CYCLE.md` 4.4): 신화마다 하나. 장비 칸을 떠나 유물표에 켜지고, 대장간에서 단계를 올린다.
+ * 신화의 유물 (E13-03 → E21-04 → E303-04, `DESIGN.md` 4.4): 신화마다 하나. 장비 칸을 떠나 유물표에 켜지고, 대장간에서 단계를 올린다.
  * - 기본 수치·원천은 없다 (유물 하나가 나머지 성장을 덮지 않게). 그 신이 자리에 들면 행동·오라가 깨어난다.
  * - 한 신에 몰면 그 신 유물의 효과가 한 단계 위로 돈다 (`effectStage`).
  * - 나머지 유물(메긴교르드·야른그레이프르 등)은 엔딩 뒤에만 떨어지는 재료다.

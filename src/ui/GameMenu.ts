@@ -14,7 +14,7 @@ import './menu.css'
 
 export type MenuTab = 'status' | 'relics' | 'training' | 'gods' | 'sources' | 'map' | 'oaths' | 'endless'
 
-/** 탭 일곱과 엔딩 뒤 하나 (E305-04, `CYCLE.md` 7장): 그림과 이름 (좁은 화면에서는 고른 탭만 이름), 올리면 힌트 */
+/** 탭 일곱과 엔딩 뒤 하나 (E305-04, `DESIGN.md` 10.5): 그림과 이름 (좁은 화면에서는 고른 탭만 이름), 올리면 힌트 */
 const TABS: readonly [MenuTab, Parameters<typeof glyph>[0], string][] = [
   ['status', 'status', '상태'],
   ['relics', 'relics', '장비'],

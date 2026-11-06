@@ -100,7 +100,7 @@ export interface SourcesHost {
   automation(): { name: string; lines: readonly string[]; on: boolean }[]
   /** 귀환한 횟수 */
   returns(): number
-  /** 원정 기록 (E305-04, `CYCLE.md` 7장 원천(갈래) 탭): 지금 원정 번호, 누적 명성과 배율, 끝난 원정마다 걸린 초, 가보 칸 */
+  /** 원정 기록 (E305-04, `DESIGN.md` 10.5 원천 탭): 지금 원정 번호, 누적 명성과 배율, 끝난 원정마다 걸린 초, 가보 칸 */
   expedition(): { count: number; renown: number; multiplier: number; times: readonly number[]; heirloomSlots: number }
 }
 

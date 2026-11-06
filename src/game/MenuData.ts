@@ -1,5 +1,5 @@
 import { activeLayers, LAYER_NAMES } from '../build/layers'
-import { HUNT_KILLS, WAKE, WAKE_GODS, wakeDef } from '../data/wake'
+import { WAKE, WAKE_GODS, wakeDef } from '../data/wake'
 import { awakeningLevel } from '../data/awakening'
 import { REALM_COLORS, REGIONS } from '../data/regions'
 import { CONQUESTS } from '../data/chapters'
@@ -118,7 +118,7 @@ export class MenuData {
       sources: {
         rows: () => this.sourceRows(),
         depth: this.depthView(),
-        // 귀환이 여는 것 (E305-03, `CYCLE.md` 3.5): 엔딩 전에도 보인다. 엔딩을 봤으면 귀환 3 이상으로 친다
+        // 귀환이 여는 것 (E305-03, `DESIGN.md` 5.3): 엔딩 전에도 보인다. 엔딩을 봤으면 귀환 3 이상으로 친다
         automation: () => {
           const returns = game.expedition.returns
           const ending = game.ending.has('autoPickup')
@@ -312,10 +312,10 @@ export class MenuData {
   /** 깨우는 중인 신 (E238): 모은 조각과 다음 할 일 (신 탭) */
   private wakingView(): { god: string; fragments: number; next: string } | null {
     const { progress, awaken } = this.parts.ctx
-    const { waking, fragments, hunt } = awaken
+    const { waking, fragments, hunt, need } = awaken
     const path = waking ? wakeDef(waking) : undefined
     if (!waking || !path || progress.isOpen(waking)) return null
-    const next = fragments >= 2 ? `${josa(path.guardian.name, '을')} 쓰러뜨린다` : `${REGIONS[path.land]?.name ?? path.land}에서 사냥한다 (${hunt}/${HUNT_KILLS})`
+    const next = fragments >= 2 ? `${josa(path.guardian.name, '을')} 쓰러뜨린다` : `${REGIONS[path.land]?.name ?? path.land}에서 사냥한다 (${hunt}/${need})`
     return { god: waking, fragments, next }
   }
 

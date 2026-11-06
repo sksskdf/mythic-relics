@@ -69,6 +69,22 @@ const fmt = (t) => (t === undefined ? '-' : `${Math.floor(Math.round(t) / 60)}:$
 const isKill = (e) => e.type === 'kill' || e.type === 'bossKill'
 
 /**
+ * 플레이 기록 → 시각표 (E306 D19): 귀환(번호·갈래), 첫 영웅 합치기, 깨어난 신, 이긴 보스, 장마다 들어선 때·끝낸 때 (초)
+ */
+function timelineOf(log) {
+  const chapters = log.filter((e) => e.type === 'chapter')
+  return {
+    returns: log.filter((e) => e.type === 'return').map((e) => ({ n: Number(e.detail.split(':')[0]), t: e.t, branch: e.detail.slice(e.detail.indexOf(':') + 1) })),
+    firstHero: log.find((e) => e.type === 'merge')?.t,
+    awakened: Object.fromEntries(log.filter((e) => e.type === 'open').map((e) => [e.detail, e.t])),
+    bosses: Object.fromEntries(log.filter((e) => e.type === 'bossKill').map((e) => [e.detail, e.t])),
+    oathKept: log.find((e) => e.type === 'oath' && e.detail.includes(':win:'))?.t,
+    mount: log.find((e) => e.type === 'mount')?.t,
+    chapters: chapters.map((e, i) => ({ id: e.detail, from: e.t, to: chapters[i + 1]?.t ?? log.find((x) => x.type === 'ending')?.t })),
+  }
+}
+
+/**
  * 처치가 끊긴 가장 긴 구간 (E241): from(초) 뒤의 처치와 처치 사이, 마지막 처치에서 end까지.
  * 구간이 시작한 때(at)와 그때 있던 땅(region)을 함께 돌려준다
  */
@@ -225,6 +241,8 @@ try {
         // 장 흐름 (E22-06): 장마다 열린 때와 엔딩
         chapters: log.filter((e) => e.type === 'chapter').map((e) => ({ id: e.detail, t: e.t })),
         ending: first('ending'),
+        // 시각표 (E306 D19, `node scripts/timeline-check.mjs`가 읽는다): 귀환마다(번호·갈래), 첫 영웅, 깨어난 신, 보스, 장마다 들어선 때·끝낸 때
+        timeline: timelineOf(log),
         levels: log.filter((e) => e.type === 'promote').map((e) => ({ t: e.t, title: e.detail })),
         // 지역 이동 (E15-07): 처음 들어간 때, 보스의 땅에 처음 닿은 때
         regions: log.filter((e, i) => e.type === 'region' && log.findIndex((x) => x.type === 'region' && x.detail === e.detail) === i).map((e) => ({ id: e.detail, t: e.t })),
@@ -249,6 +267,7 @@ try {
           (ENDING ? ` | 고개 ${fmt(result.pass)} · 탈것 ${fmt(result.mount)} · 탄 횟수 ${result.rides}` : '') +
           (ENDING ? ` | 조각 ${result.fragments.map((f) => `${f.what} ${fmt(f.t)}`).join(', ')}` : '') +
           (ENDING ? ` | 장 ${result.chapters.map((c) => `${c.id} ${fmt(c.t)}`).join(' → ')} | 엔딩 ${fmt(result.ending)} | 단계 ${result.levels.map((l) => fmt(l.t)).join(', ')} | 제작 ${result.forged.map((f) => `${f.what} ${fmt(f.t)}`).join(', ')}` : '') +
+          (ENDING ? ` | 귀환 ${result.timeline.returns.map((r) => `${r.n} ${fmt(r.t)}(${r.branch})`).join(', ')} | 깨어남 ${Object.entries(result.timeline.awakened).map(([g, t]) => `${g} ${fmt(t)}`).join(', ')} | 첫 영웅 ${fmt(result.timeline.firstHero)} | 맹세 지킴 ${fmt(result.timeline.oathKept)}` : '') +
           (ENDLESS ? ` | 끝없는 원정 ${result.endlessFloors.map((f) => `${f.depth}층 ${fmt(f.t)}`).join(', ')} | ${result.endless.filter((x) => !x.startsWith('floor')).join(', ')}` : '') +
           (OATHS ? ` | 맹세 ${result.oaths.join(', ')}` : '') +
           (DEPTH > 0 || DEPTH_AT > 0 ? ` | 깊이 ${result.depth.map((x) => `${x.level} ${fmt(x.time)}·처치 ${x.kills}·쓰러짐 ${x.deaths}·피격 ${x.hurt}`).join(' → ')} | 원천 ${result.sources.map((x) => `${x.id} ${x.total}(${x.level})`).join(' ')}` : '') +

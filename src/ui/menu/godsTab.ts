@@ -17,7 +17,7 @@ import { el, img, pips, type TabContext } from './dom'
 export type GodsView = 'slots' | 'looks'
 
 /**
- * 신 탭 (E305-04, `CYCLE.md` 7장): 옛 신화 탭과 외형 탭을 합쳤다.
+ * 신 탭 (E305-04, `DESIGN.md` 10.5): 옛 신화 탭과 외형 탭을 합쳤다.
  * 「자리 · 외형」 알약 둘로 나눈다: 자리는 지금 신·깨우는 신·신의 자리 셋·유물표·눌러 본 신의 카드, 맨 아래 접힌 신들의 지도.
  * 외형은 `WardrobePane`을 따로 둔 칸에 그린다 (받은 칸을 통째로 비우므로). 미리 보기는 외형을 보는 동안만 돈다
  */
@@ -242,7 +242,7 @@ export class GodsTab {
   }
 
   /**
-   * 유물표 (E303-04, `CYCLE.md` 4.4): 신화의 유물과 처음 만든 고유 효과. 켠 칸마다 모든 피해 +1%.
+   * 유물표 (E303-04, `DESIGN.md` 4.4): 신화의 유물과 처음 만든 고유 효과. 켠 칸마다 모든 피해 +1%.
    * 못 켠 칸은 실루엣, 켰는데 그 신이 자리에 없으면 흐리게
    */
   private relicTable(): HTMLElement {

@@ -2,7 +2,7 @@ import { AUTOMATION_STEPS } from '../../progress/Automation'
 import type { GameContext } from '../context'
 
 /**
- * 자동화 (E305-03, `CYCLE.md` 3.5): 귀환 횟수가 여는 자동화(다시 찍기·가보·자동 합치기·출발점)를 귀환할 때 카드로 알리고,
+ * 자동화 (E305-03, `DESIGN.md` 5.3): 귀환 횟수가 여는 자동화(다시 찍기·가보·자동 합치기·출발점)를 귀환할 때 카드로 알리고,
  * 주운 장비·재료를 세어 엔딩 뒤 자동 줍기가 열리면 알린다. 켜졌나는 `AutomationProgress.now`가 셈한다 (엔딩을 봤으면 귀환 3 이상)
  */
 export class AutomationSystem {

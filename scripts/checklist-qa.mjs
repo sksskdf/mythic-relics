@@ -662,7 +662,7 @@ const sections = {
   async 'e22-1'(browser) {
     const page = await fresh(browser, '?fresh&noscenes')
     const steps = []
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 30; i++) {
       // 목표 한 줄은 화면을 그릴 때 바뀌므로 몇 프레임 기다린 뒤 읽는다
       const f = await page.evaluate(() => window.__game.frame)
       await page.waitForFunction((n) => window.__game.frame > n + 1, f, { timeout: 60000 })
@@ -738,7 +738,7 @@ const sections = {
       return { region: g.region.id, to: b?.to ?? null, barriers: spots.map((x) => x.to) }
     })
     await shot(page, 'e22-3-barrier')
-    // 할 일을 마쳐 결계가 풀리는 순간 (E236: 미드가르드 흔적을 찾으면 요툰헤임 쪽)
+    // 할 일을 마쳐 결계가 풀리는 순간 (E306: 귀환 둘을 마치면 요툰헤임 쪽)
     const opened = await page.evaluate(() => {
       const g = window.__game
       for (let i = 0; i < 6 && g.barrierSpots.some((x) => x.to === 'jotunheim'); i++) g.skipGoal()
@@ -900,9 +900,9 @@ const sections = {
       }
       await page.waitForTimeout(700)
     }
-    /** 다음 장면이 열릴 때까지 기다린다 */
+    /** 다음 장면이 열릴 때까지 기다린다 (앞의 큰 카드가 자리를 지키는 동안 장면은 기다린다) */
     const nextScene = async (except = null) => {
-      for (let i = 0; i < 40; i++) {
+      for (let i = 0; i < 80; i++) {
         const s = await state()
         if (s.active && s.current !== except) return s.current
         await page.waitForTimeout(250)
@@ -974,10 +974,24 @@ const sections = {
     await record('e23-1-chapter-after')
     // 엔딩: 마지막 보스 → 느린 동작 → 엔딩 장면(엔딩 곡) → 큰 카드
     await page.waitForTimeout(4500)
-    await page.evaluate(() => {
+    const skipped = await page.evaluate(() => {
       const g = window.__game
-      for (let i = 0; i < 12 && g.chapters.goal && !(g.chapters.goal.kind === 'enter' && g.chapters.goal.region === 'sky'); i++) g.skipGoal()
+      // 할 일이 늘어(E306: 귀환 넷·영웅 합치기·맹세) 넉넉히 건너뛴다. 하나가 건너뛰어지지 않으면 거기서 멈춘다
+      for (let i = 0; i < 40 && g.chapters.goal && !(g.chapters.goal.kind === 'enter' && g.chapters.goal.region === 'sky'); i++) {
+        const before = g.chapters.goal
+        g.skipGoal()
+        g.advance(0.2, 1 / 30)
+        if (g.chapters.goal === before) break
+        // 건너뛴 귀환·깨어남이 띄운 고르는 카드(맹세 출발·두 갈래)는 봇처럼 닫는다 (떠 있으면 세계가 멈춘다)
+        if (g.oathCardOpen) {
+          g.hideCards()
+          g.oathSystem.swear(null)
+        }
+        if (g.swapOpen) g.answerSwap(false)
+      }
+      return g.chapters.goal
     })
+    if (!(skipped?.kind === 'enter' && skipped.region === 'sky')) throw new Error(`갈라진 하늘 앞까지 건너뛰지 못함: ${JSON.stringify(skipped)}`)
     await settle()
     await page.evaluate(() => {
       const g = window.__game
@@ -1001,6 +1015,7 @@ const sections = {
     await record('e23-1-ending-scene')
     await settle()
     await record('e23-1-ending-card')
+    await settle()
     const end = await page.evaluate(() => ({ ending: window.__game.ending.reached }))
     await page.close()
     return { moments, end }

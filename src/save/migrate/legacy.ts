@@ -14,7 +14,7 @@ import { type God, godDef, isRelicId, relicDef, type RelicId } from '../../relic
 import type { SaveData } from '../SaveData'
 
 /**
- * 옛 저장 옮기기 (E301-03, `CYCLE.md` 9장): 옛 버전을 v16 모양까지 올릴 때만 쓰는 것을 한곳에 모았다.
+ * 옛 저장 옮기기 (E301-03, `docs/knowledge/architecture.md` 저장 사슬): 옛 버전을 v16 모양까지 올릴 때만 쓰는 것을 한곳에 모았다.
  * `parseSave`가 버전을 보고 부른다. 맹세·깊이·자동화·끝없는 원정으로 바꾸는 v17 옮기기는 `migrate/v17.ts`
  */
 

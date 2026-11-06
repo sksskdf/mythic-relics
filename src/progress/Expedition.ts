@@ -48,7 +48,7 @@ export interface ReturnPreview {
 }
 
 /**
- * 원정 (E304, `CYCLE.md` 3장): 원정 번호·명성·원천 불씨·기록·가보·출발점.
+ * 원정 (E304, `DESIGN.md` 5.3): 원정 번호·명성·원천 불씨·기록·가보·출발점.
  * 기세(수련 경험치와 마디)는 `TrainingProgress`가 갖고, 귀환할 때 이 기록이 그것을 지우고 다시 찍을 차례를 남긴다.
  */
 export class ExpeditionProgress {

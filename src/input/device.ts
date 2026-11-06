@@ -15,9 +15,14 @@ export function coarsePointer(): boolean {
 /** 화면 짧은 변(CSS px)이 이보다 작으면 휴대폰으로 본다 */
 export const PHONE_SHORT_SIDE = 600
 
+/** 휴대폰인가 (E306 D22: 화질 기본값을 「낮음」으로): 터치 기기이고 화면 짧은 변이 PHONE_SHORT_SIDE보다 작다. 태블릿은 아니다 */
+export function phoneScreen(touch: boolean, width: number, height: number): boolean {
+  return touch && Math.min(width, height) < PHONE_SHORT_SIDE
+}
+
 /** 휴대폰을 가로로 들었나 (세로로 돌려 달라고 안내할 때). 태블릿은 가로로 두어도 된다 */
 export function wantsPortrait(touch: boolean, width: number, height: number): boolean {
-  return touch && width > height && Math.min(width, height) < PHONE_SHORT_SIDE
+  return width > height && phoneScreen(touch, width, height)
 }
 
 /** 지금 화면이 휴대폰 조작인가 (main이 html에 단 is-touch). 커서가 없어 올려 보기 대신 누르기로 보여 줄 때 */

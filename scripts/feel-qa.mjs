@@ -21,6 +21,9 @@ const gods = args[0] ? args[0].split(',') : Object.keys(GODS)
 const defaultEnemies = ['grunt', 'wolf', 'foxDemon', 'harpy', 'draugr', 'frostWitch', 'king']
 const enemies = args[1] ? args[1].split(',') : defaultEnemies
 const PORT = 4196
+/** 싸움을 오래 보려고 적 생명력을 이만큼 곱한다. 보스·수호자는 생명이 이것을 넘지 않게 (E306에서 거인 왕 700 → 2400처럼 늘어도 손맛을 보는 싸움 길이는 그대로) */
+const HP_SCALE = 6
+const BOSS_FIGHT_HP = 4200
 const BROWSER = process.env.CHROMIUM_PATH ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'
 const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'ignore', detached: true })
 const stop = () => {
@@ -68,13 +71,13 @@ try {
     for (const enemy of enemies) {
       const boss = ENEMIES[enemy]?.role === 'boss' || ENEMIES[enemy]?.role === 'guardian'
       const r = await page.evaluate(
-        ({ god, enemy, limit }) => {
+        ({ god, enemy, limit, hpScale }) => {
           const g = window.__game
           const qa = window.__qa
           g.dev.choose(god)
           g.encounter.clearAll()
           // 싸움을 오래 보려고 적 생명력을 크게 (피해는 그대로, 주인공은 맞아도 안 줄어든다)
-          g.encounter.threat = { hp: 6, damage: 1 }
+          g.encounter.threat = { hp: hpScale, damage: 1 }
           if (!g.combat.alive) g.dev.revive()
           g.combat.health.reset()
           g.combat.godMode = true
@@ -129,7 +132,7 @@ try {
             stuck,
           }
         },
-        { god, enemy, limit: boss ? 120 : 60 },
+        { god, enemy, limit: boss ? 120 : 60, hpScale: boss ? Math.min(HP_SCALE, BOSS_FIGHT_HP / ENEMIES[enemy].hp) : HP_SCALE },
       )
       const issues = []
       if (r.error) issues.push(r.error)

@@ -133,7 +133,7 @@ export class Game {
   readonly depthSystem: DepthSystem
   /** 대화 장면을 언제 여는가: 처음 보는 일, 마을 사람에게 말 걸기, 미룬 장면 (E15-06) */
   private readonly storyline: Storyline
-  /** 자동화 (E305-03, `CYCLE.md` 3.5): 귀환 횟수가 열고, 엔딩을 봤으면 귀환 3 이상으로 친다. 자동 줍기는 엔딩 뒤 */
+  /** 자동화 (E305-03, `DESIGN.md` 5.3): 귀환 횟수가 열고, 엔딩을 봤으면 귀환 3 이상으로 친다. 자동 줍기는 엔딩 뒤 */
   readonly automation = new AutomationProgress(
     () => this.expedition.returns,
     () => this.ending.has('autoPickup'),
@@ -147,6 +147,8 @@ export class Game {
       forged: () => Math.max(0, ...this.powers.loadout.ownedRelics.filter(isMythRelic).map((id) => this.powers.loadout.stage(id))),
       returns: () => this.expedition.returns,
       mounted: () => this.mount.owned,
+      merged: () => this.powers.loadout.uniquesSeen.size,
+      oathsKept: () => this.oaths.kept.size,
     },
     // 엔딩 뒤에는 남은 신화권 셋의 결계가 풀린다
     () => this.ending.has('realms'),
@@ -157,7 +159,7 @@ export class Game {
   /** 원정 (E304): 원정 번호·명성·원천 불씨·기록 */
   readonly expedition = Object.assign(new ExpeditionProgress(), { conquests: (): number => this.chapters.conquered, automation: () => this.automation.now, oathScale: (): number => this.oaths.renownScale() })
   /** 신을 깨우는 진행 (E238): 깨우는 신과 모은 조각 */
-  readonly awaken = new WakeProgress()
+  readonly awaken = new WakeProgress(() => this.progress.opened.length)
   /** 탈것 (E241): 고개지기의 산양을 얻었나, 타고 내리기 */
   readonly mount = new MountProgress()
   readonly mountSystem: MountSystem
@@ -419,7 +421,7 @@ export class Game {
       hovered: () => this.playerInput.hovered,
       screenPoint: (x, y, z) => this.screenPoint(x, y, z),
       traces: () => this.awakening.spots,
-      traceContext: () => ({ waking: this.awaken.waking, fragments: this.awaken.fragments, hunt: this.awaken.hunt, sealedText: this.awakening.sealedText }),
+      traceContext: (god) => ({ waking: this.awaken.waking, fragments: this.awaken.fragments, hunt: this.awaken.hunt, need: this.awaken.need, sealedText: this.awakening.sealedText(god) }),
       guardian: () => this.awakening.fighting,
     })
     // 정보 화면 탭은 쓸 일이 생길 때 하나씩 열린다 (E236-05): 열리면 한 줄짜리 카드와 메뉴 단추 표시
@@ -450,6 +452,7 @@ export class Game {
     this.expeditionSystem = new ExpeditionSystem(this.ctx, {
       offer: (view, pick, later) => this.returnCard.show(view, pick, later),
       offering: () => this.returnCard.open,
+      close: () => this.returnCard.hide(),
       ascend: (god) => this.growth.promote(god),
       merge: (uids) => void this.relics.merge(uids),
       deepen: (level) => void this.depthSystem.choose(level),
@@ -457,6 +460,8 @@ export class Game {
     // 맹세 (E305-01): 귀환 2부터 다시 떠날 때 출발 카드
     this.oathSystem = new OathSystem(this.ctx, {
       offer: (view, pick) => this.oathCard.show(view, (id) => pick(id as OathId | null)),
+      open: () => this.oathCard.open,
+      close: () => this.oathCard.hide(),
       reapply: () => this.relics.reapply(),
       fillBreath: () => this.relics.fillBreath(),
     })
@@ -493,6 +498,7 @@ export class Game {
       world: this.world,
       expeditionSystem: this.expeditionSystem,
       mountSystem: this.mountSystem,
+      oathSystem: this.oathSystem,
     })
     this.audio = new AudioEngine(this.viewport.settings.volume, { mobile: this.touch })
     this.attackFx = new AttackFx({ fx: this.fx, hero: this.hero, combat: this.combat, build: this.ctx.build, audio: this.audio })

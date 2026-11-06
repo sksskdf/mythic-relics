@@ -51,6 +51,8 @@ const GAINS_MIN_MS = { card: 3000, big: 4500, tab: 3600 }
 export type GainsSize = keyof typeof GAINS_MIN_MS
 /** 장면이 HUD를 숨기기 이만큼(ms) 안에 띄운 제목 카드는 장면 뒤에 다시 띄운다 */
 const TITLE_REPLAY_MS = 3000
+/** 고르는 카드가 떠 있는 동안 다음 얻은 것 카드를 이만큼(ms)마다 다시 본다 */
+const CHOOSING_POLL_MS = 250
 
 /**
  * HUD: 왼쪽 위에 지금의 나, 아래 가운데에 떠 있는 묶음 하나. (DESIGN.md 10.5)
@@ -343,10 +345,19 @@ export class Hud {
     return this.gains.classList.contains('is-side') ? 'card' : this.gains.classList.contains('is-fly') ? 'tab' : 'big'
   }
 
-  /** 앞 카드가 GAINS_MIN_MS 넘게 보였으면 다음 카드를 띄운다 */
+  /**
+   * 고르는 카드(귀환·맹세 출발)가 떠 있나. 그동안 얻은 것 카드는 줄에서 기다리고, 떠 있던 카드는 숨는다(hud.css):
+   * 귀환하는 순간의 「원정 N 출발」 큰 카드가 맹세 출발 카드에 반쯤 가려지지 않게 (E306 90분 QA).
+   * 두 갈래 카드는 막지 않는다: 위에 뜬 「신이 깨어남」 큰 카드가 무엇을 고르는지 알려 준다
+   */
+  private get choosing(): boolean {
+    return this.root.querySelector('.pick-card:not([hidden])') !== null
+  }
+
+  /** 앞 카드가 GAINS_MIN_MS 넘게 보였고 고르는 카드가 없으면 다음 카드를 띄운다 */
   private nextGains(): void {
     if (this.gainsTimer !== null || this.gainsQueue.length === 0) return
-    const wait = this.gainsShownAt + this.gainsHold - performance.now()
+    const wait = this.choosing ? CHOOSING_POLL_MS : this.gainsShownAt + this.gainsHold - performance.now()
     if (wait > 0) {
       this.gainsTimer = setTimeout(() => {
         this.gainsTimer = null

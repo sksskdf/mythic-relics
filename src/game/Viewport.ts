@@ -35,6 +35,8 @@ export class Viewport {
   readonly pixel: PixelRenderer
   /** 지금 설정 (저장한 것에 ?quality=를 덮은 것) */
   settings: Settings
+  /** ?quality=로 덮은 화질 (저장하지 않고, 확대·축소로 설정을 다시 읽어도 지킨다. 메뉴에서 화질을 고르면 걷는다) */
+  private qualityOverride: RenderQuality | undefined
   /** 가장 크게 확대했을 때(시야 12m)의 렌더 세로 픽셀 수. ?res= 로 바꿔 볼 수 있고, 설정의 해상도를 곱한다 */
   private baseRenderHeight: number
   /** ?res= 로 정한 기준 (없으면 기본값) */
@@ -44,8 +46,8 @@ export class Viewport {
     private readonly parts: ViewportParts,
     options: ViewportOptions,
   ) {
-    this.settings = settingsStorage.load()
-    if (options.quality) this.settings = { ...this.settings, quality: options.quality }
+    this.qualityOverride = options.quality
+    this.settings = this.withOverride(settingsStorage.load())
     // ?res= 로 픽셀 밀도를 바꿔 볼 수 있다. 기본은 프로토타입의 밀도에 설정의 해상도를 곱한다
     this.requestedRenderHeight = options.renderHeight ?? TARGET_RENDER_HEIGHT
     this.baseRenderHeight = options.renderHeight ?? Math.round(TARGET_RENDER_HEIGHT * RENDER_SCALE[this.settings.quality])
@@ -75,9 +77,15 @@ export class Viewport {
     }
   }
 
-  /** 일시 정지 메뉴에서 바꾼 설정을 저장하고 적용한다 */
+  /** 일시 정지 메뉴에서 바꾼 설정을 저장하고 적용한다. 화질을 고르면 고른 것으로 남겨 기기 기본값을 쓰지 않는다 (E306 D22) */
   change(patch: Partial<Settings>): void {
-    this.apply(settingsStorage.update(patch))
+    if (patch.quality) this.qualityOverride = undefined
+    this.apply(this.withOverride(settingsStorage.update(patch.quality ? { ...patch, qualityChosen: true } : patch)))
+  }
+
+  /** 저장한 설정에 ?quality= 덮어쓰기를 얹는다 */
+  private withOverride(settings: Settings): Settings {
+    return this.qualityOverride ? { ...settings, quality: this.qualityOverride } : settings
   }
 
   /** 두 손가락 확대·축소 (E235): end면 손을 뗀 것이라 설정에 남긴다 */
@@ -86,7 +94,7 @@ export class Viewport {
     // 대화 장면의 시야는 장면이 정한다 (휠과 같이)
     if (this.parts.sceneActive()) return
     if (viewHeight !== view.viewHeight) this.setViewHeight(viewHeight)
-    if (end) this.settings = settingsStorage.update({ viewHeight: view.viewHeight })
+    if (end) this.settings = this.withOverride(settingsStorage.update({ viewHeight: view.viewHeight }))
   }
 
   /** 마우스 휠로 확대·축소한다. 설정에 저장되어 다시 켜도 유지된다. */
@@ -97,7 +105,7 @@ export class Viewport {
     const next = clampViewHeight(this.parts.view.viewHeight * (e.deltaY > 0 ? 1.1 : 1 / 1.1))
     if (next === this.parts.view.viewHeight) return
     this.setViewHeight(next)
-    this.settings = settingsStorage.update({ viewHeight: next })
+    this.settings = this.withOverride(settingsStorage.update({ viewHeight: next }))
   }
 
   /** 확대·축소. 그림자가 그려지는 범위도 보이는 범위에 맞춘다. */
