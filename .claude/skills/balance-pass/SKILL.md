@@ -9,7 +9,7 @@ description: 게임 수치를 바꾸는 한 바퀴. 목표 띠를 정하고, src
 
 ## 1. 목표를 숫자로
 
-- 띠: `TIMELINE.md` 4장(목표 성장 곡선)·1.3, 마일스톤 완료 기준 `ROADMAP.md` 2장
+- 띠: `TIMELINE.md` 4장(90분 시각표·공격 지수 열)·5장(층마다 목표 배율)·1.5(E306 뒤 봇 띠), 마일스톤 완료 기준 `ROADMAP.md` 2장
 - 지금: `docs/knowledge/baselines.md`, 최근 `test-results/*.json`
 - 원인을 모르겠으면 `balance-analyst` 서브에이전트에게 결과 파일과 목표를 넘겨 제안을 받는다
 - 이미 해 보고 되돌린 값은 `docs/knowledge/troubleshooting.md`·`decisions.md`에 있다 (예: 땅 피해 지수 0.6~0.65는 쓰러짐이 늘어 0.55)
@@ -21,8 +21,8 @@ description: 게임 수치를 바꾸는 한 바퀴. 목표 띠를 정하고, src
 
 | 바꾼 것 | 돌릴 것 | 기준 |
 | --- | --- | --- |
-| 장·땅 세기·경험치·장비 단계 | `node scripts/power-curve.mjs`, `node scripts/playtest.mjs 1 100 --ending` | 곡선 띠, 엔딩 60~80분, 쓰러짐 |
-| 처음 30분 흐름 | `node scripts/playtest.mjs 2 40` | 첫 신화 8분쯤, 2단계 24~27분 (CI는 35분 안) |
+| 장·땅 세기·경험치·장비 단계 | `node scripts/power-curve.mjs`, `node scripts/playtest.mjs 1 100 --ending` | 곡선 띠, 엔딩 봇 65~75분과 체크포인트 ±15%(`node scripts/timeline-check.mjs`), 쓰러짐 |
+| 처음 30분 흐름 | `node scripts/playtest.mjs 2 40` | 첫 신(★1) 9.3~12.5분, 귀환 1 11.9~16.1분 (CI 첫 승천은 35분 안) |
 | 신화·유물 | `node scripts/myth-trial.mjs` | 1분당 처치 중앙값 ±20% |
 | 원천 각성 | `node scripts/source-trial.mjs` | 원천 넷 평균 ±25% |
 | 적 | `node scripts/enemy-trial.mjs` | 역할별 피격·처치 시간, 지역 보스 다섯 |
