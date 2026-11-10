@@ -77,9 +77,10 @@ export interface TrainingHost {
 export interface WorldMapHost {
   /**
    * 지역마다: 이름, 신화권 색, 자리(입구·깊은 땅·보스), 지도 위 자리(세계 칸, 북쪽이 위), 땅의 너비(칸 한 변 = 1),
-   * 이웃, 지금 여기인가, 성소를 찾았나, 그 땅의 장 보스를 이겼나, 결계로 막혔나 (E22)
+   * 이웃, 지금 여기인가, 성소를 찾았나, 그 땅의 장 보스를 이겼나, 결계로 막혔나 (E22),
+   * 장 흐름 밖의 땅이라 엔딩 뒤에야 결계가 풀리나 (E307: 세로 지도는 이 땅들을 빼고 줄기에 맞춘다)
    */
-  nodes(): { id: string; name: string; color: string; zone: string | null; x: number; y: number; size: number; links: string[]; here: boolean; found: boolean; /** 그 땅의 장 보스를 이겼다 */ beaten: boolean; locked: boolean }[]
+  nodes(): { id: string; name: string; color: string; zone: string | null; x: number; y: number; size: number; links: string[]; here: boolean; found: boolean; /** 그 땅의 장 보스를 이겼다 */ beaten: boolean; locked: boolean; later: boolean }[]
   /** 다음 목표: 가야 할 땅과 목표 한 줄 (E22-04). 엔딩 뒤이거나 다 했으면 null */
   goal(): { region: string; text: string } | null
   /** 아직 깨우지 않은 신의 흔적 (E238): 있는 땅, 이름, 그 신의 색, 지금 응답하지 않는가(깨우는 중·주신이 더 자라야 함) */
@@ -139,9 +140,7 @@ export interface MenuHost {
   readonly gods: {
     /** 지금 신의 자리를 바꿀 수 있는가 (E302: 어디서나) */
     canSwap(): boolean
-    /** 한 신에 몰아 고른다 (손·심장·숨 첫 칸) */
-    choose(god: God): boolean
-    /** 신의 자리 셋 (E302): 손·심장·숨, 숨 칸 수, 잠긴 숨 칸마다 열리는 때, 한 신에 몰았으면 그 신, 빈 손의 맹세를 걸었나 (E305-01) */
+    /** 신의 자리 셋 (E302): 손·심장·숨, 숨 칸 수, 잠긴 숨 칸마다 열리는 때, 지금 도는 세 자리가 모두 같은 신이면 그 신(효과가 한 단계 위로 돈다. 화면에는 이름 없이 값만, E307), 빈 손의 맹세를 걸었나 (E305-01) */
     pantheon(): { hand: God | null; heart: God | null; breath: readonly God[]; count: number; locked: readonly string[]; focus: God | null; emptyHand: boolean }
     /** 그 자리에 낀다 (손·심장은 바꿔 끼고, 숨은 빈 칸에) */
     place(part: 'hand' | 'heart' | 'breath', god: God): boolean

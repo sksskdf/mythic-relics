@@ -1,4 +1,5 @@
-// 클래스 외형 모음 (E6-19): 모든 클래스를 자기 유물로 발현시켜 Lv1·Lv4 모습을 한 장에 모은다.
+// 신의 외형 모음 (E6-19 → E307): 신마다 그 신을 깨워 세 자리에 넣고, 그 신의 옷·표식·유물 외형을 보관함에서 골라 입힌 1단계·4단계 모습을 한 장에 모은다.
+// (신을 깨워도 옷은 저절로 입혀지지 않는다. 주인공의 기본 모습은 smoke의 look-*.png)
 // 사용법: npm run build && node scripts/class-sheet.mjs [저장 경로.png] [신 id,신 id...]
 // 결과: 클래스마다 한 줄(이름, Lv1, Lv4). 주인공 둘레만 잘라 붙인다.
 import { spawn } from 'node:child_process'
@@ -44,7 +45,12 @@ try {
   const relicData = JSON.parse(readFileSync('src/data/relics.json', 'utf8'))
   const gods = Object.keys(godData)
     .filter((id) => !only || only.split(',').includes(id))
-    .map((id) => ({ id, name: godData[id].name, relics: Object.keys(relicData).filter((r) => relicData[r].god === id || relicData[r].also?.includes(id)) }))
+    .map((id) => {
+      const relics = Object.keys(relicData).filter((r) => relicData[r].god === id || relicData[r].also?.includes(id))
+      // 입힐 외형: 유물 넷까지의 외형, 그 신의 옷, 표식 (같은 칸이면 뒤의 것이 덮는다)
+      const looks = [...relics.slice(0, 4).map((r) => relicData[r].look), ...Object.values(godData[id].looks), godData[id].mark]
+      return { id, name: godData[id].name, relics, looks }
+    })
   const shots = []
   for (const god of gods) {
     const row = { name: god.name, images: [] }
@@ -57,6 +63,12 @@ try {
           for (const id of god.relics.slice(0, 4)) g.dev.equip(id)
           g.dev.choose(god.id)
           for (let l = 1; l < level; l++) g.dev.promote()
+          // 신을 깨워도 옷은 저절로 입혀지지 않는다 (E307): 그 신의 옷·표식·유물 외형을 보관함에서 직접 골라 입힌다
+          const slots = ['head', 'face', 'torso', 'waist', 'arms', 'legs', 'weapon', 'cape', 'mark']
+          for (const slot of slots) g.wardrobe.choose(slot, 'auto')
+          g.wardrobe.unlock(god.looks)
+          for (const look of god.looks) slots.some((slot) => g.wardrobe.choose(slot, look))
+          g.appearance.apply()
           // 미드가르드 시작점(4m 안에 소품이 없는 트인 땅, 마을 밖은 숲 띠)에서 오른쪽 아래를 보게 한다
           if (g.region.id !== 'midgard') g.enterRegion(g.regions.midgard)
           g.encounter.clearAll()

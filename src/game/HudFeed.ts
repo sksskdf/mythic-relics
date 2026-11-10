@@ -1,6 +1,7 @@
 import { KEEPER, MOUNT } from '../data/mount'
 import { insightProgress } from '../data/training'
 import { godDef } from '../relics/data'
+import { heroIcon } from '../ui/heroIcon'
 import type { Build } from '../build/Build'
 import type { Game } from './Game'
 
@@ -39,7 +40,7 @@ export class HudFeed {
     this.updateCoach()
     const { encounter, awakening, progress } = game
     const boss = encounter.boss
-    // 저장된 자리의 손 (빈 손의 맹세 동안 도는 손은 비지만, 기세 막대·초상·귀환 빛은 그대로 보인다)
+    // 저장된 자리의 손 (빈 손의 맹세 동안 도는 손은 비지만, 기세 막대·초상의 빛·귀환 빛은 그대로 보인다)
     const manifested = progress.pantheon.hand
     game.hud.update(
       {
@@ -53,9 +54,11 @@ export class HudFeed {
         // 기세 막대 (E305-03): 신화 경험치 대신 다음 깨달음까지 (원정마다 처음부터)
         xp: manifested ? this.momentum() : null,
         xpColor: manifested ? godDef(manifested).color : '',
-        portrait: manifested ? { name: godDef(manifested).name, title: progress.title(manifested), color: godDef(manifested).color, level: progress.level(manifested) } : null,
-        // 빌린 신(E237)은 밝은 칩, 그 밖에 낀 유물의 신은 잠든 가호
-        lent: build.borrowed.map((g) => ({ name: godDef(g).name, color: godDef(g).color })),
+        // 초상은 주인공의 얼굴 그대로 (E307: 신의 문장·칭호로 바꾸지 않는다). 손의 신은 테의 빛·보석·첫 칩으로
+        face: heroIcon(game.wardrobe.body),
+        hand: manifested ? { name: godDef(manifested).name, color: godDef(manifested).color, level: progress.level(manifested) } : null,
+        // 손 말고 자리에 든 신(E237 → E302)도 칩으로
+        lent: build.borrowed.filter((g) => g !== manifested).map((g) => ({ name: godDef(g).name, color: godDef(g).color })),
         promote: manifested !== null && game.expeditionSystem.canReturn,
         sources: Object.fromEntries(game.sourceRows().map((r) => [r.id, { value: r.total, level: r.level }])),
       },

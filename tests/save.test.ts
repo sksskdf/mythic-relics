@@ -19,6 +19,8 @@ import { parseSave, SAVE_VERSION, type SaveData, saveStorage } from '../src/save
 import { HUNT_KILLS } from '../src/data/wake'
 import { ChapterProgress } from '../src/progress/Chapters'
 import { type God, godDef } from '../src/relics/data'
+import { REGIONS } from '../src/data/regions'
+import { throughGame } from './helpers/saveBench'
 
 const sample: SaveData = {
   version: SAVE_VERSION,
@@ -717,6 +719,15 @@ describe('저장 v17: 실제 모양의 옛 저장 견본 (v1·v9·v12·v13·v15�
         expect(data!.version).toBe(SAVE_VERSION)
         expect(parseSave(JSON.stringify(data))).toEqual(data)
         for (const record of Object.values(data!.classes)) expect(Object.keys(record ?? {})).toEqual(['level'])
+      })
+
+      it('(1-2) 옮긴 저장을 게임에 불러와 다시 저장해도 그대로다 (Persistence 왕복, E307 0B)', () => {
+        // 자리가 없던 옛 저장(v1·v2)은 마을 시작점에서 시작해 그 자리가 적힌다
+        const village = REGIONS.village!
+        const expected = { ...data!, region: data!.region ?? { id: 'village', x: village.spawn.x, z: village.spawn.z } }
+        const once = parseSave(JSON.stringify(throughGame(data!)))
+        expect(once).toEqual(expected)
+        expect(parseSave(JSON.stringify(throughGame(once!)))).toEqual(expected)
       })
 
       it('(2) 공격 지수가 옮기기 전의 0.9~1.1배', () => {

@@ -507,7 +507,7 @@ export class DevPanel {
     const g = this.game
     const p = g.hero.object.position
     const god = g.powers.manifested
-    const cls = god ? `${godDef(god).titles[g.progress.level(god) - 1]} ${g.progress.level(god)}단계` : '신화 개방 없음'
+    const cls = god ? `손 ${godDef(god).name} ${g.progress.level(god)}단계` : '신화 개방 없음'
     return [
       `${Math.floor(g.time / 60)}:${String(Math.floor(g.time % 60)).padStart(2, '0')} · (${p.x.toFixed(0)}, ${p.z.toFixed(0)}) · ${g.view.viewHeight.toFixed(0)}m`,
       `♥${Math.round(g.combat.health.hp)}/${g.combat.health.max} ✦${Math.round(g.combat.heartGauge * 100)}% · ${cls}`,

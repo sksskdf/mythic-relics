@@ -2,11 +2,12 @@ import './ui/theme.css'
 import './ui/parts.css'
 import { Game } from './game/Game'
 import { coarsePointer, detectTouch, phoneScreen } from './input/device'
-import { type God, godDef, isRelicId, RELIC_IDS } from './relics/data'
+import { isRelicId, RELIC_IDS } from './relics/data'
 import { SLOT_COUNT, saveStorage, TITLE_REQUEST } from './save/SaveData'
 import { RENDER_QUALITIES, settingsStorage } from './save/settings'
 import { RotateHint } from './ui/RotateHint'
-import { type SlotSummary, type TitleHandlers, TitleScreen } from './ui/TitleScreen'
+import { type SlotSummary, slotSummary } from './ui/slotSummary'
+import { type TitleHandlers, TitleScreen } from './ui/TitleScreen'
 // 세로 화면(휴대폰) 덮어쓰기는 다른 스타일 뒤에 (E235)
 import './ui/portrait.css'
 
@@ -25,18 +26,8 @@ settingsStorage.useDevice(phoneScreen(touch, innerWidth, innerHeight))
 // 아이폰 사파리의 두 손가락 확대(창·HUD 위에서)는 touch-action으로 막히지 않아 사파리 몸짓 사건을 막는다.
 // 게임 화면의 두 손가락 확대·축소는 포인터 사건으로 따로 받는다 (E235)
 for (const type of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(type, (e) => e.preventDefault(), { passive: false })
-// touch-action을 따르지 않는 옛 사파리: 0.3초 안에 두 번째로 뗀 손가락은 기본 동작(두 번 눌러 확대)을 막는다.
-// 대화 상자·게임 화면은 포인터 사건으로 받아 영향이 없고, 글 입력 칸은 그대로 둔다
-let lastTouchEnd = 0
-document.addEventListener(
-  'touchend',
-  (e) => {
-    const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement
-    if (!typing && e.timeStamp - lastTouchEnd < 300) e.preventDefault()
-    lastTouchEnd = e.timeStamp
-  },
-  { passive: false },
-)
+// 두 번 눌러 확대는 index.html의 touch-action: manipulation(모든 요소)이 막는다. 0.3초 안에 이어 뗀 손가락의 touchend를 막던
+// 가드는 걷었다 (E307): 그 톡의 click까지 지워, 빠르게 이어 누른 탭·단추와 「한 번 더 누르면」(수련 마디·가방 장비)이 먹지 않았다
 const rotateHint = new RotateHint(document.body, touch)
 const resParam = Number(params.get('res'))
 const viewParam = Number(params.get('view'))
@@ -78,20 +69,14 @@ function consumeTitleRequest(): boolean {
   }
 }
 
-/** 슬롯 카드에 보일 것: 가장 높은 클래스와 가진 유물 수 */
+/** 슬롯 카드에 보일 것: 내 초상과 지금 있는 땅, 깨운 신·유물표의 유물 수 (`ui/slotSummary.ts`) */
 function summary(slot: number): SlotSummary | null {
   const data = saveStorage.load(slot)
-  if (!data) return null
-  // 유물만 센다 (일반 장비는 빼고), 신화는 연 것(개방 단계 1 이상)만
-  const relics = [...data.slots, ...data.bag].filter((id) => id && isRelicId(id)).length
-  const best = (Object.entries(data.classes) as [God, { level: number }][]).filter(([, r]) => r.level >= 1).sort((a, b) => b[1].level - a[1].level)[0]
-  if (!best) return { className: '모험가', title: '이름 없는 모험가', level: 1, color: '#d8dde6', relics }
-  const god = godDef(best[0])
-  return { className: god.name, title: god.titles[best[1].level - 1]!, level: best[1].level, color: god.color, relics }
+  return data ? slotSummary(data) : null
 }
 
 /** 화면이 한 번 그려질 때까지 기다린다. (로딩 화면을 먼저 보이고 무거운 준비를 시작하려고) */
-const slotSummaries = () => Array.from({ length: SLOT_COUNT }, (_, i) => summary(i))
+const slotSummaries = () => Array.from({ length: SLOT_COUNT }, (_, i) => summary(i) ?? saveStorage.unread(i))
 
 const nextPaint = () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
 

@@ -130,8 +130,8 @@ const num = (v: unknown, min: number, max: number, fallback: number) =>
   typeof v === 'number' && Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : fallback
 
 /**
- * 저장된 글을 읽어 검사한다. 깨졌거나 모르는 형식이면 null (새로 시작).
- * 알 수 없는 유물이나 값은 버리고, 숫자는 범위 안으로 맞춘다.
+ * 저장된 글을 읽어 검사한다. 깨졌거나 모르는 형식(더 새 버전)이면 null: 슬롯은 새로 시작할 수 있고, 원본은 `saveStorage`가 옆 키에 남긴다.
+ * 알 수 없는 유물이나 값, 모르는 키는 버리고, 숫자는 범위 안으로 맞춘다.
  */
 export function parseSave(text: string | null): SaveData | null {
   if (!text) return null
@@ -385,9 +385,90 @@ function keepOld(key: string, text: string): void {
   }
 }
 
+/** 읽지 못한 저장의 까닭 (E307 0B): 더 새 버전이 쓴 저장(newer), 깨진 글(broken) */
+export type UnreadReason = 'newer' | 'broken'
+
+/** 슬롯에 든 읽지 못한 저장: 까닭과, 원본을 옆 키에 남겼는가 (저장소가 차서 못 남기면 false: 그러면 이 슬롯에는 저장하지 않는다, `saveStorage.save`) */
+export interface UnreadSave {
+  unread: UnreadReason
+  kept: boolean
+}
+
+/** 읽지 못한 원본을 슬롯·까닭마다 몇 개까지 남기나 (같은 글은 한 번만) */
+export const UNREAD_KEEP = 4
+
+/** 읽지 못한 글이 더 새 버전의 저장이면 그 버전, 아니면(JSON이 아님·버전이 없거나 이상함) null */
+function newerVersion(text: string): number | null {
+  try {
+    const raw: unknown = JSON.parse(text)
+    const version = typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>).version : null
+    return typeof version === 'number' && Number.isInteger(version) && version > SAVE_VERSION ? version : null
+  } catch {
+    return null
+  }
+}
+
+/** `parseSave`가 읽지 못한 글의 까닭: 버전이 지금보다 높으면 더 새 버전이 쓴 저장, 나머지는 깨진 글 */
+export function unreadReason(text: string): UnreadReason {
+  return newerVersion(text) === null ? 'broken' : 'newer'
+}
+
+/**
+ * 읽지 못한 저장의 원본을 옆 키에 남긴다 (E307 0B, 옛 버전을 옮길 때의 `…:vN.bak`과 같은 식).
+ * 그 슬롯에서 새 모험을 시작하면 원본이 덮이므로, 새 버전으로 돌아가거나 손으로 되살릴 수 있게.
+ * 더 새 버전은 `…:unread-vN.bak`, 깨진 글은 `…:unread-broken.bak` (옮기기 백업 `…:vN.bak`과 겹치지 않는 이름).
+ * 같은 글은 한 번만 남기고, 먼저 남긴 것은 덮지 않는다: 다른 원본이 또 오면 `.2`·`.3`…에, 끝 칸(`UNREAD_KEEP`)만 새것으로 바꾼다.
+ * 남겼으면(이미 남아 있어도) true, 남기지 못했으면 false (그러면 `saveStorage.save`가 그 슬롯을 덮지 않는다)
+ */
+function keepUnread(key: string, text: string): boolean {
+  const version = newerVersion(text)
+  const name = `${key}:unread-${version === null ? 'broken' : `v${version}`}`
+  try {
+    for (let n = 1; n <= UNREAD_KEEP; n++) {
+      const backup = `${name}${n > 1 ? `.${n}` : ''}.bak`
+      const kept = localStorage.getItem(backup)
+      if (kept === text) return true
+      if (kept === null || n === UNREAD_KEEP) {
+        localStorage.setItem(backup, text)
+        return true
+      }
+    }
+  } catch {
+    // 남기지 못해도 게임은 뜬다 (저장소가 찼거나 못 쓴다).
+    // 그래도 슬롯의 글을 바꿔 쓰는 것은 될 수 있다(새 판의 저장은 원본보다 작다): 덮지 않게 막는 것은 `saveStorage.save`
+  }
+  return false
+}
+
+/**
+ * 슬롯의 글을 읽는다: 읽은 저장, 또는 읽지 못한 까닭. 빈 슬롯이면 둘 다 null.
+ * 읽지 못하는 저장 때문에 게임이 뜨지 않으면 안 된다: 검사하다 터져도 깨진 글로 친다.
+ * 옛 버전은 옮기기 전 원본을(`keepOld`), 읽지 못한 저장은 그 원본을(`keepUnread`) 여기서 남긴다
+ */
+function readSlot(key: string): { data: SaveData | null; unread: UnreadSave | null } {
+  const text = read(key)
+  if (!text) return { data: null, unread: null }
+  let data: SaveData | null = null
+  try {
+    data = parseSave(text)
+  } catch (e) {
+    console.warn('저장을 읽지 못했습니다', e)
+  }
+  if (data) {
+    keepOld(key, text)
+    return { data, unread: null }
+  }
+  return { data: null, unread: { unread: unreadReason(text), kept: keepUnread(key, text) } }
+}
+
+/** 이 실행이 지금 슬롯에 마지막으로 쓴 글. 슬롯의 글이 이것과 다르면 그 사이에 다른 탭(더 새 빌드)이 쓴 것이다 */
+let written: string | null = null
+
 /**
  * 브라우저 저장소. 슬롯 3개, 마지막으로 플레이한 슬롯을 기억해 다음 실행에 바로 이어 간다.
  * 사생활 보호 모드 등에서 저장소를 못 쓰면 조용히 넘어간다. (저장 없이도 게임은 돌아간다)
+ * 읽지 못한 저장(더 새 버전·깨진 글)은 빈 슬롯처럼 새로 시작할 수 있지만, 원본을 옆 키에 남기고 처음 화면에 알린다 (`unread`, E307 0B).
+ * 원본을 남기지 못한 슬롯은 덮지 않는다: 새 판이 저장되지 않더라도 원본을 지킨다 (`save`)
  */
 export const saveStorage = {
   /** 지금 쓰는 슬롯. 고르기 전(-1)에는 저장하지 않는다. */
@@ -410,32 +491,40 @@ export const saveStorage = {
   /** 이 슬롯으로 플레이한다. 다음 실행에 바로 이어 간다. */
   use(slot: number): void {
     saveStorage.slot = slot
+    written = null
+    // 이제부터 이 슬롯에 쓴다: 읽지 못한 저장이 들어 있으면 덮기 전에 원본을 남겨 둔다
+    readSlot(slotKey(slot))
     try {
       localStorage.setItem(LAST_KEY, String(slot))
     } catch {
       // 기억하지 못하면 다음 실행에 슬롯을 다시 고른다.
     }
   },
+  /** 슬롯의 저장. 비었거나 읽지 못했으면 null (읽지 못한 원본은 옆 키에 남는다) */
   load(slot?: number): SaveData | null {
-    const key = slotKey(slot ?? saveStorage.slot)
-    const text = read(key)
-    try {
-      const data = parseSave(text)
-      if (data && text) keepOld(key, text)
-      return data
-    } catch (e) {
-      // 읽지 못하는 저장 때문에 게임이 뜨지 않으면 안 된다: 빈 슬롯처럼 다루고, 원본은 옆에 남겨 둔다 (새 게임이 덮어써도 되살릴 수 있게)
-      console.warn('저장을 읽지 못했습니다', e)
-      try {
-        if (text) localStorage.setItem(`${key}:broken`, text)
-      } catch {}
-      return null
-    }
+    return readSlot(slotKey(slot ?? saveStorage.slot)).data
   },
+  /** 그 슬롯에 읽지 못한 저장이 들어 있나 (처음 화면이 「새 모험」 빈 칸과 가려 보인다). 비었거나 읽히면 null */
+  unread(slot: number): UnreadSave | null {
+    return readSlot(slotKey(slot)).unread
+  },
+  /**
+   * 지금 슬롯에 쓴다. 썼으면 true.
+   * 슬롯의 글이 이 실행이 쓴 것과 다르면(고른 뒤 처음 쓰거나, 열어 둔 옛 탭에서 그 사이에 다른 탭이 썼다) 먼저 읽어 본다 (글이 그대로면 다시 읽지 않는다):
+   * 읽지 못할 저장이면 덮기 전에 원본을 남기고, 남기지 못했으면(저장소가 참) 덮지 않는다. 새 판의 저장보다 원본을 앞세운다.
+   * 열어 둔 옛 탭은 다른 탭(더 새 빌드)이 쓴 저장을 「남기고 덮는다」(지금 동작): 덮지 않고 멈출지는 저장 버전을 올릴 때 정한다
+   */
   save(data: SaveData): boolean {
     if (saveStorage.slot < 0) return false
+    const key = slotKey(saveStorage.slot)
+    if (read(key) !== written) {
+      const { unread } = readSlot(key)
+      if (unread && !unread.kept) return false
+    }
     try {
-      localStorage.setItem(slotKey(saveStorage.slot), JSON.stringify(data))
+      const text = JSON.stringify(data)
+      localStorage.setItem(key, text)
+      written = text
       return true
     } catch {
       return false

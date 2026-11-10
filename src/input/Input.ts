@@ -14,11 +14,22 @@ export function chordChange(button: number, buttons: number): 'press' | 'release
 }
 
 /**
+ * 포인터가 게임 화면을 가리키는가: 사건이 게임 화면(캔버스)에 닿았고 자리가 그 안이다.
+ * 캔버스를 덮은 DOM(고르는 카드·작은 지도·HUD 단추) 위에서는 자리가 안이어도 아니다 (그 뒤 땅의 카드·이름표를 띄우지 않게, E307)
+ */
+export function pointsAt(element: object, target: unknown, x: number, y: number, width: number, height: number): boolean {
+  return target === element && x >= 0 && y >= 0 && x <= width && y <= height
+}
+
+/**
  * 키보드·마우스 입력을 모아 동작 단위 상태로 바꾼다.
  * 프레임마다 isDown/wasPressed로 읽고, 프레임 끝에 endFrame()을 부른다.
  */
 export class Input {
-  /** 캔버스 기준 포인터 위치 (CSS 픽셀) */
+  /**
+   * 캔버스 기준 포인터 위치 (CSS 픽셀). inside는 커서가 지금 게임 화면을 가리키는가:
+   * 창 밖이거나, 게임 화면을 덮은 DOM(고르는 카드·작은 지도·HUD 단추) 위이거나, 아직 움직인 적이 없으면(터치 기기) false
+   */
   readonly pointer = { x: 0, y: 0, inside: false }
 
   private readonly held = new Set<Action>()
@@ -106,7 +117,6 @@ export class Input {
     const rect = this.element.getBoundingClientRect()
     this.pointer.x = e.clientX - rect.left
     this.pointer.y = e.clientY - rect.top
-    this.pointer.inside =
-      this.pointer.x >= 0 && this.pointer.y >= 0 && this.pointer.x <= rect.width && this.pointer.y <= rect.height
+    this.pointer.inside = pointsAt(this.element, e.target, this.pointer.x, this.pointer.y, rect.width, rect.height)
   }
 }

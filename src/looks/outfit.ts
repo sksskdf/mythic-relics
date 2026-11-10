@@ -4,29 +4,35 @@ import { BASE_OUTFIT, lookDef, type LookSlot, STARTING_LOOKS, WARDROBE_SLOTS } f
 /** 칸마다 걸칠 외형. null이면 그 칸은 비어 있다. */
 export type Outfit = Record<LookSlot, string | null>
 
-/** 보관함에서 고른 것: 'auto'면 장착을 따르고, 외형 id면 그것, null이면 비운다. */
+/** 보관함에서 고른 것: 'auto'면 장착을 따르고(표식은 없음), 외형 id면 그것, null이면 비운다. */
 export type LookChoice = 'auto' | string | null
 
 export interface OutfitSources {
-  /** 장착한 유물들의 외형 id */
-  relicLooks: readonly string[]
-  /** 낀 일반 장비의 외형 (E18-04-5): 기본 모습만 덮고, 유물·신화 외형 아래에 깔린다 */
+  /** 낀 일반 장비의 외형 (E18-04-5): 기본 모습을 덮는다 */
   gearLooks?: readonly string[]
-  /** 발현한 신의 외형 (칸 → id, 표식 포함). 발현하지 않았으면 비어 있다 */
-  manifestLooks: Readonly<Partial<Record<LookSlot, string>>>
+  /** 손에 쥔 신의 무기 외형 (E302). 낡은 검이면 없다 */
+  handWeapon?: string | null
 }
 
 /**
- * 장착 상태가 정하는 모습. (E3-06 외형 우선순위)
- * 기본 모험가 < 일반 장비 외형(E18) < 유물 외형 < 발현 외형. 같은 칸이면 뒤의 것이 덮는다.
- * 가호(발현하지 않은 신의 유물)는 유물 외형만 보이고, 발현 외형은 붙지 않는다.
+ * 장착 상태가 정하는 모습. (E3-06 외형 우선순위 → E307)
+ * 기본 모험가 < 일반 장비 외형(E18) < 손에 쥔 신의 무기. 같은 칸이면 뒤의 것이 덮는다.
+ * 신의 옷·표식·유물 외형은 저절로 입지 않는다 (E307, 사용자 의견 4: 신을 깨워도 내 모습 그대로).
+ * 깨운 신의 것은 보관함에 풀리고(`earnedLooks`), 칸마다 직접 골라야 입는다. 무기만은 싸우는 방식이라 손의 신을 따른다
  */
 export function autoOutfit(sources: OutfitSources): Outfit {
   const outfit: Outfit = { ...BASE_OUTFIT }
   for (const id of sources.gearLooks ?? []) outfit[lookDef(id).slot] = id
-  for (const id of sources.relicLooks) outfit[lookDef(id).slot] = id
-  for (const [slot, id] of Object.entries(sources.manifestLooks) as [LookSlot, string][]) outfit[slot] = id
+  if (sources.handWeapon) outfit.weapon = sources.handWeapon
   return outfit
+}
+
+/**
+ * 보관함에 풀리는 외형 (E307): 유물표에 켠 유물의 외형, 깨운 신의 옷과 표식.
+ * 입혀지지는 않고 고를 수 있게만 된다
+ */
+export function earnedLooks(from: { relicLooks: readonly string[]; gods: readonly { looks: Readonly<Partial<Record<LookSlot, string>>>; mark: string }[] }): string[] {
+  return [...from.relicLooks, ...from.gods.flatMap((god) => [...Object.values(god.looks), god.mark])]
 }
 
 /**
@@ -49,9 +55,8 @@ export class Wardrobe {
     return added
   }
 
-  /** 칸에 무엇을 입을지 고른다. 아직 얻지 않았거나 다른 칸의 외형이면 무시한다. 표식은 고를 수 없다. */
+  /** 칸에 무엇을 입을지 고른다. 아직 얻지 않았거나 다른 칸의 외형이면 무시한다. 표식도 고른다 (E307: 깨운 신의 표식 가운데) */
   choose(slot: LookSlot, choice: LookChoice): boolean {
-    if (slot === 'mark') return false
     if (choice !== 'auto' && choice !== null && (!this.unlocked.has(choice) || lookDef(choice).slot !== slot)) return false
     if (choice === 'auto') this.choices.delete(slot)
     else this.choices.set(slot, choice)
@@ -62,7 +67,7 @@ export class Wardrobe {
     return this.choices.has(slot) ? this.choices.get(slot)! : 'auto'
   }
 
-  /** 칸마다 고른 것을 적용한 최종 모습. 표식은 언제나 발현을 따른다. */
+  /** 칸마다 고른 것을 적용한 최종 모습 */
   dress(auto: Outfit): Outfit {
     const outfit = { ...auto }
     for (const slot of WARDROBE_SLOTS) {

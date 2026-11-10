@@ -15,10 +15,16 @@
   }
 }
 
+/*
+ * 쌓임 순서 (E307): .hud는 제 쌓임 맥락을 만들지 않는다 (position: fixed면 만든다. #app이 화면 전체라 absolute로도 같은 자리).
+ * 그래야 HUD 안의 정보 화면(40)·일시 정지(45)·고르는 카드(35)가 #app 바로 아래 붙는 것들과 한 줄에서 견줘진다:
+ * 조이스틱(5) < 이름표(15) < 말풍선(20) < 커서 카드·짧은 설명·검은 띠(30) < 고르는 카드(35) < 정보 화면·작은 지도·암전·대화(40) < 일시 정지(45).
+ * (fixed였을 때는 HUD 전체가 한 덩어리라, 말풍선·이름표·커서 카드·조이스틱이 창과 카드 위에 그려졌다)
+ */
 .hud {
   --unit: clamp(4px, 0.9vh, 10px);
   --ink: var(--c-ink-1);
-  position: fixed;
+  position: absolute;
   inset: 0;
   pointer-events: none;
   font-family: var(--font-body);
@@ -419,6 +425,16 @@ button.hud__slot--empty {
 .hud__tippable {
   pointer-events: auto;
 }
+/*
+ * 휴대폰 (E307): 엄지가 놓이는 아래 가운데의 유물 칸·생명 막대·궁극기와 원천 칩은 누름을 받지 않고 게임 화면으로 흘려보낸다.
+ * 그 위에서 끌어도 조이스틱이 시작되고, 칸을 톡해도 정보 화면이 열리지 않는다 (설명은 정보 화면에서. 초상이나 메뉴 단추로 연다)
+ */
+.is-touch button.hud__slot,
+.is-touch .hud__life,
+.is-touch .hud__ult,
+.is-touch .hud__essence {
+  pointer-events: none;
+}
 .hud__tip {
   position: fixed;
   left: 0;
@@ -647,7 +663,10 @@ button.hud__slot--empty {
   z-index: 20;
 }
 
-/* 작은 지도 (E7-08): 메뉴 단추 아래. 64픽셀로 그려 화면 높이에 따라 두~네 배로 키운다 */
+/*
+ * 작은 지도 (E7-08): 메뉴 단추 아래. 64픽셀로 그려 화면 높이에 따라 두~네 배로 키운다.
+ * 바탕은 거의 불투명하게 (E307): 60% 반투명일 때는 뒤의 나무·지붕이 비쳐 땅·표시와 섞였다
+ */
 .minimap {
   --unit: clamp(4px, 0.9vh, 10px);
   position: fixed;
@@ -656,15 +675,17 @@ button.hud__slot--empty {
   width: var(--minimap);
   height: var(--minimap);
   image-rendering: pixelated;
-  background: var(--c-bg-0);
+  background: var(--c-panel);
   box-shadow: 0 0 0 2px var(--c-groove);
   pointer-events: auto;
   cursor: pointer;
   z-index: 40;
 }
-/* 누르면 세계 지도 (E15-04) */
-.minimap:hover {
-  box-shadow: 0 0 0 2px var(--c-gold-soft);
+/* 누르면 세계 지도 (E15-04). 손가락은 톡한 뒤에도 올린 것으로 남으니 커서가 있는 기기에서만 테를 밝힌다 */
+@media (hover: hover) {
+  .minimap:hover {
+    box-shadow: 0 0 0 2px var(--c-gold-soft);
+  }
 }
 
 /* 몬스터 이름표 (E12-09): 커서를 올리거나 공격 중인 몬스터 머리 위 */

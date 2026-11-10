@@ -9,6 +9,8 @@ import type { Villagers } from './Villagers'
 const SCENE_VIEW = 8
 /** 줌인·줌아웃에 걸리는 시간 (초) */
 const ZOOM_SECONDS = 0.6
+/** 대화가 끝난 뒤 이만큼(초)은 톡·클릭을 지시로 치지 않는다 (E307, `settling`) */
+export const SETTLE_SECONDS = 0.5
 
 /** 대화 장면이 게임에서 쓰는 것 */
 export interface SceneHost {
@@ -46,6 +48,8 @@ export class DialogScene {
   /** 카메라가 바라볼 곳 (주인공과 말하는 사람 사이) */
   readonly focus = new THREE.Vector3()
   private nod = 0
+  /** 대화가 끝난 뒤 남은 가라앉는 시간 (초) */
+  private settle = 0
 
   constructor(private readonly host: SceneHost) {
     host.box.onAdvance = () => this.advance()
@@ -55,6 +59,14 @@ export class DialogScene {
   /** 대화 중인가 (이동 입력을 받지 않는다) */
   get active(): boolean {
     return this.scene !== null
+  }
+
+  /**
+   * 대화가 막 끝났나 (E307). 연타로 넘기다 남은 톡·클릭이 게임으로 새면 곁의 마을 사람에게 다시 말을 걸어 카메라가 당겨진다:
+   * 줌아웃이 끝난 뒤 SETTLE_SECONDS 동안은 누름을 지시로 치지 않는다 (`PlayerInput.muted`). 세계와 조이스틱은 그대로 돈다
+   */
+  get settling(): boolean {
+    return this.settle > 0
   }
 
   /** 지금 장면 id (점검용) */
@@ -80,7 +92,10 @@ export class DialogScene {
   }
 
   update(dt: number): void {
-    if (!this.scene) return
+    if (!this.scene) {
+      this.settle = Math.max(0, this.settle - dt)
+      return
+    }
     const { hero, villagers, box } = this.host
     box.update(dt)
     // 줌인·줌아웃
@@ -140,6 +155,7 @@ export class DialogScene {
   private end(): void {
     this.scene = null
     this.closing = false
+    this.settle = SETTLE_SECONDS
     this.host.setViewHeight(this.normalView)
     this.host.setHudHidden(false)
   }

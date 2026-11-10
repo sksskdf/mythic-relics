@@ -3,12 +3,14 @@ import { describe, expect, it } from 'vitest'
 
 import { BASE_OUTFIT, LOOK_IDS, lookDef } from '../src/looks/catalog'
 import { GEAR_LOOKS, gearLook, parseGearLook } from '../src/looks/gearLooks'
-import { autoOutfit, Wardrobe } from '../src/looks/outfit'
+import { autoOutfit, earnedLooks, Wardrobe } from '../src/looks/outfit'
 import { GEAR } from '../src/gear/roll'
 import { GRADES } from '../src/data/gearData'
-import { godDef, relicDef } from '../src/relics/data'
+import { godDef, GODS, relicDef } from '../src/relics/data'
 import { LOOK_MODELS } from '../src/voxel/models/looks'
 import { buildHeroModel } from '../src/world/heroModel'
+import { EventBus, type GameEvents } from '../src/game/events'
+import { AppearanceSystem } from '../src/game/systems/Appearance'
 
 const looksOf = (...relics: string[]) => relics.map((id) => relicDef(id).look)
 
@@ -33,24 +35,113 @@ describe('외형 목록', () => {
   })
 })
 
-describe('장착에 따른 모습 (기본 < 유물 < 발현)', () => {
-  it('유물을 끼면 그 유물의 칸만 바뀐다', () => {
-    const outfit = autoOutfit({ relicLooks: looksOf('mjolnir'), manifestLooks: {} })
+describe('장착에 따른 모습 (E307: 신을 깨워도 내 모습 그대로, 무기만 손의 신을 따른다)', () => {
+  it('손에 쥔 신의 무기만 바뀌고 나머지 칸은 기본 모습 그대로다', () => {
+    const outfit = autoOutfit({ handWeapon: 'mjolnirHammer' })
     expect(outfit.weapon).toBe('mjolnirHammer')
     expect({ ...outfit, weapon: BASE_OUTFIT.weapon }).toEqual(BASE_OUTFIT)
-    const two = autoOutfit({ relicLooks: looksOf('mjolnir', 'megingjord'), manifestLooks: {} })
-    expect(two.waist).toBe('megingjordBelt')
+    // 손이 비면(낡은 검) 기본 모습
+    expect(autoOutfit({ handWeapon: null })).toEqual(BASE_OUTFIT)
+    expect(autoOutfit({})).toEqual(BASE_OUTFIT)
   })
 
-  it('발현하면 발현 외형이 유물·기본 외형보다 앞선다. 발현이 정하지 않은 칸의 유물 외형은 그대로 보인다', () => {
-    const outfit = autoOutfit({
-      relicLooks: looksOf('mjolnir', 'megingjord', 'jarngreipr'),
-      manifestLooks: { ...godDef('thor').looks, weapon: 'shortSword' },
-    })
-    expect(outfit.head).toBe('thorHelm')
-    expect(outfit.cape).toBe('thorCape')
-    expect(outfit.weapon).toBe('shortSword')
-    expect(outfit.arms).toBe('ironGauntlets')
+  it('깨운 신의 옷·표식과 켠 유물의 외형은 보관함에 풀릴 뿐 입혀지지 않는다', () => {
+    const thor = godDef('thor')
+    const earned = earnedLooks({ relicLooks: looksOf('mjolnir'), gods: [thor] })
+    expect(earned).toEqual(expect.arrayContaining(['mjolnirHammer', 'thorHelm', 'thorTunic', 'thorCape', 'thorStormHalo']))
+    const wardrobe = new Wardrobe()
+    wardrobe.unlock(earned)
+    // 풀리기만 해서는 그대로: 머리카락이 보이고 망토·표식이 없다
+    const dressed = wardrobe.dress(autoOutfit({ handWeapon: 'mjolnirHammer' }))
+    expect(dressed.head).toBe('adventurerHair')
+    expect(dressed.torso).toBe('adventurerTunic')
+    expect(dressed.cape).toBeNull()
+    expect(dressed.mark).toBeNull()
+    // 부위마다 직접 고르면 입는다
+    for (const [slot, id] of Object.entries(thor.looks)) expect(wardrobe.choose(slot as keyof typeof thor.looks, id), slot).toBe(true)
+    const chosen = wardrobe.dress(autoOutfit({ handWeapon: 'mjolnirHammer' }))
+    expect(chosen.head).toBe('thorHelm')
+    expect(chosen.cape).toBe('thorCape')
+  })
+})
+
+describe('외형 시스템 (E307: 신을 깨워도 주인공은 그대로)', () => {
+  /** 게임 없이 외형 시스템만 세운다: 손의 신·켠 유물·깨운 신을 바꿔 가며 본다 */
+  function setup() {
+    const bus = new EventBus<GameEvents>()
+    const state = { hand: null as string | null, lit: [] as string[], opened: [] as string[], levels: {} as Record<string, number> }
+    const ctx = {
+      bus,
+      wardrobe: new Wardrobe(),
+      hero: { rig: buildHeroModel() },
+      powers: { loadout: { slots: [] as (string | null)[], gear: new Map(), get relics() { return state.lit } } },
+      build: { get chosen() { return state.hand } },
+      progress: { get opened() { return state.opened }, level: (god: string) => state.levels[god] ?? 0 },
+    }
+    const system = new AppearanceSystem(ctx as never)
+    const change = () => bus.emit('loadoutChanged', { change: {} as never, announce: false })
+    return { ctx, state, system, change, bus }
+  }
+
+  it('첫 신이 깨어나 세 자리에 들어도 머리·옷·망토·표식은 그대로고, 손의 무기만 바뀐다', () => {
+    const { ctx, state, change } = setup()
+    expect(ctx.hero.rig.outfit).toEqual(BASE_OUTFIT)
+    // 조각 2: 묠니르를 쥔다
+    state.hand = 'thor'
+    state.lit = ['mjolnir']
+    change()
+    expect(ctx.hero.rig.outfit).toEqual({ ...BASE_OUTFIT, weapon: 'mjolnirHammer' })
+    // 수호자 뒤: 토르가 깨어난다
+    state.opened = ['thor']
+    state.levels.thor = 1
+    change()
+    expect(ctx.hero.rig.outfit).toEqual({ ...BASE_OUTFIT, weapon: 'mjolnirHammer' })
+    // 그 신의 옷과 표식은 보관함에 풀렸다
+    for (const id of [...Object.values(godDef('thor').looks), godDef('thor').mark]) expect(ctx.wardrobe.unlocked.has(id), id).toBe(true)
+  })
+
+  it('신 스물하나 누구를 깨워 손에 쥐어도 무기 말고는 기본 모습이다 (얼굴·허리·손 유물도 저절로 붙지 않는다)', () => {
+    for (const id of Object.keys(GODS)) {
+      const { ctx, state, change } = setup()
+      state.hand = id
+      state.lit = [godDef(id).relic]
+      state.opened = [id]
+      state.levels[id] = 3
+      change()
+      expect({ ...ctx.hero.rig.outfit, weapon: null }, id).toEqual({ ...BASE_OUTFIT, weapon: null })
+      // 유물의 외형도 보관함에는 풀린다
+      expect(ctx.wardrobe.unlocked.has(relicDef(godDef(id).relic).look), id).toBe(true)
+    }
+  })
+
+  it('보관함에서 고르면 입혀진다: 깨운 신의 옷은 부위마다, 표식도', () => {
+    const { ctx, state, system, change } = setup()
+    state.hand = 'thor'
+    state.opened = ['thor', 'odin']
+    state.levels = { thor: 2, odin: 1 }
+    change()
+    system.choose('head', 'thorHelm')
+    system.choose('cape', 'odinCape')
+    system.choose('mark', 'odinRavens')
+    expect(ctx.hero.rig.outfit).toMatchObject({ head: 'thorHelm', cape: 'odinCape', mark: 'odinRavens', torso: 'adventurerTunic', weapon: 'mjolnirHammer' })
+    // 손을 바꿔도 고른 옷은 남는다
+    state.hand = 'odin'
+    change()
+    expect(ctx.hero.rig.outfit).toMatchObject({ head: 'thorHelm', cape: 'odinCape', mark: 'odinRavens', weapon: 'odinGungnir' })
+    // 깨우지 않은 신의 옷은 고를 수 없다
+    system.choose('head', 'zeusLaurel')
+    expect(ctx.hero.rig.outfit.head).toBe('thorHelm')
+  })
+
+  it('자리에 들지 못한 신도 깨어나면(mythOpened) 옷이 풀리고, 새 외형을 알린다', () => {
+    const { ctx, state, bus } = setup()
+    const told: string[] = []
+    bus.on('looksUnlocked', ({ ids }) => told.push(...ids))
+    state.opened = ['zeus']
+    state.levels.zeus = 1
+    bus.emit('mythOpened', { god: 'zeus', quiet: true })
+    expect(told).toEqual(expect.arrayContaining(['zeusLaurel', 'zeusRobe', 'zeusCape', 'zeusWings']))
+    expect(ctx.hero.rig.outfit).toEqual(BASE_OUTFIT)
   })
 })
 
@@ -96,15 +187,16 @@ describe('일반 장비 외형 (E18-04-5)', () => {
     }
   })
 
-  it('낀 장비는 기본 모습만 덮고, 유물·신화 외형이 그 위에 온다. 장신구는 몸에 보이지 않는다', () => {
+  it('낀 장비는 기본 모습을 덮고, 손에 쥔 신의 무기가 장비 무기 위에 온다. 장신구는 몸에 보이지 않는다', () => {
     const helm = gearLook({ part: 'head', base: '철 투구', grade: 'rare' })!
     const sword = gearLook({ part: 'weapon', base: '도끼', grade: 'good' })!
     expect(gearLook({ part: 'trinket', base: '부적', grade: 'hero' })).toBeNull()
-    const plain = autoOutfit({ gearLooks: [helm, sword], relicLooks: [], manifestLooks: {} })
+    const plain = autoOutfit({ gearLooks: [helm, sword] })
     expect(plain.head).toBe(helm)
     expect(plain.weapon).toBe(sword)
-    const thor = autoOutfit({ gearLooks: [helm, sword], relicLooks: looksOf('mjolnir'), manifestLooks: godDef('thor').looks })
-    expect(thor.head).toBe('thorHelm')
+    // 신을 손에 쥐어도 낀 투구는 그대로 (E307: 신의 투구가 덮지 않는다)
+    const thor = autoOutfit({ gearLooks: [helm, sword], handWeapon: 'mjolnirHammer' })
+    expect(thor.head).toBe(helm)
     expect(thor.weapon).toBe('mjolnirHammer')
   })
 })
@@ -115,10 +207,10 @@ describe('외형 보관함', () => {
     wardrobe.unlock(['mjolnirHammer', 'thorCape'])
     expect(wardrobe.choose('weapon', 'shortSword')).toBe(true)
     expect(wardrobe.choose('cape', 'thorCape')).toBe(true)
-    const withHammer = autoOutfit({ relicLooks: looksOf('mjolnir'), manifestLooks: {} })
+    const withHammer = autoOutfit({ handWeapon: 'mjolnirHammer' })
     expect(wardrobe.dress(withHammer).weapon).toBe('shortSword')
     expect(wardrobe.dress(withHammer).cape).toBe('thorCape')
-    expect(wardrobe.dress(autoOutfit({ relicLooks: [], manifestLooks: {} })).cape).toBe('thorCape')
+    expect(wardrobe.dress(autoOutfit({})).cape).toBe('thorCape')
     wardrobe.choose('weapon', 'auto')
     expect(wardrobe.dress(withHammer).weapon).toBe('mjolnirHammer')
   })
@@ -130,6 +222,18 @@ describe('외형 보관함', () => {
     expect(wardrobe.choose('head', 'thorCape')).toBe(false)
     expect(wardrobe.choose('cape', null)).toBe(true)
     expect(wardrobe.dress(BASE_OUTFIT).cape).toBeNull()
+  })
+
+  it('표식도 얻은 것 가운데 고른다. 고르지 않으면 없다 (E307)', () => {
+    const wardrobe = new Wardrobe()
+    expect(wardrobe.choose('mark', 'thorStormHalo')).toBe(false)
+    wardrobe.unlock(['thorStormHalo', 'odinRavens'])
+    expect(wardrobe.dress(BASE_OUTFIT).mark).toBeNull()
+    expect(wardrobe.choose('mark', 'odinRavens')).toBe(true)
+    expect(wardrobe.dress(BASE_OUTFIT).mark).toBe('odinRavens')
+    expect(wardrobe.options('mark')).toEqual(['thorStormHalo', 'odinRavens'])
+    wardrobe.choose('mark', 'auto')
+    expect(wardrobe.dress(BASE_OUTFIT).mark).toBeNull()
   })
 
   it('새로 얻은 외형만 알려 준다', () => {

@@ -1,8 +1,9 @@
 import { PER_LIT, PER_OPENED, PER_PROMOTION } from '../../myth/ClassProgress'
 import { godDef, relicDef, type RelicId } from '../../relics/data'
 import { classIcon } from '../classIcons'
+import { heroIcon } from '../heroIcon'
 import { relicIcon } from '../relicCard'
-import { glyph, unknownSigil } from '../sigils'
+import { glyph } from '../sigils'
 import { el, img, pips, type TabContext } from './dom'
 
 /** 능력치 그림의 밝은 색과 어두운 색 */
@@ -17,32 +18,33 @@ const STAT_TINT: Partial<Record<Parameters<typeof glyph>[0], [string, string]>> 
   promote: ['#ffd27a', '#a8862e'],
 }
 
-/** 지금의 나: 왼쪽에 초상·칭호·단계 보석, 오른쪽에 능력치와 무엇으로 얼마나 강해졌나 */
+/** 지금의 나: 왼쪽에 내 초상과 손에 쥔 신의 단계 보석, 오른쪽에 능력치와 무엇으로 얼마나 강해졌나 */
 export function renderStatus(ctx: TabContext, body: HTMLElement): void {
   const { host } = ctx
   const stats = host.stats()
   const layout = el('div', 'menu-status')
 
   const who = el('section', 'menu-status__who')
-  // 저장된 자리의 손 (빈 손의 맹세 동안에도 지금의 나는 그 신이다)
+  // 초상과 이름은 주인공 그대로다 (E307, 사용자 의견 4: 신을 깨워도 「지금의 나」가 그 신이 되지 않는다. 칭호를 걷었다).
+  // 손에 쥔 신은 초상 테의 빛과 그 아래 한 줄·단계 보석으로만 보인다 (저장된 자리의 손: 빈 손의 맹세 동안에도)
   const current = host.progress.pantheon.hand
   const portrait = el('div', 'ui-portrait ui-portrait--large')
+  portrait.append(img(heroIcon(host.wardrobe.wardrobe.body)))
+  who.append(portrait, el('div', 'menu-status__title', '이름 없는 모험가'))
   if (current) {
     const god = godDef(current)
     const level = host.progress.level(current)
-    who.style.setProperty('--god', god.color)
     portrait.style.setProperty('--glow', god.color)
-    portrait.append(img(classIcon(god.name)))
-    who.append(portrait, el('div', 'menu-status__title', host.progress.title(current)), el('div', 'menu-status__name', god.name))
+    who.append(el('div', 'menu-status__name', `손에 쥔 신 · ${god.name}`))
     const gems = pips(level)
     gems.classList.remove('ui-gems--small')
+    gems.style.setProperty('--gem', god.color)
     who.append(gems)
-    // 다음 단계는 귀환의 승천으로 (E305-03: 신화 경험치 막대는 없앰)
-    if (level < host.progress.levelCap) ctx.hintOn(portrait, `성소 화로에서 원정을 마칠 때 「승천」을 고르면 ${god.titles[level]}`)
+    // 다음 단계는 귀환의 승천으로 (E305-03: 신화 경험치 막대는 없앰). 조각 2에 무기만 쥔 신은 수호자를 이겨야 깨어난다
+    if (level < 1) ctx.hintOn(portrait, `${god.name}의 마지막 조각을 모으면 깨어난다.`)
+    else if (level < host.progress.levelCap) ctx.hintOn(portrait, `성소 화로에서 원정을 마칠 때 「승천」을 고르면 ${god.name} ${level + 1}단계`)
   } else {
-    portrait.classList.add('is-empty')
-    portrait.append(img(unknownSigil()))
-    who.append(portrait, el('div', 'menu-status__title', '이름 없는 모험가'))
+    portrait.style.setProperty('--glow', 'var(--c-line-2)')
     ctx.hintOn(portrait, '신의 흔적·사냥·수호자, 조각 셋을 모으면 그 신이 깨어난다.')
   }
   const tags = el('div', 'menu-status__tags')

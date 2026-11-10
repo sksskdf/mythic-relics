@@ -23,6 +23,8 @@ export interface RelicCardContext {
   stage?: number
   /** 그 신이 자리에 들어 유물이 깨어났는가 (E302) */
   awake?: boolean
+  /** 세 자리(손·심장·숨)가 모두 같은 신이면 그 신: 그 신의 유물 효과가 한 단계 위로 돈다 (보이는 배율을 실제 값에 맞춘다) */
+  focus?: God | null
 }
 
 /** 무엇으로 충전되는지 한마디로 */
@@ -160,7 +162,7 @@ export function relicCard(def: RelicDef, ctx?: RelicCardContext): HTMLElement {
   for (const bonus of def.trigger.bonus) {
     const active = ctx !== undefined && ctx.manifested === bonus.manifested && ctx.level >= bonus.minLevel
     const who = godDef(bonus.manifested)
-    const when = bonus.minLevel > 1 ? `${who.titles[bonus.minLevel - 1]}(${bonus.minLevel}단계) 이상` : `${who.name}의 신화 개방 중`
+    const when = bonus.minLevel > 1 ? `${who.name} ${bonus.minLevel}단계 이상` : `${who.name}의 신화 개방 중`
     const what: string[] = []
     if (bonus.damageScale !== 1) what.push(`피해 ×${bonus.damageScale}`)
     if (bonus.lightning !== undefined) what.push(bonus.lightning > 0 ? `번개 +${bonus.lightning}` : '번개 연출')
@@ -168,7 +170,7 @@ export function relicCard(def: RelicDef, ctx?: RelicCardContext): HTMLElement {
   }
   card.append(trigger)
 
-  // 신화의 유물 (E21-04 → E303-04): 기본 수치는 없다. 그 신이 자리에 들면 깨어나고, 한 신에 몰면 한 단계 위로 돈다
+  // 신화의 유물 (E21-04 → E303-04): 기본 수치는 없다. 그 신이 자리에 들면 깨어난다. 배율은 지금 실제로 도는 값만 (E307: 「몰면」 글을 걷음)
   const owner = relicMyth(def.id)
   if (owner) {
     const stage = ctx?.stage ?? 1
@@ -178,7 +180,7 @@ export function relicCard(def: RelicDef, ctx?: RelicCardContext): HTMLElement {
     section.append(
       withNumbers(
         el('div', `rc__bonus${active ? ' is-active' : ''}`),
-        active ? `${josa(myth.name, '이')} 자리에 있어 깨어남 (유물 효과 피해 ×${effectScale(def.id, stage, null)})` : `${josa(myth.name, '을')} 자리에 넣으면 깨어난다. 한 신에 몰면 피해 ×${effectScale(def.id, stage, owner)}`,
+        active ? `${josa(myth.name, '이')} 자리에 있어 깨어남 (유물 효과 피해 ×${effectScale(def.id, stage, ctx?.focus ?? null)})` : `${josa(myth.name, '을')} 자리에 넣으면 깨어난다`,
       ),
     )
     card.append(section)

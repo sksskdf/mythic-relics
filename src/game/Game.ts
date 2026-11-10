@@ -480,12 +480,10 @@ export class Game {
     this.playerInput.onTalk = (name) => (this.storyline.talkTo = name)
     this.playerInput.pickupAt = (x, y) => this.hover.pickupAt(x, y)
     // 휴대폰 (E235): 떠다니는 조이스틱·톡·두 손가락 확대·축소
-    if (this.touch) {
-      const touch = new TouchControls(this.pixel.renderer.domElement, container)
-      this.playerInput.touch = touch
-      this.input.frameEnd.push(() => touch.gestures.endFrame())
-    }
+    if (this.touch) this.playerInput.useTouch(new TouchControls(this.pixel.renderer.domElement, container))
     this.playerInput.onZoom = (viewHeight, end) => this.viewport.zoom(viewHeight, end)
+    // 대화가 막 끝난 동안의 톡·클릭은 지시로 치지 않는다 (E307: 연타로 넘기던 톡이 새지 않게)
+    this.playerInput.muted = () => this.scenes.settling
     // 개발 지름길은 공용 상태(ctx)에 시스템 몇을 더해 손댄다
     this.dev = new DevTools({
       ...this.ctx,

@@ -17,11 +17,14 @@ const STICK_AHEAD = 2.5
 const TAP_ENEMY_PX = 28
 /** 두 손가락 확대·축소: 시야 높이가 이만큼(비율) 넘게 바뀔 때만 화면을 다시 맞춘다 (렌더 버퍼를 프레임마다 새로 만들지 않게) */
 const ZOOM_STEP = 0.02
+/** 조이스틱을 쥔 채 톡으로 지시를 내린 뒤: 손잡이를 이만큼(px) 움직이면 그 지시를 끝내기 전에도 조이스틱이 이어받는다 (E307) */
+const STICK_RESUME = 10
 
 /**
  * 클릭을 지시로 바꾼다. (DESIGN.md 8.2)
  * 땅 = 그곳까지 이동(싸우던 중이어도), 적 = 그 적을 쫓아가 자동 공격. 멈춰 서면 둘레 적을 자동 공격 (E12-08)
  * 휴대폰(E235): 톡 = 클릭, 끌기 = 떠다니는 조이스틱 쪽으로 걷기(떼면 멈춰 자동 공격), 두 손가락 = 확대·축소.
+ * 조이스틱을 쥔 채 다른 손가락으로 톡하면 그 톡이 지시가 되고, 지시를 마치거나 손잡이를 다시 움직이면 조이스틱이 이어받는다 (E307).
  * 탈것(E241): 원 밖으로 멀리 끌면 올라타 달리고, 떼거나 가운데로 오면 멈춰 내린다
  */
 export class PlayerInput {
@@ -44,17 +47,41 @@ export class PlayerInput {
   touch: TouchControls | null = null
   /** 두 손가락으로 시야 높이를 바꾼다. end면 손을 뗐다 (설정에 저장) */
   onZoom: (viewHeight: number, end: boolean) => void = () => {}
-  /** 두 손가락을 댈 때의 시야 높이 */
+  /** 지금은 톡·클릭을 지시로 치지 않는다 (대화가 막 끝났다: 연타로 넘기던 톡이 새지 않게, E307). 조이스틱은 그대로 걷고, 누른 채 있는 마우스는 풀릴 때 받는다 (`heard`) */
+  muted: () => boolean = () => false
+  /**
+   * 지금 누르고 있는 마우스 버튼의 누름을 지시로 쳤나 (E307). 못 쳤으면(대화가 막 끝난 동안이나 장면이 닫히는 중에 눌렀다)
+   * 칠 수 있게 된 프레임에 아직 누르고 있을 때 그때 누른 것으로 친다: 누른 채 끌어 걸으려던 것이 뗐다 다시 누를 때까지 죽지 않게
+   */
+  private heard = false
+  /** 두 손가락이 확대·축소로 잠긴 때의 시야 높이 */
   private pinchView: number | null = null
+  /** 그 시야 높이를 잰 잠김 (`TouchGestures.pinchCount`). 달라졌으면 새로 잠긴 것이라 다시 잰다 */
+  private pinchSeen = 0
+  /** 이번 확대·축소가 시야를 바꿨나 (바꿨을 때만 손을 떼면 설정에 저장한다) */
+  private zoomed = false
   /** 조이스틱으로 걷는 중 */
   private walking = false
+  /** 조이스틱을 쥔 채 톡으로 지시를 내린 때의 손잡이 자리. 있는 동안 조이스틱은 쉰다 (E307) */
+  private parked: { dx: number; dy: number } | null = null
 
   constructor(
     private readonly ctx: GameContext,
     private readonly input: Input,
     private readonly pixel: PixelRenderer,
     private readonly container: HTMLElement,
-  ) {}
+  ) {
+    // 버튼을 뗐는지는 프레임마다 본다 (장면 중에는 update가 돌지 않아, 그사이 뗐다 다시 누른 것을 놓친다)
+    input.frameEnd.push(() => {
+      if (!input.isDown('move')) this.heard = false
+    })
+  }
+
+  /** 휴대폰 조작을 붙인다 (E235). 그 프레임에 읽지 않은 톡은 프레임 끝에 버린다 */
+  useTouch(touch: TouchControls): void {
+    this.touch = touch
+    this.input.frameEnd.push(() => touch.gestures.endFrame())
+  }
 
   update(): void {
     const { orders } = this.ctx
@@ -62,38 +89,54 @@ export class PlayerInput {
     const cursor = this.cursorOnGround()
     const ground = cursor ? { x: cursor.x, z: cursor.z } : null
     this.hovered = this.enemyUnderCursor()
-    if (this.input.wasPressed('move')) {
+    const down = this.input.isDown('move')
+    if ((this.input.wasPressed('move') || (down && !this.heard)) && !this.muted()) {
       const item = this.hovered ? null : this.pickupAt(this.input.pointer.x, this.input.pointer.y)
       this.onTalk(ground && !this.hovered && !item ? this.talkAt(ground.x, ground.z) : null)
       orders.press(item ?? ground, this.hovered)
-    } else if (this.input.isDown('move')) orders.hold(ground)
-    else orders.release()
+      this.heard = true
+    } else if (!down) orders.release()
+    // 지시로 치지 못한 누름은 따라가지 않고 기다린다 (가라앉으면 위에서 누른 것으로 친다)
+    else if (this.heard) orders.hold(ground)
   }
 
   /**
    * 손가락 조작 (E235). 손가락이 무엇을 하고 있으면 true (그 프레임은 마우스를 보지 않는다)
-   * - 두 손가락: 처음 시야 높이 ÷ 벌린 배율
-   * - 톡: 클릭과 같다 (적이면 공격, 땅이면 그곳까지, 마을 사람이면 말 걸기)
+   * - 두 손가락: 확대·축소로 잠긴 뒤에만 (E307), 잠긴 때의 시야 높이 ÷ 그 뒤로 벌린 배율
+   * - 톡: 클릭과 같다 (적이면 공격, 땅이면 그곳까지, 마을 사람이면 말 걸기). 조이스틱을 쥔 채 다른 손가락으로 눌러도 같다
    * - 조이스틱: 그쪽으로 걷는다. 손을 떼거나 가운데로 돌아오면 멈춰 서서 둘레 적을 친다
    */
   private updateTouch(touch: TouchControls): boolean {
     const { orders, hero, view } = this.ctx
-    // 조이스틱을 쥔 동안은 탄 채 길이 잠깐 비어도 내리지 않는다 (E241)
-    hero.holding = touch.direction !== null
-    const pinch = touch.gestures.pinch
+    const gestures = touch.gestures
+    const pinch = gestures.pinch
     if (pinch !== null) {
-      this.pinchView ??= view.viewHeight
+      // 새로 잠긴 몸짓이면 처음 시야를 다시 잰다 (손가락 수가 바뀌면 풀렸다가 다시 잠긴다: 남은 손가락의 거리로 튀지 않게)
+      if (this.pinchView === null || this.pinchSeen !== gestures.pinchCount) {
+        this.pinchView = view.viewHeight
+        this.pinchSeen = gestures.pinchCount
+      }
       // 한계 안 값으로 견준다 (한계 밖까지 벌린 채 쥐고 있어도 프레임마다 다시 맞추지 않게). 한계에는 딱 닿게 한다
       const next = clampViewHeight(this.pinchView / pinch)
       const edge = next === VIEW_HEIGHT.min || next === VIEW_HEIGHT.max
-      if (next !== view.viewHeight && (edge || Math.abs(next - view.viewHeight) / view.viewHeight > ZOOM_STEP)) this.onZoom(next, false)
+      if (next !== view.viewHeight && (edge || Math.abs(next - view.viewHeight) / view.viewHeight > ZOOM_STEP)) {
+        this.onZoom(next, false)
+        this.zoomed = true
+      }
     } else if (this.pinchView !== null) {
-      // 바뀐 것이 있을 때만 설정에 저장한다
-      if (this.pinchView !== view.viewHeight) this.onZoom(view.viewHeight, true)
+      // 확대·축소로 잠긴 몸짓이 시야를 바꿨을 때만 설정에 저장한다
+      if (this.zoomed) this.onZoom(view.viewHeight, true)
       this.pinchView = null
+      this.zoomed = false
     }
+    // 쥔 채 톡으로 지시를 내린 조이스틱은 그 지시를 마치거나(도착·처치) 손잡이를 다시 움직일 때까지 쉰다
+    const stick = gestures.stick
+    if (this.parked && (!stick || !orders.order || Math.hypot(stick.dx - this.parked.dx, stick.dy - this.parked.dy) > STICK_RESUME)) this.parked = null
+    const direction = this.parked ? null : touch.direction
+    // 조이스틱을 쥔 동안은 탄 채 길이 잠깐 비어도 내리지 않는다 (E241)
+    hero.holding = direction !== null
     const tap = touch.takeTap()
-    if (tap) {
+    if (tap && !this.muted()) {
       const rect = this.container.getBoundingClientRect()
       const x = tap.x - rect.left
       const y = tap.y - rect.top
@@ -105,9 +148,11 @@ export class PlayerInput {
       orders.press(ground, this.hovered)
       orders.release()
       this.walking = false
+      // 마지막에 한 손짓이 이긴다: 조이스틱을 쥔 채 누른 톡이면 조이스틱을 쉬게 한다
+      this.parked = stick ? { dx: stick.dx, dy: stick.dy } : null
+      hero.holding = false
       return true
     }
-    const direction = touch.direction
     if (direction) {
       const target = this.stickTarget(direction.dx, direction.dy)
       if (target) {

@@ -123,6 +123,12 @@ export class Giant {
   private readonly flank: number
   /** 막아 낸 피해 (점검용) */
   blocked = 0
+  /**
+   * 시작한 공격(예고를 편 횟수)과 끝까지 나간 공격(예고가 다 차 친 횟수) (점검용, E307 0B):
+   * 휘청임·밀침에 끊긴 공격은 시작만 센다. `scripts/power-curve.mjs`의 「맞는 적이 공격을 끝낸 비율」
+   */
+  attacksBegun = 0
+  attacksStruck = 0
   /** 정예 배율 (E8-05): 피해 */
   damageScale = 1
   /** 깊이 배율 (E14-03·E305-03): 생명력·피해 */
@@ -502,6 +508,7 @@ export class Giant {
 
   private beginAttack(attack: AttackSpec, world: GiantWorld): void {
     this.attack = attack
+    this.attacksBegun += 1
     this.cooldowns.set(attack, attack.cooldown * this.cooldownScale + attack.windup)
     this.setState('windup')
     const aim = this.aim(world)
@@ -543,6 +550,7 @@ export class Giant {
     this.placeTelegraph()
     this.telegraph?.setProgress(t)
     if (t >= 1) {
+      this.attacksStruck += 1
       this.strike(attack, world)
       this.clearTelegraph()
       this.setState('recover')

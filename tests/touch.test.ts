@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { MOUNT } from '../src/data/mount'
-import { DRAG_START, STICK_RADIUS, TAP_SECONDS, TouchGestures } from '../src/input/touch'
+import { DRAG_START, PINCH_JOIN_SECONDS, PINCH_MIN_SPREAD, PINCH_START_PX, PINCH_START_RATIO, STICK_RADIUS, TAP_SECONDS, TouchGestures } from '../src/input/touch'
 
 describe('휴대폰 손가락 몸짓 (E235)', () => {
   it('짧게 누르고 거의 움직이지 않고 떼면 톡 (한 번만 읽힌다)', () => {
@@ -48,27 +48,279 @@ describe('휴대폰 손가락 몸짓 (E235)', () => {
     expect(g.takeTap()).toBeNull()
   })
 
-  it('두 손가락은 벌린 배율을 주고, 손을 다 뗄 때까지 걷기·톡이 되지 않는다', () => {
+  it('두 손가락이 저마다 움직여 사이 거리가 문턱을 넘게 바뀌면 확대로 잠기고, 그 뒤로는 손을 다 뗄 때까지 걷기·톡이 아니다 (E307)', () => {
     const g = new TouchGestures()
-    g.down(1, 100, 400, 0)
-    g.move(1, 140, 400)
-    expect(g.stick).not.toBeNull()
-    g.down(2, 200, 400, 0.2)
-    expect(g.stick).toBeNull()
+    g.down(1, 150, 420, 0, true)
+    g.down(2, 240, 420, 0.02)
+    // 닿는 것만으로는 확대가 아니다
+    expect(g.pinch).toBeNull()
+    // 사이 거리 90 → 110: 문턱(24px)에 못 미친다
+    g.move(1, 140, 420)
+    g.move(2, 250, 420)
+    expect(g.pinch).toBeNull()
+    // 90 → 125로 문턱은 넘었지만 둘째 손가락이 아직 제자리(10px)다
+    g.move(1, 125, 420)
+    expect(g.pinch).toBeNull()
+    expect(g.pinchCount).toBe(0)
+    // 둘 다 움직였다: 잠긴다. 배율은 잠긴 순간(거리 140)부터 잰다 (문턱만큼 한 번에 튀지 않는다)
+    g.move(2, 265, 420)
+    expect(g.pinchCount).toBe(1)
     expect(g.pinch).toBeCloseTo(1)
-    g.move(2, 260, 400)
-    expect(g.pinch).toBeCloseTo(120 / 60)
+    g.move(1, 110, 420)
+    g.move(2, 280, 420)
+    expect(g.pinch).toBeCloseTo(170 / 140)
+    expect(g.stick).toBeNull()
     g.up(2, 0.5)
     expect(g.pinch).toBeNull()
-    // 남은 손가락으로 끌어도 걷지 않는다
-    g.move(1, 40, 400)
+    // 남은 손가락으로 끌어도 걷지 않고, 떼어도 톡이 아니다
+    g.move(1, 40, 420)
     expect(g.stick).toBeNull()
     g.up(1, 0.6)
     expect(g.takeTap()).toBeNull()
     // 다 뗀 뒤에는 다시 된다
-    g.down(3, 100, 100, 1)
+    g.down(3, 100, 100, 1, true)
     g.up(3, 1.05)
     expect(g.takeTap()).toEqual({ x: 100, y: 100 })
+  })
+
+  it('확대 문턱은 px와 비율을 함께 넘어야 한다: 멀리 떨어진 두 엄지는 더 많이 움직여야 잠긴다 (오므리기도 같다)', () => {
+    expect(PINCH_START_PX).toBe(24)
+    expect(PINCH_START_RATIO).toBeGreaterThanOrEqual(0.08)
+    expect(PINCH_START_RATIO).toBeLessThanOrEqual(0.1)
+    // 300px 떨어진 두 손가락을 13px씩 오므린다 (26px, 8.7%)
+    const near = new TouchGestures()
+    near.down(1, 50, 400, 0, true)
+    near.down(2, 350, 400, 0)
+    near.move(1, 63, 400)
+    near.move(2, 337, 400)
+    expect(near.pinch).toBeCloseTo(1)
+    near.move(2, 300, 400)
+    expect(near.pinch).toBeCloseTo(237 / 274)
+    // 600px 떨어진 두 손가락은 15px씩(30px, 5%)으로는 모자라고, 48px(8%)을 넘어야 한다
+    const far = new TouchGestures()
+    far.down(1, 100, 100, 0, true)
+    far.down(2, 100, 700, 0)
+    far.move(1, 100, 85)
+    far.move(2, 100, 715)
+    expect(far.pinch).toBeNull()
+    far.move(1, 100, 75)
+    far.move(2, 100, 725)
+    expect(far.pinch).toBeCloseTo(1)
+  })
+
+  it('조이스틱을 쥔 채 다른 손가락으로 톡하면 조이스틱은 그대로이고 톡 하나가 되며, 확대가 아니다 (E307)', () => {
+    const g = new TouchGestures()
+    g.down(1, 100, 700, 0, true)
+    g.move(1, 100, 660)
+    expect(g.stick).toEqual({ x: 100, y: 700, dx: 0, dy: -40 })
+    g.down(2, 300, 400, 1)
+    expect(g.stick).toEqual({ x: 100, y: 700, dx: 0, dy: -40 })
+    expect(g.pinch).toBeNull()
+    // 걷는 엄지를 크게 움직여 사이 거리가 문턱보다 많이 바뀌어도 확대가 아니다
+    g.move(1, 100, 630)
+    g.move(2, 304, 398)
+    g.move(1, 140, 690)
+    expect(g.pinch).toBeNull()
+    expect(g.stick).toEqual({ x: 100, y: 700, dx: 40, dy: -10 })
+    g.up(2, 1.1)
+    expect(g.takeTap()).toEqual({ x: 304, y: 398 })
+    expect(g.takeTap()).toBeNull()
+    expect(g.stick).not.toBeNull()
+    // 둘째 손가락을 길게 끌어도 확대가 아니고 톡도 아니다. 조이스틱은 살아 있다
+    g.down(3, 300, 400, 2)
+    g.move(3, 300, 300)
+    g.move(1, 60, 700)
+    expect(g.pinch).toBeNull()
+    expect(g.pinchCount).toBe(0)
+    g.up(3, 2.2)
+    expect(g.takeTap()).toBeNull()
+    expect(g.stick).toEqual({ x: 100, y: 700, dx: -40, dy: 0 })
+    // 조이스틱 손가락을 떼면 조이스틱이 사라지고 톡도 아니다
+    g.up(1, 3)
+    expect(g.stick).toBeNull()
+    expect(g.takeTap()).toBeNull()
+  })
+
+  it('거의 함께 닿은 두 손가락은 첫 손가락이 먼저 끌려 조이스틱이 됐어도 확대로 잠긴다 (조이스틱은 놓는다). 그사이의 짧은 톡은 톡이다', () => {
+    const g = new TouchGestures()
+    // 벌리려던 첫 손가락이 둘째가 닿기 전에 15px 끌렸다
+    g.down(1, 150, 420, 0, true)
+    g.move(1, 135, 420)
+    expect(g.stick).not.toBeNull()
+    g.down(2, 250, 420, PINCH_JOIN_SECONDS - 0.1)
+    expect(g.stick).not.toBeNull()
+    g.move(2, 268, 420)
+    expect(g.pinch).toBeNull()
+    g.move(1, 120, 420)
+    expect(g.pinch).toBeCloseTo(1)
+    expect(g.stick).toBeNull()
+    g.move(2, 290, 420)
+    expect(g.pinch).toBeCloseTo(170 / 148)
+    g.up(1, 1)
+    g.up(2, 1)
+    // 막 쥔 조이스틱이어도 둘째 손가락이 제자리에서 짧게 닿았다 떼면 톡이고, 조이스틱은 그대로다
+    g.down(3, 100, 700, 2, true)
+    g.move(3, 100, 680)
+    g.down(4, 300, 400, 2.1)
+    g.move(3, 100, 640)
+    g.move(4, 303, 402)
+    g.up(4, 2.2)
+    expect(g.pinch).toBeNull()
+    expect(g.takeTap()).toEqual({ x: 303, y: 402 })
+    expect(g.stick).toEqual({ x: 100, y: 700, dx: 0, dy: -STICK_RADIUS })
+  })
+
+  it('두 엄지로 겹치게 번갈아 톡해도 둘 다 톡이고 확대가 아니다. 한 손가락을 대고 쉬는 채 다른 손가락만 움직여도 확대가 아니다', () => {
+    const g = new TouchGestures()
+    g.down(1, 110, 640, 0, true)
+    g.down(2, 280, 600, 0.05)
+    g.move(1, 114, 637)
+    g.move(2, 285, 604)
+    expect(g.pinch).toBeNull()
+    g.up(1, 0.12)
+    expect(g.takeTap()).toEqual({ x: 114, y: 637 })
+    g.up(2, 0.2)
+    expect(g.takeTap()).toEqual({ x: 285, y: 604 })
+    // 쉬는 엄지 + 끄는 엄지: 거리는 문턱보다 많이 바뀌지만 한쪽이 제자리다. 원 가장자리에 닿기 전에는 조이스틱도 아니다
+    g.down(3, 300, 600, 1, true)
+    g.down(4, 100, 700, 1.5)
+    g.move(4, 100, 660)
+    g.move(3, 303, 602)
+    expect(g.pinch).toBeNull()
+    expect(g.stick).toBeNull()
+    // 쉬던 손가락을 떼면 끌던 손가락이 다음 움직임에 조이스틱을 잡는다 (원의 가운데는 그 손가락을 누른 자리)
+    g.up(3, 2)
+    expect(g.takeTap()).toBeNull()
+    g.move(4, 100, 658)
+    expect(g.stick).toEqual({ x: 100, y: 700, dx: 0, dy: -42 })
+    expect(g.pinchCount).toBe(0)
+  })
+
+  it('먼저 닿아 쉬는 손가락 곁에서 다른 손가락을 원 가장자리 넘게 끌면 그 손가락이 조이스틱을 잡고, 확대로는 넘어가지 않는다 (E307)', () => {
+    const g = new TouchGestures()
+    // 손가락 하나를 대고 있는 채(휴대폰을 쥔 손, 길게 누른 엄지) 다른 손가락으로 끈다
+    g.down(1, 300, 300, 0, true)
+    g.down(2, 100, 450, 0.6)
+    // 원 가장자리까지는 기다린다 (벌리려는 두 손가락의 첫 움직임일 수 있다)
+    g.move(2, 100, 450 - STICK_RADIUS + 4)
+    expect(g.stick).toBeNull()
+    g.move(2, 100, 390)
+    expect(g.stick).toEqual({ x: 100, y: 450, dx: 0, dy: -STICK_RADIUS })
+    g.move(2, 130, 450)
+    expect(g.stick).toEqual({ x: 100, y: 450, dx: 30, dy: 0 })
+    // 쉬던 손가락이 나중에 미끄러져 사이 거리가 문턱보다 많이 바뀌어도 확대가 아니다 (걷는 중에 시야가 바뀌지 않는다)
+    g.move(1, 300, 340)
+    g.move(2, 100, 400)
+    expect(g.pinch).toBeNull()
+    expect(g.pinchCount).toBe(0)
+    // 쉬던 손가락을 떼어도 톡이 아니고(오래 눌렀다) 조이스틱은 그대로다
+    g.up(1, 2)
+    expect(g.takeTap()).toBeNull()
+    expect(g.stick).toEqual({ x: 100, y: 450, dx: 0, dy: -STICK_RADIUS })
+    // 쉬는 손가락이 둘이어도 같다. 하나라도 움직이고 있으면 잡지 않는다
+    const three = new TouchGestures()
+    three.down(1, 300, 300, 0, true)
+    three.down(2, 340, 760, 0.4)
+    three.down(3, 100, 450, 1)
+    three.move(2, 340, 740)
+    three.move(3, 100, 380)
+    expect(three.stick).toBeNull()
+    three.up(2, 1.5)
+    three.move(3, 100, 378)
+    expect(three.stick).toEqual({ x: 100, y: 450, dx: 0, dy: -STICK_RADIUS })
+  })
+
+  it('쉬는 손가락 곁의 조이스틱은 확대·축소를 가로채지 않는다: 차례로 댄 두 손가락도 둘 다 움직이면 확대로 잠기고, 함께 댄 두 손가락은 한쪽만 멀리 끌어도 조이스틱이 아니다', () => {
+    // 한 손가락씩 차례로 대고 벌린다: 한쪽이 먼저 움직여도 원 가장자리에 닿기 전에 다른 쪽이 움직여 확대로 잠긴다
+    const apart = new TouchGestures()
+    apart.down(1, 150, 420, 0, true)
+    apart.down(2, 250, 420, 0.8)
+    apart.move(1, 120, 420)
+    expect(apart.stick).toBeNull()
+    apart.move(2, 263, 420)
+    expect(apart.pinchCount).toBe(1)
+    expect(apart.stick).toBeNull()
+    apart.move(1, 100, 420)
+    expect(apart.pinch).toBeCloseTo(163 / 143)
+    // 함께 댄 두 손가락: 한쪽만 멀리 끌어도 조이스틱을 잡지 않고, 다른 쪽이 움직이면 확대로 잠긴다
+    const together = new TouchGestures()
+    together.down(1, 150, 420, 0, true)
+    together.down(2, 250, 420, PINCH_JOIN_SECONDS - 0.1)
+    together.move(2, 320, 420)
+    expect(together.stick).toBeNull()
+    expect(together.pinch).toBeNull()
+    together.move(1, 137, 420)
+    expect(together.pinch).toBeCloseTo(1)
+    expect(together.stick).toBeNull()
+  })
+
+  it('서로 너무 가까운 두 접점(엄지 하나가 둘로 잡힘)의 흔들림은 확대가 아니다', () => {
+    const g = new TouchGestures()
+    g.down(1, 100, 400, 0, true)
+    g.down(2, 114, 400, 0.01)
+    for (const d of [3, 6, 3, 0]) {
+      g.move(1, 100 - d, 400)
+      g.move(2, 114 + d, 400)
+      expect(g.pinch).toBeNull()
+    }
+    // 크게 벌어져도 처음 거리가 PINCH_MIN_SPREAD 아래면 손가락 하나로 본다
+    expect(14).toBeLessThan(PINCH_MIN_SPREAD)
+    g.move(1, 80, 400)
+    g.move(2, 134, 400)
+    expect(g.pinch).toBeNull()
+    expect(g.pinchCount).toBe(0)
+  })
+
+  it('세 손가락에서 하나를 떼도 튀지 않는다: 손가락 수가 바뀌면 확대가 풀리고, 다시 잠길 때 그때의 거리부터 잰다', () => {
+    const g = new TouchGestures()
+    // 리뷰의 재현: 가까운 둘 + 먼 하나에서 첫 손가락을 떼면 남은 둘의 거리로 4배가 됐다
+    g.down(1, 100, 400, 0, true)
+    g.down(2, 150, 400, 0.01)
+    g.down(3, 350, 400, 0.02)
+    g.up(1, 0.5)
+    expect(g.pinch).toBeNull()
+    g.up(2, 0.6)
+    g.up(3, 0.7)
+    // 확대로 잠긴 채 셋째 손가락이 닿으면 풀린다
+    g.down(1, 150, 420, 1, true)
+    g.down(2, 250, 420, 1)
+    g.move(1, 130, 420)
+    g.move(2, 270, 420)
+    expect(g.pinch).toBeCloseTo(1)
+    g.move(2, 290, 420)
+    expect(g.pinch).toBeCloseTo(160 / 140)
+    g.down(3, 200, 700, 1.5)
+    expect(g.pinch).toBeNull()
+    g.up(3, 1.6)
+    expect(g.pinch).toBeNull()
+    // 확대를 한 몸짓이라 셋째 손가락은 톡이 아니다
+    expect(g.takeTap()).toBeNull()
+    // 다시 문턱을 넘으면 그때의 거리(130·290 → 110·310)부터 1배로 잰다
+    g.move(1, 110, 420)
+    expect(g.pinch).toBeNull()
+    g.move(2, 310, 420)
+    expect(g.pinchCount).toBe(2)
+    expect(g.pinch).toBeCloseTo(1)
+    g.move(2, 330, 420)
+    expect(g.pinch).toBeCloseTo(220 / 200)
+    // 하나를 떼면 끝난다
+    g.up(1, 2)
+    expect(g.pinch).toBeNull()
+    g.up(2, 2.1)
+  })
+
+  it('한 손가락으로 빠르게 이어 톡하면 톡마다 그대로 톡이다 (확대·조이스틱이 아니다)', () => {
+    const g = new TouchGestures()
+    for (let i = 0; i < 8; i++) {
+      const t = i * 0.08
+      g.down(10 + i, 195 + (i % 3) * 4, 600 - (i % 2) * 5, t, true)
+      g.move(10 + i, 196 + (i % 3) * 4, 601 - (i % 2) * 5)
+      expect(g.pinch).toBeNull()
+      g.up(10 + i, t + 0.05)
+      expect(g.takeTap()).toEqual({ x: 196 + (i % 3) * 4, y: 601 - (i % 2) * 5 })
+      expect(g.stick).toBeNull()
+    }
+    expect(g.pinchCount).toBe(0)
   })
 
   it('뗀 것을 놓쳐도 처음 대는 손가락(primary)이나 창이 가려지면 남은 손가락을 버린다', () => {

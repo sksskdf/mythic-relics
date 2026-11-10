@@ -66,13 +66,19 @@ try {
     const god = godData[id]
     const images = []
     await page.evaluate(
-      ({ id, relic }) => {
+      ({ id, relic, god }) => {
         const g = window.__game
         g.dev.resetMyths()
         g.dev.unequipAll()
         g.dev.equip(relic)
         g.dev.choose(id)
         g.dev.promote()
+        // 신을 깨워도 옷은 저절로 입혀지지 않는다 (E307): 그 신의 옷·표식·유물 외형을 보관함에서 직접 골라 입힌다
+        const slots = ['head', 'face', 'torso', 'waist', 'arms', 'legs', 'weapon', 'cape', 'mark']
+        for (const slot of slots) g.wardrobe.choose(slot, 'auto')
+        g.wardrobe.unlock(god.looks)
+        for (const look of god.looks) slots.some((slot) => g.wardrobe.choose(slot, look))
+        g.appearance.apply()
         g.encounter.clearAll()
         g.dev.teleport(0, -6)
         g.hero.stop()
@@ -86,7 +92,8 @@ try {
         g.dev.spawn('grunt', p.x + 1.4, p.z + 1.4)
         g.combat.heartGauge = 0
       },
-      { id, relic: god.relic },
+      // 입힐 외형: 그 신의 옷과 표식 (무기는 손의 신을 따라 저절로)
+      { id, relic: god.relic, god: { looks: [...Object.values(god.looks), god.mark] } },
     )
     // 3연타: 그 타의 정한 순간까지 흘린다 (1/60초씩)
     for (const [index, phase] of [[0, 'strike'], [1, 'strike'], [2, 'wind'], [2, 'strike']]) {

@@ -15,9 +15,9 @@ import { delta, gearIcon } from '../../ui/gearCard'
 import type { GameContext } from '../context'
 import type { LoadoutChange } from '../RelicPowers'
 import { godMoment } from './godMoments'
-import { autoFill, breathSlots, fitBreath, inPantheon, oathPantheon, type PartKind, withoutBreath, withPart } from '../../myth/pantheon'
+import { autoFill, breathSlots, fitBreath, focusGod, inPantheon, oathPantheon, type PartKind, withoutBreath, withPart } from '../../myth/pantheon'
 
-/** 클래스가 발현되는 순간 주변 적을 밀어내는 범위와 피해 */
+/** 신이 깨어나 손에 드는 순간 주변 적을 밀어내는 범위와 피해 */
 const MANIFEST_RADIUS = 4
 const MANIFEST_DAMAGE = 20
 /** 신화를 고를 때 터지는 충격의 대기 시간 (초): 번갈아 골라 공짜 피해를 쌓지 못하게 */
@@ -59,7 +59,7 @@ export class RelicSystem {
     ctx.bus.on('chapterConquered', () => this.fillBreath())
     // 처음 깨어난 신: 손·심장·숨을 모두 그 신으로 (E12-04 → E302). 있으면 빈 자리에 저절로 넣는다
     ctx.bus.on('mythOpened', ({ god, quiet }) => {
-      // 심장이 비었으면 첫 신이다 (손은 조각 2에 이미 쥐었을 수 있다): 세 자리에 몰고 깨어나는 장면
+      // 심장이 비었으면 첫 신이다 (손은 조각 2에 이미 쥐었을 수 있다): 세 자리에 넣고 깨어나는 장면
       if (!ctx.progress.pantheon.heart) this.choose(god, true)
       // 한꺼번에 열린 것(장 보스)은 신화권 카드가 함께 알린다
       // 장 보스·개발 지름길로 한꺼번에 열린 신은 카드 없이 빈 자리에만 (두 갈래는 조각으로 깨울 때만)
@@ -74,8 +74,8 @@ export class RelicSystem {
   }
 
   /**
-   * 한 신에 몰아 고른다 (E12-04 → E302): 손·심장·숨 첫 칸을 모두 그 신으로. 앞의 숨 칸 신들은 뒤로 물러난다.
-   * 첫 신이 깨어날 때와 개발 지름길이 쓴다. 열린 신만 고를 수 있다
+   * 세 자리를 모두 그 신으로 (E12-04 → E302): 손·심장·숨 첫 칸. 앞의 숨 칸 신들은 뒤로 물러난다.
+   * 첫 신이 깨어날 때와 개발 지름길이 쓴다. 열린 신만 고를 수 있다 (화면에서는 「한 신에 몰기」라는 이름·단추를 걷었다, E307)
    */
   choose(god: God, announce: boolean): boolean {
     const { progress } = this.ctx
@@ -209,10 +209,10 @@ export class RelicSystem {
     if (!made) return false
     const def = godDef(god)
     const name = stageName(made.relic, made.stage)
-    // 새 단계의 효과 배율과 한 신에 몰았을 때 (E21-04 → E303-04: 유물은 유물표에, 기본 수치 없음)
+    // 새 단계의 효과 배율: 지금 자리로 실제 도는 값만 (E21-04 → E303-04: 유물은 유물표에, 기본 수치 없음. E307: 「몰면」 글을 걷음)
     const lines = [
       made.stage === 1 ? '대장간에서 처음 벼렸다 · 유물표에 켜짐' : `${made.stage}단계`,
-      `유물 효과 피해 ×${effectScale(made.relic, made.stage, null)} (${josa(def.name, '으로')} 몰면 ×${effectScale(made.relic, made.stage, god)})`,
+      `유물 효과 피해 ×${effectScale(made.relic, made.stage, focusGod(powers.loadout.pantheon))}`,
     ]
     // 큰 카드 (E23-03): 그 신의 색으로 번쩍임·하늘 기둥·북소리. 벼려서 다음 장이 열리면 그 장면은 이 카드 뒤에 온다
     bus.emit('moment', { id: 'forged', card: { kind: '대장간', title: name, color: def.color, icon: classIcon(def.name), lines } })
@@ -382,7 +382,7 @@ export class RelicSystem {
     this.unlock(id, announce)
   }
 
-  /** 발밑 빛: 가장 많이 낀 신의 색. 유물 하나에 1단계, 발현하면 3 + 레벨 */
+  /** 발밑 빛: 손에 쥔 신의 색(2 + 신 단계). 손이 비었으면 가장 많이 켠 신의 색으로 유물 하나에 1단계 */
   updateGlow(): void {
     const { powers, progress, fx } = this.ctx
     const counts = new Map<string, number>()
@@ -435,7 +435,7 @@ export class RelicSystem {
     this.changed(change, true, id)
   }
 
-  /** 발현이 새로 일어나거나 풀렸을 때의 연출 */
+  /** 장착이 바뀌었다: 손의 신이 새로 들거나 빠졌을 때의 연출 */
   private changed(change: LoadoutChange | null, announce: boolean, worn?: RelicId): void {
     if (!change) return
     const { before, after } = change
@@ -454,26 +454,31 @@ export class RelicSystem {
     this.announce(after.manifested)
   }
 
-  /** 신이 손에 들어 깨어나는 순간: 장면이나 카드, 번쩍임, 주변 적 밀어내기 */
+  /**
+   * 신이 깨어나 손에 드는 순간: 장면이나 카드, 번쩍임, 주변 적 밀어내기.
+   * 주인공의 모습·초상은 바뀌지 않는다 (E307, 사용자 의견 4): 그 신의 옷은 보관함에 풀릴 뿐이고, 카드는 칭호가 아니라 신의 이름으로 뜬다
+   */
   private announce(id: God): void {
     const { bus, hud, progress, hero, fx, view, feel, encounter, skills } = this.ctx
     bus.emit('manifested', { god: id })
     const god = godDef(id)
-    // 처음 고른 신화는 장면(E23-02): 그 신의 색으로 번쩍·하늘 기둥, 그 신의 장면 뒤에 큰 카드. 바꿔 고르면 카드
+    // 처음 깨어난 신은 장면(E23-02): 그 신의 색으로 번쩍·하늘 기둥, 그 신의 장면 뒤에 큰 카드. 자리를 바꿔 들면 카드
     const first = progress.opened.length === 1
     if (first) {
       hud.flash(god.color)
       fx.power.column(hero.object.position, god.color)
     } else fx.power.burst(hero.object.position, god.color, 4)
-    // 신마다 다른 발현 순간: 번개 기둥, 흩어지는 그림자, 여섯 칼날
+    // 신마다 다른 깨어나는 순간: 번개 기둥, 흩어지는 그림자, 여섯 칼날
     godMoment(this.ctx, god.id, 1)
-    // 발현하면 무엇이 생기는지: 그 신의 힘과 지금 레벨까지 열린 것
+    // 무엇이 생기는지: 그 신의 힘과 지금 단계까지 열린 것
     const lines: string[] = []
     for (let lv = 1; lv <= progress.level(god.id); lv++) {
       for (const g of levelGains(god.id, lv)) if (lv === 1 || g.kind === 'power') lines.push(g.text)
     }
     lines.push(`궁극기 「${god.ultimate.name}」`)
-    const card = { kind: '한 신에 몰기', title: progress.title(god.id), color: god.color, icon: classIcon(god.name), lines }
+    // 첫 신: 모습은 그대로고 옷은 고를 수 있게 풀렸다는 한 줄 (그 뒤의 신은 「외형」 알약의 새 표시로만)
+    if (first) lines.push(`${god.name}의 옷은 신 탭 「외형」에서 골라 입는다`)
+    const card = { kind: first ? '신이 깨어남' : '손에 쥠', title: god.name, color: god.color, icon: classIcon(god.name), lines }
     bus.emit('moment', first ? { id: 'mythChosen', scene: sceneId('myth', god.id), card } : { id: 'mythSwitched', card })
     // 주변 적을 밀어낸다 (피해는 대기 시간마다 한 번, 멈춘 화면에서 번갈아 골라도 한 번)
     const p = hero.object.position

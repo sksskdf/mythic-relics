@@ -6,17 +6,18 @@ import { GEAR_LOOKS } from './gearLooks'
  * 주인공의 모습은 부위(칸)마다 외형 하나를 끼우는 방식으로 만든다.
  * 이 파일은 이름과 부위만 담고(데이터 검사에서도 쓴다), 복셀 모델은 src/voxel/models/looks.ts에 있다.
  *
- * 유물·클래스·외형의 정합 (데이터 검사로 강제한다)
+ * 유물·신·외형의 정합 (데이터 검사로 강제한다)
  * - 유물 하나는 부위 하나를 차지한다. 같은 신의 유물끼리는 부위가 겹치지 않는다.
- * - 발현 외형은 그 신의 유물이 차지하지 않은 부위만 채운다. (유물을 낀 흔적이 발현 뒤에도 보인다)
- * - 표식은 발현한 신의 정체성을 드러내는 고정 칸이다. 신마다 하나, 보관함에서 바꿀 수 없다.
+ * - 신의 외형(옷)은 그 신의 유물이 차지하지 않은 부위만 채운다.
+ * - 표식은 신마다 하나다.
+ * 신의 옷·표식·유물 외형은 저절로 입지 않는다 (E307): 깨운 신의 것이 보관함에 풀리고, 직접 골라 입는다. 무기만 손에 쥔 신을 따른다.
  */
 
 /** 외형 칸. 보관함과 설명 카드가 같은 이름을 쓴다. */
 export const LOOK_SLOTS = ['head', 'face', 'torso', 'waist', 'arms', 'legs', 'weapon', 'cape', 'mark'] as const
 export type LookSlot = (typeof LOOK_SLOTS)[number]
-/** 보관함에서 골라 입을 수 있는 칸 (표식은 발현을 따라서만 바뀐다) */
-export const WARDROBE_SLOTS = LOOK_SLOTS.filter((slot) => slot !== 'mark')
+/** 보관함에서 골라 입을 수 있는 칸: 모두 (E307: 표식도 깨운 신의 것 가운데 고른다. 고르지 않으면 없다) */
+export const WARDROBE_SLOTS: readonly LookSlot[] = LOOK_SLOTS
 
 export const SLOT_NAMES: Readonly<Record<LookSlot, string>> = {
   head: '머리',
@@ -50,7 +51,7 @@ const list: LookDef[] = [
   { id: 'adventurerSleeves', slot: 'arms', name: '모험가의 장갑' },
   { id: 'adventurerBoots', slot: 'legs', name: '모험가의 장화' },
   { id: 'shortSword', slot: 'weapon', name: '짧은 검' },
-  // 토르: 유물(무기·허리·손) / 발현(머리·몸·등) / 표식
+  // 토르: 유물(무기·허리·손) / 신의 옷(머리·몸·등) / 표식
   { id: 'mjolnirHammer', slot: 'weapon', name: '묠니르' },
   { id: 'megingjordBelt', slot: 'waist', name: '메긴교르드' },
   { id: 'ironGauntlets', slot: 'arms', name: '야른그레이프르' },
@@ -58,7 +59,7 @@ const list: LookDef[] = [
   { id: 'thorTunic', slot: 'torso', name: '털 어깨 전투복' },
   { id: 'thorCape', slot: 'cape', name: '붉은 망토' },
   { id: 'thorStormHalo', slot: 'mark', name: '벼락 고리', aura: 'sparks' },
-  // 로키: 유물(얼굴·무기·허리) / 발현(머리·몸·등) / 표식
+  // 로키: 유물(얼굴·무기·허리) / 신의 옷(머리·몸·등) / 표식
   { id: 'lokiMaskFace', slot: 'face', name: '변신의 가면' },
   { id: 'laevateinnBlade', slot: 'weapon', name: '레바테인' },
   { id: 'mistletoeCharm', slot: 'waist', name: '겨우살이 가지' },
@@ -66,7 +67,7 @@ const list: LookDef[] = [
   { id: 'lokiTunic', slot: 'torso', name: '초록 비단옷' },
   { id: 'lokiCape', slot: 'cape', name: '초록 망토' },
   { id: 'lokiSerpents', slot: 'mark', name: '어깨의 두 뱀', aura: 'shadow' },
-  // 아수라(히든): 유물(머리·무기·허리·손) / 발현(몸·다리) / 표식. 모든 부위가 검이다
+  // 아수라(히든): 유물(머리·무기·허리·손) / 신의 옷(몸·다리) / 표식. 모든 부위가 검이다
   { id: 'ohabariCrown', slot: 'head', name: '아메노오하바리' },
   { id: 'kusanagiBlade', slot: 'weapon', name: '쿠사나기노츠루기' },
   { id: 'totsukaSash', slot: 'waist', name: '토츠카노츠루기' },

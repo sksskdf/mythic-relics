@@ -61,7 +61,7 @@ export default defineConfig({
   build: { chunkSizeWarningLimit: 1000 },
   test: {
     include: ['tests/**/*.test.ts', 'tests/**/*.test.mjs'],
-    // 디자인 토큰 검사(tests/art.test.ts)가 theme.css를 글자 그대로 읽는다
-    css: { include: [/theme\.css/] },
+    // 디자인 토큰 검사(tests/art.test.ts)가 theme.css를, HUD 쌓임·누름 검사(tests/hover.test.ts)가 hud.css를 글자 그대로 읽는다
+    css: { include: [/theme\.css/, /hud\.css/] },
   },
 })

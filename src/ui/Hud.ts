@@ -4,7 +4,8 @@ import './hud.css'
 import { BOLT_ICON, pixelIcon } from './pixelIcon'
 import { smallSigilRing } from './emblem'
 import { shortNumber } from './format'
-import { glyph, sourceSigil, unknownSigil } from './sigils'
+import { heroIcon } from './heroIcon'
+import { glyph, sourceSigil } from './sigils'
 
 export interface HudSlot {
   /** 유물 그림 주소. 빈 칸이면 null */
@@ -33,11 +34,13 @@ export interface HudState {
   xp: number | null
   /** 막대 색 (손의 신의 대표 색) */
   xpColor: string
-  /** 왼쪽 위 초상: 발현한 클래스. 발현하지 않았으면 null */
-  portrait: { name: string; title: string; color: string; level: number } | null
+  /** 왼쪽 위 초상의 그림: 주인공의 얼굴 (E307: 신을 깨워도 초상은 그 신의 문장·칭호로 바뀌지 않는다) */
+  face: string
+  /** 손에 쥔 신: 초상 테의 빛, 단계 보석, 첫 칩. 손이 비었으면 null */
+  hand: { name: string; color: string; level: number } | null
   /** 원천 수치 (장비의 합 + 원천 숙련)와 각성 단계 0~3 (E14-02). 모두 0이면 감춘다 */
   sources: Readonly<Record<string, { value: number; level: number }>>
-  /** 숨 칸에 든 신들 (E237 → E302): 초상 옆에 밝게 */
+  /** 손 말고 자리(심장·숨)에 든 신들 (E237 → E302): 초상 옆 칩으로, 손의 신 다음에 */
   lent: readonly { name: string; color: string }[]
   /** 원정이 무르익어 성소 화로에서 귀환(승천)할 수 있다 (E305-03: 성소 전설 대신) */
   promote: boolean
@@ -56,13 +59,14 @@ const CHOOSING_POLL_MS = 250
 
 /**
  * HUD: 왼쪽 위에 지금의 나, 아래 가운데에 떠 있는 묶음 하나. (DESIGN.md 10.5)
- * - 지금의 나: 발현한 클래스 초상, 레벨 보석, 걸린 힘 칩(가호, 승급 대기). 누르면 정보 화면의 상태 탭.
+ * - 지금의 나: 주인공의 초상(신을 깨워도 그대로, E307), 손에 쥔 신의 단계 보석, 자리에 든 신 칩과 귀환 대기. 누르면 정보 화면의 상태 탭.
  * - 생명: 금속 테 안의 막대(parts.css). 깎인 만큼 밝은 잔상이 잠깐 남았다가 따라 줄어든다.
  * - 유물 칸 4개: 충전은 칸 위를 시계 방향으로 걷어 내는 그늘로, 다 차면 칸이 빛난다.
  * - 궁극기: 마름모 칸. 심장 게이지가 차는 만큼 둘레의 금빛 고리가 채워지고, 다 차면 숨 쉬듯 빛난다.
  * - 경험치: 화면 맨 아래 끝에서 끝까지 이어진 가는 줄 (발현했을 때만).
  * 스킬과 궁극기는 자동으로 나가므로 키 표시가 없고, 글 대신 막대와 그림으로 보여 준다. (텍스트 최소화)
- * 유물 칸에 커서를 올리면 설명 카드가 뜨고, 누르면 유물 화면이 열린다. (E4)
+ * 유물 칸에 커서를 올리면 설명 카드가 뜨고, 누르면 정보 화면의 신 탭이 열린다. (E4)
+ * 휴대폰(E307)에서는 엄지가 놓이는 아래 묶음과 원천 칩이 누름을 받지 않는다: 그 위에서 끌어도 걷고, 정보 화면은 초상이나 메뉴 단추로 연다.
  */
 export class Hud {
   readonly root: HTMLElement
@@ -79,6 +83,8 @@ export class Hud {
   private readonly gems: HTMLElement[] = []
   private readonly chips: HTMLElement
   private statusKey = ''
+  /** 지금 보이는 초상 그림 (기본 모습을 바꾸면 다시 그린다) */
+  private faceShown = ''
   private essenceBox!: HTMLElement
   private readonly essenceEls = new Map<string, { cell: HTMLElement; count: HTMLElement; shown: string; level: number }>()
   private statusTip = ''
@@ -125,16 +131,17 @@ export class Hud {
 
     // 지금의 나
     const status = this.el('div', 'hud__status', this.root)
-    this.portrait = this.el('button', 'ui-portrait is-empty hud__portrait', status)
+    this.portrait = this.el('button', 'ui-portrait hud__portrait', status)
     this.portrait.setAttribute('aria-label', '상태')
-    this.portrait.addEventListener('pointerdown', (e) => {
-      e.stopPropagation()
+    // 누르는 순간이 아니라 click으로 연다 (E307): 손가락을 뗄 때의 click이 새로 열린 창에 떨어지지 않고, 끌면 열리지 않는다
+    this.portrait.addEventListener('click', () => {
+      this.tip.hidden = true
       this.onPortraitClick()
     })
     this.tipOn(this.portrait, () => (this.statusTip || '이름 없는 모험가\n신의 흔적·사냥·수호자, 조각 셋을 모으면 그 신이 깨어난다.') + '\n누르면 자세한 상태')
     this.portraitIcon = document.createElement('img')
     this.portraitIcon.alt = ''
-    this.portraitIcon.src = unknownSigil()
+    this.portraitIcon.src = heroIcon()
     this.portrait.append(this.portraitIcon)
     const side = this.el('div', 'hud__status-side', status)
     const gems = this.el('div', 'ui-gems ui-gems--small', side)
@@ -169,8 +176,8 @@ export class Hud {
     const slots = this.el('div', 'hud__slots', dock)
     for (let i = 0; i < SKILL_SLOTS; i++) {
       const root = this.el('button', 'hud__slot hud__slot--empty', slots)
-      root.addEventListener('pointerdown', (e) => {
-        e.stopPropagation()
+      // click으로 연다 (E307, 끌면 열리지 않는다). 터치 화면에서는 칸이 누름을 받지 않고 게임 화면으로 흘려보낸다 (hud.css)
+      root.addEventListener('click', () => {
         this.onSlotHover(null, null)
         this.onSlotClick(i)
       })
@@ -191,10 +198,26 @@ export class Hud {
     parent.appendChild(this.root)
   }
 
-  /** 올리면 위쪽에 짧은 설명. 첫 줄은 굵게 */
+  /**
+   * 위쪽 HUD 묶음(초상·원천·목표 한 줄·작은 지도·보스 막대)과 아래 묶음 사이의 빈 띠 (화면 px).
+   * 휴대폰에서 다가가면 뜨는 땅의 카드가 이 안에 머문다 (E307). 레이아웃을 읽으니 프레임마다 부르지 않는다
+   */
+  clearBand(): { top: number; bottom: number } {
+    let top = 0
+    // 감춘 것(hidden·보이지 않는 보스 막대)은 높이가 0이라 빠진다
+    for (const el of this.root.querySelectorAll('.hud__status, .hud__essence, .chapter-goal, .minimap, .hud__boss.is-visible')) {
+      const r = el.getBoundingClientRect()
+      if (r.height > 0) top = Math.max(top, r.bottom)
+    }
+    const dock = this.root.querySelector('.hud__dock')!.getBoundingClientRect()
+    return { top: top + 8, bottom: dock.top - 8 }
+  }
+
+  /** 커서를 올리면 위쪽에 짧은 설명. 첫 줄은 굵게. 손가락으로는 띄우지 않는다 (설명은 정보 화면에서 본다, E307) */
   private tipOn(target: HTMLElement, text: string | (() => string)): void {
     target.classList.add('hud__tippable')
-    target.addEventListener('pointerenter', () => {
+    target.addEventListener('pointerenter', (e) => {
+      if (e.pointerType === 'touch') return
       const [first, ...rest] = (typeof text === 'function' ? text() : text).split('\n')
       const b = document.createElement('b')
       b.textContent = first!
@@ -275,21 +298,24 @@ export class Hud {
     }
   }
 
-  /** 왼쪽 위 지금의 나: 바뀌었을 때만 다시 그린다. */
+  /** 왼쪽 위 지금의 나: 바뀌었을 때만 다시 그린다. 초상은 늘 주인공의 얼굴이고, 손에 쥔 신은 테의 빛·보석·첫 칩으로만 보인다 (E307) */
   private updateStatus(state: HudState): void {
-    const { portrait, lent, promote } = state
+    const { face, hand, lent, promote } = state
     const borrowed = lent.length ? `\n빌린 힘: ${lent.map((b) => b.name).join('·')}` : ''
-    this.statusTip = portrait ? `${portrait.title}\n${portrait.name} ${portrait.level}단계${borrowed}${promote ? ' · 성소 화로에서 귀환할 수 있다' : ''}` : ''
-    const key = `${portrait?.name}|${portrait?.level}|${lent.map((b) => b.name).join()}|${promote}`
-    if (key === this.statusKey) return
+    // 조각 2에 무기만 쥔 신은 아직 깨어나지 않았다 (0단계)
+    const stage = hand ? (hand.level > 0 ? `${hand.level}단계` : '깨우는 중') : ''
+    this.statusTip = hand ? `이름 없는 모험가\n손에 쥔 신: ${hand.name} ${stage}${borrowed}${promote ? ' · 성소 화로에서 귀환할 수 있다' : ''}` : ''
+    const key = `${hand?.name}|${hand?.level}|${lent.map((b) => b.name).join()}|${promote}`
+    if (key === this.statusKey && face === this.faceShown) return
     this.statusKey = key
-    this.portrait.classList.toggle('is-empty', !portrait)
-    this.portrait.style.setProperty('--glow', portrait?.color ?? '')
-    this.portraitIcon.src = portrait ? classIcon(portrait.name) : unknownSigil()
-    this.gems.forEach((gem, i) => gem.classList.toggle('is-on', !!portrait && i < portrait.level))
-    ;(this.gems[0]!.parentElement as HTMLElement).style.setProperty('--gem', portrait?.color ?? '')
+    this.faceShown = face
+    // 손이 비었으면 빛 없는 테, 신을 쥐면 그 신의 색으로 빛난다
+    this.portrait.style.setProperty('--glow', hand?.color ?? 'var(--c-line-2)')
+    this.portraitIcon.src = face
+    this.gems.forEach((gem, i) => gem.classList.toggle('is-on', !!hand && i < hand.level))
+    ;(this.gems[0]!.parentElement as HTMLElement).style.setProperty('--gem', hand?.color ?? '')
     this.chips.replaceChildren()
-    for (const b of lent) {
+    for (const b of hand ? [hand, ...lent] : lent) {
       const chip = this.el('span', 'ui-chip is-lent', this.chips)
       chip.style.setProperty('--glow', b.color)
       chip.append(this.img(classIcon(b.name)))

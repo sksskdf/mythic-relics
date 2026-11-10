@@ -47,6 +47,8 @@ export class DialogBox {
       e.preventDefault()
       this.press()
     })
+    // 아이폰 사파리: 연타하다 누르고 있으면 뜨는 돋보기·글자 선택을 막는다 (E307). 누름은 포인터 사건으로 받아 영향이 없다
+    this.root.addEventListener('touchstart', (e) => e.cancelable && e.preventDefault(), { passive: false })
     parent.append(this.root)
   }
 

@@ -4,6 +4,7 @@ import { BAG_SIZE } from '../../gear/Loadout'
 import type { SourceId } from '../../data/schema'
 import { materialName } from '../../gear/materials'
 import { nextGrade, PROTOTYPE_VALUE } from '../../gear/merge'
+import { mythRelic, RELIC_STAGES, stageName } from '../../gear/mythRelic'
 import { GEAR, gearName } from '../../gear/roll'
 import { godDef, isRelicId, relicDef } from '../../relics/data'
 import { classIcon } from '../classIcons'
@@ -12,6 +13,19 @@ import { josa } from '../josa'
 import { relicCard, relicIcon } from '../relicCard'
 import { glyph, unknownSigil } from '../sigils'
 import { el, img, type TabContext } from './dom'
+
+/** 낀 장비의 「녹이기」를 한 번 누른 뒤 확인을 기다리는 시간 (ms) */
+const CONFIRM_MS = 2500
+
+/**
+ * 다 벼린 유물의 대장간 줄 (E307): 지금 이름과 단계, 그리고 더 올릴 수 없는 까닭.
+ * 엔딩 전(데모)에는 2단계가 끝이고 3·4단계는 엔딩 뒤에 열린다 (`AFTER_ENDING.relicStages`). 끝 단계에서만 「완성」
+ */
+export function forgedLine(name: string, stage: number): { name: string; note: string | null } {
+  if (stage >= RELIC_STAGES) return { name: `${name} · ${stage}단계 완성`, note: null }
+  const rest = Array.from({ length: RELIC_STAGES - stage }, (_, i) => stage + 1 + i)
+  return { name: `${name} · ${stage}단계`, note: `${rest.join('·')}단계는 엔딩 뒤에 열린다` }
+}
 
 /** 장비 탭 (E13): 지금 신화, 칸 7과 가방, 고른 칸·커서를 올린 것의 설명 카드, 대장간, 재료 */
 export class RelicsTab {
@@ -26,8 +40,10 @@ export class RelicsTab {
 
   render(body: HTMLElement): void {
     const { host } = this.ctx
-    // 창을 다시 열거나 탭을 옮기면 한 번 누른 것은 잊는다 (한 번만 눌러 끼지 않게)
+    // 창을 다시 열거나 탭을 옮기면 한 번 누른 것은 잊는다 (한 번만 눌러 끼지 않게).
+    // 그 장비의 설명 카드도 함께 닫는다: 고른 테두리 없이 카드만 남으면 무엇의 카드인지 모른다 (커서가 올라가 있으면 다시 뜬다)
     this.picked = null
+    this.hovered = null
     const layout = el('div', 'menu-relics')
     const left = el('div', 'menu-relics__left')
     const detail = el('div', 'menu-relics__detail')
@@ -37,7 +53,7 @@ export class RelicsTab {
     const { manifested } = host.loadout
     if (manifested) {
       const god = godDef(manifested)
-      const badge = el('span', 'menu-relics__manifest', god.title)
+      const badge = el('span', 'menu-relics__manifest', god.name)
       badge.style.setProperty('--god', god.color)
       badge.prepend(img(classIcon(god.name)))
       this.ctx.hintOn(badge, `손에 쥔 신 ${god.name}`)
@@ -149,19 +165,33 @@ export class RelicsTab {
       const group = host.mergeable().find((g) => g.includes(id))
       if (group) detail.append(this.mergeBox(group))
       const actions = el('div', 'menu-relics__dos')
+      const inBag = host.bag.includes(id)
       // 가방의 장비: 「끼기」 (휴대폰에서 고른 것을 끼는 길, 마우스는 가방 칸을 눌러도 낀다)
-      if (host.bag.includes(id) && this.wieldSlot(id) !== undefined) {
+      if (inBag && this.wieldSlot(id) !== undefined) {
         const w = el('button', 'menu-relics__salvage menu-relics__wear')
         w.type = 'button'
         w.append(img(glyph('sword')), '끼기')
         w.addEventListener('click', () => this.wield(id))
         actions.append(w)
       }
-      const b = el('button', 'menu-relics__salvage')
+      // 「녹이기」는 늘 줄의 오른쪽 끝이다 (`menu-relics__melt`): 「끼기」가 사라져도 그 자리로 당겨지지 않는다.
+      // 끼자마자 먹지 않은 줄 알고 같은 자리를 한 번 더 눌러도 방금 낀 장비가 녹지 않게 (E307)
+      const b = el('button', 'menu-relics__salvage menu-relics__melt')
       b.type = 'button'
-      b.append(img(glyph('salvage')), '녹이기')
+      const label = el('span', '', '녹이기')
+      b.append(img(glyph('salvage')), label)
       this.ctx.hintOn(b, `녹이면 원형 ${PROTOTYPE_VALUE[gear.grade]}개가 된다 (등급이 하나 오를 때마다 셋 배)`)
       b.addEventListener('click', () => {
+        // 끼고 있는 장비는 한 번 더 눌러야 녹는다 (녹이면 그 칸이 빈다). 잠시 뒤에는 처음으로. 가방의 것은 한 번에
+        if (!inBag && !b.classList.contains('is-confirm')) {
+          b.classList.add('is-confirm')
+          label.textContent = '한 번 더 누르면 녹인다'
+          setTimeout(() => {
+            b.classList.remove('is-confirm')
+            label.textContent = '녹이기'
+          }, CONFIRM_MS)
+          return
+        }
         this.hovered = null
         host.melt(id)
       })
@@ -230,7 +260,16 @@ export class RelicsTab {
       const row = el('div', 'menu-forge__row')
       row.style.setProperty('--god', def.color)
       if (!next) {
-        row.append(el('span', 'menu-forge__name', `${def.name} · 4단계 완성`))
+        // 더 올릴 수 없다: 데모는 2단계가 끝이라 「4단계 완성」이 아니다 (`forgedLine`)
+        const relic = mythRelic(god)
+        const stage = this.ctx.host.gods.table().relics.find((r) => r.id === relic)?.stage ?? 1
+        const line = forgedLine(stageName(relic, stage), stage)
+        row.append(el('span', 'menu-forge__name', line.name))
+        if (line.note) {
+          const note = el('span', 'menu-forge__needs')
+          note.append(el('span', 'is-short', line.note))
+          row.append(note)
+        }
         box.append(row)
         continue
       }

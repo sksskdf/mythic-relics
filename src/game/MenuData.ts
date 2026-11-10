@@ -2,7 +2,7 @@ import { activeLayers, LAYER_NAMES } from '../build/layers'
 import { WAKE, WAKE_GODS, wakeDef } from '../data/wake'
 import { awakeningLevel } from '../data/awakening'
 import { REALM_COLORS, REGIONS } from '../data/regions'
-import { CONQUESTS } from '../data/chapters'
+import { chapterOf, CONQUESTS } from '../data/chapters'
 import { ENEMIES } from '../enemies/Giant'
 import { CELL, cellOrigin } from '../data/world'
 import { SOURCE_IDS, type SourceId } from '../data/schema'
@@ -15,7 +15,7 @@ import { MYTH_RELICS, mythRelic, relicMyth, stageName } from '../gear/mythRelic'
 import { GEAR } from '../gear/roll'
 import { TRAINING_UNIQUES } from '../skills/uniques'
 import { levelGains } from '../myth/levelGains'
-import { breathCap, focusGod } from '../myth/pantheon'
+import { breathCap } from '../myth/pantheon'
 import { josa } from '../ui/josa'
 import { AUTOMATION_STEPS } from '../progress/Automation'
 import { BRANCHES, insightProgress, TRAINING_NODES } from '../data/training'
@@ -91,7 +91,6 @@ export class MenuData {
       gods: {
         // 신의 자리는 어디서나 바꾼다 (E302, 막던 전설 판은 E305-03에서 걷음)
         canSwap: () => true,
-        choose: (god) => relics.choose(god, true),
         pantheon: () => this.pantheonView(),
         place: (part, god) => relics.place(part, god),
         unplace: (god) => relics.unplace(god),
@@ -183,6 +182,7 @@ export class MenuData {
             found: r.kind === 'hub' || waypoints.has(r.id),
             beaten: ctx.chapters.bosses.has(r.id),
             locked: !ctx.chapters.isOpen(r.id),
+            later: r.kind === 'field' && chapterOf(r.id) === null && !ctx.chapters.isOpen(r.id),
           }))
         },
         goal: () => {
@@ -238,7 +238,8 @@ export class MenuData {
         .map((g) => g.text)
       for (let lv = 2; lv <= level; lv++) for (const g of levelGains(manifested, lv)) if (g.kind === 'power') what.push(g.text)
       what.push(`궁극기 「${god.ultimate.name}」`)
-      powers.push({ kind: 'god', name: god.name, color: god.color, label: game.progress.title(manifested), what: what.join(' · ') })
+      // 칭호 대신 신의 이름 (E307)
+      powers.push({ kind: 'god', name: god.name, color: god.color, label: god.name, what: what.join(' · ') })
     }
     for (const id of game.powers.loadout.relics) {
       if (!id) continue
@@ -276,6 +277,7 @@ export class MenuData {
       equipped: loadout.relics,
       owned: new Set(loadout.ownedRelics),
       awake: game.powers.awake(id),
+      focus: ctx.build.focus,
       manifested,
       level: manifested ? game.progress.level(manifested) : 0,
       stage: loadout.stage(id),
@@ -291,7 +293,7 @@ export class MenuData {
     return SOURCE_IDS.map((id) => ({ id, total: state.sources[id], level: awakeningLevel(state.sources[id]), flames: flames[id] }))
   }
 
-  /** 신의 자리 셋 (E302): 손·심장·숨, 숨 칸 수, 잠긴 숨 칸마다 열리는 때, 한 신에 몰았으면 그 신 (신 탭) */
+  /** 신의 자리 셋 (E302): 손·심장·숨, 숨 칸 수, 잠긴 숨 칸마다 열리는 때, 지금 도는 자리의 세 자리가 모두 같은 신이면 그 신 (신 탭) */
   private pantheonView(): ReturnType<MenuHost['gods']['pantheon']> {
     const { ctx, relics } = this.parts
     const { progress, chapters, ending, build } = ctx
@@ -306,7 +308,7 @@ export class MenuData {
     const p = progress.pantheon
     // 잠긴 칸은 지금 끝(엔딩 전 4)까지만: 홀로의 맹세로 끝에 닿았으면 남은 장 보스는 칸을 더 주지 않는다
     const cap = breathCap(ending.has('oaths'))
-    return { hand: p.hand, heart: p.heart, breath: p.breath, count, locked: locked.slice(0, Math.max(0, cap - Math.max(1, count))), focus: focusGod(p), emptyHand: build.rules.emptyHand }
+    return { hand: p.hand, heart: p.heart, breath: p.breath, count, locked: locked.slice(0, Math.max(0, cap - Math.max(1, count))), focus: build.focus, emptyHand: build.rules.emptyHand }
   }
 
   /** 깨우는 중인 신 (E238): 모은 조각과 다음 할 일 (신 탭) */

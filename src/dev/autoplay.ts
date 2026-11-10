@@ -11,6 +11,7 @@ import { gearScore } from '../gear/roll'
 import { type God, godDef, relicDef } from '../relics/data'
 import { relicGods } from '../relics/model'
 import type { Point2 } from '../world/colliders'
+import { type BossFight, BossWatch } from './bossWatch'
 
 /** 판단 간격 (초). 사람의 반응 속도쯤으로 둔다. */
 const THINK = 0.25
@@ -67,8 +68,15 @@ export class Autoplayer {
   private roam: { to: Point2; until: number; region: string } | null = null
   /** 멈춤 끊기를 한 횟수 (점검용) */
   stallBreaks = 0
+  /** 보스·수호자 싸움 재기 (E307 0B): 처음 때린 때·쓰러진 때. 생명만 읽고 봇의 판단에는 쓰지 않는다 */
+  private readonly bossWatch = new BossWatch()
 
   constructor(private readonly game: Game) {}
+
+  /** 보스·수호자 싸움마다 처음 때린 때와 쓰러진 때 (점검 스크립트가 판 기록에 남긴다, `scripts/lib/curve.mjs`의 `bossFights`) */
+  get bossFights(): readonly BossFight[] {
+    return this.bossWatch.fights
+  }
 
   /**
    * 게임 시간 seconds초 동안 자동으로 플레이하고 흐른 초를 돌려준다.
@@ -183,6 +191,8 @@ export class Autoplayer {
   private think(): void {
     const { hero, combat, encounter, pickups, sanctuary, progress, powers } = this.game
     this.noteKills()
+    // 무너지는 중인 적까지 본다 (encounter.alive는 쓰러진 적을 뺀다)
+    this.bossWatch.note(this.game.time, this.game.region.id, encounter.giants)
     if (!combat.alive) return void (this.step = 1)
     const p = hero.object.position
     const here = { x: p.x, z: p.z }

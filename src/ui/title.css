@@ -163,6 +163,11 @@
 .title-slot__plus {
   font: var(--t-title);
 }
+/* 읽지 못한 저장 (더 새 버전·깨진 글): 빈 칸처럼 눌러 새 모험을 시작하지만, 왼쪽에 붙여 무엇이 들어 있는지 알린다 (E307 0B) */
+.title-slot.is-unread {
+  --glow: var(--c-bad);
+  justify-content: flex-start;
+}
 .title-slot__words {
   display: flex;
   flex-direction: column;

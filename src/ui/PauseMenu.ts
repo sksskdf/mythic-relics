@@ -1,4 +1,4 @@
-import { RENDER_QUALITIES, type RenderQuality, type Settings } from '../save/settings'
+import { RENDER_QUALITIES, type RenderQuality, type Settings, VIEW_HEIGHT } from '../save/settings'
 import './pause.css'
 
 /** 일시 정지 메뉴가 게임에서 읽고 부르는 것 */
@@ -33,7 +33,7 @@ function button(className: string, text: string, run: () => void): HTMLButtonEle
 
 /**
  * 일시 정지 메뉴 (E5-04·05). Esc를 누르거나 창 밖으로 나가면 뜬다. 떠 있는 동안 게임은 멈춘다.
- * 계속하기, 설정(음량·화면 흔들림·번쩍임·렌더 해상도), 처음 화면으로.
+ * 계속하기, 설정(음량·화면 흔들림·번쩍임·렌더 해상도·시야 되돌리기), 처음 화면으로.
  */
 export class PauseMenu {
   private readonly root: HTMLElement
@@ -150,5 +150,17 @@ export class PauseMenu {
       s.quality,
       (quality) => this.host.change({ quality }),
     )
+    // 시야 되돌리기 (E307): 휠·두 손가락으로 바꾼 확대·축소를 기본값으로. 이미 기본값이면 누를 것이 없다
+    const row = el('div', 'pause__row')
+    const pills = el('div', 'pause__pills')
+    const reset = button('ui-pill', '되돌리기', () => {
+      this.host.change({ viewHeight: VIEW_HEIGHT.initial })
+      this.renderSettings()
+    })
+    reset.dataset.setting = '시야'
+    reset.disabled = s.viewHeight === VIEW_HEIGHT.initial
+    pills.append(reset)
+    row.append(el('span', 'pause__name', '시야'), pills)
+    box.append(row)
   }
 }

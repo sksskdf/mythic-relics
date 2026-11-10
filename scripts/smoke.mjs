@@ -75,9 +75,10 @@ try {
   console.log('첫 장면 확인: 대화 중 HUD 숨김, 한 번 누르면 완성·다시 누르면 넘김, 끝나면 HUD와 저장')
 
   // 대화 네 곳 (E15-06): 처음 보는 일(신화 개방)은 한 번만, 마을 사람은 걸어가면 말을 건다. 대화 중에는 세계가 멈춘다
+  // 대화가 끝난 뒤 0.5초는 클릭이 지시가 되지 않는다 (E307: 연타로 넘기던 톡이 새지 않게). 그 뒤의 클릭 점검이 먹히도록 가라앉을 때까지 기다린다
   const closeDialog = async () => {
     for (let i = 0; i < 30 && (await page.evaluate(() => !document.querySelector('.dialog').hidden)); i++) await page.mouse.click(640, 300)
-    await page.waitForFunction(() => !window.__game.scenes.active, null, { timeout: 10000 })
+    await page.waitForFunction(() => !window.__game.scenes.active && !window.__game.scenes.settling, null, { timeout: 10000 })
   }
   if (!(await page.evaluate(() => window.__game.story('mythThor')))) throw new Error('대화: 토르 신화 개방 장면이 열리지 않습니다.')
   if ((await page.locator('.dialog__name').textContent()) !== '토르') throw new Error('대화: 신화 개방 장면에서 토르가 말하지 않습니다.')
@@ -232,6 +233,8 @@ try {
     g.hero.face(0.6)
   })
   if ((await page.evaluate(() => window.__game.hero.rig.outfit.head)) !== 'adventurerHair') throw new Error('외형: 기본 모습이 모험가가 아닙니다.')
+  // 왼쪽 위 초상은 주인공의 얼굴: 신을 깨운 뒤에도 같은 그림이어야 한다 (E307)
+  const baseFace = await page.evaluate(() => document.querySelector('.hud__portrait img').src)
   await lookShot('1-base')
 
   // 땅 유물 설명 카드: 떠 있는 모델 위, 빛기둥 중간, 발밑 어디에 커서를 올려도 뜨고, 멀리 떨어지면 사라진다.
@@ -285,7 +288,7 @@ try {
   if (gearTabs.join() !== 'relics') throw new Error(`탭 차례: 장비를 주운 뒤 열린 탭이 장비 하나가 아닙니다 (${gearTabs.join()})`)
   console.log('탭 차례 확인: 새 판에는 상태 탭만, 장비를 주우면 장비 탭과 카드')
   await lookShot('2-gear')
-  // 신을 깨우는 조각 셋 (E238 → E302): 흔적(조각 1: 숨) → 사냥(조각 2: 손과 묠니르) → 수호자(심장, 깨어나 한 신에 몰기).
+  // 신을 깨우는 조각 셋 (E238 → E302): 흔적(조각 1: 숨) → 사냥(조각 2: 손과 묠니르) → 수호자(심장, 깨어나 세 자리 모두).
   // 데모에서는 유물을 가져도 신화가 열리지 않는다
   await page.evaluate(() => {
     const g = window.__game
@@ -306,14 +309,28 @@ try {
   if (!asleep.lent.includes('thor') || !asleep.awake) throw new Error(`신의 조각: 조각 2인데 토르의 힘을 빌리지 않거나 묠니르가 잠들어 있습니다 ${JSON.stringify(asleep)}`)
   await page.evaluate(() => window.__game.dev.awaken())
   const woke = await page.evaluate(() => ({ ...window.__game.progress.pantheon, focus: window.__game.ctx.build.focus }))
-  if (woke.heart !== 'thor' || woke.focus !== 'thor') throw new Error(`신화 고르기 실패: 토르의 수호자를 쓰러뜨렸는데 한 신에 몰리지 않았습니다 ${JSON.stringify(woke)}`)
+  if (woke.heart !== 'thor' || woke.focus !== 'thor') throw new Error(`신화 고르기 실패: 토르의 수호자를 쓰러뜨렸는데 세 자리에 들지 않았습니다 ${JSON.stringify(woke)}`)
   // 손은 조각 2에 이미 쥐었어도 깨어나는 순간(장면·큰 카드)은 수호자 뒤에 온다
   await page.waitForFunction(() => window.__game.moments.shown.some((m) => m.id === 'mythChosen'), null, { timeout: 90000 }).catch(() => {
     throw new Error('신화 고르기: 토르가 깨어났는데 깨어나는 순간(mythChosen)이 없습니다.')
   })
   if (!(await page.evaluate(() => window.__game.progress.isOpen('thor')))) throw new Error('신화 개방: 토르의 수호자를 쓰러뜨렸는데 토르 신화가 열리지 않았습니다.')
-  console.log('신의 조각 확인: 조각 1에 토르의 숨, 조각 2에 망치를 손에 쥐고 묠니르가 깨어나지만 토르는 아직 닫힘, 수호자 뒤에 토르로 한 신에 몰기')
-  if ((await page.evaluate(() => window.__game.hero.rig.outfit.head)) !== 'thorHelm') throw new Error('외형: 신화를 골랐는데 모습이 그대로입니다.')
+  console.log('신의 조각 확인: 조각 1에 토르의 숨, 조각 2에 망치를 손에 쥐고 묠니르가 깨어나지만 토르는 아직 닫힘, 수호자 뒤에 토르가 손·심장·숨에')
+  // 신을 깨워도 내 모습은 그대로다 (E307, 사용자 의견 4): 무기만 손의 신을 따르고, 그 신의 옷·표식은 보관함에 풀릴 뿐이다
+  const worn = await page.evaluate(() => ({ outfit: { ...window.__game.hero.rig.outfit }, unlocked: [...window.__game.wardrobe.unlocked] }))
+  if (worn.outfit.head !== 'adventurerHair' || worn.outfit.torso !== 'adventurerTunic' || worn.outfit.cape !== null || worn.outfit.mark !== null) throw new Error(`외형: 토르를 깨웠더니 주인공의 모습이 저절로 바뀌었습니다 ${JSON.stringify(worn.outfit)}`)
+  if (!['thorHelm', 'thorTunic', 'thorCape', 'thorStormHalo'].every((id) => worn.unlocked.includes(id))) throw new Error(`외형: 깨운 토르의 옷·표식이 보관함에 풀리지 않았습니다 ${JSON.stringify(worn.unlocked)}`)
+  // 깨어나는 큰 카드는 「한 신에 몰기 · 칭호」가 아니라 「신이 깨어남 · 토르」
+  const wokeCard = await page
+    .waitForFunction(() => {
+      const text = document.querySelector('.hud__gains')?.textContent ?? ''
+      return text.includes('신이 깨어남') ? text : false
+    }, null, { timeout: 60000 })
+    .then((handle) => handle.jsonValue())
+    .catch(() => {
+      throw new Error('신이 깨어남: 토르가 깨어났는데 「신이 깨어남」 카드가 없습니다.')
+    })
+  if (!wokeCard.includes('토르') || /몰기|천둥의 신/.test(wokeCard)) throw new Error(`신이 깨어남: 카드에 칭호나 「몰기」가 남았습니다 (${wokeCard.slice(0, 60)})`)
   // 재료가 된 유물(메긴교르드)은 칸이 아니라 재료로 (E13-03)
   await page.evaluate(() => {
     const g = window.__game
@@ -325,8 +342,10 @@ try {
   })
   // 발현 번개가 걷히고 나서 찍는다.
   await lookShot('4-manifest', 12)
-  // 왼쪽 위 상태: 발현한 클래스 초상과 레벨 보석
-  if ((await page.locator('.hud__portrait.is-empty').count()) !== 0) throw new Error('상태: 발현했는데 초상이 비어 있습니다.')
+  // 왼쪽 위 상태: 초상은 주인공의 얼굴 그대로(토르의 문장으로 바뀌지 않는다), 손에 쥔 신은 칩과 단계 보석으로
+  const face = await page.evaluate(() => ({ now: document.querySelector('.hud__portrait img').src, chips: document.querySelectorAll('.hud__chips .ui-chip').length }))
+  if (face.now !== baseFace) throw new Error('상태: 토르를 깨웠더니 왼쪽 위 초상이 바뀌었습니다.')
+  if (face.chips < 1) throw new Error('상태: 손에 쥔 신의 칩이 없습니다.')
   // 신의 흔적(조각 1)을 찾으면 신 탭(자리·유물표·외형, E305-04)이 열린다. 원천·맹세는 귀환해야 열린다. 아래 점검은 탭을 모두 연 채로 한다
   const mythTabs = await page.evaluate(() => [...window.__game.tabs.opened])
   if (!['relics', 'gods'].every((t) => mythTabs.includes(t)) || mythTabs.includes('sources') || mythTabs.includes('oaths')) throw new Error(`탭 차례: 토르를 깨웠는데 신 탭이 닫혀 있거나, 귀환 전에 원천·맹세 탭이 열렸습니다 (${mythTabs.join()})`)
@@ -364,14 +383,16 @@ try {
   await forgeRow.getByRole('button', { name: '벼리기' }).click()
   if ((await page.evaluate(() => window.__game.powers.loadout.stage('mjolnir'))) !== 2) throw new Error('대장간: 벼렸는데 묠니르가 2단계가 아닙니다.')
   await tab('신').click()
-  if (!(await page.locator('.menu-classes__now').textContent()).includes('천둥의 신')) throw new Error('정보 화면: 신 탭에 지금 신이 없습니다.')
-  // 신화 카드 (E12-06, E21-02, E302): 열린 신화·손·심장·숨에 끼면 얻는 것과 한 신에 몰기 표시
+  const nowGod = await page.locator('.menu-classes__now').textContent()
+  if (!nowGod.includes('토르') || nowGod.includes('천둥의 신')) throw new Error(`정보 화면: 신 탭 맨 위에 손에 쥔 신의 이름이 없거나 칭호가 남았습니다 (${nowGod.slice(0, 40)})`)
+  // 신의 카드 (E12-06, E21-02, E302 → E307): 열린 신화·손·심장·숨에 끼면 얻는 것. 「한 신에 몰기」 꼬리표·단추는 없다
   const myth = await page.locator('.menu-myth').textContent()
   // 유물표 (E303-04): 묠니르 칸이 켜져 깨어 있고, 못 켠 칸은 실루엣
   const table = await page.evaluate(() => ({ lit: document.querySelectorAll('.menu-table__cell.is-lit').length, awake: document.querySelectorAll('.menu-table__cell.is-awake').length, all: document.querySelectorAll('.menu-table__cell').length, head: document.querySelector('.menu-table__head')?.textContent ?? '' }))
   if (table.lit < 1 || table.awake < 1 || table.all < 20 || !table.head.includes('+')) throw new Error(`유물표: 묠니르 칸이 켜지지 않았습니다 ${JSON.stringify(table)}`)
   console.log(`유물표 확인: ${table.head}, 칸 ${table.all}`)
-  if (!['열린 신화', '손에 쥐면', '심장에 두면', '숨에 넣으면', '한 신에 몰기'].every((w) => myth.includes(w))) throw new Error(`정보 화면: 신화 카드가 모자랍니다 (${myth.slice(0, 60)})`)
+  if (!['열린 신화', '손에 쥐면', '심장에 두면', '숨에 넣으면', '손·심장·숨'].every((w) => myth.includes(w))) throw new Error(`정보 화면: 신화 카드가 모자랍니다 (${myth.slice(0, 60)})`)
+  if (/몰기|천둥의 신|천둥군주/.test(myth)) throw new Error(`정보 화면: 신의 카드에 「몰기」나 칭호가 남았습니다 (${myth.slice(0, 80)})`)
   // 신의 자리 셋 (E302): 둘째 신이 깨어나면 숨 칸이 둘, 그 신의 카드에서 「숨에 넣기」를 누르면 그 신의 패시브가 돈다
   await page.evaluate(() => {
     const g = window.__game
@@ -394,6 +415,20 @@ try {
   // 신 탭의 「외형」 알약 (E305-04): 외형 탭을 신 탭에 합쳤다. 보관함이 뜨고, 「자리」로 돌아온다
   await page.locator('.menu-gods__views .ui-pill', { hasText: '외형' }).click()
   if (!(await page.locator('.wardrobe').isVisible())) throw new Error('신 탭: 「외형」을 눌렀는데 보관함이 없습니다.')
+  // 외형 칩(머리의 「장착을 따른다」, 모습은 그대로)을 눌러도 가운데 미리 보기 인형이 문서에 붙어 있다 (E307: 다시 그려 떼어진 옛 칸으로 옮겨져 사라졌다)
+  await page.locator('.wardrobe__chip').first().click()
+  if (!(await page.evaluate(() => !!document.querySelector('.wardrobe .hero-preview')))) throw new Error('신 탭: 외형 칩을 눌렀더니 가운데 미리 보기 인형이 사라졌습니다.')
+  // 깨운 신의 옷은 여기서 부위마다 직접 골라 입는다 (E307): 머리 칸 → 「천둥의 날개 투구」. 표식 칸도 고를 수 있다
+  await page.locator('.wardrobe__slot', { hasText: '머리' }).first().click()
+  await page.locator('.wardrobe__chip', { hasText: '천둥의 날개 투구' }).click()
+  await page.locator('.wardrobe__slot', { hasText: '표식' }).first().click()
+  await page.locator('.wardrobe__chip', { hasText: '벼락 고리' }).click()
+  const dressed = await page.evaluate(() => ({ head: window.__game.hero.rig.outfit.head, mark: window.__game.hero.rig.outfit.mark }))
+  if (dressed.head !== 'thorHelm' || dressed.mark !== 'thorStormHalo') throw new Error(`외형: 보관함에서 토르의 투구·표식을 골랐는데 입혀지지 않습니다 ${JSON.stringify(dressed)}`)
+  await page.evaluate(() => {
+    window.__game.appearance.choose('head', 'auto')
+    window.__game.appearance.choose('mark', 'auto')
+  })
   await page.locator('.menu-gods__views .ui-pill', { hasText: '자리' }).click()
   if (!(await page.locator('.menu-slots').isVisible())) throw new Error('신 탭: 「자리」로 돌아왔는데 신의 자리가 없습니다.')
   // 수련 탭 (E236): 깨달음을 얻으면 메뉴 단추에 표시, 뿌리 마디를 누르면 찍히고 피해가 오른다
@@ -525,11 +560,22 @@ try {
   await page.click('.minimap')
   const mapLabels = await page.locator('.menu-map__label').count()
   if (mapLabels !== regionCount) throw new Error(`지도: 지역이 ${mapLabels}곳입니다 (${regionCount}곳이어야 함).`)
-  await page.locator('.menu-map__label', { hasText: '요툰헤임 빙하' }).click()
-  await page.waitForFunction(() => window.__game.region.id === 'jotunheim', null, { timeout: 15000 }).catch(() => {
-    throw new Error('지도: 찾은 성소를 눌렀는데 워프하지 않습니다.')
+  // 판이 뜬 직후(0.5초)의 누름은 워프하지 않는다 (E307: 작은 지도를 두 번 누르면 둘째 누름이 그 자리에 뜬 땅 표시에 떨어져 워프했다)
+  const leaked = await page.evaluate(() => {
+    const g = window.__game
+    g.menu.toggle(false)
+    document.querySelector('.minimap').click()
+    document.querySelector('.menu-map__spot[aria-label="요툰헤임 빙하"]').click()
+    return !g.menu.open || g.world.traveling
   })
-  console.log(`지도 확인: 작은 지도를 누르면 세계 지도(${mapLabels}곳), 찾은 성소를 눌러 요툰헤임 빙하로 워프`)
+  if (leaked) throw new Error('지도: 작은 지도를 누른 직후의 누름이 워프했습니다.')
+  await page.waitForTimeout(600)
+  // 이름 글자가 아니라 땅 표시(원)를 누른다 (E307: 전에는 표시를 눌러도 반응이 없고 이름 글자만 눌렸다)
+  await page.locator('.menu-map__spot[aria-label="요툰헤임 빙하"]').click()
+  await page.waitForFunction(() => window.__game.region.id === 'jotunheim', null, { timeout: 15000 }).catch(() => {
+    throw new Error('지도: 찾은 성소의 표시를 눌렀는데 워프하지 않습니다.')
+  })
+  console.log(`지도 확인: 작은 지도를 누르면 세계 지도(${mapLabels}곳), 찾은 성소의 표시를 눌러 요툰헤임 빙하로 워프`)
   await page.waitForFunction(() => getComputedStyle(document.querySelector('.region-fade')).opacity === '0', null, { timeout: 15000 })
   await page.evaluate(() => window.__game.enterRegion(window.__game.regions.midgard))
 

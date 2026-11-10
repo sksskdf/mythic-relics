@@ -23,6 +23,13 @@
   overflow-y: auto;
   padding: var(--sp-6);
 }
+/* 아이폰 사파리의 100vh는 주소창 뒤까지 잰다: 보이는 높이(dvh)를 아는 브라우저는 그것으로 잰다 (E307).
+   한 규칙에 두 줄로 쓰면 빌드의 CSS 줄이기가 vh 줄을 지우므로 @supports로 덮는다 (`menu.css`의 .menu__frame과 같다) */
+@supports (height: 100dvh) {
+  .pause__frame {
+    max-height: calc(100dvh - 32px);
+  }
+}
 .pause__title {
   margin: 0 0 var(--sp-3);
   font: var(--t-title);
@@ -76,6 +83,11 @@
 }
 .pause__pills > .ui-pill {
   font: var(--t-small);
+}
+/* 누를 것이 없는 알약 (시야가 이미 기본값) */
+.pause__pills > .ui-pill:disabled {
+  color: var(--c-ink-3);
+  cursor: default;
 }
 
 /* 음량 막대: 우묵한 홈과 금색 손잡이 */

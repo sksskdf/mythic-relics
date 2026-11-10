@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { THEME_IDS, themeForRealm } from '../src/audio/music'
 import { distanceGain, HEARING, MAX_SAME, MAX_VOICES, VoiceLimiter } from '../src/audio/limits'
 import { SOUND_CUES, SOUNDS } from '../src/audio/sounds'
-import { DEFAULT_SETTINGS, deviceDefaults, parseSettings } from '../src/save/settings'
+import { DEFAULT_SETTINGS, deviceDefaults, parseSettings, resetViewOnce, VIEW_HEIGHT } from '../src/save/settings'
 
 describe('동시 재생 제한', () => {
   it('같은 소리는 한꺼번에 MAX_SAME개까지만 난다', () => {
@@ -53,7 +53,7 @@ describe('설정', () => {
   })
 
   it('저장한 값을 그대로 되읽고, 틀린 값은 고친다', () => {
-    const s = { viewHeight: 20, volume: { master: 0.5, music: 0, sfx: 1 }, shake: false, flash: false, quality: 'low' as const, qualityChosen: true }
+    const s = { viewHeight: 20, volume: { master: 0.5, music: 0, sfx: 1 }, shake: false, flash: false, quality: 'low' as const, qualityChosen: true, viewReset: true }
     expect(parseSettings(JSON.parse(JSON.stringify(s)))).toEqual(s)
     const odd = parseSettings({ viewHeight: 999, volume: { master: 3, music: -1, sfx: 'x' }, shake: 'no', quality: 'ultra' })
     expect(odd.viewHeight).toBe(34)
@@ -79,6 +79,21 @@ describe('설정', () => {
     const saved = JSON.parse(JSON.stringify(parseSettings({ viewHeight: 15 }, phone)))
     expect(parseSettings(saved, phone).quality).toBe('low')
     expect(parseSettings(saved, DEFAULT_SETTINGS).quality).toBe('normal')
+  })
+
+  it('터치 기기는 잘못 저장된 시야를 한 번만 기본값으로 되돌린다 (E307): 되돌린 뒤에 맞춘 시야와 다른 설정은 지킨다', () => {
+    // 문턱 없던 두 손가락 확대가 저장해 둔 좁은 시야 (표시가 없는 옛 설정)
+    const old = parseSettings({ viewHeight: 14.8, shake: false, quality: 'high' })
+    expect(old.viewReset).toBe(false)
+    const fixed = resetViewOnce(old)
+    expect(fixed).toEqual({ ...old, viewHeight: VIEW_HEIGHT.initial, viewReset: true })
+    // 표시는 저장을 거쳐도 남고, 그 뒤에 일부러 맞춘 시야는 다시 되돌리지 않는다
+    const later = parseSettings(JSON.parse(JSON.stringify({ ...fixed, viewHeight: 24 })))
+    expect(later.viewReset).toBe(true)
+    expect(resetViewOnce(later)).toBe(later)
+    expect(resetViewOnce(later).viewHeight).toBe(24)
+    // 틀린 표시는 없는 것으로 본다
+    expect(parseSettings({ viewReset: 'yes' }).viewReset).toBe(false)
   })
 })
 

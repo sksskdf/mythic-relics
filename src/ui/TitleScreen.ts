@@ -1,20 +1,29 @@
 import './title.css'
 
 import { BODY_OPTIONS, BODY_PART_NAMES, BODY_PARTS, type BodyLook, DEFAULT_BODY } from '../looks/body'
-import { classIcon } from './classIcons'
 import { sigilRing } from './emblem'
+import { heroIcon } from './heroIcon'
 import { HeroPreview } from './HeroPreview'
 import { glyph } from './sigils'
+import type { SlotSummary } from './slotSummary'
 
-/** 슬롯 카드에 보일 것. 빈 슬롯이면 null */
-export interface SlotSummary {
-  /** 가장 높은 클래스 */
-  className: string
-  title: string
-  level: number
-  color: string
-  /** 가진 유물 수 */
-  relics: number
+/**
+ * 읽지 못한 저장이 든 슬롯 (E307 0B): 더 새 버전이 쓴 저장(newer)이거나 깨진 글(broken).
+ * 빈 슬롯처럼 새 모험을 시작할 수 있고, 원본은 옆 키에 남는다 (kept, `saveStorage.unread`).
+ * 저장소가 차서 원본을 남기지 못한 칸(kept가 false)은 덮지 않으므로 거기서 시작한 새 판은 저장되지 않는다 (`saveStorage.save`)
+ */
+export interface UnreadSlot {
+  unread: 'newer' | 'broken'
+  kept: boolean
+}
+
+/** 슬롯 카드 하나: 저장 요약, 읽지 못한 저장, 빈 슬롯(null) */
+export type SlotCard = SlotSummary | UnreadSlot | null
+
+/** 읽지 못한 저장의 한 줄: 무엇이 들어 있는지와, 원본을 남겼는지 (남기지 못한 칸은 원본을 지키려고 새 판을 저장하지 않는다: `saveStorage.save`) */
+export function unreadLine(slot: UnreadSlot): string {
+  const what = slot.unread === 'newer' ? '더 새 버전의 저장' : '깨진 저장'
+  return `${what} · ${slot.kept ? '원본은 남겨 둠' : '공간이 모자라 이 칸은 저장되지 않음'}`
 }
 
 export interface TitleHandlers {
@@ -33,6 +42,7 @@ const hex = (n: number) => `#${n.toString(16).padStart(6, '0')}`
  * 실행 후 게임까지 가장 빨리 닿는 것이 목표다.
  * - 마지막으로 플레이한 슬롯이 있으면: 준비되는 대로 바로 사라지고 그 슬롯을 이어서 플레이한다.
  * - 처음 실행이거나 게임에서 처음 화면으로 돌아왔으면: 제목과 저장 슬롯 3개. 빈 슬롯은 캐릭터 만들기로.
+ *   읽지 못한 저장이 든 슬롯은 빈 슬롯처럼 누르되 「읽지 못한 저장」이라고 알린다 (단추는 늘리지 않는다, E307 0B).
  */
 export class TitleScreen {
   readonly root: HTMLElement
@@ -61,25 +71,28 @@ export class TitleScreen {
   }
 
   /** 슬롯 고르기 */
-  showSlots(slots: readonly (SlotSummary | null)[], handlers: TitleHandlers): void {
+  showSlots(slots: readonly SlotCard[], handlers: TitleHandlers): void {
     this.root.classList.remove('is-loading', 'is-creating')
     this.menu.replaceChildren()
     const list = this.el('div', 'title-slots', this.menu)
-    slots.forEach((info, i) => {
-      const card = this.el('button', `title-slot${info ? '' : ' is-empty'}`, list) as HTMLButtonElement
+    slots.forEach((slot, i) => {
+      const unread = slot !== null && 'unread' in slot ? slot : null
+      const info = slot !== null && !('unread' in slot) ? slot : null
+      const card = this.el('button', `title-slot${info ? '' : unread ? ' is-empty is-unread' : ' is-empty'}`, list) as HTMLButtonElement
       card.type = 'button'
       card.style.animationDelay = `${i * 0.06}s`
       if (info) {
-        card.style.setProperty('--glow', info.color)
+        // 초상은 그 슬롯 주인공의 얼굴 (E307: 신의 문장·칭호 대신). 손에 쥔 신이 있으면 그 색으로 빛난다
+        if (info.color) card.style.setProperty('--glow', info.color)
         const portrait = this.el('span', 'ui-portrait', card)
-        portrait.style.setProperty('--glow', info.color)
+        portrait.style.setProperty('--glow', info.color || 'var(--c-line-2)')
         const img = document.createElement('img')
-        img.src = classIcon(info.className)
+        img.src = heroIcon(info.body)
         img.alt = ''
         portrait.append(img)
         const words = this.el('span', 'title-slot__words', card)
         this.el('span', 'title-slot__title', words).textContent = info.title
-        this.el('span', 'title-slot__meta', words).textContent = `${info.className} ${info.level}단계 · 유물 ${info.relics}개`
+        this.el('span', 'title-slot__meta', words).textContent = info.meta
         card.addEventListener('click', () => handlers.onContinue(i))
         // 지우기: 한 번 더 눌러야 지워진다
         const del = this.el('span', 'title-slot__delete', card)
@@ -101,14 +114,19 @@ export class TitleScreen {
         })
       } else {
         this.el('span', 'title-slot__plus', card).textContent = '+'
-        this.el('span', 'title-slot__words', card).textContent = '새 모험'
+        const words = this.el('span', 'title-slot__words', card)
+        if (unread) {
+          // 읽지 못한 저장: 빈 칸처럼 새 모험을 시작할 수 있지만, 무엇이 들어 있는지 한 줄로 알린다
+          this.el('span', 'title-slot__title', words).textContent = '읽지 못한 저장'
+          this.el('span', 'title-slot__meta', words).textContent = unreadLine(unread)
+        } else words.textContent = '새 모험'
         card.addEventListener('click', () => this.showCreator(i, slots, handlers))
       }
     })
   }
 
   /** 캐릭터 만들기: 가운데에 돌아가는 미리 보기, 피부·머리카락·옷 색 고르기, [시작] */
-  private showCreator(slot: number, slots: readonly (SlotSummary | null)[], handlers: TitleHandlers): void {
+  private showCreator(slot: number, slots: readonly SlotCard[], handlers: TitleHandlers): void {
     this.root.classList.add('is-creating')
     this.menu.replaceChildren()
     const body: BodyLook = { ...DEFAULT_BODY }

@@ -25,11 +25,13 @@ export interface ViewportOptions {
   viewHeight?: number
   /** 화질을 이것으로 (?quality=, 설정에 저장하지 않는다) */
   quality?: RenderQuality
+  /** 터치 기기인가 (E235). 잘못 저장된 시야를 한 번 되돌린다 (E307) */
+  touch?: boolean
 }
 
 /**
  * 화면과 설정 (E305-04에서 Game.ts에서 뗌): 픽셀 렌더러, 확대·축소(휠·두 손가락), 창 크기에 맞춘 렌더 크기,
- * 일시 정지 메뉴의 설정(음량·흔들림·번쩍임·화질) 적용.
+ * 일시 정지 메뉴의 설정(음량·흔들림·번쩍임·화질·시야 되돌리기) 적용.
  */
 export class Viewport {
   readonly pixel: PixelRenderer
@@ -47,7 +49,8 @@ export class Viewport {
     options: ViewportOptions,
   ) {
     this.qualityOverride = options.quality
-    this.settings = this.withOverride(settingsStorage.load())
+    // 터치 기기는 문턱 없던 두 손가락 확대가 저장해 둔 시야를 한 번 기본값으로 되돌린다 (E307)
+    this.settings = this.withOverride(options.touch ? settingsStorage.loadOnTouch() : settingsStorage.load())
     // ?res= 로 픽셀 밀도를 바꿔 볼 수 있다. 기본은 프로토타입의 밀도에 설정의 해상도를 곱한다
     this.requestedRenderHeight = options.renderHeight ?? TARGET_RENDER_HEIGHT
     this.baseRenderHeight = options.renderHeight ?? Math.round(TARGET_RENDER_HEIGHT * RENDER_SCALE[this.settings.quality])
@@ -77,10 +80,14 @@ export class Viewport {
     }
   }
 
-  /** 일시 정지 메뉴에서 바꾼 설정을 저장하고 적용한다. 화질을 고르면 고른 것으로 남겨 기기 기본값을 쓰지 않는다 (E306 D22) */
+  /**
+   * 일시 정지 메뉴에서 바꾼 설정을 저장하고 적용한다. 화질을 고르면 고른 것으로 남겨 기기 기본값을 쓰지 않는다 (E306 D22).
+   * 시야를 바꾸면(「시야 되돌리기」, E307) 화면도 바로 맞춘다
+   */
   change(patch: Partial<Settings>): void {
     if (patch.quality) this.qualityOverride = undefined
     this.apply(this.withOverride(settingsStorage.update(patch.quality ? { ...patch, qualityChosen: true } : patch)))
+    if (patch.viewHeight !== undefined) this.setViewHeight(this.settings.viewHeight)
   }
 
   /** 저장한 설정에 ?quality= 덮어쓰기를 얹는다 */
@@ -88,7 +95,7 @@ export class Viewport {
     return this.qualityOverride ? { ...settings, quality: this.qualityOverride } : settings
   }
 
-  /** 두 손가락 확대·축소 (E235): end면 손을 뗀 것이라 설정에 남긴다 */
+  /** 두 손가락 확대·축소 (E235): end면 확대·축소로 잠긴 몸짓이 시야를 바꾸고 손을 뗀 것이라 설정에 남긴다 */
   zoom(viewHeight: number, end: boolean): void {
     const { view } = this.parts
     // 대화 장면의 시야는 장면이 정한다 (휠과 같이)

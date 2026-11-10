@@ -29,6 +29,10 @@ export class TouchControls {
       this.gestures.down(e.pointerId, e.clientX, e.clientY, this.now(), e.isPrimary)
       this.draw()
     })
+    // 아이폰 사파리: 게임 화면을 길게 누르거나 톡에 이어 누르고 있으면 뜨는 돋보기·글자 선택을 막는다 (E307).
+    // 포인터 사건은 touchstart를 막아도 그대로 온다 (조이스틱·톡·두 손가락은 포인터 사건으로 읽는다). 막히는 것은 이 캔버스의
+    // 흉내 마우스 사건과 click뿐이고, 캔버스는 click을 쓰지 않는다. HUD·창의 단추는 제 요소가 받아 영향이 없다
+    element.addEventListener('touchstart', (e) => e.cancelable && e.preventDefault(), { passive: false })
     // 앱을 바꾸거나 시스템 몸짓으로 창이 가려지면 뗀 것을 못 받을 수 있다: 손가락을 모두 잊어 혼자 걷거나 몸짓이 꼬이지 않게
     const forget = () => {
       this.gestures.reset()

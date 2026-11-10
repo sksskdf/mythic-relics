@@ -45,8 +45,67 @@
   :root .menu {
     padding: calc(var(--sp-4) + env(safe-area-inset-top, 0px)) var(--sp-4) calc(var(--sp-4) + env(safe-area-inset-bottom, 0px));
   }
+  /* 높이는 지금 보이는 화면(dvh: 사파리 주소창·도구 막대를 뺀 높이)에 맞추고, dvh를 모르는 브라우저는 vh로 잰다 (`menu.css`의 .menu__frame과 같다) */
   :root .menu__frame {
-    height: calc(100dvh - var(--sp-4) * 2 - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    height: calc(100vh - var(--sp-4) * 2 - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  }
+  @supports (height: 100dvh) {
+    :root .menu__frame {
+      height: calc(100dvh - var(--sp-4) * 2 - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    }
+  }
+  /*
+   * 정보 화면 머리줄을 두 줄로 (E307): 한 줄에서는 탭이 여섯을 넘으면 마지막 탭이 오른쪽 단추(처음 화면·설정·닫기)에 가렸다.
+   * 윗줄에 그 단추 셋, 아랫줄은 탭이 폭을 고르게 나눠 가진다 (여덟이어도 한 칸 44px쯤, 393px 화면 기준).
+   * 탭마다 그림 아래에 이름을 달아 켜진 탭이 어느 것인지 늘 보이고, 탭 자리가 켜진 탭에 따라 밀리지 않는다.
+   */
+  :root .menu__head {
+    flex-wrap: wrap;
+  }
+  :root .menu__tabs {
+    order: 1;
+    flex: 0 0 100%;
+    overflow: visible;
+    border-top: var(--bw) solid var(--c-line-2);
+  }
+  :root .menu__tab {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 44px;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 0;
+    padding: var(--sp-2) 0;
+    border-right: 0;
+  }
+  :root .menu__tab + .menu__tab {
+    border-left: var(--bw) solid var(--c-line-2);
+  }
+  /* 이름은 작은 글씨 한 줄, 「끝없는 원정」만 낱말에서 끊겨 두 줄 */
+  :root .menu__tab span,
+  :root .menu__tab:not(.is-on) span {
+    display: block;
+    font: var(--t-small);
+    line-height: 1.2;
+    white-space: normal;
+    word-break: keep-all;
+    text-align: center;
+  }
+  /*
+   * 윗줄: 「처음 화면」(이름을 보인다: 한 번 누르면 「한 번 더 누르면 이동」)·설정·닫기를 오른쪽에 모은다.
+   * 왼쪽 위는 비운다: HUD 초상 바로 위라, 초상을 톡해 창을 열고 같은 자리를 한 번 더 톡하면 그 자리의 단추가 눌린다
+   * (오른쪽 위 메뉴 단추 자리에는 닫기가 와서 두 번 톡하면 열고 닫힌다)
+   */
+  :root .menu__home {
+    margin-left: auto;
+    min-height: 40px;
+  }
+  :root .menu__home span {
+    display: inline;
+  }
+  :root .menu__gear,
+  :root .menu__close {
+    min-width: 44px;
   }
   /* 땅·전설 이름 카드: 양옆 띠를 줄이고 이름은 화면 폭 안에서 줄을 바꾼다 */
   :root .hud__card-band {

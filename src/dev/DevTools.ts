@@ -21,6 +21,7 @@ import type { TrainingProgress } from '../progress/Training'
 import type { ChapterProgress } from '../progress/Chapters'
 import type { ExpeditionProgress } from '../progress/Expedition'
 import type { Build } from '../build/Build'
+import { type DamageLayer, LAYER_NAMES } from '../build/layers'
 import type { SkillContext } from '../skills/Skill'
 import type { OathId } from '../data/oaths'
 import { BAG_SIZE } from '../gear/Loadout'
@@ -66,11 +67,70 @@ export interface DevParts {
 }
 
 /**
+ * 빌드 장부 (E307 0B 「재는 자」): 그때의 피해가 어디서 얼마나 왔는지 가를 수 있게 한 줄에 남기는 것.
+ * 층 목록(`src/build/layers.ts`)의 곱이 damageScale이고, 그 밖의 것(수치·각성·자리·유물 단계·장비)은 층 밖에서 피해를 키운다
+ */
+export interface BuildSheet {
+  /** 층 목록의 곱 (기본 공격·스킬에 공통으로 곱하는 배율) */
+  damageScale: number
+  layers: (DamageLayer & { name: string })[]
+  /** 0이 아닌 수치 (장비·맹세·수련의 합). 피해 종류별 수치는 층 밖에서 따로 곱한다 */
+  stats: Record<string, number>
+  attackSpeed: number
+  maxHp: number
+  damageTaken: number
+  /** 원천 수치와 각성 단계 (0이 아닌 것), 지금 걸린 각성의 피해 배율 (사냥 3단계의 이어 잡기) */
+  sources: Record<string, number>
+  awakening: Record<string, number>
+  awakeningScale: number
+  /** 신의 자리 셋과 그 신의 단계 */
+  pantheon: { hand: string | null; heart: string | null; breath: string[]; levels: Record<string, number> }
+  /** 승천 횟수 합, 누적 명성·귀환 횟수·정복한 장, 익힌 수련 마디 수 */
+  promotions: number
+  renown: number
+  returns: number
+  conquered: number
+  trained: number
+  /** 유물표에 켠 유물과 단계 */
+  relics: { id: string; stage: number }[]
+  /** 낀 일반 장비: 부위·등급·장비 단계·고유 효과 */
+  gear: { part: string; grade: string; tier: number; unique?: string }[]
+}
+
+/**
  * 개발 패널·봇·점검 스크립트가 쓰는 지름길 (E11-03에서 Game.ts에서 뗌).
  * 게임 안에서는 `game.dev.equip('mjolnir')`처럼 부른다.
  */
 export class DevTools {
   constructor(private readonly parts: DevParts) {}
+
+  /** 지금 빌드의 장부 (읽기만): `scripts/power-curve.mjs`가 2분 줄마다 남긴다 (E307 0B) */
+  buildSheet(): BuildSheet {
+    const { build, powers, progress, expedition, chapters, training } = this.parts
+    const state = build.state
+    const { loadout } = powers
+    const nonZero = (o: Readonly<Record<string, number>>) => Object.fromEntries(Object.entries(o).filter(([, v]) => Math.abs(v) > 1e-9))
+    const gods = [...new Set([loadout.pantheon.hand, loadout.pantheon.heart, ...loadout.pantheon.breath])].filter((g): g is string => g !== null)
+    return {
+      damageScale: state.damageScale,
+      layers: state.layers.map((l) => ({ ...l, name: LAYER_NAMES[l.id] })),
+      stats: nonZero(state.stats),
+      attackSpeed: state.attackSpeed,
+      maxHp: state.maxHp,
+      damageTaken: state.damageTaken,
+      sources: nonZero(state.sources),
+      awakening: nonZero(state.awakening),
+      awakeningScale: powers.awakening.damageScale,
+      pantheon: { hand: loadout.pantheon.hand, heart: loadout.pantheon.heart, breath: [...loadout.pantheon.breath], levels: Object.fromEntries(gods.map((g) => [g, progress.level(g)])) },
+      promotions: progress.promotions,
+      renown: expedition.renown,
+      returns: expedition.returns,
+      conquered: chapters.conquered,
+      trained: training.taken.size,
+      relics: loadout.relics.map((id) => ({ id, stage: loadout.stage(id) })),
+      gear: loadout.wornGear.map((g) => ({ part: g.part, grade: g.grade, tier: g.tier, ...(g.unique ? { unique: g.unique } : {}) })),
+    }
+  }
 
   /** 유물을 유물표에 켠다. 엔딩 뒤에는 그 신화가 열리는 연출도 그대로 나온다 (데모에서는 신을 깨워야 열린다: 신이 필요하면 `choose`) */
   equip(id: RelicId): void {

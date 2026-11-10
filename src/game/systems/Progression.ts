@@ -87,17 +87,17 @@ export class ProgressionSystem {
     bus.emit('progressChanged', {})
   }
 
-  /** 신화가 처음 열렸다 (신이 깨어남·엔딩 뒤 유물): 칭호 카드 (고르지 않아도 최대 생명이 붙는다) */
+  /** 신화가 처음 열렸다 (신이 깨어남·엔딩 뒤 유물): 신의 이름 카드 (고르지 않아도 최대 생명이 붙는다) */
   private announceOpened(god: God): void {
     const { bus, progress } = this.ctx
     // 처음 연 신화를 바로 골랐거나 빌린 칸에 넣었으면 그쪽(고른 신화 장면·빌린 힘 카드)이 대신 알린다 (RelicSystem이 먼저 듣는다)
     if (inPantheon(progress.pantheon, god)) return
     const def = godDef(god)
     const lines = [`${def.name}의 힘이 깨어났다`, '신 탭에서 손·심장·숨 자리에 낀다', `열린 신화: ${collectionText()}`]
-    bus.emit('moment', { id: 'mythOpened', card: { kind: '신화 개방', title: def.titles[0], color: def.color, icon: classIcon(def.name), lines } })
+    bus.emit('moment', { id: 'mythOpened', card: { kind: '신화 개방', title: def.name, color: def.color, icon: classIcon(def.name), lines } })
   }
 
-  /** 승급 (귀환의 승천·개발 지름길): 칭호가 바뀌고, 스킬이 강해지고, 기본 능력치가 오른다. 상한이면 그대로 */
+  /** 승급 (귀환의 승천·개발 지름길): 그 신의 단계가 오르고, 스킬이 강해지고, 기본 능력치가 오른다. 상한이면 그대로 */
   promote(god: God): void {
     const { progress, combat, hero, fx, view, feel, bus } = this.ctx
     const hpBefore = this.ctx.build.state.maxHp
@@ -119,7 +119,7 @@ export class ProgressionSystem {
     ]
     // 큰 카드 (E23-03): 그 신의 색으로 번쩍임·하늘 기둥·북소리
     const def = godDef(god)
-    bus.emit('moment', { id: 'mythLevel', card: { kind: `승천 · ${level}단계`, title: progress.title(god), color: def.color, icon: classIcon(def.name), lines } })
+    bus.emit('moment', { id: 'mythLevel', card: { kind: `승천 · ${level}단계`, title: def.name, color: def.color, icon: classIcon(def.name), lines } })
     // 신마다 다른 승급 순간: 레벨이 오를수록 크고 많다
     godMoment(this.ctx, god, level)
     fx.puffs.burst(p, 40, 5)

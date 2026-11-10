@@ -1,5 +1,6 @@
 import { ATTACK_NAMES } from '../../combat/styles'
 import { DATA } from '../../data'
+import { REALM_NAMES } from '../../data/classKit'
 import { collectionText } from '../../myth/alwaysText'
 import { allLevelGains, lendText, levelGains } from '../../myth/levelGains'
 import { type God, godDef, relicDef } from '../../relics/data'
@@ -62,7 +63,7 @@ export class GodsTab {
               : ''
       const step = el('div', `menu-promo__step${level < progress.levelCap ? ' is-now' : ''}`)
       step.append(el('span', 'menu-promo__no', '↑'), el('span', '', how))
-      if (level < MAX_LEVEL) steps.append(el('div', 'menu-promo__head', `다음 단계: ${level + 1}단계 ${def.titles[level]}`), step)
+      if (level < MAX_LEVEL) steps.append(el('div', 'menu-promo__head', `다음 단계: ${level + 1}단계`), step)
       box.append(steps)
     }
 
@@ -73,7 +74,7 @@ export class GodsTab {
       const later = lv > progress.levelCap
       const row = el('div', `menu-promo__level${lv <= level ? ' is-have' : ''}${lv === level + 1 && !later ? ' is-next' : ''}${later ? ' is-later' : ''}`)
       const head = el('div', 'menu-promo__lv')
-      head.append(el('span', 'ui-tag' + (lv <= level ? ' ui-tag--solid' : ' ui-tag--plain'), `${lv}단계`), el('span', '', def.titles[i]!))
+      head.append(el('span', 'ui-tag' + (lv <= level ? ' ui-tag--solid' : ' ui-tag--plain'), `${lv}단계`))
       const boss = this.ctx.host.nextConquest()
       if (later && lv > level) head.append(el('small', '', lv <= DEMO_MAX_LEVEL && boss ? `${josa(boss, '을')} 이기면` : '엔딩 뒤'))
       const list = el('ul', '')
@@ -121,7 +122,7 @@ export class GodsTab {
         return
       }
       const def = godDef(god)
-      const b = el('button', `menu-slots__slot${view.focus === god ? ' is-main' : ''}`)
+      const b = el('button', 'menu-slots__slot')
       b.type = 'button'
       b.style.setProperty('--god', def.color)
       b.append(img(classIcon(def.name), 'menu-slots__emblem'))
@@ -139,7 +140,7 @@ export class GodsTab {
     if (view.emptyHand) slot('손 · 맹세', null, '낡은 검', `빈 손의 맹세를 건 동안 손이 빈다${view.hand ? `\n지키면 ${josa(godDef(view.hand).name, '이')} 손에 돌아온다` : ''}`)
     else slot('손', view.hand, '낡은 검', '기본 공격 동작·리듬·무기')
     slot('심장', view.heart, '비었음', '궁극기')
-    for (const god of view.breath) slot('숨', god, '', lendText(god, Math.max(1, this.ctx.host.progress.level(god))))
+    for (const god of view.breath) slot('숨', god, '', lendText(god, this.effectLevel(god, view.focus)))
     for (let i = view.breath.length; i < view.count; i++) slot('숨', null, '빈 칸', '깨운 신의 카드에서 「숨에 넣기」')
     for (const when of view.locked) {
       const box = el('div', 'menu-slots__slot is-locked')
@@ -150,7 +151,16 @@ export class GodsTab {
   }
 
   /**
-   * 한 신화 카드 (E12-06 → E302): 단계·칭호, 열린 신화의 생명, 손·심장·숨에 끼면 얻는 것, 자리 바꾸기, 다음 단계 조건.
+   * 그 신의 숨이 실제로 도는 단계: 신 단계, 세 자리(손·심장·숨)가 모두 그 신이면 하나 위 (규칙은 `myth/pantheon.ts`의 `partLevel`).
+   * 화면은 「한 신에 몰기」라는 이름·꼬리표·단추 없이 실제로 도는 값만 보인다 (E307). focus는 지금 도는 자리로 센 것
+   */
+  private effectLevel(god: God, focus: God | null): number {
+    const level = Math.max(1, this.ctx.host.progress.level(god))
+    return focus === god ? Math.min(MAX_LEVEL, level + 1) : level
+  }
+
+  /**
+   * 한 신의 카드 (E12-06 → E302): 이름·단계, 열린 신화의 생명, 손·심장·숨에 끼면 얻는 것, 자리 바꾸기, 다음 단계 조건.
    */
   private mythCard(god: God): HTMLElement {
     const { progress, gods } = this.ctx.host
@@ -167,13 +177,12 @@ export class GodsTab {
     const head = el('div', 'menu-myth__head')
     head.append(img(level > 0 ? classIcon(def.name) : unknownSigil(), 'menu-myth__emblem'))
     const name = el('div', 'menu-myth__name')
-    const title = el('div', 'menu-classes__title', level > 0 ? progress.title(god) : def.name)
+    const title = el('div', 'menu-classes__title', def.name)
     if (level > 0) title.append(pips(level))
-    name.append(title, el('small', '', level > 0 ? def.name : '아직 열리지 않은 신화'))
+    name.append(title, el('small', '', level > 0 ? `${REALM_NAMES[def.realm]}의 신 · ${level}단계` : '아직 열리지 않은 신화'))
     head.append(name)
     const tags = [inHand && '손', inHeart && '심장', inBreath && '숨'].filter(Boolean) as string[]
-    if (view.focus === god) head.append(el('span', 'ui-tag ui-tag--solid menu-myth__chosen', '한 신에 몰기'))
-    else if (tags.length) head.append(el('span', 'ui-tag ui-tag--solid menu-myth__chosen', tags.join('·')))
+    if (tags.length) head.append(el('span', 'ui-tag ui-tag--solid menu-myth__chosen', tags.join('·')))
     card.append(head)
 
     // 열린 신화 (E21-02 → E303-04): 자리에 없어도 늘 붙는다(최대 생명)
@@ -197,9 +206,11 @@ export class GodsTab {
     part('손에 쥐면', inHand, [`기본 공격: ${ATTACK_NAMES[def.attack]}`, ...damage])
     part('심장에 두면', inHeart, [`궁극기 「${def.ultimate.name}」`])
     // 공격 동작은 손의 몫이라 빼고, 대표 힘과 겹치는 줄은 한 번만
-    const breathLines = [lendText(god, Math.max(1, level)), ...levelGains(god, 1).filter((g) => g.kind === 'power' && !g.text.startsWith('공격')).map((g) => g.text)]
+    const applied = this.effectLevel(god, view.focus)
+    const breathLines = [lendText(god, applied), ...levelGains(god, 1).filter((g) => g.kind === 'power' && !g.text.startsWith('공격')).map((g) => g.text)]
     part('숨에 넣으면', inBreath, [...new Set(breathLines), '이 신의 유물이 깨어난다'])
-    if (view.focus !== god && level > 0) card.append(el('p', 'menu-myth__hint', '손·심장·숨을 모두 이 신으로 채우면 한 신에 몰기: 효과 단계 +1, 이 신의 모습'))
+    // 세 자리가 모두 이 신이라 한 단계 위로 도는 동안만, 실제로 도는 것을 한 줄로 (이름·권하는 글 없이)
+    if (applied > Math.max(1, level)) card.append(el('p', 'menu-myth__hint', `손·심장·숨이 모두 ${def.name}: 숨과 유물의 효과가 한 단계 위로 돈다`))
 
     // 자리 바꾸기 (E302): 어디서나 (막던 전설 판은 E305-03에서 걷음)
     if (level > 0) {
@@ -217,7 +228,6 @@ export class GodsTab {
       if (!inHeart) button('심장에 두기', () => gods.place('heart', god), true, '')
       if (inBreath) button('숨에서 빼기', () => gods.unplace(god), true, '')
       else button('숨에 넣기', () => gods.place('breath', god), room, '빈 숨 칸이 없다. 숨에서 하나를 먼저 뺀다.')
-      if (view.focus !== god) button('한 신에 몰기', () => gods.choose(god), true, '')
       card.append(buttons)
     }
 
@@ -271,7 +281,7 @@ export class GodsTab {
     return box
   }
 
-  /** 지금 신: 문장, 칭호, 단계 점, 다음 단계로 오르는 길 */
+  /** 손에 쥔 신: 문장, 이름, 단계 점, 다음 단계로 오르는 길 (칭호는 걷었다, E307) */
   private nowBox(): HTMLElement {
     const { progress } = this.ctx.host
     const now = el('section', 'menu-classes__now')
@@ -283,11 +293,11 @@ export class GodsTab {
       now.style.setProperty('--god', god.color)
       now.append(img(classIcon(god.name), 'menu-classes__emblem'))
       const info = el('div', 'menu-classes__info')
-      const title = el('div', 'menu-classes__title', progress.title(current))
+      const title = el('div', 'menu-classes__title', god.name)
       title.append(pips(level))
       info.append(title)
       // 다음 단계는 귀환의 승천으로 (E305-03: 신화 경험치 막대·전설 두루마리는 없앰)
-      if (level < progress.levelCap) info.append(el('p', 'menu-classes__how', `성소 화로에서 원정을 마칠 때 「승천」을 고르면 ${god.titles[level]}`))
+      if (level >= 1 && level < progress.levelCap) info.append(el('p', 'menu-classes__how', `성소 화로에서 원정을 마칠 때 「승천」을 고르면 ${level + 1}단계`))
       now.append(info)
     } else {
       now.classList.add('is-empty')
@@ -304,7 +314,7 @@ export class GodsTab {
 
   /**
    * 신들의 지도 (신 탭 맨 아래 접힌 칸, E305-04). 처음부터 모든 체계를 늘어놓지 않고, 발견한 만큼만 드러난다.
-   * - 아는 땅(유물이 이 세계에 있는 신화권)은 신 넷이 자리로 보이고, 깨운 신은 칭호가, 나머지는 ?가 된다.
+   * - 아는 땅(유물이 이 세계에 있는 신화권)은 신 넷이 자리로 보이고, 깨운 신은 이름이, 나머지는 ?가 된다.
    * - 모르는 땅은 문장 하나(?)로만 보인다.
    * - 높은 자리(원천·신화권의 상위)는 그 길에 처음 발을 디딘 뒤에야 ?로 나타난다.
    * - 숨겨진 별은 이름 없이 흐리게 떠 있다.
@@ -353,10 +363,9 @@ export class GodsTab {
       for (const c of myth.classes) {
         const level = levelOf(c.god)
         const color = c.god ? godDef(c.god).color : undefined
-        const title = c.titles[Math.max(0, level - 1)]!
         gods.append(
           level > 0
-            ? node(true, title, `${c.name}\n${c.hint}`, '', color, classIcon(c.name), c.god)
+            ? node(true, c.name, `${c.name}\n${c.hint}`, '', color, classIcon(c.name), c.god)
             : node(false, c.name, c.hint, c.god ? ' is-near' : '', undefined, undefined, c.god),
         )
       }
@@ -395,7 +404,7 @@ export class GodsTab {
     const stars = el('div', 'menu-tree__stars')
     for (const h of tree.hidden) {
       const level = levelOf(h.god)
-      const star = node(level > 0, h.titles[Math.max(0, level - 1)]!, level > 0 ? `${h.name}\n${h.hint}` : h.hint, ' is-star')
+      const star = node(level > 0, h.name, level > 0 ? `${h.name}\n${h.hint}` : h.hint, ' is-star')
       if (level === 0) star.replaceChildren(el('span', 'menu-tree__star', '✦'))
       if (h.god && level > 0) star.style.setProperty('--god', godDef(h.god).color)
       stars.append(star)
@@ -421,9 +430,10 @@ export class GodsTab {
 
   render(body: HTMLElement): void {
     const wrap = el('div', 'menu-classes')
+    // 외형을 보고 있으면 새 외형 표시는 이번 그리기부터 지운다
+    if (this.view === 'looks') this.looksNew = false
     wrap.append(this.views())
     if (this.view === 'looks') {
-      this.looksNew = false
       const pane = el('div', 'menu-gods__looks')
       wrap.append(pane)
       body.append(wrap)

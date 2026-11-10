@@ -25,8 +25,10 @@ export interface TraceCardContext {
 }
 
 /**
- * 신의 흔적 카드 (E238, `DESIGN.md` 4.2.2): 커서를 올리거나 톡 누르면 뜬다. 무엇을 고르는지 알고 고르게
- * 그 신의 무기·궁극기 한 줄과 빌려주는 힘 한 줄, 지금 할 일을 보인다.
+ * 신의 흔적 카드 (E238, `DESIGN.md` 4.2.2): 컴퓨터는 흔적에 커서를 올리면, 휴대폰은 주인공이 흔적에 다가가면 뜬다
+ * (톡은 그리로 걷는 지시일 뿐이다. 한 번 읽은 흔적은 곁에 가만히 서야 다시 뜬다. 띄우는 규칙은 `HoverCards`, E307).
+ * 무엇을 고르는지 알고 고르게 그 신의 무기·궁극기 한 줄과 빌려주는 힘 한 줄, 지금 할 일을 보인다.
+ * 화면이 낮은 휴대폰에서는 주인공을 가리지 않게 아래쪽 단락(이야기)부터 접힌다 (`RelicTooltip`)
  */
 export function traceCard(god: God, ctx: TraceCardContext): HTMLElement {
   const def = godDef(god)

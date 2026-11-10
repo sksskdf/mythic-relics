@@ -19,6 +19,8 @@ export interface Settings {
   quality: RenderQuality
   /** 화질을 설정에서 골랐나 (E306 D22). 고르지 않았으면 기기의 기본값(휴대폰은 낮음)을 쓴다 */
   qualityChosen: boolean
+  /** 터치 기기에서 잘못 저장된 시야를 한 번 기본값으로 되돌렸나 (E307, `resetViewOnce`) */
+  viewReset: boolean
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -28,6 +30,7 @@ export const DEFAULT_SETTINGS: Settings = {
   flash: true,
   quality: 'normal',
   qualityChosen: false,
+  viewReset: false,
 }
 
 /** 기기의 기본 설정 (E306 D22): 휴대폰은 화질 「낮음」 (그림자 패스를 빼 가볍게), 컴퓨터·태블릿은 「보통」 */
@@ -62,7 +65,17 @@ export function parseSettings(raw: unknown, base: Settings = DEFAULT_SETTINGS): 
     flash: typeof r.flash === 'boolean' ? r.flash : d.flash,
     quality: chosen && saved ? saved : d.quality,
     qualityChosen: chosen,
+    viewReset: r.viewReset === true,
   }
+}
+
+/**
+ * 잘못 저장된 시야를 한 번 기본값으로 되돌린다 (E307). 문턱이 없던 두 손가락 확대가 톡이 겹칠 때마다 시야를 조금씩 바꿔
+ * 저장해 두었다 (사용자 의견 「터치 여러 번 했을 때 간헐적으로 확대된다」). 되돌린 표시가 없을 때만 하고, 그 뒤에 맞춘 시야는 지킨다.
+ * 터치 기기에서만 부른다: 컴퓨터에서 휠로 맞춘 시야는 그대로 둔다
+ */
+export function resetViewOnce(settings: Settings): Settings {
+  return settings.viewReset ? settings : { ...settings, viewHeight: VIEW_HEIGHT.initial, viewReset: true }
 }
 
 /** 설정은 진행 상황과 따로 저장한다. 진행 상황(슬롯)을 지워도 그대로 남는다. */
@@ -79,6 +92,13 @@ export const settingsStorage = {
     } catch {
       return parseSettings({}, this.defaults)
     }
+  },
+  /** 터치 기기에서 시작할 때 읽는다: 잘못 저장된 시야를 한 번 되돌리고 그 표시를 남긴다 (E307) */
+  loadOnTouch(): Settings {
+    const loaded = this.load()
+    const next = resetViewOnce(loaded)
+    if (next !== loaded) this.save(next)
+    return next
   },
   save(settings: Settings): void {
     try {

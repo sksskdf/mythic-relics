@@ -74,7 +74,7 @@ export class WakeSystem {
     private readonly ctx: GameContext,
     /** 그 자리가 막혔으면 가까운 빈 자리 (지금 땅 길찾기) */
     private readonly free: (p: Point2) => Point2 | null,
-    /** 조각 2의 유물을 손에 넣는다 (빈 칸이면 끼고 아니면 가방). announce면 끼는 연출과 함께 */
+    /** 조각 2의 유물을 유물표에 켠다 (E303-04: 유물은 칸에 들지 않는다). announce면 켜는 연출과 함께 */
     private readonly give: (relic: RelicId, announce: boolean) => void,
     /** 흔적이 다가가도 응답하지 않는다 (점검용 실행: 다른 신의 힘이 재는 값에 섞이지 않게. 개발 패널 「다음 조각」은 된다) */
     private readonly quiet: () => boolean = () => false,
@@ -388,14 +388,13 @@ export class WakeSystem {
     bus.emit('progressChanged', {})
   }
 
-  /** 조각 2: 그 땅에서 사냥을 마쳤다. 그 신의 유물이 손에 들어오고(땅에 두면 잃을 수 있어 바로), 조각 2부터 그 유물이 깨어난다 */
+  /** 조각 2: 그 땅에서 사냥을 마쳤다. 그 신의 유물이 유물표에 켜지고(땅에 두면 잃을 수 있어 바로), 조각 2부터 그 유물이 깨어난다 */
   private piece2(god: God): void {
     const { powers, hero, bus, fx } = this.ctx
     const relic = mythRelic(god)
     powers.loadout.waking = god
     const p = hero.object.position
     if (!powers.loadout.has(relic)) this.give(relic, true)
-    const worn = powers.loadout.slots.includes(relic)
     const def = godDef(god)
     const path = wakeDef(god)!
     fx.power.burst(p, def.color, 4)
@@ -404,7 +403,8 @@ export class WakeSystem {
       title: relicDef(relic).name,
       color: def.color,
       icon: classIcon(def.name),
-      lines: [worn ? `${josa(relicDef(relic).name, '이')} 손에 들어왔다` : `${josa(relicDef(relic).name, '이')} 가방에 들어왔다 · 장비 탭에서 낀다`, `마지막 조각: ${josa(path.guardian.name, '을')} 쓰러뜨린다`],
+      // 유물은 칸·가방이 아니라 유물표에 켜지고 그 자리에서 깨어난다 (E307: 「가방에 들어왔다 · 장비 탭에서 낀다」는 틀린 글이었다)
+      lines: [`${josa(relicDef(relic).name, '이')} 유물표에 켜졌다 · 바로 깨어난다`, `마지막 조각: ${josa(path.guardian.name, '을')} 쓰러뜨린다`],
     }
     bus.emit('moment', { id: 'fragmentRelic', card })
     bus.emit('fragment', { god, piece: 2 })
@@ -434,7 +434,7 @@ export class WakeSystem {
     this.ctx.bus.emit('guardianAppeared', { god })
   }
 
-  /** 조각 3: 수호자를 쓰러뜨렸다. 그 신이 깨어난다 (첫 신이면 주신으로 장면, 아니면 빈 칸에 큰 카드) */
+  /** 조각 3: 수호자를 쓰러뜨렸다. 그 신이 깨어난다 (첫 신이면 세 자리에 들며 장면, 아니면 빈 칸에 큰 카드) */
   private awaken(): void {
     const { awaken, progress, powers, bus } = this.ctx
     const god = awaken.awaken()
@@ -447,13 +447,13 @@ export class WakeSystem {
     powers.loadout.waking = null
     if (!god || !progress.open(god)) return
     const first = progress.opened.length === 1
-    // 첫 신은 RelicSystem이 손·심장·숨에 몰아 넣으며 장면을 띄운다. 그다음 신은 빈 칸에 조용히 들어가고 여기서 큰 카드 (번쩍임·빛기둥은 큰 카드가)
+    // 첫 신은 RelicSystem이 손·심장·숨에 넣으며 장면과 「신이 깨어남」 카드를 띄운다. 그다음 신은 빈 칸에 조용히 들어가고 여기서 큰 카드 (번쩍임·빛기둥은 큰 카드가)
     bus.emit('mythOpened', { god, quiet: !first })
     if (!first) {
       const def = godDef(god)
       const placed = progress.pantheon.breath.includes(god)
       const lines = [`숨: ${lendText(god, progress.level(god))}`, placed ? `숨 칸에 들어갔다 · 숨 ${progress.pantheon.breath.length}` : '신 탭에서 손·심장·숨 자리에 낀다', `${josa(relicDef(def.relic).name, '이')} 깨어난다`]
-      bus.emit('moment', { id: 'godAwakened', card: { kind: '신이 깨어남', title: progress.title(god), color: def.color, icon: classIcon(def.name), lines } })
+      bus.emit('moment', { id: 'godAwakened', card: { kind: '신이 깨어남', title: def.name, color: def.color, icon: classIcon(def.name), lines } })
     }
     bus.emit('fragment', { god, piece: 3 })
     bus.emit('progressChanged', {})
