@@ -18,6 +18,15 @@ import { el, img, pips, type TabContext } from './dom'
 export type GodsView = 'slots' | 'looks'
 
 /**
+ * 신의 카드 이름 아래 작은 글 (E307: 칭호 대신 신화권과 단계): 「북유럽의 신 · 1단계」.
+ * 신화권이 없는 숨겨진 신화(아수라왕, realm `hidden`)는 「숨겨진 신」: 그 묶음의 이름 「히든」은 개발 패널에서만 쓴다
+ */
+export function mythCaption(god: God, level: number): string {
+  const { realm } = godDef(god)
+  return `${realm === 'hidden' ? '숨겨진 신' : `${REALM_NAMES[realm]}의 신`} · ${level}단계`
+}
+
+/**
  * 신 탭 (E305-04, `DESIGN.md` 10.5): 옛 신화 탭과 외형 탭을 합쳤다.
  * 「자리 · 외형」 알약 둘로 나눈다: 자리는 지금 신·깨우는 신·신의 자리 셋·유물표·눌러 본 신의 카드, 맨 아래 접힌 신들의 지도.
  * 외형은 `WardrobePane`을 따로 둔 칸에 그린다 (받은 칸을 통째로 비우므로). 미리 보기는 외형을 보는 동안만 돈다
@@ -179,7 +188,7 @@ export class GodsTab {
     const name = el('div', 'menu-myth__name')
     const title = el('div', 'menu-classes__title', def.name)
     if (level > 0) title.append(pips(level))
-    name.append(title, el('small', '', level > 0 ? `${REALM_NAMES[def.realm]}의 신 · ${level}단계` : '아직 열리지 않은 신화'))
+    name.append(title, el('small', '', level > 0 ? mythCaption(god, level) : '아직 열리지 않은 신화'))
     head.append(name)
     const tags = [inHand && '손', inHeart && '심장', inBreath && '숨'].filter(Boolean) as string[]
     if (tags.length) head.append(el('span', 'ui-tag ui-tag--solid menu-myth__chosen', tags.join('·')))

@@ -2,6 +2,13 @@ import { describe, expect, it } from 'vitest'
 
 import { MOUNT } from '../src/data/mount'
 import { DRAG_START, PINCH_JOIN_SECONDS, PINCH_MIN_SPREAD, PINCH_START_PX, PINCH_START_RATIO, STICK_RADIUS, TAP_SECONDS, TouchGestures } from '../src/input/touch'
+import { COVER_CLASSES, coverOpened } from '../src/input/TouchControls'
+import dialogSource from '../src/ui/DialogBox.ts?raw'
+import menuSource from '../src/ui/GameMenu.ts?raw'
+import oathSource from '../src/ui/OathCard.ts?raw'
+import pauseSource from '../src/ui/PauseMenu.ts?raw'
+import returnSource from '../src/ui/ReturnCard.ts?raw'
+import swapSource from '../src/ui/SwapCard.ts?raw'
 
 describe('휴대폰 손가락 몸짓 (E235)', () => {
   it('짧게 누르고 거의 움직이지 않고 떼면 톡 (한 번만 읽힌다)', () => {
@@ -358,5 +365,52 @@ describe('휴대폰 손가락 몸짓 (E235)', () => {
     expect(MOUNT.stickFar).toBe(1.6)
     g.up(1, 1)
     expect(g.stretch).toBe(0)
+  })
+})
+
+describe('게임 화면을 덮는 창과 조이스틱 (E307)', () => {
+  /** `hidden`이 바뀐 요소 흉내: 클래스들(className 그대로)과 지금 숨었는지 */
+  const el = (className: string, hidden: boolean) => ({
+    hidden,
+    // 쉼표로 나열한 「.클래스:not([hidden])」 가운데 하나에 맞나
+    matches: (selector: string) => !hidden && selector.split(',').some((part) => className.split(' ').some((cls) => part.trim() === `.${cls}:not([hidden])`)),
+  })
+  /** 숨어 있다가 보이게 됐다 (바뀌기 전 hidden 속성이 있었다) */
+  const shown = (className: string) => ({ target: el(className, false), oldValue: '' })
+  /** 창을 만드는 코드가 뿌리 요소(root, 정보 화면은 window)에 주는 className */
+  const rootClass = (source: string) => source.match(/this\.(?:root|window)(?:\.className = | = el\('div', )'([^']+)'/)?.[1] ?? ''
+
+  it('대화 장면·정보 화면·일시 정지 창·두 갈래 카드·맹세 출발 카드가 뜨는 순간 쥐던 조이스틱을 놓는다', () => {
+    for (const source of [dialogSource, menuSource, pauseSource, swapSource, oathSource]) expect(coverOpened([shown(rootClass(source))]), rootClass(source)).toBe(true)
+    // 다른 요소의 hidden이 함께 바뀌어도 (조이스틱 원 자신, HUD 말풍선) 덮개 하나면 놓는다
+    expect(coverOpened([shown('stick'), shown('hud__tip'), shown('menu')])).toBe(true)
+  })
+
+  it('귀환 카드는 놓지 않는다: 화로에 들어서면 저절로 뜨는 카드라, 조이스틱으로 화로를 지나가는 걸음이 서지 않는다 (걸어 나가면 닫힌다)', () => {
+    expect(rootClass(returnSource)).toBe('pick-card return-card')
+    expect(coverOpened([shown(rootClass(returnSource))])).toBe(false)
+    // 맹세 출발 카드는 같은 틀(pick-card return-card)에 제 클래스를 더 달아 가려낸다: 걸어 나가면 「맹세 없이」로 닫히니 쥔 채로 뜨면 놓는다
+    expect(rootClass(oathSource)).toBe('pick-card return-card oath-card')
+    expect(COVER_CLASSES.passing).toEqual(['oath-card'])
+  })
+
+  it('덮개가 아닌 것이 뜨거나, 덮개가 닫히거나, 이미 떠 있는 덮개에 hidden = false를 또 넣은 것은 뜬 것이 아니다', () => {
+    expect(coverOpened([])).toBe(false)
+    // 조이스틱 원·HUD 말풍선·정보 화면 안의 힌트는 게임 화면을 덮는 창이 아니다
+    for (const cls of ['stick', 'hud__tip', 'menu-hint', 'menu__tab']) expect(coverOpened([shown(cls)]), cls).toBe(false)
+    // 닫혔다 (지금 숨어 있다)
+    expect(coverOpened([{ target: el('menu', true), oldValue: null }])).toBe(false)
+    // 떠 있는 맹세 출발 카드를 다시 그렸다 (전에도 보이고 있었다): 그 뒤에 새로 쥔 조이스틱을 놓치지 않는다
+    expect(coverOpened([{ target: el('pick-card return-card oath-card', false), oldValue: null }])).toBe(false)
+  })
+
+  it('덮개의 클래스는 그 창을 만드는 코드의 뿌리 클래스이고, 창은 hidden으로 여닫는다 (이름이 바뀌면 여기서 걸린다)', () => {
+    const roots: Record<string, string> = { dialog: dialogSource, menu: menuSource, pause: pauseSource, 'swap-card': swapSource, 'oath-card': oathSource }
+    expect(Object.keys(roots).sort()).toEqual([...COVER_CLASSES.pausing, ...COVER_CLASSES.passing].sort())
+    for (const [cls, source] of Object.entries(roots)) {
+      expect(rootClass(source).split(' '), `.${cls}`).toContain(cls)
+      expect(source, `.${cls}: hidden`).toMatch(/\.hidden = /)
+    }
+    expect(returnSource).toMatch(/\.hidden = /)
   })
 })

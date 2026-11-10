@@ -2,7 +2,7 @@ import { activeLayers, LAYER_NAMES } from '../build/layers'
 import { WAKE, WAKE_GODS, wakeDef } from '../data/wake'
 import { awakeningLevel } from '../data/awakening'
 import { REALM_COLORS, REGIONS } from '../data/regions'
-import { chapterOf, CONQUESTS } from '../data/chapters'
+import { chapterOf, conquestBoss, CONQUESTS } from '../data/chapters'
 import { ENEMIES } from '../enemies/Giant'
 import { CELL, cellOrigin } from '../data/world'
 import { SOURCE_IDS, type SourceId } from '../data/schema'
@@ -106,7 +106,7 @@ export class MenuData {
       nextConquest: () => {
         const region = CONQUESTS.find((r) => !game.chapters.bosses.has(r))
         // 엔딩 뒤에는 신 단계가 4까지 열려 장 정복의 상한이 뜻이 없다
-        return region && !game.ending.has('mythStage4') ? (ENEMIES[REGIONS[region]?.boss?.enemy ?? '']?.name ?? null) : null
+        return region && !game.ending.has('mythStage4') ? (ENEMIES[conquestBoss(region)]?.name ?? null) : null
       },
       tabOpen: (tab) => game.tabs.has(tab),
       toTitle: () => game.toTitle(),
@@ -302,8 +302,7 @@ export class MenuData {
     if (progress.opened.length < 2) locked.push('두 번째 신이 깨어나면')
     for (const region of CONQUESTS) {
       if (chapters.bosses.has(region)) continue
-      const boss = REGIONS[region]?.boss
-      locked.push(`${josa(ENEMIES[boss?.enemy ?? 'king']?.name ?? '장 보스', '을')} 이기면`)
+      locked.push(`${josa(ENEMIES[conquestBoss(region)]?.name ?? '장 보스', '을')} 이기면`)
     }
     const p = progress.pantheon
     // 잠긴 칸은 지금 끝(엔딩 전 4)까지만: 홀로의 맹세로 끝에 닿았으면 남은 장 보스는 칸을 더 주지 않는다

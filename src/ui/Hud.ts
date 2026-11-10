@@ -1,11 +1,14 @@
+import { touchUi } from '../input/device'
 import type { RelicId } from '../relics/data'
 import { classIcon } from './classIcons'
 import './hud.css'
 import { BOLT_ICON, pixelIcon } from './pixelIcon'
 import { smallSigilRing } from './emblem'
 import { shortNumber } from './format'
+import { type GainsCard, GAINS_LIFE, GainsLine, type GainsSize, gainsView } from './gainsLine'
 import { heroIcon } from './heroIcon'
 import { glyph, sourceSigil } from './sigils'
+import { TOAST_LIFE, type ToastBundle, ToastLine } from './toastLine'
 
 export interface HudSlot {
   /** 유물 그림 주소. 빈 칸이면 null */
@@ -48,14 +51,15 @@ export interface HudState {
 
 /** 유물 스킬 칸 수 */
 export const SKILL_SLOTS = 4
-/** 얻은 것 카드 하나가 다음 카드에 자리를 내주기 전에 보이는 시간 (ms). 카드 자체는 5초 뒤 사라진다. 큰 카드는 거의 다 보인다 */
-const GAINS_MIN_MS = { card: 3000, big: 4500, tab: 3600 }
-/** 카드 크기: 오른쪽 위 작은 카드, 가운데 큰 카드, 새 탭 (가운데 떴다가 메뉴 단추로 날아 들어간다) */
-export type GainsSize = keyof typeof GAINS_MIN_MS
+export type { GainsSize } from './gainsLine'
 /** 장면이 HUD를 숨기기 이만큼(ms) 안에 띄운 제목 카드는 장면 뒤에 다시 띄운다 */
 const TITLE_REPLAY_MS = 3000
 /** 고르는 카드가 떠 있는 동안 다음 얻은 것 카드를 이만큼(ms)마다 다시 본다 */
 const CHOOSING_POLL_MS = 250
+/** 작은 알림을 땅의 카드 위로 올릴 때 그 카드와의 틈 (px) */
+const TOAST_GAP = 6
+/** 알림이 사라진 뒤에도 이만큼(ms)은 자리를 더 잰다 (사라지는 움직임이 한두 프레임 늦게 끝나도 카드 뒤로 내려앉지 않게) */
+const TOAST_TAIL_MS = 300
 
 /**
  * HUD: 왼쪽 위에 지금의 나, 아래 가운데에 떠 있는 묶음 하나. (DESIGN.md 10.5)
@@ -99,16 +103,27 @@ export class Hud {
   /** 지역·전설 제목 띠 (E9-05): 문장과 양옆 띠, 이름 */
   private readonly card: HTMLElement
   private readonly toast: HTMLElement
+  /** 작은 알림의 줄: 같은 때 온 알림이 서로 덮지 않게 차례로, 같은 장비의 일은 한 줄로 묶어 보인다 (규칙은 `toastLine.ts`, E307) */
+  private readonly toasts = new ToastLine()
+  private toastTimer: ReturnType<typeof setTimeout> | null = null
+  /** 지금 알림의 자리를 재는 것을 그만둘 때 (ms, 재지 않으면 0)와 땅의 카드를 피해 올린 높이 (px) */
+  private toastUntil = 0
+  private toastLift = 0
   /** 조작 안내 한 줄: 해 볼 때까지 남는다 (시작 장면 뒤) */
   private readonly coach: HTMLElement
   private readonly gains: HTMLElement
-  /** 카드를 띄운 때(ms)와 기다리는 카드: 같은 때 열린 것(귀환 + 자동화 등)이 서로 덮지 않게 차례로 보인다 */
-  private gainsShownAt = -Infinity
-  private gainsHold = 0
+  /**
+   * 얻은 것 카드의 줄: 같은 때 열린 것(귀환 + 자동화 등)이 서로 덮지 않게 차례로 보인다.
+   * 같은 종류의 장비 카드는 묶고 밀리면 빨리 넘기며, 화면이 덮인 동안은 멈춘다 (규칙은 `gainsLine.ts`, E307)
+   */
+  private readonly line = new GainsLine()
+  /** 이번 프레임의 일이 끝나면 카드와 알림의 줄을 본다고 걸어 두었나 */
+  private kicked = false
+  /** 정보 화면·일시 정지가 화면을 덮었다: 그동안 카드를 감추고 줄을 넘기지 않는다 */
+  private covered = false
   /** 마지막 제목 카드와 띄운 때, HUD를 숨긴 때 (장면 뒤 다시 띄우기) */
   private lastTitle: { args: [string, string, string, string]; at: number } | null = null
   private hiddenAt = 0
-  private readonly gainsQueue: (() => void)[] = []
   private gainsTimer: ReturnType<typeof setTimeout> | null = null
   private readonly flashEl: HTMLElement
   /** 화면 번쩍임: 설정에서 끌 수 있다 */
@@ -296,6 +311,7 @@ export class Hud {
     } else {
       this.bossTrailRatio = 1
     }
+    if (this.toastUntil > 0) this.liftToast()
   }
 
   /** 왼쪽 위 지금의 나: 바뀌었을 때만 다시 그린다. 초상은 늘 주인공의 얼굴이고, 손에 쥔 신은 테의 빛·보석·첫 칩으로만 보인다 (E307) */
@@ -339,15 +355,50 @@ export class Hud {
    * - card: 오른쪽 위 작은 지도 아래에 작게 (싸움을 가리지 않게)
    * - big: 가운데 위에 크게 (신화 단계·유물 벼리기·장면 뒤)
    * lines의 각 줄은 얻은 것 하나. "→"가 있으면 앞은 흐리게, 뒤는 밝게 보인다.
+   * bundles면 줄에 선 같은 종류와 한 장으로 묶인다 (장비 카드). 같은 때 온 것도 묶이도록, 이번 프레임의 일이 끝난 뒤에 띄운다
    */
-  showGains(kind: string, title: string, color: string, icon: string, lines: readonly string[], size: GainsSize = 'big'): void {
-    this.gainsQueue.push(() => this.renderGains(kind, title, color, icon, lines, size))
-    this.nextGains()
+  showGains(kind: string, title: string, color: string, icon: string, lines: readonly string[], size: GainsSize = 'big', bundles = false): void {
+    this.line.push({ kind, title, color, icon, lines, size, bundles })
+    this.kick()
+  }
+
+  /** 이번 프레임의 일이 끝난 뒤에 카드와 알림의 줄을 본다 (같은 때 온 것끼리 묶이도록) */
+  private kick(): void {
+    if (this.kicked) return
+    this.kicked = true
+    queueMicrotask(() => {
+      this.kicked = false
+      this.nextGains()
+      this.nextToast()
+    })
   }
 
   /** 줄에 선 카드가 있거나, 지금 카드가 아직 자리를 지키는 중인가 (그동안 장면이 HUD를 숨기면 카드가 가려진다) */
   get gainsBusy(): boolean {
-    return this.gainsQueue.length > 0 || performance.now() - this.gainsShownAt < this.gainsHold
+    return this.line.busy(performance.now())
+  }
+
+  /** 줄에 선 카드와 지금 카드를 띄운 때 (점검용: `scripts/power-curve.mjs`가 카드를 하나씩 찍을 때) */
+  get gainsQueue(): readonly GainsCard[] {
+    return this.line.waiting
+  }
+
+  get gainsShownAt(): number {
+    return this.line.shownAt
+  }
+
+  /**
+   * 정보 화면·일시 정지가 화면을 덮었다·걷혔다 (E307): 덮인 동안 얻은 것 카드는 감추고 줄을 넘기지 않는다
+   * (창 뒤로 비치거나 못 본 채 지나가지 않게). 걷히면 줄을 다시 본다: 밀린 같은 종류는 한 장으로 묶여 있다
+   */
+  setCovered(covered: boolean): void {
+    if (covered === this.covered) return
+    this.covered = covered
+    if (!covered) return this.nextGains()
+    if (this.gainsTimer !== null) clearTimeout(this.gainsTimer)
+    this.gainsTimer = null
+    this.line.cover(performance.now())
+    this.gains.classList.remove('is-showing')
   }
 
   /**
@@ -367,8 +418,7 @@ export class Hud {
 
   /** 지금 떠 있는 카드의 크기 (점검용). 없으면 null */
   get gainsShowing(): GainsSize | null {
-    if (!this.gains.classList.contains('is-showing') || performance.now() - this.gainsShownAt > 5000) return null
-    return this.gains.classList.contains('is-side') ? 'card' : this.gains.classList.contains('is-fly') ? 'tab' : 'big'
+    return this.gains.classList.contains('is-showing') ? this.line.showing(performance.now()) : null
   }
 
   /**
@@ -380,10 +430,12 @@ export class Hud {
     return this.root.querySelector('.pick-card:not([hidden])') !== null
   }
 
-  /** 앞 카드가 GAINS_MIN_MS 넘게 보였고 고르는 카드가 없으면 다음 카드를 띄운다 */
+  /** 앞 카드가 제 시간(장비 카드는 줄이 밀렸으면 짧게)을 채웠고 고르는 카드·화면을 덮은 창이 없으면 다음 카드를 띄운다 */
   private nextGains(): void {
-    if (this.gainsTimer !== null || this.gainsQueue.length === 0) return
-    const wait = this.choosing ? CHOOSING_POLL_MS : this.gainsShownAt + this.gainsHold - performance.now()
+    if (this.gainsTimer !== null || this.covered) return
+    const left = this.line.wait(performance.now())
+    if (left === null) return
+    const wait = this.choosing ? CHOOSING_POLL_MS : left
     if (wait > 0) {
       this.gainsTimer = setTimeout(() => {
         this.gainsTimer = null
@@ -391,17 +443,20 @@ export class Hud {
       }, wait)
       return
     }
-    this.gainsShownAt = performance.now()
-    this.gainsQueue.shift()!()
+    this.renderGains(this.line.take(performance.now()))
     this.nextGains()
   }
 
-  private renderGains(kind: string, title: string, color: string, icon: string, lines: readonly string[], size: GainsSize): void {
+  private renderGains(gains: GainsCard): void {
+    const { color, icon, size } = gains
+    // 묶인 카드는 「장비 셋」과 이름들
+    const { kind, title, lines } = gainsView(gains)
     const card = this.gains
     card.replaceChildren()
     card.classList.toggle('is-side', size === 'card')
     card.classList.toggle('is-fly', size === 'tab')
-    this.gainsHold = GAINS_MIN_MS[size]
+    // 떠 있는 시간 (hud.css의 움직임 길이)
+    card.style.setProperty('--life', `${GAINS_LIFE[size]}ms`)
     card.style.setProperty('--glow', color)
     const head = document.createElement('div')
     head.className = 'hud__gains-head'
@@ -415,7 +470,8 @@ export class Hud {
     const list = this.el('ul', '', card)
     lines.forEach((line, i) => {
       const li = this.el('li', '', list)
-      li.style.animationDelay = `${0.35 + i * 0.12}s`
+      // 작은 카드는 금방 넘어가니 줄도 바로 보인다
+      li.style.animationDelay = size === 'card' ? `${0.12 + i * 0.06}s` : `${0.35 + i * 0.12}s`
       const [from, to] = line.split(' → ')
       if (to !== undefined) {
         this.el('span', 'hud__gains-from', li).textContent = from!
@@ -451,16 +507,70 @@ export class Hud {
     this.restartAnimation(card)
   }
 
-  /** 유물을 주웠을 때처럼 가벼운 알림을 작게 띄운다. */
   /** 조작 안내 한 줄 (null이면 감춘다) */
   setCoach(text: string | null): void {
     if (text !== null && this.coach.textContent !== text) this.coach.textContent = text
     this.coach.classList.toggle('is-on', text !== null)
   }
 
-  showToast(text: string): void {
-    this.toast.textContent = text
+  /**
+   * 유물을 주웠을 때처럼 가벼운 알림을 화면 아래 한 줄로 작게 띄운다 (순간의 크기 1).
+   * 같은 때 온 알림은 차례로 뜨고, 기다리는 동안 같은 종류(kind)가 또 오면 bundle의 글 한 줄로 묶인다 (「장비 셋 · 낌」).
+   * 같은 때 온 것도 묶이도록, 이번 프레임의 일이 끝난 뒤에 띄운다
+   */
+  showToast(text: string, kind = '', bundle?: ToastBundle): void {
+    this.toasts.push(kind, text, bundle)
+    this.kick()
+  }
+
+  /** 앞 알림이 자리를 지킬 만큼 떠 있었으면 다음 알림을 띄운다 */
+  private nextToast(): void {
+    if (this.toastTimer !== null) return
+    const now = performance.now()
+    const wait = this.toasts.wait(now)
+    if (wait === null) return
+    if (wait > 0) {
+      this.toastTimer = setTimeout(() => {
+        this.toastTimer = null
+        this.nextToast()
+      }, wait)
+      return
+    }
+    this.toast.textContent = this.toasts.take(now)
+    this.toastUntil = now + TOAST_LIFE + TOAST_TAIL_MS
+    this.liftToast()
     this.restartAnimation(this.toast)
+    this.nextToast()
+  }
+
+  /**
+   * 휴대폰: 알림이 땅의 카드에 가리면 그 카드 위 끝 바로 위로 올린다 (E307). 다가가면 뜨는 땅의 카드는 아래 묶음 바로 위,
+   * 곧 알림 자리에 뜨고 알림보다 위에 그려진다: 흩어진 장비를 걸어가며 주우면 「낌」 알림이 다음 장비의 카드 뒤에 통째로 가렸다.
+   * 알림이 떠 있는 동안만 프레임마다 잰다 (카드가 알림보다 늦게 뜨기도 한다). 올릴 자리가 화면 밖이면 그대로 둔다.
+   * 컴퓨터의 커서 카드는 올려 본 동안만 뜨니 그대로 둔다
+   */
+  private liftToast(): void {
+    if (performance.now() >= this.toastUntil) {
+      // 다 사라졌다: 올린 높이는 다음 알림이 뜰 때 다시 잰다
+      this.toastUntil = 0
+      return
+    }
+    let lift = 0
+    const card = touchUi() ? this.root.parentElement?.querySelector<HTMLElement>(':scope > .relic-tooltip:not([hidden])') : null
+    if (card) {
+      const { toast } = this
+      const c = card.getBoundingClientRect()
+      // 올리지 않았을 때 알림의 상자 (움직임의 transform은 빼고 잰다. 가로는 가운데 맞춤)
+      const top = toast.offsetTop + this.toastLift
+      const bottom = top + toast.offsetHeight
+      const center = toast.offsetLeft
+      const half = toast.offsetWidth / 2
+      const hidden = c.top < bottom && c.bottom > top && c.left < center + half && c.right > center - half
+      if (hidden && c.top - TOAST_GAP - toast.offsetHeight >= 0) lift = Math.round(bottom - (c.top - TOAST_GAP))
+    }
+    if (lift === this.toastLift) return
+    this.toastLift = lift
+    this.toast.style.setProperty('--lift', `${lift}px`)
   }
 
   private restartAnimation(el: HTMLElement): void {

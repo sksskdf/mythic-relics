@@ -42,7 +42,7 @@ export class TrainingTab {
     const reset = el('button', 'ui-btn menu-train__reset', '모두 되돌리기')
     reset.type = 'button'
     reset.disabled = training.nodes().every((n) => !n.taken)
-    // 힌트를 먼저 걸어 둔다 (누르면 힌트가 뜨고 나서 글이 바뀐다)
+    // 손가락: 첫 톡(확인을 기다림)은 창을 다시 그리지 않아 힌트가 뜨고, 되돌리면 다시 그려 닫힌다 (`HintTaps`)
     this.ctx.hintOn(reset, '모두 되돌리기\n익힌 마디를 모두 깨달음으로 돌려받는다. 언제든 무료')
     reset.addEventListener('click', () => {
       // 잘못 누르지 않게 한 번 더 눌러야 한다 (되돌리기는 무료). 잠시 뒤에는 처음으로
@@ -112,7 +112,7 @@ export class TrainingTab {
       b.dataset.node = n.id
       b.setAttribute('aria-label', n.name)
       const state = n.taken ? '익힌 마디' : n.can ? `${finger ? '한 번 더 누르면' : '누르면'} 익힌다 (깨달음 하나)` : insight.unspent > 0 ? '앞 마디를 먼저 익혀야 한다' : '깨달음이 모자란다'
-      // 힌트를 먼저 걸어 둔다 (익히면 다시 그려 힌트가 닫힌다)
+      // 손가락: 익히면 창을 다시 그려 힌트가 닫히고, 설명만 보는 첫 톡과 아직 못 익히는 마디는 힌트가 뜬다 (`HintTaps`)
       this.ctx.hintOn(b, `${n.name}\n${n.lines.join('\n')}\n${state}`)
       b.addEventListener('click', () => {
         if (!n.can) return

@@ -169,6 +169,7 @@ export class GameMenu {
   show(tab: MenuTab, slot?: number): void {
     this.tab = tab
     this.fresh.delete(tab)
+    this.tabButtons.get(tab)?.classList.remove('has-new')
     if (tab === this.pendingTab) this.button.classList.remove('has-new')
     if (tab === this.pendingTab) this.pendingTab = null
     if (slot !== undefined) this.relics.selectedSlot = slot
@@ -179,11 +180,12 @@ export class GameMenu {
   /** 단추를 누르면 바로 열 탭 (발현할 수 있는 조합이 가방에 있을 때 유물 탭) */
   private pendingTab: MenuTab | null = null
 
-  /** 볼 것이 생긴 탭: 단추에 표시하고, 단추를 누르면 그 탭부터 연다 */
+  /** 볼 것이 생긴 탭 (깨달음·더 좋은 장비·새 외형): 메뉴 단추와 그 탭에 작은 점을 찍고, 단추를 누르면 그 탭부터 연다. 탭의 점은 그 탭을 볼 때까지 남는다 (E307) */
   markTab(tab: MenuTab): void {
     if (this.open && this.tab === tab) return
     this.pendingTab = tab
     this.button.classList.add('has-new')
+    this.tabButtons.get(tab)?.classList.add('has-new')
   }
 
   /** 새로 열린 탭 (E236-05): 정보 화면을 열 때까지 단추가 빛나며 부르고, 열면 그 탭이 처음 볼 때까지 빛난다 */

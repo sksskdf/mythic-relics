@@ -26,6 +26,17 @@ export function unreadLine(slot: UnreadSlot): string {
   return `${what} · ${slot.kept ? '원본은 남겨 둠' : '공간이 모자라 이 칸은 저장되지 않음'}`
 }
 
+/**
+ * 슬롯의 「×」를 켠 뒤 이만큼(ms) 안에 다시 누른 것은 급히 두 번 누른 것으로 보고 지우지 않는다 (E307).
+ * 휴대폰에서는 「×」가 카드 모서리 44px을 받아(`portrait.css`) 이어 가려던 누름이 닿을 수 있다: 「한 번 더 누르면 지움」을 볼 틈을 둔다
+ */
+export const DELETE_GUARD_MS = 500
+
+/** 켠 「×」를 다시 눌렀다: 지우나 (켠 때와 지금, ms) */
+export function confirmsDelete(armedAt: number, now: number): boolean {
+  return now - armedAt >= DELETE_GUARD_MS
+}
+
 export interface TitleHandlers {
   /** 빈 슬롯을 골라 캐릭터를 만들었다 */
   onCreate(slot: number, body: BodyLook): void
@@ -99,12 +110,14 @@ export class TitleScreen {
         del.setAttribute('role', 'button')
         del.setAttribute('aria-label', '슬롯 지우기')
         del.textContent = '×'
+        let armedAt = 0
         del.addEventListener('click', (e) => {
           e.stopPropagation()
           if (del.classList.contains('is-confirm')) {
-            handlers.onDelete(i)
+            if (confirmsDelete(armedAt, performance.now())) handlers.onDelete(i)
             return
           }
+          armedAt = performance.now()
           del.classList.add('is-confirm')
           del.textContent = '한 번 더 누르면 지움'
           setTimeout(() => {

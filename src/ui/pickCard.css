@@ -19,6 +19,19 @@
 .pick-card[hidden] {
   display: none;
 }
+/*
+ * 누름 규칙 (E307, `pickGate.ts`): 뜬 직후 잠깐은 단추가 흐리고 누름을 받지 않는다 (싸우던 클릭·톡이 방금 뜬 카드를 고르지 않게).
+ * 그동안의 누름은 카드 판이 받아 뒤의 게임 화면으로 새지 않는다. 두 갈래 카드(`swapCard.css`)도 같은 규칙을 쓴다
+ */
+.pick-card button,
+.swap-card button {
+  transition: opacity 0.2s;
+}
+.pick-card.is-arming button,
+.swap-card.is-arming button {
+  opacity: 0.45;
+  pointer-events: none;
+}
 .pick-card__title {
   font: var(--t-title);
   color: var(--c-moon);

@@ -143,6 +143,15 @@ export function conquestsOf(chapters: readonly ChapterDef[]): string[] {
 }
 export const CONQUESTS: readonly string[] = conquestsOf(CHAPTERS)
 
+/**
+ * 장 정복 땅의 보스 (enemies.json의 id). 보스 자리에 이름이 빠진 땅(우트가르드)에는 거인 왕이 선다 (`RegionDef.boss`).
+ * 장 정복을 알리는 글(신 단계 상한·숨 칸이 열리는 때, 흔적이 응답하는 때)은 이름을 이것으로만 찾는다:
+ * 자리마다 따로 찾다가 한 곳이 거인 왕을 놓쳐 3단계를 「엔딩 뒤」라고 알렸다 (E307)
+ */
+export function conquestBoss(region: string): string {
+  return REGIONS[region]?.boss?.enemy ?? 'king'
+}
+
 /** 장 흐름의 땅 가운데 가장 센 땅의 적 지수 (장 흐름 밖의 들판은 엔딩 뒤라 이만큼) */
 export const TOP_POWER = Math.max(...CHAPTERS.flatMap((c) => Object.values(c.lands)))
 

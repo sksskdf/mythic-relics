@@ -12,8 +12,54 @@
   :root .minimap {
     top: calc(var(--unit) * 10 + env(safe-area-inset-top, 0px));
   }
+  /*
+   * 얻은 것 카드 (E307): 세로 화면에는 싸움 밖의 「옆」이 없으니, 싸움 대신 위쪽 HUD 묶음(작은 지도·목표 한 줄) 자리에 잠깐 겹쳐 뜬다.
+   * 전에는 작은 지도 아래에 떠 화면 한가운데를 덮었다: 작은 카드는 폭 264px(화면의 2/3)·높이 130px쯤으로 주인공 머리 바로 위까지,
+   * 큰 카드는 주인공까지 덮었다 (393×659에서는 작은 카드도 주인공 머리에 닿았다).
+   * 작은 지도(40) 바로 위에 그리고 속이 찬 바탕을 쓴다. 정보 화면(40)이 열린 동안에는 Hud가 카드를 내리고, 일시 정지(45)는 그 위다.
+   * 누름은 받지 않으니 가려진 작은 지도는 그대로 눌린다
+   */
+  :root .hud__gains {
+    z-index: 41;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--glow) 16%, var(--c-page)), var(--c-page) 60%);
+  }
+  /*
+   * 작은 카드: 작은 지도와 같은 위 끝·오른쪽 끝에, 작은 지도를 다 덮는 크기부터 (3초 동안 작은 지도 자리를 빌린다).
+   * 그림을 줄이고 종류와 이름을 한 줄에 두며(길면 줄을 바꾼다) 이름은 본문 크기로, 폭은 내용만큼만 쓴다
+   */
   :root .hud__gains.is-side {
-    top: calc(var(--unit) * 12 + var(--minimap) + env(safe-area-inset-top, 0px));
+    box-sizing: border-box;
+    z-index: 41;
+    top: calc(var(--unit) * 10 + env(safe-area-inset-top, 0px));
+    width: auto;
+    min-width: var(--minimap);
+    min-height: var(--minimap);
+    max-width: min(192px, calc(100vw - var(--unit) * 4));
+    padding: var(--sp-3) var(--sp-4) var(--sp-4);
+  }
+  :root .hud__gains.is-side .ui-portrait {
+    --size: 24px;
+  }
+  :root .hud__gains.is-side .hud__gains-head {
+    gap: var(--sp-4);
+    margin-bottom: var(--sp-2);
+  }
+  :root .hud__gains.is-side .hud__gains-head > div:last-child {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: var(--sp-3);
+    min-width: 0;
+  }
+  :root .hud__gains.is-side .hud__gains-kind {
+    letter-spacing: 0;
+  }
+  :root .hud__gains.is-side .hud__gains-title {
+    font: var(--t-strong);
+    word-break: keep-all;
+  }
+  :root .hud__gains.is-side ul {
+    gap: 0;
   }
   :root .menu-button,
   :root .minimap,
@@ -98,7 +144,7 @@
    */
   :root .menu__home {
     margin-left: auto;
-    min-height: 40px;
+    min-height: 44px;
   }
   :root .menu__home span {
     display: inline;
@@ -122,11 +168,164 @@
     white-space: normal;
     text-align: center;
   }
-  /* 큰 카드: 작은 지도 아래, 화면 폭에 맞춘다 (가로 화면은 위쪽 9%, 최소 360px) */
+  /* 큰 카드: 메뉴 단추 아래부터 화면 폭에 맞춘다 (가로 화면은 위쪽 9%, 최소 360px). 작은 지도·목표 한 줄을 4.5초 가리는 대신 주인공을 가리지 않는다 (E307) */
   :root .hud__gains:not(.is-side) {
-    --gains-top: calc(var(--unit) * 12 + var(--minimap) + env(safe-area-inset-top, 0px));
+    --gains-top: calc(var(--unit) * 10 + env(safe-area-inset-top, 0px));
     min-width: 0;
     width: calc(100vw - var(--sp-6) * 2);
     max-width: 420px;
   }
 }
+
+/*
+ * 누르는 자리 44px (E307, 권고안 의견 1): 휴대폰에서 손가락으로 누르는 것은 가로·세로 44px을 받는다.
+ * 터치 기기(html.is-touch)의 세로 화면에만 건다: 마우스로 하는 화면의 모양은 그대로다 (탭 줄·머리줄 단추는 위에서 이미 44px).
+ * - 줄에 여유가 있는 단추는 보이는 높이를 키운다 (min-height)
+ * - 키우면 배치가 깨지는 것(수련 마디·신들의 지도 칸·알약·색 칸·작은 글 단추)은 모양을 두거나 조금만 키우고, 보이지 않는 ::before로
+ *   누르는 자리만 넓힌다. 이웃의 자리와 겹치지 않게 사이 간격을 함께 맞춘다 (보이는 크기 + 간격 = 44px).
+ *   inset은 테두리 안쪽(padding box)에서 재므로 테두리 두께만큼 더 뺀다
+ * 남긴 것: 지도 탭의 땅 표시(땅 사이가 좁으면 줄어든다, `mapLayout.ts`의 spotSize), 설명만 뜨는 유물표 칸.
+ * 이 묶음은 아래 「누르는 자리 끝」 주석까지다 (`tests/menuCss.test.mjs`가 그 사이만 읽는다): 다른 세로 화면 규칙은 그 밖에 둔다
+ */
+@media (max-aspect-ratio: 4/5) {
+  /* 줄에 여유가 있는 단추: 「끼기」·「녹이기」·「합치기」·「벼리기」·「모두 되돌리기」·자리 바꾸기·「끝없는 원정에 나서기」,
+     일시 정지 창의 단추, 고르는 카드의 「아직」·「맹세 없이」, 처음 화면의 「시작」·「뒤로」 */
+  :root.is-touch .menu-relics__salvage,
+  :root.is-touch .menu-merge__go,
+  :root.is-touch .menu-forge__make,
+  :root.is-touch .menu-train__reset,
+  :root.is-touch .menu-myth__choose,
+  :root.is-touch .menu-src__level,
+  :root.is-touch .pause__button,
+  :root.is-touch .return-card__later,
+  :root.is-touch .title__button {
+    min-height: 44px;
+  }
+  /* 장비 탭의 「가방에 넣기」·「발밑에 내려놓기」 (36×32) */
+  :root.is-touch .menu-relics__action {
+    width: 44px;
+    height: 44px;
+  }
+  /* 접힌 「신들의 지도」 줄 */
+  :root.is-touch .menu-gods__atlas > summary {
+    box-sizing: border-box;
+    min-height: 44px;
+    padding: var(--sp-5) 0;
+  }
+
+  /* 여기부터는 보이지 않는 ::before로 누르는 자리를 넓힌다 */
+  :root.is-touch button.ui-pill,
+  :root.is-touch .menu-train__node,
+  :root.is-touch .menu-train__branch,
+  :root.is-touch .menu-tree__node,
+  :root.is-touch .menu-src__help,
+  :root.is-touch .title-swatch {
+    position: relative;
+  }
+  :root.is-touch .menu-button::before,
+  :root.is-touch button.ui-pill::before,
+  :root.is-touch .menu-train__node::before,
+  :root.is-touch .menu-train__branch::before,
+  :root.is-touch .menu-tree__node::before,
+  :root.is-touch .menu-src__help::before,
+  :root.is-touch .title-swatch::before,
+  :root.is-touch .title-slot__delete::before,
+  :root.is-touch .dialog__skip::before {
+    content: '';
+    position: absolute;
+  }
+  /* HUD의 메뉴 단추: 화면 높이에 맞춰 줄어든다 (사파리 주소창이 보이는 660px 높이에서는 36px). 모자란 만큼만 둘레를 더 받는다
+     (아래 작은 지도까지는 단추 높이의 3분의 1이 비어 있다) */
+  :root.is-touch .menu-button::before {
+    inset: min(0px, calc((var(--unit) * 6 - 44px) / 2));
+  }
+  /* 알약 (신 탭 「자리 · 외형」, 외형 칩, 설정의 고르기, 귀환 카드의 깊이): 보이는 높이 36px에 위아래 4px씩 더 받는다 (테두리 1px) */
+  :root.is-touch button.ui-pill {
+    justify-content: center;
+    min-width: 44px;
+    min-height: 36px;
+  }
+  :root.is-touch button.ui-pill::before {
+    inset: -5px -1px;
+  }
+  /* 여러 줄로 놓이는 외형 칩: 줄 사이 8px (36 + 8 = 44) */
+  :root.is-touch .wardrobe__chips {
+    gap: var(--sp-4);
+  }
+  /* 신 탭 「자리 · 외형」 줄: 바로 아래에 외형의 부위 칸이 붙는다. 알약이 아래로 더 받는 4px만큼 띄운다 (칸의 윗줄을 알약이 받지 않게) */
+  :root.is-touch .menu-gods__views {
+    margin-bottom: var(--sp-2);
+  }
+  /* 수련 마디 (지름 30px, 갈래 끝 40px): 원 둘레 44px. 옆 마디와는 54px, 아랫줄과는 72px 떨어져 있다 */
+  :root.is-touch .menu-train__node::before {
+    inset: calc((var(--size) - 44px) / 2 - var(--bw));
+  }
+  /* 수련 갈래 이름 (누르면 설명): 아래는 트리 판이 덮으니 위로 넓힌다 */
+  :root.is-touch .menu-train__branch::before {
+    inset: -19px -16px -6px;
+  }
+  /* 신들의 지도 칸: 38px로 조금 키우고 둘레 3px씩 더 받는다 (칸 사이 6px: 38 + 6 = 44). 왕관 칸은 테두리가 3px */
+  :root.is-touch .menu-tree__node {
+    min-width: 38px;
+    height: 38px;
+  }
+  :root.is-touch .menu-tree__node::before {
+    inset: -4px;
+  }
+  :root.is-touch .menu-tree__node.is-crown::before {
+    inset: -6px;
+  }
+  /* 원천 탭의 「?」 (16px) */
+  :root.is-touch .menu-src__help::before {
+    inset: -14px;
+  }
+  /* 설정: 줄마다 44px, 음량 막대는 줄 높이를 다 받고 손잡이를 키운다 */
+  :root.is-touch .pause__row {
+    min-height: 44px;
+  }
+  :root.is-touch .pause__range {
+    height: 44px;
+  }
+  :root.is-touch .pause__range::-webkit-slider-thumb {
+    width: 20px;
+    height: 28px;
+    margin-top: -12px;
+  }
+  :root.is-touch .pause__range::-moz-range-thumb {
+    width: 20px;
+    height: 28px;
+  }
+  /* 대화 장면의 「건너뛰기」 (작은 글 한 줄) */
+  :root.is-touch .dialog__skip::before {
+    inset: -12px -8px;
+  }
+  /* 캐릭터 만들기의 색 칸: 36px로 키우고 둘레 4px씩 더 받는다 (칸 사이 8px) */
+  :root.is-touch .title-swatch {
+    width: 36px;
+    height: 36px;
+  }
+  :root.is-touch .title-swatch::before {
+    inset: -4px;
+  }
+  :root.is-touch .title-creator__swatches {
+    gap: var(--sp-4);
+  }
+  /* 저장 슬롯의 「×」 (14×16): 모양은 두고 카드의 오른쪽 위 모서리 44×44를 받는다 (카드 안쪽이라 이웃 슬롯과 겹치지 않는다. 「×」는
+     카드 모서리에서 --sp-2·--sp-3만큼 들어가 있다). 같은 자리를 두 번 누르면 저장이 지워지니, 켠 바로 뒤의 둘째 누름은 받지 않는다
+     (`TitleScreen.ts`의 DELETE_GUARD_MS: 급히 두 번 누른 것이 지우기가 되지 않게) */
+  :root.is-touch .title-slot__delete::before {
+    top: calc(-1 * var(--sp-2));
+    right: calc(-1 * var(--sp-3));
+    width: 44px;
+    height: 44px;
+  }
+}
+/* 낮은 세로 화면 (사파리 주소창·도구 막대가 보이면 660px쯤): 캐릭터 만들기의 색 칸·단추를 키운 만큼 미리 보기를 두 배 크기로 줄여
+   「시작」이 화면 아래로 밀리지 않게 한다 (그림은 72×96이라 정수배로만) */
+@media (max-aspect-ratio: 4/5) and (max-height: 700px) {
+  :root.is-touch .title-creator__stage .hero-preview {
+    width: 144px;
+    height: 192px;
+  }
+}
+/* 누르는 자리 끝 */

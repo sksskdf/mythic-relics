@@ -48,6 +48,20 @@
   background: var(--c-gold);
   border: 2px solid #0e121a;
 }
+/* 볼 것이 생긴 탭 (깨달음·더 좋은 장비·새 외형, E307): 그 탭을 볼 때까지 탭 오른쪽 위에 같은 금색 점 */
+.menu__tab.has-new {
+  position: relative;
+}
+.menu__tab.has-new::after {
+  content: '';
+  position: absolute;
+  top: var(--sp-2);
+  right: var(--sp-2);
+  width: 6px;
+  height: 6px;
+  background: var(--c-gold);
+  box-shadow: 0 0 0 2px var(--c-bg-1);
+}
 
 .menu {
   position: fixed;

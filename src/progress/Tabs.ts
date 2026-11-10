@@ -8,7 +8,7 @@ import { TRAINING_TAB_INSIGHTS } from '../data/training'
 
 /**
  * 차례로 열리는 탭 (정보 화면 탭 id, E305-04: 탭 일곱 = 상태 + 이 여섯, `DESIGN.md` 3.2 새로 열리는 것의 차례).
- * 장비 2분 → 수련 4분 → 신 6분 → 지도 15분 → 원천(첫 귀환) 17분 → 맹세(귀환 2) 35분
+ * 장비 2분 → 수련 4분 → 신 6분 → 지도 7분 → 원천(첫 귀환) 17분 → 맹세(귀환 2) 35분 (사람 분, `TIMELINE.md` 4장)
  */
 export const STEP_TABS = ['relics', 'training', 'gods', 'map', 'sources', 'oaths'] as const
 export type StepTab = (typeof STEP_TABS)[number]

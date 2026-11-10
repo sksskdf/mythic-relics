@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
+import { CONQUESTS, conquestBoss } from '../src/data/chapters'
 import { REGIONS } from '../src/data/regions'
+import { ENEMIES } from '../src/enemies/Giant'
 import { GODS, godDef } from '../src/relics/data'
 import type { SaveData } from '../src/save/SaveData'
+import { mythCaption } from '../src/ui/menu/godsTab'
 import { slotSummary } from '../src/ui/slotSummary'
+import { confirmsDelete, DELETE_GUARD_MS } from '../src/ui/TitleScreen'
 
 /**
  * 내 모습 (E307, 사용자 의견 4): 신을 깨워도 화면은 나를 그 신의 칭호로 부르지 않고, 「한 신에 몰기」라는 이름을 쓰지 않는다.
@@ -37,6 +41,19 @@ describe('화면 글 (E307)', () => {
     const wake = code(sources[Object.keys(sources).find((p) => p.endsWith('/game/systems/Wake.ts'))!]!)
     expect(wake).toContain('유물표에 켜졌다')
     expect(wake).not.toMatch(/가방에 들어왔다|장비 탭에서 낀다/)
+  })
+})
+
+describe('신의 카드 (E307)', () => {
+  it('이름 아래 작은 글은 칭호 대신 신화권과 단계: 신화권이 없는 숨겨진 신화는 개발 패널의 묶음 이름 「히든」을 쓰지 않는다', () => {
+    expect(mythCaption('thor', 1)).toBe('북유럽의 신 · 1단계')
+    expect(mythCaption('zeus', 3)).toBe('그리스의 신 · 3단계')
+    expect(mythCaption('asura', 2)).toBe('숨겨진 신 · 2단계')
+    for (const god of Object.keys(GODS)) expect(mythCaption(god, 1), god).not.toContain('히든')
+  })
+
+  it('단계 사다리·숨 칸·흔적이 다음 장 정복 보스를 같은 이름으로 부른다: 보스 이름이 빠진 우트가르드는 거인 왕 (「엔딩 뒤」가 아니다)', () => {
+    expect(CONQUESTS.map((region) => ENEMIES[conquestBoss(region)]?.name)).toEqual(['거인 왕', '키마이라'])
   })
 })
 
@@ -75,5 +92,16 @@ describe('저장 슬롯 카드 (E307)', () => {
     const fresh = slotSummary(save({}))
     expect(fresh.title).toBe(REGIONS.village!.name)
     expect(fresh.color).toBe('')
+  })
+
+  it('「×」를 켠 바로 뒤의 둘째 누름은 지우지 않는다: 급히 두 번 누른 것이 저장을 지우지 않게 (휴대폰은 「×」가 카드 모서리 44px을 받는다)', () => {
+    // 두 번 누르기(더블 클릭)로 치는 사이보다 길고, 켜진 글 「한 번 더 누르면 지움」이 꺼지는 2.5초보다 넉넉히 짧다
+    expect(DELETE_GUARD_MS).toBeGreaterThanOrEqual(400)
+    expect(DELETE_GUARD_MS).toBeLessThanOrEqual(1000)
+    expect(confirmsDelete(1000, 1000)).toBe(false)
+    expect(confirmsDelete(1000, 1000 + 250)).toBe(false)
+    expect(confirmsDelete(1000, 1000 + DELETE_GUARD_MS - 1)).toBe(false)
+    expect(confirmsDelete(1000, 1000 + DELETE_GUARD_MS)).toBe(true)
+    expect(confirmsDelete(1000, 1000 + 2000)).toBe(true)
   })
 })

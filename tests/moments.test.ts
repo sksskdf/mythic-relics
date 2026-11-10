@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { CHAPTERS } from '../src/data/chapters'
-import { AFTER_HOLD, CARD_HOLD, MOMENTS, type MomentId, SLOW_MOTION, tierOf } from '../src/data/moments'
+import { AFTER_HOLD, BUNDLED, CARD_HOLD, MOMENTS, type MomentId, SLOW_MOTION, tierOf } from '../src/data/moments'
 import { REGIONS } from '../src/data/regions'
 import { SCENES, sceneId } from '../src/data/scenes'
 import { Feel } from '../src/game/context'
@@ -12,6 +12,8 @@ import { type MomentShow, MomentSystem } from '../src/game/systems/Moments'
 function setup(options: { scenes?: boolean; slow?: boolean; cardBusy?: () => boolean } = {}) {
   const bus = new EventBus<GameEvents>()
   const calls: string[] = []
+  /** 작은 알림마다 함께 넘긴 종류와, 같은 종류 둘을 묶은 글 (묶지 않는 종류면 undefined) */
+  const toasts: { kind?: string; two?: string }[] = []
   const feel = new Feel()
   let scene: string | null = null
   const ctx = {
@@ -19,8 +21,11 @@ function setup(options: { scenes?: boolean; slow?: boolean; cardBusy?: () => boo
     feel,
     hero: { object: { position: { x: 0, y: 0, z: 0 } } },
     hud: {
-      showToast: (text: string) => calls.push(`알림:${text}`),
-      showGains: (_kind: string, title: string, _c: string, _i: string, _l: readonly string[], size: string) => calls.push(`${size === 'big' ? '큰 카드' : '카드'}:${title}`),
+      showToast: (text: string, kind?: string, bundle?: (count: string) => string) => {
+        calls.push(`알림:${text}`)
+        toasts.push({ kind, two: bundle?.('둘') })
+      },
+      showGains: (_kind: string, title: string, _c: string, _i: string, _l: readonly string[], size: string, bundles?: boolean) => calls.push(`${size === 'big' ? '큰 카드' : '카드'}:${title}${bundles ? ' (묶임)' : ''}`),
       flash: () => calls.push('번쩍'),
     },
     fx: { power: { column: () => calls.push('빛기둥') } },
@@ -47,18 +52,20 @@ function setup(options: { scenes?: boolean; slow?: boolean; cardBusy?: () => boo
       moments.update(0.1)
     }
   }
-  return { bus, calls, feel, moments, emit, card, run, endScene: () => (scene = null) }
+  return { bus, calls, toasts, feel, moments, emit, card, run, endScene: () => (scene = null) }
 }
 
 describe('순간의 크기 (E23-01)', () => {
   it('사건 → 등급 표가 TIMELINE.md 6장과 같다', () => {
     const tiers = (tier: number) => (Object.keys(MOMENTS) as MomentId[]).filter((id) => tierOf(id) === tier)
-    // 1 작은 알림: 재료·흔한 장비 줍기
-    expect(tiers(1)).toEqual(expect.arrayContaining(['gearPicked', 'materialPicked', 'bossMaterial', 'salvaged', 'insight']))
-    // 2 카드: 장비를 칸에 낌·가방에 더 좋은 장비, 장치가 처음 열림 (탈것 E241)
-    expect(tiers(2)).toEqual(expect.arrayContaining(['gearWorn', 'gearBetter', 'automation', 'mythOpened', 'tabOpened', 'mountGained']))
+    // 1 작은 알림: 재료·유물 줍기, 날마다 있는 장비의 일 (보통·좋음을 낌·가방에 더 좋은 것·합쳐서 좋음, E307 카드 예산)
+    expect(tiers(1)).toEqual(expect.arrayContaining(['gearPicked', 'materialPicked', 'bossMaterial', 'salvaged', 'gearWorn', 'gearBetter', 'merged']))
+    // 2 카드: 희귀 이상 장비를 낌·가방에 더 좋은 희귀 이상·합쳐서 희귀, 장치가 처음 열림 (탈것 E241)
+    expect(tiers(2)).toEqual(expect.arrayContaining(['gearWornRare', 'gearBetterRare', 'mergedRare', 'automation', 'mythOpened', 'tabOpened', 'mountGained']))
+    // 깨달음은 순간이 아니다: 메뉴 단추와 수련 탭의 작은 점으로만 알린다 (E307)
+    expect(Object.keys(MOMENTS)).not.toContain('insight')
     // 3 큰 카드: 신화 단계, 유물 벼리기, 신의 조각 2(유물)와 두 번째 신부터 깨어남 (E238)
-    expect(tiers(3)).toEqual(expect.arrayContaining(['mythLevel', 'forged', 'fragmentRelic', 'godAwakened']))
+    expect(tiers(3)).toEqual(expect.arrayContaining(['mythLevel', 'forged', 'fragmentRelic', 'godAwakened', 'mergedHigh']))
     // 4 장면: 첫 신이 깨어남, 신의 흔적(조각 1, E238), 장 보스 처치, 장 넘어가기, 엔딩
     expect(tiers(4).sort()).toEqual(['chapterBoss', 'chapterChanged', 'ending', 'fragment', 'mythChosen'])
   })
@@ -74,9 +81,36 @@ describe('순간의 크기 (E23-01)', () => {
     const { calls, emit, card, run } = setup()
     emit({ id: 'gearPicked', text: '낡은 장화 · 가방' })
     expect(calls).toEqual(['알림:낡은 장화 · 가방'])
-    emit({ id: 'gearWorn', card: card('서리 장화') })
+    emit({ id: 'gearWornRare', card: card('희귀 서리 장화') })
     run(0.1)
-    expect(calls).toEqual(['알림:낡은 장화 · 가방', '카드:서리 장화'])
+    expect(calls).toEqual(['알림:낡은 장화 · 가방', '카드:희귀 서리 장화 (묶임)'])
+  })
+
+  it('줄에서 묶여도 되는 카드는 장비의 일뿐이다 (자동화·탈것처럼 줄마다 설명이 있는 카드는 묶지 않는다)', () => {
+    expect([...BUNDLED].sort()).toEqual(['gearBetterRare', 'gearWornRare', 'mergedRare'])
+    for (const id of BUNDLED) expect(tierOf(id), id).toBe(2)
+    const { calls, emit, card, run } = setup()
+    emit({ id: 'mergedRare', card: card('희귀 가죽 장화') })
+    emit({ id: 'automation', card: card('자동 줍기') })
+    run(0.1)
+    expect(calls).toEqual(['카드:희귀 가죽 장화 (묶임)', '카드:자동 줍기'])
+  })
+
+  it('날마다 있는 장비의 일은 카드가 아니라 작은 알림으로 뜬다 (E307 카드 예산)', () => {
+    const { calls, toasts, emit, run } = setup()
+    emit({ id: 'gearWorn', text: '보통 돌 반지 · 낌' })
+    emit({ id: 'gearBetter', text: '더 좋은 장비 · 좋음 사슬 갑옷' })
+    emit({ id: 'merged', text: '합치기 · 좋음 가죽 장화' })
+    emit({ id: 'materialPicked', text: '서리 결정 · 재료' })
+    run(0.1)
+    expect(calls).toEqual(['알림:보통 돌 반지 · 낌', '알림:더 좋은 장비 · 좋음 사슬 갑옷', '알림:합치기 · 좋음 가죽 장화', '알림:서리 결정 · 재료'])
+    // 알림 자리는 한 줄이라 HUD가 줄을 세운다: 종류(순간 id)를 함께 넘기고, 장비의 일은 이어 오면 한 줄로 묶는 글도 넘긴다 (`src/ui/toastLine.ts`)
+    expect(toasts).toEqual([
+      { kind: 'gearWorn', two: '장비 둘 · 낌' },
+      { kind: 'gearBetter', two: '더 좋은 장비 둘' },
+      { kind: 'merged', two: '합치기 둘' },
+      { kind: 'materialPicked', two: undefined },
+    ])
   })
 
   it('큰 카드는 그 색으로 번쩍·하늘 기둥·북소리와 가운데 큰 카드', () => {
@@ -128,7 +162,7 @@ describe('순간의 크기 (E23-01)', () => {
     expect(calls.at(-1)).toBe('장면:chapterGreek')
   })
 
-  it('카드를 띄운 뒤 다음 장면은 카드가 자리를 지키는 동안 기다린다 (큰 카드 4.5초, 카드 3초)', () => {
+  it('카드를 띄운 뒤 다음 장면은 카드가 자리를 지키는 동안 기다린다 (큰 카드 4.5초, 카드 2.2초)', () => {
     const { calls, emit, card, run } = setup({ slow: false })
     emit({ id: 'forged', card: card('묠니르') })
     run(0.1)
@@ -173,7 +207,7 @@ describe('순간의 크기 (E23-01)', () => {
 
   it('느린 동작은 앞의 카드를 기다리는 동안에도 쓰러진 순간에 건다', () => {
     const { calls, feel, emit, card, run } = setup()
-    emit({ id: 'gearWorn', card: card('장화') })
+    emit({ id: 'gearWornRare', card: card('장화') })
     run(0.1)
     emit({ id: 'chapterBoss', scene: 'downKing', slow: true })
     expect(feel.timeScale).toBe(SLOW_MOTION.scale)

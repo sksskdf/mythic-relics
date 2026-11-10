@@ -58,7 +58,7 @@ export class ProgressionSystem {
       // 보스 재료만 알린다: 유물을 벼리는 열쇠
       if (MATERIALS[id]?.kind === 'boss') this.ctx.bus.emit('moment', { id: 'bossMaterial', text: `${materialName(id)} · 대장간에서 유물을 벼린다` })
     }
-    // 일반 장비 (E13-02): 졸개 6%, 정예 25%, 지역 보스는 반드시 (희귀 이상).
+    // 일반 장비 (E13-02): 졸개 15%, 정예 50%, 지역 보스는 반드시 (희귀 이상). 수치는 `gear.json`의 `drop`
     // 땅 자리마다 드랍 표가 다르고, 단계는 그 땅의 단계 (E21-03): 장 흐름의 땅은 장의 단계, 그 밖은 신화권 단계 (E22)
     const boss = giant.spec.boss !== undefined
     const { region } = this.ctx.map

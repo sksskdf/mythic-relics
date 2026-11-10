@@ -1,6 +1,7 @@
 // 손으로 해 보기용 조종 서버 (E307-01 리뷰에서 만듦). 빌드한 게임을 브라우저로 열어 두고 HTTP로 한 걸음씩 조작한다.
 // 봇(autoplay)이 못 잡는 것을 사람처럼 눌러 보며 찾을 때 쓴다: 카드 여닫기, 휴대폰의 톡·조이스틱·두 손가락, 잘못 눌리는 것.
 // 띄우기:  npm run build && node scripts/drive.mjs [--size=390x844 --touch] [--query='?fresh'] [--out=test-results/hands-on] [--port=4310] [--ctl=4410] &
+//          아이폰 15 Pro로 열려면 --size=393x852 --touch (사파리 주소창·도구 막대가 보일 때의 높이는 --size=393x659 --touch)
 // 조작:    curl -s localhost:4410 -d '{"click":[640,360]}'
 //          curl -s localhost:4410 -d '[{"tap":[195,500]},{"advance":2},{"shot":"a1"},{"state":true}]'   (걸음 여럿을 차례로)
 // 끄기:    curl -s localhost:4410 -d '{"quit":true}'

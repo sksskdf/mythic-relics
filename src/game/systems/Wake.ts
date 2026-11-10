@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 
 import { WAKE, WAKE_GODS, wakeDef, GUARDIAN_LEASH, GUARDIAN_MEND, GUARDIAN_RADIUS, LATER_TEXT, levelSealed, levelText, TRACE_LEASH, TRACE_RADIUS, traceLevel, traceStateOf, type TraceState } from '../../data/wake'
-import { CONQUESTS } from '../../data/chapters'
+import { conquestBoss, CONQUESTS } from '../../data/chapters'
 import { REGIONS } from '../../data/regions'
 import { sceneId } from '../../data/scenes'
 import type { GiantSpec } from '../../data/schema'
@@ -118,7 +118,7 @@ export class WakeSystem {
   sealedText(god?: God): string {
     if (god && this.levelSealed(god)) return levelText(traceLevel(this.ctx.progress.opened.length))
     const region = CONQUESTS.find((r) => !this.ctx.chapters.bosses.has(r))
-    const boss = region ? ENEMIES[REGIONS[region]?.boss?.enemy ?? 'king']?.name : undefined
+    const boss = region ? ENEMIES[conquestBoss(region)]?.name : undefined
     return boss ? `성소 화로에서 원정을 마치거나 ${josa(boss, '을')} 이기면 응답한다` : '성소 화로에서 원정을 마치면 응답한다'
   }
 

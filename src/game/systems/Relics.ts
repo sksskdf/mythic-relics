@@ -22,6 +22,8 @@ const MANIFEST_RADIUS = 4
 const MANIFEST_DAMAGE = 20
 /** 신화를 고를 때 터지는 충격의 대기 시간 (초): 번갈아 골라 공짜 피해를 쌓지 못하게 */
 const MANIFEST_BURST_COOLDOWN = 10
+/** 날마다 있는 장비인가 (보통·좋음): 그 장비의 일은 카드가 아니라 작은 알림으로 알린다 (카드 예산 E307, `src/data/moments.ts`) */
+const everyday = (gear: GearItem) => gear.grade === 'common' || gear.grade === 'good'
 
 /**
  * 유물: 땅의 유물 줍기, 장착·해제와 발현 연출, 유물 효과와 궁극기, 지속 효과 수치 적용.
@@ -224,15 +226,21 @@ export class RelicSystem {
     return true
   }
 
-  /** 가방의 셋을 합친다 (E303, 어디서나): 한 등급 위 하나가 가방에, 카드로 알린다 */
+  /**
+   * 가방의 셋을 합친다 (E303, 어디서나): 한 등급 위 하나가 가방에.
+   * 좋음이 되면 작은 알림, 희귀는 카드, 영웅·전설은 큰 카드 (카드 예산 E307: 저절로 합쳐지는 것까지 카드로 뜨면 싸움을 덮는다)
+   */
   merge(uids: readonly string[]): GearItem | null {
     const { powers, bus } = this.ctx
     const out = powers.loadout.merge(uids, Math.random)
     if (!out) return null
     bus.emit('gearMerged', { item: out })
-    const grade = GEAR.grades[out.grade].name
-    const lines = [`셋 → ${grade}`, ...(out.unique ? [`고유 효과: ${GEAR.uniques[out.unique]!.name}`] : []), ...(out.unique2 ? [`고유 효과: ${GEAR.uniques[out.unique2]!.name}`] : [])]
-    bus.emit('moment', { id: out.grade === 'hero' || out.grade === 'legend' ? 'mergedHigh' : 'merged', card: { kind: '합치기', title: gearName(out), color: GRADE_COLORS[out.grade], icon: gearIcon(out), lines } })
+    if (everyday(out)) bus.emit('moment', { id: 'merged', text: `합치기 · ${gearName(out)}` })
+    else {
+      const grade = GEAR.grades[out.grade].name
+      const lines = [`셋 → ${grade}`, ...(out.unique ? [`고유 효과: ${GEAR.uniques[out.unique]!.name}`] : []), ...(out.unique2 ? [`고유 효과: ${GEAR.uniques[out.unique2]!.name}`] : [])]
+      bus.emit('moment', { id: out.grade === 'rare' ? 'mergedRare' : 'mergedHigh', card: { kind: '합치기', title: gearName(out), color: GRADE_COLORS[out.grade], icon: gearIcon(out), lines } })
+    }
     bus.emit('progressChanged', {})
     return out
   }
@@ -255,7 +263,7 @@ export class RelicSystem {
    */
   take(id: string, gear?: GearItem): void {
     const { powers, bus } = this.ctx
-    // 주운 것의 이름이 머리 위로 떠오른다 (사용자 의견 2026-10-28: 얻는 표현이 모자라다)
+    // 주운 것의 이름이 머리 위로 떠오른다 (사용자 의견 2026-10-28: 얻는 표현이 모자라다). 이어 주우면 앞 이름 위로 한 줄씩 쌓인다 (`DamageNumbers.label`)
     const label = (text: string, color: string) => this.ctx.numbers.label(this.labelAt.copy(this.ctx.hero.object.position).setY(this.ctx.hero.object.position.y + 2.2), text, color)
     if (gear) {
       label(gearName(gear), GRADE_COLORS[gear.grade])
@@ -265,19 +273,24 @@ export class RelicSystem {
       powers.loadout.addGear(gear)
       bus.emit('gearPicked', { item: gear })
       this.equip(id, true)
-      // 빈 칸에 끼었으면 카드, 가방으로 갔는데 지금 낀 것보다 좋으면 견준 카드, 아니면 작은 알림 (E23-01)
+      // 줍기는 머리 위 이름 하나로만 알린다 (E307: 같은 줍기를 이름·아래 알림·카드 세 곳이 알렸다). 그 밖에 알릴 일이 생겼을 때만 더한다:
+      // 빈 칸에 끼었거나 가방으로 갔는데 지금 낀 것보다 좋으면, 보통·좋음은 작은 알림, 희귀부터는 카드
       const card = { title: gearName(gear), color: GRADE_COLORS[gear.grade], icon: gearIcon(gear) }
       if (powers.loadout.slots.includes(id)) {
-        bus.emit('moment', { id: 'gearWorn', card: { kind: '장비', ...card, lines: gear.stats.map((st) => statText(st.kind, st.value)) } })
+        if (everyday(gear)) bus.emit('moment', { id: 'gearWorn', text: `${gearName(gear)} · 낌` })
+        else bus.emit('moment', { id: 'gearWornRare', card: { kind: '장비', ...card, lines: gear.stats.map((st) => statText(st.kind, st.value)) } })
       } else if (worn && gearScore(gear) > gearScore(worn)) {
-        const lines = gear.stats.map((st) => {
-          const same = worn.stats.find((w) => w.kind === st.kind)
-          const d = same ? delta(st.kind, st.value, same.value) : { text: '새 수치' }
-          return d ? `${statText(st.kind, st.value)} ${d.text}` : statText(st.kind, st.value)
-        })
-        bus.emit('moment', { id: 'gearBetter', card: { kind: '더 좋은 장비 · 가방', ...card, lines } })
+        if (everyday(gear)) bus.emit('moment', { id: 'gearBetter', text: `더 좋은 장비 · ${gearName(gear)}` })
+        else {
+          const lines = gear.stats.map((st) => {
+            const same = worn.stats.find((w) => w.kind === st.kind)
+            const d = same ? delta(st.kind, st.value, same.value) : { text: '새 수치' }
+            return d ? `${statText(st.kind, st.value)} ${d.text}` : statText(st.kind, st.value)
+          })
+          bus.emit('moment', { id: 'gearBetterRare', card: { kind: '더 좋은 장비 · 가방', ...card, lines } })
+        }
         bus.emit('gearBetter', { item: gear })
-      } else bus.emit('moment', { id: 'gearPicked', text: `${gearName(gear)} · 가방` })
+      }
     } else if (!isMythRelic(id)) {
       label(relicDef(id).name, godDef(relicDef(id).god).color)
       powers.loadout.addMaterial(id)
@@ -471,13 +484,14 @@ export class RelicSystem {
     // 신마다 다른 깨어나는 순간: 번개 기둥, 흩어지는 그림자, 여섯 칼날
     godMoment(this.ctx, god.id, 1)
     // 무엇이 생기는지: 그 신의 힘과 지금 단계까지 열린 것
-    const lines: string[] = []
+    const gains: string[] = []
     for (let lv = 1; lv <= progress.level(god.id); lv++) {
-      for (const g of levelGains(god.id, lv)) if (lv === 1 || g.kind === 'power') lines.push(g.text)
+      for (const g of levelGains(god.id, lv)) if (lv === 1 || g.kind === 'power') gains.push(g.text)
     }
-    lines.push(`궁극기 「${god.ultimate.name}」`)
-    // 첫 신: 모습은 그대로고 옷은 고를 수 있게 풀렸다는 한 줄 (그 뒤의 신은 「외형」 알약의 새 표시로만)
-    if (first) lines.push(`${god.name}의 옷은 신 탭 「외형」에서 골라 입는다`)
+    const ultimate = `궁극기 「${god.ultimate.name}」`
+    // 첫 신의 큰 카드는 네 줄로 (E307: 여섯 줄이면 세로 화면에서 주인공까지 덮는다): 공격과 궁극기를 한 줄에, 힘은 둘까지(나머지는 신 탭의 단계 목록),
+    // 마지막 줄은 모습이 그대로라는 것과 그 신의 옷이 풀린 곳 (그 뒤의 신은 「외형」 알약의 새 표시로만)
+    const lines = first ? [`${gains[0]} · ${ultimate}`, ...gains.slice(1, 3), `모습은 그대로 · ${god.name}의 옷은 신 탭 「외형」에`] : [...gains, ultimate]
     const card = { kind: first ? '신이 깨어남' : '손에 쥠', title: god.name, color: god.color, icon: classIcon(god.name), lines }
     bus.emit('moment', first ? { id: 'mythChosen', scene: sceneId('myth', god.id), card } : { id: 'mythSwitched', card })
     // 주변 적을 밀어낸다 (피해는 대기 시간마다 한 번, 멈춘 화면에서 번갈아 골라도 한 번)

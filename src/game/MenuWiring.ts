@@ -42,6 +42,8 @@ export class MenuWiring {
       if (!open) game.orders.release()
       game.audio.play(open ? 'uiOpen' : 'uiClose')
       game.audio.setDucked(game.paused)
+      // 창이 화면을 덮은 동안 얻은 것 카드는 감추고 줄을 멈춘다 (E307: 창 뒤로 비치며 지나가지 않게)
+      game.hud.setCovered(this.menu.open || this.pauseMenu.open)
     }
     this.menu.onToggle = onToggle
     this.pauseMenu = new PauseMenu(game.hud.root, {
@@ -78,16 +80,19 @@ export class MenuWiring {
       else menu.callTab(tab)
       menu.refresh()
     }
-    // 수련 (E236): 깨달음을 얻으면 메뉴 단추에 표시하고 알린다. 첫 깨달음은 수련 탭이 열리는 카드가 알린다
-    bus.on('insightGained', ({ count, unspent }) => {
+    // 수련 (E236): 깨달음을 얻으면 메뉴 단추와 수련 탭에 작은 점으로만 알린다 (E307 카드 예산: 1분마다 뜨던 아래 알림을 걷었다).
+    // 첫 깨달음은 수련 탭이 열리는 카드가 알린다
+    bus.on('insightGained', () => {
+      const { training, expedition } = game
       // 마디를 다 익혔으면 더 얻는 깨달음은 쓸 곳이 없다 (엔딩 뒤)
-      if (game.training.complete) return
+      if (training.complete) return
       if (!tabs.has('training')) {
         game.tabSystem.check()
         return
       }
-      menu.markTab('training')
-      bus.emit('moment', { id: 'insight', text: `깨달음 +${count} · 수련에서 익힌다 (남은 깨달음 ${unspent})` })
+      // 지난 원정의 차례대로 저절로 다시 찍힐 깨달음(귀환 1부터의 자동화)은 부르지 않는다: 손으로 익힐 것이 남을 때만
+      const auto = expedition.retakes ? expedition.lastTaken.filter((id) => !training.taken.has(id)).length : 0
+      if (training.unspent > auto) menu.markTab('training')
     })
     bus.on('outfitChanged', () => menu.refresh())
     bus.on('loadoutChanged', () => menu.refresh())

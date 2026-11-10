@@ -1,6 +1,7 @@
 import './pickCard.css'
 import './return.css'
 import { josa } from './josa'
+import { PickCardGuard } from './pickGate'
 
 /** 귀환 카드의 갈래 하나 */
 export interface ReturnBranch {
@@ -33,10 +34,12 @@ export interface ReturnView {
 /**
  * 귀환 카드 (E304, `DESIGN.md` 5.3): 받을 명성·다음 배율·원정 시간과 지난 기록·남는 것과 지워지는 것·갈래.
  * 갈래를 누르는 것이 곧 귀환이다. 「아직」을 누르면 닫힌다. 틀은 고르는 카드(`pickCard.css`)를 쓴다.
- * 엔딩 뒤에는 갈래 위에 다음 원정의 깊이 「그대로 / +1」 (E305-03, D9). 고른 깊이는 갈래를 누를 때 함께 넘긴다
+ * 엔딩 뒤에는 갈래 위에 다음 원정의 깊이 「그대로 / +1」 (E305-03, D9). 고른 깊이는 갈래를 누를 때 함께 넘긴다.
+ * 화로에 들어선 프레임에 뜨고 귀환은 되돌릴 수 없으니, 뜬 직후의 누름은 받지 않는다 (`pickGate.ts`, E307)
  */
 export class ReturnCard {
   private readonly root = document.createElement('div')
+  private readonly guard = new PickCardGuard(this.root)
 
   constructor(parent: HTMLElement) {
     this.root.className = 'pick-card return-card'
@@ -77,8 +80,7 @@ export class ReturnCard {
         pill.type = 'button'
         pill.dataset.depth = String(level)
         pill.disabled = level > max
-        pill.addEventListener('click', (e) => {
-          e.stopPropagation()
+        this.guard.on(pill, () => {
           depth = level
           for (const p of pills.children) p.classList.toggle('is-on', p === pill)
         })
@@ -94,9 +96,8 @@ export class ReturnCard {
       card.style.setProperty('--god', b.color)
       if (b.again) card.append(el('small', 'return-card__again', '지난번 그대로'))
       card.append(el('b', '', b.name), el('small', '', b.text))
-      card.addEventListener('click', (e) => {
-        e.stopPropagation()
-        this.root.hidden = true
+      this.guard.on(card, () => {
+        this.guard.close()
         pick(b.id, depth)
       })
       row.append(card)
@@ -104,16 +105,15 @@ export class ReturnCard {
     this.root.append(row)
     const no = el('button', 'ui-btn return-card__later', '아직') as HTMLButtonElement
     no.type = 'button'
-    no.addEventListener('click', (e) => {
-      e.stopPropagation()
-      this.root.hidden = true
+    this.guard.on(no, () => {
+      this.guard.close()
       later()
     })
     this.root.append(no)
-    this.root.hidden = false
+    this.guard.open()
   }
 
   hide(): void {
-    this.root.hidden = true
+    this.guard.close()
   }
 }

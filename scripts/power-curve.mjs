@@ -566,7 +566,7 @@ function autoFlags(moments) {
   for (const title of new Set(moments.filter((m) => m.id === 'tabOpened').map((m) => m.title))) firstOf((m) => m.id === 'tabOpened' && m.title === title, `탭 ${title}`)
   firstOf((m) => m.id === 'mountGained', '탈것')
   firstOf((m) => m.id === 'oathSworn', '첫 맹세')
-  firstOf((m) => m.id === 'merged' || m.id === 'mergedHigh', '첫 합치기')
+  firstOf((m) => m.id === 'merged' || m.id === 'mergedRare' || m.id === 'mergedHigh', '첫 합치기')
   firstOf((m) => m.id === 'returned', '첫 귀환')
   firsts.sort((a, b) => a.t - b.t)
   const close = firsts.slice(1).flatMap((m, i) => (m.t - firsts[i].t < 60 ? [{ a: firsts[i], b: m, gap: Math.round(m.t - firsts[i].t) }] : []))

@@ -64,7 +64,7 @@ E12~E14에서 새 규칙을 넣을 때는 `BuildInputs`에 재료를 더하고 `
 | `src/game/systems/Expedition.ts` | 원정이 무르익었나(귀환 문턱 판정 `minLevel`·`ripe`, 값은 `data/cycle.ts`의 `returnMinLevel`), 성소 화로 → 귀환 카드(화로를 떠나면 닫힘), 갈래·가보·녹임·출발, 자동 합치기, 다시 찍기 | 시스템 |
 | `src/game/systems/Oaths.ts`·`src/ui/OathCard.ts` | 출발 카드(띄운 자리에서 걸어 나가면 맹세 없이 떠남), 지킴·깨짐 | 시스템·UI |
 | `src/game/systems/Automation.ts` | 귀환할 때 새로 켜진 자동화를 카드로 | 시스템 |
-| `src/ui/ReturnCard.ts`·`src/ui/SwapCard.ts` | 귀환 카드(고르는 카드 틀 `pickCard.css`), 두 갈래 카드 | UI |
+| `src/ui/ReturnCard.ts`·`src/ui/SwapCard.ts` | 귀환 카드(고르는 카드 틀 `pickCard.css`), 두 갈래 카드. 맹세 출발 카드(`OathCard`)까지 셋의 누름 규칙은 `src/ui/pickGate.ts` 한 곳(뜬 뒤 0.5초는 받지 않음, 카드 위에서 시작된 누름만, E307) | UI |
 | `src/ui/menu/godsTab.ts` | 자리 셋·유물표·외형(옛 신화·외형 탭을 합침) | UI |
 
 - 계획에 있던 `systems/Pantheon.ts`·`systems/Merge.ts`는 만들지 않았다. 부품 얻기와 빈 칸 채우기는 `systems/Relics.ts`(`autoFill`)와 `systems/Wake.ts`, 두 갈래 카드는 `SwapCard`, 합치기는 장비 탭(`menu/relicsTab.ts`)과 `systems/Expedition.ts`의 자동 합치기가 맡는다. 마이그레이션도 버전마다 파일을 두지 않고 `migrate/legacy.ts`(v16 모양까지)와 `migrate/v17.ts` 둘이다.
@@ -120,10 +120,10 @@ v1~v12는 「v13 모양으로 올리기」 한 단계(`src/save/migrate/legacy.t
 
 | 곳 | 하는 일 |
 | --- | --- |
-| `src/data/moments.ts` | 사건 id → 등급(1 작은 알림·2 카드·3 큰 카드·4 장면), 느린 동작(1.2초 × 0.25)과 카드 뒤 기다림(2.6초) |
+| `src/data/moments.ts` | 사건 id → 등급(1 작은 알림·2 카드·3 큰 카드·4 장면), 느린 동작(1.2초 × 0.25)과 카드 뒤 기다림(`CARD_HOLD`: 카드 2.2초·큰 카드 4.5초·새 탭 3.6초). 얻은 것 카드의 줄(같은 종류의 장비 카드 묶기·장비 카드는 밀리면 1.2초·창이 덮인 동안 멈춤)은 `src/ui/gainsLine.ts`, 작은 알림의 줄(차례로 1.2초씩·같은 장비의 일은 한 줄로, 묶는 글은 `TOAST_BUNDLES`)은 `src/ui/toastLine.ts` (E307 카드 예산) |
 | `src/game/systems/Moments.ts` | 버스의 `moment`를 받아 등급대로 보인다. 1은 바로, 나머지는 온 차례대로 줄을 세운다. 장면 중·땅을 옮기는 암전 중·느린 동작 중에는 기다리고, 장면이 끝나면 그 순간의 카드와 `after`(장 제목 띠·엔딩 뒤 장치). `holding`이면 `Storyline`이 처음 보는 일의 짧은 대화를 미룬다. 장면은 `storyline.play(id, true)`로 연다 |
 | 보내는 쪽 | `Progression`(신화 단계·신화 개방·보스 재료), `Relics`(벼리기·장비·고른 신화), `Wake`(신의 조각·깨어남), `Chapters`(장 보스·장 정복), `ChapterFlow`(장 넘어가기·엔딩)·`World`(성소 찾음), 엔딩 뒤 장치(`Depth`·`Oaths`·`Endless`) |
-| HUD | `Hud.showGains(..., size)`: `card`는 오른쪽 위 작게, `big`은 가운데 크게. 장면 중 HUD는 투명하게만 숨긴다(띠 움직임이 다시 돌지 않게). 위아래 검은 띠는 `HudFeed`의 `.letterbox` |
+| HUD | `Hud.showGains(..., size)`: `card`는 오른쪽 위 작게, `big`은 가운데 크게. `Hud.showToast(글, 종류, 묶는 글)`: 화면 아래 한 줄, 휴대폰에서 다가가면 뜨는 땅의 카드에 가리면 그 카드 위로 올린다(`liftToast`). 주운 이름은 `DamageNumbers.label`(떠 있는 이름을 화면에서 피해 쌓는다, `stackLift`). 장면 중 HUD는 투명하게만 숨긴다(띠 움직임이 다시 돌지 않게). 위아래 검은 띠는 `HudFeed`의 `.letterbox` |
 | 곡 | `SoundSystem.theme()`이 프레임마다 고른다. 장면·고르기의 곡은 버스의 `music` |
 | 빠르기 | `Feel.slow`·`timeScale`: `Game.update`에서 게임 시간만 느려진다. `Game.advance`(봇·점검의 감기)도 순간을 흘린다 |
 
@@ -148,7 +148,7 @@ v1~v12는 「v13 모양으로 올리기」 한 단계(`src/save/migrate/legacy.t
 | `src/progress/Training.ts` | 모은 경험치·찍은 마디. `gain`(새 깨달음 수), `canTake`·`take`, `reset`(무료), `stats`(같은 종류끼리 더함), 저장 모양(`parseTraining`) |
 | `Progression.gainXp` | 처치 경험치를 수련(기세)에 더하고, 깨달음을 얻으면 `insightGained` (신화 경험치는 E305-03에서 없앰). `train`·`untrain`은 찍고 되돌리며 최대 생명을 다시 맞춘다 |
 | `Build.inputs` | 찍은 마디 수치를 맹세 보상과 같이 `bonus`로 더한다 (전투는 기존 수치 종류 그대로, 균열 축복은 E305-03에서 걷음) |
-| `MenuWiring` | `insightGained` → 메뉴 단추 표시(`markTab('training')`)와 작은 알림(`insight`). 첫 깨달음은 수련 탭이 열리는 카드가 대신 알린다 |
+| `MenuWiring` | `insightGained` → 메뉴 단추와 수련 탭의 작은 점(`markTab('training')`, 알림은 E307에서 걷음. 저절로 다시 찍힐 깨달음은 찍지 않는다). 첫 깨달음은 수련 탭이 열리는 카드가 대신 알린다. 정보 화면·일시 정지를 여닫을 때 `hud.setCovered` |
 | `src/progress/Tabs.ts` | 정보 화면 탭을 차례로 (E236-05): 차례로 여는 탭 여섯과 여는 때(`STEP_TAB_DEFS`, `tabsDue`), 연 탭(`TabUnlocks`, 저장 v11 `tabs`, 옛 저장은 모두 열림 `parseTabs`) |
 | `systems/Tabs.ts` | `TabSystem`: 장비·신화·벼리기·`progressChanged`마다 지금 상태(`facts`)를 보고 열 때가 된 탭을 연다. 열면 카드(`tabOpened`, 등급 2, 같은 사건의 더 큰 순간 뒤에 서도록 한 박자 늦게)와 메뉴 단추 표시(여럿이면 차례의 첫 탭). 불러온 뒤에 켜고(`ready`), 점검용 실행(`allTabs`)·엔딩 뒤에는 모두 연다. 메뉴는 `host.tabOpen`으로 숨길 탭을 가린다 |
 | `src/ui/menu/trainingTab.ts` | 깨달음·다음 점 막대·찍은 수치의 합·모두 되돌리기(한 번 더 눌러야), 트리(가로 %·세로 px, SVG 줄). 손가락은 처음 누르면 설명 |

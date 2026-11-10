@@ -278,8 +278,9 @@ button.hud__slot--empty {
   font: max(30px, round(down, 6vh, 15px)) / 1.2 var(--font-display);
   letter-spacing: 0.1em;
 }
+/* --lift: 땅의 카드(다가가면 뜨는 카드)가 이 자리를 덮으면 Hud가 그 카드 위로 올리는 높이 */
 .hud__toast {
-  bottom: calc(var(--unit) * 14);
+  bottom: calc(var(--unit) * 14 + var(--lift, 0px));
   font: max(12px, round(down, 2.4vh, 12px)) / 1.4 var(--font-body);
   color: var(--ink);
 }
@@ -474,7 +475,8 @@ button.hud__slot--empty {
 }
 .hud__gains.is-showing {
   visibility: visible;
-  animation: hud-gains 5s ease-out forwards;
+  /* 떠 있는 시간은 Hud가 카드 크기마다 넘긴다 (`gainsLine.ts`의 GAINS_LIFE) */
+  animation: hud-gains var(--life, 5s) ease-out forwards;
 }
 /* 고르는 카드(귀환·맹세 출발)가 떠 있는 동안은 얻은 것 카드를 숨긴다 (겹치지 않게, 다음 카드는 Hud가 줄에 세워 둔다) */
 .hud:has(.pick-card:not([hidden])) .hud__gains {
@@ -495,7 +497,7 @@ button.hud__slot--empty {
 }
 /* 새 탭 (E236-05): 가운데 떴다가 오른쪽 위 메뉴 단추로 작아지며 날아 들어간다. 단추는 정보 화면을 열 때까지 부른다 */
 .hud__gains.is-fly.is-showing {
-  animation: hud-gains-fly 3.6s ease-in forwards;
+  animation: hud-gains-fly var(--life, 3.6s) ease-in forwards;
 }
 @keyframes hud-gains-fly {
   0% { opacity: 0; transform: translate(-50%, 12px) scale(0.96); }
@@ -516,7 +518,7 @@ button.hud__slot--empty {
   transform: none;
 }
 .hud__gains.is-side.is-showing {
-  animation: hud-gains-side 5s ease-out forwards;
+  animation: hud-gains-side var(--life, 3.2s) ease-out forwards;
 }
 .hud__gains.is-side .ui-portrait {
   --size: 36px;

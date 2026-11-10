@@ -1,4 +1,5 @@
 import './pickCard.css'
+import { PickCardGuard } from './pickGate'
 import './return.css'
 
 /** 출발 카드에 보일 맹세 하나 */
@@ -19,10 +20,11 @@ export interface OathView {
 
 /**
  * 출발 카드 (E305-01, `DESIGN.md` 5.4): 귀환하고 다시 떠날 때 「맹세 없음」 또는 맹세 하나를 고른다.
- * 고르는 것이 곧 출발이다. 틀은 귀환 카드와 같다
+ * 고르는 것이 곧 출발이다. 틀은 귀환 카드와 같다. 귀환 카드를 누른 바로 그 자리에 이어서 뜨니, 뜬 직후의 누름은 받지 않는다 (`pickGate.ts`, E307)
  */
 export class OathCard {
   private readonly root = document.createElement('div')
+  private readonly guard = new PickCardGuard(this.root)
 
   constructor(parent: HTMLElement) {
     this.root.className = 'pick-card return-card oath-card'
@@ -45,9 +47,8 @@ export class OathCard {
     this.root.append(el('div', 'pick-card__title', '맹세를 걸고 떠난다'))
     this.root.append(el('div', 'return-card__ask', '그 원정에서 장 보스나 수호자를 이기면 지킨다'))
     const row = el('div', 'pick-card__row')
-    const choose = (id: string | null) => (e: Event) => {
-      e.stopPropagation()
-      this.root.hidden = true
+    const choose = (id: string | null) => () => {
+      this.guard.close()
       pick(id)
     }
     for (const o of view.oaths) {
@@ -55,18 +56,18 @@ export class OathCard {
       card.type = 'button'
       card.style.setProperty('--god', 'var(--c-gilt)')
       card.append(el('b', '', o.name), el('small', '', o.rule), el('small', 'oath-card__reward', o.kept ? `지킴${o.best ? ` · ${o.best}` : ''}` : o.reward))
-      card.addEventListener('click', choose(o.id))
+      this.guard.on(card, choose(o.id))
       row.append(card)
     }
     this.root.append(row)
     const no = el('button', 'ui-btn return-card__later', '맹세 없이') as HTMLButtonElement
     no.type = 'button'
-    no.addEventListener('click', choose(null))
+    this.guard.on(no, choose(null))
     this.root.append(no)
-    this.root.hidden = false
+    this.guard.open()
   }
 
   hide(): void {
-    this.root.hidden = true
+    this.guard.close()
   }
 }

@@ -1,5 +1,5 @@
 import type { ThemeId } from '../../audio/music'
-import { AFTER_HOLD, CARD_HOLD, type MomentId, type MomentTier, SLOW_MOTION, tierOf } from '../../data/moments'
+import { AFTER_HOLD, BUNDLED, CARD_HOLD, type MomentId, type MomentTier, SLOW_MOTION, tierOf, TOAST_BUNDLES } from '../../data/moments'
 import type { GameContext } from '../context'
 
 /** 얻은 것 카드: 무엇(kind)·이름·색·그림, 한 줄에 얻은 것 하나 */
@@ -132,11 +132,13 @@ export class MomentSystem {
     const { hud } = this.ctx
     switch (tier) {
       case 1:
-        hud.showToast(m.text ?? m.card?.title ?? '')
+        // 같은 때 온 알림은 차례로 뜨고, 같은 장비의 일은 한 줄로 묶인다 (E307)
+        hud.showToast(m.text ?? m.card?.title ?? '', m.id, TOAST_BUNDLES[m.id])
         break
       case 2:
         // 새 탭은 가운데 떴다가 메뉴 단추로 날아 들어가 어디에 생겼는지 보인다 (사용자 의견 2026-10-28)
-        if (m.card) this.card(m.card, m.id === 'tabOpened' ? 'tab' : 'card')
+        // 장비 카드는 줄이 밀리면 같은 종류끼리 한 장으로 묶인다 (E307)
+        if (m.card) this.card(m.card, m.id === 'tabOpened' ? 'tab' : 'card', BUNDLED.has(m.id))
         break
       case 3:
         if (m.card) this.big(m.card)
@@ -168,8 +170,8 @@ export class MomentSystem {
     }
   }
 
-  private card(card: MomentCard, size: keyof typeof CARD_HOLD): void {
-    this.ctx.hud.showGains(card.kind, card.title, card.color, card.icon ?? '', card.lines, size)
+  private card(card: MomentCard, size: keyof typeof CARD_HOLD, bundles = false): void {
+    this.ctx.hud.showGains(card.kind, card.title, card.color, card.icon ?? '', card.lines, size, bundles)
     this.cardWait = Math.max(this.cardWait, CARD_HOLD[size])
   }
 

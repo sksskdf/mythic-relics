@@ -122,8 +122,12 @@ try {
   // 장면은 느린 동작 뒤에 열리고 넘기면 그 뒤에 얻은 것 카드
   const card = (title) => ({ kind: '점검', title, color: '#9fe3ff', lines: ['한 줄'] })
   await page.evaluate(() => window.__game.bus.emit('moment', { id: 'gearPicked', text: '낡은 장화 · 가방' }))
-  if ((await page.locator('.hud__toast.is-showing').textContent()) !== '낡은 장화 · 가방') throw new Error('순간: 작은 알림이 화면 아래에 뜨지 않습니다.')
-  await page.evaluate((c) => window.__game.bus.emit('moment', { id: 'gearWorn', card: c }), card('작은 카드'))
+  // 알림은 줄을 선다 (E307): 바로 앞에 뜬 알림이 있으면 그 알림이 자리를 지킨 뒤(1.2초)에 뜬다
+  await page.waitForFunction(() => document.querySelector('.hud__toast.is-showing')?.textContent === '낡은 장화 · 가방', null, { timeout: 10000 }).catch(() => {
+    throw new Error('순간: 작은 알림이 화면 아래에 뜨지 않습니다.')
+  })
+  // 카드로 남은 장비의 일은 희귀부터다 (E307 카드 예산: 보통·좋음 장비를 낀 것은 작은 알림)
+  await page.evaluate((c) => window.__game.bus.emit('moment', { id: 'gearWornRare', card: c }), card('작은 카드'))
   await page.waitForFunction(() => window.__game.hud.gainsShowing === 'card', null, { timeout: 10000 }).catch(() => {
     throw new Error('순간: 카드가 오른쪽 위에 작게 뜨지 않습니다.')
   })
