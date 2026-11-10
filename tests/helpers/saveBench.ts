@@ -30,7 +30,9 @@ import type { SaveData } from '../../src/save/SaveData'
  * 흉내 내는 것은 화면이 필요한 셋(땅의 물건·주인공·전투)과 다른 시스템에 맡기는 일(`RestoreHost`)뿐이다:
  * - 끼우기: `RelicPowers.equip`처럼 `Loadout.equip`으로 (유물은 유물표, 장비는 그 부위의 빈 칸이나 가방)
  * - 자리 셋: `Relics.restore`처럼 열린 신만(손은 조각 2를 모은 깨우는 신도), 숨은 지금 숨 칸 수까지
- * 엔딩 뒤에 유물이 닫힌 신을 여는 일(`Relics.unlock`)과 막힌 자리의 물건 옮기기(`World.settleLoaded`)는 하지 않는다
+ * 엔딩 뒤에 유물이 닫힌 신을 여는 일(`Relics.unlock`)과 막힌 자리의 물건 옮기기(`World.settleLoaded`)는 하지 않는다.
+ * `Game` 생성자가 불러온 뒤 바로잡는 셋도 여기서는 보지 못한다: 서 있는 땅을 들어선 땅에 더함,
+ * 엔딩 뒤 판은 탭을 모두 엶(빠진 탭도 사실대로 엶), 마지막 보스를 이긴 판은 엔딩을 켬
  */
 export function throughGame(data: SaveData): SaveData {
   const loadout = new Loadout()

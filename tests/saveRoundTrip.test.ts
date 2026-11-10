@@ -87,6 +87,8 @@ describe('저장 왕복: 꽉 찬 v17 견본', () => {
         '엔딩 전 판: 엔딩 뒤 장치 없이 (깊이 1·끝없는 원정 0·숨 넷·신 3단계까지)',
         (o) => {
           o.ending = false
+          // 마지막 보스를 이긴 기록이 남아 있으면 진짜 게임은 불러오자마자 엔딩을 켠다 (`Game.ts`): 엔딩 전 판이려면 뺀다
+          o.chapters.bosses = o.chapters.bosses.filter((id: string) => id !== 'sky')
           o.depth = { level: 1, reached: 1, limitBroken: false }
           o.endless = { best: 0 }
           o.classes.thor.level = 3
