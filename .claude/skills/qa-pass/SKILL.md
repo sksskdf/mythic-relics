@@ -24,6 +24,7 @@ description: 사람 눈으로 하는 QA 한 바퀴. 바뀐 것에 맞는 봇·�
 | 동작·궁극기 겹침 | `node scripts/motion-sheet.mjs` |
 | 적·신화 외형 | `node scripts/enemy-sheet.mjs`, `node scripts/class-sheet.mjs` |
 | 원하는 상태 하나 | `node scripts/shot.mjs <파일.png> "<주소 뒤 값>" "<게임 안 코드>"` |
+| 손으로 한 걸음씩 (카드 여닫기·휴대폰 톡·조이스틱·두 손가락) | `node scripts/drive.mjs [--size=390x844 --touch] &` 뒤 `curl -s localhost:4410 -d '<걸음>'` (걸음 종류는 파일 머리 주석) |
 | 처음부터 흐름 | `node scripts/playtest.mjs 1 40`, 엔딩까지는 `node scripts/playtest.mjs 1 100 --ending` |
 
 - 모두 `npm run build` 뒤에 돌린다 (빌드가 낡았으면 훅이 막는다). 하나씩 돌린다

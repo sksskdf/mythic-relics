@@ -13,6 +13,7 @@ tools: Bash, Read, Grep, Glob
 3. 결과는 `test-results/*.json`, 그림은 `test-results/` 아래 png. **그림은 Read로 직접 열어 본다.** 보지 않은 그림으로 판정하지 않는다
 4. 기준과 견준다: `docs/knowledge/baselines.md`, 목표 띠 `TIMELINE.md` 4장, 마일스톤의 자동 검증·완료 기준 `ROADMAP.md` 2장
 5. 체크리스트 항목이면 `node scripts/checklist-qa.mjs <항목 id>`로 장면을 만들어 본다. 판정 기록 형식은 `PLAYTEST.md` 6.2
+6. 눌러 봐야 아는 것(카드가 남는지, 휴대폰의 톡·조이스틱·두 손가락, 잘못 눌리는 것)은 조종 서버 `node scripts/drive.mjs`를 띄워 한 걸음씩 넣고 스크린숏을 본다. 걸음 종류는 파일 머리 주석, 끝나면 `{"quit":true}`로 끈다
 
 ## 사람 눈으로 볼 것
 
