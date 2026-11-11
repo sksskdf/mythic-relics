@@ -1,0 +1,1972 @@
+diff --git a/DESIGN.md b/DESIGN.md
+index 5fd02c0..50e8a02 100644
+--- a/DESIGN.md
++++ b/DESIGN.md
+@@ -395,7 +395,7 @@ E12-01에서 열린 신화의 상시 효과로 만든 수치다(`gods.json`의 `
+ | 싸우는 리듬 | 손 | 기본 공격의 빠르기·폭·사거리 중 하나가 다른 신과 다르다 | 같은 무리를 잡을 때 손맛이 다르다 |
+ | 단계 2~4 강화 | 숨 | 승천마다 **눈에 띄는** 변화 하나 (새 효과, 개수 증가, 범위 확대). 숫자 증가는 덤 | 승천 카드의 첫 줄이 그림으로도 보인다 |
+ | 궁극기 | 심장 | 신마다 다른 궁극기와 연출. 같은 궁극기를 돌려 쓰지 않는다 | 궁극기만 보고 어느 신인지 안다 |
+-| 단계별 모습 | 보관함에서 고른 표식 (E307: 저절로 붙지 않는다) | 표식이 그 신의 단계마다 다른 모양으로 바뀌고(크기만 키우지 않는다), 기운 연출이 짙어진다. 3·4단계에는 머리 위 빛 고리 | 1단계와 4단계 스크린숏이 한눈에 구별된다 |
++| 단계별 모습 | 보관함에서 고른 표식 (E307: 저절로 붙지 않는다) | 표식이 그 신의 단계마다 다른 모양으로 바뀌고(크기만 키우지 않는다), 기운 연출이 짙어진다. 그 신이 3·4단계면 머리 위 빛 고리도 함께 뜬다(표식을 고른 동안만. 승천해도 손에 쥔 신을 따라 저절로 뜨지 않는다: 손의 신을 따르는 것은 발밑 빛과 몸에서 피어오르는 빛 조각뿐, E307) | 1단계와 4단계 스크린숏이 한눈에 구별된다 |
+ | 깨어남·승천 순간 | — | 신마다 다른 깨어남 연출, 승천 때 단계에 비례한 빛기둥과 번쩍임 | 소리를 끄고 봐도 무슨 일이 일어났는지 안다 |
+ 
+ 지금 세 신화에 적용한 것 (아래 표의 「Lv」는 신 단계):
+@@ -458,7 +458,7 @@ E12-01에서 열린 신화의 상시 효과로 만든 수치다(`gods.json`의 `
+ 
+ - **어디서:** 켠 성소의 한가운데 화로(2.5m 안). 성소에서 귀환하면 그 자리에서 다시 떠난다. 같은 길을 되짚어 걷지 않는다. (지금: 마을 모닥불 귀환은 E307로 미뤘다. 리키아에서 귀환해도 웨이포인트로 마을 대장간에 바로 간다, E306 D1.)
+ - **언제:** 떠난 지 2분이 지났고, 이번 원정의 기세 레벨이 귀환 번호의 문턱 이상일 때 화로에 빛기둥이 서고 카드가 뜬다. 문턱은 귀환 1·2·3·4에 9·17·17·19, 엔딩 뒤 8(`RETURN_MIN_LEVEL`, 원정 길이를 시각표에 맞추는 가장 큰 손잡이, `BALANCE.md` 6.5).
+-- **카드:** 받을 명성·다음 배율, 이번 원정 시간과 지난 기록, 남는 것과 지워지는 것, 갈래 카드를 한 장에 보인다. 갈래 카드를 고르는 것이 곧 귀환이다. 「아직」을 누르거나 화로를 떠나면 닫힌다(돌아오면 다시 뜬다). 확인 단추를 따로 두지 않는다. 고르는 카드 셋(귀환·맹세 출발·두 갈래)은 뜬 뒤 0.5초 동안 단추가 흐리고 누름을 받지 않으며, 카드 위에서 시작된 누름만 고른 것으로 친다(싸우던 클릭·톡이 방금 뜬 카드를 고르지 않게, `src/ui/pickGate.ts`, E307). 엔딩 뒤에는 갈래 위에 다음 원정의 깊이 「그대로 / +1」 알약이 선다. 귀환은 큰 카드 순간이다.
++- **카드:** 받을 명성·다음 배율, 이번 원정 시간과 지난 기록, 남는 것과 지워지는 것, 갈래 카드를 한 장에 보인다. 갈래 카드를 고르는 것이 곧 귀환이다. 「아직」을 누르거나 화로를 떠나면 닫힌다(돌아오면 다시 뜬다). 확인 단추를 따로 두지 않는다. 고르는 카드 셋(귀환·맹세 출발·두 갈래)은 뜬 뒤 0.5초 동안 단추가 흐리고 누름을 받지 않으며, 카드 위에서 시작된 누름만 고른 것으로 친다(싸우던 클릭·톡이 방금 뜬 카드를 고르지 않게, `src/ui/pickGate.ts`, E307). 엔딩 뒤에는 갈래 위에 다음 원정의 깊이 「그대로 / +1」 알약이 선다. 세로 화면(휴대폰)에서 귀환·맹세 출발 카드는 초상 줄 아래와 아래 묶음(생명 막대·유물 칸) 사이 한가운데에 뜨고, 떠 있는 동안 작은 지도·원천 칩·목표 한 줄은 숨는다(사파리 주소창이 보이는 393×659에서도 카드가 다 들어온다. 그 띠보다 길면 카드 안에서 민다, E307). 귀환은 큰 카드 순간이다.
+ - **출발:** 켠 성소 어디서나(웨이포인트, 9.2.3). 앞 구간을 다시 걸을 필요가 없다. 귀환 2부터는 출발할 때 맹세 출발 카드가 뜬다(5.4).
+ - **귀환 신호:** 데모의 귀환 넷은 장의 할 일(`return`)로 안내한다. 귀환 신호는 첫 귀환 뒤, 목표가 귀환이 아닐 때 덧붙는다. 귀환 문턱을 넘었고, 지난 기세 레벨에서 180초가 지났거나(기세가 느려짐) 받을 배율이 지금의 ×1.25를 넘으면 목표 한 줄이 「성소 화로에서 원정을 마친다 (×배율)」로 바뀐다(`RETURN_SIGNAL`, E306 D10). 목표가 합치기(`merge`)인 동안은 띄우지 않는다.
+ - **장 흐름의 귀환 넷 (E306 D1·D2):** 바닷가 성소(1, 토르 뒤) → 철의 숲 성소(2, 오딘 뒤) → 고개 성소(3, 고개지기 뒤) → 리키아 성소(4, 키마이라 뒤, 종장의 첫 할 일). 귀환 1·2의 목표 글에는 땅 이름이 없고(「성소 화로에서 첫 원정을 마친다」), 어느 성소에서 해도 된다. 오딘부터 깨운 사람은 첫 귀환 자리가 철의 숲이다. 할 일 「귀환 n」은 장 밖에서 먼저 했어도 그 앞 할 일까지 해야 지나간다(이어 세는 할 일). 벼리기도 그렇다: 키마이라를 이긴 뒤 마을에서 먼저 2단계로 벼려도 귀환 4가 남고, 귀환 4를 마치면 벼리기는 바로 지나간다.
+@@ -650,9 +650,10 @@ E12-01에서 열린 신화의 상시 효과로 만든 수치다(`gods.json`의 `
+ | 화면 어디든 누른 채 끌기 | 누른 자리에 작은 원(조이스틱)이 생기고, 끄는 방향으로 걷는다. 손가락이 주인공을 가리지 않는다. 걷는 동안은 싸우지 않는다(빠져나가기) |
+ | 원 반지름의 1.6배보다 멀리 끌기 (탈것을 얻은 뒤) | 산양에 올라탄다(컴퓨터의 먼 땅 클릭). 떼거나 가운데로 오면 멈춰 내린다 |
+ | 손을 뗌 | 멈춰 서서 둘레 적을 자동으로 친다 |
+-| 적을 톡 누름 | 그 적에게 다가가 쓰러질 때까지 친다 (컴퓨터의 적 클릭). 손가락은 굵으니 몸통을 조금 빗나가도 그 적이다 |
++| 적을 톡 누름 | 그 적에게 다가가 쓰러질 때까지 친다 (컴퓨터의 적 클릭). 손가락은 굵으니 몸통을 조금 빗나가도 그 적이다. 꾹 눌렀다 떼어도(0.8초까지) 톡이다. 그보다 오래 얹혀 있던 손가락은 쉬던 손이라 떼어도 지시가 아니다 (E307) |
+ | 땅을 톡 누름 | 그곳까지 걷는다 (컴퓨터의 땅 클릭) |
+ | 조이스틱을 쥔 채 다른 손가락으로 톡 | 그 톡이 지시가 된다(적이면 공격, 땅이면 그곳까지). 지시를 마치거나 손잡이를 다시 움직이면 조이스틱이 이어받는다. 걷기가 끊기지 않고 시야도 바뀌지 않는다 (E307) |
++| 조이스틱을 쥔 채(엄지를 얹은 채) 다른 손가락으로 단추를 누름 | 혼자 누른 것과 같다: 메뉴 단추·초상·작은 지도로 정보 화면이 열리고, 정보 화면의 탭·닫기와 고르는 카드의 「아직」·갈래도 먹는다. 브라우저는 그런 톡에 click을 내지 않아 게임이 대신 낸다 (`src/input/fingerClick.ts`, E307) |
+ | 두 손가락 벌리기·오므리기 | 시야를 당기고 민다 (컴퓨터의 마우스 휠). 닿기만 한 둘째 손가락은 톡이다: 두 손가락이 저마다 움직여 사이 거리가 24px·8% 넘게 바뀐 뒤에야 확대·축소로 치고, 그렇게 바꾼 시야만 저장한다 (E307). 바꾼 시야는 설정의 「시야 되돌리기」로 기본값으로 돌린다 (컴퓨터도 같다) |
+ 
+ - 두 번 클릭은 없다 (E12-08). 1차 스프린트에서는 땅 한 번 = 가다가 적을 만나면 싸움, 두 번 = 적 무시였는데, 싸움이 시작되면 한 번으로 빠져나가지 못해 불편하다는 의견으로 바꿨다.
+@@ -667,7 +668,7 @@ E12-01에서 열린 신화의 상시 효과로 만든 수치다(`gods.json`의 `
+ - **멈추면 공격, 움직이면 회피:** 기본 공격은 멈춰 있을 때만 나간다. 그래서 "언제 멈춰서 때리고, 언제 움직여서 피할지"가 조작의 핵심 판단이 된다. 구르기 같은 회피 버튼은 없고, 적의 공격 예고를 보고 걸어서 피한다.
+ - **유물 1개 = 지속 효과 1개 + 행동 연동 효과 1개:** 어느 신을 자리에 넣느냐가 곧 어떤 유물이 깨어나 어떤 전투 방식이 되느냐다.
+ - 예: 손 = 토르·숨 = 오딘이면 망치로 치며 까마귀가 함께 싸우고, 묠니르와 궁니르가 함께 깨어난다.
+-- **줍기도 자동:** 장비를 밟거나 누르면 빈 칸에 저절로 들어가고, 칸이 차 있으면 가방에 들어간다. 바꿔 끼기와 합치기는 정보 화면 장비 탭에서 한다. 화면 아래 유물 칸에 커서를 올리면 설명 카드가 뜨고, 누르면 신 탭의 유물표가 열린다. 휴대폰에서는 엄지가 놓이는 아래 묶음(유물 칸·생명 막대·궁극기)이 누름을 받지 않아 그 위에서 끌어도 걷고, 정보 화면은 초상이나 메뉴 단추로 연다. 땅의 장비·유물 설명은 다가가면 뜬다(걷기 시작하거나 싸움이 붙거나 3초쯤 뒤 닫힘). 다가가면 뜨는 카드는 주인공의 발 아래에 머물고, 화면이 낮아 다 들어가지 않으면 아래쪽 단락(이야기·고유 효과)부터 접는다(접은 것은 정보 화면에서 본다).
++- **줍기도 자동:** 장비를 밟거나 누르면 빈 칸에 저절로 들어가고, 칸이 차 있으면 가방에 들어간다. 바꿔 끼기와 합치기는 정보 화면 장비 탭에서 한다. 화면 아래 유물 칸에 커서를 올리면 설명 카드가 뜨고, 누르면 신 탭의 유물표가 열린다. 휴대폰에서는 엄지가 놓이는 아래 묶음(유물 칸·생명 막대·궁극기)이 누름을 받지 않아 그 위에서 끌어도 걷고, 정보 화면은 초상이나 메뉴 단추로 연다. 아래 묶음 위의 톡은 아무 일도 하지 않는다(스킬 그림을 눌렀는데 그 아래 가려진 땅으로 걸어 나가지 않게, E307). 땅의 장비·유물 설명은 다가가면 뜬다(걷기 시작하거나 싸움이 붙거나 3초쯤 뒤 닫힘). 다가가면 뜨는 카드는 주인공의 발 아래에 머물고, 화면이 낮아 다 들어가지 않으면 아래쪽 단락(이야기·고유 효과)부터 접는다(접은 것은 정보 화면에서 본다).
+ - **효과는 자동 전투에 맞게 설계한다:** 가장 가까운 적, 적이 가장 많이 모인 곳, 주인공 주변처럼 조준 없이도 의미 있는 대상을 스스로 고른다.
+ 
+ ### 8.3 유물 효과: 지속 + 행동 연동
+diff --git a/docs/knowledge/architecture.md b/docs/knowledge/architecture.md
+index a7155cc..0305620 100644
+--- a/docs/knowledge/architecture.md
++++ b/docs/knowledge/architecture.md
+@@ -64,7 +64,7 @@ E12~E14에서 새 규칙을 넣을 때는 `BuildInputs`에 재료를 더하고 `
+ | `src/game/systems/Expedition.ts` | 원정이 무르익었나(귀환 문턱 판정 `minLevel`·`ripe`, 값은 `data/cycle.ts`의 `returnMinLevel`), 성소 화로 → 귀환 카드(화로를 떠나면 닫힘), 갈래·가보·녹임·출발, 자동 합치기, 다시 찍기 | 시스템 |
+ | `src/game/systems/Oaths.ts`·`src/ui/OathCard.ts` | 출발 카드(띄운 자리에서 걸어 나가면 맹세 없이 떠남), 지킴·깨짐 | 시스템·UI |
+ | `src/game/systems/Automation.ts` | 귀환할 때 새로 켜진 자동화를 카드로 | 시스템 |
+-| `src/ui/ReturnCard.ts`·`src/ui/SwapCard.ts` | 귀환 카드(고르는 카드 틀 `pickCard.css`), 두 갈래 카드. 맹세 출발 카드(`OathCard`)까지 셋의 누름 규칙은 `src/ui/pickGate.ts` 한 곳(뜬 뒤 0.5초는 받지 않음, 카드 위에서 시작된 누름만, E307) | UI |
++| `src/ui/ReturnCard.ts`·`src/ui/SwapCard.ts` | 귀환 카드(고르는 카드 틀 `pickCard.css`), 두 갈래 카드. 맹세 출발 카드(`OathCard`)까지 셋의 누름 규칙은 `src/ui/pickGate.ts` 한 곳(뜬 뒤 0.5초는 받지 않음, 카드 위에서 시작된 누름만, E307). 세로 화면에서 귀환·맹세 출발 카드의 자리(초상 줄과 아래 묶음 사이 한가운데, 떠 있는 동안 작은 지도·원천 칩·목표 한 줄 숨김)는 `portrait.css`, 시험은 `tests/cuts.test.mjs` | UI |
+ | `src/ui/menu/godsTab.ts` | 자리 셋·유물표·외형(옛 신화·외형 탭을 합침) | UI |
+ 
+ - 계획에 있던 `systems/Pantheon.ts`·`systems/Merge.ts`는 만들지 않았다. 부품 얻기와 빈 칸 채우기는 `systems/Relics.ts`(`autoFill`)와 `systems/Wake.ts`, 두 갈래 카드는 `SwapCard`, 합치기는 장비 탭(`menu/relicsTab.ts`)과 `systems/Expedition.ts`의 자동 합치기가 맡는다. 마이그레이션도 버전마다 파일을 두지 않고 `migrate/legacy.ts`(v16 모양까지)와 `migrate/v17.ts` 둘이다.
+@@ -133,8 +133,9 @@ v1~v12는 「v13 모양으로 올리기」 한 단계(`src/save/migrate/legacy.t
+ | --- | --- |
+ | `src/input/device.ts` | 터치 기기 알아보기(주 포인터가 손가락, `?touch`), 휴대폰을 가로로 들었나(`wantsPortrait`: 짧은 변 600px 미만만, 태블릿은 가로도 된다), 화면이 휴대폰 조작인가(`touchUi`: html의 `is-touch`) |
+ | `src/main.ts` | 터치 기기면 html에 `is-touch`, `RotateHint`(가로로 들면 안내), Game 옵션 `touch`·`suspended`(안내가 떠 있으면 `paused`, 그리지도 않는다) |
+-| `src/input/touch.ts` | 손가락 몸짓 상태 기계(DOM 없음, `tests/touch.test.ts`): 톡(짧게·거의 안 움직임, 그 프레임에 읽지 않으면 버림. 조이스틱을 쥔 손가락만 아니면 톡이라, 쥔 채 다른 손가락으로 누른 것과 겹쳐 누른 두 엄지도 톡이다), 끌기(누른 자리의 조이스틱, 원은 뗄 때까지 그 자리, 손잡이만 원 안에서. 혼자면 12px 넘게 끌릴 때 잡고, 따로 닿아(0.25초 밖) 제자리에서 쉬는 손가락 곁에서는 원 가장자리(48px) 넘게 끌릴 때 잡는다: 쥔 손이 화면에 닿아 있어도 걷고, 벌리고 오므리는 두 손가락은 그 전에 확대로 잠긴다), 두 손가락(E307: 닿는 것만으로는 확대가 아니다. 둘 다 12px 넘게 움직이고 사이 거리가 24px·8% 넘게 바뀌면 확대로 잠기고(`pinch`는 잠긴 순간부터의 배율, `pinchCount`는 잠긴 횟수), 조이스틱을 쥔 동안(두 손가락이 0.25초 안에 함께 닿은 때는 빼고)·40px보다 가까운 두 접점은 잠기지 않는다. 손가락 수가 바뀌면 풀리고 다시 잰다. 잠긴 뒤로는 다 뗄 때까지 걷기·톡 없음). 뗀 것을 놓쳐도 꼬이지 않게 처음 대는 손가락(`isPrimary`)·창이 가려짐(blur·visibilitychange·pagehide)에 손가락을 모두 잊는다(`reset`) |
+-| `src/input/TouchControls.ts` | 캔버스의 손가락 포인터 사건 → 몸짓, 조이스틱 원·손잡이 그리기. 톡은 `Input.frameEnd`에서 버린다(`PlayerInput.useTouch`). 마우스는 `Input`이 받고 손가락은 받지 않는다(`ignoreTouch`). 캔버스의 `touchstart`를 막아 아이폰 사파리의 길게 누르기 돋보기·글자 선택이 뜨지 않게 한다(포인터 사건은 그대로 온다, E307) |
++| `src/input/touch.ts` | 손가락 몸짓 상태 기계(DOM 없음, `tests/touch.test.ts`): 톡(거의 안 움직이고 0.8초 안에 뗌: 꾹 누른 손가락까지 받고 그보다 오래 얹힌 손가락은 쉬던 손이다 `TAP_SECONDS`, 그 프레임에 읽지 않으면 버림. 조이스틱을 쥔 손가락만 아니면 톡이라, 쥔 채 다른 손가락으로 누른 것과 겹쳐 누른 두 엄지도 톡이다), 끌기(누른 자리의 조이스틱, 원은 뗄 때까지 그 자리, 손잡이만 원 안에서. 혼자면 12px 넘게 끌릴 때 잡고, 따로 닿아(0.25초 밖) 제자리에서 쉬는 손가락 곁에서는 원 가장자리(48px) 넘게 끌릴 때 잡는다: 쥔 손이 화면에 닿아 있어도 걷고, 벌리고 오므리는 두 손가락은 그 전에 확대로 잠긴다), 두 손가락(E307: 닿는 것만으로는 확대가 아니다. 둘 다 12px 넘게 움직이고 사이 거리가 24px·8% 넘게 바뀌면 확대로 잠기고(`pinch`는 잠긴 순간부터의 배율, `pinchCount`는 잠긴 횟수), 조이스틱을 쥔 동안(두 손가락이 0.25초 안에 함께 닿은 때는 빼고)·40px보다 가까운 두 접점은 잠기지 않는다. 손가락 수가 바뀌면 풀리고 다시 잰다. 잠긴 뒤로는 다 뗄 때까지 걷기·톡 없음). 뗀 것을 놓쳐도 꼬이지 않게 처음 대는 손가락(`isPrimary`)·창이 가려짐(blur·visibilitychange·pagehide)에 손가락을 모두 잊는다(`reset`) |
++| `src/input/fingerClick.ts` | 다른 손가락이 닿아 있는 동안 누른 단추(E307 손 QA): 브라우저는 혼자 눌렀다 뗀 손가락에만 click을 내, 조이스틱을 쥔 채·엄지를 얹은 채 누른 메뉴 단추·초상·작은 지도·탭·닫기·고르는 카드가 먹지 않았다. `listenFingerClicks`(`main.ts`에서 한 번)가 창에서 손가락 포인터를 세어(`FingerPresses`, DOM 없음: 닿아 있는 동안 다른 손가락이 함께 닿았고 12px 안에서 0.8초 안에 뗀 누름. 오래 얹혀 있던 손가락은 떼어도 그 아래 단추를 누르지 않고, 같은 자리 40px 안을 함께 누른 두 접점은 한 번만 누른다) 그 pointerup 뒤에 뗀 자리의 요소로 click을 대신 낸다(누른 요소와 이어져 있을 때만, 눌 수 없는 단추는 빼고). 혼자 누른 손가락은 브라우저의 click 그대로. 대신 낸 click은 `isFingerClick`으로 알아보고(`pickGate.ts`: 코드가 낸 click으로 치지 않아 고르는 카드의 잠금을 그대로 받는다), 같은 톡에 브라우저도 click을 냈으면 0.5초·40px 안의 그 click을 버린다(`echo`). 진짜 두 손가락은 `scripts/drive.mjs`의 `fingers` 걸음으로 본다(`touch` 걸음은 합성 포인터라 이 길을 타지 않는다) |
++| `src/input/TouchControls.ts` | 캔버스의 손가락 포인터 사건 → 몸짓, 조이스틱 원·손잡이 그리기. 톡은 `Input.frameEnd`에서 버린다(`PlayerInput.useTouch`). 아래 묶음(`.hud__dock`)·궁극기·원천 칩 위의 톡은 삼킨다(`TAP_DEAD`·`inBoxes`: 누름을 게임 화면으로 흘려보내는 조각이라 끌면 조이스틱이지만, 톡이 가려진 땅으로 가는 지시가 되지 않게, E307 손 QA). 마우스는 `Input`이 받고 손가락은 받지 않는다(`ignoreTouch`). 캔버스의 `touchstart`를 막아 아이폰 사파리의 길게 누르기 돋보기·글자 선택이 뜨지 않게 한다(포인터 사건은 그대로 온다, E307) |
+ | `PlayerInput.updateTouch` | 두 손가락 → 확대로 잠긴 동안만 `onZoom`(잠긴 때의 시야 ÷ 배율. 한계 안 시야 높이가 2% 넘게 바뀌거나 한계에 닿을 때만, 바꿨으면 떼면 설정에 저장), 톡 → `orders.press`(클릭과 같다, 적 몸통에서 28px 안이면 그 적. 조이스틱을 쥔 채 누른 톡이면 조이스틱을 쉬게 하고(`parked`), 그 지시를 마치거나 손잡이를 10px 넘게 움직이면 조이스틱이 이어받는다), 조이스틱 → 화면 방향을 땅 위 방향으로 바꿔 주인공 앞 2.5m로 `orders.steer`(이동 지시가 끊겼으면 쥔 채로도 다시 내린다), 놓으면 `orders.clear` + `hero.stop`. 대화가 막 끝난 0.5초(`DialogScene.settling` → `muted`)의 톡·클릭은 지시가 아니다(연타로 넘기던 톡이 곁의 마을 사람에게 다시 말을 걸지 않게, E307). 그동안이나 장면이 닫히는 중에 누른 마우스를 누른 채 있으면, 가라앉는 프레임에 누른 것으로 친다(`PlayerInput.update`의 `heard`: 누른 채 끌어 걷기가 뗐다 다시 누를 때까지 죽지 않게) |
+ | 페이지 확대 막기 | 두 번 눌러 확대는 `index.html`의 `* { touch-action: manipulation }`(캔버스는 `none`), 창·HUD 위 두 손가락 확대는 `main.ts`의 `gesture*` 막기. 0.3초 `touchend` 가드는 이어 누른 단추의 click을 지워 E307에서 걷었다. 글자 선택·돋보기는 `body`의 `user-select: none`·`-webkit-touch-callout: none`과 캔버스·대화 상자의 `touchstart` 막기 |
+ | 시야 설정 | `src/save/settings.ts`: 터치 기기는 시작할 때 잘못 저장된 시야를 한 번 기본값으로 되돌리고 표시(`viewReset`)를 남긴다(`loadOnTouch`, E307). 일시 정지 메뉴 설정의 「시야 · 되돌리기」는 `Viewport.change({ viewHeight })`로 저장하고 화면을 바로 맞춘다 |
+diff --git a/docs/knowledge/troubleshooting.md b/docs/knowledge/troubleshooting.md
+index 55180ff..ce0c462 100644
+--- a/docs/knowledge/troubleshooting.md
++++ b/docs/knowledge/troubleshooting.md
+@@ -27,6 +27,7 @@
+ | 봇이 가끔 25분 안에 2단계를 못 감 (CI 한 판, 로컬 서른 판에 한두 번) | 마을로 돌아가려는데 통로를 다 걸어야 넘어가서(E19), 쫓아오는 무리의 공격 예고를 피하기만 되풀이하다 필드를 못 벗어남 (`want: village`, 2단계 피하기) | 떠나는 길이면 생명 50% 이상일 때 예고를 피하지 않고 걸어 나감(`autoplay.ts`). 이웃 땅 무리는 그 땅 바위를 비켜 세우고, 깨울 때 집 자리를 빈 칸으로. 실패한 판은 `playtest.mjs`가 끝난 자리와 살아 있는 적을 찍는다 |
+ | 넘어간 직후 몇 프레임 멈칫 (조각 하나 35~55ms) | 이웃 조각을 한 번에 지음, 땅 색 칠할 때 칸마다 모든 길까지 거리를 잼 | 땅·숲·소품 단계로 나눠 프레임마다 한 단계(`chunkSteps`), 길마다 둘레 네모 밖이면 건너뜀 |
+ | 처음 화면의 슬롯이 「읽지 못한 저장」으로 보임 (E307 0B) | 그 슬롯의 저장이 더 새 버전이 쓴 것이거나(저장 버전을 올린 뒤 옛 빌드·옛 탭으로 열었다) 글이 깨졌다 | 더 새 버전의 저장은 새 빌드로 다시 열면 그대로 읽힌다. 그 칸에서 새 모험을 시작해 덮었어도 원본은 `mythic-relics/save/<슬롯>:unread-v<버전>.bak`(깨진 글은 `:unread-broken.bak`, 여럿이면 `.2`~`.4`)에 있다. 되살리기: 읽을 수 있는 빌드의 콘솔에서 `localStorage.setItem('mythic-relics/save/0', localStorage.getItem('mythic-relics/save/0:unread-v18.bak'))` 뒤 새로 고침 |
++| 휴대폰에서 조이스틱을 쥔 채(또는 엄지를 화면에 얹은 채) 다른 손가락으로 누른 메뉴 단추·초상·작은 지도·탭·닫기·귀환 카드의 「아직」이 먹지 않음 (E307 0A 손 QA) | 브라우저는 손가락 하나가 혼자 눌렀다 뗀 톡에만 click을 낸다. 닿아 있는 동안 다른 손가락이 한 번이라도 함께 닿았으면(먼저 닿은 손가락도 같다) pointerdown·pointerup만 오고 click이 없는데, 단추들은 click만 들었다. 조종 서버의 합성 포인터(`touch` 걸음)와 `tap`을 섞으면 click이 생겨 보이지 않았다 | `src/input/fingerClick.ts`: 창에서 손가락 포인터를 세어 그런 누름의 click을 pointerup 뒤에 대신 낸다(혼자 누른 손가락은 그대로). 단추는 고치지 않는다. 고르는 카드는 그 click을 사람 손으로 쳐 잠금을 그대로 건다(`isFingerClick`). 진짜 두 손가락은 `scripts/drive.mjs`의 `fingers` 걸음(CDP 터치)으로 본다. 아이폰 사파리에서의 확인은 실기로 |
+ 
+ ## 테스트·도구
+ 
+diff --git a/scripts/drive.mjs b/scripts/drive.mjs
+index 8392395..5cd5d9f 100644
+--- a/scripts/drive.mjs
++++ b/scripts/drive.mjs
+@@ -14,6 +14,11 @@
+ //   {"taps":[[x,y],[x,y]],"gap":80}   빠르게 이어 누르기 (gap ms)
+ //   {"touch":[{"id":1,"type":"down","at":[x,y]}, ...],"gap":30}  손가락 사건을 직접 (type: down·move·up·cancel, 여러 손가락)
+ //   {"drag":[[x1,y1],[x2,y2]],"hold":600,"advance":2,"id":1}   누른 채 끌고(조이스틱) 그 채로 advance초 감은 뒤 hold ms 뒤에 뗌
++//   {"fingers":[{"id":0,"type":"down","at":[x,y]},{"id":0,"type":"move","at":[x,y]},{"id":1,"type":"down","at":[x,y]},{"id":1,"type":"up"}],"gap":40}
++//                              진짜 여러 손가락 (--touch일 때, type: down·move·up). 브라우저가 터치를 포인터 사건·click으로 바꾸는 길을 그대로 탄다:
++//                              한 손가락이 닿아 있는 동안 다른 손가락의 톡에는 브라우저가 click을 내지 않는다 (E307). "touch"는 합성 포인터 사건이라
++//                              그 길을 타지 않고, "tap"과 섞으면 click이 생긴다. 손가락은 걸음 사이에도 닿은 채 남는다 ("up"으로 뗀다. id 없이 {"type":"up"}이면 모두).
++//                              사건마다 "wait":ms 를 주면 그 뒤에 gap 대신 그만큼 기다린다 (누르고 있는 시간을 재려면 누름과 뗌을 한 걸음에 넣는다)
+ //   {"key":"Escape"}           키
+ //   {"advance":초}             게임 시간을 감는다 (game.advance, 화면은 그 뒤에 그려짐)
+ //   {"wait":ms}                실제 시간 기다리기 (HUD 카드·CSS 전환은 실제 시간으로 흐른다)
+@@ -122,6 +127,28 @@ const state = () =>
+     }
+   })
+ 
++/**
++ * 진짜 손가락 (CDP Input.dispatchTouchEvent): 브라우저 안에서 터치 → 포인터 사건 → 몸짓(click)으로 바뀐다.
++ * 사건마다 바뀐 점 하나만 보낸다 (닿아 있는 다른 손가락은 브라우저가 그대로 둔다). 점 없이 보낸 touchEnd는 모두 뗀다
++ */
++const cdp = TOUCH ? await context.newCDPSession(page) : null
++const held = new Map()
++async function finger(id, type, at) {
++  if (!cdp) throw new Error('fingers 걸음은 --touch로 띄웠을 때만 쓴다')
++  if (type === 'up' && id === undefined) {
++    // 닿은 손가락이 없으면 뗄 것도 없다 (브라우저는 누른 적 없는 touchEnd를 받지 않는다)
++    if (held.size === 0) return
++    held.clear()
++    return cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
++  }
++  const [x, y] = at ?? held.get(id) ?? []
++  if (x === undefined) throw new Error(`닿지 않은 손가락: ${id}`)
++  if (type === 'up') held.delete(id)
++  else held.set(id, [x, y])
++  const name = { down: 'touchStart', move: 'touchMove', up: 'touchEnd' }[type]
++  return cdp.send('Input.dispatchTouchEvent', { type: name, touchPoints: [{ x, y, id, radiusX: 8, radiusY: 8, force: 1 }] })
++}
++
+ /** 누른 것을 게임이 읽을 때까지 (다음에 그려지는 프레임) */
+ const settle = () => frames(2)
+ 
+@@ -147,6 +174,14 @@ async function step(s) {
+     await settle()
+     return hit
+   }
++  if (s.fingers) {
++    for (const e of s.fingers) {
++      await finger(e.id, e.type, e.at)
++      await page.waitForTimeout(e.wait ?? s.gap ?? 40)
++    }
++    await settle()
++    return `fingers ${s.fingers.length} (닿은 손가락 ${[...held.keys()].join(',') || '없음'})`
++  }
+   if (s.drag) {
+     const [from, to] = s.drag
+     const id = s.id ?? 1
+@@ -178,7 +213,11 @@ async function step(s) {
+         return { text: el.innerText?.trim().replace(/\s+/g, ' ').slice(0, 160), box: [Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height)], shown: r.width > 1 && cs.visibility !== 'hidden' && cs.display !== 'none' && Number(cs.opacity) > 0.05, font: cs.fontSize, color: cs.color, bg: cs.backgroundColor }
+       })
+     }, s.dom)
+-  if (s.reload !== undefined) return open(s.reload).then(() => 'reloaded')
++  if (s.reload !== undefined) {
++    // 닿은 채 남은 진짜 손가락은 떼고 연다
++    if (held.size > 0) await finger(undefined, 'up')
++    return open(s.reload).then(() => 'reloaded')
++  }
+   return `모르는 걸음: ${JSON.stringify(s)}`
+ }
+ 
+diff --git a/scripts/smoke.mjs b/scripts/smoke.mjs
+index bfe5024..0ae24d4 100644
+--- a/scripts/smoke.mjs
++++ b/scripts/smoke.mjs
+@@ -1136,6 +1136,26 @@ try {
+   await phoneFrames(2)
+   const p2 = await phoneState()
+   if (p2.stick || p2.moving) throw new Error(`휴대폰: 손을 떼도 멈추지 않습니다 ${JSON.stringify(p2)}`)
++  // 조이스틱을 쥔 채 다른 손가락으로 누른 단추 (E307 손 QA): 브라우저는 그 톡에 click을 내지 않는다 (pointerdown·pointerup만 온다).
++  // 게임이 click을 대신 내어 정보 화면이 열린다 (`src/input/fingerClick.ts`). 진짜 두 손가락은 `scripts/drive.mjs`의 fingers 걸음으로 본다
++  await finger('pointerdown', 1, 195, 650)
++  for (const y of [640, 625, 610]) await finger('pointermove', 1, 195, y)
++  await phoneFrames(2)
++  const held = await phone.evaluate(() => {
++    const g = window.__game
++    const button = document.querySelector('.menu-button')
++    const r = button.getBoundingClientRect()
++    const at = { pointerId: 2, pointerType: 'touch', isPrimary: false, clientX: r.x + r.width / 2, clientY: r.y + r.height / 2, bubbles: true }
++    const stick = !document.querySelector('.stick').hidden
++    button.dispatchEvent(new PointerEvent('pointerdown', at))
++    button.dispatchEvent(new PointerEvent('pointerup', at))
++    const open = g.menu.open
++    g.menu.toggle(false)
++    return { stick, open }
++  })
++  await finger('pointerup', 1, 195, 610)
++  await phoneFrames(2)
++  if (!held.stick || !held.open) throw new Error(`휴대폰: 조이스틱을 쥔 채 다른 손가락으로 누른 메뉴 단추가 먹지 않습니다 ${JSON.stringify(held)}`)
+   // 탈것 (E241): 버튼 없이 같은 조이스틱으로. 짧게 끌면 걷고, 원 밖으로 멀리(반지름의 1.6배 넘게) 끌면 산양에 올라타며, 떼면 멈춰 내린다
+   await phone.evaluate(() => {
+     const g = window.__game
+@@ -1246,7 +1266,7 @@ try {
+     throw new Error('휴대폰: 다시 세로로 들어도 안내가 남아 있습니다.')
+   })
+   await phone.close()
+-  console.log(`휴대폰 확인: 세로 화면 가로 ${p0.across.toFixed(1)}m, 끌기 → 조이스틱으로 걷기, 떼면 멈춤, 멀리 끌면 산양에 올라타고 떼면 내림, 톡 → 그곳까지·적이면 공격, 두 손가락 ${p3.view.toFixed(0)}m → ${p4.view.toFixed(0)}m(화질 기본값 낮음·그림자 끔), 가로로 들면 안내와 멈춤`)
++  console.log(`휴대폰 확인: 세로 화면 가로 ${p0.across.toFixed(1)}m, 끌기 → 조이스틱으로 걷기, 떼면 멈춤, 쥔 채 다른 손가락으로 누른 메뉴 단추도 열림, 멀리 끌면 산양에 올라타고 떼면 내림, 톡 → 그곳까지·적이면 공격, 두 손가락 ${p3.view.toFixed(0)}m → ${p4.view.toFixed(0)}m(화질 기본값 낮음·그림자 끔), 가로로 들면 안내와 멈춤`)
+   await browser.close()
+ 
+   if (errors.length) {
+diff --git a/src/fx/PowerUp.ts b/src/fx/PowerUp.ts
+index 5689546..6e1e3f5 100644
+--- a/src/fx/PowerUp.ts
++++ b/src/fx/PowerUp.ts
+@@ -34,7 +34,7 @@ export class PowerUp {
+   private readonly glow: THREE.Mesh
+   private readonly glowMaterial: THREE.MeshBasicMaterial
+   private glowLevel = 0
+-  /** 발현 레벨에 따른 모습: 0 없음, 1~4 */
++  /** 손에 쥔 신의 단계: 0 없음, 1~4 (몸에서 피어오르는 빛 조각의 양) */
+   private ascension = 0
+   private readonly ascendColor = new THREE.Color()
+   private riseTimer = 0
+@@ -51,7 +51,7 @@ export class PowerUp {
+     this.glow.rotation.x = -Math.PI / 2
+     this.glow.layers.set(EFFECT_LAYER)
+     this.object.add(this.glow)
+-    // 머리 위 빛 고리 둘 (Lv3에 하나, Lv4에 둘)
++    // 머리 위 빛 고리 둘 (고른 표식의 신이 3단계면 하나, 4단계면 둘: `setHalo`)
+     for (let i = 0; i < 2; i++) {
+       const halo = new THREE.Mesh(
+         new THREE.TorusGeometry(0.42 + i * 0.16, 0.035, 6, 32),
+@@ -66,15 +66,23 @@ export class PowerUp {
+   }
+ 
+   /**
+-   * 발현 레벨만큼 화려해진다: 레벨마다 몸에서 피어오르는 빛 조각이 많아지고,
+-   * Lv3에 머리 위 빛 고리, Lv4에 고리 둘과 더 큰 발밑 빛.
++   * 손에 쥔 신의 단계만큼 몸에서 피어오르는 빛 조각이 많아진다 (발밑 빛과 같은 힘의 표시).
++   * 머리 위 빛 고리는 여기서 띄우지 않는다 (`setHalo`)
+    */
+   setAscension(color: string | number | null, level: number): void {
+     this.ascension = color === null ? 0 : level
+     if (color !== null) this.ascendColor.set(color)
++  }
++
++  /**
++   * 머리 위 빛 고리 (E6 → E307): 보관함에서 고른 표식에 딸린다. 그 표식의 신이 3단계면 하나, 4단계면 둘 (`haloRings`), color가 null이면 없다.
++   * 손에 쥔 신의 단계를 따라 저절로 뜨지 않는다 (사용자 의견 4: 승천해도 내 모습은 그대로다. 발밑 빛과 빛 조각은 옷이 아니라 힘의 표시라 남긴다)
++   */
++  setHalo(color: string | number | null, level: number): void {
++    const rings = color === null ? 0 : haloRings(level)
+     this.halos.forEach((h, i) => {
+-      h.visible = this.ascension >= 3 + i
+-      ;(h.material as THREE.MeshBasicMaterial).color.copy(this.ascendColor)
++      h.visible = i < rings
++      if (color !== null) (h.material as THREE.MeshBasicMaterial).color.set(color)
+     })
+   }
+ 
+@@ -181,7 +189,7 @@ export class PowerUp {
+         this.columns.splice(i, 1)
+       }
+     }
+-    // 발현 레벨: 몸에서 빛 조각이 피어오르고, 머리 위 고리가 돈다
++    // 손에 쥔 신의 단계: 몸에서 빛 조각이 피어오른다
+     if (this.ascension > 0) {
+       this.riseTimer -= dt
+       if (this.riseTimer <= 0) {
+@@ -207,6 +215,7 @@ export class PowerUp {
+         this.rising.splice(i, 1)
+       }
+     }
++    // 머리 위 고리(고른 표식에 딸린 것)가 돈다
+     this.halos.forEach((h, i) => {
+       if (!h.visible) return
+       h.position.set(center.x, center.y + 2.15 + i * 0.12 + Math.sin(this.time * 2 + i) * 0.04, center.z)
+@@ -247,6 +256,11 @@ export class PowerUp {
+   }
+ }
+ 
++/** 머리 위 빛 고리의 수: 그 신이 3단계면 하나, 4단계면 둘 */
++export function haloRings(level: number): number {
++  return level >= 4 ? 2 : level >= 3 ? 1 : 0
++}
++
+ /** 가운데가 밝고 가장자리로 사라지는 둥근 빛 */
+ function glowTexture(): THREE.Texture {
+   const size = 64
+diff --git a/src/game/systems/Appearance.ts b/src/game/systems/Appearance.ts
+index 0e7bb32..e1f25eb 100644
+--- a/src/game/systems/Appearance.ts
++++ b/src/game/systems/Appearance.ts
+@@ -68,7 +68,7 @@ export class AppearanceSystem {
+     bus.emit('outfitChanged', {})
+   }
+ 
+-  /** 프레임마다: 고른 표식에 딸린 기운 연출을 켜고 끈다. 쓰러져 있으면 끈다. 아수라의 팔은 천천히 숨 쉬듯 흔들린다(dt: 이번 프레임의 게임 시간). */
++  /** 프레임마다: 고른 표식에 딸린 기운 연출과 머리 위 빛 고리를 켜고 끈다. 쓰러져 있으면 끈다. 아수라의 팔은 천천히 숨 쉬듯 흔들린다(dt: 이번 프레임의 게임 시간). */
+   update(dt = 1 / 60): void {
+     const { hero, combat, fx } = this.ctx
+     const mark = hero.rig.outfit.mark
+@@ -94,11 +94,19 @@ export class AppearanceSystem {
+     fx.asura.level = level
+     fx.tint.level = level
+     hero.rig.mark.rotation.z = aura === 'asura' ? Math.sin(this.sway * 1.7) * 0.06 : 0
++    // 머리 위 빛 고리도 고른 표식에 딸린다 (E307): 그 표식의 신이 3단계부터. 표식을 고르지 않았으면 손의 신이 몇 단계든 뜨지 않는다
++    const halo = combat.alive && owner ? `${owner}:${level}` : ''
++    if (halo !== this.halo) {
++      this.halo = halo
++      fx.power.setHalo(owner && halo ? godDef(owner).color : null, level)
++    }
+   }
+ 
+   private sway = 0
+   /** 공용 기운을 마지막으로 물들인 신 */
+   private tinted: string | null = null
++  /** 머리 위 고리를 마지막으로 맞춘 형편 (표식의 신과 단계, 없으면 빈 글) */
++  private halo = ''
+ }
+ 
+ const markOwners = new Map<string, God>()
+diff --git a/src/game/systems/Relics.ts b/src/game/systems/Relics.ts
+index b9c55af..40f5802 100644
+--- a/src/game/systems/Relics.ts
++++ b/src/game/systems/Relics.ts
+@@ -11,7 +11,7 @@ import { lendText, levelGains } from '../../myth/levelGains'
+ import { sceneId } from '../../data/scenes'
+ import { classIcon } from '../../ui/classIcons'
+ import { josa } from '../../ui/josa'
+-import { delta, gearIcon } from '../../ui/gearCard'
++import { betterLines, gearIcon } from '../../ui/gearCard'
+ import type { GameContext } from '../context'
+ import type { LoadoutChange } from '../RelicPowers'
+ import { godMoment } from './godMoments'
+@@ -281,14 +281,7 @@ export class RelicSystem {
+         else bus.emit('moment', { id: 'gearWornRare', card: { kind: '장비', ...card, lines: gear.stats.map((st) => statText(st.kind, st.value)) } })
+       } else if (worn && gearScore(gear) > gearScore(worn)) {
+         if (everyday(gear)) bus.emit('moment', { id: 'gearBetter', text: `더 좋은 장비 · ${gearName(gear)}` })
+-        else {
+-          const lines = gear.stats.map((st) => {
+-            const same = worn.stats.find((w) => w.kind === st.kind)
+-            const d = same ? delta(st.kind, st.value, same.value) : { text: '새 수치' }
+-            return d ? `${statText(st.kind, st.value)} ${d.text}` : statText(st.kind, st.value)
+-          })
+-          bus.emit('moment', { id: 'gearBetterRare', card: { kind: '더 좋은 장비 · 가방', ...card, lines } })
+-        }
++        else bus.emit('moment', { id: 'gearBetterRare', card: { kind: '더 좋은 장비 · 가방', ...card, lines: betterLines(gear, worn) } })
+         bus.emit('gearBetter', { item: gear })
+       }
+     } else if (!isMythRelic(id)) {
+@@ -395,7 +388,10 @@ export class RelicSystem {
+     this.unlock(id, announce)
+   }
+ 
+-  /** 발밑 빛: 손에 쥔 신의 색(2 + 신 단계). 손이 비었으면 가장 많이 켠 신의 색으로 유물 하나에 1단계 */
++  /**
++   * 발밑 빛: 손에 쥔 신의 색(2 + 신 단계). 손이 비었으면 가장 많이 켠 신의 색으로 유물 하나에 1단계.
++   * 몸에서 피어오르는 빛 조각도 손의 신 단계를 따른다. 머리 위 빛 고리는 여기서 띄우지 않는다 (고른 표식에 딸린다: `Appearance.update`, E307)
++   */
+   updateGlow(): void {
+     const { powers, progress, fx } = this.ctx
+     const counts = new Map<string, number>()
+diff --git a/src/input/TouchControls.ts b/src/input/TouchControls.ts
+index 3dd6505..94fed9b 100644
+--- a/src/input/TouchControls.ts
++++ b/src/input/TouchControls.ts
+@@ -21,6 +21,27 @@ const shown = (classes: readonly string[]) => classes.map((c) => `.${c}:not([hid
+ const PAUSING = shown(COVER_CLASSES.pausing)
+ const COVERS = shown([...COVER_CLASSES.pausing, ...COVER_CLASSES.passing])
+ 
++/**
++ * 톡을 삼키는 HUD 조각 (E307 손 QA): 엄지가 놓이는 아래 묶음(생명 막대·유물 칸을 싼 상자와 궁극기)과 원천 칩.
++ * 휴대폰에서 이 조각들은 누름을 받지 않고 게임 화면으로 흘려보낸다 (hud.css, 그 위에서 끌어도 조이스틱이 시작되게).
++ * 그런데 톡까지 흘리면 스킬 그림을 눌렀을 때 그 아래 가려진 땅으로 가는 이동 지시가 되어, 싸우다 말고 화면 아래로 걸어 나간다.
++ * 끌기는 그대로 조이스틱이고, 톡만 지시로 치지 않는다 (칸 사이 틈도 같게: 묶음을 싼 상자로 잰다)
++ */
++export const TAP_DEAD = ['.hud__dock', '.hud__ult', '.hud__essence'] as const
++
++/** 사각형 (화면 CSS 픽셀, DOMRect에서 쓰는 것만) */
++export interface Box {
++  left: number
++  top: number
++  right: number
++  bottom: number
++}
++
++/** 그 자리가 사각형들 가운데 하나 안인가 (숨은 요소의 빈 사각형은 아무것도 담지 않는다) */
++export function inBoxes(x: number, y: number, boxes: readonly Box[]): boolean {
++  return boxes.some((b) => b.right > b.left && b.bottom > b.top && x >= b.left && x <= b.right && y >= b.top && y <= b.bottom)
++}
++
+ /** `hidden`이 바뀐 요소 하나 (MutationRecord에서 쓰는 것만) */
+ export interface HiddenChange {
+   target: unknown
+@@ -42,6 +63,7 @@ export function coverOpened(changes: readonly HiddenChange[]): boolean {
+ /**
+  * 휴대폰 조작 (E235): 게임 화면(캔버스)에 닿은 손가락을 몸짓으로 읽고, 떠다니는 조이스틱을 그린다.
+  * 무엇을 할지(걷기·공격·확대)는 PlayerInput이 프레임마다 읽어 정한다. 마우스는 Input이 그대로 받는다.
++ * 아래 묶음(유물 칸·생명 막대·궁극기) 위에서 끌면 조이스틱이지만, 그 위의 톡은 지시로 치지 않는다 (`TAP_DEAD`).
+  * 대화 장면·정보 화면·일시 정지 창·두 갈래 카드·맹세 출발 카드가 뜨면 쥐고 있던 조이스틱을 놓고 원을 숨긴다 (E307):
+  * 손가락을 쥔 채여도 원이 그 창 위에 남지 않고, 뗐다 다시 대야 걷는다 (`COVER_CLASSES`)
+  */
+@@ -52,7 +74,7 @@ export class TouchControls {
+ 
+   constructor(
+     element: HTMLElement,
+-    parent: HTMLElement,
++    private readonly parent: HTMLElement,
+     private readonly now: () => number = () => performance.now() / 1000,
+   ) {
+     this.ring.className = 'stick'
+@@ -119,8 +141,14 @@ export class TouchControls {
+     return this.gestures.stretch > MOUNT.stickFar
+   }
+ 
++  /** 막 톡 누른 자리 (한 번만 읽힌다). 아래 묶음·원천 칩 위의 톡은 지시가 아니라 삼킨다 (`TAP_DEAD`) */
+   takeTap(): { x: number; y: number } | null {
+-    return this.gestures.takeTap()
++    const tap = this.gestures.takeTap()
++    if (!tap) return null
++    // 고르는 카드가 떠 있는 동안 숨는 원천 칩처럼 보이지 않는 조각은 톡을 막지 않는다
++    const seen = [...this.parent.querySelectorAll(TAP_DEAD.join(', '))].filter((el) => getComputedStyle(el).visibility !== 'hidden')
++    const boxes = seen.map((el) => el.getBoundingClientRect())
++    return inBoxes(tap.x, tap.y, boxes) ? null : tap
+   }
+ 
+   private draw(): void {
+diff --git a/src/input/fingerClick.ts b/src/input/fingerClick.ts
+new file mode 100644
+index 0000000..899c9fe
+--- /dev/null
++++ b/src/input/fingerClick.ts
+@@ -0,0 +1,157 @@
++/**
++ * 다른 손가락이 닿아 있는 동안 누른 단추 (E307 손 QA).
++ * 브라우저는 손가락 하나가 혼자 눌렀다 뗀 톡에만 click을 낸다. 조이스틱을 쥔 채, 또는 엄지를 화면에 얹은 채 다른 손가락으로 누른
++ * 단추에는 pointerdown·pointerup만 오고 click은 오지 않는다 (크로미움의 진짜 두 손가락으로 확인: 먼저 닿은 손가락이든 나중 손가락이든,
++ * 닿아 있는 동안 다른 손가락이 한 번이라도 함께 닿았으면 click이 없다. 아이폰 사파리도 한 손가락 톡만 click으로 바꾼다).
++ * 메뉴 단추·초상·작은 지도, 정보 화면의 탭·닫기·행동 단추, 고르는 카드의 단추는 모두 click을 듣는다.
++ * 단추마다 고치지 않고 여기 한 곳에서 그 톡의 click을 대신 낸다. 혼자 누른 손가락에는 손대지 않는다 (브라우저가 내는 click 그대로).
++ * 오래 얹혀 있던 손가락(쥔 손, 쉬는 엄지)은 떼어도 누른 것이 아니다: 그 아래 단추가 눌리지 않는다.
++ * 게임 화면의 톡·조이스틱(`touch.ts`)과는 따로 돈다: 그쪽은 포인터 사건을 직접 읽는다
++ */
++
++import { TAP_SECONDS } from './touch'
++
++/** 누른 자리에서 이만큼(px) 안에서 떼어야 누른 것이다 (더 끌면 브라우저도 톡으로 치지 않는다) */
++export const PRESS_SLOP = 12
++/**
++ * 이보다 오래(초) 닿아 있던 손가락은 누른 것이 아니다: 화면에 얹어 둔 엄지·휴대폰을 쥔 손이 단추 위에 있다가 떨어질 때
++ * 그 단추가 눌리지 않게 (게임 화면의 톡과 같은 문턱)
++ */
++export const PRESS_SECONDS = TAP_SECONDS
++/**
++ * 대신 낸 click 뒤 이 시간(초) 안에 같은 자리(ECHO_PX 안)로 온 브라우저의 click은 같은 톡의 것이다: 두 번 눌리지 않게 버린다.
++ * 브라우저가 톡을 click으로 바꾸는 데 걸리는 시간(두 번 누르기를 기다릴 때 0.35초쯤)보다 길게 잡는다
++ */
++export const ECHO_SECONDS = 0.5
++export const ECHO_PX = 40
++
++interface Press<T> {
++  target: T
++  x: number
++  y: number
++  /** 닿은 때 (초) */
++  start: number
++  /** 닿아 있는 동안 다른 손가락이 함께 닿은 적이 있다 (브라우저가 click을 내지 않는다) */
++  shared: boolean
++  /** 같은 자리를 함께 누른 다른 접점이 이미 눌렀다: 이 접점은 또 누르지 않는다 */
++  spent: boolean
++}
++
++/** 닿아 있는 손가락들과, 그 가운데 브라우저가 click을 내지 않을 누름 (DOM 없음. T는 누른 것) */
++export class FingerPresses<T> {
++  private readonly held = new Map<number, Press<T>>()
++  /** 마지막으로 대신 낸 click */
++  private last: { id: number; x: number; y: number; t: number } | null = null
++
++  /** 손가락이 닿았다 (t초). primary: 다른 손가락이 하나도 없이 처음 닿은 손가락 (그때 남아 있는 것은 뗀 것을 놓친 것이라 잊는다) */
++  down(id: number, target: T, x: number, y: number, t: number, primary = false): void {
++    if (primary) this.held.clear()
++    const shared = this.held.size > 0
++    for (const other of this.held.values()) other.shared = true
++    this.held.set(id, { target, x, y, start: t, shared, spent: false })
++  }
++
++  /**
++   * 손가락을 뗐다 (t초). 브라우저가 click을 내지 않을 누름이면 그 누른 것: 닿아 있는 동안 다른 손가락이 함께 닿았고,
++   * 누른 자리에서 `PRESS_SECONDS` 안에 뗐다. 혼자 눌렀다 뗀 손가락, 끌린 손가락, 오래 얹혀 있던 손가락은 null.
++   * 같은 자리(ECHO_PX 안)를 함께 누르고 있는 다른 접점은 이 누름에 든 것으로 친다:
++   * 단추 하나를 두 손가락으로(또는 엄지 하나가 두 접점으로 잡혀) 눌러도 한 번만 눌린다
++   */
++  up(id: number, x: number, y: number, t: number): T | null {
++    const press = this.held.get(id)
++    if (!press) return null
++    this.held.delete(id)
++    if (press.spent || !press.shared || t - press.start > PRESS_SECONDS || Math.hypot(x - press.x, y - press.y) > PRESS_SLOP) return null
++    for (const other of this.held.values()) if (Math.hypot(other.x - press.x, other.y - press.y) <= ECHO_PX) other.spent = true
++    return press.target
++  }
++
++  /** 손가락을 잃었다 (브라우저가 밀기·확대로 가져감): 누른 것이 아니다 */
++  cancel(id: number): void {
++    this.held.delete(id)
++  }
++
++  /** 손가락을 모두 잊는다 (창이 가려져 뗀 것을 못 받을 수 있을 때) */
++  reset(): void {
++    this.held.clear()
++  }
++
++  /** 그 손가락의 click을 대신 냈다 */
++  made(id: number, x: number, y: number, t: number): void {
++    this.last = { id, x, y, t }
++  }
++
++  /**
++   * 브라우저가 낸 click이 방금 대신 낸 click과 같은 톡의 것인가 (그런 브라우저가 있다면 두 번 눌린다). 한 번만 참이다.
++   * id: 그 click을 낸 포인터 (모르면 undefined). 다른 손가락의 click은 같은 톡이 아니다
++   */
++  echo(x: number, y: number, t: number, id?: number): boolean {
++    const last = this.last
++    if (!last || t - last.t > ECHO_SECONDS) return false
++    if (id !== undefined && id !== last.id) return false
++    if (Math.hypot(x - last.x, y - last.y) > ECHO_PX) return false
++    this.last = null
++    return true
++  }
++}
++
++/** 손가락 톡 대신 낸 click들 */
++const made = new WeakSet<Event>()
++
++/** 그 click은 손가락 톡 대신 낸 것인가. 코드가 낸 click(봇·점검 스크립트)과 가른다: 사람 손이라 고르는 카드의 잠금을 그대로 받는다 */
++export function isFingerClick(e: Event): boolean {
++  return made.has(e)
++}
++
++/**
++ * 창에 귀를 건다 (한 번, 시작할 때). 손가락(`pointerType: touch`)만 본다.
++ * click은 그 pointerup이 단추들을 다 거친 뒤(창의 bubble)에 낸다: 브라우저의 차례(pointerup → click)와 같게.
++ * 받는 것은 뗀 자리의 요소다. 누른 요소와 이어져 있을 때만 낸다 (누르는 사이 그 자리에 뜬 다른 창·카드를 누른 것이 되지 않게)
++ */
++export function listenFingerClicks(): void {
++  const presses = new FingerPresses<Element>()
++  const now = () => performance.now() / 1000
++  /** 방금 뗀, click을 대신 낼 누름 */
++  let lifted: { id: number; from: Element } | null = null
++  addEventListener('pointerdown', (e) => e.pointerType === 'touch' && e.target instanceof Element && presses.down(e.pointerId, e.target, e.clientX, e.clientY, now(), e.isPrimary), true)
++  addEventListener('pointercancel', (e) => e.pointerType === 'touch' && presses.cancel(e.pointerId), true)
++  addEventListener(
++    'pointerup',
++    (e) => {
++      if (e.pointerType !== 'touch') return
++      const from = presses.up(e.pointerId, e.clientX, e.clientY, now())
++      lifted = from && { id: e.pointerId, from }
++    },
++    true,
++  )
++  addEventListener('pointerup', (e) => {
++    if (lifted?.id !== e.pointerId) return
++    const { from } = lifted
++    lifted = null
++    const at = document.elementFromPoint(e.clientX, e.clientY)
++    // 눌 수 없는 단추에는 브라우저도 click을 내지 않는다
++    if (!at || at.closest(':disabled')) return
++    if (from.isConnected && from !== at && !from.contains(at) && !at.contains(from)) return
++    const click = new MouseEvent('click', { bubbles: true, cancelable: true, composed: true, view: window, detail: 1, clientX: e.clientX, clientY: e.clientY, screenX: e.screenX, screenY: e.screenY })
++    made.add(click)
++    presses.made(e.pointerId, e.clientX, e.clientY, now())
++    at.dispatchEvent(click)
++  })
++  // 같은 톡에 브라우저도 click을 냈다면(여기서 본 브라우저들은 내지 않는다) 그 click은 누구도 듣기 전에 버린다
++  addEventListener(
++    'click',
++    (e) => {
++      if (!e.isTrusted || !presses.echo(e.clientX, e.clientY, now(), (e as Partial<PointerEvent>).pointerId)) return
++      e.stopImmediatePropagation()
++      e.preventDefault()
++    },
++    true,
++  )
++  const forget = () => {
++    presses.reset()
++    lifted = null
++  }
++  addEventListener('blur', forget)
++  addEventListener('pagehide', forget)
++  document.addEventListener('visibilitychange', () => document.visibilityState === 'hidden' && forget())
++}
+diff --git a/src/input/touch.ts b/src/input/touch.ts
+index 67d7109..c4eb2e3 100644
+--- a/src/input/touch.ts
++++ b/src/input/touch.ts
+@@ -1,6 +1,7 @@
+ /**
+  * 손가락 몸짓 알아보기 (E235, 휴대폰). 좌표는 화면의 CSS 픽셀이다.
+- * - 톡: 짧게 누르고 거의 움직이지 않고 뗀다 → 컴퓨터의 클릭과 같다 (적이면 공격, 땅이면 그곳까지)
++ * - 톡: 누르고 거의 움직이지 않은 채 뗀다 → 컴퓨터의 클릭과 같다 (적이면 공격, 땅이면 그곳까지). 꾹 눌렀다 떼어도 톡이다
++ *   (`TAP_SECONDS`까지). 그보다 오래 제자리에 얹혀 있던 손가락은 쉬던 손가락이라 떼어도 지시가 아니다
+  * - 끌기: 누른 자리에 떠다니는 조이스틱이 생기고, 손잡이 쪽으로 걷는다. 원은 뗄 때까지 그 자리에 있고, 손잡이만 원 안에서 움직인다
+  *   (원이 손가락을 따라오면 패드가 움직여 보인다는 사용자 의견, 2026-10-28). 원 밖으로 멀리 끌면 탈것에 오른다 (E241, `stretch`)
+  * - 두 손가락: 벌리고 오므려 확대·축소. 둘째 손가락이 닿는 것만으로는 확대가 아니다 (E307, 사용자 의견 「터치 여러 번 했을 때
+@@ -17,8 +18,11 @@ export const DRAG_START = 12
+ export const STICK_RADIUS = 48
+ /** 손잡이가 가운데에서 이만큼(px) 안이면 서 있는다 */
+ export const STICK_DEAD = 8
+-/** 이보다 오래 누르면 톡이 아니다 (초) */
+-export const TAP_SECONDS = 0.35
++/**
++ * 이보다 오래 누르면 톡이 아니다 (초). 적을 꾹 눌러 고르는 손(0.5초 안팎)까지는 받는다: 0.35초이던 때에는 조금만 길게 눌러도
++ * 아무 일 없이 씹힌 톡으로 보였다 (E307 손 QA). 이보다 길면 화면에 얹어 둔 엄지·휴대폰을 쥔 손이다
++ */
++export const TAP_SECONDS = 0.8
+ /** 두 손가락 사이 거리가 처음보다 이만큼(px) 넘게, 그리고 PINCH_START_RATIO 넘게 바뀌어야 확대·축소로 잠근다 (E307) */
+ export const PINCH_START_PX = 24
+ /** 두 손가락 사이 거리가 처음의 이 비율 넘게 바뀌어야 한다 (멀리 떨어진 두 엄지일수록 더 많이 움직여야 한다) */
+diff --git a/src/main.ts b/src/main.ts
+index 0274d6d..43a40f9 100644
+--- a/src/main.ts
++++ b/src/main.ts
+@@ -2,6 +2,7 @@ import './ui/theme.css'
+ import './ui/parts.css'
+ import { Game } from './game/Game'
+ import { coarsePointer, detectTouch, phoneScreen } from './input/device'
++import { listenFingerClicks } from './input/fingerClick'
+ import { isRelicId, RELIC_IDS } from './relics/data'
+ import { SLOT_COUNT, saveStorage, TITLE_REQUEST } from './save/SaveData'
+ import { RENDER_QUALITIES, settingsStorage } from './save/settings'
+@@ -28,6 +29,9 @@ settingsStorage.useDevice(phoneScreen(touch, innerWidth, innerHeight))
+ for (const type of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(type, (e) => e.preventDefault(), { passive: false })
+ // 두 번 눌러 확대는 index.html의 touch-action: manipulation(모든 요소)이 막는다. 0.3초 안에 이어 뗀 손가락의 touchend를 막던
+ // 가드는 걷었다 (E307): 그 톡의 click까지 지워, 빠르게 이어 누른 탭·단추와 「한 번 더 누르면」(수련 마디·가방 장비)이 먹지 않았다
++// 한 손가락이 닿아 있는 동안(조이스틱을 쥔 엄지, 화면에 얹은 손) 다른 손가락으로 누른 단추에는 브라우저가 click을 내지 않는다:
++// 그 톡의 click을 대신 낸다 (E307. 메뉴 단추·초상·작은 지도·정보 화면·고르는 카드·처음 화면의 단추가 모두 click을 듣는다)
++listenFingerClicks()
+ const rotateHint = new RotateHint(document.body, touch)
+ const resParam = Number(params.get('res'))
+ const viewParam = Number(params.get('view'))
+diff --git a/src/myth/levelGains.ts b/src/myth/levelGains.ts
+index 7e6a530..3f15abb 100644
+--- a/src/myth/levelGains.ts
++++ b/src/myth/levelGains.ts
+@@ -33,7 +33,9 @@ function describe(key: keyof ClassPassive, part: never, level: number): string {
+     case 'skyStrike':
+       return `${p.name}: ${at('interval')}초마다 주변 적 ${at('targets')}명에게 (피해 ${at('damage')})`
+     case 'companions':
+-      return `${p.name} ${at('counts')}이 곁에서 함께 싸움 (일격 피해 ${at('damage')})`
++      // 수는 이름에 붙이지 않고 괄호 안에 적는다 (E307): 「후긴과 무닌 1이」는 읽히지 않았고, 수가 둘이면 조사도 틀렸다.
++      // 오른 단계의 줄(「후긴과 무닌 수 1 → 2」)과 같은 말을 쓴다
++      return `${josa(p.name, '이')} 곁에서 함께 싸움 (${LABELS.counts} ${at('counts')}, 일격 피해 ${at('damage')})`
+     case 'orbit':
+       return `${josa(p.name, '이')} ${at('count')}개 몸 둘레를 돌며 닿는 적을 침 (피해 ${at('damage')})`
+     case 'pulse':
+diff --git a/src/ui/GameMenu.ts b/src/ui/GameMenu.ts
+index 8210443..f8ca1e8 100644
+--- a/src/ui/GameMenu.ts
++++ b/src/ui/GameMenu.ts
+@@ -8,7 +8,7 @@ import { renderStatus } from './menu/statusTab'
+ import { renderOaths } from './menu/oathsTab'
+ import { TrainingTab } from './menu/trainingTab'
+ import { el, img, type TabContext } from './menu/dom'
+-import { HintTaps } from './menu/hintTaps'
++import { hintSpot, HintTaps } from './menu/hintTaps'
+ import type { MenuHost } from './menu/host'
+ import { glyph } from './sigils'
+ import './menu.css'
+@@ -73,7 +73,13 @@ export class GameMenu {
+   onToggle: (open: boolean) => void = () => {}
+ 
+   constructor(parent: HTMLElement, host: MenuHost) {
+-    this.ctx = { host, hintOn: (target, text) => this.hintOn(target, text), render: () => this.render(), close: () => this.toggle(false) }
++    this.ctx = {
++      host,
++      hintOn: (target, text, avoid) => this.hintOn(target, text, avoid),
++      hintOff: (target) => this.hintOff(target),
++      render: () => this.render(),
++      close: () => this.toggle(false),
++    }
+     this.relics = new RelicsTab(this.ctx)
+     this.gods = new GodsTab(this.ctx)
+     this.training = new TrainingTab(this.ctx)
+@@ -115,7 +121,7 @@ export class GameMenu {
+         home.classList.remove('is-confirm')
+         home.lastElementChild!.textContent = '처음 화면'
+         // 손가락으로 띄운 설명도 함께 거둔다 (세로 화면에서는 바로 아래 탭 줄을 덮고 있다)
+-        if (this.fingerHint === home) this.hint.hidden = true
++        this.hintOff(home)
+       }, 2500)
+     })
+     this.hintOn(home, '처음 화면\n지금까지를 저장하고 슬롯 고르기 화면으로 돌아간다')
+@@ -219,9 +225,10 @@ export class GameMenu {
+   /**
+    * 커서를 올리면(마우스) 힌트를 그 칸 근처에 띄우고, 벗어나면 거둔다. 창을 다시 그리면 닫힌다.
+    * 손가락은 설명만 있는 칸이면 떼는 순간 띄워 다음에 누를 때까지 두고, 일을 하는 단추(탭·행동 단추)는
+-   * 그 톡이 창을 다시 그리지 않았을 때만 띄운다 (「한 번 더 누르면」의 첫 톡. `HintTaps`)
++   * 그 톡이 창을 다시 그리지 않았을 때만 띄운다 (「한 번 더 누르면」의 첫 톡. `HintTaps`).
++   * avoid는 그 칸이 가리키는 것: 말풍선이 그것을 덮지 않는 쪽(칸의 아래나 위)에 둔다 (`hintSpot`)
+    */
+-  private hintOn(target: HTMLElement, text: string | (() => string)): void {
++  private hintOn(target: HTMLElement, text: string | (() => string), avoid?: () => HTMLElement | null): void {
+     const show = (finger = false) => {
+       // 다시 그려 떼어진 옛 단추나 닫힌 창에는 띄우지 않는다 (자리를 잴 수 없어 창 구석에 뜬다)
+       if (!target.isConnected || !this.open) return
+@@ -233,12 +240,13 @@ export class GameMenu {
+       else this.hint.textContent = words
+       this.hint.hidden = false
+       const frame = this.hint.parentElement!.getBoundingClientRect()
+-      const r = target.getBoundingClientRect()
+-      const width = this.hint.offsetWidth
+-      const left = Math.min(Math.max(8, r.left - frame.left + r.width / 2 - width / 2), frame.width - width - 8)
+-      const below = r.bottom - frame.top + 6
+-      const top = below + this.hint.offsetHeight > frame.height - 8 ? r.top - frame.top - this.hint.offsetHeight - 6 : below
+-      this.hint.style.transform = `translate(${Math.round(left)}px, ${Math.round(top)}px)`
++      const box = (e: HTMLElement) => {
++        const r = e.getBoundingClientRect()
++        return { left: r.left - frame.left, top: r.top - frame.top, width: r.width, height: r.height }
++      }
++      const kept = avoid?.() ?? null
++      const { left, top } = hintSpot(box(target), { width: this.hint.offsetWidth, height: this.hint.offsetHeight }, frame, kept && box(kept))
++      this.hint.style.transform = `translate(${left}px, ${top}px)`
+     }
+     target.addEventListener('pointerenter', (e) => e.pointerType === 'mouse' && show())
+     target.addEventListener('pointerleave', (e) => e.pointerType === 'mouse' && (this.hint.hidden = true))
+@@ -249,6 +257,11 @@ export class GameMenu {
+     target.addEventListener('pointerup', (e) => e.pointerType !== 'mouse' && this.taps.lift(tapped, acts()) && tapped())
+   }
+ 
++  /** 손가락으로 그 칸에 띄운 힌트를 거둔다 (「한 번 더 누르면」을 기다리던 단추가 처음으로 돌아갈 때). 다른 칸의 힌트는 그대로 둔다 */
++  private hintOff(target: HTMLElement): void {
++    if (this.fingerHint === target) this.hint.hidden = true
++  }
++
+   /** 탭 줄에 보이는 탭인가 */
+   private tabShown(tab: MenuTab): boolean {
+     const { host } = this.ctx
+diff --git a/src/ui/Hud.ts b/src/ui/Hud.ts
+index 449a135..64402a5 100644
+--- a/src/ui/Hud.ts
++++ b/src/ui/Hud.ts
+@@ -5,10 +5,10 @@ import './hud.css'
+ import { BOLT_ICON, pixelIcon } from './pixelIcon'
+ import { smallSigilRing } from './emblem'
+ import { shortNumber } from './format'
+-import { type GainsCard, GAINS_LIFE, GainsLine, type GainsSize, gainsView } from './gainsLine'
++import { type GainsCard, GAINS_LIFE, GainsLine, gainsMark, type GainsSize, gainsView } from './gainsLine'
+ import { heroIcon } from './heroIcon'
+ import { glyph, sourceSigil } from './sigils'
+-import { TOAST_LIFE, type ToastBundle, ToastLine } from './toastLine'
++import { TOAST_LIFE, type ToastBundle, ToastLine, toastLift } from './toastLine'
+ 
+ export interface HudSlot {
+   /** 유물 그림 주소. 빈 칸이면 null */
+@@ -180,6 +180,9 @@ export class Hud {
+     this.coach = this.el('div', 'hud__coach', this.root)
+     this.flashEl = this.el('div', 'hud__flash', this.root)
+     this.gains = this.el('div', 'hud__gains', this.root)
++    // 제 시간을 다 떠 있은 카드는 걷는다: 사라지는 움직임의 끝 모습(forwards)으로 남지 않게 (E307: 새 탭 카드가 흐려진 채 메뉴 단추 위에 남았다).
++    // 줄(li)의 움직임이 끝난 것은 카드의 것이 아니다
++    this.gains.addEventListener('animationend', (e) => e.target === this.gains && this.gains.classList.remove('is-showing'))
+ 
+     this.xpBar = this.el('div', 'hud__xp', this.root)
+     this.xpFill = this.el('div', 'hud__xp-fill', this.xpBar)
+@@ -472,12 +475,15 @@ export class Hud {
+       const li = this.el('li', '', list)
+       // 작은 카드는 금방 넘어가니 줄도 바로 보인다
+       li.style.animationDelay = size === 'card' ? `${0.12 + i * 0.06}s` : `${0.35 + i * 0.12}s`
+-      const [from, to] = line.split(' → ')
++      // 견주는 줄은 제 결과(나빠졌다 ▼·같다 ·)를 줄 앞의 표시로 보인다 (hud.css, 표시 없이 온 줄은 얻은 것 ▲)
++      const { mark, text } = gainsMark(line)
++      if (mark !== 'up') li.classList.add(`is-${mark}`)
++      const [from, to] = text.split(' → ')
+       if (to !== undefined) {
+         this.el('span', 'hud__gains-from', li).textContent = from!
+         this.el('span', 'hud__gains-arrow', li).textContent = '→'
+         this.el('span', 'hud__gains-to', li).textContent = to
+-      } else li.textContent = line
++      } else li.textContent = text
+     })
+     this.restartAnimation(card)
+   }
+@@ -538,7 +544,7 @@ export class Hud {
+     }
+     this.toast.textContent = this.toasts.take(now)
+     this.toastUntil = now + TOAST_LIFE + TOAST_TAIL_MS
+-    this.liftToast()
++    this.liftToast(true)
+     this.restartAnimation(this.toast)
+     this.nextToast()
+   }
+@@ -547,27 +553,22 @@ export class Hud {
+    * 휴대폰: 알림이 땅의 카드에 가리면 그 카드 위 끝 바로 위로 올린다 (E307). 다가가면 뜨는 땅의 카드는 아래 묶음 바로 위,
+    * 곧 알림 자리에 뜨고 알림보다 위에 그려진다: 흩어진 장비를 걸어가며 주우면 「낌」 알림이 다음 장비의 카드 뒤에 통째로 가렸다.
+    * 알림이 떠 있는 동안만 프레임마다 잰다 (카드가 알림보다 늦게 뜨기도 한다). 올릴 자리가 화면 밖이면 그대로 둔다.
++   * 떠 있는 알림은 올라가기만 한다: 읽는 도중에 카드가 닫혀도 제자리로 뛰어내리지 않고, 새 알림(fresh)이 뜰 때 다시 잰다 (`toastLift`).
+    * 컴퓨터의 커서 카드는 올려 본 동안만 뜨니 그대로 둔다
+    */
+-  private liftToast(): void {
++  private liftToast(fresh = false): void {
+     if (performance.now() >= this.toastUntil) {
+       // 다 사라졌다: 올린 높이는 다음 알림이 뜰 때 다시 잰다
+       this.toastUntil = 0
+       return
+     }
+-    let lift = 0
+     const card = touchUi() ? this.root.parentElement?.querySelector<HTMLElement>(':scope > .relic-tooltip:not([hidden])') : null
+-    if (card) {
+-      const { toast } = this
+-      const c = card.getBoundingClientRect()
+-      // 올리지 않았을 때 알림의 상자 (움직임의 transform은 빼고 잰다. 가로는 가운데 맞춤)
+-      const top = toast.offsetTop + this.toastLift
+-      const bottom = top + toast.offsetHeight
+-      const center = toast.offsetLeft
+-      const half = toast.offsetWidth / 2
+-      const hidden = c.top < bottom && c.bottom > top && c.left < center + half && c.right > center - half
+-      if (hidden && c.top - TOAST_GAP - toast.offsetHeight >= 0) lift = Math.round(bottom - (c.top - TOAST_GAP))
+-    }
++    const { toast } = this
++    // 올리지 않았을 때 알림의 상자 (움직임의 transform은 빼고 잰다. 가로는 가운데 맞춤)
++    const top = toast.offsetTop + this.toastLift
++    const half = toast.offsetWidth / 2
++    const box = { top, bottom: top + toast.offsetHeight, left: toast.offsetLeft - half, right: toast.offsetLeft + half }
++    const lift = toastLift(box, card?.getBoundingClientRect() ?? null, TOAST_GAP, fresh ? 0 : this.toastLift)
+     if (lift === this.toastLift) return
+     this.toastLift = lift
+     this.toast.style.setProperty('--lift', `${lift}px`)
+diff --git a/src/ui/gainsLine.ts b/src/ui/gainsLine.ts
+index 2199585..08af4da 100644
+--- a/src/ui/gainsLine.ts
++++ b/src/ui/gainsLine.ts
+@@ -44,6 +44,25 @@ export function gainsView(card: GainsCard): { kind: string; title: string; lines
+   return { kind: rest.join(' · '), title: `${what} ${countWord(names.length)}`, lines }
+ }
+ 
++/** 카드 한 줄 앞의 표시: 얻었다·좋아졌다(▲, 기본), 나빠졌다(▼), 같다(·) */
++export type GainsMark = 'up' | 'down' | 'same'
++
++/** 견준 결과를 줄 앞에 붙이는 글자 (`markLine`으로 붙이고 `gainsMark`로 뗀다) */
++const MARK_HEADS: Readonly<Record<GainsMark, string>> = { up: '▲ ', down: '▼ ', same: '= ' }
++
++/** 견주는 줄을 만든다: 표시를 줄 앞에 붙인다 (「더 좋은 장비 · 가방」 카드의 수치 줄) */
++export const markLine = (mark: GainsMark, text: string): string => `${MARK_HEADS[mark]}${text}`
++
++/**
++ * 줄 앞의 표시와 남은 글 (E307). 카드의 줄에는 늘 표시 하나가 앞에 붙는다(얻은 것 ▲).
++ * 견주는 줄이 제 결과를 줄 끝에 따로 달면 「▲ 받는 피해 −7% ▲」, 나빠진 수치는 「▲ … ▼」처럼 표시 둘이 서로 다른 말을 했다:
++ * 견준 결과는 줄 앞의 그 표시 하나가 말한다. 표시 없이 온 줄은 얻은 것(▲)이다
++ */
++export function gainsMark(line: string): { mark: GainsMark; text: string } {
++  for (const mark of ['up', 'down', 'same'] as const) if (line.startsWith(MARK_HEADS[mark])) return { mark, text: line.slice(MARK_HEADS[mark].length) }
++  return { mark: 'up', text: line }
++}
++
+ /**
+  * 얻은 것 카드의 줄 (E23-01 → E307 카드 예산). 카드는 한 장씩 차례로 뜬다:
+  * - 같은 종류의 장비 카드(`bundles`)가 줄에 서 있으면 한 장으로 묶는다 (「장비 셋」): 희귀 장비 넷을 이어 주워도 카드는 두 장
+diff --git a/src/ui/gearCard.ts b/src/ui/gearCard.ts
+index 2210710..b2da139 100644
+--- a/src/ui/gearCard.ts
++++ b/src/ui/gearCard.ts
+@@ -8,6 +8,7 @@ import { GRADES } from '../data/gearData'
+ import { statText } from '../myth/alwaysText'
+ import { iconFromGrid } from '../voxel/iconFromGrid'
+ import { gearGrid } from '../voxel/models/gearLooks'
++import { markLine } from './gainsLine'
+ import { pixelIcon } from './pixelIcon'
+ 
+ function el<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, text?: string): HTMLElementTagNameMap[K] {
+@@ -44,6 +45,21 @@ export function delta(kind: string, value: number, other: number): { text: strin
+   return { text: good ? '▲' : '▼', good }
+ }
+ 
++/**
++ * 「더 좋은 장비 · 가방」 카드의 수치 줄 (E307): 지금 낀 것과 견준 결과를 줄 앞의 표시 하나로 단다 (`gainsLine.ts`의 markLine).
++ * 좋아졌으면 ▲, 나빠졌으면 ▼, 같으면 ·, 낀 것에 없는 수치는 얻은 것(▲)에 「새 수치」.
++ * 전에는 결과를 줄 끝에 달아, 카드가 줄마다 앞에 붙이는 ▲와 겹쳤다 (「▲ 받는 피해 −7% ▲」, 나빠진 수치는 「▲ … ▼」)
++ */
++export function betterLines(item: GearItem, worn: GearItem): string[] {
++  return item.stats.map((st) => {
++    const text = statText(st.kind, st.value)
++    const same = worn.stats.find((w) => w.kind === st.kind)
++    if (!same) return markLine('up', `${text} 새 수치`)
++    const d = delta(st.kind, st.value, same.value)
++    return markLine(d ? (d.good ? 'up' : 'down') : 'same', text)
++  })
++}
++
+ /**
+  * 일반 장비 설명 카드 (E13-07): 단계·등급·부위, 수치(지금 그 부위에 낀 것과 비교), 원천, 영웅 고유 효과.
+  * worn은 같은 부위에 지금 낀 일반 장비 (없으면 비교하지 않는다).
+diff --git a/src/ui/hud.css b/src/ui/hud.css
+index 01893b4..17b7279 100644
+--- a/src/ui/hud.css
++++ b/src/ui/hud.css
+@@ -251,6 +251,10 @@ button.hud__slot--empty {
+ .damage-number--hurt {
+   color: #ff6b5e;
+ }
++/*
++ * 주운 것의 이름: 굵지 않은 글(획 한 칸)이라 숫자의 그림자(두 칸 떨어진 넷)로는 획 옆이 비어 눈 땅 위에서 뭉개졌다 (E307).
++ * 획에 바로 붙는 테두리를 쓴다 (`theme.css`의 --text-edge)
++ */
+ .damage-number--label {
+   white-space: nowrap;
+   font: max(12px, round(down, 2.2vh, 12px)) / 1 var(--font-body);
+@@ -278,7 +282,10 @@ button.hud__slot--empty {
+   font: max(30px, round(down, 6vh, 15px)) / 1.2 var(--font-display);
+   letter-spacing: 0.1em;
+ }
+-/* --lift: 땅의 카드(다가가면 뜨는 카드)가 이 자리를 덮으면 Hud가 그 카드 위로 올리는 높이 */
++/*
++ * --lift: 땅의 카드(다가가면 뜨는 카드)가 이 자리를 덮으면 Hud가 그 카드 위로 올리는 높이.
++ * 본문 크기의 글(획 한 칸)이라 큰 글씨의 그림자(세 칸 떨어진 넷) 대신 획에 바로 붙는 테두리를 쓴다 (E307, `theme.css`의 --text-edge)
++ */
+ .hud__toast {
+   bottom: calc(var(--unit) * 14 + var(--lift, 0px));
+   font: max(12px, round(down, 2.4vh, 12px)) / 1.4 var(--font-body);
+@@ -428,7 +435,8 @@ button.hud__slot--empty {
+ }
+ /*
+  * 휴대폰 (E307): 엄지가 놓이는 아래 가운데의 유물 칸·생명 막대·궁극기와 원천 칩은 누름을 받지 않고 게임 화면으로 흘려보낸다.
+- * 그 위에서 끌어도 조이스틱이 시작되고, 칸을 톡해도 정보 화면이 열리지 않는다 (설명은 정보 화면에서. 초상이나 메뉴 단추로 연다)
++ * 그 위에서 끌어도 조이스틱이 시작되고, 칸을 톡해도 정보 화면이 열리지 않는다 (설명은 정보 화면에서. 초상이나 메뉴 단추로 연다).
++ * 그 위의 톡은 땅으로 가는 지시로도 치지 않는다: 조각을 더하면 `TouchControls.ts`의 `TAP_DEAD`에도 더한다 (`tests/touch.test.ts`)
+  */
+ .is-touch button.hud__slot,
+ .is-touch .hud__life,
+@@ -495,7 +503,10 @@ button.hud__slot--empty {
+ .hud__gains:not(.is-side) .hud__gains-title {
+   font: var(--t-display);
+ }
+-/* 새 탭 (E236-05): 가운데 떴다가 오른쪽 위 메뉴 단추로 작아지며 날아 들어간다. 단추는 정보 화면을 열 때까지 부른다 */
++/*
++ * 새 탭 (E236-05): 가운데 떴다가 오른쪽 위 메뉴 단추로 작아지며 날아 들어간다. 단추는 정보 화면을 열 때까지 부른다.
++ * 단추에 닿으면 다 사라진다: 흐린 채(0.2)로 끝나면 forwards가 그 모습을 붙들어, 줄어든 카드가 다음 카드가 뜰 때까지 단추 위에 남았다 (E307)
++ */
+ .hud__gains.is-fly.is-showing {
+   animation: hud-gains-fly var(--life, 3.6s) ease-in forwards;
+ }
+@@ -563,6 +574,15 @@ button.hud__slot--empty {
+   content: '▲ ';
+   color: var(--c-good);
+ }
++/* 견주는 줄 (더 좋은 장비 · 가방, E307): 줄 앞의 표시 하나가 지금 낀 것보다 좋아졌나(▲)·나빠졌나(▼)·같은가를 말한다 (`gainsLine.ts`의 gainsMark) */
++.hud__gains li.is-down::before {
++  content: '▼ ';
++  color: var(--c-bad);
++}
++.hud__gains li.is-same::before {
++  content: '· ';
++  color: var(--c-ink-3);
++}
+ @keyframes hud-gains-line {
+   from { opacity: 0; transform: translateX(-8px); }
+   to { opacity: 1; transform: none; }
+diff --git a/src/ui/menu/dom.ts b/src/ui/menu/dom.ts
+index a79ba2d..65cf029 100644
+--- a/src/ui/menu/dom.ts
++++ b/src/ui/menu/dom.ts
+@@ -27,8 +27,13 @@ export function pips(level: number, max = MAX_LEVEL): HTMLElement {
+ /** 탭이 정보 화면에서 쓰는 것 */
+ export interface TabContext {
+   readonly host: MenuHost
+-  /** 커서를 올리거나(데스크톱) 누르면(터치) 그 칸 근처에 힌트를 띄운다. 누르면 창을 다시 그리는 단추는 손가락에 띄우지 않는다 (`HintTaps`) */
+-  hintOn(target: HTMLElement, text: string | (() => string)): void
++  /**
++   * 커서를 올리거나(데스크톱) 누르면(터치) 그 칸 근처에 힌트를 띄운다. 누르면 창을 다시 그리는 단추는 손가락에 띄우지 않는다 (`HintTaps`).
++   * avoid는 그 칸이 가리키는 것(녹일 장비의 카드): 힌트가 그것을 덮지 않는 쪽에 뜬다
++   */
++  hintOn(target: HTMLElement, text: string | (() => string), avoid?: () => HTMLElement | null): void
++  /** 손가락으로 그 칸에 띄운 힌트를 거둔다 (확인을 기다리던 단추가 처음으로 돌아갈 때) */
++  hintOff(target: HTMLElement): void
+   /** 지금 탭을 다시 그린다 */
+   render(): void
+   /** 정보 화면을 닫는다 */
+diff --git a/src/ui/menu/hintTaps.ts b/src/ui/menu/hintTaps.ts
+index 9798035..32aa30f 100644
+--- a/src/ui/menu/hintTaps.ts
++++ b/src/ui/menu/hintTaps.ts
+@@ -36,3 +36,30 @@ export class HintTaps<T> {
+     return held && held.drawn === drawn ? held.target : null
+   }
+ }
++
++/** 창 안의 상자 (창의 왼쪽 위에서 잰 px) */
++export interface HintBox {
++  left: number
++  top: number
++  width: number
++  height: number
++}
++
++/** 말풍선과 칸 사이, 말풍선과 창 가장자리 사이의 틈 (px) */
++const HINT_GAP = 6
++const HINT_EDGE = 8
++
++/**
++ * 힌트 말풍선을 놓을 자리 (창의 왼쪽 위에서 잰 px). 칸의 가운데 아래에 두고, 창 밖으로 나가면 옆으로 당기거나 칸 위로 올린다.
++ * avoid는 그 칸이 가리키는 것(「녹이기」가 녹일 장비의 카드): 아래에 두면 그것을 덮고 위에 두면 덮지 않을 때는 칸 위에 둔다 (E307).
++ * 세로 화면의 장비 탭은 「녹이기」 바로 아래가 설명 카드라, 「한 번 더 누르면 녹인다」를 확인하려는 순간에 말풍선이 장비 이름을 가렸다
++ */
++export function hintSpot(target: HintBox, hint: { width: number; height: number }, frame: { width: number; height: number }, avoid: HintBox | null = null): { left: number; top: number } {
++  const left = Math.min(Math.max(HINT_EDGE, target.left + target.width / 2 - hint.width / 2), frame.width - hint.width - HINT_EDGE)
++  const below = target.top + target.height + HINT_GAP
++  const above = target.top - hint.height - HINT_GAP
++  const covers = (top: number) => avoid !== null && left < avoid.left + avoid.width && left + hint.width > avoid.left && top < avoid.top + avoid.height && top + hint.height > avoid.top
++  const overflows = below + hint.height > frame.height - HINT_EDGE
++  const dodge = covers(below) && !covers(above) && above >= HINT_EDGE
++  return { left: Math.round(left), top: Math.round(overflows || dodge ? above : below) }
++}
+diff --git a/src/ui/menu/relicsTab.ts b/src/ui/menu/relicsTab.ts
+index a061dff..552e2eb 100644
+--- a/src/ui/menu/relicsTab.ts
++++ b/src/ui/menu/relicsTab.ts
+@@ -180,7 +180,8 @@ export class RelicsTab {
+       b.type = 'button'
+       const label = el('span', '', '녹이기')
+       b.append(img(glyph('salvage')), label)
+-      this.ctx.hintOn(b, `녹이면 원형 ${PROTOTYPE_VALUE[gear.grade]}개가 된다 (등급이 하나 오를 때마다 셋 배)`)
++      // 힌트는 녹일 장비의 카드를 덮지 않는 쪽에 뜬다 (E307: 세로 화면에서는 단추 바로 아래가 카드라, 확인하려는 순간에 장비 이름을 가렸다)
++      this.ctx.hintOn(b, `녹이면 원형 ${PROTOTYPE_VALUE[gear.grade]}개가 된다 (등급이 하나 오를 때마다 셋 배)`, () => detail.querySelector<HTMLElement>('.gc'))
+       b.addEventListener('click', () => {
+         // 끼고 있는 장비는 한 번 더 눌러야 녹는다 (녹이면 그 칸이 빈다). 잠시 뒤에는 처음으로. 가방의 것은 한 번에
+         if (!inBag && !b.classList.contains('is-confirm')) {
+@@ -189,6 +190,8 @@ export class RelicsTab {
+           setTimeout(() => {
+             b.classList.remove('is-confirm')
+             label.textContent = '녹이기'
++            // 손가락으로 띄운 설명도 함께 거둔다 (단추는 처음으로 돌아갔는데 설명만 다음 톡까지 남았다, E307)
++            this.ctx.hintOff(b)
+           }, CONFIRM_MS)
+           return
+         }
+diff --git a/src/ui/pickGate.ts b/src/ui/pickGate.ts
+index 4223ca3..eed10cd 100644
+--- a/src/ui/pickGate.ts
++++ b/src/ui/pickGate.ts
+@@ -1,3 +1,5 @@
++import { isFingerClick } from '../input/fingerClick'
++
+ /** 고르는 카드가 뜬 뒤 이만큼(ms)은 누름을 받지 않는다: 싸우던 클릭·톡이 방금 뜬 카드에 떨어져 고른 것이 되지 않게 (E307) */
+ export const PICK_ARM_MS = 500
+ 
+@@ -7,6 +9,8 @@ export const PICK_ARM_MS = 500
+  * - 뜬 직후의 누름은 버린다 (싸우며 이어 누르던 클릭·톡)
+  * - 카드가 뜨기 전에 게임 화면에서 시작된 누름은, 손을 뗄 때 click이 카드에 떨어져도 버린다 (카드 위에서 시작되지 않았다)
+  * - 코드가 낸 click(봇의 `answerSwap`, 점검 스크립트의 `el.click()`)은 사람 손이 아니니 그대로 받는다
++ * - 다른 손가락이 닿아 있는 동안의 톡(엄지를 얹은 채 누른 「아직」)은 브라우저가 click을 내지 않아 `fingerClick.ts`가 대신 낸다.
++ *   그 click은 사람 손이다: 코드가 낸 것으로 치지 않고 위의 규칙을 그대로 건다
+  * - 누름 없이 온 click(키보드의 Enter·Space, 화면 읽기 도구)은 잠금이 풀린 뒤에 받는다
+  * 새 단추나 두 번 누르기를 더하지 않는다. 언제 열리는지(타이머)와 DOM은 `PickCardGuard`가 맡는다
+  */
+@@ -38,6 +42,11 @@ export class PickGate {
+   }
+ }
+ 
++/** 코드가 낸 click인가 (trusted: 브라우저가 낸 것, finger: 손가락 톡 대신 낸 것 `isFingerClick`). 둘 다 아니어야 코드가 낸 것이다 */
++export function byCode(trusted: boolean, finger: boolean): boolean {
++  return !trusted && !finger
++}
++
+ /**
+  * 고르는 카드 하나에 누름 규칙을 건다: 띄우면 잠깐 흐리게(`is-arming`, pickCard.css) 두었다가 누름을 받는다.
+  * 흐린 동안 단추는 누름을 받지 않고 카드 판이 대신 받아, 그 톡이 뒤의 게임 화면(이동·공격 지시)으로 새지 않는다
+@@ -76,7 +85,7 @@ export class PickCardGuard {
+     button.addEventListener('click', (e) => {
+       e.stopPropagation()
+       // detail이 0인 click은 포인터가 낸 것이 아니다 (키보드·화면 읽기 도구)
+-      if (this.gate.take(!e.isTrusted, e.detail === 0)) act()
++      if (this.gate.take(byCode(e.isTrusted, isFingerClick(e)), e.detail === 0)) act()
+     })
+   }
+ }
+diff --git a/src/ui/portrait.css b/src/ui/portrait.css
+index 6db14a5..6cfaec3 100644
+--- a/src/ui/portrait.css
++++ b/src/ui/portrait.css
+@@ -61,6 +61,10 @@
+   :root .hud__gains.is-side ul {
+     gap: 0;
+   }
++  /* 줄도 낱말 가운데에서 끊지 않는다 (「… 새 수 / 치」) */
++  :root .hud__gains.is-side li {
++    word-break: keep-all;
++  }
+   :root .menu-button,
+   :root .minimap,
+   :root .hud__gains.is-side {
+@@ -74,6 +78,24 @@
+     justify-content: flex-start;
+     max-width: calc(100vw - var(--minimap) - var(--unit) * 7);
+     white-space: normal;
++    /* 낱말 가운데에서 끊지 않는다 (「…토르를 깨운 / 다」) */
++    word-break: keep-all;
++    overflow-wrap: anywhere;
++  }
++  /*
++   * 마름모와 글은 한 줄에 선다 (E307): 글이 길면 마름모 옆 칸 안에서 줄을 바꾼다.
++   * 줄을 넘기는 flex(가로 화면의 배치)로는 글 덩어리가 통째로 아랫줄로 내려가 금빛 마름모만 윗줄에 남았다:
++   * 한 줄이면 될 목표가 두 줄, 두 줄이면 될 목표가 세 줄이 되어 작은 지도 옆 자리를 더 먹었다.
++   * 숨긴 목표([hidden])는 그대로 숨는다
++   */
++  :root .chapter-goal:not([hidden]) {
++  }
++  /* 마름모는 첫 줄의 가운데에 (줄 높이 1.6의 반에서 마름모의 반을 뺀다) */
++  :root .chapter-goal__mark {
++    margin-top: calc(0.8em - 3px);
++  }
++  :root .chapter-goal__bar {
++    grid-column: 1 / -1;
+   }
+   /* 보스 막대: 목표 한 줄 아래 왼쪽 */
+   :root .hud__boss {
+@@ -175,6 +197,34 @@
+     width: calc(100vw - var(--sp-6) * 2);
+     max-width: 420px;
+   }
++  /*
++   * 고르는 카드 (귀환·맹세 출발, E307): 위쪽 묶음(초상·메뉴 단추) 아래부터 아래 묶음(생명 막대·유물 칸) 위까지의 띠 한가운데에 둔다.
++   * 화면 높이의 몇 %에 두었을 때는 짧은 화면(사파리 주소창이 보이는 393×659)에서 위로는 작은 지도에, 아래로는 아래 묶음에 걸렸다
++   * (귀환 카드 422px, 엔딩 뒤 깊이 알약이 붙으면 466px, 맹세 여덟 장 424px: 띠는 509px).
++   * 띠보다 길면 카드 안에서 민다: 아래 묶음은 덮지 않는다.
++   * 띠의 위 끝은 초상 아래(2단위 + 52px)에서 8px, 아래 끝은 아래 묶음(바닥 2.4 + 유물 칸 5.6 + 사이 1.2단위 + 생명 막대 18px) 위 한 단위쯤
++   */
++  :root .pick-card {
++    top: calc(var(--unit) * 2 + 60px + env(safe-area-inset-top, 0px));
++    bottom: calc(var(--unit) * 10.4 + 18px + env(safe-area-inset-bottom, 0px));
++    height: fit-content;
++    max-height: calc(100% - var(--unit) * 12.4 - 78px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
++    margin: auto 0;
++    overflow-y: auto;
++    overscroll-behavior: contain;
++  }
++  /*
++   * 고르는 카드가 떠 있는 동안 초상 줄 아래의 위쪽 묶음(작은 지도·원천 칩·목표 한 줄·보스 막대)은 숨는다 (얻은 것 카드처럼, hud.css):
++   * 카드가 그 자리까지 쓴다. 작은 지도(40)는 카드(35)보다 위에 그려져 393×659에서 카드의 오른쪽 위 모서리와 제목의 끝 글자를 덮었고,
++   * 나머지는 카드 아래에 깔려 흐린 바탕 너머로 글과 겹쳐 비친다.
++   * 카드를 정보 화면(40) 위로 올리지는 않는다 (창을 열면 카드가 창 위에 뜬다)
++   */
++  :root .hud:has(.pick-card:not([hidden])) .minimap,
++  :root .hud:has(.pick-card:not([hidden])) .hud__essence,
++  :root .hud:has(.pick-card:not([hidden])) .chapter-goal,
++  :root .hud:has(.pick-card:not([hidden])) .hud__boss {
++    visibility: hidden;
++  }
+ }
+ 
+ /*
+diff --git a/src/ui/return.css b/src/ui/return.css
+index 2a7744c..ea88368 100644
+--- a/src/ui/return.css
++++ b/src/ui/return.css
+@@ -34,10 +34,8 @@
+   box-shadow: var(--stone-raised), inset 0 -3px 0 var(--god);
+ }
+ @media (max-width: 480px) {
+-  /* 세로 화면: 카드를 화면 폭에 맞춰 두 줄씩 */
++  /* 세로 화면: 카드를 화면 폭에 맞춰 두 줄씩 (세로 자리는 `portrait.css`: 위쪽 묶음과 아래 묶음 사이 한가운데) */
+   .return-card {
+-    /* 오른쪽 위 작은 지도(세로 화면에서 위 4분의 1쯤) 아래로 */
+-    top: 26%;
+     width: calc(100vw - 2 * var(--sp-4));
+     padding: var(--sp-4) var(--sp-3);
+   }
+diff --git a/src/ui/theme.css b/src/ui/theme.css
+index c8ba9db..12e5a40 100644
+--- a/src/ui/theme.css
++++ b/src/ui/theme.css
+@@ -120,6 +120,21 @@
+   /* 모양 */
+   --bw: 2px;
+   --shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
++  /*
++   * 땅 위에 바로 뜨는 본문 글(작은 알림·주운 것의 이름)의 어두운 테두리 (E307): 획 굵기(글자 크기의 1/12)만큼씩 여덟 방향으로 한 겹,
++   * 그 밖으로 한 겹 더 (모서리는 뺀다). 획에 바로 붙어 빈틈이 없어야 눈 땅 위의 흰 글이 읽힌다.
++   * 길이가 em이라 쓰는 요소의 글자 크기를 따른다 (12px 글이면 1px·2px, 24px 글이면 2px·4px)
++   */
++  --edge-a: calc(1em / 12);
++  --edge-b: calc(1em / 6);
++  --edge-na: calc(-1em / 12);
++  --edge-nb: calc(-1em / 6);
++  --text-edge:
++    var(--edge-a) 0 var(--c-groove), var(--edge-na) 0 var(--c-groove), 0 var(--edge-a) var(--c-groove), 0 var(--edge-na) var(--c-groove),
++    var(--edge-a) var(--edge-a) var(--c-groove), var(--edge-a) var(--edge-na) var(--c-groove), var(--edge-na) var(--edge-a) var(--c-groove), var(--edge-na) var(--edge-na) var(--c-groove),
++    var(--edge-b) 0 var(--c-groove), var(--edge-nb) 0 var(--c-groove), 0 var(--edge-b) var(--c-groove), 0 var(--edge-nb) var(--c-groove),
++    var(--edge-b) var(--edge-a) var(--c-groove), var(--edge-b) var(--edge-na) var(--c-groove), var(--edge-nb) var(--edge-a) var(--c-groove), var(--edge-nb) var(--edge-na) var(--c-groove),
++    var(--edge-a) var(--edge-b) var(--c-groove), var(--edge-na) var(--edge-b) var(--c-groove), var(--edge-a) var(--edge-nb) var(--c-groove), var(--edge-na) var(--edge-nb) var(--c-groove);
+ }
+ 
+ /* 픽셀 글꼴은 흐리게 다듬지 않는다. */
+diff --git a/src/ui/toastLine.ts b/src/ui/toastLine.ts
+index 36d5185..e6af5f7 100644
+--- a/src/ui/toastLine.ts
++++ b/src/ui/toastLine.ts
+@@ -14,6 +14,29 @@ interface Toast {
+   count: number
+ }
+ 
++/** 화면 위의 상자 (px) */
++export interface ScreenBox {
++  top: number
++  bottom: number
++  left: number
++  right: number
++}
++
++/**
++ * 알림을 땅의 카드 위로 얼마나 올릴까 (px, E307). toast는 올리지 않았을 때 알림의 상자, card는 떠 있는 땅의 카드(없으면 null).
++ * 카드에 가리면 카드 위 끝에서 gap만큼 위로 올리고, 올릴 자리가 화면 밖이면 그대로 둔다.
++ * held는 이 알림이 이미 올라가 있는 높이: 떠 있는 알림은 올라가기만 한다. 읽는 도중에 카드가 닫혀도(걷기 시작·몇 초 뒤)
++ * 190px 아래 제자리로 뛰어내리지 않는다. 새 알림은 held 0으로 다시 잰다
++ */
++export function toastLift(toast: ScreenBox, card: ScreenBox | null, gap: number, held = 0): number {
++  let lift = 0
++  if (card) {
++    const hidden = card.top < toast.bottom && card.bottom > toast.top && card.left < toast.right && card.right > toast.left
++    if (hidden && card.top - gap - (toast.bottom - toast.top) >= 0) lift = Math.round(toast.bottom - (card.top - gap))
++  }
++  return Math.max(lift, held)
++}
++
+ /**
+  * 작은 알림의 줄 (E307). 알림 자리는 한 줄이라, 같은 때 온 알림이 서로 덮으면 마지막 하나만 보였다
+  * (한자리의 장비 넷을 주우면 「낌」 넷 가운데 하나만, 「더 좋은 장비」는 뒤따른 「합치기」에 바로 덮였다).
+diff --git a/tests/cards.test.ts b/tests/cards.test.ts
+index efb70a7..5a33be3 100644
+--- a/tests/cards.test.ts
++++ b/tests/cards.test.ts
+@@ -1,10 +1,14 @@
+ import { describe, expect, it } from 'vitest'
+ 
+ import { CARD_HOLD, TOAST_BUNDLES } from '../src/data/moments'
++import type { GearItem } from '../src/gear/roll'
+ import { stackLift } from '../src/ui/DamageNumbers'
+-import { countWord, type GainsCard, GAINS_LIFE, GAINS_RUSH_MS, GainsLine, gainsView } from '../src/ui/gainsLine'
+-import { PickGate } from '../src/ui/pickGate'
+-import { TOAST_HOLD, TOAST_LIFE, ToastLine } from '../src/ui/toastLine'
++import { countWord, type GainsCard, GAINS_LIFE, GAINS_RUSH_MS, GainsLine, gainsMark, gainsView, markLine } from '../src/ui/gainsLine'
++import { betterLines } from '../src/ui/gearCard'
++import hudCss from '../src/ui/hud.css?raw'
++import { byCode, PickGate } from '../src/ui/pickGate'
++import pickGateSource from '../src/ui/pickGate.ts?raw'
++import { TOAST_HOLD, TOAST_LIFE, toastLift, ToastLine } from '../src/ui/toastLine'
+ 
+ const gear = (title: string, kind = '장비'): GainsCard => ({ kind, title, color: '#5aa8ff', icon: '', lines: ['이동 속도 +6%'], size: 'card', bundles: true })
+ const big = (title: string): GainsCard => ({ kind: '대장간', title, color: '#ffd75e', icon: '', lines: ['2단계'], size: 'big' })
+@@ -159,6 +163,94 @@ describe('얻은 것 카드의 줄 (E307 카드 예산)', () => {
+   })
+ })
+ 
++describe('카드가 사라지는 움직임 (hud.css, E307 손 QA)', () => {
++  /** 그 이름의 @keyframes에서 마지막(100%) 걸음의 몸 */
++  const lastFrame = (name: string) => hudCss.match(new RegExp(`@keyframes ${name} \\{[^]*?\\n  100% \\{([^}]*)\\}`))?.[1] ?? ''
++
++  it.each(['hud-gains', 'hud-gains-side', 'hud-gains-fly'])('%s: 끝 모습이 다 사라진 것이다 (forwards가 붙드는 모습이 화면에 남지 않는다)', (name) => {
++    // 새 탭 카드는 opacity 0.2로 끝나, 31×9px로 줄어든 카드가 다음 카드가 뜰 때까지 메뉴 단추 위에 남았다
++    expect(lastFrame(name)).toMatch(/opacity: 0;/)
++  })
++
++  it('새 탭 카드는 메뉴 단추에 닿을 때까지는 보인다: 날아가는 동안 흐려지다가 닿은 뒤에 사라진다', () => {
++    const fly = hudCss.match(/@keyframes hud-gains-fly \{[^]*?\n\}/)?.[0] ?? ''
++    const spot = (pct: string) => fly.match(new RegExp(`\\n  ${pct}% \\{[^}]*transform: ([^;]*);`))?.[1]
++    // 닿는 자리(97%)와 끝(100%)은 같은 자리이고, 닿을 때는 아직 흐리게 보인다
++    expect(spot('97')).toBeDefined()
++    expect(spot('97')).toBe(spot('100'))
++    expect(fly).toMatch(/97% \{ opacity: 0\.2;/)
++  })
++})
++
++describe('카드 줄 앞의 표시 (E307 손 QA)', () => {
++  const item = (grade: GearItem['grade'], stats: GearItem['stats']): GearItem => ({ uid: `g${grade}`, part: 'chest', base: '누빈 웃옷', grade, tier: 1, stats, source: { id: 'stone', value: 1 } })
++
++  it('표시 없이 온 줄은 얻은 것(▲)이고 글은 그대로다', () => {
++    expect(gainsMark('이동 속도 +6%')).toEqual({ mark: 'up', text: '이동 속도 +6%' })
++    expect(gainsMark('후긴과 무닌 수 1 → 2')).toEqual({ mark: 'up', text: '후긴과 무닌 수 1 → 2' })
++  })
++
++  it('견주는 줄은 표시를 줄 앞에 달고, 그리는 쪽은 그것을 떼어 줄 앞의 표시 하나로 보인다', () => {
++    for (const mark of ['up', 'down', 'same'] as const) expect(gainsMark(markLine(mark, '받는 피해 −7%'))).toEqual({ mark, text: '받는 피해 −7%' })
++  })
++
++  it('「더 좋은 장비 · 가방」의 줄: 좋아진 수치는 ▲, 나빠진 수치는 ▼, 같은 수치는 ·, 없던 수치는 ▲와 「새 수치」', () => {
++    const worn = item('good', [
++      { kind: 'damageTaken', value: -0.05 },
++      { kind: 'maxHp', value: 30 },
++      { kind: 'regen', value: 0.5 },
++    ])
++    const found = item('rare', [
++      { kind: 'damageTaken', value: -0.07 },
++      { kind: 'maxHp', value: 20 },
++      { kind: 'regen', value: 0.5 },
++      { kind: 'moveSpeed', value: 0.06 },
++    ])
++    const lines = betterLines(found, worn).map(gainsMark)
++    expect(lines).toEqual([
++      // 받는 피해는 줄수록 좋다
++      { mark: 'up', text: '받는 피해 −7%' },
++      { mark: 'down', text: '최대 생명 +20' },
++      { mark: 'same', text: '초당 생명 재생 +0.5' },
++      { mark: 'up', text: '이동 속도 +6% 새 수치' },
++    ])
++    // 줄 끝에 표시를 또 달지 않는다 (전: 「▲ 받는 피해 −7% ▲」, 나빠진 수치는 「▲ … ▼」)
++    for (const line of lines) expect(line.text).not.toMatch(/[▲▼]/)
++  })
++})
++
++describe('작은 알림을 땅의 카드 위로 올리기 (E307 손 QA)', () => {
++  // 393×852: 알림은 아래 묶음 위(728~745), 다가가면 뜨는 카드는 그 자리를 덮는다 (546~760)
++  const toast = { top: 728, bottom: 745, left: 114, right: 279 }
++  const card = { top: 546, bottom: 760, left: 60, right: 333 }
++  const GAP = 6
++
++  it('카드에 가리면 카드 위 끝 바로 위로 올린다, 가리지 않으면 그대로', () => {
++    expect(toastLift(toast, card, GAP)).toBe(745 - (546 - GAP))
++    expect(toastLift(toast, null, GAP)).toBe(0)
++    expect(toastLift(toast, { ...card, top: 760, bottom: 800 }, GAP)).toBe(0)
++    expect(toastLift(toast, { ...card, left: 300, right: 393 }, GAP)).toBe(0)
++  })
++
++  it('올릴 자리가 화면 밖이면 그대로 둔다', () => {
++    expect(toastLift(toast, { ...card, top: 10 }, GAP)).toBe(0)
++  })
++
++  it('떠 있는 알림은 올라가기만 한다: 읽는 도중에 카드가 닫혀도 제자리로 뛰어내리지 않는다', () => {
++    const lifted = toastLift(toast, card, GAP)
++    // 카드가 닫혔다 (걷기 시작·몇 초 뒤): 올라간 자리에 그대로
++    expect(toastLift(toast, null, GAP, lifted)).toBe(lifted)
++    // 더 높은 카드가 뜨면 더 올라간다
++    expect(toastLift(toast, { ...card, top: 500 }, GAP, lifted)).toBe(745 - (500 - GAP))
++    // 낮은 카드로 바뀌어도 내려오지 않는다
++    expect(toastLift(toast, { ...card, top: 600 }, GAP, lifted)).toBe(lifted)
++  })
++
++  it('새 알림은 다시 잰다: 카드가 없으면 제자리에서 뜬다', () => {
++    expect(toastLift(toast, null, GAP, 0)).toBe(0)
++  })
++})
++
+ describe('작은 알림의 줄 (E307)', () => {
+   /** 줄에서 꺼낼 수 있는 대로 꺼내며 시간을 흘린다: 뜬 때(ms)와 글 */
+   function texts(line: ToastLine, from = 0): { at: number; text: string }[] {
+@@ -299,4 +391,21 @@ describe('고르는 카드의 누름 규칙 (E307)', () => {
+     gate.show()
+     expect(gate.take(true)).toBe(true)
+   })
++
++  it('다른 손가락이 닿아 있는 동안의 톡 대신 낸 click은 사람 손이다: 코드가 낸 것으로 치지 않고 잠금을 그대로 받는다 (E307 손 QA)', () => {
++    // 브라우저가 낸 click, 손가락 톡 대신 낸 click, 코드가 낸 click
++    expect(byCode(true, false)).toBe(false)
++    expect(byCode(false, true)).toBe(false)
++    expect(byCode(false, false)).toBe(true)
++    // 엄지를 얹은 채 뜬 직후에 누른 「아직」: 잠긴 동안의 누름이라 버린다
++    const gate = new PickGate()
++    gate.show()
++    gate.press()
++    expect(gate.take(byCode(false, true))).toBe(false)
++    // 잠금이 풀린 뒤 카드 위에서 누르면 고른 것이다
++    gate.arm()
++    gate.press()
++    expect(gate.take(byCode(false, true))).toBe(true)
++    expect(pickGateSource).toMatch(/gate\.take\(byCode\(e\.isTrusted, isFingerClick\(e\)\), e\.detail === 0\)/)
++  })
+ })
+diff --git a/tests/classes.test.ts b/tests/classes.test.ts
+index 3758144..00de2d6 100644
+--- a/tests/classes.test.ts
++++ b/tests/classes.test.ts
+@@ -217,3 +217,22 @@ describe('클래스끼리', () => {
+     for (const [realm, attacks] of byRealm) expect(new Set(attacks).size, realm).toBe(attacks.length)
+   })
+ })
++
++describe('단계에서 얻는 것의 글 (E307 손 QA)', () => {
++  it('곁에서 싸우는 동료: 수를 이름에 붙이지 않고 괄호 안에 적는다 (전: 「후긴과 무닌 1이 곁에서 함께 싸움」)', () => {
++    const line = levelGains('odin', 1).find((g) => g.text.includes('곁에서 함께 싸움'))?.text
++    expect(line).toMatch(/^후긴과 무닌이 곁에서 함께 싸움 \(수 1, 일격 피해 \d+(\.\d)?\)$/)
++    // 오른 단계의 줄과 같은 말 (「수 1 → 2」)
++    expect(levelGains('odin', 2).map((g) => g.text)).toContain('후긴과 무닌 수 1 → 2')
++  })
++
++  it('동료가 있는 신은 모두: 이름 바로 뒤에 수가 오지 않고, 조사가 이름의 받침을 따른다', () => {
++    const withCompanions = gods.filter((g) => DATA.gods[g]!.passive.companions)
++    expect(withCompanions.length).toBeGreaterThan(3)
++    for (const god of withCompanions) {
++      const part = DATA.gods[god]!.passive.companions!
++      const line = levelGains(god, part.minLevel).find((g) => g.text.includes('곁에서 함께 싸움'))?.text ?? ''
++      expect(line, god).toMatch(new RegExp(`^${part.name}[이가] 곁에서 함께 싸움 \\(수 \\d+, 일격 피해 `))
++    }
++  })
++})
+diff --git a/tests/cuts.test.mjs b/tests/cuts.test.mjs
+index c56cb2c..fa2b0dd 100644
+--- a/tests/cuts.test.mjs
++++ b/tests/cuts.test.mjs
+@@ -167,6 +167,211 @@ describe.skipIf(!BROWSER)('잘린 요소 검사 (scripts/lib/cuts.mjs, E307)', (
+     })
+   })
+ 
++  describe('고르는 카드의 자리 (실제 CSS, E307): 세로 화면에서 위쪽 묶음과 아래 묶음 사이에 다 들어온다', () => {
++    const STYLES = ['theme.css', 'parts.css', 'hud.css', 'chapter.css', 'pickCard.css', 'return.css', 'portrait.css']
++    const branch = (name, text) => `<button class="pick-card__card" type="button"><b>${name}</b><small>${text}</small></button>`
++    /** 귀환 카드 (`ReturnCard`가 짓는 모양): 갈래 다섯, depth면 엔딩 뒤의 깊이 알약 둘과 「지난번 그대로」 꼬리표까지 */
++    const returnCard = ({ depth = false, hidden = false } = {}) =>
++      `<div class="pick-card return-card"${hidden ? ' hidden' : ''}><div class="pick-card__title">원정 4를 마친다</div>` +
++      '<div class="return-card__mult"><b>×1.32 → ×1.45</b><small>명성 +10</small></div>' +
++      '<div class="return-card__line">이번 원정 5:00 · 지난 원정 5:00</div>' +
++      '<div class="return-card__line is-keep">남는 것: 깨운 신·신 단계·유물표·원형·장 진행·웨이포인트·가장 좋은 장비 2</div>' +
++      '<div class="return-card__line is-clear">지워지는 것: 기세(수련 마디), 일반 장비</div>' +
++      (depth ? '<div class="return-card__depth"><button class="ui-pill is-on" type="button">그대로 · 깊이 1</button><button class="ui-pill" type="button">+1 · 깊이 2</button></div>' : '') +
++      '<div class="return-card__ask">하나를 골라 돌아간다</div><div class="pick-card__row">' +
++      `<button class="pick-card__card" type="button">${depth ? '<small class="return-card__again">지난번 그대로</small>' : ''}<b>불꽃 불씨</b><small>원천 +2, 모든 피해 ×1.1</small></button>` +
++      branch('토르 승천', '2단계: 모든 피해 ×1.35, 생명 +25%') +
++      branch('사냥 불씨', '원천 +2, 받는 명성 ×1.25') +
++      branch('바람 불씨', '원천 +2, 공격·이동 ×1.06') +
++      branch('바위 불씨', '원천 +2, 최대 생명 ×1.15·받는 피해 ×0.95') +
++      '</div><button class="ui-btn return-card__later" type="button">아직</button></div>'
++    /** 맹세 출발 카드 (`OathCard`): 맹세 count장 */
++    const oathCard = (count) =>
++      '<div class="pick-card return-card oath-card"><div class="pick-card__title">맹세를 걸고 떠난다</div><div class="return-card__ask">그 원정에서 장 보스나 수호자를 이기면 지킨다</div><div class="pick-card__row">' +
++      Array.from({ length: count }, (_, i) => `<button class="pick-card__card" type="button"><b>맹세 ${i + 1}의 이름</b><small>떠난 지 10분 안에 지켜야 한다</small><small class="oath-card__reward">모든 무기 동작 빠르기 +10%</small></button>`).join('') +
++      '</div><button class="ui-btn return-card__later" type="button">맹세 없이</button></div>'
++    /** 게임의 HUD 뼈대: 초상 줄·원천 칩·아래 묶음(생명 막대와 유물 칸)·작은 지도·목표 한 줄, 그리고 카드 */
++    const hud = (card) =>
++      `<style>${STYLES.map(css).join('\n')}</style><script>document.documentElement.classList.add('is-touch')</script><div class="hud">` +
++      '<div class="hud__status"><div style="width:113px;height:52px"></div></div><div class="hud__essence"><span class="hud__essence-cell">2</span></div>' +
++      `<div class="hud__dock"><div class="hud__life ui-bar"></div><div class="hud__slots">${'<div class="hud__slot"></div>'.repeat(4)}</div></div>` +
++      `<canvas class="minimap" width="64" height="64"></canvas><div class="chapter-goal"><span>성소 화로에서 첫 원정을 마친다 (×1.32)</span></div>${card}</div>`
++    /** 그 화면에서 잘린 요소와 자리들 */
++    const layout = async (html, [width, height]) => {
++      const page = await browser.newPage({ viewport: { width, height }, ...(width < height ? { hasTouch: true, isMobile: true } : {}) })
++      try {
++        await page.setContent(`${SHELL}<div id="app">${html}</div>`)
++        const found = await page.evaluate(findCuts)
++        const boxes = await page.evaluate(() => {
++          const box = (sel) => {
++            const el = document.querySelector(sel)
++            const r = el.getBoundingClientRect()
++            return { top: r.top, bottom: r.bottom, left: r.left, right: r.right, shown: getComputedStyle(el).visibility !== 'hidden', scroll: el.scrollHeight - el.clientHeight }
++          }
++          return { card: box('.pick-card'), status: box('.hud__status'), dock: box('.hud__dock'), minimap: box('.minimap'), goal: box('.chapter-goal'), chips: box('.hud__essence'), later: box('.return-card__later') }
++        })
++        return { found, ...boxes }
++      } finally {
++        await page.close()
++      }
++    }
++    const PHONES = [[393, 659], [393, 852], [390, 844]]
++    const CARDS = [
++      ['귀환 카드', returnCard()],
++      ['엔딩 뒤 귀환 카드 (깊이 알약·지난번 그대로)', returnCard({ depth: true })],
++      ['맹세 셋', oathCard(3)],
++      ['맹세 여덟', oathCard(8)],
++    ]
++
++    it.each(PHONES)('%i×%i: 카드가 초상 줄 아래에서 시작해 아래 묶음 위에서 끝나고, 밀지 않아도 다 보인다 (잘림·덮임 0)', async (width, height) => {
++      for (const [name, card] of CARDS) {
++        const at = await layout(hud(card), [width, height])
++        expect(at.found, name).toEqual([])
++        expect(at.card.top, name).toBeGreaterThanOrEqual(at.status.bottom)
++        expect(at.card.bottom, name).toBeLessThanOrEqual(at.dock.top)
++        expect(at.card.scroll, name).toBeLessThanOrEqual(0)
++        expect(at.card.left, name).toBeGreaterThanOrEqual(0)
++        expect(at.card.right, name).toBeLessThanOrEqual(width)
++      }
++    }, 60000)
++
++    it('카드가 떠 있는 동안 작은 지도·원천 칩·목표 한 줄은 숨고(카드가 그 자리까지 쓴다), 닫히면 돌아온다', async () => {
++      const open = await layout(hud(returnCard()), [393, 659])
++      expect([open.minimap.shown, open.chips.shown, open.goal.shown]).toEqual([false, false, false])
++      // 393×659에서는 카드가 작은 지도의 아래 끝보다 위에서 시작한다: 숨기지 않으면 카드 위에 그려진다 (작은 지도 40, 카드 35)
++      expect(open.card.top).toBeLessThan(open.minimap.bottom)
++      const closed = await layout(hud(returnCard({ hidden: true })), [393, 659])
++      expect([closed.minimap.shown, closed.chips.shown, closed.goal.shown]).toEqual([true, true, true])
++    }, 30000)
++
++    it('띠보다 긴 카드(맹세 스무 장)는 카드 안에서 민다: 아래 묶음을 덮지 않고 초상 줄도 넘지 않는다', async () => {
++      const at = await layout(hud(oathCard(20)), [393, 659])
++      expect(at.card.scroll).toBeGreaterThan(0)
++      expect(at.card.top).toBeGreaterThanOrEqual(at.status.bottom)
++      expect(at.card.bottom).toBeLessThanOrEqual(at.dock.top)
++    }, 30000)
++
++    it('가로 화면(1280×720)은 그대로다: 카드는 위쪽 18%에 뜨고 작은 지도는 숨지 않는다', async () => {
++      const at = await layout(hud(returnCard()), [1280, 720])
++      expect(at.found).toEqual([])
++      expect(at.minimap.shown).toBe(true)
++      expect(Math.round(at.card.top)).toBe(Math.round(720 * 0.18))
++      expect(at.card.right).toBeLessThan(at.minimap.left)
++    }, 30000)
++  })
++
++  describe('위쪽 묶음과 땅 위의 글 (실제 CSS, E307 손 QA)', () => {
++    const STYLES = ['theme.css', 'parts.css', 'hud.css', 'chapter.css', 'portrait.css']
++    const page = async ([width, height], body) => {
++      const p = await browser.newPage({ viewport: { width, height }, ...(width < height ? { hasTouch: true, isMobile: true } : {}) })
++      await p.setContent(`${SHELL}<div id="app"><style>${STYLES.map(css).join('\n')}</style><div class="hud">${body}</div></div>`)
++      return p
++    }
++    /** 목표 한 줄 (`ChapterHud`가 짓는 모양): 마름모·글·막대 */
++    const goal = (text, { bar = false, hidden = false } = {}) =>
++      `<canvas class="minimap" width="64" height="64"></canvas><div class="chapter-goal${bar ? ' has-bar' : ''}"${hidden ? ' hidden' : ''}><i class="chapter-goal__mark"></i><span>${text}</span><div class="chapter-goal__bar"><div style="width:40%"></div></div></div>`
++    const boxes = (p) =>
++      p.evaluate(() => {
++        const box = (sel) => {
++          const r = document.querySelector(sel).getBoundingClientRect()
++          return { top: r.top, bottom: r.bottom, left: r.left, right: r.right, width: r.width, height: r.height }
++        }
++        const span = document.querySelector('.chapter-goal > span')
++        return { goal: box('.chapter-goal'), mark: box('.chapter-goal__mark'), text: box('.chapter-goal > span'), bar: box('.chapter-goal__bar'), minimap: box('.minimap'), line: parseFloat(getComputedStyle(span).lineHeight), shown: getComputedStyle(document.querySelector('.chapter-goal')).display }
++      })
++    const LONG = '성소 화로에서 첫 원정을 마친다 그리고 더 긴 목표의 글이 이어진다 (×1.32)'
++
++    it.each([[393, 852], [393, 659], [390, 844]])('%i×%i: 목표가 길어 줄을 바꿔도 금빛 마름모는 글의 첫 줄 옆에 선다 (혼자 윗줄에 남지 않는다)', async (width, height) => {
++      const p = await page([width, height], goal(LONG))
++      try {
++        const at = await boxes(p)
++        // 글은 두 줄 넘게 접혔고, 마름모는 그 첫 줄의 높이 안, 글의 왼쪽에 있다
++        expect(at.text.height).toBeGreaterThan(at.line * 1.5)
++        expect(at.mark.right).toBeLessThanOrEqual(at.text.left)
++        expect(at.mark.top).toBeGreaterThanOrEqual(at.text.top)
++        expect(at.mark.bottom).toBeLessThanOrEqual(at.text.top + at.line)
++        // 상자의 높이는 글의 줄만큼이다: 마름모만의 줄이 따로 없다
++        expect(at.goal.height - at.text.height).toBeLessThan(at.line)
++        // 글은 작은 지도 왼쪽에서 끝난다
++        expect(at.text.right).toBeLessThanOrEqual(at.minimap.left)
++      } finally {
++        await p.close()
++      }
++    }, 30000)
++
++    it('짧은 목표는 한 줄이고, 채우는 목표의 막대는 글 아래에서 상자 폭을 다 쓴다', async () => {
++      const p = await page([393, 852], goal('기세를 모은다 0/3', { bar: true }))
++      try {
++        const at = await boxes(p)
++        expect(at.text.height).toBeLessThan(at.line * 1.5)
++        expect(at.mark.right).toBeLessThanOrEqual(at.text.left)
++        expect(at.bar.top).toBeGreaterThanOrEqual(at.text.bottom)
++        // 양옆 안쪽 여백(12px)만 빼고 다 쓴다
++        expect(at.bar.left).toBeLessThan(at.text.left)
++        expect(at.bar.width).toBeCloseTo(at.goal.width - 24, 0)
++      } finally {
++        await p.close()
++      }
++    }, 30000)
++
++    it('숨긴 목표는 세로 화면에서도 숨는다, 가로 화면은 한 줄 그대로다', async () => {
++      const hidden = await page([393, 852], goal(LONG, { hidden: true }))
++      try {
++        expect((await boxes(hidden)).shown).toBe('none')
++      } finally {
++        await hidden.close()
++      }
++      const wide = await page([1280, 720], goal(LONG))
++      try {
++        const at = await boxes(wide)
++        expect(at.shown).toBe('flex')
++        expect(at.text.height).toBeLessThan(at.line * 1.5)
++        expect(Math.abs((at.mark.top + at.mark.bottom) / 2 - (at.text.top + at.text.bottom) / 2)).toBeLessThan(1)
++      } finally {
++        await wide.close()
++      }
++    }, 30000)
++
++    /** 그 요소의 그림자들이 놓인 자리 (px) */
++    const shadows = (p, sel) =>
++      p.evaluate((s) => {
++        const el = document.querySelector(s)
++        const style = getComputedStyle(el)
++        return { size: parseFloat(style.fontSize), at: [...style.textShadow.matchAll(/(-?[\d.]+)px (-?[\d.]+)px (-?[\d.]+)px/g)].map((m) => [Number(m[1]), Number(m[2]), Number(m[3])]) }
++      }, sel)
++    const TEXTS = '<div class="hud__toast is-showing">더 좋은 장비 · 좋음 누빈 웃옷</div><div class="damage-numbers"><div class="damage-number damage-number--label">+ 좋음 누빈 웃옷</div></div>'
++
++    it.each([[393, 852, 12], [393, 659, 12], [1920, 1200, 24]])('%i×%i: 작은 알림과 주운 것의 이름은 획에 바로 붙는 테두리를 두른다 (여덟 방향, 빈틈 없이)', async (width, height, size) => {
++      const p = await page([width, height], TEXTS)
++      try {
++        for (const sel of ['.hud__toast', '.damage-number--label']) {
++          const { size: font, at } = await shadows(p, sel)
++          expect(font, sel).toBe(size)
++          // 획 굵기 (글자 크기의 1/12)
++          const stroke = size / 12
++          const has = (x, y) => at.some(([sx, sy, blur]) => Math.abs(sx - x * stroke) < 0.01 && Math.abs(sy - y * stroke) < 0.01 && blur === 0)
++          // 획 바로 옆 여덟 칸이 모두 찬다: 전에는 두세 칸 떨어진 넷뿐이라 획 옆과 대각선이 비어 눈 땅에서 글이 뭉개졌다
++          for (const x of [-1, 0, 1]) for (const y of [-1, 0, 1]) if (x !== 0 || y !== 0) expect(has(x, y), `${sel} (${x}, ${y})`).toBe(true)
++          // 그 밖으로 한 겹 더, 그보다 먼 그림자는 없다 (획에서 떨어져 겹쳐 보이는 글)
++          for (const [x, y] of [[2, 0], [-2, 0], [0, 2], [0, -2], [2, 1], [-1, -2]]) expect(has(x, y), `${sel} (${x}, ${y})`).toBe(true)
++          expect(Math.max(...at.map(([sx, sy]) => Math.max(Math.abs(sx), Math.abs(sy))))).toBeCloseTo(stroke * 2, 2)
++        }
++      } finally {
++        await p.close()
++      }
++    }, 30000)
++
++    it('새 탭 카드는 메뉴 단추로 날아간 뒤 다 사라진다 (전: 흐린 채 31×9px로 남았다)', async () => {
++      const p = await page([393, 659], '<div class="hud__gains is-fly is-showing" style="--life: 150ms"><div class="hud__gains-head"><div class="hud__gains-kind">새 탭</div><div class="hud__gains-title">장비</div></div></div>')
++      try {
++        await p.evaluate(() => Promise.all(document.querySelector('.hud__gains').getAnimations().map((a) => a.finished)))
++        expect(await p.evaluate(() => getComputedStyle(document.querySelector('.hud__gains')).opacity)).toBe('0')
++      } finally {
++        await p.close()
++      }
++    }, 30000)
++  })
++
+   describe('밀림: 단서 없이 가로로 넘친 미는 상자', () => {
+     const row = (style) => `<div class="hud"><div class="row" style="display:flex;width:200px;overflow-x:auto;${style}">${[1, 2, 3, 4, 5, 6].map((i) => `<button style="flex:none;width:60px;height:44px">${i}</button>`).join('')}</div></div>`
+ 
+diff --git a/tests/looks.test.ts b/tests/looks.test.ts
+index 310d47b..764f00a 100644
+--- a/tests/looks.test.ts
++++ b/tests/looks.test.ts
+@@ -1,5 +1,5 @@
+ import * as THREE from 'three'
+-import { describe, expect, it } from 'vitest'
++import { afterEach, describe, expect, it, vi } from 'vitest'
+ 
+ import { BASE_OUTFIT, LOOK_IDS, lookDef } from '../src/looks/catalog'
+ import { GEAR_LOOKS, gearLook, parseGearLook } from '../src/looks/gearLooks'
+@@ -11,6 +11,7 @@ import { LOOK_MODELS } from '../src/voxel/models/looks'
+ import { buildHeroModel } from '../src/world/heroModel'
+ import { EventBus, type GameEvents } from '../src/game/events'
+ import { AppearanceSystem } from '../src/game/systems/Appearance'
++import { haloRings, PowerUp } from '../src/fx/PowerUp'
+ 
+ const looksOf = (...relics: string[]) => relics.map((id) => relicDef(id).look)
+ 
+@@ -70,6 +71,8 @@ describe('외형 시스템 (E307: 신을 깨워도 주인공은 그대로)', ()
+   function setup() {
+     const bus = new EventBus<GameEvents>()
+     const state = { hand: null as string | null, lit: [] as string[], opened: [] as string[], levels: {} as Record<string, number> }
++    /** 표식에 딸린 기운 연출 (켜짐과 단계만 본다) */
++    const aura = () => ({ enabled: false, level: 0 })
+     const ctx = {
+       bus,
+       wardrobe: new Wardrobe(),
+@@ -77,6 +80,20 @@ describe('외형 시스템 (E307: 신을 깨워도 주인공은 그대로)', ()
+       powers: { loadout: { slots: [] as (string | null)[], gear: new Map(), get relics() { return state.lit } } },
+       build: { get chosen() { return state.hand } },
+       progress: { get opened() { return state.opened }, level: (god: string) => state.levels[god] ?? 0 },
++      combat: { alive: true },
++      fx: {
++        sparks: aura(),
++        shadow: aura(),
++        asura: aura(),
++        tint: { ...aura(), setColor() {} },
++        /** 머리 위 빛 고리: 마지막으로 맞춘 색과 고리 수 (없으면 null) */
++        power: {
++          halo: null as { color: string | number; rings: number } | null,
++          setHalo(color: string | number | null, level: number) {
++            this.halo = color === null || haloRings(level) === 0 ? null : { color, rings: haloRings(level) }
++          },
++        },
++      },
+     }
+     const system = new AppearanceSystem(ctx as never)
+     const change = () => bus.emit('loadoutChanged', { change: {} as never, announce: false })
+@@ -143,6 +160,88 @@ describe('외형 시스템 (E307: 신을 깨워도 주인공은 그대로)', ()
+     expect(told).toEqual(expect.arrayContaining(['zeusLaurel', 'zeusRobe', 'zeusCape', 'zeusWings']))
+     expect(ctx.hero.rig.outfit).toEqual(BASE_OUTFIT)
+   })
++
++  it('머리 위 빛 고리는 저절로 뜨지 않는다: 손의 신이 3·4단계로 승천해도 표식을 고르지 않았으면 없다', () => {
++    const { ctx, state, system, change } = setup()
++    state.hand = 'thor'
++    state.opened = ['thor']
++    for (const level of [1, 2, 3, 4]) {
++      state.levels.thor = level
++      change()
++      system.update()
++      expect(ctx.fx.power.halo, `토르 ${level}단계`).toBeNull()
++    }
++  })
++
++  it('고리는 고른 표식에 딸린다: 그 표식의 신이 3단계면 하나, 4단계면 둘 (손의 신이 아니라 표식의 신의 색과 단계)', () => {
++    const { ctx, state, system, change } = setup()
++    state.hand = 'thor'
++    state.opened = ['thor', 'odin']
++    state.levels = { thor: 4, odin: 2 }
++    change()
++    // 손의 토르는 4단계지만 고른 표식은 2단계인 오딘의 것: 고리가 없다
++    system.choose('mark', 'odinRavens')
++    system.update()
++    expect(ctx.fx.power.halo).toBeNull()
++    state.levels.odin = 3
++    system.update()
++    expect(ctx.fx.power.halo).toEqual({ color: godDef('odin').color, rings: 1 })
++    // 토르의 표식으로 바꾸면 토르의 색으로 둘
++    system.choose('mark', godDef('thor').mark)
++    system.update()
++    expect(ctx.fx.power.halo).toEqual({ color: godDef('thor').color, rings: 2 })
++    // 쓰러져 있는 동안은 기운 연출처럼 꺼지고, 일어나면 돌아온다
++    ctx.combat.alive = false
++    system.update()
++    expect(ctx.fx.power.halo).toBeNull()
++    ctx.combat.alive = true
++    system.update()
++    expect(ctx.fx.power.halo).toEqual({ color: godDef('thor').color, rings: 2 })
++    // 표식을 비우면 고리도 사라진다
++    system.choose('mark', null)
++    system.update()
++    expect(ctx.fx.power.halo).toBeNull()
++  })
++
++  it('고리 수: 2단계까지 없고 3단계 하나, 4단계 둘', () => {
++    expect([0, 1, 2, 3, 4].map(haloRings)).toEqual([0, 0, 0, 1, 2])
++  })
++})
++
++describe('강해지는 빛 (PowerUp, E307): 승천은 머리 위에 고리를 띄우지 않는다', () => {
++  afterEach(() => vi.unstubAllGlobals())
++
++  /** 발밑 빛의 그림을 그릴 캔버스만 흉내 낸다 (브라우저 없이 세운다) */
++  function setup() {
++    const gradient = { addColorStop() {} }
++    vi.stubGlobal('document', { createElement: () => ({ width: 0, height: 0, getContext: () => ({ createRadialGradient: () => gradient, fillRect() {} }) }) })
++    const power = new PowerUp()
++    const halos = () => power.object.children.filter((c): c is THREE.Mesh => c instanceof THREE.Mesh && c.geometry instanceof THREE.TorusGeometry)
++    return { power, halos, shown: () => halos().filter((h) => h.visible).length }
++  }
++
++  it('손에 쥔 신의 단계(setAscension)가 3·4여도 고리는 보이지 않는다', () => {
++    const { power, halos, shown } = setup()
++    expect(halos()).toHaveLength(2)
++    for (const level of [1, 2, 3, 4]) {
++      power.setAscension('#7fd4ff', level)
++      power.update(1 / 60, new THREE.Vector3())
++      expect(shown(), `${level}단계`).toBe(0)
++    }
++  })
++
++  it('고리는 setHalo로만 뜬다: 3단계 하나, 4단계 둘, 그 신의 색으로. null이면 사라진다', () => {
++    const { power, halos, shown } = setup()
++    power.setHalo('#7fd4ff', 2)
++    expect(shown()).toBe(0)
++    power.setHalo('#7fd4ff', 3)
++    expect(shown()).toBe(1)
++    power.setHalo('#ff8040', 4)
++    expect(shown()).toBe(2)
++    for (const h of halos()) expect((h.material as THREE.MeshBasicMaterial).color.getHexString()).toBe('ff8040')
++    power.setHalo(null, 4)
++    expect(shown()).toBe(0)
++  })
+ })
+ 
+ describe('일반 장비 외형 (E18-04-5)', () => {
+diff --git a/tests/menu.test.ts b/tests/menu.test.ts
+index 7de926b..d32c1f9 100644
+--- a/tests/menu.test.ts
++++ b/tests/menu.test.ts
+@@ -1,7 +1,7 @@
+ import { describe, expect, it } from 'vitest'
+ 
+ import { RELIC_STAGES } from '../src/gear/mythRelic'
+-import { HintTaps } from '../src/ui/menu/hintTaps'
++import { hintSpot, HintTaps } from '../src/ui/menu/hintTaps'
+ import { forgedLine } from '../src/ui/menu/relicsTab'
+ 
+ describe('정보 화면 힌트 말풍선: 손가락으로 누른 칸 (E307)', () => {
+@@ -58,6 +58,38 @@ describe('정보 화면 힌트 말풍선: 손가락으로 누른 칸 (E307)', ()
+   })
+ })
+ 
++describe('힌트 말풍선의 자리 (E307 손 QA)', () => {
++  // 393×852의 정보 화면 (창 377×836): 장비 탭의 「녹이기」(한 번 누른 뒤)와 그 바로 아래의 설명 카드
++  const frame = { width: 377, height: 836 }
++  const melt = { left: 164, top: 538, width: 171, height: 44 }
++  const hint = { width: 296, height: 50 }
++  const card = { left: 14, top: 590, width: 322, height: 190 }
++
++  it('가리키는 것이 없으면 칸의 가운데 아래에 둔다, 창 밖으로 나가면 옆으로 당긴다', () => {
++    expect(hintSpot(melt, hint, frame)).toEqual({ left: 73, top: 588 })
++    expect(hintSpot({ ...melt, left: 0, width: 40 }, hint, frame).left).toBe(8)
++    expect(hintSpot({ ...melt, left: 330, width: 40 }, hint, frame).left).toBe(377 - 296 - 8)
++  })
++
++  it('아래에 두면 창 아래로 나가면 칸 위에 둔다', () => {
++    expect(hintSpot({ ...melt, top: 770 }, hint, frame).top).toBe(770 - 50 - 6)
++  })
++
++  it('세로 화면의 「녹이기」: 아래에 두면 녹일 장비의 카드(이름)를 덮으니 단추 위에 둔다', () => {
++    const at = hintSpot(melt, hint, frame, card)
++    expect(at.top).toBe(538 - 50 - 6)
++    // 카드와 겹치지 않는다
++    expect(at.top + hint.height).toBeLessThanOrEqual(card.top)
++  })
++
++  it('넓은 창(카드가 단추 위)은 그대로 아래에 둔다, 위아래 어느 쪽이든 덮으면 아래 그대로', () => {
++    expect(hintSpot(melt, hint, frame, { ...card, top: 330 }).top).toBe(588)
++    expect(hintSpot(melt, hint, frame, { ...card, top: 400, height: 400 }).top).toBe(588)
++    // 위에 둘 자리가 없으면(창 맨 위의 단추) 아래 그대로
++    expect(hintSpot({ ...melt, top: 20 }, hint, frame, { ...card, top: 70 }).top).toBe(20 + 44 + 6)
++  })
++})
++
+ describe('대장간 줄: 다 벼린 유물 (E307)', () => {
+   it('데모의 끝(2단계)은 「완성」이 아니다: 지금 단계와 3·4단계가 엔딩 뒤에 열린다는 것을 적는다', () => {
+     const line = forgedLine('벼린 묠니르', 2)
+diff --git a/tests/touch.test.ts b/tests/touch.test.ts
+index 945e6d0..9c55225 100644
+--- a/tests/touch.test.ts
++++ b/tests/touch.test.ts
+@@ -2,10 +2,14 @@ import { describe, expect, it } from 'vitest'
+ 
+ import { MOUNT } from '../src/data/mount'
+ import { DRAG_START, PINCH_JOIN_SECONDS, PINCH_MIN_SPREAD, PINCH_START_PX, PINCH_START_RATIO, STICK_RADIUS, TAP_SECONDS, TouchGestures } from '../src/input/touch'
+-import { COVER_CLASSES, coverOpened } from '../src/input/TouchControls'
++import { ECHO_PX, ECHO_SECONDS, FingerPresses, PRESS_SECONDS, PRESS_SLOP } from '../src/input/fingerClick'
++import { COVER_CLASSES, coverOpened, inBoxes, TAP_DEAD } from '../src/input/TouchControls'
++import mainSource from '../src/main.ts?raw'
+ import dialogSource from '../src/ui/DialogBox.ts?raw'
+ import menuSource from '../src/ui/GameMenu.ts?raw'
+ import oathSource from '../src/ui/OathCard.ts?raw'
++import hudCss from '../src/ui/hud.css?raw'
++import hudSource from '../src/ui/Hud.ts?raw'
+ import pauseSource from '../src/ui/PauseMenu.ts?raw'
+ import returnSource from '../src/ui/ReturnCard.ts?raw'
+ import swapSource from '../src/ui/SwapCard.ts?raw'
+@@ -21,6 +25,20 @@ describe('휴대폰 손가락 몸짓 (E235)', () => {
+     expect(g.takeTap()).toBeNull()
+   })
+ 
++  it('꾹 눌렀다 떼어도 톡이다: 움직이지 않고 0.5초쯤 누른 손가락이 씹히지 않는다 (E307 손 QA)', () => {
++    const g = new TouchGestures()
++    // 손 QA에서 잰 값: 0.49초 누름이 아무 일도 하지 않았다
++    g.down(1, 250, 250, 0, true)
++    g.up(1, 0.49)
++    expect(g.takeTap()).toEqual({ x: 250, y: 250 })
++    g.down(1, 250, 250, 1, true)
++    g.up(1, 1 + TAP_SECONDS)
++    expect(g.takeTap()).toEqual({ x: 250, y: 250 })
++    expect(TAP_SECONDS).toBeGreaterThanOrEqual(0.6)
++    // 화면에 얹어 둔 엄지·쥔 손(1초 넘게)은 떼어도 지시가 아니다
++    expect(TAP_SECONDS).toBeLessThanOrEqual(1)
++  })
++
+   it('오래 누르면 톡이 아니고, 그 프레임에 읽지 않은 톡은 버린다 (멈춘 동안 누른 것이 나중에 지시가 되지 않게)', () => {
+     const g = new TouchGestures()
+     g.down(1, 100, 200, 0)
+@@ -414,3 +432,150 @@ describe('게임 화면을 덮는 창과 조이스틱 (E307)', () => {
+     expect(returnSource).toMatch(/\.hidden = /)
+   })
+ })
++
++describe('다른 손가락이 닿아 있는 동안 누른 단추 (E307 손 QA)', () => {
++  // 크로미움의 진짜 두 손가락으로 본 것: 닿아 있는 동안 다른 손가락이 한 번이라도 함께 닿았으면 그 손가락의 톡에는 click이 오지 않는다
++  it('혼자 눌렀다 뗀 손가락은 브라우저가 click을 낸다: 대신 내지 않는다', () => {
++    const p = new FingerPresses<string>()
++    p.down(1, 'menu', 355, 38, 0, true)
++    expect(p.up(1, 356, 39, 0.1)).toBeNull()
++  })
++
++  it('조이스틱을 쥔 채(또는 엄지를 얹은 채) 다른 손가락으로 누른 단추는 대신 누른다', () => {
++    const p = new FingerPresses<string>()
++    p.down(1, 'canvas', 110, 640, 0, true)
++    let t = 3
++    for (const [target, x, y] of [['menu', 355, 38], ['portrait', 40, 42], ['minimap', 313, 140]] as const) {
++      p.down(2, target, x, y, t)
++      expect(p.up(2, x + 2, y - 1, t + 0.07)).toBe(target)
++      t += 1
++    }
++    // 꾹 누른 손가락(0.5초쯤)도 누른 것이다
++    p.down(2, 'menu', 355, 38, 10)
++    expect(p.up(2, 355, 38, 10.5)).toBe('menu')
++    // 엄지를 떼고 혼자 누르면 다시 브라우저의 몫이다
++    p.up(1, 110, 640, 12)
++    p.down(3, 'menu', 355, 38, 13, true)
++    expect(p.up(3, 355, 38, 13.1)).toBeNull()
++  })
++
++  it('먼저 닿은 손가락도 같다: 단추를 누르고 있는 사이 다른 손가락이 닿았다 떨어졌으면 브라우저는 click을 내지 않는다', () => {
++    const p = new FingerPresses<string>()
++    p.down(1, 'close', 363, 32, 0, true)
++    p.down(2, 'canvas', 200, 500, 0.1)
++    expect(p.up(2, 200, 500, 0.2)).toBe('canvas')
++    expect(p.up(1, 363, 32, 0.3)).toBe('close')
++    // 얹어 둔 손가락을 먼저 떼어도, 함께 닿았던 손가락의 톡에는 click이 오지 않는다
++    p.down(1, 'canvas', 120, 700, 5, true)
++    p.down(2, 'close', 363, 32, 8)
++    p.up(1, 120, 700, 8.05)
++    expect(p.up(2, 363, 32, 8.1)).toBe('close')
++  })
++
++  it('오래 얹혀 있던 손가락(쥔 손, 쉬는 엄지)은 떼어도 누른 것이 아니다: 그 아래 단추가 눌리지 않는다', () => {
++    const p = new FingerPresses<string>()
++    // 정보 화면의 가방 칸 위에 엄지를 얹어 둔 채 다른 손가락으로 탭을 누르고, 나중에 엄지를 뗀다
++    p.down(1, 'bag-item', 120, 700, 0, true)
++    p.down(2, 'tab', 148, 78, 2)
++    expect(p.up(2, 148, 78, 2.1)).toBe('tab')
++    expect(p.up(1, 120, 700, 4)).toBeNull()
++    // 문턱은 게임 화면의 톡과 같다
++    expect(PRESS_SECONDS).toBe(TAP_SECONDS)
++    p.down(1, 'canvas', 110, 640, 10, true)
++    p.down(2, 'menu', 355, 38, 11)
++    expect(p.up(2, 355, 38, 11 + PRESS_SECONDS + 0.05)).toBeNull()
++  })
++
++  it('누른 자리에서 끌려 나간 손가락, 브라우저가 가져간 손가락은 누른 것이 아니다', () => {
++    const p = new FingerPresses<string>()
++    p.down(1, 'canvas', 110, 640, 0, true)
++    p.down(2, 'tab', 200, 80, 1)
++    expect(p.up(2, 200 + PRESS_SLOP + 1, 80, 1.1)).toBeNull()
++    p.down(3, 'tab', 200, 80, 2)
++    p.cancel(3)
++    expect(p.up(3, 200, 80, 2.1)).toBeNull()
++    // 모르는 손가락(닿는 것을 못 본)도 아니다
++    expect(p.up(9, 200, 80, 2.2)).toBeNull()
++  })
++
++  it('단추 하나를 두 접점이 함께 눌렀으면(두 손가락, 둘로 잡힌 엄지) 한 번만 눌린다: 열렸다 바로 닫히지 않는다', () => {
++    const p = new FingerPresses<string>()
++    p.down(1, 'menu', 350, 36, 0, true)
++    p.down(2, 'menu', 362, 40, 0.01)
++    expect(p.up(1, 350, 36, 0.1)).toBe('menu')
++    expect(p.up(2, 362, 40, 0.11)).toBeNull()
++    // 멀리 떨어진 다른 단추를 함께 누른 것은 저마다 눌린다
++    p.down(1, 'portrait', 40, 42, 1, true)
++    p.down(2, 'menu', 355, 38, 1.05)
++    expect(p.up(1, 40, 42, 1.2)).toBe('portrait')
++    expect(p.up(2, 355, 38, 1.25)).toBe('menu')
++    // 이어 누른 두 톡(겹치지 않음)은 둘 다 눌린다: 「한 번 더 누르면」
++    p.down(1, 'canvas', 110, 640, 2, true)
++    p.down(2, 'home', 250, 32, 3)
++    expect(p.up(2, 250, 32, 3.1)).toBe('home')
++    p.down(3, 'home', 250, 32, 3.3)
++    expect(p.up(3, 250, 32, 3.4)).toBe('home')
++  })
++
++  it('뗀 것을 놓친 손가락은 처음 대는 손가락(isPrimary)·창이 가려질 때 잊는다: 그 뒤의 혼자 누른 톡을 대신 누르지 않는다', () => {
++    const p = new FingerPresses<string>()
++    p.down(1, 'canvas', 110, 640, 0, true)
++    // 1번의 뗌을 놓쳤다. 다음 손가락은 브라우저가 처음 대는 손가락이라고 알려 준다
++    p.down(2, 'menu', 355, 38, 5, true)
++    expect(p.up(2, 355, 38, 5.1)).toBeNull()
++    p.down(3, 'canvas', 110, 640, 6, true)
++    p.reset()
++    p.down(4, 'menu', 355, 38, 7)
++    expect(p.up(4, 355, 38, 7.1)).toBeNull()
++  })
++
++  it('대신 낸 click 바로 뒤에 같은 자리로 온 브라우저의 click은 같은 톡이다: 한 번만 버린다 (두 번 눌려 열렸다 닫히지 않게)', () => {
++    const p = new FingerPresses<string>()
++    expect(p.echo(355, 38, 0)).toBe(false)
++    p.made(2, 355, 38, 10)
++    expect(p.echo(355 + ECHO_PX + 1, 38, 10.05)).toBe(false)
++    // 다른 손가락이 낸 click은 같은 톡이 아니다
++    expect(p.echo(355, 38, 10.05, 7)).toBe(false)
++    expect(p.echo(358, 40, 10.05, 2)).toBe(true)
++    expect(p.echo(358, 40, 10.06, 2)).toBe(false)
++    // 포인터를 알려 주지 않는 브라우저는 때와 자리로만 본다. 늦게 온 것은 새 톡이다
++    p.made(3, 100, 100, 20)
++    expect(p.echo(100, 100, 20 + ECHO_SECONDS + 0.01)).toBe(false)
++    expect(p.echo(100, 100, 20.1)).toBe(true)
++  })
++
++  it('시작할 때 창에 한 번 건다 (게임 화면·정보 화면·고르는 카드·처음 화면의 단추가 모두 click을 듣는다)', () => {
++    expect(mainSource).toMatch(/^listenFingerClicks\(\)$/m)
++  })
++})
++
++describe('아래 묶음 위의 톡 (E307 손 QA)', () => {
++  const dock = { left: 63, top: 765, right: 331, bottom: 833 }
++  const ult = { left: 272, top: 779, right: 332, bottom: 839 }
++
++  it('유물 칸·생명 막대·궁극기와 그 사이 틈의 톡은 땅으로 가는 지시가 아니다', () => {
++    // 손 QA가 누른 자리 (393×852): 스킬 칸, 궁극기, 생명 막대
++    for (const [x, y] of [[88, 809], [302, 809], [200, 770]] as const) expect(inBoxes(x, y, [dock, ult]), `${x},${y}`).toBe(true)
++    // 칸과 칸 사이, 궁극기가 상자 밖으로 나온 아래쪽
++    expect(inBoxes(113, 800, [dock, ult])).toBe(true)
++    expect(inBoxes(302, 837, [dock, ult])).toBe(true)
++    // 묶음 옆과 위의 땅은 그대로 톡이다
++    expect(inBoxes(30, 809, [dock, ult])).toBe(false)
++    expect(inBoxes(200, 740, [dock, ult])).toBe(false)
++  })
++
++  it('숨은 조각(빈 사각형)은 아무 톡도 막지 않는다', () => {
++    expect(inBoxes(0, 0, [{ left: 0, top: 0, right: 0, bottom: 0 }])).toBe(false)
++  })
++
++  it('휴대폰에서 누름을 흘려보내는 HUD 조각은 모두 톡을 삼키는 목록 안에 있다 (조각을 더하면 함께 더한다)', () => {
++    const rule = hudCss.match(/((?:\.is-touch [^,{]+,?\s*)+)\{\s*pointer-events: none;\s*\}/)
++    const passing = rule![1]!.split(',').map((sel) => sel.trim().replace(/^\.is-touch (?:button)?/, ''))
++    expect(passing).toEqual(['.hud__slot', '.hud__life', '.hud__ult', '.hud__essence'])
++    // 생명 막대와 유물 칸은 아래 묶음 상자(`hud__dock`) 안에 짓는다
++    expect(hudSource).toMatch(/this\.bar\('[^']*hud__life', dock\)/)
++    expect(hudSource).toMatch(/const slots = this\.el\('div', 'hud__slots', dock\)/)
++    expect(hudSource).toMatch(/this\.el\('button', 'hud__slot[^']*', slots\)/)
++    expect([...TAP_DEAD]).toEqual(['.hud__dock', '.hud__ult', '.hud__essence'])
++  })
++})
