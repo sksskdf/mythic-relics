@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import enemies from '../src/data/enemies.json'
-import { bossFights, bossText, DUMMY_HP, finishRate, hitStats, indexRows, layerText, median, OLD_DUMMY_HP, rowsAround, runFile, STANDARD_FOE, STANDARD_POISE, timelineOf, wasClipped } from '../scripts/lib/curve.mjs'
+import { bossFights, bossText, DUMMY_HP, finishRate, hitStats, indexRows, isKill, killGap, killWatchStart, layerText, median, oathRuns, oathText, OLD_DUMMY_HP, rowsAround, runFile, STANDARD_FOE, STANDARD_POISE, strikeDummy, timelineOf, wasClipped } from '../scripts/lib/curve.mjs'
 
 describe('곡선 재기의 셈 (E307 0B)', () => {
   it('표준 허수아비의 생명은 땅 세기와 무관하게 고정이고, 옛 표준 적이면 잘렸을 줄을 가린다', () => {
@@ -198,5 +198,175 @@ describe('판 기록 → 시각표와 보스 싸움 (E307 0B)', () => {
     // 들어선 기록이 없는 땅·못 잡은 싸움은 비운다
     expect(fights[2]).toMatchObject({ id: 'typhon', entered: null, approach: null, killsBefore: null, fight: null, killed: null })
     expect(bossText(fights)).toBe('jormungandr 다가가기 60초(처치 2) · 싸움 25초, king 다가가기 200초(처치 0) · 싸움 200초(되참 1, 마지막 100초), typhon 다가가기 -(처치 -) · 싸움 - 못 잡음')
+  })
+})
+
+describe('처치가 끊긴 가장 긴 구간 (E241, E307 0C: playtest·power-curve가 함께 쓴다)', () => {
+  // 첫 신이 600초에 깨어났고, 그 뒤 처치는 620·650·1000(보스)·1010초, 판은 1100초에 끝났다
+  const log = [
+    { t: 6, type: 'region', detail: 'midgard' },
+    { t: 100, type: 'kill' },
+    { t: 400, type: 'kill' },
+    { t: 500, type: 'region', detail: 'serpentshore' },
+    { t: 600, type: 'open', detail: 'thor' },
+    { t: 620, type: 'kill' },
+    { t: 650, type: 'kill' },
+    { t: 700, type: 'region', detail: 'utgard' },
+    { t: 1000, type: 'bossKill', detail: 'giantKing' },
+    { t: 1010, type: 'kill' },
+  ]
+
+  it('재기 시작한 때 뒤의 처치와 처치 사이에서 가장 긴 구간과, 그 구간이 시작한 때의 땅', () => {
+    // 650 → 1000초가 가장 길다 (보스 처치도 처치다). 그 구간이 시작한 650초에는 바닷가에 있었다
+    expect(killGap(log, 600, 1100)).toEqual({ seconds: 350, at: 650, region: 'serpentshore' })
+    expect(isKill({ type: 'bossKill' })).toBe(true)
+    expect(isKill({ type: 'hurt' })).toBe(false)
+  })
+
+  it('재기 시작하기 전의 끊김(첫 신 전의 100 → 400초)은 세지 않는다', () => {
+    expect(killGap(log, 600, 1020).seconds).toBe(350)
+    // 처음부터 재면 그 구간도 본다 (유물을 끼고 시작하는 판·깊이 봇)
+    expect(killGap(log.slice(0, 4), 0, 420)).toEqual({ seconds: 300, at: 100, region: 'midgard' })
+  })
+
+  it('마지막 처치에서 판이 끝날 때까지도 구간이다 (멈춘 채 끝난 판)', () => {
+    expect(killGap(log, 600, 1500)).toEqual({ seconds: 490, at: 1010, region: 'utgard' })
+  })
+
+  it('처치가 하나도 없으면 재기 시작한 때부터 끝까지가 구간이다', () => {
+    expect(killGap([{ t: 3, type: 'region', detail: 'midgard' }], 0, 240)).toEqual({ seconds: 240, at: 0, region: null })
+    // 땅에 들어선 기록이 없을 때의 땅은 부르는 쪽이 준다 (--region으로 세운 판)
+    expect(killGap([], 0, 240, 'olympus').region).toBe('olympus')
+  })
+
+  it('재기 시작한 때가 없으면(첫 신 전에 끝난 판) 구간도 없다', () => {
+    expect(killGap(log, undefined, 1100)).toBeNull()
+  })
+
+  it('처치를 걸러 낸 기록으로 셈하면 판 전체가 한 구간이 된다: 걸러 내기 전의 기록을 줘야 한다', () => {
+    const filtered = log.filter((e) => e.type !== 'kill')
+    expect(killGap(filtered, 600, 1100).seconds).toBe(400)
+    expect(killGap(log, 600, 1100).seconds).toBe(350)
+  })
+
+  it('재기 시작하는 때는 첫 신을 손에 쥔 때, 그 기록이 없으면 첫 신이 깨어난 때다', () => {
+    expect(killWatchStart(log)).toBe(600)
+    expect(killWatchStart([{ t: 590, type: 'open', detail: 'thor' }, { t: 595, type: 'manifest', detail: 'thor' }])).toBe(595)
+    expect(killWatchStart([{ t: 6, type: 'region', detail: 'midgard' }])).toBeUndefined()
+  })
+})
+
+describe('맹세 봇의 판 기록 (E307 0C: 엔딩 뒤 꼴)', () => {
+  const demo = ['silence', 'emptyHand', 'alone']
+  // 침묵을 10초에 걸어 105초에 지켰고, 타는 모래시계는 400초에 걸어 1000초에 깨졌고, 무거운 발은 걸기만 했다
+  const log = [
+    { t: 105, type: 'oath', detail: 'silence:win:95' },
+    { t: 300, type: 'oath', detail: 'emptyHand:win:150' },
+    { t: 1000, type: 'oath', detail: 'timed:fail:600' },
+  ]
+  const sworn = [
+    { id: 'silence', t: 10.2 },
+    { id: 'emptyHand', t: 150 },
+    { id: 'timed', t: 400 },
+    { id: 'slow', t: 1001 },
+  ]
+
+  it('건 맹세마다 건 때·끝난 때·건 뒤의 초·지켰나를 붙이고, 데모 셋을 가린다', () => {
+    const runs = oathRuns(log, sworn, demo)
+    expect(runs[0]).toEqual({ id: 'silence', demo: true, sworn: 10, ended: 105, seconds: 95, win: true })
+    expect(runs[1]).toMatchObject({ id: 'emptyHand', demo: true, seconds: 150, win: true })
+    expect(runs[2]).toEqual({ id: 'timed', demo: false, sworn: 400, ended: 1000, seconds: 600, win: false })
+    // 아직 안 끝난 맹세는 건 때만
+    expect(runs[3]).toEqual({ id: 'slow', demo: false, sworn: 1001 })
+  })
+
+  it('건 때보다 앞선 같은 맹세의 기록은 붙이지 않는다', () => {
+    const again = oathRuns([{ t: 50, type: 'oath', detail: 'silence:fail:40' }, { t: 200, type: 'oath', detail: 'silence:win:90' }], [{ id: 'silence', t: 110 }], demo)
+    expect(again[0]).toMatchObject({ ended: 200, seconds: 90, win: true })
+  })
+
+  it('한 줄 글: 지킴·깨짐·못 끝냄', () => {
+    expect(oathText(oathRuns(log, sworn, demo))).toBe('silence 지킴 95초, emptyHand 지킴 150초, timed 깨짐 600초, slow 못 끝냄')
+    expect(oathText([])).toBe('-')
+  })
+})
+
+describe('표준 허수아비 치기 (E307 0C: 페이지 안에서 도는 셈)', () => {
+  /** 게임 흉내: 주인공이 1초에 두 번, 한 대 perHit씩 누른 적을 친다. 한 일을 차례로 적는다 */
+  function fakeGame(perHit) {
+    const calls = []
+    let pressed = null
+    const game = {
+      calls,
+      combat: { godMode: false, health: { reset: () => calls.push('heal') } },
+      hero: { object: { position: { x: 4, z: 7 } } },
+      orders: {
+        clear: () => calls.push('clear-orders'),
+        press: (_, foe) => {
+          pressed = foe
+          calls.push('press')
+        },
+      },
+      encounter: {
+        clearAll: () => calls.push('clear-foes'),
+        spawnById: (id, at, awake) => {
+          calls.push(`spawn ${id} ${at.x},${at.z} ${awake}`)
+          return {
+            health: { max: 100, hp: 100 },
+            update: () => calls.push('foe-moved'),
+            takeHit(amount) {
+              this.health.hp -= amount
+              return amount
+            },
+          }
+        },
+      },
+      advance: (seconds) => {
+        calls.push(`advance ${seconds} god=${game.combat.godMode}`)
+        for (let i = 0; i < seconds * 2; i++) pressed.takeHit(perHit, 0, 0, 0)
+      },
+    }
+    return game
+  }
+
+  /** 페이지로 넘어간 것처럼: 글로 바꿨다 다시 만든 함수를 이 파일의 다른 것이 안 보이는 자리에서 돌린다 */
+  const inPage = (game, arg) => {
+    globalThis.window = { __game: game }
+    try {
+      return new Function(`return (${strikeDummy})`)()(arg)
+    } finally {
+      delete globalThis.window
+    }
+  }
+
+  it('20초 동안 준 피해와 20초 몫, 맞은 한 대들을 돌려준다', () => {
+    const out = inPage(fakeGame(13.75), { hp: DUMMY_HP, seconds: 20 })
+    // 1초에 두 대 × 20초 = 마흔 대
+    expect(out.dealt).toBe(550)
+    expect(out.damage20).toBe(550)
+    expect(out.hits).toHaveLength(40)
+    // 한 대는 소수 첫째 자리까지
+    expect(out.hits[0]).toBe(13.8)
+  })
+
+  it('치는 초가 달라도 20초 몫으로 고쳐 낸다', () => {
+    expect(inPage(fakeGame(10), { hp: DUMMY_HP, seconds: 10 })).toMatchObject({ dealt: 200, damage20: 400 })
+  })
+
+  it('둘레를 비우고, 쓰러지지 않게 둔 채, 서 있기만 하는 허수아비를 1.8m 앞에 세워 누른다. 끝나면 비우고 되돌린다', () => {
+    const game = fakeGame(10)
+    inPage(game, { hp: DUMMY_HP, seconds: 20 })
+    expect(game.calls).toEqual(['clear-foes', 'heal', 'clear-orders', 'spawn grunt 5.8,7 true', 'press', 'advance 20 god=true', 'clear-foes'])
+    // 쓰러지지 않게 한 것은 치기 전의 값으로 되돌린다
+    expect(game.combat.godMode).toBe(false)
+    const kept = fakeGame(10)
+    kept.combat.godMode = true
+    inPage(kept, { hp: DUMMY_HP, seconds: 20 })
+    expect(kept.combat.godMode).toBe(true)
+  })
+
+  it('허수아비는 생명이 고정이라 센 빌드가 쳐도 20초 안에 죽지 않는다', () => {
+    // 한 대 3000(20초에 12만)이어도 준 피해가 그대로 찍힌다
+    expect(inPage(fakeGame(3000), { hp: DUMMY_HP, seconds: 20 }).dealt).toBe(120000)
   })
 })

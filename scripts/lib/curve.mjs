@@ -1,5 +1,5 @@
 // 곡선·시각표 재기의 셈 (E307 0B 「재는 자」): power-curve·playtest·timeline-check가 함께 쓴다.
-// 브라우저 없이 시험할 수 있게 셈만 둔다 (tests/curve.test.mjs)
+// 브라우저 없이 시험할 수 있게 셈만 둔다 (tests/curve.test.mjs). 하나만 페이지 안에서 돈다: 표준 허수아비 치기 `strikeDummy`
 
 /**
  * 표준 허수아비의 생명. 땅 세기·깊이와 무관하게 고정이고, 20초 안에 죽지 않게 크다.
@@ -147,6 +147,87 @@ export function bossFights(log, fights) {
       resets: f.resets,
     }
   })
+}
+
+/** 처치 기록인가 (보스 포함) */
+export const isKill = (e) => e.type === 'kill' || e.type === 'bossKill'
+
+/**
+ * 처치가 끊긴 구간을 재기 시작하는 때 (초): 첫 신을 손에 쥔 때, 그 기록이 없으면 첫 신이 깨어난 때. 아직이면 undefined.
+ * 유물을 끼고(또는 엔딩 뒤 빌드로) 시작하는 판은 부르는 쪽이 0을 준다
+ */
+export function killWatchStart(log) {
+  return log.find((e) => e.type === 'manifest')?.t ?? log.find((e) => e.type === 'open')?.t
+}
+
+/**
+ * 처치가 끊긴 가장 긴 구간 (E241): from(초) 뒤의 처치와 처치 사이, 마지막 처치에서 end까지.
+ * 구간이 시작한 때(at)와 그때 있던 땅(region)을 함께 돌려준다. 그때까지 땅에 들어선 기록이 없으면 fallbackRegion.
+ * 재기 시작하는 때가 없으면(from이 undefined: 첫 신 전에 끝난 판) null.
+ * 처치를 걸러 낸 기록으로 셈하면 판 전체가 한 구간이 되니, 걸러 내기 전의 기록(`game.log` 전부)을 준다
+ */
+export function killGap(log, from, end, fallbackRegion = null) {
+  if (from === undefined) return null
+  const marks = [from, ...log.filter((e) => isKill(e) && e.t >= from).map((e) => e.t), end]
+  let best = { seconds: 0, at: from }
+  for (let i = 1; i < marks.length; i++) if (marks[i] - marks[i - 1] > best.seconds) best = { seconds: marks[i] - marks[i - 1], at: marks[i - 1] }
+  const region = log.filter((e) => e.type === 'region' && e.t <= best.at).at(-1)?.detail ?? fallbackRegion
+  return { seconds: Math.round(best.seconds), at: Math.round(best.at), region }
+}
+
+/**
+ * 맹세 봇의 판 기록 (`playtest.mjs --oaths`, E307 0C): 건 맹세(sworn: id와 건 때 t)마다 그 뒤 처음 끝난 기록(`oath`: 맹세:결과:초)을 붙인다.
+ * seconds는 건 뒤 끝날 때까지의 게임 초 (보스가 다시 서기를 기다린 시간도 든다). 아직 안 끝났으면 ended·seconds·win이 없다.
+ * demo는 덩어리 사이에 견주는 데모 셋인가
+ */
+export function oathRuns(log, sworn, demo = []) {
+  const ends = log.filter((e) => e.type === 'oath')
+  return sworn.map((s) => {
+    const end = ends.find((e) => e.t >= s.t && String(e.detail).startsWith(`${s.id}:`))
+    const out = { id: s.id, demo: demo.includes(s.id), sworn: Math.round(s.t) }
+    return end ? { ...out, ended: Math.round(end.t), seconds: Math.round(end.t - s.t), win: String(end.detail).includes(':win:') } : out
+  })
+}
+
+/** 맹세 기록을 한 줄 글로: 「silence 지킴 95초, timed 깨짐 600초, slow 못 끝냄」 */
+export function oathText(runs) {
+  return runs.map((o) => `${o.id} ${o.win === undefined ? '못 끝냄' : `${o.win ? '지킴' : '깨짐'} ${o.seconds}초`}`).join(', ') || '-'
+}
+
+/**
+ * 표준 허수아비 치기 (**페이지 안에서 돈다**: `page.evaluate(strikeDummy, { hp, seconds })`, 또는 페이지에 심어 다른 평가 안에서 부른다).
+ * 페이지로 넘어가 도는 함수라 이 파일의 다른 것(상수·돕는 함수)을 쓰지 못한다. 재는 법은 공격 지수와 같다:
+ * 둘레의 적을 비우고, 주인공이 쓰러지지 않게 둔 채, 서 있기만 하는 허수아비(서리 거인의 몸, 생명 hp)를 1.8m 앞에 세워 seconds초 친다.
+ * - dealt: 준 피해, damage20: 20초 몫으로 고친 피해 (공격 지수의 분자), hits: 맞은 한 대마다의 피해
+ * 무리가 다시 서지 않게 하는 것(`encounter.crowd = 0`)은 부르는 쪽이 한다. 주인공이 쓰러지지 않게 한 것(godMode)은 끝나면 되돌린다.
+ * 빌드만 바꿔 가며 견줄 때도 이것을 쓴다 (`checklist-qa.mjs`의 손 배율 점검: 손의 신만 바꿔 20초 피해 셋)
+ */
+export function strikeDummy({ hp, seconds }) {
+  const g = window.__game
+  const wasGod = g.combat.godMode
+  g.encounter.clearAll()
+  g.combat.health.reset()
+  g.combat.godMode = true
+  g.orders.clear()
+  const p = g.hero.object.position
+  const dummy = g.encounter.spawnById('grunt', { x: p.x + 1.8, z: p.z }, true)
+  dummy.health.max = hp
+  dummy.health.hp = hp
+  dummy.update = () => {}
+  // 맞은 한 대마다의 피해 (휘청임 문턱과 견준다)
+  const hits = []
+  const takeHit = dummy.takeHit.bind(dummy)
+  dummy.takeHit = (...hit) => {
+    const dealt = takeHit(...hit)
+    if (dealt > 0) hits.push(Math.round(dealt * 10) / 10)
+    return dealt
+  }
+  g.orders.press(null, dummy)
+  g.advance(seconds, 1 / 30)
+  const dealt = hp - dummy.health.hp
+  g.encounter.clearAll()
+  g.combat.godMode = wasGod
+  return { dealt, damage20: Math.round((dealt / seconds) * 20), hits }
 }
 
 /** 싸움 목록을 한 줄 글로: 「jormungandr 다가가기 95초(처치 12) · 싸움 21초」 */

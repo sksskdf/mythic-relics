@@ -2,7 +2,7 @@
 // 1) 봇이 처음부터 플레이하며 0:00(걷기 전)과 그 뒤 2분마다 저장(snapshot)을 남긴다.
 // 2) 저장마다 새 창에서 그 저장을 불러, 같은 표준 허수아비에게 20초 동안 준 피해(공격)와 표준 한 대에 깎이는 생명(방어)을 재고,
 //    그때 그 땅의 적 생명·한 대 피해로 "그 자리 적 하나를 잡는 시간"과 "몇 대 맞으면 쓰러지나"를 구한다.
-// 사용법: npm run build && node scripts/power-curve.mjs [분=40] [--depth=N] [--shots] [--runs=N] [--out=파일]   결과: test-results/power-curve.json
+// 사용법: npm run build && node scripts/power-curve.mjs [분=40] [--depth=N] [--shots] [--runs=N] [--out=파일] [--branch=old]   결과: test-results/power-curve.json
 // 재는 방법 (E307 0B 「재는 자」, 셈은 scripts/lib/curve.mjs):
 // - 표준 허수아비는 생명이 고정(DUMMY_HP)이라 땅 세기·깊이와 무관하고 20초 안에 죽지 않는다. 옛 표준 적(80 × 60 × 땅 세기)이면
 //   잘렸을 줄은 clippedBefore로 남긴다 (옛 기준선과 견줄 때). 「적 잡는 초·버티는 대」는 지금대로 그 땅의 적을 따른다
@@ -18,6 +18,9 @@
 // - 판 기록: 제 판의 시각표(timeline·ending, playtest.mjs와 같은 모양)와 보스·수호자 싸움 초(bossFights)를 함께 남겨,
 //   `node scripts/timeline-check.mjs --curve`가 같은 판의 시각과 공격 지수를 견준다. 줄의 logged는 그 저장까지 기록(log)에 남은 사건 수라
 //   사건 앞 줄·뒤 줄을 차례로 가른다 (시각은 반올림해 남겨서 사건 직후의 저장을 못 가른다)
+// - 판마다 처치가 끊긴 가장 긴 구간(killGap: 첫 신 뒤, 깊이 봇은 처음부터)과 그 땅, 페이지 오류(errors)도 남긴다 (E307 0C).
+//   덩어리의 문에서 실패는 엔딩에 못 닿은 판·처치 없이 300초·오류다. killGap은 처치를 걸러 내기 전의 기록으로 셈한다 (남기는 log에는 처치가 없다)
+// --branch=old: 봇이 귀환 갈래를 옛 고정 차례(승천 → 불꽃 → 승천 → 사냥)로 고른다. 기본은 승천할 신이 있으면 늘 승천 (E307 0C, `src/dev/botRules.ts`)
 // --runs=N: N판을 이어 돌린다 (같은 판 기준선 세 판). 둘째 판부터는 power-curve-2.json처럼 옆에 남기고, 판을 쓸 때마다 첫 파일의 siblings에 적는다
 // --out=파일: 결과 파일 (기본 test-results/power-curve.json, 없는 폴더는 만든다)
 // --depth=N: 엔딩 뒤에서 원정이 무르익을 때마다 귀환하며 깊이를 하나씩 내려가 N까지 (E305-03, 옛 --threat)
@@ -30,7 +33,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import { basename, dirname } from 'node:path'
 import { chromium } from 'playwright-core'
 import { findCuts } from './lib/cuts.mjs'
-import { bossFights, bossText, DUMMY_HP, finishRate, hitStats, indexRows, layerText, runFile, STANDARD_FOE, STANDARD_POISE, timelineOf, wasClipped } from './lib/curve.mjs'
+import { bossFights, bossText, DUMMY_HP, finishRate, hitStats, indexRows, killGap, killWatchStart, layerText, runFile, STANDARD_FOE, STANDARD_POISE, strikeDummy, timelineOf, wasClipped } from './lib/curve.mjs'
 
 const args = process.argv.slice(2).filter((a) => !a.startsWith('--'))
 const flag = (name) => process.argv.find((a) => a.startsWith(name))?.slice(name.length)
@@ -40,6 +43,12 @@ const SHOTS = process.argv.includes('--shots')
 /** 이어 돌릴 판 수 (같은 판 기준선 세 판은 --runs=3). --shots는 한 판만 */
 const RUNS = SHOTS ? 1 : Math.max(1, Number(flag('--runs=') ?? 1))
 const OUT_FILE = flag('--out=') ?? 'test-results/power-curve.json'
+/** 봇이 귀환 갈래를 고르는 법: 기본 ascend(늘 승천), old는 옛 고정 차례 (E307 0C) */
+const BRANCH = flag('--branch=') ?? 'ascend'
+if (!['ascend', 'old'].includes(BRANCH)) {
+  console.error(`--branch=${BRANCH}: ascend(기본)나 old만 됩니다.`)
+  process.exit(2)
+}
 /** 표준 허수아비를 치는 시간 (초): 공격 지수의 뜻 (`TIMELINE.md` 4장) */
 const ATTACK_SECONDS = 20
 /** 「맞는 적이 공격을 끝낸 비율」을 재는 싸움의 길이 (초) */
@@ -85,6 +94,8 @@ async function openSave(browser, save, viewport, phone = false) {
     localStorage.setItem('mythic-relics/save/0', data)
     localStorage.setItem('mythic-relics/last-slot', '0')
   }, JSON.stringify(save))
+  // 표준 허수아비 치기(scripts/lib/curve.mjs)를 페이지에 심어 둔다: 재는 평가 한 번 안에서 부른다 (평가를 나누면 그 사이에 게임이 제 걸음으로 흐른다)
+  await p.addInitScript(`window.__strikeDummy = ${strikeDummy}`)
   await p.goto(`${BASE}?noscenes`, { timeout: 90000 })
   await p.waitForFunction(() => (window.__game?.frame ?? 0) > 2 && window.__game.playing, null, { timeout: 90000 })
   return p
@@ -119,6 +130,8 @@ try {
     for (const [i, s] of play.snaps.entries()) rows[i].logged = play.log.slice(0, s.events).filter((e) => LOG_TYPES.includes(e.type)).length
     const result = {
       every: EVERY,
+      /** 봇이 귀환 갈래를 고른 법 (E307 0C): ascend(늘 승천)·old(옛 고정 차례) */
+      branch: BRANCH,
       /**
        * 재는 방법 (E307 0B): 표준 허수아비의 생명·치는 초, 끝낸 비율을 재는 싸움의 초·고정 적·표준 휘청임 문턱,
        * 지수의 기준인 첫 줄(0:00 맨몸)의 20초 피해 (판 사이를 지수 말고 damage20으로 견줄 때)
@@ -132,6 +145,10 @@ try {
       timeline: timelineOf(play.log),
       deaths: play.log.filter((e) => e.type === 'death').length,
       stallBreaks: play.stallBreaks,
+      // 처치가 끊긴 가장 긴 구간과 그 땅 (E241, playtest.mjs의 판과 같은 셈): 첫 신 뒤, 깊이 봇은 처음부터
+      killGap: killGap(play.log, DEPTH > 0 ? 0 : killWatchStart(play.log), play.end),
+      // 판을 돌리는 동안의 페이지 오류
+      errors: play.errors,
       // 보스·수호자 싸움마다: 그 땅에 들어서 처음 때릴 때까지·처음 때려 쓰러질 때까지의 초
       bossFights: bossFights(play.log, play.fights),
     }
@@ -151,8 +168,11 @@ try {
   /** 봇 한 판: 2분마다 저장(snaps), 플레이 기록 전부(log), 보스·수호자 싸움(fights), --shots면 찍은 것(shots) */
   async function playRun(browser) {
     const page = await browser.newPage({ viewport: SHOTS ? { width: 1280, height: 720 } : { width: 640, height: 360 } })
+    const errors = []
+    page.on('pageerror', (e) => errors.push(e.message))
     await page.goto(`${BASE}?fresh&autoplay`)
     await page.waitForFunction(() => window.__autoplay && window.__game.frame > 2, null, { timeout: 60000 })
+    await page.evaluate((branch) => (window.__autoplay.branch = branch), BRANCH)
     if (DEPTH > 0) await page.evaluate(() => {
       // 깊이는 엔딩 뒤 장치 (E21-06): 귀환 카드에서 「+1」
       window.__game.reachEnding()
@@ -199,9 +219,9 @@ try {
         if (done(s)) break
       }
     }
-    const { log, fights, stallBreaks } = await page.evaluate(() => ({ log: window.__game.log, fights: [...window.__autoplay.bossFights], stallBreaks: window.__autoplay.stallBreaks }))
+    const { log, fights, stallBreaks, end } = await page.evaluate(() => ({ log: window.__game.log, fights: [...window.__autoplay.bossFights], stallBreaks: window.__autoplay.stallBreaks, end: window.__game.time }))
     await page.close()
-    return { snaps, log, fights, stallBreaks, shots }
+    return { snaps, log, fights, stallBreaks, end, errors, shots }
   }
 
   /** 저장마다 새 창에서 불러 잰 줄들 */
@@ -225,28 +245,9 @@ try {
           const landPower = g.encounter.landPower(g.region.id)
           // 재는 동안은 무리가 다시 서지 않게 (비운 무리는 25초 뒤 다시 서서 재는 싸움에 끼어든다)
           g.encounter.crowd = 0
-          // 공격: 표준 허수아비(생명 고정, 서 있기만)를 친다. 땅 세기·깊이와 무관하게 같은 적이다
-          g.encounter.clearAll()
-          g.combat.health.reset()
-          g.combat.godMode = true
-          g.orders.clear()
+          // 공격: 표준 허수아비(생명 고정, 서 있기만)를 친다. 땅 세기·깊이와 무관하게 같은 적이다 (`strikeDummy`, openSave가 심어 둔다)
+          const { damage20, hits } = window.__strikeDummy({ hp: dummyHp, seconds: attackSeconds })
           const p = g.hero.object.position
-          const t = g.encounter.spawnById('grunt', { x: p.x + 1.8, z: p.z }, true)
-          t.health.max = dummyHp
-          t.health.hp = dummyHp
-          t.update = () => {}
-          // 맞은 한 대마다의 피해 (휘청임 문턱과 견준다)
-          const hits = []
-          const takeHit = t.takeHit.bind(t)
-          t.takeHit = (...hit) => {
-            const dealt = takeHit(...hit)
-            if (dealt > 0) hits.push(Math.round(dealt * 10) / 10)
-            return dealt
-          }
-          g.orders.press(null, t)
-          g.advance(attackSeconds, 1 / 30)
-          const dealt = dummyHp - t.health.hp
-          g.encounter.clearAll()
           // 방어: 표준 한 대(피해 100)에 깎이는 생명
           g.combat.godMode = false
           g.combat.health.reset()
@@ -279,7 +280,7 @@ try {
           for (const id of foeIds) counts.set(id, (counts.get(id) ?? 0) + 1)
           const foeId = [...counts].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null
           const finish = foeId === null ? null : foeId === standardFoe ? standardFinish : fight(foeId)
-          return { damage20: Math.round((dealt / attackSeconds) * 20), maxHp: Math.round(maxHp), per100: Math.round(lost * 10) / 10, foeHp: Math.round(foeHp), foeHit: Math.round(foeHit * 10) / 10, foes: foes.length, landPower, build, hits, standardFinish, finish }
+          return { damage20, maxHp: Math.round(maxHp), per100: Math.round(lost * 10) / 10, foeHp: Math.round(foeHp), foeHit: Math.round(foeHit * 10) / 10, foes: foes.length, landPower, build, hits, standardFinish, finish }
         },
         [DUMMY_HP, ATTACK_SECONDS, FINISH_SECONDS, STANDARD_FOE],
       )
@@ -345,6 +346,9 @@ try {
     const clipped = rows.filter((r) => r.clippedBefore)
     console.log(`\n옛 방법이면 잘렸을 줄 ${clipped.length} / ${rows.length}${clipped.length ? `: ${clipped.map((r) => fmt(r.t)).join(' ')}` : ''}`)
     if (result.ending !== undefined) console.log(`엔딩 ${fmt(result.ending)} · 쓰러짐 ${result.deaths}`)
+    else if (DEPTH === 0) console.log(`엔딩에 닿지 못함 (${LIMIT_MIN}분 제한) · 쓰러짐 ${result.deaths}`)
+    const gap = result.killGap
+    console.log(`처치 끊김 ${gap ? `${gap.seconds}초(${fmt(gap.at)} ${gap.region ?? '-'})` : '-'} · 멈춤 끊기 ${result.stallBreaks} · 갈래 ${result.branch}${result.errors.length ? ` · 오류 ${result.errors.length}: ${result.errors[0]}` : ''}`)
     if (result.bossFights.length) console.log(`보스·수호자: ${bossText(result.bossFights)}`)
   }
 
