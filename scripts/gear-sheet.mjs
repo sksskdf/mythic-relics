@@ -8,7 +8,7 @@ import { chromium } from 'playwright-core'
 
 const [out = 'test-results/gear-sheet.png', extra = ''] = process.argv.slice(2)
 const PORT = 4194
-const BROWSER = process.env.CHROMIUM_PATH ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'
+import { BROWSER } from './lib/browser.mjs'
 const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'ignore', detached: true })
 const stop = () => {
   try {

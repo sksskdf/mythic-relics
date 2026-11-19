@@ -14,7 +14,7 @@ const defaultBrowser = () => {
     return null
   }
 }
-const BROWSER = [process.env.CHROMIUM_PATH, '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', defaultBrowser()].find((p) => p && existsSync(p))
+const BROWSER = [process.env.CHROMIUM_PATH, '/opt/pw-browsers/chromium', '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', defaultBrowser()].find((p) => p && existsSync(p))
 const css = (file) => readFileSync(new URL(`../src/ui/${file}`, import.meta.url), 'utf8')
 /** 1×1 투명 그림 (탭 그림 자리) */
 const PIXEL = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=='
@@ -292,8 +292,10 @@ describe.skipIf(!BROWSER)('잘린 요소 검사 (scripts/lib/cuts.mjs, E307)', (
         expect(at.mark.bottom).toBeLessThanOrEqual(at.text.top + at.line)
         // 상자의 높이는 글의 줄만큼이다: 마름모만의 줄이 따로 없다
         expect(at.goal.height - at.text.height).toBeLessThan(at.line)
-        // 글은 작은 지도 왼쪽에서 끝난다
+        // 글은 작은 지도 왼쪽에서 끝나고, 상자(테 1px)도 작은 지도의 테두리(2px)에 닿지 않는다.
+        // 전에는 폭에 안쪽 여백을 세지 않아 상자의 오른쪽 끝이 테두리 위에 놓였다 (393×659에서 6px)
         expect(at.text.right).toBeLessThanOrEqual(at.minimap.left)
+        expect(at.goal.right + 1).toBeLessThanOrEqual(at.minimap.left - 2 - 6)
       } finally {
         await p.close()
       }
@@ -309,6 +311,50 @@ describe.skipIf(!BROWSER)('잘린 요소 검사 (scripts/lib/cuts.mjs, E307)', (
         // 양옆 안쪽 여백(12px)만 빼고 다 쓴다
         expect(at.bar.left).toBeLessThan(at.text.left)
         expect(at.bar.width).toBeCloseTo(at.goal.width - 24, 0)
+      } finally {
+        await p.close()
+      }
+    }, 30000)
+
+    it('짧은 세로 화면(393×659)은 작은 지도가 96px이고 목표 한 줄이 그만큼 넓어진다. 393×852와 가로 화면은 128px 그대로 (E307 손 QA)', async () => {
+      const sizes = {}
+      for (const [width, height] of [[393, 659], [393, 852], [390, 844], [1280, 720], [960, 540]]) {
+        const p = await page([width, height], goal(LONG))
+        try {
+          sizes[`${width}x${height}`] = await boxes(p)
+        } finally {
+          await p.close()
+        }
+      }
+      const short = sizes['393x659']
+      const tall = sizes['393x852']
+      expect([short.minimap.width, short.minimap.height]).toEqual([96, 96])
+      for (const key of ['393x852', '390x844', '1280x720', '960x540']) expect([sizes[key].minimap.width, sizes[key].minimap.height], key).toEqual([128, 128])
+      // 128px일 때는 화면 폭의 3분의 1이었다: 줄인 지도는 4분의 1을 넘지 않고, 그 왼쪽 길(화면 폭의 70%)이 눌린다
+      expect(short.minimap.width / 393).toBeLessThan(0.25)
+      expect(short.minimap.left).toBeGreaterThan(393 * 0.7)
+      // 손가락이 누르는 자리(44px)보다는 넉넉히 크다 (누르면 지도 탭)
+      expect(short.minimap.width).toBeGreaterThanOrEqual(88)
+      // 목표 한 줄은 줄어든 지도 옆 폭을 쓴다: 지도의 테두리에는 닿지 않는다
+      expect(short.goal.width).toBeGreaterThan(tall.goal.width + 24)
+      expect(short.goal.right + 1).toBeLessThanOrEqual(short.minimap.left - 2 - 6)
+    }, 60000)
+
+    it.each([[393, 659], [393, 852]])('%i×%i: 보스 막대는 목표 한 줄 아래에 서고(지도가 줄어도 따라 올라가지 않는다) 작은 지도와 겹치지 않는다', async (width, height) => {
+      const boss = '<div class="hud__boss is-visible has-name"><div class="ui-bar ui-bar--capped hud__boss-track"></div><div class="hud__boss-head"><span class="hud__boss-grade">보스</span><span class="hud__boss-name">요르문간드</span></div></div>'
+      const p = await page([width, height], goal('기세를 모은다 0/3', { bar: true }) + boss)
+      try {
+        const at = await boxes(p)
+        const bar = await p.evaluate(() => {
+          const r = document.querySelector('.hud__boss').getBoundingClientRect()
+          return { top: r.top, bottom: r.bottom, left: r.left, right: r.right }
+        })
+        // 목표 한 줄(막대까지)의 아래
+        expect(bar.top).toBeGreaterThanOrEqual(at.goal.bottom)
+        // 작은 지도의 왼쪽이거나 아래 (겹치지 않는다)
+        expect(bar.right <= at.minimap.left || bar.top >= at.minimap.bottom).toBe(true)
+        expect(bar.left).toBeGreaterThanOrEqual(0)
+        expect(bar.right).toBeLessThanOrEqual(width)
       } finally {
         await p.close()
       }
@@ -332,30 +378,36 @@ describe.skipIf(!BROWSER)('잘린 요소 검사 (scripts/lib/cuts.mjs, E307)', (
       }
     }, 30000)
 
-    /** 그 요소의 그림자들이 놓인 자리 (px) */
-    const shadows = (p, sel) =>
-      p.evaluate((s) => {
-        const el = document.querySelector(s)
-        const style = getComputedStyle(el)
-        return { size: parseFloat(style.fontSize), at: [...style.textShadow.matchAll(/(-?[\d.]+)px (-?[\d.]+)px (-?[\d.]+)px/g)].map((m) => [Number(m[1]), Number(m[2]), Number(m[3])]) }
-      }, sel)
-    const TEXTS = '<div class="hud__toast is-showing">더 좋은 장비 · 좋음 누빈 웃옷</div><div class="damage-numbers"><div class="damage-number damage-number--label">+ 좋음 누빈 웃옷</div></div>'
+    const TEXTS =
+      '<div class="hud__dock"><div class="hud__life ui-bar"></div><div class="hud__slots"><div class="hud__slot"></div></div></div>' +
+      '<div class="hud__toast is-showing" style="animation: none; opacity: 1">더 좋은 장비 · 좋음 누빈 웃옷</div><div class="damage-numbers"><div class="damage-number damage-number--label">+ 좋음 누빈 웃옷</div></div>' +
+      '<div class="chapter-goal"><i class="chapter-goal__mark"></i><span>목표</span></div>'
 
-    it.each([[393, 852, 12], [393, 659, 12], [1920, 1200, 24]])('%i×%i: 작은 알림과 주운 것의 이름은 획에 바로 붙는 테두리를 두른다 (여덟 방향, 빈틈 없이)', async (width, height, size) => {
+    it.each([[393, 852, 12], [393, 659, 12], [1920, 1200, 24]])('%i×%i: 작은 알림과 주운 것의 이름은 어두운 반투명 바탕 위에 뜬다 (떨어진 그림자 없이)', async (width, height, size) => {
       const p = await page([width, height], TEXTS)
       try {
-        for (const sel of ['.hud__toast', '.damage-number--label']) {
-          const { size: font, at } = await shadows(p, sel)
-          expect(font, sel).toBe(size)
-          // 획 굵기 (글자 크기의 1/12)
-          const stroke = size / 12
-          const has = (x, y) => at.some(([sx, sy, blur]) => Math.abs(sx - x * stroke) < 0.01 && Math.abs(sy - y * stroke) < 0.01 && blur === 0)
-          // 획 바로 옆 여덟 칸이 모두 찬다: 전에는 두세 칸 떨어진 넷뿐이라 획 옆과 대각선이 비어 눈 땅에서 글이 뭉개졌다
-          for (const x of [-1, 0, 1]) for (const y of [-1, 0, 1]) if (x !== 0 || y !== 0) expect(has(x, y), `${sel} (${x}, ${y})`).toBe(true)
-          // 그 밖으로 한 겹 더, 그보다 먼 그림자는 없다 (획에서 떨어져 겹쳐 보이는 글)
-          for (const [x, y] of [[2, 0], [-2, 0], [0, 2], [0, -2], [2, 1], [-1, -2]]) expect(has(x, y), `${sel} (${x}, ${y})`).toBe(true)
-          expect(Math.max(...at.map(([sx, sy]) => Math.max(Math.abs(sx), Math.abs(sy))))).toBeCloseTo(stroke * 2, 2)
+        const at = await p.evaluate(() => {
+          const read = (sel) => {
+            const el = document.querySelector(sel)
+            const style = getComputedStyle(el)
+            const r = el.getBoundingClientRect()
+            return { bg: style.backgroundColor, shadow: style.textShadow, font: parseFloat(style.fontSize), pad: parseFloat(style.paddingLeft), top: r.top, bottom: r.bottom, height: r.height }
+          }
+          return { toast: read('.hud__toast'), label: read('.damage-number--label'), goal: read('.chapter-goal'), dock: read('.hud__dock') }
+        })
+        for (const [name, text] of [['알림', at.toast], ['이름', at.label]]) {
+          expect(text.font, name).toBe(size)
+          // 목표 한 줄과 같은 바탕 (--c-veil): 눈 땅 위에서도 글 둘레가 어둡다. 전에는 두세 칸 떨어진 그림자 넷뿐이라 획 옆이 비었다
+          expect(text.bg, name).toBe(at.goal.bg)
+          expect(text.bg, name).toMatch(/^rgba\(\d+, \d+, \d+, 0\.[6-9]\d*\)$/)
+          expect(text.shadow, name).toBe('none')
+          // 글이 바탕의 가장자리에 붙지 않는다
+          expect(text.pad, name).toBeGreaterThanOrEqual(6)
         }
+        // 알림은 아래 묶음 위에 뜬다 (바탕이 생명 막대를 덮지 않는다)
+        expect(at.toast.bottom).toBeLessThanOrEqual(at.dock.top)
+        // 쌓이는 이름의 줄 높이는 글자 크기의 1.5배다 (`DamageNumbers.ts`): 바탕이 그보다 낮아 위아래 이름끼리 덮지 않는다
+        expect(at.label.height).toBeLessThanOrEqual(size * 1.5)
       } finally {
         await p.close()
       }

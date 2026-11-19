@@ -12,7 +12,7 @@ import { DUMMY_HP } from './lib/curve.mjs'
 const want = process.argv.slice(2)
 const PORT = 4197
 const OUT = 'test-results/checklist'
-const BROWSER = process.env.CHROMIUM_PATH ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'
+import { BROWSER } from './lib/browser.mjs'
 const URL = `http://localhost:${PORT}/`
 /** 휴대폰 화면: 아이폰 15 Pro, 그리고 그 사파리에서 주소창·도구 막대가 보일 때의 높이 */
 const PHONE = { width: 393, height: 852 }

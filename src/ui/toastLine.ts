@@ -1,7 +1,10 @@
 import { countWord } from './gainsLine'
 
-/** 작은 알림이 화면에 떠 있는 시간 (ms). `hud.css`의 hud-toast 움직임 길이와 같다 */
-export const TOAST_LIFE = 1800
+/**
+ * 작은 알림이 화면에 떠 있는 시간 (ms). `hud.css`의 hud-toast 움직임이 이 길이를 받는다.
+ * 1.8초에서 늘렸다 (E307 손 QA): 「더 좋은 장비 · 좋음 비늘 갑옷」 한 줄을 싸우며 읽기에 짧았다. 다 보이는 동안이 2.4초, 그 뒤 흐려진다
+ */
+export const TOAST_LIFE = 3000
 /** 뒤에 기다리는 알림이 있을 때 알림 하나가 자리를 지키는 시간 (ms): 읽을 틈은 주되 줄이 밀리지 않게 (밀린 장비 카드와 같은 1.2초) */
 export const TOAST_HOLD = 1200
 

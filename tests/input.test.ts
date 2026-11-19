@@ -145,6 +145,31 @@ describe('휴대폰: 조이스틱·톡·두 손가락이 지시가 되는 규칙
     expect(hero.holding).toBe(true)
   })
 
+  it('엄지가 원 가장자리 밖에 있어도, 쥔 채 톡으로 지시를 내린 뒤 같은 방향으로 조금 더 밀면 조이스틱이 이어받는다 (E307 손 QA: 12도쯤 틀어야 풀렸다)', () => {
+    const enemy = foe(4, -6)
+    const { hero, orders, gestures, frame, screen } = phone([enemy])
+    // 손 QA의 그 손짓: (110,520)에서 (80,560)까지 끌어 쥔다 (원 가장자리 밖)
+    gestures.down(1, 110, 520, 0, true)
+    gestures.move(1, 80, 560)
+    frame(3)
+    expect(orders.order?.kind).toBe('move')
+    const at = screen(enemy.x, enemy.z, 1.2)
+    gestures.down(2, at.x, at.y, 1)
+    gestures.up(2, 1.1)
+    frame()
+    expect(orders.attackTarget).toBe(enemy)
+    // 쥐고만 있으면 공격 지시가 이어진다
+    frame(10)
+    expect(orders.attackTarget).toBe(enemy)
+    expect(hero.holding).toBe(false)
+    // 같은 방향으로 더 민다: 손잡이는 원 가장자리에 그대로지만 걷기가 이어받는다
+    gestures.move(1, 70, 573)
+    frame(5)
+    expect(orders.order?.kind).toBe('move')
+    expect(orders.attackTarget).toBeNull()
+    expect(hero.holding).toBe(true)
+  })
+
   it('쥔 채 톡으로 내린 지시를 마치면(적이 쓰러짐) 손잡이를 움직이지 않아도 조이스틱이 이어받는다', () => {
     const enemy = foe(3, -3)
     const { hero, orders, gestures, frame, screen } = phone([enemy])

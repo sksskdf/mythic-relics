@@ -18,7 +18,7 @@ const RUNS = Number(flag('runs') ?? 3)
 const DIST = flag('dist')
 const MATRIX = argv.includes('--matrix')
 const PORT = 4193
-const BROWSER = process.env.CHROMIUM_PATH ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'
+import { BROWSER } from './lib/browser.mjs'
 const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort', ...(DIST ? ['--outDir', DIST] : [])], { stdio: 'ignore', detached: true })
 const stop = () => {
   try {

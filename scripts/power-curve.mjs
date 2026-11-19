@@ -56,7 +56,7 @@ const CHUNK = 5
 const CARD_SETTLE = 600
 /** 같은 종류·제목의 작은 카드는 이만큼까지만 찍는다 (큰 카드는 모두) */
 const CARD_REPEAT = 3
-const BROWSER = process.env.CHROMIUM_PATH ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'
+import { BROWSER } from './lib/browser.mjs'
 const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'ignore', detached: true })
 const stop = () => {
   try {

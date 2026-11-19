@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { pointsAt } from '../src/input/Input'
 import { foldCount, itemUnderPointer, NearCard, type NearKind } from '../src/relics/hover'
 import hudCss from '../src/ui/hud.css?raw'
+import { type PlateAvoid, type PlateBox, plateSpot } from '../src/ui/Nameplates'
 
 const relic = (id: string, x: number, baseY: number, topY: number) => ({ item: id, base: { x, y: baseY }, top: { x, y: topY } })
 
@@ -295,5 +296,68 @@ describe('HUD의 쌓임과 누름 (E307, hud.css)', () => {
     // 초상은 터치에서도 눌린다 (정보 화면을 여는 길)
     expect(touch?.[0]).not.toContain('hud__portrait')
     expect(rule('.hud__portrait')).toContain('pointer-events: auto')
+  })
+})
+
+/**
+ * 몬스터 이름표의 자리 (E307 손 QA): 작은 지도 밑으로 들어가 잘리지 않고, 주인공을 덮지 않는다
+ */
+describe('이름표의 자리 (E307)', () => {
+  /** 393×659의 작은 지도 (96px, 오른쪽 위)와 화면 한가운데의 주인공 */
+  const avoid: PlateAvoid = { screen: { w: 393, h: 659 }, minimap: { x0: 285, y0: 59, x1: 381, y1: 155 }, hero: { x0: 180, y0: 270, x1: 214, y1: 330 } }
+  const size = { w: 90, h: 30 }
+  const box = (at: { x: number; y: number }) => ({ x0: at.x, y0: at.y, x1: at.x + size.w, y1: at.y + size.h })
+  const overlap = (a: PlateBox, b: PlateBox) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1
+  /** 머리 위 화면 자리가 (x, y)인 몬스터 (발은 그 60px 아래) */
+  const foe = (x: number, y: number) => ({ screen: { x, y }, feet: { x, y: y + 60 } })
+
+  it('걸리는 것이 없으면 머리 위 가운데', () => {
+    expect(plateSpot(foe(120, 400), size, avoid)).toEqual({ x: 75, y: 370 })
+    // 비킬 것을 주지 않아도 같다
+    expect(plateSpot(foe(120, 400), size, { screen: avoid.screen, minimap: null, hero: null })).toEqual({ x: 75, y: 370 })
+  })
+
+  it('화면 옆으로 나가지 않게 당긴다. 화면 밖의 몬스터는 이름표도 화면 밖에 둔다 (가장자리에 이름표만 떠 있지 않게)', () => {
+    expect(plateSpot(foe(10, 400), size, avoid).x).toBe(4)
+    expect(plateSpot(foe(390, 400), size, avoid).x).toBe(393 - 4 - 90)
+    expect(plateSpot(foe(447, 400), size, avoid).x).toBe(447 - 45)
+    expect(plateSpot(foe(-30, 400), size, avoid).x).toBe(-30 - 45)
+  })
+
+  it('작은 지도 밑으로 들어가지 않는다: 지도 왼쪽이나 아래로, 덜 움직이는 쪽으로 비킨다', () => {
+    // 손 QA의 그 자리: 지도 왼쪽 가장자리에 걸친 이름표 (이름이 「서리 두…」에서 잘렸다)
+    const left = plateSpot(foe(260, 150), size, avoid)
+    expect(overlap(box(left), avoid.minimap!)).toBe(false)
+    expect(left).toEqual({ x: 285 - 6 - 90, y: 120 })
+    // 지도 아래 가장자리에 걸친 이름표는 아래로
+    const down = plateSpot(foe(340, 175), size, avoid)
+    expect(overlap(box(down), avoid.minimap!)).toBe(false)
+    expect(down.y).toBe(155 + 6)
+    // 지도 한가운데의 적: 어느 쪽이든 지도 밖
+    for (const [x, y] of [[333, 107], [300, 80], [370, 140], [381, 60]] as const) expect(overlap(box(plateSpot(foe(x, y), size, avoid)), avoid.minimap!), `${x},${y}`).toBe(false)
+  })
+
+  it('지도가 화면 폭을 거의 다 차지해 왼쪽에 자리가 없으면 아래로 비킨다', () => {
+    const wide: PlateAvoid = { ...avoid, minimap: { x0: 60, y0: 59, x1: 381, y1: 155 } }
+    const at = plateSpot(foe(100, 120), size, wide)
+    expect(at.y).toBe(155 + 6)
+    expect(at.x).toBeGreaterThanOrEqual(4)
+  })
+
+  it('주인공을 덮으면 그 몬스터의 발밑에 둔다 (대상이 주인공 바로 아래에 있을 때)', () => {
+    // 주인공 바로 아래(화면에서 40px 아래)의 적: 머리 위 이름표는 주인공의 몸 위에 놓인다
+    const target = foe(197, 320)
+    const above = { x: 197 - 45, y: 320 - 30 }
+    expect(overlap(box(above), avoid.hero!)).toBe(true)
+    const at = plateSpot(target, size, avoid)
+    expect(overlap(box(at), avoid.hero!)).toBe(false)
+    expect(at).toEqual({ x: 152, y: 380 + 6 })
+    // 옆에 선 적은 머리 위 그대로
+    expect(plateSpot(foe(300, 320), size, avoid)).toEqual({ x: 255, y: 290 })
+  })
+
+  it('발밑에 두어도 주인공을 덮으면(주인공과 겹쳐 선 큰 적) 머리 위 그대로 둔다', () => {
+    const target = { screen: { x: 197, y: 290 }, feet: { x: 197, y: 300 } }
+    expect(plateSpot(target, size, avoid)).toEqual({ x: 152, y: 260 })
   })
 })

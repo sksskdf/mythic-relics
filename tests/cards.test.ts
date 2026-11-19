@@ -2,10 +2,11 @@ import { describe, expect, it } from 'vitest'
 
 import { CARD_HOLD, TOAST_BUNDLES } from '../src/data/moments'
 import type { GearItem } from '../src/gear/roll'
-import { stackLift } from '../src/ui/DamageNumbers'
+import { LABEL_LIFE, popScale, stackLift } from '../src/ui/DamageNumbers'
 import { countWord, type GainsCard, GAINS_LIFE, GAINS_RUSH_MS, GainsLine, gainsMark, gainsView, markLine } from '../src/ui/gainsLine'
 import { betterLines } from '../src/ui/gearCard'
 import hudCss from '../src/ui/hud.css?raw'
+import hudSource from '../src/ui/Hud.ts?raw'
 import { byCode, PickGate } from '../src/ui/pickGate'
 import pickGateSource from '../src/ui/pickGate.ts?raw'
 import { TOAST_HOLD, TOAST_LIFE, toastLift, ToastLine } from '../src/ui/toastLine'
@@ -172,6 +173,14 @@ describe('카드가 사라지는 움직임 (hud.css, E307 손 QA)', () => {
     expect(lastFrame(name)).toMatch(/opacity: 0;/)
   })
 
+  it('움직임이 끝난 카드는 Hud가 걷는다: is-showing을 떼면 보이지 않는 상자로도 남지 않는다 (visibility: hidden)', () => {
+    // 줄(li)의 움직임이 끝난 것은 카드의 것이 아니다: 카드 자신의 animationend에만 뗀다
+    expect(hudSource).toMatch(/this\.gains\.addEventListener\('animationend', \(e\) => e\.target === this\.gains && this\.gains\.classList\.remove\('is-showing'\)\)/)
+    const base = hudCss.match(/\n\.hud__gains \{[^}]*\}/)?.[0] ?? ''
+    expect(base).toMatch(/opacity: 0;/)
+    expect(base).toMatch(/visibility: hidden;/)
+  })
+
   it('새 탭 카드는 메뉴 단추에 닿을 때까지는 보인다: 날아가는 동안 흐려지다가 닿은 뒤에 사라진다', () => {
     const fly = hudCss.match(/@keyframes hud-gains-fly \{[^]*?\n\}/)?.[0] ?? ''
     const spot = (pct: string) => fly.match(new RegExp(`\\n  ${pct}% \\{[^}]*transform: ([^;]*);`))?.[1]
@@ -183,7 +192,7 @@ describe('카드가 사라지는 움직임 (hud.css, E307 손 QA)', () => {
 })
 
 describe('카드 줄 앞의 표시 (E307 손 QA)', () => {
-  const item = (grade: GearItem['grade'], stats: GearItem['stats']): GearItem => ({ uid: `g${grade}`, part: 'chest', base: '누빈 웃옷', grade, tier: 1, stats, source: { id: 'stone', value: 1 } })
+  const item = (grade: GearItem['grade'], stats: GearItem['stats']): GearItem => ({ uid: `g:${grade}`, part: 'body', base: '누빈 웃옷', grade, tier: 1, stats, source: { id: 'stone', value: 1 } })
 
   it('표시 없이 온 줄은 얻은 것(▲)이고 글은 그대로다', () => {
     expect(gainsMark('이동 속도 +6%')).toEqual({ mark: 'up', text: '이동 속도 +6%' })
@@ -248,6 +257,37 @@ describe('작은 알림을 땅의 카드 위로 올리기 (E307 손 QA)', () => 
 
   it('새 알림은 다시 잰다: 카드가 없으면 제자리에서 뜬다', () => {
     expect(toastLift(toast, null, GAP, 0)).toBe(0)
+  })
+})
+
+describe('작은 알림과 주운 것의 이름이 떠 있는 시간 (E307 손 QA)', () => {
+  /** hud-toast 움직임에서 그 투명도인 걸음들 (%) */
+  const steps = (opacity: string) => [...(hudCss.match(/@keyframes hud-toast \{[^]*?\n\}/)?.[0] ?? '').matchAll(/(\d+)% \{ opacity: ([\d.]+);/g)].filter((m) => m[2] === opacity).map((m) => Number(m[1]))
+
+  it('작은 알림은 2.5초 넘게 떠 있고, 그 가운데 2초 넘게는 다 보인다 (전: 1.8초, 다 보이는 동안 1.1초)', () => {
+    expect(TOAST_LIFE).toBeGreaterThan(2500)
+    const solid = steps('1')
+    expect(solid.length).toBe(2)
+    expect(((solid[1]! - solid[0]!) / 100) * TOAST_LIFE).toBeGreaterThan(2000)
+    // 처음과 끝은 다 사라진 모습이다
+    expect(steps('0')).toEqual([0, 100])
+  })
+
+  it('hud.css의 움직임은 Hud가 넘기는 길이(--life)를 받고, 기본값은 TOAST_LIFE와 같다', () => {
+    const life = hudCss.match(/\.hud__toast\.is-showing \{\s*animation: hud-toast var\(--life, ([\d.]+)s\)/)?.[1]
+    expect(Number(life) * 1000).toBe(TOAST_LIFE)
+  })
+
+  it('뒤에 기다리는 알림이 있을 때 자리를 내주는 시간은 그대로 짧다 (줄이 밀리지 않게)', () => {
+    expect(TOAST_HOLD).toBeLessThan(TOAST_LIFE / 2)
+  })
+
+  it('주운 것의 이름도 2.5초 넘게 떠 있다. 뜰 때는 1.5배에서 제 크기로 줄어든다', () => {
+    expect(LABEL_LIFE).toBeGreaterThan(2.5)
+    expect(popScale(0)).toBe(1.5)
+    expect(popScale(0.5)).toBe(1.25)
+    expect(popScale(1)).toBe(1)
+    expect(popScale(8)).toBe(1)
   })
 })
 

@@ -45,8 +45,11 @@ export function mayWake(awakened: number, returns: number, conquered: number, af
 /** 데모에서 그리스 셋의 흔적에 다가가거나 흔적 카드를 볼 때의 한 줄 (E241) */
 export const LATER_TEXT = '엔딩 뒤에 응답한다'
 
-/** 기세가 모자라 잠잠한 흔적의 한 줄 (E306 D11) */
-export const levelText = (level: number): string => `기세 ${level}에 응답한다`
+/**
+ * 기세가 모자라 잠잠한 흔적의 한 줄 (E306 D11): 흔적 카드와 흔적에 다가갔을 때의 작은 알림.
+ * 기세를 어떻게 올리는지도 함께 적는다 (E307 손 QA: 「기세 3에 응답한다」만으로는 처음 보는 사람이 무엇을 하면 되는지 몰랐다)
+ */
+export const levelText = (level: number): string => `기세 ${level}에 응답한다 (적을 잡으면 오른다)`
 
 /** 흔적의 형편을 정하는 지금 값 */
 export interface TraceNow {

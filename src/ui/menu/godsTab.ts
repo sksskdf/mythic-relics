@@ -26,6 +26,24 @@ export function mythCaption(god: God, level: number): string {
   return `${realm === 'hidden' ? '숨겨진 신' : `${REALM_NAMES[realm]}의 신`} · ${level}단계`
 }
 
+/** 자리의 뜻 한 줄 (자리 칸의 설명 아랫줄, 빈 칸의 설명) */
+export const SEAT_MEANS = {
+  hand: '손에 쥔 신이 기본 공격의 동작·리듬·무기를 정한다',
+  heart: '심장에 둔 신의 궁극기를 쓴다',
+  breath: '숨에 넣은 신의 힘이 늘 돈다',
+} as const
+
+/**
+ * 자리 칸의 설명 (E307 손 QA): 그 자리가 지금 주는 것(그 신의 무기·궁극기·숨의 힘)을 먼저, 자리의 뜻을 아랫줄에.
+ * 첫 신이 깨어나 세 자리가 모두 그 신으로 찼을 때, 칸을 눌러 보면 무엇이 달라졌는지 아래 신의 카드까지 내리지 않고도 안다.
+ * level은 그 신의 숨이 실제로 도는 단계
+ */
+export function seatHint(seat: keyof typeof SEAT_MEANS, god: God, level = 1): string {
+  const def = godDef(god)
+  const gives = seat === 'hand' ? `기본 공격: ${ATTACK_NAMES[def.attack]}` : seat === 'heart' ? `궁극기 「${def.ultimate.name}」` : lendText(god, level)
+  return `${gives}\n${SEAT_MEANS[seat]}`
+}
+
 /**
  * 신 탭 (E305-04, `DESIGN.md` 10.5): 옛 신화 탭과 외형 탭을 합쳤다.
  * 「자리 · 외형」 알약 둘로 나눈다: 자리는 지금 신·깨우는 신·신의 자리 셋·유물표·눌러 본 신의 카드, 맨 아래 접힌 신들의 지도.
@@ -42,6 +60,9 @@ export class GodsTab {
   private atlasOpen = false
   /** 외형 보관함 (미리 보기의 WebGL을 한 번만 만들게 하나만 둔다) */
   private readonly wardrobe: WardrobePane
+  /** 지금 그려 둔 신의 카드와 신들의 지도: 자리 칸을 누르면 이 둘만 바꿔 그린다 (`focusOn`) */
+  private card: HTMLElement | null = null
+  private atlasBox: HTMLElement | null = null
 
   constructor(private readonly ctx: TabContext) {
     this.wardrobe = new WardrobePane(ctx.host.wardrobe, (target, text) => ctx.hintOn(target, text))
@@ -114,7 +135,8 @@ export class GodsTab {
   }
 
   /**
-   * 신의 자리 셋 (E302): 손·심장·숨(빈 칸·잠긴 칸). 자리를 누르면 그 신의 카드
+   * 신의 자리 셋 (E302): 손·심장·숨(빈 칸·잠긴 칸). 자리를 누르면 그 신의 카드.
+   * 칸의 설명은 그 자리가 지금 주는 것을 먼저, 자리의 뜻을 그 아래에 적는다 (`seatHint`): 휴대폰에서는 칸을 눌러 본다 (E307 손 QA)
    */
   private slotRow(): HTMLElement {
     const { pantheon } = this.ctx.host.gods
@@ -139,17 +161,14 @@ export class GodsTab {
       words.append(el('small', '', label), el('b', '', def.name))
       b.append(words)
       this.ctx.hintOn(b, `${label} ${def.name}\n${hint}`)
-      b.addEventListener('click', () => {
-        this.selected = god
-        this.ctx.render()
-      })
+      b.addEventListener('click', () => this.focusOn(god))
       row.append(b)
     }
     // 빈 손의 맹세 (E305-01): 저장된 손은 그대로 두고, 건 동안은 낡은 검으로 싸운다
     if (view.emptyHand) slot('손 · 맹세', null, '낡은 검', `빈 손의 맹세를 건 동안 손이 빈다${view.hand ? `\n지키면 ${josa(godDef(view.hand).name, '이')} 손에 돌아온다` : ''}`)
-    else slot('손', view.hand, '낡은 검', '기본 공격 동작·리듬·무기')
-    slot('심장', view.heart, '비었음', '궁극기')
-    for (const god of view.breath) slot('숨', god, '', lendText(god, this.effectLevel(god, view.focus)))
+    else slot('손', view.hand, '낡은 검', view.hand ? seatHint('hand', view.hand) : SEAT_MEANS.hand)
+    slot('심장', view.heart, '비었음', view.heart ? seatHint('heart', view.heart) : SEAT_MEANS.heart)
+    for (const god of view.breath) slot('숨', god, '', seatHint('breath', god, this.effectLevel(god, view.focus)))
     for (let i = view.breath.length; i < view.count; i++) slot('숨', null, '빈 칸', '깨운 신의 카드에서 「숨에 넣기」')
     for (const when of view.locked) {
       const box = el('div', 'menu-slots__slot is-locked')
@@ -157,6 +176,26 @@ export class GodsTab {
       row.append(box)
     }
     return row
+  }
+
+  /**
+   * 자리 칸을 눌렀다: 그 신의 카드를 보인다. 창을 통째로 다시 그리지 않고 카드와 신들의 지도만 바꿔 그린다 (E307 손 QA).
+   * 통째로 다시 그리면 손가락 힌트 규칙(`HintTaps`: 창을 다시 그린 톡에는 힌트를 띄우지 않는다)에 걸려, 휴대폰에서는 자리 칸의 설명이
+   * 뜰 길이 없었다: 신이 하나뿐이면 다시 그려도 달라지는 것이 없고 신의 카드는 낮은 화면에서 화면 밖이라 「눌러도 아무 일도 없다」로 보였다.
+   * 이미 그 신의 카드가 떠 있으면 아무것도 바꾸지 않는다 (설명만 뜬다)
+   */
+  private focusOn(god: God): void {
+    const shown = this.selected ?? this.ctx.host.progress.pantheon.hand
+    this.selected = god
+    if (shown === god) return
+    if (!this.card?.isConnected || !this.atlasBox?.isConnected) return this.ctx.render()
+    const card = this.mythCard(god)
+    this.card.replaceWith(card)
+    this.card = card
+    // 신들의 지도는 눌러 본 신에 테두리를 두른다
+    const atlas = this.atlas(god)
+    this.atlasBox.replaceWith(atlas)
+    this.atlasBox = atlas
   }
 
   /**
@@ -442,6 +481,7 @@ export class GodsTab {
     // 외형을 보고 있으면 새 외형 표시는 이번 그리기부터 지운다
     if (this.view === 'looks') this.looksNew = false
     wrap.append(this.views())
+    this.card = this.atlasBox = null
     if (this.view === 'looks') {
       const pane = el('div', 'menu-gods__looks')
       wrap.append(pane)
@@ -458,8 +498,8 @@ export class GodsTab {
     wrap.append(this.relicTable())
     // 눌러 본 신(없으면 손의 신)의 카드: 자리마다 얻는 것, 자리 바꾸기, 다음 단계
     const focus = this.selected ?? current
-    if (focus) wrap.append(this.mythCard(focus))
-    wrap.append(this.atlas(focus))
+    if (focus) wrap.append((this.card = this.mythCard(focus)))
+    wrap.append((this.atlasBox = this.atlas(focus)))
     body.append(wrap)
   }
 }

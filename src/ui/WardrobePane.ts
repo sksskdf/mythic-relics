@@ -1,11 +1,10 @@
 import { touchUi } from '../input/device'
+import { bodyKey, DEFAULT_BODY } from '../looks/body'
 import { lookDef, type LookSlot, SLOT_NAMES } from '../looks/catalog'
 import type { LookChoice, Outfit, Wardrobe } from '../looks/outfit'
 import { HeroPreview } from './HeroPreview'
 import { glyph } from './sigils'
-
-/** 고르지 않으면 비는 칸 (기본 모험가도 아무것도 걸치지 않고, 장비도 덮지 않는 칸): 「자동」이 곧 「비우기」다 */
-const OPTIONAL: ReadonlySet<LookSlot> = new Set(['face', 'waist', 'cape', 'mark'])
+import { dressDoll, isPinned, wardrobeChips } from './wardrobeChips'
 
 /** 미리 보기 둘레의 칸 배치: 왼쪽은 위에서부터 머리·얼굴·몸·허리, 오른쪽은 팔·다리·무기·망토, 표식은 아래 */
 const LEFT: readonly LookSlot[] = ['head', 'face', 'torso', 'waist']
@@ -27,12 +26,14 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, te
 
 /**
  * 외형 보관함. (E3-07) 정보 화면 신 탭의 「외형」 (E305-04에서 외형 탭을 신 탭에 합침).
- * 가운데에 지금 모습을 돌려 보여 주고, 몸 둘레에 부위별 칸을 둔다. 칸을 누르면 아래에 고를 수 있는 외형이 나오고,
+ * 가운데에 지금 모습(고른 피부·머리카락·옷 색 그대로, `dressDoll`)을 돌려 보여 주고, 몸 둘레에 부위별 칸을 둔다. 칸을 누르면 아래에 고를 수 있는 외형이 나오고,
  * 외형에 커서를 올리면 입혀 본 모습을 미리 보여 준다. 모습만 바뀌고 능력은 그대로다.
  * 깨운 신의 옷과 표식은 여기에 풀릴 뿐 저절로 입혀지지 않는다 (E307): 칸마다 직접 고른다.
  */
 export class WardrobePane {
   private readonly preview = new HeroPreview()
+  /** 미리 보기 인형에 칠해 둔 기본 모습 (`bodyKey`). 인형은 기본 색으로 만들어진다 */
+  private painted = bodyKey(DEFAULT_BODY)
   private selected: LookSlot = 'head'
 
   constructor(
@@ -50,7 +51,8 @@ export class WardrobePane {
     container.replaceChildren()
     const pane = el('div', 'wardrobe')
     const dressed = this.dressed
-    this.preview.wear(dressed)
+    // 게임 속 주인공과 같은 모습으로: 캐릭터 만들기에서 고른 피부·머리카락·옷 색을 칠하고 지금 모습을 입힌다 (E307 손 QA)
+    this.painted = dressDoll(this.preview, this.host.wardrobe.body, dressed, this.painted)
 
     const doll = el('div', 'wardrobe__doll')
     const column = (slots: readonly LookSlot[], side: string) => {
@@ -68,21 +70,19 @@ export class WardrobePane {
     const { wardrobe, autoOutfit } = this.host
     const options = el('section', 'wardrobe__options')
     const chips = el('div', 'wardrobe__chips')
-    const current = wardrobe.choice(this.selected)
     const auto = autoOutfit[this.selected]
-    // 고르지 않으면 비는 칸은 「자동」이 곧 「비우기」라 하나로 보인다 (옛 저장의 「비우기」도 같은 칩)
-    const optional = OPTIONAL.has(this.selected)
-    const add = (label: string | null, choice: LookChoice, icon?: 'auto' | 'none', hint?: string) => {
+    // 칩의 차례와 개수는 무엇을 골랐든 같다: 고른 칩은 표시만 바뀐다 (`wardrobeChips`)
+    for (const { choice, kind, look, on } of wardrobeChips(this.selected, auto, wardrobe.options(this.selected), wardrobe.choice(this.selected))) {
       const chip = el('button', 'ui-pill wardrobe__chip')
       chip.type = 'button'
-      if (icon) {
+      if (kind) {
         const i = el('img', '')
-        i.src = glyph(icon)
+        i.src = glyph(kind)
         i.alt = ''
         chip.append(i)
       }
-      if (label) chip.append(label)
-      chip.classList.toggle('is-on', current === choice || (optional && choice === 'auto' && current === null))
+      if (look) chip.append(lookDef(look).name)
+      chip.classList.toggle('is-on', on)
       // 커서를 올리면 입혀 본다.
       chip.addEventListener('pointerenter', () => this.preview.wear({ ...dressed, [this.selected]: choice === 'auto' ? auto : choice }))
       chip.addEventListener('pointerleave', () => this.preview.wear(this.dressed))
@@ -92,12 +92,10 @@ export class WardrobePane {
         // 하나뿐인 미리 보기 인형이 그 떼어진 칸으로 옮겨져 화면에서 사라진다 (E307). 다시 그려지지 않았을 때만 여기서 그린다
         if (container.isConnected) this.render(container)
       })
-      if (hint) this.hintOn(chip, hint)
+      // 고르지 않으면 비는 칸은 「자동」이 곧 「비우기」라 하나로 보인다 (옛 저장의 「비우기」도 같은 칩)
+      if (kind) this.hintOn(chip, kind === 'none' ? '비우기' : '낀 장비와 손에 쥔 무기를 따른다')
       chips.append(chip)
     }
-    if (optional) add(null, 'auto', 'none', '비우기')
-    else add(auto ? lookDef(auto).name : null, 'auto', 'auto', '낀 장비와 손에 쥔 무기를 따른다')
-    for (const id of wardrobe.options(this.selected)) if (id !== auto || current !== 'auto') add(lookDef(id).name, id)
     options.append(el('div', 'wardrobe__options-label', `${SLOT_NAMES[this.selected]}: ${touchUi() ? '누르면 입혀 보고 고른다' : '커서를 올리면 입혀 보고, 누르면 고른다'}`), chips)
     pane.append(options)
     container.append(pane)
@@ -106,14 +104,13 @@ export class WardrobePane {
 
   /** 부위 칸: 부위 이름(작게)과 지금 입은 외형. 직접 고른 칸은 금빛 점 */
   private slotBox(slot: LookSlot, dressed: Outfit, container: HTMLElement): HTMLElement {
-    const choice = this.host.wardrobe.choice(slot)
     const id = dressed[slot]
-    // 비는 칸의 옛 「비우기」(null)는 고르지 않은 것과 같다
-    const fixed = choice !== 'auto' && !(choice === null && OPTIONAL.has(slot))
+    const fixed = isPinned(slot, this.host.autoOutfit[slot], this.host.wardrobe.choice(slot))
     const box = el('button', `wardrobe__slot${slot === this.selected ? ' is-selected' : ''}${fixed ? ' is-fixed' : ''}`)
     box.type = 'button'
     box.append(el('span', 'wardrobe__slot-name', SLOT_NAMES[slot]))
-    box.append(el('span', 'wardrobe__slot-look', id ? lookDef(id).name : '—'))
+    // 장비 외형의 이름(「철 정강이받이 · 희귀」)은 좁은 칸에서 줄을 바꾼다: 가운뎃점은 등급에 붙여, 줄 끝에 혼자 남지 않게 한다
+    box.append(el('span', 'wardrobe__slot-look', id ? lookDef(id).name.replace(' · ', ' ·\u00a0') : '—'))
     box.addEventListener('click', () => {
       this.selected = slot
       this.render(container)

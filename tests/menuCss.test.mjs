@@ -166,23 +166,49 @@ describe('누르는 자리 44px (E307, portrait.css)', () => {
     expect(space('sp-2')).toBeGreaterThanOrEqual(below)
   })
 
-  it('저장 슬롯의 「×」는 모양을 둔 채 카드 모서리 44px을 받고, 급히 두 번 누른 것은 지우지 않는다', () => {
-    const hit = decls('.title-slot__delete::before')
-    expect(hit).toContain('width: 44px')
-    expect(hit).toContain('height: 44px')
-    // 「×」가 카드 모서리에서 들어간 만큼 되돌아가 모서리에 붙는다 (카드 밖으로 나가 이웃 슬롯을 덮지 않는다). 카드는 테두리가 없다
+  it('저장 슬롯의 「×」는 카드 옆에 따로 선 폭 44px의 제 칸이다: 카드의 이어 하기 누름과 자리가 겹치지 않는다', () => {
+    // 한 줄에 카드와 「×」 칸이 나란히 서고(사이에 틈), 카드가 남는 폭을 쓴다
+    const row = base('title.css', '.title-slot-row')
+    expect(row).toContain('display: flex')
+    expect(row).toContain('align-items: stretch')
+    expect(row).toMatch(/gap: var\(--sp-\d\)/)
+    expect(base('title.css', '.title-slot')).toMatch(/flex: 1;/)
+    // 「×」 칸: 폭 44px, 높이는 카드만큼(44px 이상). 카드 위에 겹쳐 띄우지 않는다
     const del = base('title.css', '.title-slot__delete')
-    expect(del).toContain('position: absolute')
-    expect(del).toContain('top: var(--sp-2)')
-    expect(del).toContain('right: var(--sp-3)')
-    expect(hit).toContain('top: calc(-1 * var(--sp-2))')
-    expect(hit).toContain('right: calc(-1 * var(--sp-3))')
-    expect(base('title.css', '.title-slot')).toContain('border: 0')
+    expect(del).toContain('flex: none')
+    expect(del).toContain('width: 44px')
+    expect(del).not.toMatch(/position: absolute|top:|right:/)
     expect(Number(base('title.css', '.title-slot').match(/min-height: (\d+)px/)[1])).toBeGreaterThanOrEqual(44)
-    // 보이는 「×」의 크기·자리는 건드리지 않는다
+    // 보이지 않는 ::before로 넓히지 않는다 (넓힌 자리가 카드 안쪽을 덮었다)
+    expect(text).not.toContain('.title-slot__delete::before')
     expect(decls('.title-slot__delete')).toBe('')
-    // 넓힌 만큼 잘못 닿기 쉬우니 지킴과 함께 간다 (규칙은 tests/myself.test.ts)
+    // 켜진 동안의 글 「× 한 번 더 누르면 지움」은 본문 크기(12px)
+    expect(css('title.css')).toMatch(/\.title-slot-row\.is-confirm \.title-slot__meta \{[^}]*font: var\(--t-body\)/)
+    expect(css('theme.css')).toMatch(/--t-body: 12px\//)
+    // 「×」는 카드(button) 안이 아니라 줄(row)에 붙고, 누름은 한 곳의 규칙으로 간다 (규칙은 tests/myself.test.ts)
     const source = readFileSync(new URL('../src/ui/TitleScreen.ts', import.meta.url), 'utf8')
-    expect(source).toMatch(/if \(confirmsDelete\(armedAt, performance\.now\(\)\)\) handlers\.onDelete\(i\)/)
+    expect(source).toMatch(/this\.el\('button', 'title-slot__delete', row\)/)
+    expect(source).toMatch(/pressDelete\(armedAt, performance\.now\(\)\)/)
+  })
+})
+
+describe('화면 글의 줄 바꿈 (E307 손 QA, theme.css)', () => {
+  // 한글은 그대로 두면 글자마다 줄이 바뀐다: 「모험가의 머/리」(외형 칸), 「북쪽 신들/이 잠든 땅.」(대화 줄)
+  const files = ['theme.css', 'hud.css', 'menu.css', 'portrait.css', 'title.css', 'pause.css']
+
+  it('body에 걸어 화면 글 전체가 낱말 단위로 줄을 바꾼다: 낱말 하나가 칸보다 길 때만 그 안에서 끊는다', () => {
+    const body = css('theme.css').match(/\nbody \{([^}]*)\}/)?.[1] ?? ''
+    expect(body).toContain('word-break: keep-all')
+    expect(body).toContain('overflow-wrap: break-word')
+    // 줄인 결과에도 남는다
+    expect(minified('theme.css')).toMatch(/body\{[^}]*word-break:keep-all/)
+  })
+
+  it('어느 화면도 글자 단위 줄 바꿈으로 되돌리지 않는다', () => {
+    for (const file of files) {
+      const text = css(file).replace(/\/\*[\s\S]*?\*\//g, '')
+      expect(text, file).not.toMatch(/word-break:\s*(break-all|normal)/)
+      expect(text, file).not.toMatch(/line-break:\s*anywhere/)
+    }
   })
 })

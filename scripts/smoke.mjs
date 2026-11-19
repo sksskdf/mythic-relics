@@ -1,11 +1,11 @@
 // 빌드 결과를 실제 브라우저로 열어, 화면이 그려지고 오류가 없는지 확인한다.
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { chromium } from 'playwright-core'
 
 const PORT = 4173
 const URL = `http://localhost:${PORT}/`
-const BROWSER = process.env.CHROMIUM_PATH ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'
+import { BROWSER } from './lib/browser.mjs'
 
 // 따로 묶어 띄우고 묶음째 끈다: npx만 끄면 그 아래 vite가 남아 다음 검사의 포트를 막는다 (윈도우는 taskkill /T)
 const windows = process.platform === 'win32'
@@ -63,9 +63,24 @@ try {
   })
   if (!(await page.evaluate(() => window.__game.hud.root.classList.contains('is-hidden')))) throw new Error('첫 장면: 대화 중에 HUD가 보입니다.')
   if ((await page.locator('.dialog__name').textContent()) !== '촌장') throw new Error('첫 장면: 말하는 사람이 촌장이 아닙니다.')
-  await page.mouse.click(640, 300)
-  const firstLine = await page.evaluate(() => window.__game.dialog.visibleText)
-  if (firstLine !== '깨어났구먼. 모닥불 곁에 쓰러져 있었다네.') throw new Error(`첫 장면: 한 번 눌렀는데 글이 완성되지 않습니다 ("${firstLine}")`)
+  // 「한 번 누르면 완성」은 아직 써지고 있는 줄에서 본다. 프레임이 느린 곳(소프트웨어 렌더링, 프레임 0.2초)에서는 여기까지 오는 사이에
+  // 첫 줄이 저절로 다 써지고, 그때의 누름은 다음 줄로 넘기는 것이 맞다: 넘어간 줄에서 곧바로 다시 눌러 본다
+  const opening = JSON.parse(readFileSync('src/data/scenes.json', 'utf8')).opening.lines.map((l) => l.text)
+  const shownText = () => page.evaluate(() => window.__game.dialog.visibleText)
+  const typed = await shownText()
+  if (!opening[0].startsWith(typed)) throw new Error(`첫 장면: 첫 줄이 아닌 글이 써지고 있습니다 ("${typed}")`)
+  let openingLine = 0
+  for (; ; openingLine++) {
+    await page.mouse.click(640, 300)
+    const text = await shownText()
+    if (text === opening[openingLine]) break
+    if (openingLine + 1 >= opening.length || !opening[openingLine + 1].startsWith(text)) throw new Error(`첫 장면: 한 번 눌렀는데 글이 완성되지 않습니다 ("${text}")`)
+  }
+  if (openingLine + 1 < opening.length) {
+    await page.mouse.click(640, 300)
+    const text = await shownText()
+    if (!opening[openingLine + 1].startsWith(text)) throw new Error(`첫 장면: 다 써진 글을 눌렀는데 다음 줄로 넘어가지 않습니다 ("${text}")`)
+  }
   for (let i = 0; i < 20 && (await page.evaluate(() => !document.querySelector('.dialog').hidden)); i++) await page.mouse.click(640, 300)
   await page.waitForFunction(() => !window.__game.scenes.active, null, { timeout: 10000 }).catch(() => {
     throw new Error('첫 장면: 끝까지 넘겼는데 대화가 끝나지 않습니다.')
@@ -925,11 +940,19 @@ try {
   const realms = await page.locator('.devpanel__page:not([hidden]) .devpanel__realmName').allTextContents()
   if (realms.length !== 6) throw new Error(`개발 패널: 신화권 묶음이 ${realms.length}개 (${realms.join(', ')})`)
   await devTab('세계')
-  const enemiesBefore = await page.evaluate(() => window.__game.encounter.alive.length)
   await devButton('×6').click()
   await page.selectOption('.devpanel__page:not([hidden]) .devpanel__select >> nth=1 >> select', 'grunt')
-  await devButton('적 부르기').click()
-  if ((await page.evaluate(() => window.__game.encounter.alive.length)) !== enemiesBefore + 6) throw new Error('개발 패널: 졸개 소환 실패')
+  if (!(await devButton('적 부르기').isVisible())) throw new Error('개발 패널: 「적 부르기」 단추가 보이지 않습니다.')
+  // 부르는 누름과 세기는 페이지 안에서 한 걸음에 한다: 이 땅의 적이 벌써 달려들어 주인공이 싸우는 중이라,
+  // 따로 세면 그 사이(프레임이 느린 곳에서는 누름 하나에 게임 시간 1초쯤)에 쓰러진 적이 셈을 흔든다
+  const summoned = await page.evaluate(() => {
+    const g = window.__game
+    const call = [...document.querySelectorAll('.devpanel__page:not([hidden]) button')].find((b) => b.textContent === '적 부르기')
+    const before = g.encounter.alive.length
+    call.click()
+    return g.encounter.alive.length - before
+  })
+  if (summoned !== 6) throw new Error(`개발 패널: 졸개 소환 실패 (${summoned}마리)`)
   await devTab('보기')
   await devButton('충돌').click()
   await devButton('길찾기').click()

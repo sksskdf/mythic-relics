@@ -28,13 +28,26 @@ export function unreadLine(slot: UnreadSlot): string {
 
 /**
  * 슬롯의 「×」를 켠 뒤 이만큼(ms) 안에 다시 누른 것은 급히 두 번 누른 것으로 보고 지우지 않는다 (E307).
- * 휴대폰에서는 「×」가 카드 모서리 44px을 받아(`portrait.css`) 이어 가려던 누름이 닿을 수 있다: 「한 번 더 누르면 지움」을 볼 틈을 둔다
+ * 「× 한 번 더 누르면 지움」을 볼 틈을 둔다
  */
 export const DELETE_GUARD_MS = 500
+/** 켠 「×」는 이만큼(ms) 뒤에 저절로 꺼진다 (다른 곳을 눌러도 꺼진다) */
+export const DELETE_ARMED_MS = 3000
 
 /** 켠 「×」를 다시 눌렀다: 지우나 (켠 때와 지금, ms) */
 export function confirmsDelete(armedAt: number, now: number): boolean {
   return now - armedAt >= DELETE_GUARD_MS
+}
+
+/**
+ * 슬롯의 「×」 칸을 눌렀다 (E307 손 QA): 꺼져 있으면(null) 켜기만 하고, 켜져 있으면 급히 두 번 누른 것이 아닐 때 지운다.
+ * 켠 지 오래된 것(꺼지는 때를 넘겼는데 타이머가 아직 돌지 않은 것)은 새로 켠 것으로 친다.
+ * 지우기는 이 칸을 두 번 눌렀을 때뿐이다: 「×」는 카드 옆에 따로 선 칸이라 이어 하려고 카드를 누른 것이 여기로 오지 않고,
+ * 켜진 채 다른 곳을 누르면 꺼진다 (`TitleScreen`의 deleteCell)
+ */
+export function pressDelete(armedAt: number | null, now: number): { armedAt: number | null; remove: boolean } {
+  if (armedAt === null || now - armedAt >= DELETE_ARMED_MS) return { armedAt: now, remove: false }
+  return confirmsDelete(armedAt, now) ? { armedAt: null, remove: true } : { armedAt, remove: false }
 }
 
 export interface TitleHandlers {
@@ -89,7 +102,9 @@ export class TitleScreen {
     slots.forEach((slot, i) => {
       const unread = slot !== null && 'unread' in slot ? slot : null
       const info = slot !== null && !('unread' in slot) ? slot : null
-      const card = this.el('button', `title-slot${info ? '' : unread ? ' is-empty is-unread' : ' is-empty'}`, list) as HTMLButtonElement
+      // 한 줄: 카드, 저장이 있으면 그 오른쪽에 따로 선 「×」 칸
+      const row = this.el('div', 'title-slot-row', list)
+      const card = this.el('button', `title-slot${info ? '' : unread ? ' is-empty is-unread' : ' is-empty'}`, row) as HTMLButtonElement
       card.type = 'button'
       card.style.animationDelay = `${i * 0.06}s`
       if (info) {
@@ -103,28 +118,10 @@ export class TitleScreen {
         portrait.append(img)
         const words = this.el('span', 'title-slot__words', card)
         this.el('span', 'title-slot__title', words).textContent = info.title
-        this.el('span', 'title-slot__meta', words).textContent = info.meta
+        const meta = this.el('span', 'title-slot__meta', words)
+        meta.textContent = info.meta
         card.addEventListener('click', () => handlers.onContinue(i))
-        // 지우기: 한 번 더 눌러야 지워진다
-        const del = this.el('span', 'title-slot__delete', card)
-        del.setAttribute('role', 'button')
-        del.setAttribute('aria-label', '슬롯 지우기')
-        del.textContent = '×'
-        let armedAt = 0
-        del.addEventListener('click', (e) => {
-          e.stopPropagation()
-          if (del.classList.contains('is-confirm')) {
-            if (confirmsDelete(armedAt, performance.now())) handlers.onDelete(i)
-            return
-          }
-          armedAt = performance.now()
-          del.classList.add('is-confirm')
-          del.textContent = '한 번 더 누르면 지움'
-          setTimeout(() => {
-            del.classList.remove('is-confirm')
-            del.textContent = '×'
-          }, 2500)
-        })
+        this.deleteCell(row, meta, info.meta, () => handlers.onDelete(i)).style.animationDelay = card.style.animationDelay
       } else {
         this.el('span', 'title-slot__plus', card).textContent = '+'
         const words = this.el('span', 'title-slot__words', card)
@@ -136,6 +133,50 @@ export class TitleScreen {
         card.addEventListener('click', () => this.showCreator(i, slots, handlers))
       }
     })
+  }
+
+  /**
+   * 슬롯 지우기 「×」: 카드 옆에 따로 선 칸 (E307 손 QA). 카드 모서리 안쪽에 있을 때는 이어 하려고 카드 오른쪽 끝을 누른 것이 지우기를 켰다.
+   * 한 번 누르면 켜져 카드의 작은 글 자리에 「× 한 번 더 누르면 지움」이 읽히는 크기로 뜨고, 이 칸을 다시 눌러야 지운다 (`pressDelete`).
+   * 켜진 것은 몇 초 뒤에, 또는 다른 곳을 누르면 꺼진다 (카드를 눌렀으면 그 누름은 그대로 이어 하기다)
+   */
+  private deleteCell(row: HTMLElement, meta: HTMLElement, metaText: string, remove: () => void): HTMLElement {
+    const del = this.el('button', 'title-slot__delete', row) as HTMLButtonElement
+    del.type = 'button'
+    del.setAttribute('aria-label', '슬롯 지우기')
+    del.textContent = '×'
+    let armedAt: number | null = null
+    let timer = 0
+    const show = () => {
+      const armed = armedAt !== null
+      row.classList.toggle('is-confirm', armed)
+      meta.textContent = armed ? '× 한 번 더 누르면 지움' : metaText
+    }
+    const outside = (e: Event) => {
+      if (e.target instanceof Node && del.contains(e.target)) return
+      disarm()
+    }
+    const disarm = () => {
+      armedAt = null
+      window.clearTimeout(timer)
+      document.removeEventListener('pointerdown', outside, true)
+      show()
+    }
+    del.addEventListener('click', () => {
+      const was = armedAt
+      const next = pressDelete(armedAt, performance.now())
+      if (next.remove) {
+        disarm()
+        return remove()
+      }
+      if (next.armedAt === was) return
+      armedAt = next.armedAt
+      window.clearTimeout(timer)
+      timer = window.setTimeout(disarm, DELETE_ARMED_MS)
+      document.addEventListener('pointerdown', outside, true)
+      show()
+    })
+    return del
   }
 
   /** 캐릭터 만들기: 가운데에 돌아가는 미리 보기, 피부·머리카락·옷 색 고르기, [시작] */

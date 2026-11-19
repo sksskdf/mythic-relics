@@ -46,7 +46,7 @@ const [width, height] = arg('size', '1280x720').split('x').map(Number)
 const TOUCH = process.argv.includes('--touch')
 const QUERY = arg('query', '?fresh')
 const OUT = resolve(ROOT, arg('out', 'test-results/hands-on'))
-const BROWSER = process.env.CHROMIUM_PATH ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'
+import { BROWSER } from './lib/browser.mjs'
 mkdirSync(OUT, { recursive: true })
 
 const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'ignore', detached: true, cwd: ROOT })

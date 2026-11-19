@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest'
 import { chapterOf } from '../src/data/chapters'
 import { REGIONS } from '../src/data/regions'
 import { CELL, cellOrigin } from '../src/data/world'
-import { away, crosses, labelRank, layoutMap, leaveBox, markRadius, markRim, placeLabels, reads, spotSize, type Box, type LabelAsk, type LabelBlock, type MapLand, type MapLayout, type Point } from '../src/ui/menu/mapLayout'
+import { WAKE } from '../src/data/wake'
+import { away, crosses, keepsName, labelRank, layoutMap, leaning, leaveBox, markRadius, markRim, placeLabels, reads, spotSize, stacked, type Box, type LabelAsk, type LabelBlock, type MapLand, type MapLayout, type Point } from '../src/ui/menu/mapLayout'
 
 type Land = MapLand & { name: string; zone: string | null; links: string[] }
 
@@ -87,20 +88,30 @@ describe('지도 탭의 판 (E307): 세로 화면을 다 쓴다', () => {
     expect(map.shown.has('hwagwasan')).toBe(true)
   })
 
-  it('엔딩 뒤에는 세로 판도 스물한 곳을 다 담고, 줄 사이를 두 배까지 벌려 판 아래를 비우지 않는다 (땅은 네모 그대로)', () => {
+  it('엔딩 뒤에는 세로 판도 스물한 곳을 다 담고, 줄 사이를 벌려 남는 높이를 다 쓴다 (땅은 네모 그대로)', () => {
     const all = lands('village', [], [], true)
     const map = layoutMap(all, PHONE)
     expect(map.mode).toBe('north')
     expect(map.shown.size).toBe(all.length)
     expect(map.sy / map.sx).toBeGreaterThan(1.5)
-    expect(map.sy / map.sx).toBeLessThanOrEqual(2)
+    expect(map.sy / map.sx).toBeLessThanOrEqual(2.5)
     expect(map.land).toBe(map.sx)
+    // 393×852: 판 아래가 비지 않는다 (두 배까지만 벌리던 때는 594px에서 멈춰 76px이 남았다)
     expect(map.h).toBeLessThanOrEqual(PHONE.h)
-    expect(map.h).toBeGreaterThan(PHONE.h * 0.85)
+    expect(map.h).toBeGreaterThan(PHONE.h * 0.98)
     // 낮은 화면에서는 남는 만큼만 벌린다
     const short = layoutMap(all, PHONE_SHORT)
     expect(short.h).toBeLessThanOrEqual(PHONE_SHORT.h)
-    expect(short.h).toBeGreaterThan(PHONE_SHORT.h * 0.95)
+    expect(short.h).toBeGreaterThan(PHONE_SHORT.h * 0.98)
+  })
+
+  it('엔딩 뒤 세로 판(가로 일곱 칸)의 칸은 누르는 자리 44px이 들어갈 만큼 넓다: 옆 여백을 표시 하나만큼만 둔다', () => {
+    for (const avail of [PHONE, PHONE_SHORT]) {
+      const all = lands('village', [], [], true)
+      const map = layoutMap(all, avail)
+      expect(map.sx, `${avail.h}`).toBeGreaterThan(46)
+      expect(spotSize(all.map((n) => map.place(n))), `${avail.h}`).toBe(44)
+    }
   })
 
   it('가로로 넓은 판은 화면과 같은 방향(45°)이다: 북쪽으로 가면 오른쪽 위, 모든 땅을 담고 가로세로가 같은 크기', () => {
@@ -219,33 +230,38 @@ describe('지도 탭의 이름 (E307): 지금 땅·목표·마을·켠 성소·�
   const overlap = (a: Box, b: Box) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1
 
   /** 지도 탭이 이름을 놓는 것과 같은 셈 (글자 폭은 12px 글꼴로 어림: 한 글자 12px, 빈칸 6px, 양옆 4px) */
-  function names(all: Land[], avail: { w: number; h: number }, goal: string) {
+  function names(all: Land[], avail: { w: number; h: number }, goal: string, traces: readonly string[] = [], me: Point | null = null) {
     const map = layoutMap(all, avail)
     const shown = all.filter((n) => map.shown.has(n.id))
     const here = all.find((n) => n.here)!
-    const spot = spotSize(shown.map((n) => map.place(n)))
+    // 땅의 자리는 온 픽셀에 맞춘다 (`mapTab.ts`와 같이: 반 픽셀 걸친 것 때문에 이름 자리가 막히지 않게)
+    const at = (n: MapLand): Point => ({ x: Math.round(map.place(n).x), y: Math.round(map.place(n).y) })
+    const spot = spotSize(shown.map(at))
     const blocks: LabelBlock[] = []
     const asks: (LabelAsk & { rank: number })[] = []
     const marks = new Map<string, Box>()
     const roads: [Point, Point][] = []
     for (const n of shown) {
-      const p = map.place(n)
+      const p = at(n)
       const rim = markRim(n.zone, Math.min(map.sx, map.sy), n.here, n.id === goal)
       const mark = { x0: p.x - rim.solid, y0: p.y - rim.solid, x1: p.x + rim.solid, y1: p.y + rim.solid }
       marks.set(n.id, mark)
+      // 신의 흔적: 표시 오른쪽 위의 십자 (`mapTab.ts`와 같은 자리, 한 땅에 흔적이 둘이면 옆으로 13px씩)
+      traces.filter((id) => id === n.id).forEach((_, i) => blocks.push({ x0: p.x + rim.r + 1 + i * 13, y0: p.y - rim.r - 10, x1: p.x + rim.r + 15 + i * 13, y1: p.y - rim.r + 4 }))
       blocks.push({ of: n.id, ...mark }, { of: n.id, soft: true, x0: p.x - spot / 2, y0: p.y - spot / 2, x1: p.x + spot / 2, y1: p.y + spot / 2 })
       const rank = labelRank({ here: n.here, goal: n.id === goal, village: n.zone === null, found: n.found, near: here.links.includes(n.id) || n.links.includes(here.id), locked: n.locked, later: n.later })
       const w = [...n.name].reduce((sum, c) => sum + (c === ' ' ? 6 : 12), 8)
-      asks.push({ id: n.id, x: p.x, y: p.y, r: rim.out, diamond: n.id === goal, w, h: 17, must: rank <= 2, rank })
+      asks.push({ id: n.id, x: p.x, y: p.y, r: rim.out, diamond: n.id === goal, w, h: 17, must: rank <= 2, keep: keepsName(rank), rank })
       for (const to of n.links) {
         const m = all.find((o) => o.id === to)
-        if (m && map.shown.has(m.id) && m.id > n.id) roads.push([p, map.place(m)])
+        if (m && map.shown.has(m.id) && m.id > n.id) roads.push([p, at(m)])
       }
     }
+    if (me) blocks.push({ x0: me.x - 12, y0: me.y - 12, x1: me.x + 12, y1: me.y + 12 })
     asks.sort((a, b) => a.rank - b.rank)
     const placed = placeLabels(asks, map, blocks, roads)
     const boxes = new Map([...placed].map(([id, p]) => [id, { x0: p.x, y0: p.y, x1: p.x + asks.find((a) => a.id === id)!.w, y1: p.y + 17 }]))
-    return { map, asks, placed, boxes, marks }
+    return { map, asks, placed, boxes, marks, at: (id: string) => at(all.find((n) => n.id === id)!) }
   }
 
   /** 켠 성소를 따라 북쪽으로 올라가는 차례 (장 흐름) */
@@ -303,6 +319,174 @@ describe('지도 탭의 이름 (E307): 지금 땅·목표·마을·켠 성소·�
     }
   })
 
+  it.each([
+    ['세로 852', PHONE],
+    ['세로 659', PHONE_SHORT],
+  ] as const)('%s 엔딩 뒤: 어느 땅에 있든 스물한 곳의 이름이 다 보이고, 이름끼리도 남의 표시와도 겹치지 않는다 (E307 손 QA: 이름 하나가 빠졌다)', (_name, avail) => {
+    const ids = Object.keys(REGIONS)
+    for (const here of ids) {
+      for (const found of [[], TRAIL, ids]) {
+        const { map, asks, placed, boxes, marks } = names(lands(here, found, [], true), avail, '')
+        const state = `${here} (성소 ${found.length})`
+        expect(asks.length, state).toBe(ids.length)
+        expect(asks.filter((a) => !placed.has(a.id)).map((a) => a.id), state).toEqual([])
+        const list = [...boxes]
+        for (let i = 0; i < list.length; i++) {
+          const [id, box] = list[i]!
+          expect(box.x0 >= 0 && box.y0 >= 0 && box.x1 <= map.w && box.y1 <= map.h, `${state} ${id}`).toBe(true)
+          for (let j = i + 1; j < list.length; j++) expect(overlap(box, list[j]![1]), `${state} ${id} × ${list[j]![0]}`).toBe(false)
+          for (const [of, mark] of marks) if (of !== id) expect(overlap(box, mark), `${state} ${id} × ${of} 표시`).toBe(false)
+        }
+        // 기운 채 놓인 이름(마지막에 놓은 것)은 판에 하나쯤이고, 한 글자 폭(12px)보다 덜 기운다
+        const astray = asks.filter((a) => !a.must && leaning(a, boxes.get(a.id)!, asks) > 0)
+        expect(astray.length, state).toBeLessThanOrEqual(2)
+        for (const a of astray) expect(leaning(a, boxes.get(a.id)!, asks), `${state} ${a.id}`).toBeLessThanOrEqual(8)
+      }
+    }
+  })
+
+  it('엔딩 전 세로 판은 어느 진행 상태에서든 이름이 다 보이고, 기운 이름도 위아래로 붙은 이름도 없다', () => {
+    for (const avail of [PHONE, PHONE_SHORT]) {
+      for (const [state, here, found, goal] of journey) {
+        const { asks, placed, boxes } = names(lands(here, found, [goal]), avail, goal)
+        expect(asks.filter((a) => !placed.has(a.id)).map((a) => a.id), `${avail.h} ${state}`).toEqual([])
+        for (const a of asks) if (!a.must) expect(leaning(a, boxes.get(a.id)!, asks), `${avail.h} ${state}: ${a.id}`).toBeLessThanOrEqual(0)
+        const list = [...boxes.values()]
+        for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) expect(stacked(list[i]!, list[j]!), `${avail.h} ${state}`).toBe(false)
+      }
+    }
+  })
+
+  /** 게임이 지도에 찍는 신의 흔적 (깨운 신이 없을 때: 흔적마다 그 땅 표시 오른쪽 위에 십자 하나) */
+  const TRACES = Object.values(WAKE).map((w) => w!.trace.region)
+  /** 아이폰 SE(320×568)와 작은 안드로이드(360×640)의 지도 판 */
+  const SMALL = { w: 276, h: 386 }
+  const NARROW = { w: 316, h: 458 }
+
+  it('393×659 손 QA의 그 판: 마을에서 열면 하나뿐인 워프 대상 「미드가르드 설원」의 이름이 보인다 (목표는 세계 뱀의 바닷가, 흔적 십자와 내 자리까지)', () => {
+    const state = lands('village', ['midgard'], ['midgard', 'serpentshore', 'ironwood'])
+    const probe = names(state, PHONE_SHORT, 'serpentshore', TRACES)
+    // 내 자리는 마을 표시 위 (마을 한가운데에 서 있다)
+    const { asks, placed, boxes, marks } = names(state, PHONE_SHORT, 'serpentshore', TRACES, probe.at('village'))
+    expect(placed.has('midgard')).toBe(true)
+    expect(placed.has('village')).toBe(true)
+    expect(placed.has('serpentshore')).toBe(true)
+    // 제 표시에 붙어 있고(한 줄 더 떨어지지 않았다) 남의 표시 쪽으로 기울지 않았으며, 남의 이름·표시를 덮지 않는다
+    const midgard = asks.find((a) => a.id === 'midgard')!
+    const box = boxes.get('midgard')!
+    expect(away(midgard, box)).toBeLessThanOrEqual(6)
+    expect(leaning(midgard, box, asks)).toBeLessThanOrEqual(0)
+    for (const [id, other] of boxes) if (id !== 'midgard') expect(overlap(box, other), id).toBe(false)
+    for (const [id, mark] of marks) if (id !== 'midgard') expect(overlap(box, mark), `${id} 표시`).toBe(false)
+    // 「올림포스 기슭」도 659에서 보인다 (전에는 늘 빠졌다)
+    expect(placed.has('olympus')).toBe(true)
+  })
+
+  it.each([
+    ['세로 852', PHONE],
+    ['세로 659', PHONE_SHORT],
+    ['작은 안드로이드 (360×640)', NARROW],
+    ['아이폰 SE (320×568)', SMALL],
+    ['가로', DESKTOP],
+    ['작은 가로 창 (960×540)', { w: 928, h: 300 }],
+  ] as const)('%s: 어느 진행 상태에서든 워프할 수 있는 곳(마을·켠 성소)의 이름은 빠지지 않는다 (흔적 십자와 내 자리가 자리를 먹어도)', (_name, avail) => {
+    for (const [state, here, found, goal] of journey) {
+      const all = lands(here, found, [goal])
+      const me = names(all, avail, goal, TRACES).at(here)
+      const { asks, placed, boxes } = names(all, avail, goal, TRACES, me)
+      const missing = asks.filter((a) => (a.must || a.keep) && !placed.has(a.id)).map((a) => a.id)
+      expect(missing, state).toEqual([])
+      // 워프할 수 있는 곳은 켠 성소 모두와 마을이다
+      for (const id of ['village', ...found]) expect(asks.find((a) => a.id === id)?.keep, `${state}: ${id}`).toBe(true)
+      // 억지로 놓은 이름도 남의 표시 밑으로 밀려나지 않는다 (한 글자 폭보다 덜 기운다): 그 땅의 이름으로 읽히느니 흔적 십자를 조금 덮는다.
+      // 아이폰 SE의 판에서 「미드가르드 설원」이 무스펠 표시 바로 밑(25px 기욺)에 놓여 무스펠의 이름처럼 보였다
+      for (const a of asks.filter((x) => x.keep && !x.must)) expect(leaning(a, boxes.get(a.id)!, asks), `${state}: ${a.id}`).toBeLessThan(12)
+    }
+  })
+
+  it.each([
+    ['세로 852', PHONE],
+    ['세로 659', PHONE_SHORT],
+  ] as const)('%s: 흔적 십자와 내 자리가 있어도 워프할 수 있는 곳의 이름은 남의 이름·표시를 덮지 않고, 제 표시에서 한 줄 넘게 떨어지지 않는다', (_name, avail) => {
+    for (const [state, here, found, goal] of journey) {
+      const all = lands(here, found, [goal])
+      const me = names(all, avail, goal, TRACES).at(here)
+      const { asks, boxes, marks } = names(all, avail, goal, TRACES, me)
+      for (const a of asks.filter((x) => x.keep)) {
+        const box = boxes.get(a.id)!
+        for (const [id, other] of boxes) if (id !== a.id) expect(overlap(box, other), `${state}: ${a.id} × ${id}`).toBe(false)
+        for (const [id, mark] of marks) if (id !== a.id) expect(overlap(box, mark), `${state}: ${a.id} × ${id} 표시`).toBe(false)
+        expect(away(a, box), `${state}: ${a.id}`).toBeLessThanOrEqual(6 + 17 + 1)
+      }
+    }
+  })
+
+  it('워프할 수 있는 곳의 이름은 자리가 모자라면 가 보지 않은 땅의 이름을 치우고 놓는다 (차례가 뒤여도)', () => {
+    const ask = (id: string, keep: boolean): LabelAsk => ({ id, x: 50, y: 50, r: 12, w: 80, h: 17, must: false, keep })
+    // 판이 이름 하나 겨우 들어갈 크기: 먼저 놓은 이름이 자리를 다 차지한다
+    const board = { w: 100, h: 100 }
+    const wall: LabelBlock[] = [{ x0: 0, y0: 0, x1: 100, y1: 30 }, { x0: 0, y0: 84, x1: 100, y1: 100 }]
+    // 둘 다 보통 이름이면 먼저 온 것이 남는다
+    expect([...placeLabels([ask('unseen', false), ask('other', false)], board, wall, []).keys()]).toEqual(['unseen'])
+    // 뒤에 온 이름이 켠 성소면 그 이름이 남고, 가 보지 않은 땅의 이름이 빠진다
+    expect([...placeLabels([ask('unseen', false), ask('lit', true)], board, wall, []).keys()]).toEqual(['lit'])
+  })
+
+  it('워프할 수 있는 곳의 이름은 덮지 않는 자리가 아예 없어도 놓는다 (가장 덜 덮는 자리에): 이름 없는 원으로 남지 않는다', () => {
+    const ask = (id: string, keep: boolean): LabelAsk => ({ id, x: 50, y: 50, r: 12, w: 80, h: 17, must: false, keep })
+    const board = { w: 100, h: 100 }
+    const wall: LabelBlock[] = [{ x0: 0, y0: 0, x1: 100, y1: 30 }, { x0: 0, y0: 84, x1: 100, y1: 100 }]
+    const placed = placeLabels([ask('a', true), ask('b', true)], board, wall, [])
+    expect(placed.size).toBe(2)
+    // 판 안에는 있다
+    for (const p of placed.values()) expect(p.x >= 0 && p.y >= 0 && p.x + 80 <= 100 && p.y + 17 <= 100).toBe(true)
+  })
+
+  it('목표의 이름이 켠 성소의 하나뿐인 자리를 먼저 차지했으면 목표의 이름이 비켜 준다: 둘 다 덮지 않고 놓인다', () => {
+    // 켠 성소는 위·아래·왼쪽이 막혀 오른쪽 자리뿐이다. 목표의 이름은 제 표시 왼쪽(값 0)을 먼저 고르는데 그 자리가 성소의 오른쪽 자리와 겹친다
+    const lit: LabelAsk = { id: 'lit', x: 60, y: 100, r: 12, w: 70, h: 17, must: false, keep: true }
+    const goal: LabelAsk = { id: 'goal', x: 190, y: 100, r: 12, w: 70, h: 17, must: true }
+    const board = { w: 260, h: 200 }
+    const blocks: LabelBlock[] = [
+      { of: 'lit', x0: 49, y0: 89, x1: 71, y1: 111 },
+      { of: 'goal', x0: 179, y0: 89, x1: 201, y1: 111 },
+      // 성소 둘레: 위·아래 띠 (오른쪽 옆자리만 남긴다)
+      { x0: 0, y0: 0, x1: 150, y1: 88 },
+      { x0: 0, y0: 112, x1: 150, y1: 200 },
+      // 목표의 위쪽
+      { x0: 150, y0: 0, x1: 260, y1: 84 },
+    ]
+    // 목표의 아래 자리는 길 하나를 가로지른다 (그래서 처음에는 왼쪽을 고른다)
+    const roads: [Point, Point][] = [[{ x: 190, y: 100 }, { x: 190, y: 200 }]]
+    const box = (placed: Map<string, Point>, a: LabelAsk): Box => ({ x0: placed.get(a.id)!.x, y0: placed.get(a.id)!.y, x1: placed.get(a.id)!.x + a.w, y1: placed.get(a.id)!.y + a.h })
+    // 목표만 있으면 왼쪽 옆자리
+    expect(placeLabels([goal], board, blocks, roads).get('goal')).toEqual({ x: 190 - 12 - 5 - 70, y: 92 })
+    const placed = placeLabels([goal, lit], board, blocks, roads)
+    expect(placed.size).toBe(2)
+    expect(placed.get('lit')).toEqual({ x: 60 + 12 + 5, y: 92 })
+    expect(overlap(box(placed, goal), box(placed, lit))).toBe(false)
+    // 목표의 이름은 제 표시에 붙은 채 아래로 갔다
+    expect(placed.get('goal')!.y).toBeGreaterThan(100)
+    expect(away(goal, box(placed, goal))).toBeLessThanOrEqual(6)
+    // 켠 성소가 아니면(가 보지 않은 땅) 비켜 주지 않는다: 그 이름이 빠진다
+    expect([...placeLabels([goal, { ...lit, keep: false }], board, blocks, roads).keys()]).toEqual(['goal'])
+  })
+
+  it('1280×720 중반(올림포스, 성소 다섯): 「요툰헤임 빙하」와 「철의 숲」이 한 표시 위에 두 줄로 붙지 않는다 (E307 손 QA)', () => {
+    const all = lands('olympus', ['midgard', 'serpentshore', 'ironwood', 'jotunheim', 'muspel'], ['utgard', 'pass', 'olympus', 'delphi'])
+    // 신의 흔적 다섯과 내 자리 (게임에서 본 그 판: 요툰헤임 표시 오른쪽 위의 흔적이 이름을 왼쪽 위, 「철의 숲」 바로 위로 밀었다)
+    const { asks, placed, boxes } = names(all, DESKTOP, 'delphi', ['jotunheim', 'muspel', 'olympus', 'delphi', 'lycia'], { x: 298.8, y: 234 })
+    // 지금 땅·목표·마을·켠 성소·이웃의 이름은 다 보인다
+    for (const a of asks) if (a.rank <= 5) expect(placed.has(a.id), a.id).toBe(true)
+    expect(stacked(boxes.get('jotunheim')!, boxes.get('ironwood')!)).toBe(false)
+    // 켠 성소 다섯의 이름은 서로 붙지 않는다
+    const lit = ['midgard', 'serpentshore', 'ironwood', 'jotunheim', 'muspel'].map((id) => boxes.get(id)!)
+    for (let i = 0; i < lit.length; i++) for (let j = i + 1; j < lit.length; j++) expect(stacked(lit[i]!, lit[j]!)).toBe(false)
+    // 「철의 숲」은 제 표시에 붙어 있다
+    const iron = asks.find((a) => a.id === 'ironwood')!
+    expect(away(iron, boxes.get('ironwood')!)).toBeLessThanOrEqual(6)
+  })
+
   it('세로 판의 처음 화면에서 옛 판(이름 일곱)보다 많은 이름이 보인다: 다음에 갈 땅의 이름을 눌러 보지 않아도 안다', () => {
     const { placed } = names(lands(), PHONE, 'midgard')
     expect(placed.size).toBeGreaterThanOrEqual(12)
@@ -313,6 +497,8 @@ describe('지도 탭의 이름 (E307): 지금 땅·목표·마을·켠 성소·�
     const base = { here: false, goal: false, village: false, found: false, near: false, locked: false, later: false }
     const order = [{ ...base, here: true, found: true }, { ...base, goal: true, locked: true }, { ...base, village: true, found: true }, { ...base, found: true }, { ...base, near: true, locked: true }, base, { ...base, locked: true }, { ...base, locked: true, later: true }]
     expect(order.map(labelRank)).toEqual([1, 2, 3, 4, 5, 6, 7, 8])
+    // 앞의 넷(지금 땅·목표·마을·켠 성소)은 이름이 빠지지 않는 땅이다: 가 보지 않은 이웃부터는 자리가 없으면 빠진다
+    expect(order.map((n) => keepsName(labelRank(n)))).toEqual([true, true, true, true, false, false, false, false])
   })
 
   it('자리가 없는 이름은 놓지 않고(눌러서 설명으로 본다), 지금 땅·목표의 이름은 가장 덜 겹치는 자리에라도 놓는다', () => {
@@ -405,7 +591,7 @@ describe('지도 탭의 이름 (E307): 지금 땅·목표·마을·켠 성소·�
     expect(placeLabels([ask], { w: 200, h: 200 }, walls, []).get('a')).toEqual({ x: 118, y: 92 })
   })
 
-  it('지금 땅·목표의 이름이 놓일 자리가 모두 남의 표시 쪽으로 기울면 가장 덜 기운 자리에 놓는다 (다른 이름은 놓지 않는다)', () => {
+  it('놓일 자리가 모두 남의 표시 쪽으로 기울면 가장 덜 기운 자리에 놓는다: 지금 땅·목표는 제 차례에, 다른 이름은 다 놓은 뒤 마지막에', () => {
     const own = (must: boolean): LabelAsk => ({ id: 'a', x: 100, y: 60, r: 12, w: 60, h: 17, must })
     // 양옆이 막혀 위·아래만 남았다. 아래 자리는 아랫마을 표시에 닿고(2px 기욺), 위 자리는 윗마을 표시에서 1px 떨어진다(1px 기욺)
     const walls: LabelBlock[] = [{ x0: 0, y0: 0, x1: 68, y1: 120 }, { x0: 132, y0: 0, x1: 200, y1: 120 }]
@@ -414,7 +600,77 @@ describe('지도 탭의 이름 (E307): 지금 땅·목표·마을·켠 성소·�
     const board = { w: 200, h: 120 }
     // 남의 표시는 이름 없이 자리만 견준다 (크기 0인 이름표는 판 가장자리 밖이라 놓이지 않는다)
     expect(placeLabels([own(true), lower, upper], board, walls, []).get('a')).toEqual({ x: 70, y: 28 })
-    expect(placeLabels([own(false), lower, upper], board, walls, []).has('a')).toBe(false)
+    // 다른 이름도 빠뜨리지 않는다 (E307 손 QA: 엔딩 뒤 세로 판에서 이름 하나가 빠졌다). 조금 기운 이름이 없는 이름보다 낫다
+    expect(placeLabels([own(false), lower, upper], board, walls, []).get('a')).toEqual({ x: 70, y: 28 })
+    expect(leaning(own(false), { x0: 70, y0: 28, x1: 130, y1: 45 }, [own(false), lower, upper])).toBeGreaterThan(0)
+  })
+
+  it('기운 자리는 마지막에만 쓴다: 먼저 차례가 온 이름이 기운 자리를 차지해, 뒤 이름의 기울지 않은 자리를 빼앗지 않는다', () => {
+    // 위와 같은 판에 윗마을의 이름을 더한다: 윗마을 이름의 기울지 않는 자리는 제 표시 바로 아래(= a가 기울어 놓일 자리)뿐이다
+    const walls: LabelBlock[] = [{ x0: 0, y0: 0, x1: 68, y1: 120 }, { x0: 132, y0: 0, x1: 200, y1: 120 }]
+    const a: LabelAsk = { id: 'a', x: 100, y: 70, r: 12, w: 60, h: 17, must: false }
+    const lower: LabelAsk = { id: 'lower', x: 100, y: 107, r: 6, w: 0, h: 0, must: false }
+    const upper: LabelAsk = { id: 'upper', x: 100, y: 8, r: 6, w: 40, h: 17, must: false }
+    const asks = [a, lower, upper]
+    const placed = placeLabels(asks, { w: 200, h: 120 }, walls, [])
+    // 윗마을 이름은 제 표시 바로 아래에, 기울지 않고
+    expect(placed.get('upper')).toEqual({ x: 80, y: 17 })
+    expect(leaning(upper, { x0: 80, y0: 17, x1: 120, y1: 34 }, asks)).toBeLessThanOrEqual(0)
+    // a는 그 뒤에 남은 자리에 (윗마을 이름을 덮지 않는다)
+    const at = placed.get('a')
+    if (at) expect(at.y >= 34 || at.y + 17 <= 17).toBe(true)
+  })
+
+  it('표시의 바로 위·아래 자리가 판 밖으로 나가면 판 안으로 당긴다: 판 가장자리 땅의 이름이 표시 위에 걸친 채 놓인다', () => {
+    // 판 왼쪽 끝에서 28px: 가운데에 맞춘 이름표(폭 86)는 15px이 판 밖이다
+    const ask: LabelAsk = { id: 'a', x: 28, y: 60, r: 13, w: 86, h: 17, must: false }
+    const at = placeLabels([ask], { w: 349, h: 120 }, [], []).get('a')!
+    expect(at).toEqual({ x: 2, y: 76 })
+    // 오른쪽 끝도 같다
+    const right: LabelAsk = { ...ask, x: 321 }
+    expect(placeLabels([right], { w: 349, h: 120 }, [], []).get('a')).toEqual({ x: 349 - 2 - 86, y: 76 })
+    // 당겨도 표시 위에 걸치지 못하면(이름표가 표시에서 벗어나면) 그 자리는 쓰지 않는다: 옆자리로 간다
+    const corner: LabelAsk = { id: 'a', x: 4, y: 60, r: 3, w: 30, h: 17, must: false }
+    const beside = placeLabels([corner], { w: 349, h: 120 }, [], []).get('a')!
+    expect(beside.x).toBeGreaterThan(corner.x)
+    expect(beside.y).toBeLessThan(corner.y)
+  })
+
+  it('남의 이름 바로 위·아래에 붙은 이름표를 알아본다: 8px 안으로 붙고 글자 하나 넘게 겹칠 때', () => {
+    const box = (x0: number, y0: number, w = 60): Box => ({ x0, y0, x1: x0 + w, y1: y0 + 17 })
+    // 1280×720 판에서 본 것: 「요툰헤임 빙하」(442,395) 바로 아래 2px에 「철의 숲」(447,414)
+    expect(stacked(box(442, 395, 85), box(447, 414, 49))).toBe(true)
+    expect(stacked(box(447, 414, 49), box(442, 395, 85))).toBe(true)
+    // 한 줄 넘게 떨어졌거나, 옆으로 비껴 글자 하나도 겹치지 않으면 아니다
+    expect(stacked(box(0, 0), box(0, 17 + 8))).toBe(false)
+    expect(stacked(box(0, 0), box(50, 19))).toBe(false)
+    // 같은 줄에 나란한 것도 아니다
+    expect(stacked(box(0, 0), box(64, 0))).toBe(false)
+  })
+
+  it('붙는 자리보다 떨어진 자리를 고르고, 먼저 놓은 이름도 뒤에 놓인 이름을 보고 비킨다', () => {
+    // 아랫마을의 이름은 제 표시 위에 먼저 놓인다. 윗마을의 이름은 위·오른쪽·아래가 막혀(신의 흔적·이웃 땅) 왼쪽 위로 가는데, 그 자리가 아랫마을 이름 바로 위다
+    const low: LabelAsk = { id: 'low', x: 110, y: 120, r: 13, w: 50, h: 17, must: false }
+    const high: LabelAsk = { id: 'high', x: 178, y: 97, r: 13, w: 86, h: 17, must: false }
+    const board = { w: 400, h: 200 }
+    const blocks: LabelBlock[] = [
+      { of: 'low', x0: 96, y0: 106, x1: 124, y1: 134 },
+      { of: 'high', x0: 164, y0: 83, x1: 192, y1: 111 },
+      { x0: 167, y0: 40, x1: 400, y1: 82 },
+      { x0: 193, y0: 40, x1: 400, y1: 200 },
+      { x0: 126, y0: 112, x1: 400, y1: 200 },
+      // 아랫마을 표시의 아래도 막는다
+      { x0: 0, y0: 136, x1: 400, y1: 200 },
+    ]
+    const at = (placed: Map<string, Point>, ask: LabelAsk): Box => ({ x0: placed.get(ask.id)!.x, y0: placed.get(ask.id)!.y, x1: placed.get(ask.id)!.x + ask.w, y1: placed.get(ask.id)!.y + ask.h })
+    // 아랫마을만 있으면 제 표시 바로 위
+    expect(placeLabels([low], board, blocks, []).get('low')).toEqual({ x: 85, y: 87 })
+    // 윗마을의 이름이 그 위에 붙으면 아랫마을의 이름이 옆자리로 비킨다: 둘 다 보이고 붙지 않는다
+    const placed = placeLabels([low, high], board, blocks, [])
+    expect(placed.size).toBe(2)
+    expect(placed.get('high')).toEqual({ x: 80, y: 68 })
+    expect(placed.get('low')).not.toEqual({ x: 85, y: 87 })
+    expect(stacked(at(placed, low), at(placed, high))).toBe(false)
   })
 
   it('선이 상자를 지나가는지: 닿기만 한 것은 아니다', () => {

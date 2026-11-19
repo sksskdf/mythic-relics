@@ -50,6 +50,19 @@ export function minimapPoint(x: number, z: number, view: number, yawDegrees = 45
 export const MINIMAP_INK = { rim: '#0d1118', me: '#e9eef5', relic: '#ffd27a', sanctuary: '#b9c3cf', ready: '#e3b341' } as const
 const INK_TOKENS: Record<keyof typeof MINIMAP_INK, string> = { rim: '--c-bg-1', me: '--c-ink-1', relic: '--c-gold-soft', sanctuary: '--c-ink-2', ready: '--c-gold' }
 
+/**
+ * 지형(연못·용암 웅덩이)의 색 (E307 손 QA): 물 색을 그 땅의 바탕색에 이만큼만 섞는다.
+ * 물 색을 그대로 칠하던 때는 무스펠의 용암 웅덩이가 테 없는 진한 주황 점으로 찍혀 떨어진 것의 금빛 점처럼 보였다.
+ * 지형은 땅에 묻히는 흐린 얼룩으로, 표시는 밝은 속과 어두운 테두리로 갈린다 (`tests/minimap.test.ts`)
+ */
+export const POND_TINT = 0.4
+
+/** 연못을 칠할 색: 땅의 바탕색(ground)에 물 색(water)을 POND_TINT만큼 섞은 것 */
+export function pondColor(ground: number, water: number): number {
+  const channel = (shift: number) => Math.round(((ground >> shift) & 255) * (1 - POND_TINT) + ((water >> shift) & 255) * POND_TINT)
+  return (channel(16) << 16) | (channel(8) << 8) | channel(0)
+}
+
 type Dot = readonly [du: number, dv: number]
 
 /** 표시 하나: 속(밝은 색)과 둘레 한 픽셀 테두리(어두운 색)의 픽셀 자리 (표시 가운데 기준) */
@@ -129,7 +142,7 @@ export interface MinimapState {
 }
 
 /**
- * 화면 구석의 작은 지도 (E7-08). 글 없이 모양과 색으로만: 길, 연못, 출구(갈 곳의 신화권 색), 성소, 떨어진 유물, 목표, 나.
+ * 화면 구석의 작은 지도 (E7-08). 글 없이 모양과 색으로만: 길, 연못(땅에 묻히는 흐린 얼룩), 출구(갈 곳의 신화권 색), 성소, 떨어진 유물, 목표, 나.
  * 화면과 같은 방향으로 돌려 그린다(쿼터뷰라 마름모꼴). 위가 화면의 먼 쪽이다.
  * 이어진 세계(E19-05)에서는 지금 땅 둘레의 통로와 이웃 땅도 흐리게 함께 그린다. 세로 화면은 지금 땅에 당겨 그린다 (E307).
  * 표시마다 어두운 테두리를 둘러 밝은 땅(눈)에서도 묻히지 않는다 (`MARKS`).
@@ -188,8 +201,8 @@ export class Minimap {
       for (const r of world.passages) this.fillRect(g, r)
     }
     this.drawLand(g, region, { x: 0, z: 0 })
-    // 연못: 둥글게 (네모는 표시로 쓴다. 무스펠의 용암 웅덩이가 출구 네모처럼 보였다)
-    g.fillStyle = hex(theme.water.surface)
+    // 연못: 둥글게 (네모는 표시로 쓴다. 무스펠의 용암 웅덩이가 출구 네모처럼 보였다), 땅에 묻히는 흐린 색으로 (진한 물 색은 표시처럼 보인다)
+    g.fillStyle = hex(pondColor(theme.ground.shade, theme.water.surface))
     for (const pond of region.ponds) {
       const p = this.project(pond.x, pond.z)
       g.beginPath()

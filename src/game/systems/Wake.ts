@@ -44,6 +44,18 @@ export function guardianSpec(god: God): GiantSpec | null {
 }
 
 /**
+ * 「신의 조각 2/3」 카드의 두 줄 (E307 손 QA): 유물이 유물표에 켜져 그 힘이 깨어났다는 것과, 마지막 조각으로 할 일.
+ * 「묠니르가 유물표에 켜졌다 · 바로 깨어난다」는 마지막 조각이 남았는데 신이 지금 깨어난다는 말로 읽혔다:
+ * 깨어난 것이 유물의 힘임을 적고, 신은 수호자를 쓰러뜨려야 깨어난다는 것을 둘째 줄에 적는다.
+ * (유물은 칸·가방이 아니라 유물표에 켜진다. 「가방에 들어왔다 · 장비 탭에서 낀다」는 틀린 글이었다)
+ */
+export function relicPieceLines(god: God): string[] {
+  const def = godDef(god)
+  const guardian = wakeDef(god)?.guardian.name ?? '수호자'
+  return [`${josa(relicDef(mythRelic(god)).name, '이')} 유물표에 켜졌다 · 유물의 힘이 깨어났다`, `마지막 조각: ${josa(guardian, '을')} 쓰러뜨리면 ${josa(def.name, '이')} 깨어난다`]
+}
+
+/**
  * 신을 깨우는 길 (E238, `DESIGN.md` 4.2.2): 흔적 → 사냥 → 수호자, 조각 셋.
  * - 흔적: 그 땅에 흔적 모형과 빛기둥을 세운다. 다가가면 지키는 무리가 깨어나고, 다 쓰러뜨리면 조각 1(대표 힘을 빌린다)
  * - 사냥: 그 신의 땅에서 잡을 때마다 막대가 차고, 다 차면 조각 2(그 신의 유물이 손에 들어온다)
@@ -396,16 +408,8 @@ export class WakeSystem {
     const p = hero.object.position
     if (!powers.loadout.has(relic)) this.give(relic, true)
     const def = godDef(god)
-    const path = wakeDef(god)!
     fx.power.burst(p, def.color, 4)
-    const card = {
-      kind: '신의 조각 2/3',
-      title: relicDef(relic).name,
-      color: def.color,
-      icon: classIcon(def.name),
-      // 유물은 칸·가방이 아니라 유물표에 켜지고 그 자리에서 깨어난다 (E307: 「가방에 들어왔다 · 장비 탭에서 낀다」는 틀린 글이었다)
-      lines: [`${josa(relicDef(relic).name, '이')} 유물표에 켜졌다 · 바로 깨어난다`, `마지막 조각: ${josa(path.guardian.name, '을')} 쓰러뜨린다`],
-    }
+    const card = { kind: '신의 조각 2/3', title: relicDef(relic).name, color: def.color, icon: classIcon(def.name), lines: relicPieceLines(god) }
     bus.emit('moment', { id: 'fragmentRelic', card })
     bus.emit('fragment', { god, piece: 2 })
     this.placeLair()

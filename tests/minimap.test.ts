@@ -5,7 +5,7 @@ import { REALM_COLORS } from '../src/art/palette'
 import gods from '../src/data/gods.json'
 import { REGIONS } from '../src/data/regions'
 import { CELL, CROSS_MARGIN, regionLinks } from '../src/data/world'
-import { MARKS, MINIMAP_INK, MINIMAP_SIZE, minimapPoint, minimapView, stampAt, type Mark } from '../src/ui/Minimap'
+import { MARKS, MINIMAP_INK, MINIMAP_SIZE, minimapPoint, minimapView, pondColor, POND_TINT, stampAt, type Mark } from '../src/ui/Minimap'
 import themeCss from '../src/ui/theme.css?raw'
 import { THEMES } from '../src/world/themes'
 
@@ -75,6 +75,49 @@ describe('작은 지도의 표시 (E307): 어느 땅에서든 묻히지 않는�
     // 「나」보다 넓게 둘러, 그 자리에 서 있어도 목표가 보인다
     const far = (m: Mark) => Math.max(...m.rim.map(([u, v]) => Math.max(Math.abs(u), Math.abs(v))))
     expect(far(MARKS.goal)).toBeGreaterThan(far(MARKS.me))
+  })
+})
+
+describe('작은 지도의 지형 (E307 손 QA): 연못·용암 웅덩이는 표시처럼 보이지 않는다', () => {
+  /** 두 색이 눈에 얼마나 다른가: RGB 거리 (0 = 같은 색, 441 = 검정과 흰색) */
+  const apart = (a: number | string, b: number | string) => {
+    const rgb = (color: number | string) => {
+      const c = typeof color === 'number' ? color : parseInt(color.replace('#', ''), 16)
+      return [(c >> 16) & 255, (c >> 8) & 255, c & 255] as const
+    }
+    const [p, q] = [rgb(a), rgb(b)]
+    return Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2])
+  }
+  /** 지형이 땅에서 이만큼 안이면 땅에 묻힌 얼룩으로 보인다 */
+  const BLEND = 70
+
+  it('물 색을 그대로 칠하면 무스펠의 용암 웅덩이는 땅에서 튀는 진한 주황 점이다 (고치기 전: 떨어진 것의 금빛 점처럼 보였다)', () => {
+    expect(apart(THEMES.muspel.water.surface, THEMES.muspel.ground.shade)).toBeGreaterThan(100)
+    expect(apart(THEMES.volcano.water.surface, THEMES.volcano.ground.shade)).toBeGreaterThan(100)
+  })
+
+  it('연못은 그 땅의 바탕색에 물 색을 조금 섞은 색이다: 섞지 않으면 땅, 다 섞으면 물', () => {
+    expect(POND_TINT).toBeGreaterThan(0.2)
+    expect(POND_TINT).toBeLessThanOrEqual(0.5)
+    expect(pondColor(0x808080, 0x808080)).toBe(0x808080)
+    // 채널마다 땅과 물 사이
+    const pond = pondColor(THEMES.muspel.ground.shade, THEMES.muspel.water.surface)
+    for (const shift of [16, 8, 0]) {
+      const [a, b, c] = [THEMES.muspel.ground.shade, pond, THEMES.muspel.water.surface].map((v) => (v >> shift) & 255) as [number, number, number]
+      expect(b).toBeGreaterThanOrEqual(Math.min(a, c))
+      expect(b).toBeLessThanOrEqual(Math.max(a, c))
+    }
+  })
+
+  it.each(Object.entries(THEMES))('%s: 연못은 땅에 묻히는 얼룩이고(밝기 1.5:1 안, 색 거리 70 안), 떨어진 것의 금빛은 그 연못과 뚜렷이 다르다', (_id, theme) => {
+    const pond = pondColor(theme.ground.shade, theme.water.surface)
+    expect(contrast(pond, theme.ground.shade)).toBeLessThan(1.5)
+    expect(apart(pond, theme.ground.shade)).toBeLessThan(BLEND)
+    // 떨어진 것의 금빛 점은 연못에서 멀다: 연못이 땅에서 벗어난 것의 곱절은 넘게 (연못은 땅 쪽, 금빛 점은 따로 선다)
+    expect(apart(MINIMAP_INK.relic, pond)).toBeGreaterThan(100)
+    expect(apart(MINIMAP_INK.relic, pond)).toBeGreaterThan(apart(pond, theme.ground.shade) * 2)
+    // 떨어진 것 표시는 그 연못 위에 찍혀도 선다 (속이나 테두리가 3:1)
+    expect(Math.max(contrast(MINIMAP_INK.relic, pond), contrast(MINIMAP_INK.rim, pond))).toBeGreaterThanOrEqual(3)
   })
 })
 

@@ -14,6 +14,17 @@
     --minimap: 256px;
   }
 }
+/*
+ * 짧은 세로 화면 (E307 손 QA: 사파리 주소창이 보이는 아이폰은 393×659): 128px 지도는 화면 폭의 3분의 1을 차지해
+ * 그 밑의 길과 적을 누를 수 없었다 (누르면 지도 탭이 열린다). 한 변을 96px로 줄인다: 64픽셀 그림의 1.5배라 화면 픽셀이 세 배인
+ * 휴대폰에서는 그림 한 칸이 4~5픽셀로 고르게 보이고, 표시(나 7칸·성소 5칸·떨어진 것 2칸)는 그대로 읽힌다.
+ * 목표 한 줄·보스 막대·작은 카드의 자리는 이 값을 따라 넓어진다 (`portrait.css`)
+ */
+@media (max-height: 700px) and (max-aspect-ratio: 4/5) {
+  :root {
+    --minimap: 96px;
+  }
+}
 
 /*
  * 쌓임 순서 (E307): .hud는 제 쌓임 맥락을 만들지 않는다 (position: fixed면 만든다. #app이 화면 전체라 absolute로도 같은 자리).
@@ -253,11 +264,14 @@ button.hud__slot--empty {
 }
 /*
  * 주운 것의 이름: 굵지 않은 글(획 한 칸)이라 숫자의 그림자(두 칸 떨어진 넷)로는 획 옆이 비어 눈 땅 위에서 뭉개졌다 (E307).
- * 획에 바로 붙는 테두리를 쓴다 (`theme.css`의 --text-edge)
+ * 그림자 대신 어두운 반투명 바탕을 깐다 (목표 한 줄과 같은 바탕). 줄 높이(글자 크기의 1.5배, `DamageNumbers.ts`)보다 낮아 쌓인 이름끼리 닿지 않는다
  */
 .damage-number--label {
+  padding: var(--sp-1) var(--sp-3);
   white-space: nowrap;
   font: max(12px, round(down, 2.2vh, 12px)) / 1 var(--font-body);
+  background: var(--c-veil);
+  text-shadow: none;
 }
 .damage-number--thunder {
   color: #9fe3ff;
@@ -284,12 +298,17 @@ button.hud__slot--empty {
 }
 /*
  * --lift: 땅의 카드(다가가면 뜨는 카드)가 이 자리를 덮으면 Hud가 그 카드 위로 올리는 높이.
- * 본문 크기의 글(획 한 칸)이라 큰 글씨의 그림자(세 칸 떨어진 넷) 대신 획에 바로 붙는 테두리를 쓴다 (E307, `theme.css`의 --text-edge)
+ * 본문 크기의 글(획 한 칸)이라 큰 글씨의 그림자(세 칸 떨어진 넷)로는 획 옆이 비어 눈 땅 위에서 뭉개졌다 (E307):
+ * 그림자 대신 어두운 반투명 바탕을 깐다 (목표 한 줄과 같은 바탕과 테)
  */
 .hud__toast {
   bottom: calc(var(--unit) * 14 + var(--lift, 0px));
+  padding: var(--sp-1) var(--sp-4);
   font: max(12px, round(down, 2.4vh, 12px)) / 1.4 var(--font-body);
   color: var(--ink);
+  background: var(--c-veil);
+  box-shadow: 0 0 0 1px var(--c-groove);
+  text-shadow: none;
 }
 /* 조작 안내 한 줄: 해 볼 때까지 남아 천천히 숨 쉰다 (시작 장면 뒤) */
 .hud__coach {
@@ -316,8 +335,9 @@ button.hud__slot--empty {
 .hud__banner.is-showing {
   animation: hud-banner 2.4s ease-out forwards;
 }
+/* 떠 있는 시간은 Hud가 넘긴다 (`toastLine.ts`의 TOAST_LIFE) */
 .hud__toast.is-showing {
-  animation: hud-toast 1.8s ease-out forwards;
+  animation: hud-toast var(--life, 3s) ease-out forwards;
 }
 @keyframes hud-banner {
   0% { opacity: 0; transform: translateX(-50%) scale(1.6); }
@@ -327,8 +347,8 @@ button.hud__slot--empty {
 }
 @keyframes hud-toast {
   0% { opacity: 0; transform: translate(-50%, 8px); }
-  12% { opacity: 1; transform: translate(-50%, 0); }
-  75% { opacity: 1; }
+  8% { opacity: 1; transform: translate(-50%, 0); }
+  88% { opacity: 1; }
   100% { opacity: 0; }
 }
 
@@ -505,7 +525,8 @@ button.hud__slot--empty {
 }
 /*
  * 새 탭 (E236-05): 가운데 떴다가 오른쪽 위 메뉴 단추로 작아지며 날아 들어간다. 단추는 정보 화면을 열 때까지 부른다.
- * 단추에 닿으면 다 사라진다: 흐린 채(0.2)로 끝나면 forwards가 그 모습을 붙들어, 줄어든 카드가 다음 카드가 뜰 때까지 단추 위에 남았다 (E307)
+ * 단추에 닿으면 다 사라진다: 흐린 채(0.2)로 끝나면 forwards가 그 모습을 붙들어, 줄어든 카드가 다음 카드가 뜰 때까지 단추 위에 남았다 (E307).
+ * 움직임이 끝나면 Hud가 is-showing도 뗀다 (어느 카드든 끝난 뒤에는 보이지 않는 상자로도 남지 않는다)
  */
 .hud__gains.is-fly.is-showing {
   animation: hud-gains-fly var(--life, 3.6s) ease-in forwards;
@@ -514,7 +535,8 @@ button.hud__slot--empty {
   0% { opacity: 0; transform: translate(-50%, 12px) scale(0.96); }
   8% { opacity: 1; transform: translate(-50%, 0) scale(1); }
   70% { opacity: 1; transform: translate(-50%, 0) scale(1); }
-  100% { opacity: 0.2; transform: translate(calc(50vw - 50% - var(--unit) * 5), calc(var(--unit) * 5 - var(--gains-top) - 50%)) scale(0.08); }
+  97% { opacity: 0.2; transform: translate(calc(50vw - 50% - var(--unit) * 5), calc(var(--unit) * 5 - var(--gains-top) - 50%)) scale(0.08); }
+  100% { opacity: 0; transform: translate(calc(50vw - 50% - var(--unit) * 5), calc(var(--unit) * 5 - var(--gains-top) - 50%)) scale(0.08); }
 }
 /* 카드 (E23-01): 오른쪽 위 작은 지도 아래에 작게, 싸움을 가리지 않는다. 장 제목 띠가 지나가도 위에 보인다 */
 .hud__gains.is-side {

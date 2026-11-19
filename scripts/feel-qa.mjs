@@ -24,7 +24,7 @@ const PORT = 4196
 /** 싸움을 오래 보려고 적 생명력을 이만큼 곱한다. 보스·수호자는 생명이 이것을 넘지 않게 (E306에서 거인 왕 700 → 2400처럼 늘어도 손맛을 보는 싸움 길이는 그대로) */
 const HP_SCALE = 6
 const BOSS_FIGHT_HP = 4200
-const BROWSER = process.env.CHROMIUM_PATH ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'
+import { BROWSER } from './lib/browser.mjs'
 const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'ignore', detached: true })
 const stop = () => {
   try {

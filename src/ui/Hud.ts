@@ -177,6 +177,8 @@ export class Hud {
     this.banner = this.el('div', 'hud__banner', this.root)
     this.card = this.el('div', 'hud__card', this.root)
     this.toast = this.el('div', 'hud__toast', this.root)
+    // 떠 있는 시간 (hud.css의 움직임 길이)
+    this.toast.style.setProperty('--life', `${TOAST_LIFE}ms`)
     this.coach = this.el('div', 'hud__coach', this.root)
     this.flashEl = this.el('div', 'hud__flash', this.root)
     this.gains = this.el('div', 'hud__gains', this.root)

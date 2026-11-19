@@ -7,7 +7,7 @@ import { GODS, godDef } from '../src/relics/data'
 import type { SaveData } from '../src/save/SaveData'
 import { mythCaption } from '../src/ui/menu/godsTab'
 import { slotSummary } from '../src/ui/slotSummary'
-import { confirmsDelete, DELETE_GUARD_MS } from '../src/ui/TitleScreen'
+import { confirmsDelete, DELETE_ARMED_MS, DELETE_GUARD_MS, pressDelete } from '../src/ui/TitleScreen'
 
 /**
  * 내 모습 (E307, 사용자 의견 4): 신을 깨워도 화면은 나를 그 신의 칭호로 부르지 않고, 「한 신에 몰기」라는 이름을 쓰지 않는다.
@@ -94,14 +94,30 @@ describe('저장 슬롯 카드 (E307)', () => {
     expect(fresh.color).toBe('')
   })
 
-  it('「×」를 켠 바로 뒤의 둘째 누름은 지우지 않는다: 급히 두 번 누른 것이 저장을 지우지 않게 (휴대폰은 「×」가 카드 모서리 44px을 받는다)', () => {
-    // 두 번 누르기(더블 클릭)로 치는 사이보다 길고, 켜진 글 「한 번 더 누르면 지움」이 꺼지는 2.5초보다 넉넉히 짧다
+  it('「×」를 켠 바로 뒤의 둘째 누름은 지우지 않는다: 급히 두 번 누른 것이 저장을 지우지 않게', () => {
+    // 두 번 누르기(더블 클릭)로 치는 사이보다 길고, 켜진 것이 저절로 꺼지는 때보다 넉넉히 짧다
     expect(DELETE_GUARD_MS).toBeGreaterThanOrEqual(400)
     expect(DELETE_GUARD_MS).toBeLessThanOrEqual(1000)
+    expect(DELETE_ARMED_MS).toBeGreaterThanOrEqual(DELETE_GUARD_MS * 4)
     expect(confirmsDelete(1000, 1000)).toBe(false)
     expect(confirmsDelete(1000, 1000 + 250)).toBe(false)
     expect(confirmsDelete(1000, 1000 + DELETE_GUARD_MS - 1)).toBe(false)
     expect(confirmsDelete(1000, 1000 + DELETE_GUARD_MS)).toBe(true)
     expect(confirmsDelete(1000, 1000 + 2000)).toBe(true)
+  })
+
+  it('지우기는 「×」 칸을 두 번 눌렀을 때뿐이다: 첫 누름은 켜기만, 급한 둘째 누름은 그대로, 틈을 둔 둘째 누름에 지운다 (E307 손 QA)', () => {
+    // 첫 누름: 켜진다
+    expect(pressDelete(null, 1000)).toEqual({ armedAt: 1000, remove: false })
+    // 급히 이어 누른 것(280ms): 켜진 채 그대로, 지우지 않는다
+    expect(pressDelete(1000, 1280)).toEqual({ armedAt: 1000, remove: false })
+    // 글을 보고 다시 누른 것: 지우고 꺼진다
+    expect(pressDelete(1000, 1000 + DELETE_GUARD_MS)).toEqual({ armedAt: null, remove: true })
+    expect(pressDelete(1000, 1800)).toEqual({ armedAt: null, remove: true })
+    // 다른 곳을 눌러 꺼진 뒤(null)의 누름은 다시 첫 누름이다: 손 QA에서는 카드 오른쪽 끝을 0.8초 사이로 두 번 누르면 지워졌다
+    expect(pressDelete(null, 1800).remove).toBe(false)
+    // 꺼질 때를 넘긴 켜짐(타이머가 밀린 탭)도 첫 누름으로 친다
+    expect(pressDelete(1000, 1000 + DELETE_ARMED_MS)).toEqual({ armedAt: 1000 + DELETE_ARMED_MS, remove: false })
+    expect(pressDelete(1000, 1000 + DELETE_ARMED_MS - 1).remove).toBe(true)
   })
 })

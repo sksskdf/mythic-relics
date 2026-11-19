@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
 import { RELIC_STAGES } from '../src/gear/mythRelic'
+import { lendText } from '../src/myth/levelGains'
+import { godDef } from '../src/relics/data'
+import { SEAT_MEANS, seatHint } from '../src/ui/menu/godsTab'
+import godsTabSource from '../src/ui/menu/godsTab.ts?raw'
 import { hintSpot, HintTaps } from '../src/ui/menu/hintTaps'
-import { forgedLine } from '../src/ui/menu/relicsTab'
+import { forgedLine, meltHint, wieldTarget } from '../src/ui/menu/relicsTab'
+import { momentumLine } from '../src/ui/menu/trainingTab'
 
 describe('정보 화면 힌트 말풍선: 손가락으로 누른 칸 (E307)', () => {
   it('설명만 있는 칸(단추가 아니거나 눌 수 없는 단추)은 손을 떼는 순간 띄운다', () => {
@@ -58,6 +63,29 @@ describe('정보 화면 힌트 말풍선: 손가락으로 누른 칸 (E307)', ()
   })
 })
 
+describe('신 탭의 자리 칸 (E307 손 QA): 휴대폰에서 눌러도 설명이 뜬다', () => {
+  it('자리 칸을 눌러도 창을 통째로 다시 그리지 않는다: 손가락 힌트 규칙이 그 톡에 설명을 띄운다', () => {
+    // 자리 줄을 짓는 코드 (다음 메서드 앞까지)
+    const row = godsTabSource.slice(godsTabSource.indexOf('private slotRow()'), godsTabSource.indexOf('private focusOn('))
+    expect(row).toContain('this.focusOn(god)')
+    expect(row).not.toContain('ctx.render()')
+    // 같은 톡을 규칙으로 밟아 본다: 누를 때와 click이 올라올 때의 그리기 번호가 같으니 그 칸의 설명이 뜬다
+    const taps = new HintTaps<string>()
+    taps.press('손 토르', 4)
+    expect(taps.lift('손 토르', true)).toBe(false)
+    expect(taps.click(4)).toBe('손 토르')
+  })
+
+  it('칸의 설명은 그 자리가 지금 주는 것(무기·궁극기·숨의 힘)을 먼저, 자리의 뜻을 아랫줄에 적는다', () => {
+    const thor = godDef('thor')
+    expect(seatHint('hand', 'thor')).toBe(`기본 공격: 망치\n${SEAT_MEANS.hand}`)
+    expect(seatHint('heart', 'thor')).toBe(`궁극기 「${thor.ultimate.name}」\n${SEAT_MEANS.heart}`)
+    expect(seatHint('breath', 'thor', 2)).toBe(`${lendText('thor', 2)}\n${SEAT_MEANS.breath}`)
+    // 두 줄을 넘지 않는다 (말풍선의 첫 줄은 「손 토르」 같은 자리와 신의 이름)
+    for (const seat of ['hand', 'heart', 'breath'] as const) expect(seatHint(seat, 'odin').split('\n')).toHaveLength(2)
+  })
+})
+
 describe('힌트 말풍선의 자리 (E307 손 QA)', () => {
   // 393×852의 정보 화면 (창 377×836): 장비 탭의 「녹이기」(한 번 누른 뒤)와 그 바로 아래의 설명 카드
   const frame = { width: 377, height: 836 }
@@ -87,6 +115,49 @@ describe('힌트 말풍선의 자리 (E307 손 QA)', () => {
     expect(hintSpot(melt, hint, frame, { ...card, top: 400, height: 400 }).top).toBe(588)
     // 위에 둘 자리가 없으면(창 맨 위의 단추) 아래 그대로
     expect(hintSpot({ ...melt, top: 20 }, hint, frame, { ...card, top: 70 }).top).toBe(20 + 44 + 6)
+  })
+})
+
+describe('「녹이기」의 설명 (E307 손 QA)', () => {
+  it('원형 수와 「세 배」를 적는다 (전: 「셋 배」)', () => {
+    expect(meltHint(9)).toBe('녹이면 원형 9개가 된다 (등급이 하나 오를 때마다 세 배)')
+    expect(meltHint(27)).not.toMatch(/셋 배/)
+  })
+})
+
+describe('장비 탭: 가방의 장비가 들어갈 칸 (E307 손 QA)', () => {
+  // 칸 일곱: 무기 0 · 머리 1 · 몸 2 · 손 3 · 발 4 · 장신구 5·6
+  const worn = ['sword', null, 'armor', null, null, 'ring', null]
+
+  it('가방의 몸 장비를 고르면 몸 칸이다: 무기 칸을 골라 둔 채여도 (고른 테두리와 비교 카드가 그 칸으로 간다)', () => {
+    expect(wieldTarget([2], 0, worn)).toBe(2)
+    // 빈 머리 칸에도 같다
+    expect(wieldTarget([1], 0, worn)).toBe(1)
+  })
+
+  it('맞는 칸이 둘(장신구)이면 고른 칸이 맞는 부위일 때 그 칸, 아니면 빈 칸부터, 다 찼으면 첫 칸', () => {
+    expect(wieldTarget([5, 6], 5, worn)).toBe(5)
+    expect(wieldTarget([5, 6], 6, worn)).toBe(6)
+    expect(wieldTarget([5, 6], 0, worn)).toBe(6)
+    expect(wieldTarget([5, 6], 0, ['sword', null, 'armor', null, null, 'ring', 'charm'])).toBe(5)
+  })
+
+  it('한 번 옮긴 뒤에는 같은 칸이 나온다: 테두리를 옮겨도 「끼기」가 들어가는 칸은 그대로다', () => {
+    for (const [fits, selected] of [[[2], 0], [[5, 6], 0], [[5, 6], 2], [[1], 6]] as const) {
+      const target = wieldTarget(fits, selected, worn)!
+      expect(wieldTarget(fits, target, worn)).toBe(target)
+    }
+  })
+
+  it('맞는 칸이 없으면 없다', () => {
+    expect(wieldTarget([], 0, worn)).toBeUndefined()
+  })
+})
+
+describe('수련 탭의 머리줄 (E307 손 QA)', () => {
+  it('모은 깨달음의 수를 「기세」라는 이름과 함께 적는다: 목표 한 줄·흔적 카드의 기세와 같은 수다', () => {
+    expect(momentumLine(3)).toBe('기세 3 · 이번 원정에 모은 깨달음')
+    expect(momentumLine(0)).toContain('기세 0')
   })
 })
 

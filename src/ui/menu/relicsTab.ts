@@ -27,6 +27,18 @@ export function forgedLine(name: string, stage: number): { name: string; note: s
   return { name: `${name} · ${stage}단계`, note: `${rest.join('·')}단계는 엔딩 뒤에 열린다` }
 }
 
+/** 「녹이기」의 설명: 그 장비가 원형 몇 개가 되나 (값은 등급마다 세 배, `PROTOTYPE_VALUE`). 수 뒤의 「배」는 「세 배」로 읽는다 (전: 「셋 배」) */
+export const meltHint = (count: number): string => `녹이면 원형 ${count}개가 된다 (등급이 하나 오를 때마다 세 배)`
+
+/**
+ * 가방의 장비를 끼면 들어갈 칸: 고른 칸이 맞는 부위면 그 칸, 아니면 비어 있는 맞는 칸부터, 다 찼으면 첫 맞는 칸. 맞는 칸이 없으면 undefined.
+ * 설명 카드가 견주는 것도 이 칸에 낀 장비이고, 휴대폰에서 가방 장비를 고르면 고른 테두리도 이 칸으로 간다 (E307 손 QA:
+ * 가방의 몸 장비를 골라 몸 장비와 견주는 카드가 떴는데 테두리는 무기 칸에 남아, 무기 칸이 골라진 것처럼 보였다)
+ */
+export function wieldTarget(fits: readonly number[], selected: number, slots: readonly (string | null)[]): number | undefined {
+  return fits.includes(selected) ? selected : (fits.find((i) => slots[i] === null) ?? fits[0])
+}
+
 /** 장비 탭 (E13): 지금 신화, 칸 7과 가방, 고른 칸·커서를 올린 것의 설명 카드, 대장간, 재료 */
 export class RelicsTab {
   /** 고른 칸 */
@@ -63,8 +75,10 @@ export class RelicsTab {
 
     // 장비 칸 7개 (E13): 무기·머리·몸·손·발·장신구 둘. 유물도 자기 부위 칸을 차지한다
     const slots = el('div', 'menu-relics__slots')
+    const slotButtons: HTMLButtonElement[] = []
     host.slots.forEach((id, i) => {
       const b = el('button', `menu-relics__slot${i === this.selectedSlot ? ' is-selected' : ''}`)
+      slotButtons.push(b)
       b.type = 'button'
       const part = GEAR.parts[SLOT_PARTS[i]!].name
       b.dataset.n = part
@@ -80,14 +94,14 @@ export class RelicsTab {
     left.append(slots)
 
     // 고른 칸: 가방에 넣기, 발밑에 내려놓기 (그림 단추)
-    const selected = host.slots[this.selectedSlot] ?? null
     const actions = el('div', 'menu-relics__actions')
+    /** 고른 칸에 맞춰 단추를 켜고 끈다: 빈 칸이면 둘 다 끄고, 가방이 찼으면 가방에 넣지 못한다 (E303: 12칸) */
+    const syncs: (() => void)[] = []
     const action = (name: 'bag' | 'drop', label: string, run: () => void) => {
       const b = el('button', 'ui-btn menu-relics__action')
       b.type = 'button'
       b.setAttribute('aria-label', label)
-      // 가방이 찼으면 가방에 넣지 못한다 (E303: 12칸)
-      b.disabled = !selected || (name === 'bag' && host.bag.length >= BAG_SIZE)
+      syncs.push(() => (b.disabled = !host.slots[this.selectedSlot] || (name === 'bag' && host.bag.length >= BAG_SIZE)))
       b.append(img(glyph(name)))
       b.addEventListener('click', run)
       this.ctx.hintOn(b, label)
@@ -95,7 +109,14 @@ export class RelicsTab {
     }
     action('bag', '가방에 넣기', () => host.stow(this.selectedSlot))
     action('drop', '발밑에 내려놓기', () => host.drop(this.selectedSlot))
+    for (const sync of syncs) sync()
     left.append(actions)
+    /** 고른 칸을 옮긴다 (창을 다시 그리지 않고): 고른 테두리와 「가방에 넣기·내려놓기」가 그 칸을 따른다 */
+    const select = (slot: number) => {
+      this.selectedSlot = slot
+      slotButtons.forEach((b, i) => b.classList.toggle('is-selected', i === slot))
+      for (const sync of syncs) sync()
+    }
 
     // 가방: 누르면 그 부위 칸에 낀다 (고른 칸이 맞는 부위면 그 칸, 아니면 비어 있는 칸부터)
     const bag = el('div', 'menu-relics__bag')
@@ -120,6 +141,9 @@ export class RelicsTab {
         if (finger && this.picked !== id) {
           this.picked = id
           this.hovered = id
+          // 고른 테두리는 그 장비가 들어갈 칸(카드가 견주는 칸)으로 옮긴다 (E307 손 QA: 몸 장비를 골랐는데 테두리가 무기 칸에 남았다)
+          const target = this.wieldSlot(id)
+          if (target !== undefined) select(target)
           for (const other of bag.querySelectorAll('.is-picked')) other.classList.remove('is-picked')
           b.classList.add('is-picked')
           this.renderDetail(detail)
@@ -158,14 +182,16 @@ export class RelicsTab {
     }
     const gear = host.gearOf(id)
     if (gear) {
-      // 같은 부위에 지금 낀 일반 장비와 비교한다
-      const wornId = host.slotsFor(id).map((i) => host.slots[i]).find((x) => x && x !== id && host.gearOf(x))
+      const inBag = host.bag.includes(id)
+      // 가방의 장비는 끼면 들어갈 칸(`wieldTarget`)에 지금 낀 일반 장비와 견준다: 그 칸이 비었으면(남는 장신구 칸) 견줄 것이 없다.
+      // 낀 장비는 같은 부위의 다른 칸에 낀 것과 견준다 (장신구 둘)
+      const target = inBag ? this.wieldSlot(id) : undefined
+      const wornId = inBag ? (target === undefined ? null : host.slots[target]) : host.slotsFor(id).map((i) => host.slots[i]).find((x) => x && x !== id && host.gearOf(x))
       const totals = Object.fromEntries(host.sources.rows().map((r) => [r.id, r.total])) as Record<SourceId, number>
       detail.append(gearCard(gear, wornId ? host.gearOf(wornId) : null, totals))
       const group = host.mergeable().find((g) => g.includes(id))
       if (group) detail.append(this.mergeBox(group))
       const actions = el('div', 'menu-relics__dos')
-      const inBag = host.bag.includes(id)
       // 가방의 장비: 「끼기」 (휴대폰에서 고른 것을 끼는 길, 마우스는 가방 칸을 눌러도 낀다)
       if (inBag && this.wieldSlot(id) !== undefined) {
         const w = el('button', 'menu-relics__salvage menu-relics__wear')
@@ -181,7 +207,7 @@ export class RelicsTab {
       const label = el('span', '', '녹이기')
       b.append(img(glyph('salvage')), label)
       // 힌트는 녹일 장비의 카드를 덮지 않는 쪽에 뜬다 (E307: 세로 화면에서는 단추 바로 아래가 카드라, 확인하려는 순간에 장비 이름을 가렸다)
-      this.ctx.hintOn(b, `녹이면 원형 ${PROTOTYPE_VALUE[gear.grade]}개가 된다 (등급이 하나 오를 때마다 셋 배)`, () => detail.querySelector<HTMLElement>('.gc'))
+      this.ctx.hintOn(b, meltHint(PROTOTYPE_VALUE[gear.grade]), () => detail.querySelector<HTMLElement>('.gc'))
       b.addEventListener('click', () => {
         // 끼고 있는 장비는 한 번 더 눌러야 녹는다 (녹이면 그 칸이 빈다). 잠시 뒤에는 처음으로. 가방의 것은 한 번에
         if (!inBag && !b.classList.contains('is-confirm')) {
@@ -233,7 +259,6 @@ export class RelicsTab {
     return box
   }
 
-  /** 가방의 것을 누르면 낄 칸: 고른 칸이 맞는 부위면 그 칸, 아니면 비어 있는 맞는 칸부터 */
   /** 가방의 장비를 그 부위 칸에 낀다 (고른 칸이 맞는 부위면 그 칸) */
   private wield(id: string): void {
     this.picked = null
@@ -244,9 +269,9 @@ export class RelicsTab {
     this.ctx.host.wield(id, slot)
   }
 
+  /** 가방의 것을 누르면 낄 칸 (`wieldTarget`) */
   private wieldSlot(id: string): number | undefined {
-    const fits = this.ctx.host.slotsFor(id)
-    return fits.includes(this.selectedSlot) ? this.selectedSlot : (fits.find((i) => this.ctx.host.slots[i] === null) ?? fits[0])
+    return wieldTarget(this.ctx.host.slotsFor(id), this.selectedSlot, this.ctx.host.slots)
   }
 
   /** 대장간 칸: 신화마다 다음 제작과 모자란 재료, 「벼리기」 단추 (마을에서만 켜짐) */

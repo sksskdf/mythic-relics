@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { MOUNT } from '../src/data/mount'
-import { DRAG_START, PINCH_JOIN_SECONDS, PINCH_MIN_SPREAD, PINCH_START_PX, PINCH_START_RATIO, STICK_RADIUS, TAP_SECONDS, TouchGestures } from '../src/input/touch'
+import { DRAG_START, PINCH_JOIN_SECONDS, PINCH_MIN_SPREAD, PINCH_START_PX, PINCH_START_RATIO, STICK_RADIUS, STICK_RESUME, TAP_SECONDS, TouchGestures } from '../src/input/touch'
 import { ECHO_PX, ECHO_SECONDS, FingerPresses, PRESS_SECONDS, PRESS_SLOP } from '../src/input/fingerClick'
 import { COVER_CLASSES, coverOpened, inBoxes, TAP_DEAD } from '../src/input/TouchControls'
 import mainSource from '../src/main.ts?raw'
@@ -383,6 +383,54 @@ describe('휴대폰 손가락 몸짓 (E235)', () => {
     expect(MOUNT.stickFar).toBe(1.6)
     g.up(1, 1)
     expect(g.stretch).toBe(0)
+  })
+
+  it('쉬게 한 조이스틱은 쥔 엄지를 조금만 움직이면 다시 걷는다: 엄지가 원 가장자리 밖에 있어 손잡이가 제자리여도 (E307 손 QA)', () => {
+    const g = new TouchGestures()
+    // 손 QA의 그 손짓: (110,520)에서 (80,560)까지 끌어 쥔다 (50px, 원 가장자리 48px 밖)
+    g.down(1, 110, 520, 0, true)
+    g.move(1, 80, 560)
+    expect(g.stretch).toBeGreaterThan(1)
+    expect(g.parked).toBe(false)
+    // 다른 손가락으로 적을 톡해 지시를 내렸다: 조이스틱은 쥔 채 쉰다
+    g.down(2, 325, 270, 1)
+    g.up(2, 1.1)
+    expect(g.takeTap()).toEqual({ x: 325, y: 270 })
+    g.park()
+    expect(g.parked).toBe(true)
+    expect(g.stick).not.toBeNull()
+    const knob = { ...g.stick! }
+    // 엄지의 떨림(문턱 안)에는 풀리지 않는다
+    g.move(1, 76, 565)
+    expect(Math.hypot(76 - 80, 565 - 560)).toBeLessThan(STICK_RESUME)
+    expect(g.parked).toBe(true)
+    // 같은 방향으로 더 민다 (45,605까지 가는 길의 첫 걸음): 손잡이는 원 가장자리에서 1px도 움직이지 않지만 엄지는 문턱을 넘었다
+    g.move(1, 72, 571)
+    expect(Math.hypot(g.stick!.dx - knob.dx, g.stick!.dy - knob.dy)).toBeLessThan(1)
+    expect(Math.hypot(72 - 80, 571 - 560)).toBeGreaterThan(STICK_RESUME)
+    expect(g.parked).toBe(false)
+  })
+
+  it('쉬는 조이스틱은 쥐고 있는 동안만 쉰다: 놓거나 손가락을 잊으면 풀리고, 쥐지 않았으면 쉬게 할 것이 없다. 읽는 쪽이 풀 수도 있다 (지시를 마침)', () => {
+    const g = new TouchGestures()
+    g.park()
+    expect(g.parked).toBe(false)
+    g.down(1, 100, 300, 0, true)
+    g.move(1, 130, 300)
+    g.park()
+    expect(g.parked).toBe(true)
+    g.unpark()
+    expect(g.parked).toBe(false)
+    g.park()
+    g.up(1, 1)
+    expect(g.parked).toBe(false)
+    // 다시 쥔 조이스틱은 쉬지 않는다
+    g.down(1, 100, 300, 2, true)
+    g.move(1, 130, 300)
+    expect(g.parked).toBe(false)
+    g.park()
+    g.reset()
+    expect(g.parked).toBe(false)
   })
 })
 

@@ -12,6 +12,13 @@ const COL_MIN = -0.5
 const COL_SPAN = 5
 
 /**
+ * 수련 탭 머리줄의 작은 글 (E307 손 QA): 이번 원정에 모은 깨달음의 수가 곧 「기세」다.
+ * 목표 한 줄(「기세를 모은다 2/3」)·흔적 카드(「기세 3에 응답한다」)는 기세라 부르는데 여기서는 「모은 깨달음 3」이라고만 적어,
+ * 같은 수를 두 이름으로 불렀다. 두 이름을 한 줄에 함께 적는다
+ */
+export const momentumLine = (total: number): string => `기세 ${total} · 이번 원정에 모은 깨달음`
+
+/**
  * 수련 탭 (E236-03): 깨달음과 다음 깨달음까지, 공용 트리(뿌리에서 힘·몸·손 세 갈래), 익힌 마디 수치의 합, 모두 되돌리기.
  * 마디에 올리면(휴대폰은 누르면) 이름과 수치. 마우스는 누르면 익히고, 휴대폰 조작(`touchUi`)은 처음 누르면 설명·한 번 더 누르면 익힌다.
  */
@@ -30,7 +37,7 @@ export class TrainingTab {
     const info = el('section', 'menu-src__panel menu-train__info')
     const insight = training.insights()
     const head = el('div', 'menu-train__head')
-    head.append(el('span', 'menu-src__title', `깨달음 ${insight.unspent}`), el('span', 'menu-src__text', `모은 깨달음 ${insight.total}`))
+    head.append(el('span', 'menu-src__title', `깨달음 ${insight.unspent}`), el('span', 'menu-src__text', momentumLine(insight.total)))
     const bar = el('div', 'menu-train__bar')
     const fill = el('i', '')
     fill.style.width = `${Math.round((insight.have / insight.need) * 100)}%`

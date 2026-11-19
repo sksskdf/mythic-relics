@@ -24,7 +24,7 @@ const TARGETS = Object.entries(ENEMIES)
   })
 const PORT = 4191
 const URL = (relics) => `http://localhost:${PORT}/?relics=${relics}&region=village&autoplay`
-const BROWSER = process.env.CHROMIUM_PATH ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'
+import { BROWSER } from './lib/browser.mjs'
 
 const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'ignore', detached: true })
 const stop = () => {

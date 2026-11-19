@@ -130,9 +130,17 @@
   gap: var(--sp-4);
   width: min(86vw, 340px);
 }
+/* 슬롯 한 줄: 카드와, 저장이 있으면 그 오른쪽에 따로 선 「×」 칸 (E307: 카드의 이어 하기 누름과 지우기 누름의 자리가 겹치지 않는다) */
+.title-slot-row {
+  display: flex;
+  align-items: stretch;
+  gap: var(--sp-3);
+}
 .title-slot {
   --glow: var(--c-moon);
   position: relative;
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: var(--sp-5);
@@ -182,16 +190,40 @@
   font: var(--t-small);
   color: var(--c-ink-3);
 }
+/*
+ * 슬롯 지우기 「×」: 카드 밖 오른쪽의 제 칸 (폭 44px, 높이는 카드만큼). 움푹한 돌 칸이라 카드(솟은 돌)의 한 부분으로 보이지 않는다.
+ * 한 번 누르면 켜지고(is-confirm) 이 칸을 다시 눌러야 지운다 (`TitleScreen.ts`의 pressDelete)
+ */
 .title-slot__delete {
-  position: absolute;
-  right: var(--sp-3);
-  top: var(--sp-2);
-  padding: 0 var(--sp-2);
-  font: var(--t-small);
-  color: var(--c-ink-4);
+  flex: none;
+  width: 44px;
+  min-height: 44px;
+  padding: 0;
+  font: var(--t-title);
+  color: var(--c-ink-3);
+  border: 0;
+  background: var(--c-stone-lo);
+  box-shadow: inset 2px 2px 0 var(--c-groove), inset -1px -1px 0 var(--c-stone-hi), 0 0 0 2px var(--c-groove);
+  cursor: pointer;
+  animation: title-appear 0.3s ease both;
 }
-.title-slot__delete:hover,
-.title-slot__delete.is-confirm {
+.title-slot__delete:focus-visible,
+.title-slot-row.is-confirm .title-slot__delete {
+  color: var(--c-bad);
+}
+/* 커서가 있는 기기만: 손가락은 톡한 뒤에도 올린 것으로 남아, 꺼진 뒤에도 켜진 색으로 보인다 */
+@media (hover: hover) {
+  .title-slot__delete:hover {
+    color: var(--c-bad);
+  }
+}
+.title-slot-row.is-confirm .title-slot__delete {
+  outline: 1px solid var(--c-bad);
+  outline-offset: 3px;
+}
+/* 켜진 동안 카드의 작은 글 자리에 「× 한 번 더 누르면 지움」: 읽히는 크기(본문 12px)와 경고 색으로 */
+.title-slot-row.is-confirm .title-slot__meta {
+  font: var(--t-body);
   color: var(--c-bad);
 }
 

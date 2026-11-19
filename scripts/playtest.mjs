@@ -45,7 +45,7 @@ const PORT = 4183
 /** --gate에서 처치 없이 이만큼(초) 지나면 멈춘 판으로 치고 끝낸다 (E241: 35분 제한까지 기다리지 않고 몇 분 만에 드러나게) */
 const STALL = 300
 const URL = (RELICS ? `http://localhost:${PORT}/?relics=${RELICS}&autoplay` : `http://localhost:${PORT}/?fresh&autoplay`) + (REGION ? `&region=${REGION}` : '')
-const BROWSER = process.env.CHROMIUM_PATH ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'
+import { BROWSER } from './lib/browser.mjs'
 
 const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'ignore', detached: true })
 const stop = () => {

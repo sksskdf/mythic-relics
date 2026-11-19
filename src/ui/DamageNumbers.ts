@@ -12,6 +12,9 @@ interface Popup {
   life: number
   /** 처음 수명 (초) */
   span: number
+  /** 뜰 때 커졌다 줄어드는 시간과 사라지기 전 흐려지는 시간 (초) */
+  pop: number
+  fade: number
   drift: number
   /** 떠오르는 높이 (px) */
   rise: number
@@ -29,8 +32,16 @@ interface Popup {
 }
 
 const LIFE = 0.7
-/** 주운 것 이름은 더 오래, 더 높이 떠오른다 */
-const LABEL_LIFE = 1.6
+/** 뜰 때 커졌다 줄어드는 시간과 사라지기 전 흐려지는 시간 (초): 숫자는 수명의 처음 15%와 끝 40% */
+const POP = LIFE * 0.15
+const FADE = LIFE * 0.4
+/**
+ * 주운 것 이름은 더 오래, 더 높이 떠오른다. 1.6초에서 늘렸다 (E307 손 QA: 등급과 이름을 싸우며 읽기에 짧았다).
+ * 뜨고 사라지는 움직임은 수명을 따라 늘이지 않는다: 뜰 때 0.24초(전과 같다), 끝의 반 초만 흐려져 2.3초는 다 보인다
+ */
+export const LABEL_LIFE = 2.8
+const LABEL_POP = 0.24
+const LABEL_FADE = 0.5
 /**
  * 이어 주운 이름 (E307): 떠 있는 앞 이름과 겹치면 그 위 줄에 쌓는다 (한자리의 장비 넷을 주우면 이름 넷이 겹쳐 읽을 수 없었다).
  * 줄 높이는 글자 크기의 배수. 다섯 줄이 다 차면 맨 윗줄을 「+ 외 N」으로 바꿔 접는다 (보스가 쏟은 더미·자동 줍기)
@@ -55,6 +66,9 @@ export function stackLift(above: readonly number[], row: number): number {
   return lift
 }
 
+/** 뜰 때의 크기: 1.5배에서 시작해 at(0~1, 뜨는 움직임의 진행)이 1이 되면 제 크기 */
+export const popScale = (at: number): number => (at < 1 ? 1.5 - at * 0.5 : 1)
+
 /** 맞은 자리 위로 떠오르는 피해 숫자. 글 대신 숫자만 보여 준다. */
 export class DamageNumbers {
   private readonly root: HTMLElement
@@ -69,7 +83,7 @@ export class DamageNumbers {
       el.className = 'damage-number'
       el.style.display = 'none'
       this.root.appendChild(el)
-      this.pool.push({ el, world: null as unknown as THREE.Vector3, life: 0, span: LIFE, drift: 0, rise: 40, lift: 0, label: false, fresh: false, x: 0, y: 0, width: 0, more: 0 })
+      this.pool.push({ el, world: null as unknown as THREE.Vector3, life: 0, span: LIFE, pop: POP, fade: FADE, drift: 0, rise: 40, lift: 0, label: false, fresh: false, x: 0, y: 0, width: 0, more: 0 })
     }
     parent.appendChild(this.root)
   }
@@ -90,6 +104,8 @@ export class DamageNumbers {
     popup.el.textContent = `+ ${text}`
     popup.el.className = 'damage-number damage-number--label'
     popup.el.style.color = color
+    popup.pop = LABEL_POP
+    popup.fade = LABEL_FADE
     popup.label = true
     popup.fresh = true
   }
@@ -130,6 +146,8 @@ export class DamageNumbers {
     popup.world = world.clone()
     popup.life = life
     popup.span = life
+    popup.pop = POP
+    popup.fade = FADE
     popup.drift = drift
     popup.rise = rise
     popup.lift = 0
@@ -152,11 +170,12 @@ export class DamageNumbers {
       const screen = worldToScreen(popup.world, screenHeight, size, camera, subpixel)
       if (popup.fresh && !this.settle(popup, screen.x, screen.y - POPUP_BASE - t * popup.rise)) continue
       const rise = POPUP_BASE + popup.lift + t * popup.rise
-      const pop = t < 0.15 ? 1.5 - t * 3.3 : 1
+      // 1.5배로 떴다가 제 크기로 줄어든다
+      const pop = popScale((popup.span - popup.life) / popup.pop)
       popup.x = screen.x + popup.drift * t
       popup.y = screen.y - rise
       popup.el.style.transform = `translate(${Math.round(popup.x)}px, ${Math.round(popup.y)}px) translate(-50%, -50%) scale(${pop})`
-      popup.el.style.opacity = String(Math.min(1, (popup.life / popup.span) * 2.5))
+      popup.el.style.opacity = String(Math.min(1, popup.life / popup.fade))
     }
   }
 }

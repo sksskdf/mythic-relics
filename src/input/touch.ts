@@ -10,6 +10,8 @@
  *   첫 손가락이 먼저 끌려 조이스틱이 됐어도 확대로 잠길 수 있다). 확대로 잠긴 뒤로는 손을 다 뗄 때까지 걷거나 톡이 되지 않는다
  * - 쉬는 손가락 곁에서 끌기: 먼저 닿아 제자리에 얹혀 있는 손가락(쥔 손, 길게 누른 엄지)이 있어도, 다른 손가락을 원 가장자리 넘게
  *   끌면 그 손가락이 조이스틱을 잡는다 (화면이 죽은 것처럼 보이지 않게). 둘 다 움직이는 두 손가락은 그 전에 확대로 잠긴다
+ * - 쉬는 조이스틱: 조이스틱을 쥔 채 다른 손가락의 톡으로 지시를 내리면 조이스틱은 쉰다 (`park`). 쥔 엄지를 조금만(`STICK_RESUME`)
+ *   움직이면 다시 걷는다. 엄지의 자리로 잰다: 엄지가 원 가장자리 밖에 있어도 같은 방향으로 더 밀면 풀린다 (E307 손 QA)
  */
 
 /** 이만큼(px) 넘게 끌면 톡이 아니라 조이스틱이다 */
@@ -18,6 +20,8 @@ export const DRAG_START = 12
 export const STICK_RADIUS = 48
 /** 손잡이가 가운데에서 이만큼(px) 안이면 서 있는다 */
 export const STICK_DEAD = 8
+/** 쉬게 한 조이스틱(`park`)은 쥔 손가락이 그때 자리에서 이만큼(px) 넘게 움직이면 다시 걷는다 (E307) */
+export const STICK_RESUME = 10
 /**
  * 이보다 오래 누르면 톡이 아니다 (초). 적을 꾹 눌러 고르는 손(0.5초 안팎)까지는 받는다: 0.35초이던 때에는 조금만 길게 눌러도
  * 아무 일 없이 씹힌 톡으로 보였다 (E307 손 QA). 이보다 길면 화면에 얹어 둔 엄지·휴대폰을 쥔 손이다
@@ -64,6 +68,8 @@ export class TouchGestures {
   /** 조이스틱을 잡은 손가락과 원의 가운데 */
   private stickId: number | null = null
   private readonly origin = { x: 0, y: 0 }
+  /** 쉬게 한 조이스틱: 쉬게 한 때의 손가락 자리 (원 안으로 자르기 전). 없으면 쉬지 않는다 */
+  private parkAt: Point | null = null
   /** 두 손가락 사이의 처음 거리. 손가락 수가 바뀔 때마다, 그리고 확대로 잠기는 순간에 다시 잰다 (0이면 손가락이 둘이 아니다) */
   private pinchFrom = 0
   /** 지금 두 손가락이 확대·축소로 잠겼나. 손가락 수가 바뀌면 풀리고, 다시 문턱을 넘어야 잠긴다 */
@@ -86,6 +92,8 @@ export class TouchGestures {
     if (!finger) return
     finger.x = x
     finger.y = y
+    // 쉬던 조이스틱: 쥔 손가락이 쉬게 한 자리에서 벗어나면 다시 걷는다
+    if (id === this.stickId && this.parkAt && beyond(finger, this.parkAt.x, this.parkAt.y, STICK_RESUME)) this.parkAt = null
     if (this.fingers.size > 1 && !this.zooming && this.pinched()) this.lock()
     else this.grab(id, finger)
   }
@@ -125,6 +133,27 @@ export class TouchGestures {
     return Math.hypot(finger.x - this.origin.x, finger.y - this.origin.y) / STICK_RADIUS
   }
 
+  /**
+   * 쥐고 있는 조이스틱을 쉬게 한다 (E307: 쥔 채 다른 손가락의 톡으로 지시를 내렸다. 마지막에 한 손짓이 이긴다).
+   * 쥔 손가락이 지금 자리에서 STICK_RESUME 넘게 움직이거나 조이스틱을 놓으면 풀린다. 지시를 마쳤으면 읽는 쪽이 `unpark`로 푼다.
+   * 손가락의 자리로 잰다 (E307 손 QA): 원 안으로 자른 손잡이(`stick`)로 재던 때는 엄지가 이미 원 가장자리 밖에 있으면
+   * 같은 방향으로 더 밀어도 손잡이가 제자리라 풀리지 않았고, 방향을 12도쯤 틀어야 다시 걸었다
+   */
+  park(): void {
+    const finger = this.stickId === null ? null : this.fingers.get(this.stickId)
+    this.parkAt = finger ? { x: finger.x, y: finger.y } : null
+  }
+
+  /** 쉬게 한 조이스틱을 푼다 */
+  unpark(): void {
+    this.parkAt = null
+  }
+
+  /** 조이스틱이 쉬고 있나 (쥐고는 있지만 걷는 방향을 내지 않는다) */
+  get parked(): boolean {
+    return this.parkAt !== null
+  }
+
   /** 두 손가락 거리가 확대·축소로 잠긴 순간의 몇 배인가 (잠기지 않았으면 null) */
   get pinch(): number | null {
     return this.zooming ? this.spread() / this.pinchFrom : null
@@ -154,6 +183,7 @@ export class TouchGestures {
   reset(): void {
     this.fingers.clear()
     this.stickId = null
+    this.parkAt = null
     this.pinchFrom = 0
     this.zooming = false
     this.spent = false
@@ -161,7 +191,10 @@ export class TouchGestures {
   }
 
   private release(id: number): void {
-    if (id === this.stickId) this.stickId = null
+    if (id === this.stickId) {
+      this.stickId = null
+      this.parkAt = null
+    }
     this.measure()
     if (this.fingers.size === 0) this.spent = false
   }
@@ -222,6 +255,7 @@ export class TouchGestures {
     this.zooming = true
     this.spent = true
     this.stickId = null
+    this.parkAt = null
     this.pinchFrom = this.spread()
     this.locks += 1
   }

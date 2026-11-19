@@ -13,7 +13,7 @@ import { findCuts } from './lib/cuts.mjs'
 
 const [dir = 'test-results/ui', sizesArg = '1280x720,960x540,390x844,393x852,393x659'] = process.argv.slice(2)
 const PORT = 4194
-const BROWSER = process.env.CHROMIUM_PATH ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'
+import { BROWSER } from './lib/browser.mjs'
 // 탭 일곱과 엔딩 뒤 하나 (E305-04), 신 탭은 「자리」와 「외형」을 따로 찍는다
 const TABS = ['status', 'relics', 'training', 'gods', 'gods-looks', 'sources', 'map', 'oaths', 'endless']
 const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'ignore', detached: true })

@@ -1,5 +1,5 @@
 import { el, type TabContext } from './dom'
-import { labelRank, layoutMap, leaveBox, markRim, placeLabels, spotSize, type Box, type LabelAsk, type LabelBlock, type Point } from './mapLayout'
+import { keepsName, labelRank, layoutMap, leaveBox, markRim, placeLabels, spotSize, type Box, type LabelAsk, type LabelBlock, type Point } from './mapLayout'
 
 const NS = 'http://www.w3.org/2000/svg'
 
@@ -186,7 +186,8 @@ export function renderMap(ctx: TabContext, body: HTMLElement): void {
     // 제 이름은 표시 바깥(목표의 마름모·지금 땅의 고리까지)에 놓고, 남의 이름은 이 표시(solid)를 덮지 못하며 누르는 자리는 되도록 덮지 않는다
     blocks.push({ of: n.id, x0: p.x - rim.solid, y0: p.y - rim.solid, x1: p.x + rim.solid, y1: p.y + rim.solid }, { of: n.id, soft: true, x0: p.x - spot / 2, y0: p.y - spot / 2, x1: p.x + spot / 2, y1: p.y + spot / 2 })
     const rank = labelRank({ here: n.here, goal: isGoal, village: n.zone === null, found: n.found, near: here !== undefined && (here.links.includes(n.id) || n.links.includes(here.id)), locked: n.locked, later: n.later })
-    asks.push({ id: n.id, x: p.x, y: p.y, r: rim.out, diamond: isGoal, w: 0, h: 0, must: rank <= 2, rank })
+    // 지금 땅·목표의 이름은 꼭 보이고(must), 워프할 수 있는 곳(마을·켠 성소)의 이름도 빠지지 않는다(keep): 자리가 모자라면 가 보지 않은 땅의 이름이 먼저 빠진다
+    asks.push({ id: n.id, x: p.x, y: p.y, r: rim.out, diamond: isGoal, w: 0, h: 0, must: rank <= 2, keep: keepsName(rank), rank })
   }
 
   // 나: 흰 점과 퍼지는 고리 (판 밖으로 나가지 않게 당긴다)
@@ -203,7 +204,7 @@ export function renderMap(ctx: TabContext, body: HTMLElement): void {
   }
   board.append(svg, labels)
 
-  // 이름 자리: 화면에 붙인 뒤 글자 폭을 재어, 중요한 차례대로 겹치지 않는 자리에 놓는다 (자리가 없는 이름은 눌렀을 때 설명으로)
+  // 이름 자리: 화면에 붙인 뒤 글자 폭을 재어, 중요한 차례대로 겹치지 않는 자리에 놓는다 (자리가 없는 가 보지 않은 땅의 이름은 눌렀을 때 설명으로)
   asks.sort((a, b) => a.rank - b.rank)
   for (const ask of asks) names.get(ask.id)!.hidden = false
   for (const ask of asks) {

@@ -70,13 +70,18 @@
   :root .hud__gains.is-side {
     right: calc(var(--unit) * 2 + env(safe-area-inset-right, 0px));
   }
-  /* 목표 한 줄: 가운데 위가 아니라 원천 칩 아래 왼쪽, 작은 지도 옆 폭 안에서 줄바꿈 */
+  /*
+   * 목표 한 줄: 가운데 위가 아니라 원천 칩 아래 왼쪽, 작은 지도 옆 폭 안에서 줄바꿈.
+   * 폭은 안쪽 여백까지 센다 (E307): 글의 폭만 재던 때는 여백 24px만큼 상자가 더 넓어, 393 폭에서 오른쪽 끝이 작은 지도의 테두리 위에 놓였다
+   * (393×852에서 3px, 393×659에서 6px). 상자와 작은 지도 사이에 화면 가장자리만큼(두 단위)의 틈을 둔다
+   */
   :root .chapter-goal {
+    box-sizing: border-box;
     left: calc(var(--unit) * 2 + env(safe-area-inset-left, 0px));
     top: calc(var(--unit) * 4 + 96px + env(safe-area-inset-top, 0px));
     transform: none;
     justify-content: flex-start;
-    max-width: calc(100vw - var(--minimap) - var(--unit) * 7);
+    max-width: calc(100vw - var(--minimap) - var(--unit) * 6 - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
     white-space: normal;
     /* 낱말 가운데에서 끊지 않는다 (「…토르를 깨운 / 다」) */
     word-break: keep-all;
@@ -89,18 +94,25 @@
    * 숨긴 목표([hidden])는 그대로 숨는다
    */
   :root .chapter-goal:not([hidden]) {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
   }
   /* 마름모는 첫 줄의 가운데에 (줄 높이 1.6의 반에서 마름모의 반을 뺀다) */
   :root .chapter-goal__mark {
     margin-top: calc(0.8em - 3px);
   }
+  /* 채우는 막대는 글 아래에서 상자 폭을 다 쓴다 */
   :root .chapter-goal__bar {
     grid-column: 1 / -1;
   }
-  /* 보스 막대: 목표 한 줄 아래 왼쪽 */
+  /*
+   * 보스 막대: 목표 한 줄 아래 왼쪽. 높이는 작은 지도가 128px일 때의 자리 그대로 둔다 (E307):
+   * 짧은 세로 화면에서 작은 지도를 96px로 줄여도 목표 한 줄은 제자리라, 지도를 따라 올라가면 목표 한 줄을 덮는다
+   */
   :root .hud__boss {
     left: calc(var(--unit) * 2 + env(safe-area-inset-left, 0px));
-    top: calc(var(--unit) * 6 + var(--minimap) + env(safe-area-inset-top, 0px));
+    top: calc(var(--unit) * 6 + max(var(--minimap), 128px) + env(safe-area-inset-top, 0px));
     transform: none;
     width: calc(100vw - var(--minimap) - var(--unit) * 7);
   }
@@ -279,7 +291,6 @@
   :root.is-touch .menu-tree__node::before,
   :root.is-touch .menu-src__help::before,
   :root.is-touch .title-swatch::before,
-  :root.is-touch .title-slot__delete::before,
   :root.is-touch .dialog__skip::before {
     content: '';
     position: absolute;
@@ -360,15 +371,8 @@
   :root.is-touch .title-creator__swatches {
     gap: var(--sp-4);
   }
-  /* 저장 슬롯의 「×」 (14×16): 모양은 두고 카드의 오른쪽 위 모서리 44×44를 받는다 (카드 안쪽이라 이웃 슬롯과 겹치지 않는다. 「×」는
-     카드 모서리에서 --sp-2·--sp-3만큼 들어가 있다). 같은 자리를 두 번 누르면 저장이 지워지니, 켠 바로 뒤의 둘째 누름은 받지 않는다
-     (`TitleScreen.ts`의 DELETE_GUARD_MS: 급히 두 번 누른 것이 지우기가 되지 않게) */
-  :root.is-touch .title-slot__delete::before {
-    top: calc(-1 * var(--sp-2));
-    right: calc(-1 * var(--sp-3));
-    width: 44px;
-    height: 44px;
-  }
+  /* 저장 슬롯의 「×」는 넓히지 않는다: 카드 옆에 따로 선 폭 44px의 제 칸이다 (`title.css`의 .title-slot__delete).
+     카드 모서리 안쪽 44px을 받던 때는 이어 하려고 카드 오른쪽 끝을 누른 것이 지우기를 켰다 */
 }
 /* 낮은 세로 화면 (사파리 주소창·도구 막대가 보이면 660px쯤): 캐릭터 만들기의 색 칸·단추를 키운 만큼 미리 보기를 두 배 크기로 줄여
    「시작」이 화면 아래로 밀리지 않게 한다 (그림은 72×96이라 정수배로만) */

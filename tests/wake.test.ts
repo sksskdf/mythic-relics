@@ -2,14 +2,15 @@ import { describe, expect, it } from 'vitest'
 
 import { computeBuild } from '../src/build/BuildState'
 import { hsv } from '../src/art/palette'
-import { WAKE, WAKE_GODS, GUARDIAN_LEASH, HUNT_KILLS, huntKills, levelSealed, mayWake, TRACE_LEVELS, TRACE_MODELS, traceLevel, traceStateOf, type TraceNow } from '../src/data/wake'
+import { WAKE, WAKE_GODS, GUARDIAN_LEASH, HUNT_KILLS, huntKills, LATER_TEXT, levelSealed, levelText, mayWake, TRACE_LEVELS, TRACE_MODELS, traceLevel, traceStateOf, type TraceNow } from '../src/data/wake'
 import { REGIONS } from '../src/data/regions'
 import { SCENES, sceneId } from '../src/data/scenes'
 import { ENEMIES } from '../src/enemies/Giant'
-import { guardianSpec } from '../src/game/systems/Wake'
+import { guardianSpec, relicPieceLines } from '../src/game/systems/Wake'
 import { mythRelic } from '../src/gear/mythRelic'
 import { WakeProgress, parseWake } from '../src/progress/Wake'
 import { godDef } from '../src/relics/data'
+import { TRACE_WORDS, traceNow, type TraceCardContext } from '../src/ui/traceCard'
 import { TRACE_GLOW, traceGrid } from '../src/voxel/models/traces'
 
 describe('신을 깨우는 길 데이터 (E238)', () => {
@@ -236,5 +237,43 @@ describe('깨우는 진행 (E238)', () => {
     a.load(parseWake({ waking: 'freyr', fragments: 2, hunt: 0 }))
     expect(a.fragments).toBe(2)
     expect(a.huntRatio).toBe(1)
+  })
+})
+
+/**
+ * 신을 깨우는 길의 화면 글 (E307 손 QA): 처음 보는 사람이 카드를 읽고 무엇을 하면 되는지 안다
+ */
+describe('신을 깨우는 길의 글 (E307 손 QA)', () => {
+  it('조각 2/3 카드: 깨어난 것은 유물의 힘이고, 신은 수호자를 쓰러뜨려야 깨어난다 (「바로 깨어난다」로 읽히지 않는다)', () => {
+    expect(relicPieceLines('thor')).toEqual(['묠니르가 유물표에 켜졌다 · 유물의 힘이 깨어났다', '마지막 조각: 요르문간드를 쓰러뜨리면 토르가 깨어난다'])
+    for (const god of WAKE_GODS) {
+      const [lit, last] = relicPieceLines(god)
+      expect(lit, god).not.toContain('바로 깨어난다')
+      // 마지막 조각 줄은 수호자의 이름과 그 신의 이름을 댄다
+      expect(last, god).toContain(WAKE[god]!.guardian.name)
+      expect(last, god).toMatch(new RegExp(`쓰러뜨리면 ${godDef(god).name}[이가] 깨어난다$`))
+    }
+  })
+
+  it('잠잠한 흔적의 한 줄은 기세를 올리는 법까지 적는다', () => {
+    expect(levelText(3)).toBe('기세 3에 응답한다 (적을 잡으면 오른다)')
+  })
+
+  it('흔적 카드의 「지금 할 일」: 응답하는 흔적은 다가가 물리치면 첫 조각, 깨우는 중이면 그 조각의 할 일', () => {
+    const base: TraceCardContext = { state: 'open', sealedText: levelText(3), waking: null, fragments: 0, hunt: 0, need: 30 }
+    expect(traceNow('thor', base)).toBe(TRACE_WORDS.open)
+    expect(TRACE_WORDS.open).toContain('물리치면 첫 조각')
+    expect(traceNow('thor', { ...base, state: 'sealed' })).toBe('기세 3에 응답한다 (적을 잡으면 오른다)')
+    expect(traceNow('thor', { ...base, state: 'waking', waking: 'thor', fragments: 1, hunt: 12 })).toBe('조각 1/3 · 사냥 12/30')
+    expect(traceNow('thor', { ...base, state: 'waking', waking: 'thor', fragments: 2 })).toBe('조각 2/3 · 요르문간드를 쓰러뜨린다')
+    expect(traceNow('odin', { ...base, state: 'busy', waking: 'thor' })).toBe('토르가 깨어난 뒤에 응답한다')
+    expect(traceNow('poseidon', { ...base, state: 'later' })).toBe(LATER_TEXT)
+    expect(traceNow('thor', { ...base, state: 'awake' })).toBe('깨어난 신')
+  })
+
+  it('흔적 카드의 단락 이름은 자리 이름(손·심장) 대신 얻는 것을 적는다', () => {
+    expect(TRACE_WORDS.gain).toBe('깨우면 얻는 무기와 궁극기')
+    expect(TRACE_WORDS.lend).toBe('첫 조각부터 빌리는 힘')
+    for (const words of Object.values(TRACE_WORDS)) expect(words).not.toMatch(/손과 심장/)
   })
 })

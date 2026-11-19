@@ -17,14 +17,12 @@ const STICK_AHEAD = 2.5
 const TAP_ENEMY_PX = 28
 /** 두 손가락 확대·축소: 시야 높이가 이만큼(비율) 넘게 바뀔 때만 화면을 다시 맞춘다 (렌더 버퍼를 프레임마다 새로 만들지 않게) */
 const ZOOM_STEP = 0.02
-/** 조이스틱을 쥔 채 톡으로 지시를 내린 뒤: 손잡이를 이만큼(px) 움직이면 그 지시를 끝내기 전에도 조이스틱이 이어받는다 (E307) */
-const STICK_RESUME = 10
 
 /**
  * 클릭을 지시로 바꾼다. (DESIGN.md 8.2)
  * 땅 = 그곳까지 이동(싸우던 중이어도), 적 = 그 적을 쫓아가 자동 공격. 멈춰 서면 둘레 적을 자동 공격 (E12-08)
  * 휴대폰(E235): 톡 = 클릭, 끌기 = 떠다니는 조이스틱 쪽으로 걷기(떼면 멈춰 자동 공격), 두 손가락 = 확대·축소.
- * 조이스틱을 쥔 채 다른 손가락으로 톡하면 그 톡이 지시가 되고, 지시를 마치거나 손잡이를 다시 움직이면 조이스틱이 이어받는다 (E307).
+ * 조이스틱을 쥔 채 다른 손가락으로 톡하면 그 톡이 지시가 되고, 지시를 마치거나 쥔 엄지를 조금 움직이면 조이스틱이 이어받는다 (E307, `TouchGestures.park`).
  * 탈것(E241): 원 밖으로 멀리 끌면 올라타 달리고, 떼거나 가운데로 오면 멈춰 내린다
  */
 export class PlayerInput {
@@ -62,8 +60,6 @@ export class PlayerInput {
   private zoomed = false
   /** 조이스틱으로 걷는 중 */
   private walking = false
-  /** 조이스틱을 쥔 채 톡으로 지시를 내린 때의 손잡이 자리. 있는 동안 조이스틱은 쉰다 (E307) */
-  private parked: { dx: number; dy: number } | null = null
 
   constructor(
     private readonly ctx: GameContext,
@@ -129,10 +125,9 @@ export class PlayerInput {
       this.pinchView = null
       this.zoomed = false
     }
-    // 쥔 채 톡으로 지시를 내린 조이스틱은 그 지시를 마치거나(도착·처치) 손잡이를 다시 움직일 때까지 쉰다
-    const stick = gestures.stick
-    if (this.parked && (!stick || !orders.order || Math.hypot(stick.dx - this.parked.dx, stick.dy - this.parked.dy) > STICK_RESUME)) this.parked = null
-    const direction = this.parked ? null : touch.direction
+    // 쥔 채 톡으로 지시를 내린 조이스틱은 그 지시를 마치거나(도착·처치) 쥔 엄지를 다시 움직일 때까지 쉰다 (엄지가 움직인 것은 `TouchGestures`가 잰다)
+    if (gestures.parked && !orders.order) gestures.unpark()
+    const direction = gestures.parked ? null : touch.direction
     // 조이스틱을 쥔 동안은 탄 채 길이 잠깐 비어도 내리지 않는다 (E241)
     hero.holding = direction !== null
     const tap = touch.takeTap()
@@ -148,8 +143,8 @@ export class PlayerInput {
       orders.press(ground, this.hovered)
       orders.release()
       this.walking = false
-      // 마지막에 한 손짓이 이긴다: 조이스틱을 쥔 채 누른 톡이면 조이스틱을 쉬게 한다
-      this.parked = stick ? { dx: stick.dx, dy: stick.dy } : null
+      // 마지막에 한 손짓이 이긴다: 조이스틱을 쥔 채 누른 톡이면 조이스틱을 쉬게 한다 (쥐고 있지 않으면 아무 일도 없다)
+      gestures.park()
       hero.holding = false
       return true
     }

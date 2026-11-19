@@ -14,7 +14,7 @@ import { gearCard } from '../ui/gearCard'
 import { traceCard, type TraceCardContext } from '../ui/traceCard'
 import { TRACE_RADIUS, type TraceState } from '../data/wake'
 import type { God } from '../relics/data'
-import type { Nameplates, PlateTarget } from '../ui/Nameplates'
+import type { Nameplates, PlateBox, PlateTarget } from '../ui/Nameplates'
 import type { RelicCardContext } from '../ui/relicCard'
 import { type CardBand, RelicTooltip } from '../ui/RelicTooltip'
 import { heightAt } from '../world/terrain'
@@ -60,11 +60,14 @@ const NEAR_TRACE: NearKind = { near: TRACE_RADIUS + 4, far: TRACE_RADIUS + 7, ho
 const CARD_GAP = 12
 /** 다가가면 뜨는 카드와 주인공 발 사이 (px): 카드는 될 수 있으면 발 아래에 머문다 */
 const FEET_GAP = 6
+/** 이름표가 비켜 서는 주인공의 몸 (E307): 발에서 머리 위까지의 높이(m)와, 그 높이(화면 px)에 견준 몸의 반 폭 */
+const HERO_TOP = 2
+const HERO_HALF = 0.3
 
 /**
  * 땅의 설명 카드와 몬스터 이름표 (E12-09):
  * 땅의 유물·장비·신의 흔적에 커서를 올리면 카드(장비는 지금 낀 것과 비교), HUD 유물 칸에 올리면 그 위에 카드,
- * 커서를 올렸거나 공격 중인 몬스터 머리 위에 이름표.
+ * 커서를 올렸거나 공격 중인 몬스터 머리 위에 이름표 (작은 지도와 주인공은 비켜 선다, E307).
  * 휴대폰(E307)은 커서가 없으니 주인공이 땅의 것에 다가가면 카드가 뜨고, 걷기 시작하거나 싸움이 붙거나 몇 초 지나면 닫힌다 (`NearCard`).
  */
 export class HoverCards {
@@ -81,6 +84,8 @@ export class HoverCards {
   private readonly readTraces = new Map<God, string>()
   /** 지금 떠 있는 흔적 카드를 읽은 것으로 적었나 */
   private nearRead = false
+  /** 작은 지도의 상자와 그것을 잰 때의 화면 크기 (화면 크기가 바뀔 때만 다시 잰다: 이름표가 비켜 선다) */
+  private mapBox: { w: number; h: number; box: PlateBox | null } | null = null
   /** 화면 자리를 잴 때 다시 쓰는 벡터와, 화면에 비친 떨어진 것·흔적을 담는 그릇 (프레임마다 새로 만들지 않게) */
   private readonly point = new THREE.Vector3()
   private readonly pickupSpots: ScreenItem<{ id: string; x: number; z: number }>[] = []
@@ -230,14 +235,39 @@ export class HoverCards {
     const barBoss = encounter.bossEngaged ? encounter.boss : this.parts.guardian()
     const add = (target: unknown) => {
       if (!(target instanceof Giant) || !target.alive || target === barBoss) return
-      const top = heightAt(target.x, target.z) + Math.max(1.6, target.radius * 3.6) + 0.6
-      plates.push({ key: target, name: target.spec.name, grade: gradeOf(target), life: target.health.ratio, screen: screenPoint(target.x, top, target.z) })
+      const ground = heightAt(target.x, target.z)
+      const top = ground + Math.max(1.6, target.radius * 3.6) + 0.6
+      plates.push({ key: target, name: target.spec.name, grade: gradeOf(target), life: target.health.ratio, screen: screenPoint(target.x, top, target.z), feet: screenPoint(target.x, ground, target.z) })
     }
     if (shown) {
       add(hovered())
       add(orders.attackTarget ?? combat.target)
     }
-    nameplates.update(plates)
+    if (plates.length === 0) return nameplates.update(plates)
+    // 이름표는 작은 지도 밑으로 들어가지 않고 주인공을 덮지 않는다 (E307 손 QA, 자리는 `plateSpot`)
+    const { container } = this.parts
+    const p = ctx.hero.object.position
+    const head = screenPoint(p.x, p.y + HERO_TOP, p.z)
+    const feet = screenPoint(p.x, p.y, p.z)
+    const half = Math.abs(feet.y - head.y) * HERO_HALF
+    nameplates.update(plates, {
+      screen: { w: container.clientWidth, h: container.clientHeight },
+      minimap: this.minimapBox(),
+      hero: { x0: head.x - half, y0: head.y, x1: head.x + half, y1: feet.y },
+    })
+  }
+
+  /** 작은 지도의 상자 (게임 화면 기준 CSS 픽셀). 화면 크기가 바뀔 때만 다시 잰다 (짧은 세로 화면에서는 작은 지도가 줄어든다) */
+  private minimapBox(): PlateBox | null {
+    const { container, ctx } = this.parts
+    const w = container.clientWidth
+    const h = container.clientHeight
+    if (!this.mapBox || this.mapBox.w !== w || this.mapBox.h !== h) {
+      const map = ctx.hud.root.querySelector('.minimap')?.getBoundingClientRect()
+      const frame = container.getBoundingClientRect()
+      this.mapBox = { w, h, box: map && map.width > 0 ? { x0: map.left - frame.left, y0: map.top - frame.top, x1: map.right - frame.left, y1: map.bottom - frame.top } : null }
+    }
+    return this.mapBox.box
   }
 
   /** 화면 자리(px) 아래 땅에 떨어진 것의 자리 (누르면 그리로 걸어가 줍는다) */
