@@ -2,10 +2,14 @@ import { describe, expect, it } from 'vitest'
 
 import { MOUNT } from '../src/data/mount'
 import { DRAG_START, PINCH_JOIN_SECONDS, PINCH_MIN_SPREAD, PINCH_START_PX, PINCH_START_RATIO, STICK_RADIUS, TAP_SECONDS, TouchGestures } from '../src/input/touch'
-import { COVER_CLASSES, coverOpened } from '../src/input/TouchControls'
+import { ECHO_PX, ECHO_SECONDS, FingerPresses, PRESS_SECONDS, PRESS_SLOP } from '../src/input/fingerClick'
+import { COVER_CLASSES, coverOpened, inBoxes, TAP_DEAD } from '../src/input/TouchControls'
+import mainSource from '../src/main.ts?raw'
 import dialogSource from '../src/ui/DialogBox.ts?raw'
 import menuSource from '../src/ui/GameMenu.ts?raw'
 import oathSource from '../src/ui/OathCard.ts?raw'
+import hudCss from '../src/ui/hud.css?raw'
+import hudSource from '../src/ui/Hud.ts?raw'
 import pauseSource from '../src/ui/PauseMenu.ts?raw'
 import returnSource from '../src/ui/ReturnCard.ts?raw'
 import swapSource from '../src/ui/SwapCard.ts?raw'
@@ -19,6 +23,20 @@ describe('휴대폰 손가락 몸짓 (E235)', () => {
     expect(g.stick).toBeNull()
     expect(g.takeTap()).toEqual({ x: 104, y: 203 })
     expect(g.takeTap()).toBeNull()
+  })
+
+  it('꾹 눌렀다 떼어도 톡이다: 움직이지 않고 0.5초쯤 누른 손가락이 씹히지 않는다 (E307 손 QA)', () => {
+    const g = new TouchGestures()
+    // 손 QA에서 잰 값: 0.49초 누름이 아무 일도 하지 않았다
+    g.down(1, 250, 250, 0, true)
+    g.up(1, 0.49)
+    expect(g.takeTap()).toEqual({ x: 250, y: 250 })
+    g.down(1, 250, 250, 1, true)
+    g.up(1, 1 + TAP_SECONDS)
+    expect(g.takeTap()).toEqual({ x: 250, y: 250 })
+    expect(TAP_SECONDS).toBeGreaterThanOrEqual(0.6)
+    // 화면에 얹어 둔 엄지·쥔 손(1초 넘게)은 떼어도 지시가 아니다
+    expect(TAP_SECONDS).toBeLessThanOrEqual(1)
   })
 
   it('오래 누르면 톡이 아니고, 그 프레임에 읽지 않은 톡은 버린다 (멈춘 동안 누른 것이 나중에 지시가 되지 않게)', () => {
@@ -412,5 +430,152 @@ describe('게임 화면을 덮는 창과 조이스틱 (E307)', () => {
       expect(source, `.${cls}: hidden`).toMatch(/\.hidden = /)
     }
     expect(returnSource).toMatch(/\.hidden = /)
+  })
+})
+
+describe('다른 손가락이 닿아 있는 동안 누른 단추 (E307 손 QA)', () => {
+  // 크로미움의 진짜 두 손가락으로 본 것: 닿아 있는 동안 다른 손가락이 한 번이라도 함께 닿았으면 그 손가락의 톡에는 click이 오지 않는다
+  it('혼자 눌렀다 뗀 손가락은 브라우저가 click을 낸다: 대신 내지 않는다', () => {
+    const p = new FingerPresses<string>()
+    p.down(1, 'menu', 355, 38, 0, true)
+    expect(p.up(1, 356, 39, 0.1)).toBeNull()
+  })
+
+  it('조이스틱을 쥔 채(또는 엄지를 얹은 채) 다른 손가락으로 누른 단추는 대신 누른다', () => {
+    const p = new FingerPresses<string>()
+    p.down(1, 'canvas', 110, 640, 0, true)
+    let t = 3
+    for (const [target, x, y] of [['menu', 355, 38], ['portrait', 40, 42], ['minimap', 313, 140]] as const) {
+      p.down(2, target, x, y, t)
+      expect(p.up(2, x + 2, y - 1, t + 0.07)).toBe(target)
+      t += 1
+    }
+    // 꾹 누른 손가락(0.5초쯤)도 누른 것이다
+    p.down(2, 'menu', 355, 38, 10)
+    expect(p.up(2, 355, 38, 10.5)).toBe('menu')
+    // 엄지를 떼고 혼자 누르면 다시 브라우저의 몫이다
+    p.up(1, 110, 640, 12)
+    p.down(3, 'menu', 355, 38, 13, true)
+    expect(p.up(3, 355, 38, 13.1)).toBeNull()
+  })
+
+  it('먼저 닿은 손가락도 같다: 단추를 누르고 있는 사이 다른 손가락이 닿았다 떨어졌으면 브라우저는 click을 내지 않는다', () => {
+    const p = new FingerPresses<string>()
+    p.down(1, 'close', 363, 32, 0, true)
+    p.down(2, 'canvas', 200, 500, 0.1)
+    expect(p.up(2, 200, 500, 0.2)).toBe('canvas')
+    expect(p.up(1, 363, 32, 0.3)).toBe('close')
+    // 얹어 둔 손가락을 먼저 떼어도, 함께 닿았던 손가락의 톡에는 click이 오지 않는다
+    p.down(1, 'canvas', 120, 700, 5, true)
+    p.down(2, 'close', 363, 32, 8)
+    p.up(1, 120, 700, 8.05)
+    expect(p.up(2, 363, 32, 8.1)).toBe('close')
+  })
+
+  it('오래 얹혀 있던 손가락(쥔 손, 쉬는 엄지)은 떼어도 누른 것이 아니다: 그 아래 단추가 눌리지 않는다', () => {
+    const p = new FingerPresses<string>()
+    // 정보 화면의 가방 칸 위에 엄지를 얹어 둔 채 다른 손가락으로 탭을 누르고, 나중에 엄지를 뗀다
+    p.down(1, 'bag-item', 120, 700, 0, true)
+    p.down(2, 'tab', 148, 78, 2)
+    expect(p.up(2, 148, 78, 2.1)).toBe('tab')
+    expect(p.up(1, 120, 700, 4)).toBeNull()
+    // 문턱은 게임 화면의 톡과 같다
+    expect(PRESS_SECONDS).toBe(TAP_SECONDS)
+    p.down(1, 'canvas', 110, 640, 10, true)
+    p.down(2, 'menu', 355, 38, 11)
+    expect(p.up(2, 355, 38, 11 + PRESS_SECONDS + 0.05)).toBeNull()
+  })
+
+  it('누른 자리에서 끌려 나간 손가락, 브라우저가 가져간 손가락은 누른 것이 아니다', () => {
+    const p = new FingerPresses<string>()
+    p.down(1, 'canvas', 110, 640, 0, true)
+    p.down(2, 'tab', 200, 80, 1)
+    expect(p.up(2, 200 + PRESS_SLOP + 1, 80, 1.1)).toBeNull()
+    p.down(3, 'tab', 200, 80, 2)
+    p.cancel(3)
+    expect(p.up(3, 200, 80, 2.1)).toBeNull()
+    // 모르는 손가락(닿는 것을 못 본)도 아니다
+    expect(p.up(9, 200, 80, 2.2)).toBeNull()
+  })
+
+  it('단추 하나를 두 접점이 함께 눌렀으면(두 손가락, 둘로 잡힌 엄지) 한 번만 눌린다: 열렸다 바로 닫히지 않는다', () => {
+    const p = new FingerPresses<string>()
+    p.down(1, 'menu', 350, 36, 0, true)
+    p.down(2, 'menu', 362, 40, 0.01)
+    expect(p.up(1, 350, 36, 0.1)).toBe('menu')
+    expect(p.up(2, 362, 40, 0.11)).toBeNull()
+    // 멀리 떨어진 다른 단추를 함께 누른 것은 저마다 눌린다
+    p.down(1, 'portrait', 40, 42, 1, true)
+    p.down(2, 'menu', 355, 38, 1.05)
+    expect(p.up(1, 40, 42, 1.2)).toBe('portrait')
+    expect(p.up(2, 355, 38, 1.25)).toBe('menu')
+    // 이어 누른 두 톡(겹치지 않음)은 둘 다 눌린다: 「한 번 더 누르면」
+    p.down(1, 'canvas', 110, 640, 2, true)
+    p.down(2, 'home', 250, 32, 3)
+    expect(p.up(2, 250, 32, 3.1)).toBe('home')
+    p.down(3, 'home', 250, 32, 3.3)
+    expect(p.up(3, 250, 32, 3.4)).toBe('home')
+  })
+
+  it('뗀 것을 놓친 손가락은 처음 대는 손가락(isPrimary)·창이 가려질 때 잊는다: 그 뒤의 혼자 누른 톡을 대신 누르지 않는다', () => {
+    const p = new FingerPresses<string>()
+    p.down(1, 'canvas', 110, 640, 0, true)
+    // 1번의 뗌을 놓쳤다. 다음 손가락은 브라우저가 처음 대는 손가락이라고 알려 준다
+    p.down(2, 'menu', 355, 38, 5, true)
+    expect(p.up(2, 355, 38, 5.1)).toBeNull()
+    p.down(3, 'canvas', 110, 640, 6, true)
+    p.reset()
+    p.down(4, 'menu', 355, 38, 7)
+    expect(p.up(4, 355, 38, 7.1)).toBeNull()
+  })
+
+  it('대신 낸 click 바로 뒤에 같은 자리로 온 브라우저의 click은 같은 톡이다: 한 번만 버린다 (두 번 눌려 열렸다 닫히지 않게)', () => {
+    const p = new FingerPresses<string>()
+    expect(p.echo(355, 38, 0)).toBe(false)
+    p.made(2, 355, 38, 10)
+    expect(p.echo(355 + ECHO_PX + 1, 38, 10.05)).toBe(false)
+    // 다른 손가락이 낸 click은 같은 톡이 아니다
+    expect(p.echo(355, 38, 10.05, 7)).toBe(false)
+    expect(p.echo(358, 40, 10.05, 2)).toBe(true)
+    expect(p.echo(358, 40, 10.06, 2)).toBe(false)
+    // 포인터를 알려 주지 않는 브라우저는 때와 자리로만 본다. 늦게 온 것은 새 톡이다
+    p.made(3, 100, 100, 20)
+    expect(p.echo(100, 100, 20 + ECHO_SECONDS + 0.01)).toBe(false)
+    expect(p.echo(100, 100, 20.1)).toBe(true)
+  })
+
+  it('시작할 때 창에 한 번 건다 (게임 화면·정보 화면·고르는 카드·처음 화면의 단추가 모두 click을 듣는다)', () => {
+    expect(mainSource).toMatch(/^listenFingerClicks\(\)$/m)
+  })
+})
+
+describe('아래 묶음 위의 톡 (E307 손 QA)', () => {
+  const dock = { left: 63, top: 765, right: 331, bottom: 833 }
+  const ult = { left: 272, top: 779, right: 332, bottom: 839 }
+
+  it('유물 칸·생명 막대·궁극기와 그 사이 틈의 톡은 땅으로 가는 지시가 아니다', () => {
+    // 손 QA가 누른 자리 (393×852): 스킬 칸, 궁극기, 생명 막대
+    for (const [x, y] of [[88, 809], [302, 809], [200, 770]] as const) expect(inBoxes(x, y, [dock, ult]), `${x},${y}`).toBe(true)
+    // 칸과 칸 사이, 궁극기가 상자 밖으로 나온 아래쪽
+    expect(inBoxes(113, 800, [dock, ult])).toBe(true)
+    expect(inBoxes(302, 837, [dock, ult])).toBe(true)
+    // 묶음 옆과 위의 땅은 그대로 톡이다
+    expect(inBoxes(30, 809, [dock, ult])).toBe(false)
+    expect(inBoxes(200, 740, [dock, ult])).toBe(false)
+  })
+
+  it('숨은 조각(빈 사각형)은 아무 톡도 막지 않는다', () => {
+    expect(inBoxes(0, 0, [{ left: 0, top: 0, right: 0, bottom: 0 }])).toBe(false)
+  })
+
+  it('휴대폰에서 누름을 흘려보내는 HUD 조각은 모두 톡을 삼키는 목록 안에 있다 (조각을 더하면 함께 더한다)', () => {
+    const rule = hudCss.match(/((?:\.is-touch [^,{]+,?\s*)+)\{\s*pointer-events: none;\s*\}/)
+    const passing = rule![1]!.split(',').map((sel) => sel.trim().replace(/^\.is-touch (?:button)?/, ''))
+    expect(passing).toEqual(['.hud__slot', '.hud__life', '.hud__ult', '.hud__essence'])
+    // 생명 막대와 유물 칸은 아래 묶음 상자(`hud__dock`) 안에 짓는다
+    expect(hudSource).toMatch(/this\.bar\('[^']*hud__life', dock\)/)
+    expect(hudSource).toMatch(/const slots = this\.el\('div', 'hud__slots', dock\)/)
+    expect(hudSource).toMatch(/this\.el\('button', 'hud__slot[^']*', slots\)/)
+    expect([...TAP_DEAD]).toEqual(['.hud__dock', '.hud__ult', '.hud__essence'])
   })
 })

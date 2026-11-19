@@ -11,7 +11,7 @@ import { lendText, levelGains } from '../../myth/levelGains'
 import { sceneId } from '../../data/scenes'
 import { classIcon } from '../../ui/classIcons'
 import { josa } from '../../ui/josa'
-import { delta, gearIcon } from '../../ui/gearCard'
+import { betterLines, gearIcon } from '../../ui/gearCard'
 import type { GameContext } from '../context'
 import type { LoadoutChange } from '../RelicPowers'
 import { godMoment } from './godMoments'
@@ -281,14 +281,7 @@ export class RelicSystem {
         else bus.emit('moment', { id: 'gearWornRare', card: { kind: '장비', ...card, lines: gear.stats.map((st) => statText(st.kind, st.value)) } })
       } else if (worn && gearScore(gear) > gearScore(worn)) {
         if (everyday(gear)) bus.emit('moment', { id: 'gearBetter', text: `더 좋은 장비 · ${gearName(gear)}` })
-        else {
-          const lines = gear.stats.map((st) => {
-            const same = worn.stats.find((w) => w.kind === st.kind)
-            const d = same ? delta(st.kind, st.value, same.value) : { text: '새 수치' }
-            return d ? `${statText(st.kind, st.value)} ${d.text}` : statText(st.kind, st.value)
-          })
-          bus.emit('moment', { id: 'gearBetterRare', card: { kind: '더 좋은 장비 · 가방', ...card, lines } })
-        }
+        else bus.emit('moment', { id: 'gearBetterRare', card: { kind: '더 좋은 장비 · 가방', ...card, lines: betterLines(gear, worn) } })
         bus.emit('gearBetter', { item: gear })
       }
     } else if (!isMythRelic(id)) {
@@ -395,7 +388,10 @@ export class RelicSystem {
     this.unlock(id, announce)
   }
 
-  /** 발밑 빛: 손에 쥔 신의 색(2 + 신 단계). 손이 비었으면 가장 많이 켠 신의 색으로 유물 하나에 1단계 */
+  /**
+   * 발밑 빛: 손에 쥔 신의 색(2 + 신 단계). 손이 비었으면 가장 많이 켠 신의 색으로 유물 하나에 1단계.
+   * 몸에서 피어오르는 빛 조각도 손의 신 단계를 따른다. 머리 위 빛 고리는 여기서 띄우지 않는다 (고른 표식에 딸린다: `Appearance.update`, E307)
+   */
   updateGlow(): void {
     const { powers, progress, fx } = this.ctx
     const counts = new Map<string, number>()

@@ -14,6 +14,29 @@ interface Toast {
   count: number
 }
 
+/** 화면 위의 상자 (px) */
+export interface ScreenBox {
+  top: number
+  bottom: number
+  left: number
+  right: number
+}
+
+/**
+ * 알림을 땅의 카드 위로 얼마나 올릴까 (px, E307). toast는 올리지 않았을 때 알림의 상자, card는 떠 있는 땅의 카드(없으면 null).
+ * 카드에 가리면 카드 위 끝에서 gap만큼 위로 올리고, 올릴 자리가 화면 밖이면 그대로 둔다.
+ * held는 이 알림이 이미 올라가 있는 높이: 떠 있는 알림은 올라가기만 한다. 읽는 도중에 카드가 닫혀도(걷기 시작·몇 초 뒤)
+ * 190px 아래 제자리로 뛰어내리지 않는다. 새 알림은 held 0으로 다시 잰다
+ */
+export function toastLift(toast: ScreenBox, card: ScreenBox | null, gap: number, held = 0): number {
+  let lift = 0
+  if (card) {
+    const hidden = card.top < toast.bottom && card.bottom > toast.top && card.left < toast.right && card.right > toast.left
+    if (hidden && card.top - gap - (toast.bottom - toast.top) >= 0) lift = Math.round(toast.bottom - (card.top - gap))
+  }
+  return Math.max(lift, held)
+}
+
 /**
  * 작은 알림의 줄 (E307). 알림 자리는 한 줄이라, 같은 때 온 알림이 서로 덮으면 마지막 하나만 보였다
  * (한자리의 장비 넷을 주우면 「낌」 넷 가운데 하나만, 「더 좋은 장비」는 뒤따른 「합치기」에 바로 덮였다).

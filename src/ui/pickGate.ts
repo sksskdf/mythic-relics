@@ -1,3 +1,5 @@
+import { isFingerClick } from '../input/fingerClick'
+
 /** 고르는 카드가 뜬 뒤 이만큼(ms)은 누름을 받지 않는다: 싸우던 클릭·톡이 방금 뜬 카드에 떨어져 고른 것이 되지 않게 (E307) */
 export const PICK_ARM_MS = 500
 
@@ -7,6 +9,8 @@ export const PICK_ARM_MS = 500
  * - 뜬 직후의 누름은 버린다 (싸우며 이어 누르던 클릭·톡)
  * - 카드가 뜨기 전에 게임 화면에서 시작된 누름은, 손을 뗄 때 click이 카드에 떨어져도 버린다 (카드 위에서 시작되지 않았다)
  * - 코드가 낸 click(봇의 `answerSwap`, 점검 스크립트의 `el.click()`)은 사람 손이 아니니 그대로 받는다
+ * - 다른 손가락이 닿아 있는 동안의 톡(엄지를 얹은 채 누른 「아직」)은 브라우저가 click을 내지 않아 `fingerClick.ts`가 대신 낸다.
+ *   그 click은 사람 손이다: 코드가 낸 것으로 치지 않고 위의 규칙을 그대로 건다
  * - 누름 없이 온 click(키보드의 Enter·Space, 화면 읽기 도구)은 잠금이 풀린 뒤에 받는다
  * 새 단추나 두 번 누르기를 더하지 않는다. 언제 열리는지(타이머)와 DOM은 `PickCardGuard`가 맡는다
  */
@@ -36,6 +40,11 @@ export class PickGate {
     this.pressed = false
     return ok
   }
+}
+
+/** 코드가 낸 click인가 (trusted: 브라우저가 낸 것, finger: 손가락 톡 대신 낸 것 `isFingerClick`). 둘 다 아니어야 코드가 낸 것이다 */
+export function byCode(trusted: boolean, finger: boolean): boolean {
+  return !trusted && !finger
 }
 
 /**
@@ -76,7 +85,7 @@ export class PickCardGuard {
     button.addEventListener('click', (e) => {
       e.stopPropagation()
       // detail이 0인 click은 포인터가 낸 것이 아니다 (키보드·화면 읽기 도구)
-      if (this.gate.take(!e.isTrusted, e.detail === 0)) act()
+      if (this.gate.take(byCode(e.isTrusted, isFingerClick(e)), e.detail === 0)) act()
     })
   }
 }

@@ -1136,6 +1136,26 @@ try {
   await phoneFrames(2)
   const p2 = await phoneState()
   if (p2.stick || p2.moving) throw new Error(`휴대폰: 손을 떼도 멈추지 않습니다 ${JSON.stringify(p2)}`)
+  // 조이스틱을 쥔 채 다른 손가락으로 누른 단추 (E307 손 QA): 브라우저는 그 톡에 click을 내지 않는다 (pointerdown·pointerup만 온다).
+  // 게임이 click을 대신 내어 정보 화면이 열린다 (`src/input/fingerClick.ts`). 진짜 두 손가락은 `scripts/drive.mjs`의 fingers 걸음으로 본다
+  await finger('pointerdown', 1, 195, 650)
+  for (const y of [640, 625, 610]) await finger('pointermove', 1, 195, y)
+  await phoneFrames(2)
+  const held = await phone.evaluate(() => {
+    const g = window.__game
+    const button = document.querySelector('.menu-button')
+    const r = button.getBoundingClientRect()
+    const at = { pointerId: 2, pointerType: 'touch', isPrimary: false, clientX: r.x + r.width / 2, clientY: r.y + r.height / 2, bubbles: true }
+    const stick = !document.querySelector('.stick').hidden
+    button.dispatchEvent(new PointerEvent('pointerdown', at))
+    button.dispatchEvent(new PointerEvent('pointerup', at))
+    const open = g.menu.open
+    g.menu.toggle(false)
+    return { stick, open }
+  })
+  await finger('pointerup', 1, 195, 610)
+  await phoneFrames(2)
+  if (!held.stick || !held.open) throw new Error(`휴대폰: 조이스틱을 쥔 채 다른 손가락으로 누른 메뉴 단추가 먹지 않습니다 ${JSON.stringify(held)}`)
   // 탈것 (E241): 버튼 없이 같은 조이스틱으로. 짧게 끌면 걷고, 원 밖으로 멀리(반지름의 1.6배 넘게) 끌면 산양에 올라타며, 떼면 멈춰 내린다
   await phone.evaluate(() => {
     const g = window.__game
@@ -1246,7 +1266,7 @@ try {
     throw new Error('휴대폰: 다시 세로로 들어도 안내가 남아 있습니다.')
   })
   await phone.close()
-  console.log(`휴대폰 확인: 세로 화면 가로 ${p0.across.toFixed(1)}m, 끌기 → 조이스틱으로 걷기, 떼면 멈춤, 멀리 끌면 산양에 올라타고 떼면 내림, 톡 → 그곳까지·적이면 공격, 두 손가락 ${p3.view.toFixed(0)}m → ${p4.view.toFixed(0)}m(화질 기본값 낮음·그림자 끔), 가로로 들면 안내와 멈춤`)
+  console.log(`휴대폰 확인: 세로 화면 가로 ${p0.across.toFixed(1)}m, 끌기 → 조이스틱으로 걷기, 떼면 멈춤, 쥔 채 다른 손가락으로 누른 메뉴 단추도 열림, 멀리 끌면 산양에 올라타고 떼면 내림, 톡 → 그곳까지·적이면 공격, 두 손가락 ${p3.view.toFixed(0)}m → ${p4.view.toFixed(0)}m(화질 기본값 낮음·그림자 끔), 가로로 들면 안내와 멈춤`)
   await browser.close()
 
   if (errors.length) {

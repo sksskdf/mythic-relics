@@ -44,6 +44,25 @@ export function gainsView(card: GainsCard): { kind: string; title: string; lines
   return { kind: rest.join(' · '), title: `${what} ${countWord(names.length)}`, lines }
 }
 
+/** 카드 한 줄 앞의 표시: 얻었다·좋아졌다(▲, 기본), 나빠졌다(▼), 같다(·) */
+export type GainsMark = 'up' | 'down' | 'same'
+
+/** 견준 결과를 줄 앞에 붙이는 글자 (`markLine`으로 붙이고 `gainsMark`로 뗀다) */
+const MARK_HEADS: Readonly<Record<GainsMark, string>> = { up: '▲ ', down: '▼ ', same: '= ' }
+
+/** 견주는 줄을 만든다: 표시를 줄 앞에 붙인다 (「더 좋은 장비 · 가방」 카드의 수치 줄) */
+export const markLine = (mark: GainsMark, text: string): string => `${MARK_HEADS[mark]}${text}`
+
+/**
+ * 줄 앞의 표시와 남은 글 (E307). 카드의 줄에는 늘 표시 하나가 앞에 붙는다(얻은 것 ▲).
+ * 견주는 줄이 제 결과를 줄 끝에 따로 달면 「▲ 받는 피해 −7% ▲」, 나빠진 수치는 「▲ … ▼」처럼 표시 둘이 서로 다른 말을 했다:
+ * 견준 결과는 줄 앞의 그 표시 하나가 말한다. 표시 없이 온 줄은 얻은 것(▲)이다
+ */
+export function gainsMark(line: string): { mark: GainsMark; text: string } {
+  for (const mark of ['up', 'down', 'same'] as const) if (line.startsWith(MARK_HEADS[mark])) return { mark, text: line.slice(MARK_HEADS[mark].length) }
+  return { mark: 'up', text: line }
+}
+
 /**
  * 얻은 것 카드의 줄 (E23-01 → E307 카드 예산). 카드는 한 장씩 차례로 뜬다:
  * - 같은 종류의 장비 카드(`bundles`)가 줄에 서 있으면 한 장으로 묶는다 (「장비 셋」): 희귀 장비 넷을 이어 주워도 카드는 두 장

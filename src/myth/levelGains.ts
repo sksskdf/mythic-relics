@@ -33,7 +33,9 @@ function describe(key: keyof ClassPassive, part: never, level: number): string {
     case 'skyStrike':
       return `${p.name}: ${at('interval')}초마다 주변 적 ${at('targets')}명에게 (피해 ${at('damage')})`
     case 'companions':
-      return `${p.name} ${at('counts')}이 곁에서 함께 싸움 (일격 피해 ${at('damage')})`
+      // 수는 이름에 붙이지 않고 괄호 안에 적는다 (E307): 「후긴과 무닌 1이」는 읽히지 않았고, 수가 둘이면 조사도 틀렸다.
+      // 오른 단계의 줄(「후긴과 무닌 수 1 → 2」)과 같은 말을 쓴다
+      return `${josa(p.name, '이')} 곁에서 함께 싸움 (${LABELS.counts} ${at('counts')}, 일격 피해 ${at('damage')})`
     case 'orbit':
       return `${josa(p.name, '이')} ${at('count')}개 몸 둘레를 돌며 닿는 적을 침 (피해 ${at('damage')})`
     case 'pulse':

@@ -120,6 +120,21 @@
   /* 모양 */
   --bw: 2px;
   --shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+  /*
+   * 땅 위에 바로 뜨는 본문 글(작은 알림·주운 것의 이름)의 어두운 테두리 (E307): 획 굵기(글자 크기의 1/12)만큼씩 여덟 방향으로 한 겹,
+   * 그 밖으로 한 겹 더 (모서리는 뺀다). 획에 바로 붙어 빈틈이 없어야 눈 땅 위의 흰 글이 읽힌다.
+   * 길이가 em이라 쓰는 요소의 글자 크기를 따른다 (12px 글이면 1px·2px, 24px 글이면 2px·4px)
+   */
+  --edge-a: calc(1em / 12);
+  --edge-b: calc(1em / 6);
+  --edge-na: calc(-1em / 12);
+  --edge-nb: calc(-1em / 6);
+  --text-edge:
+    var(--edge-a) 0 var(--c-groove), var(--edge-na) 0 var(--c-groove), 0 var(--edge-a) var(--c-groove), 0 var(--edge-na) var(--c-groove),
+    var(--edge-a) var(--edge-a) var(--c-groove), var(--edge-a) var(--edge-na) var(--c-groove), var(--edge-na) var(--edge-a) var(--c-groove), var(--edge-na) var(--edge-na) var(--c-groove),
+    var(--edge-b) 0 var(--c-groove), var(--edge-nb) 0 var(--c-groove), 0 var(--edge-b) var(--c-groove), 0 var(--edge-nb) var(--c-groove),
+    var(--edge-b) var(--edge-a) var(--c-groove), var(--edge-b) var(--edge-na) var(--c-groove), var(--edge-nb) var(--edge-a) var(--c-groove), var(--edge-nb) var(--edge-na) var(--c-groove),
+    var(--edge-a) var(--edge-b) var(--c-groove), var(--edge-na) var(--edge-b) var(--c-groove), var(--edge-a) var(--edge-nb) var(--c-groove), var(--edge-na) var(--edge-nb) var(--c-groove);
 }
 
 /* 픽셀 글꼴은 흐리게 다듬지 않는다. */

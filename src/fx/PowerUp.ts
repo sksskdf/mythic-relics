@@ -34,7 +34,7 @@ export class PowerUp {
   private readonly glow: THREE.Mesh
   private readonly glowMaterial: THREE.MeshBasicMaterial
   private glowLevel = 0
-  /** 발현 레벨에 따른 모습: 0 없음, 1~4 */
+  /** 손에 쥔 신의 단계: 0 없음, 1~4 (몸에서 피어오르는 빛 조각의 양) */
   private ascension = 0
   private readonly ascendColor = new THREE.Color()
   private riseTimer = 0
@@ -51,7 +51,7 @@ export class PowerUp {
     this.glow.rotation.x = -Math.PI / 2
     this.glow.layers.set(EFFECT_LAYER)
     this.object.add(this.glow)
-    // 머리 위 빛 고리 둘 (Lv3에 하나, Lv4에 둘)
+    // 머리 위 빛 고리 둘 (고른 표식의 신이 3단계면 하나, 4단계면 둘: `setHalo`)
     for (let i = 0; i < 2; i++) {
       const halo = new THREE.Mesh(
         new THREE.TorusGeometry(0.42 + i * 0.16, 0.035, 6, 32),
@@ -66,15 +66,23 @@ export class PowerUp {
   }
 
   /**
-   * 발현 레벨만큼 화려해진다: 레벨마다 몸에서 피어오르는 빛 조각이 많아지고,
-   * Lv3에 머리 위 빛 고리, Lv4에 고리 둘과 더 큰 발밑 빛.
+   * 손에 쥔 신의 단계만큼 몸에서 피어오르는 빛 조각이 많아진다 (발밑 빛과 같은 힘의 표시).
+   * 머리 위 빛 고리는 여기서 띄우지 않는다 (`setHalo`)
    */
   setAscension(color: string | number | null, level: number): void {
     this.ascension = color === null ? 0 : level
     if (color !== null) this.ascendColor.set(color)
+  }
+
+  /**
+   * 머리 위 빛 고리 (E6 → E307): 보관함에서 고른 표식에 딸린다. 그 표식의 신이 3단계면 하나, 4단계면 둘 (`haloRings`), color가 null이면 없다.
+   * 손에 쥔 신의 단계를 따라 저절로 뜨지 않는다 (사용자 의견 4: 승천해도 내 모습은 그대로다. 발밑 빛과 빛 조각은 옷이 아니라 힘의 표시라 남긴다)
+   */
+  setHalo(color: string | number | null, level: number): void {
+    const rings = color === null ? 0 : haloRings(level)
     this.halos.forEach((h, i) => {
-      h.visible = this.ascension >= 3 + i
-      ;(h.material as THREE.MeshBasicMaterial).color.copy(this.ascendColor)
+      h.visible = i < rings
+      if (color !== null) (h.material as THREE.MeshBasicMaterial).color.set(color)
     })
   }
 
@@ -181,7 +189,7 @@ export class PowerUp {
         this.columns.splice(i, 1)
       }
     }
-    // 발현 레벨: 몸에서 빛 조각이 피어오르고, 머리 위 고리가 돈다
+    // 손에 쥔 신의 단계: 몸에서 빛 조각이 피어오른다
     if (this.ascension > 0) {
       this.riseTimer -= dt
       if (this.riseTimer <= 0) {
@@ -207,6 +215,7 @@ export class PowerUp {
         this.rising.splice(i, 1)
       }
     }
+    // 머리 위 고리(고른 표식에 딸린 것)가 돈다
     this.halos.forEach((h, i) => {
       if (!h.visible) return
       h.position.set(center.x, center.y + 2.15 + i * 0.12 + Math.sin(this.time * 2 + i) * 0.04, center.z)
@@ -245,6 +254,11 @@ export class PowerUp {
     this.glowMaterial.opacity = Math.min(0.9, this.glowShown * 0.14) * pulse
     this.glow.visible = this.glowShown > 0.02
   }
+}
+
+/** 머리 위 빛 고리의 수: 그 신이 3단계면 하나, 4단계면 둘 */
+export function haloRings(level: number): number {
+  return level >= 4 ? 2 : level >= 3 ? 1 : 0
 }
 
 /** 가운데가 밝고 가장자리로 사라지는 둥근 빛 */

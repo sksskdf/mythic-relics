@@ -36,3 +36,30 @@ export class HintTaps<T> {
     return held && held.drawn === drawn ? held.target : null
   }
 }
+
+/** 창 안의 상자 (창의 왼쪽 위에서 잰 px) */
+export interface HintBox {
+  left: number
+  top: number
+  width: number
+  height: number
+}
+
+/** 말풍선과 칸 사이, 말풍선과 창 가장자리 사이의 틈 (px) */
+const HINT_GAP = 6
+const HINT_EDGE = 8
+
+/**
+ * 힌트 말풍선을 놓을 자리 (창의 왼쪽 위에서 잰 px). 칸의 가운데 아래에 두고, 창 밖으로 나가면 옆으로 당기거나 칸 위로 올린다.
+ * avoid는 그 칸이 가리키는 것(「녹이기」가 녹일 장비의 카드): 아래에 두면 그것을 덮고 위에 두면 덮지 않을 때는 칸 위에 둔다 (E307).
+ * 세로 화면의 장비 탭은 「녹이기」 바로 아래가 설명 카드라, 「한 번 더 누르면 녹인다」를 확인하려는 순간에 말풍선이 장비 이름을 가렸다
+ */
+export function hintSpot(target: HintBox, hint: { width: number; height: number }, frame: { width: number; height: number }, avoid: HintBox | null = null): { left: number; top: number } {
+  const left = Math.min(Math.max(HINT_EDGE, target.left + target.width / 2 - hint.width / 2), frame.width - hint.width - HINT_EDGE)
+  const below = target.top + target.height + HINT_GAP
+  const above = target.top - hint.height - HINT_GAP
+  const covers = (top: number) => avoid !== null && left < avoid.left + avoid.width && left + hint.width > avoid.left && top < avoid.top + avoid.height && top + hint.height > avoid.top
+  const overflows = below + hint.height > frame.height - HINT_EDGE
+  const dodge = covers(below) && !covers(above) && above >= HINT_EDGE
+  return { left: Math.round(left), top: Math.round(overflows || dodge ? above : below) }
+}

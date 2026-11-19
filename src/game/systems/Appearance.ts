@@ -68,7 +68,7 @@ export class AppearanceSystem {
     bus.emit('outfitChanged', {})
   }
 
-  /** 프레임마다: 고른 표식에 딸린 기운 연출을 켜고 끈다. 쓰러져 있으면 끈다. 아수라의 팔은 천천히 숨 쉬듯 흔들린다(dt: 이번 프레임의 게임 시간). */
+  /** 프레임마다: 고른 표식에 딸린 기운 연출과 머리 위 빛 고리를 켜고 끈다. 쓰러져 있으면 끈다. 아수라의 팔은 천천히 숨 쉬듯 흔들린다(dt: 이번 프레임의 게임 시간). */
   update(dt = 1 / 60): void {
     const { hero, combat, fx } = this.ctx
     const mark = hero.rig.outfit.mark
@@ -94,11 +94,19 @@ export class AppearanceSystem {
     fx.asura.level = level
     fx.tint.level = level
     hero.rig.mark.rotation.z = aura === 'asura' ? Math.sin(this.sway * 1.7) * 0.06 : 0
+    // 머리 위 빛 고리도 고른 표식에 딸린다 (E307): 그 표식의 신이 3단계부터. 표식을 고르지 않았으면 손의 신이 몇 단계든 뜨지 않는다
+    const halo = combat.alive && owner ? `${owner}:${level}` : ''
+    if (halo !== this.halo) {
+      this.halo = halo
+      fx.power.setHalo(owner && halo ? godDef(owner).color : null, level)
+    }
   }
 
   private sway = 0
   /** 공용 기운을 마지막으로 물들인 신 */
   private tinted: string | null = null
+  /** 머리 위 고리를 마지막으로 맞춘 형편 (표식의 신과 단계, 없으면 빈 글) */
+  private halo = ''
 }
 
 const markOwners = new Map<string, God>()

@@ -180,7 +180,8 @@ export class RelicsTab {
       b.type = 'button'
       const label = el('span', '', '녹이기')
       b.append(img(glyph('salvage')), label)
-      this.ctx.hintOn(b, `녹이면 원형 ${PROTOTYPE_VALUE[gear.grade]}개가 된다 (등급이 하나 오를 때마다 셋 배)`)
+      // 힌트는 녹일 장비의 카드를 덮지 않는 쪽에 뜬다 (E307: 세로 화면에서는 단추 바로 아래가 카드라, 확인하려는 순간에 장비 이름을 가렸다)
+      this.ctx.hintOn(b, `녹이면 원형 ${PROTOTYPE_VALUE[gear.grade]}개가 된다 (등급이 하나 오를 때마다 셋 배)`, () => detail.querySelector<HTMLElement>('.gc'))
       b.addEventListener('click', () => {
         // 끼고 있는 장비는 한 번 더 눌러야 녹는다 (녹이면 그 칸이 빈다). 잠시 뒤에는 처음으로. 가방의 것은 한 번에
         if (!inBag && !b.classList.contains('is-confirm')) {
@@ -189,6 +190,8 @@ export class RelicsTab {
           setTimeout(() => {
             b.classList.remove('is-confirm')
             label.textContent = '녹이기'
+            // 손가락으로 띄운 설명도 함께 거둔다 (단추는 처음으로 돌아갔는데 설명만 다음 톡까지 남았다, E307)
+            this.ctx.hintOff(b)
           }, CONFIRM_MS)
           return
         }

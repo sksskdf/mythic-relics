@@ -14,6 +14,11 @@
 //   {"taps":[[x,y],[x,y]],"gap":80}   빠르게 이어 누르기 (gap ms)
 //   {"touch":[{"id":1,"type":"down","at":[x,y]}, ...],"gap":30}  손가락 사건을 직접 (type: down·move·up·cancel, 여러 손가락)
 //   {"drag":[[x1,y1],[x2,y2]],"hold":600,"advance":2,"id":1}   누른 채 끌고(조이스틱) 그 채로 advance초 감은 뒤 hold ms 뒤에 뗌
+//   {"fingers":[{"id":0,"type":"down","at":[x,y]},{"id":0,"type":"move","at":[x,y]},{"id":1,"type":"down","at":[x,y]},{"id":1,"type":"up"}],"gap":40}
+//                              진짜 여러 손가락 (--touch일 때, type: down·move·up). 브라우저가 터치를 포인터 사건·click으로 바꾸는 길을 그대로 탄다:
+//                              한 손가락이 닿아 있는 동안 다른 손가락의 톡에는 브라우저가 click을 내지 않는다 (E307). "touch"는 합성 포인터 사건이라
+//                              그 길을 타지 않고, "tap"과 섞으면 click이 생긴다. 손가락은 걸음 사이에도 닿은 채 남는다 ("up"으로 뗀다. id 없이 {"type":"up"}이면 모두).
+//                              사건마다 "wait":ms 를 주면 그 뒤에 gap 대신 그만큼 기다린다 (누르고 있는 시간을 재려면 누름과 뗌을 한 걸음에 넣는다)
 //   {"key":"Escape"}           키
 //   {"advance":초}             게임 시간을 감는다 (game.advance, 화면은 그 뒤에 그려짐)
 //   {"wait":ms}                실제 시간 기다리기 (HUD 카드·CSS 전환은 실제 시간으로 흐른다)
@@ -122,6 +127,28 @@ const state = () =>
     }
   })
 
+/**
+ * 진짜 손가락 (CDP Input.dispatchTouchEvent): 브라우저 안에서 터치 → 포인터 사건 → 몸짓(click)으로 바뀐다.
+ * 사건마다 바뀐 점 하나만 보낸다 (닿아 있는 다른 손가락은 브라우저가 그대로 둔다). 점 없이 보낸 touchEnd는 모두 뗀다
+ */
+const cdp = TOUCH ? await context.newCDPSession(page) : null
+const held = new Map()
+async function finger(id, type, at) {
+  if (!cdp) throw new Error('fingers 걸음은 --touch로 띄웠을 때만 쓴다')
+  if (type === 'up' && id === undefined) {
+    // 닿은 손가락이 없으면 뗄 것도 없다 (브라우저는 누른 적 없는 touchEnd를 받지 않는다)
+    if (held.size === 0) return
+    held.clear()
+    return cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+  }
+  const [x, y] = at ?? held.get(id) ?? []
+  if (x === undefined) throw new Error(`닿지 않은 손가락: ${id}`)
+  if (type === 'up') held.delete(id)
+  else held.set(id, [x, y])
+  const name = { down: 'touchStart', move: 'touchMove', up: 'touchEnd' }[type]
+  return cdp.send('Input.dispatchTouchEvent', { type: name, touchPoints: [{ x, y, id, radiusX: 8, radiusY: 8, force: 1 }] })
+}
+
 /** 누른 것을 게임이 읽을 때까지 (다음에 그려지는 프레임) */
 const settle = () => frames(2)
 
@@ -146,6 +173,14 @@ async function step(s) {
     }
     await settle()
     return hit
+  }
+  if (s.fingers) {
+    for (const e of s.fingers) {
+      await finger(e.id, e.type, e.at)
+      await page.waitForTimeout(e.wait ?? s.gap ?? 40)
+    }
+    await settle()
+    return `fingers ${s.fingers.length} (닿은 손가락 ${[...held.keys()].join(',') || '없음'})`
   }
   if (s.drag) {
     const [from, to] = s.drag
@@ -178,7 +213,11 @@ async function step(s) {
         return { text: el.innerText?.trim().replace(/\s+/g, ' ').slice(0, 160), box: [Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height)], shown: r.width > 1 && cs.visibility !== 'hidden' && cs.display !== 'none' && Number(cs.opacity) > 0.05, font: cs.fontSize, color: cs.color, bg: cs.backgroundColor }
       })
     }, s.dom)
-  if (s.reload !== undefined) return open(s.reload).then(() => 'reloaded')
+  if (s.reload !== undefined) {
+    // 닿은 채 남은 진짜 손가락은 떼고 연다
+    if (held.size > 0) await finger(undefined, 'up')
+    return open(s.reload).then(() => 'reloaded')
+  }
   return `모르는 걸음: ${JSON.stringify(s)}`
 }
 

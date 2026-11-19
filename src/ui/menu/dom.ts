@@ -27,8 +27,13 @@ export function pips(level: number, max = MAX_LEVEL): HTMLElement {
 /** 탭이 정보 화면에서 쓰는 것 */
 export interface TabContext {
   readonly host: MenuHost
-  /** 커서를 올리거나(데스크톱) 누르면(터치) 그 칸 근처에 힌트를 띄운다. 누르면 창을 다시 그리는 단추는 손가락에 띄우지 않는다 (`HintTaps`) */
-  hintOn(target: HTMLElement, text: string | (() => string)): void
+  /**
+   * 커서를 올리거나(데스크톱) 누르면(터치) 그 칸 근처에 힌트를 띄운다. 누르면 창을 다시 그리는 단추는 손가락에 띄우지 않는다 (`HintTaps`).
+   * avoid는 그 칸이 가리키는 것(녹일 장비의 카드): 힌트가 그것을 덮지 않는 쪽에 뜬다
+   */
+  hintOn(target: HTMLElement, text: string | (() => string), avoid?: () => HTMLElement | null): void
+  /** 손가락으로 그 칸에 띄운 힌트를 거둔다 (확인을 기다리던 단추가 처음으로 돌아갈 때) */
+  hintOff(target: HTMLElement): void
   /** 지금 탭을 다시 그린다 */
   render(): void
   /** 정보 화면을 닫는다 */

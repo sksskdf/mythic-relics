@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { BASE_OUTFIT, LOOK_IDS, lookDef } from '../src/looks/catalog'
 import { GEAR_LOOKS, gearLook, parseGearLook } from '../src/looks/gearLooks'
@@ -11,6 +11,7 @@ import { LOOK_MODELS } from '../src/voxel/models/looks'
 import { buildHeroModel } from '../src/world/heroModel'
 import { EventBus, type GameEvents } from '../src/game/events'
 import { AppearanceSystem } from '../src/game/systems/Appearance'
+import { haloRings, PowerUp } from '../src/fx/PowerUp'
 
 const looksOf = (...relics: string[]) => relics.map((id) => relicDef(id).look)
 
@@ -70,6 +71,8 @@ describe('외형 시스템 (E307: 신을 깨워도 주인공은 그대로)', () 
   function setup() {
     const bus = new EventBus<GameEvents>()
     const state = { hand: null as string | null, lit: [] as string[], opened: [] as string[], levels: {} as Record<string, number> }
+    /** 표식에 딸린 기운 연출 (켜짐과 단계만 본다) */
+    const aura = () => ({ enabled: false, level: 0 })
     const ctx = {
       bus,
       wardrobe: new Wardrobe(),
@@ -77,6 +80,20 @@ describe('외형 시스템 (E307: 신을 깨워도 주인공은 그대로)', () 
       powers: { loadout: { slots: [] as (string | null)[], gear: new Map(), get relics() { return state.lit } } },
       build: { get chosen() { return state.hand } },
       progress: { get opened() { return state.opened }, level: (god: string) => state.levels[god] ?? 0 },
+      combat: { alive: true },
+      fx: {
+        sparks: aura(),
+        shadow: aura(),
+        asura: aura(),
+        tint: { ...aura(), setColor() {} },
+        /** 머리 위 빛 고리: 마지막으로 맞춘 색과 고리 수 (없으면 null) */
+        power: {
+          halo: null as { color: string | number; rings: number } | null,
+          setHalo(color: string | number | null, level: number) {
+            this.halo = color === null || haloRings(level) === 0 ? null : { color, rings: haloRings(level) }
+          },
+        },
+      },
     }
     const system = new AppearanceSystem(ctx as never)
     const change = () => bus.emit('loadoutChanged', { change: {} as never, announce: false })
@@ -142,6 +159,88 @@ describe('외형 시스템 (E307: 신을 깨워도 주인공은 그대로)', () 
     bus.emit('mythOpened', { god: 'zeus', quiet: true })
     expect(told).toEqual(expect.arrayContaining(['zeusLaurel', 'zeusRobe', 'zeusCape', 'zeusWings']))
     expect(ctx.hero.rig.outfit).toEqual(BASE_OUTFIT)
+  })
+
+  it('머리 위 빛 고리는 저절로 뜨지 않는다: 손의 신이 3·4단계로 승천해도 표식을 고르지 않았으면 없다', () => {
+    const { ctx, state, system, change } = setup()
+    state.hand = 'thor'
+    state.opened = ['thor']
+    for (const level of [1, 2, 3, 4]) {
+      state.levels.thor = level
+      change()
+      system.update()
+      expect(ctx.fx.power.halo, `토르 ${level}단계`).toBeNull()
+    }
+  })
+
+  it('고리는 고른 표식에 딸린다: 그 표식의 신이 3단계면 하나, 4단계면 둘 (손의 신이 아니라 표식의 신의 색과 단계)', () => {
+    const { ctx, state, system, change } = setup()
+    state.hand = 'thor'
+    state.opened = ['thor', 'odin']
+    state.levels = { thor: 4, odin: 2 }
+    change()
+    // 손의 토르는 4단계지만 고른 표식은 2단계인 오딘의 것: 고리가 없다
+    system.choose('mark', 'odinRavens')
+    system.update()
+    expect(ctx.fx.power.halo).toBeNull()
+    state.levels.odin = 3
+    system.update()
+    expect(ctx.fx.power.halo).toEqual({ color: godDef('odin').color, rings: 1 })
+    // 토르의 표식으로 바꾸면 토르의 색으로 둘
+    system.choose('mark', godDef('thor').mark)
+    system.update()
+    expect(ctx.fx.power.halo).toEqual({ color: godDef('thor').color, rings: 2 })
+    // 쓰러져 있는 동안은 기운 연출처럼 꺼지고, 일어나면 돌아온다
+    ctx.combat.alive = false
+    system.update()
+    expect(ctx.fx.power.halo).toBeNull()
+    ctx.combat.alive = true
+    system.update()
+    expect(ctx.fx.power.halo).toEqual({ color: godDef('thor').color, rings: 2 })
+    // 표식을 비우면 고리도 사라진다
+    system.choose('mark', null)
+    system.update()
+    expect(ctx.fx.power.halo).toBeNull()
+  })
+
+  it('고리 수: 2단계까지 없고 3단계 하나, 4단계 둘', () => {
+    expect([0, 1, 2, 3, 4].map(haloRings)).toEqual([0, 0, 0, 1, 2])
+  })
+})
+
+describe('강해지는 빛 (PowerUp, E307): 승천은 머리 위에 고리를 띄우지 않는다', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  /** 발밑 빛의 그림을 그릴 캔버스만 흉내 낸다 (브라우저 없이 세운다) */
+  function setup() {
+    const gradient = { addColorStop() {} }
+    vi.stubGlobal('document', { createElement: () => ({ width: 0, height: 0, getContext: () => ({ createRadialGradient: () => gradient, fillRect() {} }) }) })
+    const power = new PowerUp()
+    const halos = () => power.object.children.filter((c): c is THREE.Mesh => c instanceof THREE.Mesh && c.geometry instanceof THREE.TorusGeometry)
+    return { power, halos, shown: () => halos().filter((h) => h.visible).length }
+  }
+
+  it('손에 쥔 신의 단계(setAscension)가 3·4여도 고리는 보이지 않는다', () => {
+    const { power, halos, shown } = setup()
+    expect(halos()).toHaveLength(2)
+    for (const level of [1, 2, 3, 4]) {
+      power.setAscension('#7fd4ff', level)
+      power.update(1 / 60, new THREE.Vector3())
+      expect(shown(), `${level}단계`).toBe(0)
+    }
+  })
+
+  it('고리는 setHalo로만 뜬다: 3단계 하나, 4단계 둘, 그 신의 색으로. null이면 사라진다', () => {
+    const { power, halos, shown } = setup()
+    power.setHalo('#7fd4ff', 2)
+    expect(shown()).toBe(0)
+    power.setHalo('#7fd4ff', 3)
+    expect(shown()).toBe(1)
+    power.setHalo('#ff8040', 4)
+    expect(shown()).toBe(2)
+    for (const h of halos()) expect((h.material as THREE.MeshBasicMaterial).color.getHexString()).toBe('ff8040')
+    power.setHalo(null, 4)
+    expect(shown()).toBe(0)
   })
 })
 

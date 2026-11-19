@@ -61,6 +61,10 @@
   :root .hud__gains.is-side ul {
     gap: 0;
   }
+  /* 줄도 낱말 가운데에서 끊지 않는다 (「… 새 수 / 치」) */
+  :root .hud__gains.is-side li {
+    word-break: keep-all;
+  }
   :root .menu-button,
   :root .minimap,
   :root .hud__gains.is-side {
@@ -74,6 +78,24 @@
     justify-content: flex-start;
     max-width: calc(100vw - var(--minimap) - var(--unit) * 7);
     white-space: normal;
+    /* 낱말 가운데에서 끊지 않는다 (「…토르를 깨운 / 다」) */
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+  }
+  /*
+   * 마름모와 글은 한 줄에 선다 (E307): 글이 길면 마름모 옆 칸 안에서 줄을 바꾼다.
+   * 줄을 넘기는 flex(가로 화면의 배치)로는 글 덩어리가 통째로 아랫줄로 내려가 금빛 마름모만 윗줄에 남았다:
+   * 한 줄이면 될 목표가 두 줄, 두 줄이면 될 목표가 세 줄이 되어 작은 지도 옆 자리를 더 먹었다.
+   * 숨긴 목표([hidden])는 그대로 숨는다
+   */
+  :root .chapter-goal:not([hidden]) {
+  }
+  /* 마름모는 첫 줄의 가운데에 (줄 높이 1.6의 반에서 마름모의 반을 뺀다) */
+  :root .chapter-goal__mark {
+    margin-top: calc(0.8em - 3px);
+  }
+  :root .chapter-goal__bar {
+    grid-column: 1 / -1;
   }
   /* 보스 막대: 목표 한 줄 아래 왼쪽 */
   :root .hud__boss {
@@ -174,6 +196,34 @@
     min-width: 0;
     width: calc(100vw - var(--sp-6) * 2);
     max-width: 420px;
+  }
+  /*
+   * 고르는 카드 (귀환·맹세 출발, E307): 위쪽 묶음(초상·메뉴 단추) 아래부터 아래 묶음(생명 막대·유물 칸) 위까지의 띠 한가운데에 둔다.
+   * 화면 높이의 몇 %에 두었을 때는 짧은 화면(사파리 주소창이 보이는 393×659)에서 위로는 작은 지도에, 아래로는 아래 묶음에 걸렸다
+   * (귀환 카드 422px, 엔딩 뒤 깊이 알약이 붙으면 466px, 맹세 여덟 장 424px: 띠는 509px).
+   * 띠보다 길면 카드 안에서 민다: 아래 묶음은 덮지 않는다.
+   * 띠의 위 끝은 초상 아래(2단위 + 52px)에서 8px, 아래 끝은 아래 묶음(바닥 2.4 + 유물 칸 5.6 + 사이 1.2단위 + 생명 막대 18px) 위 한 단위쯤
+   */
+  :root .pick-card {
+    top: calc(var(--unit) * 2 + 60px + env(safe-area-inset-top, 0px));
+    bottom: calc(var(--unit) * 10.4 + 18px + env(safe-area-inset-bottom, 0px));
+    height: fit-content;
+    max-height: calc(100% - var(--unit) * 12.4 - 78px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    margin: auto 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  /*
+   * 고르는 카드가 떠 있는 동안 초상 줄 아래의 위쪽 묶음(작은 지도·원천 칩·목표 한 줄·보스 막대)은 숨는다 (얻은 것 카드처럼, hud.css):
+   * 카드가 그 자리까지 쓴다. 작은 지도(40)는 카드(35)보다 위에 그려져 393×659에서 카드의 오른쪽 위 모서리와 제목의 끝 글자를 덮었고,
+   * 나머지는 카드 아래에 깔려 흐린 바탕 너머로 글과 겹쳐 비친다.
+   * 카드를 정보 화면(40) 위로 올리지는 않는다 (창을 열면 카드가 창 위에 뜬다)
+   */
+  :root .hud:has(.pick-card:not([hidden])) .minimap,
+  :root .hud:has(.pick-card:not([hidden])) .hud__essence,
+  :root .hud:has(.pick-card:not([hidden])) .chapter-goal,
+  :root .hud:has(.pick-card:not([hidden])) .hud__boss {
+    visibility: hidden;
   }
 }
 

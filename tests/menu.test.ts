@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { RELIC_STAGES } from '../src/gear/mythRelic'
-import { HintTaps } from '../src/ui/menu/hintTaps'
+import { hintSpot, HintTaps } from '../src/ui/menu/hintTaps'
 import { forgedLine } from '../src/ui/menu/relicsTab'
 
 describe('정보 화면 힌트 말풍선: 손가락으로 누른 칸 (E307)', () => {
@@ -55,6 +55,38 @@ describe('정보 화면 힌트 말풍선: 손가락으로 누른 칸 (E307)', ()
     taps.lift('처음 화면', true)
     expect(taps.click(5)).toBe('처음 화면')
     expect(taps.click(5)).toBeNull()
+  })
+})
+
+describe('힌트 말풍선의 자리 (E307 손 QA)', () => {
+  // 393×852의 정보 화면 (창 377×836): 장비 탭의 「녹이기」(한 번 누른 뒤)와 그 바로 아래의 설명 카드
+  const frame = { width: 377, height: 836 }
+  const melt = { left: 164, top: 538, width: 171, height: 44 }
+  const hint = { width: 296, height: 50 }
+  const card = { left: 14, top: 590, width: 322, height: 190 }
+
+  it('가리키는 것이 없으면 칸의 가운데 아래에 둔다, 창 밖으로 나가면 옆으로 당긴다', () => {
+    expect(hintSpot(melt, hint, frame)).toEqual({ left: 73, top: 588 })
+    expect(hintSpot({ ...melt, left: 0, width: 40 }, hint, frame).left).toBe(8)
+    expect(hintSpot({ ...melt, left: 330, width: 40 }, hint, frame).left).toBe(377 - 296 - 8)
+  })
+
+  it('아래에 두면 창 아래로 나가면 칸 위에 둔다', () => {
+    expect(hintSpot({ ...melt, top: 770 }, hint, frame).top).toBe(770 - 50 - 6)
+  })
+
+  it('세로 화면의 「녹이기」: 아래에 두면 녹일 장비의 카드(이름)를 덮으니 단추 위에 둔다', () => {
+    const at = hintSpot(melt, hint, frame, card)
+    expect(at.top).toBe(538 - 50 - 6)
+    // 카드와 겹치지 않는다
+    expect(at.top + hint.height).toBeLessThanOrEqual(card.top)
+  })
+
+  it('넓은 창(카드가 단추 위)은 그대로 아래에 둔다, 위아래 어느 쪽이든 덮으면 아래 그대로', () => {
+    expect(hintSpot(melt, hint, frame, { ...card, top: 330 }).top).toBe(588)
+    expect(hintSpot(melt, hint, frame, { ...card, top: 400, height: 400 }).top).toBe(588)
+    // 위에 둘 자리가 없으면(창 맨 위의 단추) 아래 그대로
+    expect(hintSpot({ ...melt, top: 20 }, hint, frame, { ...card, top: 70 }).top).toBe(20 + 44 + 6)
   })
 })
 

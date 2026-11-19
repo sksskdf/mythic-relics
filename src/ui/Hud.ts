@@ -5,10 +5,10 @@ import './hud.css'
 import { BOLT_ICON, pixelIcon } from './pixelIcon'
 import { smallSigilRing } from './emblem'
 import { shortNumber } from './format'
-import { type GainsCard, GAINS_LIFE, GainsLine, type GainsSize, gainsView } from './gainsLine'
+import { type GainsCard, GAINS_LIFE, GainsLine, gainsMark, type GainsSize, gainsView } from './gainsLine'
 import { heroIcon } from './heroIcon'
 import { glyph, sourceSigil } from './sigils'
-import { TOAST_LIFE, type ToastBundle, ToastLine } from './toastLine'
+import { TOAST_LIFE, type ToastBundle, ToastLine, toastLift } from './toastLine'
 
 export interface HudSlot {
   /** 유물 그림 주소. 빈 칸이면 null */
@@ -180,6 +180,9 @@ export class Hud {
     this.coach = this.el('div', 'hud__coach', this.root)
     this.flashEl = this.el('div', 'hud__flash', this.root)
     this.gains = this.el('div', 'hud__gains', this.root)
+    // 제 시간을 다 떠 있은 카드는 걷는다: 사라지는 움직임의 끝 모습(forwards)으로 남지 않게 (E307: 새 탭 카드가 흐려진 채 메뉴 단추 위에 남았다).
+    // 줄(li)의 움직임이 끝난 것은 카드의 것이 아니다
+    this.gains.addEventListener('animationend', (e) => e.target === this.gains && this.gains.classList.remove('is-showing'))
 
     this.xpBar = this.el('div', 'hud__xp', this.root)
     this.xpFill = this.el('div', 'hud__xp-fill', this.xpBar)
@@ -472,12 +475,15 @@ export class Hud {
       const li = this.el('li', '', list)
       // 작은 카드는 금방 넘어가니 줄도 바로 보인다
       li.style.animationDelay = size === 'card' ? `${0.12 + i * 0.06}s` : `${0.35 + i * 0.12}s`
-      const [from, to] = line.split(' → ')
+      // 견주는 줄은 제 결과(나빠졌다 ▼·같다 ·)를 줄 앞의 표시로 보인다 (hud.css, 표시 없이 온 줄은 얻은 것 ▲)
+      const { mark, text } = gainsMark(line)
+      if (mark !== 'up') li.classList.add(`is-${mark}`)
+      const [from, to] = text.split(' → ')
       if (to !== undefined) {
         this.el('span', 'hud__gains-from', li).textContent = from!
         this.el('span', 'hud__gains-arrow', li).textContent = '→'
         this.el('span', 'hud__gains-to', li).textContent = to
-      } else li.textContent = line
+      } else li.textContent = text
     })
     this.restartAnimation(card)
   }
@@ -538,7 +544,7 @@ export class Hud {
     }
     this.toast.textContent = this.toasts.take(now)
     this.toastUntil = now + TOAST_LIFE + TOAST_TAIL_MS
-    this.liftToast()
+    this.liftToast(true)
     this.restartAnimation(this.toast)
     this.nextToast()
   }
@@ -547,27 +553,22 @@ export class Hud {
    * 휴대폰: 알림이 땅의 카드에 가리면 그 카드 위 끝 바로 위로 올린다 (E307). 다가가면 뜨는 땅의 카드는 아래 묶음 바로 위,
    * 곧 알림 자리에 뜨고 알림보다 위에 그려진다: 흩어진 장비를 걸어가며 주우면 「낌」 알림이 다음 장비의 카드 뒤에 통째로 가렸다.
    * 알림이 떠 있는 동안만 프레임마다 잰다 (카드가 알림보다 늦게 뜨기도 한다). 올릴 자리가 화면 밖이면 그대로 둔다.
+   * 떠 있는 알림은 올라가기만 한다: 읽는 도중에 카드가 닫혀도 제자리로 뛰어내리지 않고, 새 알림(fresh)이 뜰 때 다시 잰다 (`toastLift`).
    * 컴퓨터의 커서 카드는 올려 본 동안만 뜨니 그대로 둔다
    */
-  private liftToast(): void {
+  private liftToast(fresh = false): void {
     if (performance.now() >= this.toastUntil) {
       // 다 사라졌다: 올린 높이는 다음 알림이 뜰 때 다시 잰다
       this.toastUntil = 0
       return
     }
-    let lift = 0
     const card = touchUi() ? this.root.parentElement?.querySelector<HTMLElement>(':scope > .relic-tooltip:not([hidden])') : null
-    if (card) {
-      const { toast } = this
-      const c = card.getBoundingClientRect()
-      // 올리지 않았을 때 알림의 상자 (움직임의 transform은 빼고 잰다. 가로는 가운데 맞춤)
-      const top = toast.offsetTop + this.toastLift
-      const bottom = top + toast.offsetHeight
-      const center = toast.offsetLeft
-      const half = toast.offsetWidth / 2
-      const hidden = c.top < bottom && c.bottom > top && c.left < center + half && c.right > center - half
-      if (hidden && c.top - TOAST_GAP - toast.offsetHeight >= 0) lift = Math.round(bottom - (c.top - TOAST_GAP))
-    }
+    const { toast } = this
+    // 올리지 않았을 때 알림의 상자 (움직임의 transform은 빼고 잰다. 가로는 가운데 맞춤)
+    const top = toast.offsetTop + this.toastLift
+    const half = toast.offsetWidth / 2
+    const box = { top, bottom: top + toast.offsetHeight, left: toast.offsetLeft - half, right: toast.offsetLeft + half }
+    const lift = toastLift(box, card?.getBoundingClientRect() ?? null, TOAST_GAP, fresh ? 0 : this.toastLift)
     if (lift === this.toastLift) return
     this.toastLift = lift
     this.toast.style.setProperty('--lift', `${lift}px`)

@@ -167,6 +167,211 @@ describe.skipIf(!BROWSER)('잘린 요소 검사 (scripts/lib/cuts.mjs, E307)', (
     })
   })
 
+  describe('고르는 카드의 자리 (실제 CSS, E307): 세로 화면에서 위쪽 묶음과 아래 묶음 사이에 다 들어온다', () => {
+    const STYLES = ['theme.css', 'parts.css', 'hud.css', 'chapter.css', 'pickCard.css', 'return.css', 'portrait.css']
+    const branch = (name, text) => `<button class="pick-card__card" type="button"><b>${name}</b><small>${text}</small></button>`
+    /** 귀환 카드 (`ReturnCard`가 짓는 모양): 갈래 다섯, depth면 엔딩 뒤의 깊이 알약 둘과 「지난번 그대로」 꼬리표까지 */
+    const returnCard = ({ depth = false, hidden = false } = {}) =>
+      `<div class="pick-card return-card"${hidden ? ' hidden' : ''}><div class="pick-card__title">원정 4를 마친다</div>` +
+      '<div class="return-card__mult"><b>×1.32 → ×1.45</b><small>명성 +10</small></div>' +
+      '<div class="return-card__line">이번 원정 5:00 · 지난 원정 5:00</div>' +
+      '<div class="return-card__line is-keep">남는 것: 깨운 신·신 단계·유물표·원형·장 진행·웨이포인트·가장 좋은 장비 2</div>' +
+      '<div class="return-card__line is-clear">지워지는 것: 기세(수련 마디), 일반 장비</div>' +
+      (depth ? '<div class="return-card__depth"><button class="ui-pill is-on" type="button">그대로 · 깊이 1</button><button class="ui-pill" type="button">+1 · 깊이 2</button></div>' : '') +
+      '<div class="return-card__ask">하나를 골라 돌아간다</div><div class="pick-card__row">' +
+      `<button class="pick-card__card" type="button">${depth ? '<small class="return-card__again">지난번 그대로</small>' : ''}<b>불꽃 불씨</b><small>원천 +2, 모든 피해 ×1.1</small></button>` +
+      branch('토르 승천', '2단계: 모든 피해 ×1.35, 생명 +25%') +
+      branch('사냥 불씨', '원천 +2, 받는 명성 ×1.25') +
+      branch('바람 불씨', '원천 +2, 공격·이동 ×1.06') +
+      branch('바위 불씨', '원천 +2, 최대 생명 ×1.15·받는 피해 ×0.95') +
+      '</div><button class="ui-btn return-card__later" type="button">아직</button></div>'
+    /** 맹세 출발 카드 (`OathCard`): 맹세 count장 */
+    const oathCard = (count) =>
+      '<div class="pick-card return-card oath-card"><div class="pick-card__title">맹세를 걸고 떠난다</div><div class="return-card__ask">그 원정에서 장 보스나 수호자를 이기면 지킨다</div><div class="pick-card__row">' +
+      Array.from({ length: count }, (_, i) => `<button class="pick-card__card" type="button"><b>맹세 ${i + 1}의 이름</b><small>떠난 지 10분 안에 지켜야 한다</small><small class="oath-card__reward">모든 무기 동작 빠르기 +10%</small></button>`).join('') +
+      '</div><button class="ui-btn return-card__later" type="button">맹세 없이</button></div>'
+    /** 게임의 HUD 뼈대: 초상 줄·원천 칩·아래 묶음(생명 막대와 유물 칸)·작은 지도·목표 한 줄, 그리고 카드 */
+    const hud = (card) =>
+      `<style>${STYLES.map(css).join('\n')}</style><script>document.documentElement.classList.add('is-touch')</script><div class="hud">` +
+      '<div class="hud__status"><div style="width:113px;height:52px"></div></div><div class="hud__essence"><span class="hud__essence-cell">2</span></div>' +
+      `<div class="hud__dock"><div class="hud__life ui-bar"></div><div class="hud__slots">${'<div class="hud__slot"></div>'.repeat(4)}</div></div>` +
+      `<canvas class="minimap" width="64" height="64"></canvas><div class="chapter-goal"><span>성소 화로에서 첫 원정을 마친다 (×1.32)</span></div>${card}</div>`
+    /** 그 화면에서 잘린 요소와 자리들 */
+    const layout = async (html, [width, height]) => {
+      const page = await browser.newPage({ viewport: { width, height }, ...(width < height ? { hasTouch: true, isMobile: true } : {}) })
+      try {
+        await page.setContent(`${SHELL}<div id="app">${html}</div>`)
+        const found = await page.evaluate(findCuts)
+        const boxes = await page.evaluate(() => {
+          const box = (sel) => {
+            const el = document.querySelector(sel)
+            const r = el.getBoundingClientRect()
+            return { top: r.top, bottom: r.bottom, left: r.left, right: r.right, shown: getComputedStyle(el).visibility !== 'hidden', scroll: el.scrollHeight - el.clientHeight }
+          }
+          return { card: box('.pick-card'), status: box('.hud__status'), dock: box('.hud__dock'), minimap: box('.minimap'), goal: box('.chapter-goal'), chips: box('.hud__essence'), later: box('.return-card__later') }
+        })
+        return { found, ...boxes }
+      } finally {
+        await page.close()
+      }
+    }
+    const PHONES = [[393, 659], [393, 852], [390, 844]]
+    const CARDS = [
+      ['귀환 카드', returnCard()],
+      ['엔딩 뒤 귀환 카드 (깊이 알약·지난번 그대로)', returnCard({ depth: true })],
+      ['맹세 셋', oathCard(3)],
+      ['맹세 여덟', oathCard(8)],
+    ]
+
+    it.each(PHONES)('%i×%i: 카드가 초상 줄 아래에서 시작해 아래 묶음 위에서 끝나고, 밀지 않아도 다 보인다 (잘림·덮임 0)', async (width, height) => {
+      for (const [name, card] of CARDS) {
+        const at = await layout(hud(card), [width, height])
+        expect(at.found, name).toEqual([])
+        expect(at.card.top, name).toBeGreaterThanOrEqual(at.status.bottom)
+        expect(at.card.bottom, name).toBeLessThanOrEqual(at.dock.top)
+        expect(at.card.scroll, name).toBeLessThanOrEqual(0)
+        expect(at.card.left, name).toBeGreaterThanOrEqual(0)
+        expect(at.card.right, name).toBeLessThanOrEqual(width)
+      }
+    }, 60000)
+
+    it('카드가 떠 있는 동안 작은 지도·원천 칩·목표 한 줄은 숨고(카드가 그 자리까지 쓴다), 닫히면 돌아온다', async () => {
+      const open = await layout(hud(returnCard()), [393, 659])
+      expect([open.minimap.shown, open.chips.shown, open.goal.shown]).toEqual([false, false, false])
+      // 393×659에서는 카드가 작은 지도의 아래 끝보다 위에서 시작한다: 숨기지 않으면 카드 위에 그려진다 (작은 지도 40, 카드 35)
+      expect(open.card.top).toBeLessThan(open.minimap.bottom)
+      const closed = await layout(hud(returnCard({ hidden: true })), [393, 659])
+      expect([closed.minimap.shown, closed.chips.shown, closed.goal.shown]).toEqual([true, true, true])
+    }, 30000)
+
+    it('띠보다 긴 카드(맹세 스무 장)는 카드 안에서 민다: 아래 묶음을 덮지 않고 초상 줄도 넘지 않는다', async () => {
+      const at = await layout(hud(oathCard(20)), [393, 659])
+      expect(at.card.scroll).toBeGreaterThan(0)
+      expect(at.card.top).toBeGreaterThanOrEqual(at.status.bottom)
+      expect(at.card.bottom).toBeLessThanOrEqual(at.dock.top)
+    }, 30000)
+
+    it('가로 화면(1280×720)은 그대로다: 카드는 위쪽 18%에 뜨고 작은 지도는 숨지 않는다', async () => {
+      const at = await layout(hud(returnCard()), [1280, 720])
+      expect(at.found).toEqual([])
+      expect(at.minimap.shown).toBe(true)
+      expect(Math.round(at.card.top)).toBe(Math.round(720 * 0.18))
+      expect(at.card.right).toBeLessThan(at.minimap.left)
+    }, 30000)
+  })
+
+  describe('위쪽 묶음과 땅 위의 글 (실제 CSS, E307 손 QA)', () => {
+    const STYLES = ['theme.css', 'parts.css', 'hud.css', 'chapter.css', 'portrait.css']
+    const page = async ([width, height], body) => {
+      const p = await browser.newPage({ viewport: { width, height }, ...(width < height ? { hasTouch: true, isMobile: true } : {}) })
+      await p.setContent(`${SHELL}<div id="app"><style>${STYLES.map(css).join('\n')}</style><div class="hud">${body}</div></div>`)
+      return p
+    }
+    /** 목표 한 줄 (`ChapterHud`가 짓는 모양): 마름모·글·막대 */
+    const goal = (text, { bar = false, hidden = false } = {}) =>
+      `<canvas class="minimap" width="64" height="64"></canvas><div class="chapter-goal${bar ? ' has-bar' : ''}"${hidden ? ' hidden' : ''}><i class="chapter-goal__mark"></i><span>${text}</span><div class="chapter-goal__bar"><div style="width:40%"></div></div></div>`
+    const boxes = (p) =>
+      p.evaluate(() => {
+        const box = (sel) => {
+          const r = document.querySelector(sel).getBoundingClientRect()
+          return { top: r.top, bottom: r.bottom, left: r.left, right: r.right, width: r.width, height: r.height }
+        }
+        const span = document.querySelector('.chapter-goal > span')
+        return { goal: box('.chapter-goal'), mark: box('.chapter-goal__mark'), text: box('.chapter-goal > span'), bar: box('.chapter-goal__bar'), minimap: box('.minimap'), line: parseFloat(getComputedStyle(span).lineHeight), shown: getComputedStyle(document.querySelector('.chapter-goal')).display }
+      })
+    const LONG = '성소 화로에서 첫 원정을 마친다 그리고 더 긴 목표의 글이 이어진다 (×1.32)'
+
+    it.each([[393, 852], [393, 659], [390, 844]])('%i×%i: 목표가 길어 줄을 바꿔도 금빛 마름모는 글의 첫 줄 옆에 선다 (혼자 윗줄에 남지 않는다)', async (width, height) => {
+      const p = await page([width, height], goal(LONG))
+      try {
+        const at = await boxes(p)
+        // 글은 두 줄 넘게 접혔고, 마름모는 그 첫 줄의 높이 안, 글의 왼쪽에 있다
+        expect(at.text.height).toBeGreaterThan(at.line * 1.5)
+        expect(at.mark.right).toBeLessThanOrEqual(at.text.left)
+        expect(at.mark.top).toBeGreaterThanOrEqual(at.text.top)
+        expect(at.mark.bottom).toBeLessThanOrEqual(at.text.top + at.line)
+        // 상자의 높이는 글의 줄만큼이다: 마름모만의 줄이 따로 없다
+        expect(at.goal.height - at.text.height).toBeLessThan(at.line)
+        // 글은 작은 지도 왼쪽에서 끝난다
+        expect(at.text.right).toBeLessThanOrEqual(at.minimap.left)
+      } finally {
+        await p.close()
+      }
+    }, 30000)
+
+    it('짧은 목표는 한 줄이고, 채우는 목표의 막대는 글 아래에서 상자 폭을 다 쓴다', async () => {
+      const p = await page([393, 852], goal('기세를 모은다 0/3', { bar: true }))
+      try {
+        const at = await boxes(p)
+        expect(at.text.height).toBeLessThan(at.line * 1.5)
+        expect(at.mark.right).toBeLessThanOrEqual(at.text.left)
+        expect(at.bar.top).toBeGreaterThanOrEqual(at.text.bottom)
+        // 양옆 안쪽 여백(12px)만 빼고 다 쓴다
+        expect(at.bar.left).toBeLessThan(at.text.left)
+        expect(at.bar.width).toBeCloseTo(at.goal.width - 24, 0)
+      } finally {
+        await p.close()
+      }
+    }, 30000)
+
+    it('숨긴 목표는 세로 화면에서도 숨는다, 가로 화면은 한 줄 그대로다', async () => {
+      const hidden = await page([393, 852], goal(LONG, { hidden: true }))
+      try {
+        expect((await boxes(hidden)).shown).toBe('none')
+      } finally {
+        await hidden.close()
+      }
+      const wide = await page([1280, 720], goal(LONG))
+      try {
+        const at = await boxes(wide)
+        expect(at.shown).toBe('flex')
+        expect(at.text.height).toBeLessThan(at.line * 1.5)
+        expect(Math.abs((at.mark.top + at.mark.bottom) / 2 - (at.text.top + at.text.bottom) / 2)).toBeLessThan(1)
+      } finally {
+        await wide.close()
+      }
+    }, 30000)
+
+    /** 그 요소의 그림자들이 놓인 자리 (px) */
+    const shadows = (p, sel) =>
+      p.evaluate((s) => {
+        const el = document.querySelector(s)
+        const style = getComputedStyle(el)
+        return { size: parseFloat(style.fontSize), at: [...style.textShadow.matchAll(/(-?[\d.]+)px (-?[\d.]+)px (-?[\d.]+)px/g)].map((m) => [Number(m[1]), Number(m[2]), Number(m[3])]) }
+      }, sel)
+    const TEXTS = '<div class="hud__toast is-showing">더 좋은 장비 · 좋음 누빈 웃옷</div><div class="damage-numbers"><div class="damage-number damage-number--label">+ 좋음 누빈 웃옷</div></div>'
+
+    it.each([[393, 852, 12], [393, 659, 12], [1920, 1200, 24]])('%i×%i: 작은 알림과 주운 것의 이름은 획에 바로 붙는 테두리를 두른다 (여덟 방향, 빈틈 없이)', async (width, height, size) => {
+      const p = await page([width, height], TEXTS)
+      try {
+        for (const sel of ['.hud__toast', '.damage-number--label']) {
+          const { size: font, at } = await shadows(p, sel)
+          expect(font, sel).toBe(size)
+          // 획 굵기 (글자 크기의 1/12)
+          const stroke = size / 12
+          const has = (x, y) => at.some(([sx, sy, blur]) => Math.abs(sx - x * stroke) < 0.01 && Math.abs(sy - y * stroke) < 0.01 && blur === 0)
+          // 획 바로 옆 여덟 칸이 모두 찬다: 전에는 두세 칸 떨어진 넷뿐이라 획 옆과 대각선이 비어 눈 땅에서 글이 뭉개졌다
+          for (const x of [-1, 0, 1]) for (const y of [-1, 0, 1]) if (x !== 0 || y !== 0) expect(has(x, y), `${sel} (${x}, ${y})`).toBe(true)
+          // 그 밖으로 한 겹 더, 그보다 먼 그림자는 없다 (획에서 떨어져 겹쳐 보이는 글)
+          for (const [x, y] of [[2, 0], [-2, 0], [0, 2], [0, -2], [2, 1], [-1, -2]]) expect(has(x, y), `${sel} (${x}, ${y})`).toBe(true)
+          expect(Math.max(...at.map(([sx, sy]) => Math.max(Math.abs(sx), Math.abs(sy))))).toBeCloseTo(stroke * 2, 2)
+        }
+      } finally {
+        await p.close()
+      }
+    }, 30000)
+
+    it('새 탭 카드는 메뉴 단추로 날아간 뒤 다 사라진다 (전: 흐린 채 31×9px로 남았다)', async () => {
+      const p = await page([393, 659], '<div class="hud__gains is-fly is-showing" style="--life: 150ms"><div class="hud__gains-head"><div class="hud__gains-kind">새 탭</div><div class="hud__gains-title">장비</div></div></div>')
+      try {
+        await p.evaluate(() => Promise.all(document.querySelector('.hud__gains').getAnimations().map((a) => a.finished)))
+        expect(await p.evaluate(() => getComputedStyle(document.querySelector('.hud__gains')).opacity)).toBe('0')
+      } finally {
+        await p.close()
+      }
+    }, 30000)
+  })
+
   describe('밀림: 단서 없이 가로로 넘친 미는 상자', () => {
     const row = (style) => `<div class="hud"><div class="row" style="display:flex;width:200px;overflow-x:auto;${style}">${[1, 2, 3, 4, 5, 6].map((i) => `<button style="flex:none;width:60px;height:44px">${i}</button>`).join('')}</div></div>`
 

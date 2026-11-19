@@ -217,3 +217,22 @@ describe('클래스끼리', () => {
     for (const [realm, attacks] of byRealm) expect(new Set(attacks).size, realm).toBe(attacks.length)
   })
 })
+
+describe('단계에서 얻는 것의 글 (E307 손 QA)', () => {
+  it('곁에서 싸우는 동료: 수를 이름에 붙이지 않고 괄호 안에 적는다 (전: 「후긴과 무닌 1이 곁에서 함께 싸움」)', () => {
+    const line = levelGains('odin', 1).find((g) => g.text.includes('곁에서 함께 싸움'))?.text
+    expect(line).toMatch(/^후긴과 무닌이 곁에서 함께 싸움 \(수 1, 일격 피해 \d+(\.\d)?\)$/)
+    // 오른 단계의 줄과 같은 말 (「수 1 → 2」)
+    expect(levelGains('odin', 2).map((g) => g.text)).toContain('후긴과 무닌 수 1 → 2')
+  })
+
+  it('동료가 있는 신은 모두: 이름 바로 뒤에 수가 오지 않고, 조사가 이름의 받침을 따른다', () => {
+    const withCompanions = gods.filter((g) => DATA.gods[g]!.passive.companions)
+    expect(withCompanions.length).toBeGreaterThan(3)
+    for (const god of withCompanions) {
+      const part = DATA.gods[god]!.passive.companions!
+      const line = levelGains(god, part.minLevel).find((g) => g.text.includes('곁에서 함께 싸움'))?.text ?? ''
+      expect(line, god).toMatch(new RegExp(`^${part.name}[이가] 곁에서 함께 싸움 \\(수 \\d+, 일격 피해 `))
+    }
+  })
+})

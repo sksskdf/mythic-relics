@@ -8,7 +8,7 @@ import { renderStatus } from './menu/statusTab'
 import { renderOaths } from './menu/oathsTab'
 import { TrainingTab } from './menu/trainingTab'
 import { el, img, type TabContext } from './menu/dom'
-import { HintTaps } from './menu/hintTaps'
+import { hintSpot, HintTaps } from './menu/hintTaps'
 import type { MenuHost } from './menu/host'
 import { glyph } from './sigils'
 import './menu.css'
@@ -73,7 +73,13 @@ export class GameMenu {
   onToggle: (open: boolean) => void = () => {}
 
   constructor(parent: HTMLElement, host: MenuHost) {
-    this.ctx = { host, hintOn: (target, text) => this.hintOn(target, text), render: () => this.render(), close: () => this.toggle(false) }
+    this.ctx = {
+      host,
+      hintOn: (target, text, avoid) => this.hintOn(target, text, avoid),
+      hintOff: (target) => this.hintOff(target),
+      render: () => this.render(),
+      close: () => this.toggle(false),
+    }
     this.relics = new RelicsTab(this.ctx)
     this.gods = new GodsTab(this.ctx)
     this.training = new TrainingTab(this.ctx)
@@ -115,7 +121,7 @@ export class GameMenu {
         home.classList.remove('is-confirm')
         home.lastElementChild!.textContent = '처음 화면'
         // 손가락으로 띄운 설명도 함께 거둔다 (세로 화면에서는 바로 아래 탭 줄을 덮고 있다)
-        if (this.fingerHint === home) this.hint.hidden = true
+        this.hintOff(home)
       }, 2500)
     })
     this.hintOn(home, '처음 화면\n지금까지를 저장하고 슬롯 고르기 화면으로 돌아간다')
@@ -219,9 +225,10 @@ export class GameMenu {
   /**
    * 커서를 올리면(마우스) 힌트를 그 칸 근처에 띄우고, 벗어나면 거둔다. 창을 다시 그리면 닫힌다.
    * 손가락은 설명만 있는 칸이면 떼는 순간 띄워 다음에 누를 때까지 두고, 일을 하는 단추(탭·행동 단추)는
-   * 그 톡이 창을 다시 그리지 않았을 때만 띄운다 (「한 번 더 누르면」의 첫 톡. `HintTaps`)
+   * 그 톡이 창을 다시 그리지 않았을 때만 띄운다 (「한 번 더 누르면」의 첫 톡. `HintTaps`).
+   * avoid는 그 칸이 가리키는 것: 말풍선이 그것을 덮지 않는 쪽(칸의 아래나 위)에 둔다 (`hintSpot`)
    */
-  private hintOn(target: HTMLElement, text: string | (() => string)): void {
+  private hintOn(target: HTMLElement, text: string | (() => string), avoid?: () => HTMLElement | null): void {
     const show = (finger = false) => {
       // 다시 그려 떼어진 옛 단추나 닫힌 창에는 띄우지 않는다 (자리를 잴 수 없어 창 구석에 뜬다)
       if (!target.isConnected || !this.open) return
@@ -233,12 +240,13 @@ export class GameMenu {
       else this.hint.textContent = words
       this.hint.hidden = false
       const frame = this.hint.parentElement!.getBoundingClientRect()
-      const r = target.getBoundingClientRect()
-      const width = this.hint.offsetWidth
-      const left = Math.min(Math.max(8, r.left - frame.left + r.width / 2 - width / 2), frame.width - width - 8)
-      const below = r.bottom - frame.top + 6
-      const top = below + this.hint.offsetHeight > frame.height - 8 ? r.top - frame.top - this.hint.offsetHeight - 6 : below
-      this.hint.style.transform = `translate(${Math.round(left)}px, ${Math.round(top)}px)`
+      const box = (e: HTMLElement) => {
+        const r = e.getBoundingClientRect()
+        return { left: r.left - frame.left, top: r.top - frame.top, width: r.width, height: r.height }
+      }
+      const kept = avoid?.() ?? null
+      const { left, top } = hintSpot(box(target), { width: this.hint.offsetWidth, height: this.hint.offsetHeight }, frame, kept && box(kept))
+      this.hint.style.transform = `translate(${left}px, ${top}px)`
     }
     target.addEventListener('pointerenter', (e) => e.pointerType === 'mouse' && show())
     target.addEventListener('pointerleave', (e) => e.pointerType === 'mouse' && (this.hint.hidden = true))
@@ -247,6 +255,11 @@ export class GameMenu {
     const tapped = () => show(true)
     target.addEventListener('pointerdown', (e) => e.pointerType !== 'mouse' && this.taps.press(tapped, this.drawn))
     target.addEventListener('pointerup', (e) => e.pointerType !== 'mouse' && this.taps.lift(tapped, acts()) && tapped())
+  }
+
+  /** 손가락으로 그 칸에 띄운 힌트를 거둔다 (「한 번 더 누르면」을 기다리던 단추가 처음으로 돌아갈 때). 다른 칸의 힌트는 그대로 둔다 */
+  private hintOff(target: HTMLElement): void {
+    if (this.fingerHint === target) this.hint.hidden = true
   }
 
   /** 탭 줄에 보이는 탭인가 */

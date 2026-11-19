@@ -251,6 +251,10 @@ button.hud__slot--empty {
 .damage-number--hurt {
   color: #ff6b5e;
 }
+/*
+ * 주운 것의 이름: 굵지 않은 글(획 한 칸)이라 숫자의 그림자(두 칸 떨어진 넷)로는 획 옆이 비어 눈 땅 위에서 뭉개졌다 (E307).
+ * 획에 바로 붙는 테두리를 쓴다 (`theme.css`의 --text-edge)
+ */
 .damage-number--label {
   white-space: nowrap;
   font: max(12px, round(down, 2.2vh, 12px)) / 1 var(--font-body);
@@ -278,7 +282,10 @@ button.hud__slot--empty {
   font: max(30px, round(down, 6vh, 15px)) / 1.2 var(--font-display);
   letter-spacing: 0.1em;
 }
-/* --lift: 땅의 카드(다가가면 뜨는 카드)가 이 자리를 덮으면 Hud가 그 카드 위로 올리는 높이 */
+/*
+ * --lift: 땅의 카드(다가가면 뜨는 카드)가 이 자리를 덮으면 Hud가 그 카드 위로 올리는 높이.
+ * 본문 크기의 글(획 한 칸)이라 큰 글씨의 그림자(세 칸 떨어진 넷) 대신 획에 바로 붙는 테두리를 쓴다 (E307, `theme.css`의 --text-edge)
+ */
 .hud__toast {
   bottom: calc(var(--unit) * 14 + var(--lift, 0px));
   font: max(12px, round(down, 2.4vh, 12px)) / 1.4 var(--font-body);
@@ -428,7 +435,8 @@ button.hud__slot--empty {
 }
 /*
  * 휴대폰 (E307): 엄지가 놓이는 아래 가운데의 유물 칸·생명 막대·궁극기와 원천 칩은 누름을 받지 않고 게임 화면으로 흘려보낸다.
- * 그 위에서 끌어도 조이스틱이 시작되고, 칸을 톡해도 정보 화면이 열리지 않는다 (설명은 정보 화면에서. 초상이나 메뉴 단추로 연다)
+ * 그 위에서 끌어도 조이스틱이 시작되고, 칸을 톡해도 정보 화면이 열리지 않는다 (설명은 정보 화면에서. 초상이나 메뉴 단추로 연다).
+ * 그 위의 톡은 땅으로 가는 지시로도 치지 않는다: 조각을 더하면 `TouchControls.ts`의 `TAP_DEAD`에도 더한다 (`tests/touch.test.ts`)
  */
 .is-touch button.hud__slot,
 .is-touch .hud__life,
@@ -495,7 +503,10 @@ button.hud__slot--empty {
 .hud__gains:not(.is-side) .hud__gains-title {
   font: var(--t-display);
 }
-/* 새 탭 (E236-05): 가운데 떴다가 오른쪽 위 메뉴 단추로 작아지며 날아 들어간다. 단추는 정보 화면을 열 때까지 부른다 */
+/*
+ * 새 탭 (E236-05): 가운데 떴다가 오른쪽 위 메뉴 단추로 작아지며 날아 들어간다. 단추는 정보 화면을 열 때까지 부른다.
+ * 단추에 닿으면 다 사라진다: 흐린 채(0.2)로 끝나면 forwards가 그 모습을 붙들어, 줄어든 카드가 다음 카드가 뜰 때까지 단추 위에 남았다 (E307)
+ */
 .hud__gains.is-fly.is-showing {
   animation: hud-gains-fly var(--life, 3.6s) ease-in forwards;
 }
@@ -562,6 +573,15 @@ button.hud__slot--empty {
 .hud__gains li::before {
   content: '▲ ';
   color: var(--c-good);
+}
+/* 견주는 줄 (더 좋은 장비 · 가방, E307): 줄 앞의 표시 하나가 지금 낀 것보다 좋아졌나(▲)·나빠졌나(▼)·같은가를 말한다 (`gainsLine.ts`의 gainsMark) */
+.hud__gains li.is-down::before {
+  content: '▼ ';
+  color: var(--c-bad);
+}
+.hud__gains li.is-same::before {
+  content: '· ';
+  color: var(--c-ink-3);
 }
 @keyframes hud-gains-line {
   from { opacity: 0; transform: translateX(-8px); }

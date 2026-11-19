@@ -8,6 +8,7 @@ import { GRADES } from '../data/gearData'
 import { statText } from '../myth/alwaysText'
 import { iconFromGrid } from '../voxel/iconFromGrid'
 import { gearGrid } from '../voxel/models/gearLooks'
+import { markLine } from './gainsLine'
 import { pixelIcon } from './pixelIcon'
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, text?: string): HTMLElementTagNameMap[K] {
@@ -42,6 +43,21 @@ export function delta(kind: string, value: number, other: number): { text: strin
   const lower = kind === 'damageTaken' || kind === 'lowHpGuard'
   const good = lower ? diff < 0 : diff > 0
   return { text: good ? '▲' : '▼', good }
+}
+
+/**
+ * 「더 좋은 장비 · 가방」 카드의 수치 줄 (E307): 지금 낀 것과 견준 결과를 줄 앞의 표시 하나로 단다 (`gainsLine.ts`의 markLine).
+ * 좋아졌으면 ▲, 나빠졌으면 ▼, 같으면 ·, 낀 것에 없는 수치는 얻은 것(▲)에 「새 수치」.
+ * 전에는 결과를 줄 끝에 달아, 카드가 줄마다 앞에 붙이는 ▲와 겹쳤다 (「▲ 받는 피해 −7% ▲」, 나빠진 수치는 「▲ … ▼」)
+ */
+export function betterLines(item: GearItem, worn: GearItem): string[] {
+  return item.stats.map((st) => {
+    const text = statText(st.kind, st.value)
+    const same = worn.stats.find((w) => w.kind === st.kind)
+    if (!same) return markLine('up', `${text} 새 수치`)
+    const d = delta(st.kind, st.value, same.value)
+    return markLine(d ? (d.good ? 'up' : 'down') : 'same', text)
+  })
 }
 
 /**

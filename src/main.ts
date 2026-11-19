@@ -2,6 +2,7 @@ import './ui/theme.css'
 import './ui/parts.css'
 import { Game } from './game/Game'
 import { coarsePointer, detectTouch, phoneScreen } from './input/device'
+import { listenFingerClicks } from './input/fingerClick'
 import { isRelicId, RELIC_IDS } from './relics/data'
 import { SLOT_COUNT, saveStorage, TITLE_REQUEST } from './save/SaveData'
 import { RENDER_QUALITIES, settingsStorage } from './save/settings'
@@ -28,6 +29,9 @@ settingsStorage.useDevice(phoneScreen(touch, innerWidth, innerHeight))
 for (const type of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(type, (e) => e.preventDefault(), { passive: false })
 // 두 번 눌러 확대는 index.html의 touch-action: manipulation(모든 요소)이 막는다. 0.3초 안에 이어 뗀 손가락의 touchend를 막던
 // 가드는 걷었다 (E307): 그 톡의 click까지 지워, 빠르게 이어 누른 탭·단추와 「한 번 더 누르면」(수련 마디·가방 장비)이 먹지 않았다
+// 한 손가락이 닿아 있는 동안(조이스틱을 쥔 엄지, 화면에 얹은 손) 다른 손가락으로 누른 단추에는 브라우저가 click을 내지 않는다:
+// 그 톡의 click을 대신 낸다 (E307. 메뉴 단추·초상·작은 지도·정보 화면·고르는 카드·처음 화면의 단추가 모두 click을 듣는다)
+listenFingerClicks()
 const rotateHint = new RotateHint(document.body, touch)
 const resParam = Number(params.get('res'))
 const viewParam = Number(params.get('view'))

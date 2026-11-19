@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
 import { CARD_HOLD, TOAST_BUNDLES } from '../src/data/moments'
+import type { GearItem } from '../src/gear/roll'
 import { stackLift } from '../src/ui/DamageNumbers'
-import { countWord, type GainsCard, GAINS_LIFE, GAINS_RUSH_MS, GainsLine, gainsView } from '../src/ui/gainsLine'
-import { PickGate } from '../src/ui/pickGate'
-import { TOAST_HOLD, TOAST_LIFE, ToastLine } from '../src/ui/toastLine'
+import { countWord, type GainsCard, GAINS_LIFE, GAINS_RUSH_MS, GainsLine, gainsMark, gainsView, markLine } from '../src/ui/gainsLine'
+import { betterLines } from '../src/ui/gearCard'
+import hudCss from '../src/ui/hud.css?raw'
+import { byCode, PickGate } from '../src/ui/pickGate'
+import pickGateSource from '../src/ui/pickGate.ts?raw'
+import { TOAST_HOLD, TOAST_LIFE, toastLift, ToastLine } from '../src/ui/toastLine'
 
 const gear = (title: string, kind = '장비'): GainsCard => ({ kind, title, color: '#5aa8ff', icon: '', lines: ['이동 속도 +6%'], size: 'card', bundles: true })
 const big = (title: string): GainsCard => ({ kind: '대장간', title, color: '#ffd75e', icon: '', lines: ['2단계'], size: 'big' })
@@ -159,6 +163,94 @@ describe('얻은 것 카드의 줄 (E307 카드 예산)', () => {
   })
 })
 
+describe('카드가 사라지는 움직임 (hud.css, E307 손 QA)', () => {
+  /** 그 이름의 @keyframes에서 마지막(100%) 걸음의 몸 */
+  const lastFrame = (name: string) => hudCss.match(new RegExp(`@keyframes ${name} \\{[^]*?\\n  100% \\{([^}]*)\\}`))?.[1] ?? ''
+
+  it.each(['hud-gains', 'hud-gains-side', 'hud-gains-fly'])('%s: 끝 모습이 다 사라진 것이다 (forwards가 붙드는 모습이 화면에 남지 않는다)', (name) => {
+    // 새 탭 카드는 opacity 0.2로 끝나, 31×9px로 줄어든 카드가 다음 카드가 뜰 때까지 메뉴 단추 위에 남았다
+    expect(lastFrame(name)).toMatch(/opacity: 0;/)
+  })
+
+  it('새 탭 카드는 메뉴 단추에 닿을 때까지는 보인다: 날아가는 동안 흐려지다가 닿은 뒤에 사라진다', () => {
+    const fly = hudCss.match(/@keyframes hud-gains-fly \{[^]*?\n\}/)?.[0] ?? ''
+    const spot = (pct: string) => fly.match(new RegExp(`\\n  ${pct}% \\{[^}]*transform: ([^;]*);`))?.[1]
+    // 닿는 자리(97%)와 끝(100%)은 같은 자리이고, 닿을 때는 아직 흐리게 보인다
+    expect(spot('97')).toBeDefined()
+    expect(spot('97')).toBe(spot('100'))
+    expect(fly).toMatch(/97% \{ opacity: 0\.2;/)
+  })
+})
+
+describe('카드 줄 앞의 표시 (E307 손 QA)', () => {
+  const item = (grade: GearItem['grade'], stats: GearItem['stats']): GearItem => ({ uid: `g${grade}`, part: 'chest', base: '누빈 웃옷', grade, tier: 1, stats, source: { id: 'stone', value: 1 } })
+
+  it('표시 없이 온 줄은 얻은 것(▲)이고 글은 그대로다', () => {
+    expect(gainsMark('이동 속도 +6%')).toEqual({ mark: 'up', text: '이동 속도 +6%' })
+    expect(gainsMark('후긴과 무닌 수 1 → 2')).toEqual({ mark: 'up', text: '후긴과 무닌 수 1 → 2' })
+  })
+
+  it('견주는 줄은 표시를 줄 앞에 달고, 그리는 쪽은 그것을 떼어 줄 앞의 표시 하나로 보인다', () => {
+    for (const mark of ['up', 'down', 'same'] as const) expect(gainsMark(markLine(mark, '받는 피해 −7%'))).toEqual({ mark, text: '받는 피해 −7%' })
+  })
+
+  it('「더 좋은 장비 · 가방」의 줄: 좋아진 수치는 ▲, 나빠진 수치는 ▼, 같은 수치는 ·, 없던 수치는 ▲와 「새 수치」', () => {
+    const worn = item('good', [
+      { kind: 'damageTaken', value: -0.05 },
+      { kind: 'maxHp', value: 30 },
+      { kind: 'regen', value: 0.5 },
+    ])
+    const found = item('rare', [
+      { kind: 'damageTaken', value: -0.07 },
+      { kind: 'maxHp', value: 20 },
+      { kind: 'regen', value: 0.5 },
+      { kind: 'moveSpeed', value: 0.06 },
+    ])
+    const lines = betterLines(found, worn).map(gainsMark)
+    expect(lines).toEqual([
+      // 받는 피해는 줄수록 좋다
+      { mark: 'up', text: '받는 피해 −7%' },
+      { mark: 'down', text: '최대 생명 +20' },
+      { mark: 'same', text: '초당 생명 재생 +0.5' },
+      { mark: 'up', text: '이동 속도 +6% 새 수치' },
+    ])
+    // 줄 끝에 표시를 또 달지 않는다 (전: 「▲ 받는 피해 −7% ▲」, 나빠진 수치는 「▲ … ▼」)
+    for (const line of lines) expect(line.text).not.toMatch(/[▲▼]/)
+  })
+})
+
+describe('작은 알림을 땅의 카드 위로 올리기 (E307 손 QA)', () => {
+  // 393×852: 알림은 아래 묶음 위(728~745), 다가가면 뜨는 카드는 그 자리를 덮는다 (546~760)
+  const toast = { top: 728, bottom: 745, left: 114, right: 279 }
+  const card = { top: 546, bottom: 760, left: 60, right: 333 }
+  const GAP = 6
+
+  it('카드에 가리면 카드 위 끝 바로 위로 올린다, 가리지 않으면 그대로', () => {
+    expect(toastLift(toast, card, GAP)).toBe(745 - (546 - GAP))
+    expect(toastLift(toast, null, GAP)).toBe(0)
+    expect(toastLift(toast, { ...card, top: 760, bottom: 800 }, GAP)).toBe(0)
+    expect(toastLift(toast, { ...card, left: 300, right: 393 }, GAP)).toBe(0)
+  })
+
+  it('올릴 자리가 화면 밖이면 그대로 둔다', () => {
+    expect(toastLift(toast, { ...card, top: 10 }, GAP)).toBe(0)
+  })
+
+  it('떠 있는 알림은 올라가기만 한다: 읽는 도중에 카드가 닫혀도 제자리로 뛰어내리지 않는다', () => {
+    const lifted = toastLift(toast, card, GAP)
+    // 카드가 닫혔다 (걷기 시작·몇 초 뒤): 올라간 자리에 그대로
+    expect(toastLift(toast, null, GAP, lifted)).toBe(lifted)
+    // 더 높은 카드가 뜨면 더 올라간다
+    expect(toastLift(toast, { ...card, top: 500 }, GAP, lifted)).toBe(745 - (500 - GAP))
+    // 낮은 카드로 바뀌어도 내려오지 않는다
+    expect(toastLift(toast, { ...card, top: 600 }, GAP, lifted)).toBe(lifted)
+  })
+
+  it('새 알림은 다시 잰다: 카드가 없으면 제자리에서 뜬다', () => {
+    expect(toastLift(toast, null, GAP, 0)).toBe(0)
+  })
+})
+
 describe('작은 알림의 줄 (E307)', () => {
   /** 줄에서 꺼낼 수 있는 대로 꺼내며 시간을 흘린다: 뜬 때(ms)와 글 */
   function texts(line: ToastLine, from = 0): { at: number; text: string }[] {
@@ -298,5 +390,22 @@ describe('고르는 카드의 누름 규칙 (E307)', () => {
     const gate = new PickGate()
     gate.show()
     expect(gate.take(true)).toBe(true)
+  })
+
+  it('다른 손가락이 닿아 있는 동안의 톡 대신 낸 click은 사람 손이다: 코드가 낸 것으로 치지 않고 잠금을 그대로 받는다 (E307 손 QA)', () => {
+    // 브라우저가 낸 click, 손가락 톡 대신 낸 click, 코드가 낸 click
+    expect(byCode(true, false)).toBe(false)
+    expect(byCode(false, true)).toBe(false)
+    expect(byCode(false, false)).toBe(true)
+    // 엄지를 얹은 채 뜬 직후에 누른 「아직」: 잠긴 동안의 누름이라 버린다
+    const gate = new PickGate()
+    gate.show()
+    gate.press()
+    expect(gate.take(byCode(false, true))).toBe(false)
+    // 잠금이 풀린 뒤 카드 위에서 누르면 고른 것이다
+    gate.arm()
+    gate.press()
+    expect(gate.take(byCode(false, true))).toBe(true)
+    expect(pickGateSource).toMatch(/gate\.take\(byCode\(e\.isTrusted, isFingerClick\(e\)\), e\.detail === 0\)/)
   })
 })

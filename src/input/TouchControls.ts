@@ -21,6 +21,27 @@ const shown = (classes: readonly string[]) => classes.map((c) => `.${c}:not([hid
 const PAUSING = shown(COVER_CLASSES.pausing)
 const COVERS = shown([...COVER_CLASSES.pausing, ...COVER_CLASSES.passing])
 
+/**
+ * 톡을 삼키는 HUD 조각 (E307 손 QA): 엄지가 놓이는 아래 묶음(생명 막대·유물 칸을 싼 상자와 궁극기)과 원천 칩.
+ * 휴대폰에서 이 조각들은 누름을 받지 않고 게임 화면으로 흘려보낸다 (hud.css, 그 위에서 끌어도 조이스틱이 시작되게).
+ * 그런데 톡까지 흘리면 스킬 그림을 눌렀을 때 그 아래 가려진 땅으로 가는 이동 지시가 되어, 싸우다 말고 화면 아래로 걸어 나간다.
+ * 끌기는 그대로 조이스틱이고, 톡만 지시로 치지 않는다 (칸 사이 틈도 같게: 묶음을 싼 상자로 잰다)
+ */
+export const TAP_DEAD = ['.hud__dock', '.hud__ult', '.hud__essence'] as const
+
+/** 사각형 (화면 CSS 픽셀, DOMRect에서 쓰는 것만) */
+export interface Box {
+  left: number
+  top: number
+  right: number
+  bottom: number
+}
+
+/** 그 자리가 사각형들 가운데 하나 안인가 (숨은 요소의 빈 사각형은 아무것도 담지 않는다) */
+export function inBoxes(x: number, y: number, boxes: readonly Box[]): boolean {
+  return boxes.some((b) => b.right > b.left && b.bottom > b.top && x >= b.left && x <= b.right && y >= b.top && y <= b.bottom)
+}
+
 /** `hidden`이 바뀐 요소 하나 (MutationRecord에서 쓰는 것만) */
 export interface HiddenChange {
   target: unknown
@@ -42,6 +63,7 @@ export function coverOpened(changes: readonly HiddenChange[]): boolean {
 /**
  * 휴대폰 조작 (E235): 게임 화면(캔버스)에 닿은 손가락을 몸짓으로 읽고, 떠다니는 조이스틱을 그린다.
  * 무엇을 할지(걷기·공격·확대)는 PlayerInput이 프레임마다 읽어 정한다. 마우스는 Input이 그대로 받는다.
+ * 아래 묶음(유물 칸·생명 막대·궁극기) 위에서 끌면 조이스틱이지만, 그 위의 톡은 지시로 치지 않는다 (`TAP_DEAD`).
  * 대화 장면·정보 화면·일시 정지 창·두 갈래 카드·맹세 출발 카드가 뜨면 쥐고 있던 조이스틱을 놓고 원을 숨긴다 (E307):
  * 손가락을 쥔 채여도 원이 그 창 위에 남지 않고, 뗐다 다시 대야 걷는다 (`COVER_CLASSES`)
  */
@@ -52,7 +74,7 @@ export class TouchControls {
 
   constructor(
     element: HTMLElement,
-    parent: HTMLElement,
+    private readonly parent: HTMLElement,
     private readonly now: () => number = () => performance.now() / 1000,
   ) {
     this.ring.className = 'stick'
@@ -119,8 +141,14 @@ export class TouchControls {
     return this.gestures.stretch > MOUNT.stickFar
   }
 
+  /** 막 톡 누른 자리 (한 번만 읽힌다). 아래 묶음·원천 칩 위의 톡은 지시가 아니라 삼킨다 (`TAP_DEAD`) */
   takeTap(): { x: number; y: number } | null {
-    return this.gestures.takeTap()
+    const tap = this.gestures.takeTap()
+    if (!tap) return null
+    // 고르는 카드가 떠 있는 동안 숨는 원천 칩처럼 보이지 않는 조각은 톡을 막지 않는다
+    const seen = [...this.parent.querySelectorAll(TAP_DEAD.join(', '))].filter((el) => getComputedStyle(el).visibility !== 'hidden')
+    const boxes = seen.map((el) => el.getBoundingClientRect())
+    return inBoxes(tap.x, tap.y, boxes) ? null : tap
   }
 
   private draw(): void {

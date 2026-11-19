@@ -34,10 +34,8 @@
   box-shadow: var(--stone-raised), inset 0 -3px 0 var(--god);
 }
 @media (max-width: 480px) {
-  /* 세로 화면: 카드를 화면 폭에 맞춰 두 줄씩 */
+  /* 세로 화면: 카드를 화면 폭에 맞춰 두 줄씩 (세로 자리는 `portrait.css`: 위쪽 묶음과 아래 묶음 사이 한가운데) */
   .return-card {
-    /* 오른쪽 위 작은 지도(세로 화면에서 위 4분의 1쯤) 아래로 */
-    top: 26%;
     width: calc(100vw - 2 * var(--sp-4));
     padding: var(--sp-4) var(--sp-3);
   }
