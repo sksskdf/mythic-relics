@@ -1,0 +1,192 @@
+[
+ {
+  "label": "0A 문서 닫기",
+  "result": {
+   "commit": "44c8276",
+   "files": [
+    "/home/user/mythic-relics/PLAYTEST.md",
+    "/home/user/mythic-relics/docs/knowledge/decisions.md",
+    "/home/user/mythic-relics/docs/knowledge/handoff.md",
+    "/home/user/mythic-relics/ROADMAP.md",
+    "/home/user/mythic-relics/REVIEW.md",
+    "/home/user/mythic-relics/CLAUDE.md",
+    "/home/user/mythic-relics/docs/knowledge/environment.md",
+    "/home/user/mythic-relics/docs/knowledge/troubleshooting.md",
+    "/home/user/mythic-relics/docs/knowledge/README.md",
+    "/home/user/mythic-relics/docs/knowledge/review-e307/README.md",
+    "/home/user/mythic-relics/docs/knowledge/review-e307/paused-0a/ (지움: README.md, qa-0a-fixes.patch, qa-0a-results.json)"
+   ],
+   "summary": "덩어리 0A를 문서에서 닫았고, 문서만 든 커밋 `44c8276` 하나를 만들었다(코드·스크립트·시험은 손대지 않음, 푸시 안 함, 작업 트리 깨끗함).\n- PLAYTEST.md 6.2: 큰 표에 한 줄과 「E307 0A 손 QA」 묶음(어떻게 봤나, 첫 판정 → 고침 → 다시 본 판정, 항목 표 27줄, 남은 다듬기 아홉, 실제 아이폰 확인 여섯 줄).\n- decisions.md: 2026-11-19 줄 열여섯(0A 닫음, 화면 규칙 열넷, 푸시가 막힌 동안의 보관).\n- handoff.md: 맨 위 문단을 새 사실로 바꾸고 낡은 두 문단을 줄였다. 상태 표, 다음 할 일, 사용자에게 받을 것도 고쳤다.\n- ROADMAP.md: 작업 단위 여덟 체크, E307-02 ✅, 0A 끝남·0C 진행 중, 0.2와 진행 상황에 11-19 줄. 로드맵 페이지도 다시 만들었다.\n- REVIEW.md: 머리 상태와 7.2 표에 0A 끝 표시만.\n- CLAUDE.md: 머리 문단, 웹 배포, 브라우저 자리, ui-sheet 다섯 크기, drive의 `fingers`, 코드 지도(fingerClick·pickGate·toastLine·gainsLine·plateSpot·wardrobeChips·cuts.mjs).\n- environment.md: 저장소·브라우저 자리, 푸시 403과 푸는 법, GitHub 도구의 계정, Actions 결제 잠금, 휴대폰 판 아티팩트 올리는 법과 패치 보관.\n- 시킨 것 밖에서 더한 것: troubleshooting.md 두 줄(스모크 시간 경합, 푸시 403), 두 README에 spec-0c-1.md 안내.\n- 사양과 달리 한 곳: 연결된 GitHub 계정의 이름은 문서에 적지 않았다. 공개 저장소에 실명처럼 보이는 계정이 남기 때문이고, 「저장소 주인(sksskdf)의 것이 아닌 계정, `get_me`로 확인」으로만 적었다.",
+   "roadmapHtml": "/tmp/claude-0/-home-user/ffd1e052-4b56-5e07-9c7e-17d57338f287/scratchpad/roadmap.html",
+   "leftForChief": [
+    "로드맵 아티팩트 올리기: /tmp/claude-0/-home-user/ffd1e052-4b56-5e07-9c7e-17d57338f287/scratchpad/roadmap.html 을 https://claude.ai/artifact/VLnz4HHR5F7VMGG496TmqK 에 올린다(커밋 44c8276의 ROADMAP.md로 만든 것).",
+    "올리지 못한 커밋 보관 갱신: 이제 세 개(47aabe9, 323e00e, 44c8276)다. `git format-patch origin/claude/epic-babbage-e33i2f..HEAD --stdout`으로 다시 뽑아 휴대폰 판 아티팩트(https://claude.ai/artifact/GuSvpwWqFbSypEvBxo65G2)의 backup/unpushed.patch에 올린다.",
+    "GitHub 접근이 풀린 뒤: 브랜치 푸시 → main 병합 PR → 이슈 맞추기(E307-02 #224는 작업 단위 다섯 체크 뒤 닫음, #228의 E307-06-1·#236의 E307-11-1·#237의 E307-12-1 본문 체크) → CI 확인. 지금 ROADMAP.md로 만든 이슈 본문 넷이 /tmp/claude-0/-home-user/ffd1e052-4b56-5e07-9c7e-17d57338f287/scratchpad/close0a/tick-0a.json 에 있다(GitHub은 부르지 않았다. ROADMAP.md가 더 바뀌면 tick.mjs로 다시 만든다).",
+    "연결된 GitHub 계정의 이름을 environment.md·handoff.md에 적을지 정하기: 공개 저장소에 실명처럼 보이는 계정이 남는 것이라 빼 두었다. 적으려면 environment.md 「GitHub MCP 도구의 계정」 줄에 한 마디 더하면 된다.",
+    "MCP roadmap 패널: E307은 그대로 진행 중이라 바꿀 상태가 없다(패널이 올라와 있으면 확인만).",
+    "사용자에게 알릴 것: GitHub 다시 연결(https://claude.ai/connect-github), Actions 결제 잠금, 실제 아이폰 15 Pro 확인 여섯 줄(handoff.md 「사용자에게 받아야 할 것」, 자세한 글은 PLAYTEST.md 6.2).",
+    "0C·1 사양(spec-0c-1.md) 9장의 「함께 고칠 문서」와 겹칠 수 있는 곳: 이번에 CLAUDE.md 머리 문단·코드 지도와 handoff.md 상태 표를 고쳤으니, 0c-close·1-close에서 그 위에 이어 고친다.",
+    "E307-10-1(0B, Game.ts에서 덩어리 떼기)은 ROADMAP.md에서 아직 [ ]다. 이번 일의 범위가 아니라 그대로 두었다."
+   ]
+  }
+ },
+ {
+  "label": "재는 점 0C ①",
+  "result": {
+   "ok": true,
+   "wallMinutes": 7.3,
+   "endings": [
+    "71:50",
+    "66:22",
+    "63:38"
+   ],
+   "table": "| 체크포인트 | 봇 시각 (세 판) | 중앙값 | 공격 지수 앞 → 뒤 (중앙값) |\n| --- | --- | --- | --- |\n| ★1 첫 신 (요르문간드) | 11:36 · 12:00 · 10:12 | 11:36 | 3.5 → 4.63 |\n| 귀환 1 | 15:24 · 14:18 · 12:12 | 14:18 | 4.67 → 8.78 |\n| ★2 둘째 신 (펜리르) | 24:06 · 23:18 · 20:42 | 23:18 | 13.14 → 15.27 |\n| 귀환 2 | 26:42 · 26:06 · 24:24 | 26:06 | 15.83 → 17.04 |\n| ★3 거인 왕 | 38:06 · 32:18 · 31:42 | 32:18 | 17.32 → 18.99 |\n| 귀환 3 | 42:48 · 42:42 · 40:54 | 42:42 | 21.89 → 30.51 |\n| ★4 제우스 (티폰) | 49:12 · 48:18 · 47:18 | 48:18 | 32.05 → 34.28 |\n| ★5 키마이라 | 58:24 · 53:06 · 53:36 | 53:36 | 35.37 → 42.96 |\n| 귀환 4 | 58:30 · 58:42 · 58:12 | 58:30 | 41.26 → 44.26 |\n| ★6 엔딩 | 71:48 · 66:24 · 63:36 | 66:24 | 53.25 → 59.86 |\n\n| 보스·수호자 | 들어서 처음 때릴 때까지 초 (그동안 처치) | 처음 때려 쓰러질 때까지 초 (생명이 되찬 횟수) |\n| --- | --- | --- |\n| 요르문간드 | 285(30) · 373(30) · 328(30) | 73 · 29 · 32 |\n| 펜리르 | 135(77) · 128(73) · 121(70) | 7 · 7 · 6 |\n| 거인 왕 | 23(3) · 53(5) · 21(3) | 628 · 290(1) · 378 |\n| 티폰 | 326(60) · 313(64) · 334(60) | 54 · 19 · 39 |\n| 키마이라 | 22(3) · 27(6) · 19(3) | 514(2) · 247 · 345 |\n| 갈라진 하늘의 왕 | 65(17) · 64(21) · 58(17) | 625 · 285 · 157 |",
+   "notes": "1. 0C ① (2026-11-19, 빌드한 커밋 323e00e. 재는 동안 들어온 44c8276은 문서만 바꿈). 세 판 모두 엔딩에 닿았고 로그에 오류가 없다. 엔딩은 로그 값 71:50 · 66:22 · 63:38이고, 표의 71:48 · 66:24 · 63:36은 timeline-check의 0.1분 반올림이다(0B 표와 같은 꼴). 쓰러짐 0 · 0 · 0(0B 0), 멈춤 끊기 0 · 1 · 0(0B 1 · 1 · 0). killGap은 power-curve 결과에 없다(playtest.mjs만 남긴다). 기준 줄 20초 피해는 546으로 0B와 같다.\n2. 엔딩의 층: 층 곱 ×8.18 · ×8.47 · ×7.77(0B ×9.25 · ×9.54 · ×8.96), 층 밖 몫 ×7.32 · ×6.43 · ×8.26(0B ×6.64 · ×7.82 · ×7.31). 엔딩 뒤 줄의 공격 지수는 59.9 · 54.4 · 64.2(0B는 층 곱 × 층 밖으로 61.4 · 74.6 · 65.5).\n3. 차이 ① 층 곱이 세 판 모두 0B보다 11~13% 낮다. 곱하는 층은 세 판 모두 승천 ×1.82 · 손의 신 ×1.15 · 명성 ×2.10 · 장 정복 ×1.16 · 불꽃 ×1.1 = ×5.60으로 코드 식 그대로다. 다른 곳은 더하는 층이다(지금 장비 +0.09~0.17 · 수련 +0.23 · 유물표 +0.07~0.11). 0B 값을 거꾸로 풀면, 수련이 같다고 볼 때 장비 + 유물표가 +0.37~0.47이어야 하는데 이번은 +0.16~0.28이고, 장비 층은 어느 줄에서도 +0.25를 넘지 않았다.\n4. ①의 까닭은 확인하지 못했다. 0B 원본(baseline-0b*.json)이 남아 있지 않아 층 목록을 견줄 수 없다. d4bb9a9..HEAD에서 봇·빌드·장비·수치 json은 그대로이고 Relics.ts는 알림·카드만 바뀌었다. 짐작은 장비 운(세 판씩이 한쪽으로 다 갈릴 우연은 5%쯤)이나 컨테이너·브라우저 판이다. 가리려면 d4bb9a9를 이 컨테이너에서 다시 빌드해 한 판 돌리면 된다(이번 걸음에서는 하지 않았다).\n5. 차이 ② ★3 거인 왕 중앙값이 35:48 → 32:18로 일러졌다(판마다 38:06 · 32:18 · 31:42). 거인 왕 싸움이 290~628초로 판마다 갈린 탓(0B 380~509초)이라 흔들림으로 본다. 귀환 3은 42:42로 그대로(0B 42:54)여서 ★3 → 귀환 3이 7.1 → 10.4분으로 늘었고, 그만큼 그리스 장이 세 판 모두 길다(20.3 · 20.8 · 21.9분, 0B 17.6 · 18.3 · 19.1). 일찍 이긴 판이 고개에서 귀환을 기다린 것으로 보인다(짐작).\n6. 차이 ③ 공격 지수 「앞」 칸. ★1 앞 2.24 → 3.5는 두 판에서 2분 저장이 조각 2(묠니르·손의 신)와 깨어남 사이에 걸린 것이다(뒤 4.63은 0B 4.69와 같다). ★5 뒤 35.64 → 42.96은 판 1의 뒤 줄이 귀환 4 뒤이고, 판 2·3은 키마이라 직후 줄만 42.8 · 43.0이다가 다음 줄에 39.9 · 37.8로 내려온다. 귀환 4 뒤는 38.94 → 44.26, 엔딩 앞은 65.03 → 53.25다.\n7. 차이 ④ 장 보스의 생명 되참이 줄었다: 거인 왕 0 · 1 · 0, 키마이라 2 · 0 · 0, 하늘의 왕 0 · 0 · 0으로 모두 3번(0B는 1 · 3 · 0 / 1 · 1 · 2 / 0 · 0 · 1로 9번). 싸움 길이는 157~628초로 0B(190~604초)와 같은 꼴이다. 티폰 앞 사냥은 313~334초(60~64마리)로 0B 289~298초보다 조금 길다.\n8. 그대로인 것: ★1·귀환 1·★2·귀환 2·귀환 3·★4·★5·귀환 4의 중앙값이 0B와 1분 안이다. 고정 적 끝낸 비율은 0:00~9:30에 0.29~0.35, 조각 2 뒤(11:22~11:26 줄)부터 엔딩까지 모든 줄 0. 귀환 1 뒤 미드가르드·철의 숲의 적 잡는 초는 0.2~0.4. 수호자 앞은 요르문간드 285~373초에 30마리, 펜리르 121~135초에 70~77마리이고 싸움은 6~73초다.\n9. 장마다(분): 북유럽 37.9 · 32.2 · 31.5, 그리스 20.3 · 20.8 · 21.9, 종장 13.4 · 13.2 · 10.1. timeline-check 판정은 ★6만 띠 밖이다(판 3이 63:36으로 65분 아래. 0B도 한 판이 64:06).\n10. 그림은 없다(--shots 없이 돌려 사람 눈 판정 대상이 아니다). 저장소 파일·문서·git은 건드리지 않았고 git status는 깨끗하며, 남은 vite·chrome·node 프로세스는 0이다. timeline-check가 test-results/timeline-check.json을 새로 썼다.",
+   "files": [
+    "/home/user/mythic-relics/test-results/baseline-0c-start.json",
+    "/home/user/mythic-relics/test-results/baseline-0c-start-2.json",
+    "/home/user/mythic-relics/test-results/baseline-0c-start-3.json",
+    "/home/user/mythic-relics/test-results/baseline-0c-start.log",
+    "/home/user/mythic-relics/test-results/baseline-0c-start-check.log",
+    "/home/user/mythic-relics/test-results/timeline-check.json",
+    "/home/user/mythic-relics/test-results/build-0c-start.log"
+   ]
+  }
+ },
+ {
+  "label": "갈래 0c-ruler",
+  "result": {
+   "done": true,
+   "commits": [
+    "beb5da5",
+    "73f2c2c"
+   ],
+   "codeCommit": "beb5da5",
+   "summary": "게임 규칙은 그대로 두고 봇과 재는 도구만 고쳤다. 코드 커밋 하나, 문서 커밋 하나이고 푸시는 하지 않았다.\n1. 봇의 보스 규칙(`src/dev/autoplay.ts`): 목표 보스가 20m 안이거나 싸움에 끼어들었으면 둘레의 졸개와 상관없이 보스를 친다. 그동안 떨어지는 것(원 예고)은 맞으며 붙고, 피하고 물러나는 자리는 보스 집에서 줄 × 0.75 안에서 고른다.\n2. 봇의 갈래: 승천할 신이 있으면 늘 승천(손의 신부터). 옛 고정 차례는 `--branch=old`(playtest·power-curve).\n3. 값만으로 정해지는 봇 판정은 새 파일 `src/dev/botRules.ts`로 떼어 시험한다(`tests/botRules.test.ts`, 15개).\n4. `scripts/lib/curve.mjs`: `killGap`·`killWatchStart`를 playtest에서 옮겨 power-curve와 함께 쓴다. 표준 허수아비 치기 `strikeDummy`(페이지 안에서 도는 함수), 맹세 판 기록 `oathRuns`·`oathText`를 더했다. `tests/curve.test.mjs`에 시험 15개를 더했다.\n5. `power-curve.mjs`: 판마다 `killGap`(걸러 내기 전의 기록으로), 페이지 오류 `errors`, `branch`를 남기고 엔딩에 못 닿은 판을 화면에 알린다. 허수아비 치기를 `strikeDummy`로 바꿔도 기준 줄의 20초 피해는 546 그대로다.\n6. `playtest.mjs --oaths`: 엔딩 뒤 꼴. 엔딩 뒤 빌드로 우트가르드에 서서 맹세 여덟을 데모 셋부터 차례로 걸고, 건 뒤 지킨 초를 `oathRuns`로 남긴다.\n7. 재는 점 ②(세 판)와 옛 갈래 세 판을 쟀다. 여섯 판 모두 엔딩에 닿았고 오류가 없으며, 처치가 끊긴 구간은 가장 길어야 127초다.\n8. `docs/knowledge/baselines.md` 맨 위에 「E307 0C 기준선」 절을 세웠다: ①·②·② 옛 갈래의 체크포인트 표와 보스 표, 「① → ②에서 달라진 것」과 까닭, 0B → ①의 차이, 재는 자가 바뀐 것.",
+   "check": "`npm run check` 통과(종료 0, 검사 도장 찍힘): 시험 파일 74개·시험 1599개 통과, 스모크 통과(「11프레임 렌더링, 오류 없음」, 휴대폰 한 바퀴 포함). 고친 스모크 줄은 없다(스모크는 봇을 쓰지 않아 깨진 곳이 없었다). 로그는 /home/user/mythic-relics/test-results/check-0c-ruler.log",
+   "measure": "**재는 점 0C ②** (코드 `beb5da5`, `power-curve.mjs 100 --runs=3` 뒤 `timeline-check --curve`). 실패 셋(엔딩에 못 닿음·처치 없이 300초·오류)은 여섯 판 모두 없다.\n\n| 점 | 엔딩 (세 판) | 쓰러짐 | 멈춤 끊기 | 처치가 끊긴 가장 긴 초 |\n| --- | --- | --- | --- | --- |\n| ① 출발점 | 71:50 · 66:22 · 63:38 | 0 · 0 · 0 | 0 · 1 · 0 | (남기지 않음) |\n| ② 보스 규칙 + 늘 승천 | 56:16 · 58:10 · 53:38 | 0 · 0 · 0 | 2 · 1 · 0 | 121 · 120 · 89 |\n| ② 옛 갈래 (`--branch=old`, 보스 규칙만) | 58:39 · 57:09 · 64:47 | 0 · 3 · 2 | 0 · 0 · 0 | 124 · 112 · 127 |\n\n| 체크포인트 | ② 봇 시각 (중앙값) | ② 공격 앞 → 뒤 | 옛 갈래 봇 시각 (중앙값) | 옛 갈래 공격 앞 → 뒤 |\n| --- | --- | --- | --- | --- |\n| ★1 첫 신 | 13:30 · 13:18 · 11:48 (13:18) | 3.84 → 5.17 | 10:48 · 10:42 · 10:36 (10:42) | 2.38 → 4.64 |\n| 귀환 1 | 17:06 · 16:12 · 13:24 (16:12) | 5.17 → 8.66 | 12:00 · 12:54 · 12:42 (12:42) | 4.64 → 8.06 |\n| ★2 둘째 신 | 26:24 · 25:18 · 23:12 (25:18) | 12.06 → 15.79 | 20:24 · 21:18 · 22:48 (21:18) | 11.89 → 13.97 |\n| 귀환 2 | 29:24 · 28:24 · 26:24 (28:24) | 16.04 → 22.03 | 23:24 · 24:00 · 26:12 (24:00) | 14.06 → 17.21 |\n| ★3 거인 왕 | 31:54 · 30:36 · 28:24 (30:36) | 22.03 → 23.9 | 26:12 · 29:24 · 29:42 (29:24) | 15.23 → 16.67 |\n| 귀환 3 | 39:36 · 41:12 · 38:42 (39:36) | 27.92 → 42.65 | 37:36 · 39:06 · 42:54 (39:06) | 19.37 → 27.9 |\n| ★4 제우스 | 45:18 · 45:30 · 43:18 (45:18) | 43.58 → 45.64 | 44:36 · 44:24 · 48:42 (44:36) | 29.03 → 34.91 |\n| ★5 키마이라 | 46:36 · 46:30 · 44:18 (46:30) | 45.64 → 50.08 | 45:48 · 45:42 · 50:24 (45:48) | 29.03 → 34.91 |\n| 귀환 4 | 53:36 · 55:06 · 51:24 (53:36) | 49.46 → 93.97 | 54:06 · 51:30 · 57:00 (54:06) | 39.66 → 38.39 |\n| ★6 엔딩 | 56:18 · 58:12 · 53:36 (56:18) | 97.41 → 107.3 | 58:42 · 57:12 · 64:48 (58:42) | 46.9 → 48.56 |\n\n| 보스·수호자 | ① 다가간 초(처치) / 싸운 초(되참) | ② 옛 갈래 | ② |\n| --- | --- | --- | --- |\n| 요르문간드 | 285(30) · 373(30) · 328(30) / 73 · 29 · 32 | 297(30) · 298(30) · 316(31) / 83(1) · 33 · 27 | 508(30) · 308(30) · 280(30) / 22 · 27 · 97(1) |\n| 펜리르 | 135(77) · 128(73) · 121(70) / 7 · 7 · 6 | 138(72) · 113(70) · 139(73) / 7 · 7 · 7 | 146(72) · 137(70) · 124(72) / 7 · 5 · 6 |\n| 거인 왕 | 23(3) · 53(5) · 21(3) / 628 · 290(1) · 378 | 16(3) · 29(3) · 18(3) / 115 · 258 · 154 | 32(7) · 15(3) · 18(3) / 85 · 82 · 65 |\n| 티폰 | 326(60) · 313(64) · 334(60) / 54 · 19 · 39 | 385(62) · 286(60) · 310(59) / 32 · 28 · 32 | 313(63) · 237(57) · 257(60) / 22 · 19 · 16 |\n| 키마이라 | 22(3) · 27(6) · 19(3) / 514(2) · 247 · 345 | 21(3) · 21(3) · 22(3) / 35 · 39 · 66 | 25(6) · 14(3) · 16(3) / 36 · 27 · 26 |\n| 갈라진 하늘의 왕 | 65(17) · 64(21) · 58(17) / 625 · 285 · 157 | 99(25) · 52(15) · 104(27) / 68 · 193 · 253 | 32(15) · 35(15) · 37(13) / 19 · 39 · 19 |\n\n**① → ②에서 달라진 것**\n- **장 보스에 다가간 초:** 규칙으로는 거의 그대로다. 거인 왕·키마이라는 ①에서도 20초대였다. 하늘의 왕은 입구에서 멀어 20m 안에 들기 전까지 졸개부터 치우므로, 옛 갈래 판은 52~104초로 ①과 같은 꼴이고 늘 승천 판만 32~37초다(졸개를 잡는 빠르기 덕).\n- **장 보스와 싸운 초:** 셋의 합이 29.4 · 13.7 · 14.6분 → 옛 갈래 3.6 · 8.2 · 7.9분 → ② 2.3 · 2.5 · 1.8분. 되참 3번 → 0. 같은 빌드인 옛 갈래 판에서 이미 거인 왕 378 → 154초, 키마이라 345 → 39초(중앙값)라 보스 규칙의 몫이 크다. 대신 옛 갈래 판은 쓰러짐이 0 → 5다(모두 거인 왕·하늘의 왕 싸움).\n- **엔딩 무렵 공격 지수:** 앞 → 뒤 중앙값 53.25 → 59.86이 97.41 → 107.3으로, 엔딩 뒤 줄 기준 1.8배다. 층 곱 ×8.18 · ×8.47 · ×7.77 → ×14.41 · ×14.38 · ×14.88(승천 ×1.82 → ×3.32, 불꽃 불씨 ×1.1 빠짐, 명성 ×2.10 → ×2.23). 갈래는 세 판 모두 토르 → 오딘 → 토르 → 오딘 승천이다.\n- **엔딩 시각:** 중앙값 66:22 → 56:16(옛 갈래 58:39). 줄어든 싸움 시간만큼 당겨지지는 않는다: 귀환 3 → 4가 ① 15.7 · 16.0 · 17.3분, ② 14.0 · 14.0 · 12.7분으로 보스를 언제 이겼든 비슷해, 귀환 때는 기세 문턱이 정하는 것으로 본다.\n- **흔들림:** ②와 옛 갈래 판은 귀환 2 앞까지 규칙이 같은데 ★2 중앙값이 25:18 · 21:18로 4분 벌어졌다. 앞쪽 체크포인트의 1~2분 차이는 규칙 탓으로 읽지 않는다.\n- 기준 줄의 20초 피해 546, 고정 적 끝낸 비율(조각 2 무렵부터 0)은 그대로다.\n\n**`node scripts/playtest.mjs 1 30 --oaths` 한 판 (엔딩 뒤 꼴, 도구 확인):** 건 뒤 지킨 초가 침묵 55 · 빈 손 39 · 홀로 30, 엔딩 뒤 다섯(마른 샘·두 배의 무리·타는 모래시계·유리 몸·무거운 발)은 23 · 20 · 21 · 22 · 19. 9:23에 여덟 모두 지켰고 쓰러짐 0, 오류 0, 처치 끊김 26초. 거인 왕 싸움은 34 → 17초로 뒤로 갈수록 짧다. 첫 맹세에는 시작점에서 왕까지 걷는 21초가 들어 있다.",
+   "deviations": [
+    "맡은 파일 목록 밖의 새 파일 둘: `src/dev/botRules.ts`, `tests/botRules.test.ts`. 봇 판정을 순수 함수로 떼어 시험하라는 지시를 따르려고 만들었고, 다른 갈래의 파일과 겹치지 않는다.",
+    "보스 규칙에 옛 가지 하나를 남겼다: 보스가 멀고 쉬고 있어도 둘레에 졸개가 없으면 보스에게 간다. 사양 글(20m 안이거나 bossEngaged)만으로는 먼 보스에게 다가갈 길이 없어진다.",
+    "떨어지는 것을 맞으며 붙는 문턱: 사양은 「생명이 넉넉하면」뿐이라 보스는 60%(치기 시작하는 문턱), 수호자는 옛 50% 그대로 두었다.",
+    "붙드는 원의 반지름은 30m 고정이 아니라 그 보스의 `leashRange` × `LEASH_REENGAGE`(0.75)다. 갈라진 하늘의 왕은 줄이 40m라 30m, 거인 왕·키마이라는 22.5m다.",
+    "피하는·물러나는 자리: 원 안에 후보가 없으면 원 밖도 본다(서서 맞지 않게). 이미 원 밖이면 집에 가까워지는 자리만 고른다. 사양에는 「뺀다」뿐이다.",
+    "`--oaths`에서 사양에 없는 것 넷. (1) 새 판에는 손에 쥔 신이 없어 `dev.endgame()`이 승천하지 못하므로 그 앞에 `dev.equip('mjolnir')`·`dev.choose('thor')`를 부른다. (2) 맹세는 거인 왕이 서 있을 때만 걸고, 걸 때 `expedition.elapsed`를 0으로 둔다(다시 서는 45초가 지킨 초에 섞이지 않게, 타는 모래시계의 10분이 건 때부터 세지게). (3) `oaths`와 `stay`가 함께 켜진 봇은 서 있는 땅의 보스를 목표 보스로 친다. (4) 깨진 맹세는 다시 걸지 않고, `--gate`면 데모 셋을 지켜야 통과다.",
+    "`power-curve.mjs`에 사양(killGap·--branch 넘기기) 밖의 기록 셋을 더했다: 페이지 오류 `errors`, `branch`, 화면의 「엔딩에 닿지 못함」 줄. 8.1의 실패 셋을 결과 파일만으로 보려는 것이다.",
+    "`curve.mjs`에 사양에 없는 이름을 더했다: `killWatchStart`, `isKill`, `oathRuns`, `oathText`. 쓰는 곳이 없어진 `Autoplayer.oathsLeft()`는 지웠다.",
+    "`baselines.md`의 옛 표(E236 절)의 「맹세 봇」 줄에 0C에서 엔딩 뒤 꼴로 바뀌었다고 표시했다. 다른 문서는 건드리지 않았다."
+   ],
+   "handover": [
+    "문서(0c-close)에 적을 것: `CLAUDE.md`·`PLAYTEST.md`의 `--oaths` 설명(지금은 엔딩 뒤 빌드로 우트가르드에서 여덟을 건다), `power-curve.mjs`·`playtest.mjs`의 `--branch=old`, power-curve 결과의 `killGap`·`errors`·`branch`, 코드 지도에 `src/dev/botRules.ts`, 봇 설명(보스 규칙·늘 승천).",
+    "하네스 `scripts/harness/rules.mjs`의 `bot` 규칙은 `autoplay.ts`·`playtest.mjs`만 본다. `botRules.ts`와 `power-curve.mjs`를 더할지는 하네스 갈래가 정한다(건드리지 않았다).",
+    "`1-bot`: 처치 끊김의 감시 시작점은 `curve.mjs`의 `killWatchStart` 한 곳이다(첫 fragment로 바꿀 자리). 다만 `playtest.mjs`의 `--gate` 감시는 페이지 안에서 `from`을 따로 셈하니 함께 바꿔야 한다. `timeline-check`의 실패 조건 ③은 판의 `killGap.seconds`, 오류는 `errors`를 읽으면 된다.",
+    "`1-close`의 손 배율 점검: `page.evaluate(strikeDummy, { hp: DUMMY_HP, seconds: 20 })`가 `{ dealt, damage20, hits }`를 돌려준다. 무리가 다시 서지 않게 하는 `encounter.crowd = 0`은 부르는 쪽 몫이고, godMode는 치기 전 값으로 되돌린다.",
+    "`--branch=old`에서도 장 보스 싸움은 새 보스 규칙이다. 옛 보스 규칙으로 돌리는 스위치는 없다. ② 뒤의 봇 판은 0B·①과 그대로 견주지 않는다.",
+    "`0c-world`: 장 보스의 되참은 ②에서 이미 0이다(봇 규칙 덕). 상처 기억(returnRegen 0)의 효과는 ③의 되참 수로는 안 보일 수 있으니, 옛 갈래 판처럼 쓰러진 뒤의 싸움 초로 봐야 한다.",
+    "`0c-events`: ②의 봇은 ★5 뒤 귀환 4를 기다리는 7~9분 동안 다시 선 키마이라를 판마다 두 번 더 잡는다. 다시 선 보스가 `expedition.bosses`를 올리지 않게 하는 고침이 봇 판에 바로 드러나는 자리다.",
+    "덩어리 1의 세기 맞추기 출발점: 늘 승천 봇으로는 장 보스 싸움이 이미 거인 왕 65~85초, 키마이라 26~36초, 하늘의 왕 19~39초다. 귀환 4에서 공격 지수가 두 배(49.46 → 93.97)가 된다.",
+    "세 판 중앙값의 흔들림은 ★2에서 4분까지 나왔다. ③과 견줄 때 앞쪽 체크포인트의 1~2분 차이는 규칙 탓으로 읽지 않는다.",
+    "①의 「엔딩의 층 곱이 0B보다 11~13% 낮다」의 까닭은 여전히 모른다. 가리려면 `d4bb9a9`를 다시 빌드해 한 판 돌려야 한다.",
+    "결과 파일은 /home/user/mythic-relics/test-results/ 에 있다(git에는 안 올라간다): `baseline-0c-bot.json`·`-2`·`-3`, `baseline-0c-bot-old.json`·`-2`·`-3`, 견주기 사본 `baseline-0c-bot-check.json`·`baseline-0c-bot-old-check.json`과 `.log`, `oaths-0c-bot.json`·`.log`, `check-0c-ruler.log`. `timeline-check.json`은 마지막에 돌린 옛 갈래 판의 것이고 `playtest.json`은 맹세 판의 것이다.",
+    "푸시하지 않았다. 작업 폴더는 깨끗하고 남은 vite·chrome 프로세스는 없다."
+   ],
+   "blocked": ""
+  }
+ },
+ {
+  "label": "리뷰 봇의 규칙",
+  "result": {
+   "verdict": "막을 것은 없다. 보스 규칙(bossTurn·soak·hold)과 갈래(returnBranch)는 사양 6.1대로이고, 수호자·깊이·끝없는 원정 봇은 bossGoal이 거짓이라 옛 길 그대로다. 붙드는 원은 후보가 없으면 원 밖을 보므로 봇을 가두지 않고, 봇에 이동 지시 밖의 새 지름길도 없다.\ntsc와 botRules·curve 시험 45개는 통과했고, 브라우저 판은 돌리지 않아 아래 첫 지적이 지금 빌드에서 실제로 닿는지는 확인하지 못했다.\n고칠 것은 둘이다: --oaths의 마른 샘 맹세에서 봇이 영영 쉬는 길, botRules.ts가 하네스 봇 규칙에 안 걸리는 것.",
+   "findings": [
+    {
+     "severity": "should",
+     "file": "/home/user/mythic-relics/scripts/playtest.mjs",
+     "line": 176,
+     "summary": "--oaths의 마른 샘(noHeal) 맹세에서 생명이 70% 아래인 채 둘레가 비면 봇이 영영 쉬어, 뒤의 맹세 넷을 못 걸고 --gate는 멈춤으로 실패한다",
+     "scenario": "마른 샘은 healScale·bonusRegen을 0으로 둬 저절로 차는 생명까지 막는다(src/game/systems/Relics.ts:374, 되살아날 때만 가득 찬다). 봇의 쉬기 규칙(src/dev/autoplay.ts:245: 생명 70% 미만·9m 안에 적 없음·서 있음이면 그대로 돌아감)은 생명이 차기를 기다리는 것이라 이 맹세에서는 끝나지 않는다. 60% 아래면 bossTurn·bossOk도 거짓이라 왕을 다시 고르지도 않는다. 재현 순서: 넷째 맹세로 마른 샘이 걸림 → 왕이나 무리와 싸우다 생명 70% 미만 → 둘레의 적을 다 잡고 섬 → 5단계에서 멈춤. 맹세가 풀리지 않으니 스크립트는 crowd·timed·glass·slow를 걸지 못하고 제한 시간까지 돈다. --gate면 처치 없이 300초가 지나 데모 셋을 지키고도 실패다. 확인 못 함: baselines.md의 도구 확인 한 판은 마른 샘을 23초에 지켰다. 지금 엔딩 뒤 빌드에서 생명이 70% 아래로 내려가는지는 돌려 보지 않았고, 0C ③·덩어리 1에서 땅 세기가 오르면 닿기 쉬워진다.",
+     "suggestion": "스크립트 쪽에서 맹세마다 시간 상한을 둔다(예: 건 뒤 600초면 「못 끝냄」으로 적고 swear(null)로 푼 뒤 다음 맹세). --gate의 멈춤 판정은 데모 셋을 재는 동안에만 건다. 봇의 쉬기 규칙은 건드리지 않아도 된다."
+    },
+    {
+     "severity": "should",
+     "file": "/home/user/mythic-relics/scripts/harness/rules.mjs",
+     "line": 118,
+     "summary": "봇 판정이 옮겨 간 src/dev/botRules.ts가 하네스의 bot 규칙에 걸리지 않는다",
+     "scenario": "bot 규칙의 파일 식은 src/dev/autoplay.ts와 scripts/playtest.mjs뿐이다. 이 커밋으로 보스를 치는 문턱(BOSS_HP 0.6, BOSS_NEAR 20), 맞으며 붙는 문턱(SOAK_HP), 옛 갈래 차례가 botRules.ts로 옮겨 갔다. 그 파일만 고친 커밋에서는 고친 뒤 알림도 what-to-run.mjs도 봇 판 돌리기와 baselines.md를 알리지 않는다. 재는 자가 바뀌었는데 기준선은 옛 값으로 남는다.",
+     "suggestion": "bot 규칙의 파일 식에 src/dev/botRules.ts를 더하고 tests/harness.test.mjs에 한 줄을 더한다. 0c-ruler가 맡은 파일 밖이니 0c-close(scripts/*)에 넘긴다."
+    },
+    {
+     "severity": "nit",
+     "file": "/home/user/mythic-relics/src/dev/autoplay.ts",
+     "line": 380,
+     "summary": "붙드는 원은 피하기·물러나기에만 걸려, 생명 35~60%에서는 봇이 싸움에 낀 보스를 달고 원 밖으로 걸어 나갈 수 있다",
+     "scenario": "목표 보스가 붙어 있고 생명이 35~60%면 bossTurn이 거짓이고 bossOk도 거짓이다. 후보는 보스에서 18m 넘게 떨어진 적만 남고(380~383줄), 없으면 순찰 자리로 걷는다(410~418줄). 생명이 넉넉할 때도 277~283줄의 줍기가 보스 차례보다 먼저다. 이 걸음들에는 hold가 걸리지 않는다. 우트가르드에서는 무리 (22,12)·(0,30)이 왕의 집 (0,-14)에서 34m·44m라 왕이 줄 30m에 걸려 돌아가며 생명을 채운다. 사양 글(피하는 자리·물러나는 자리)은 충족했고 ②의 여섯 판은 장 보스 되참이 0이라 지금은 드러나지 않는다.",
+     "suggestion": "0C ③에서 장 보스의 되참·싸운 초를 읽을 때 이 길을 함께 본다. 닫으려면 bossFight 동안 후보·순찰·줍기 자리에도 staysInHold를 건다."
+    }
+   ]
+  }
+ },
+ {
+  "label": "리뷰 재는 도구",
+  "result": {
+   "verdict": "must 없음. killGap은 옮기기 전과 같은 식이고 power-curve는 걸러 내기 전 기록(play.log)으로 첫 신 뒤부터(깊이 봇은 0부터) 센다. 결과 파일 여섯의 branch·귀환 갈래·오류·엔딩이 보고와 맞고, --oaths는 데모 셋을 먼저 건다(판 기록 확인). 봇 규칙 변경은 src/dev 안에만 있고 옛 가지와 같은 식이다.\n고칠 것은 재는 자의 빈틈 넷이다: 시험 셋이 변이를 못 잡고(첫 신 뒤 걸러 내기, 서 있는 허수아비, 20m 문턱: 모두 변이본으로 돌려 통과함을 확인), --oaths의 홀로는 이 빌드에서 제약이 걸리지 않는다.\ntimeline-check --curve는 새 칸을 읽지 않는다(사양 6.3대로 1-bot 몫). 브라우저 스크립트는 돌리지 않았고, 단위 시험 둘(45개)만 돌렸다.",
+   "findings": [
+    {
+     "severity": "should",
+     "file": "/home/user/mythic-relics/scripts/playtest.mjs",
+     "line": 125,
+     "summary": "--oaths의 홀로의 맹세는 이 빌드에서 제약이 걸리지 않아, 데모 셋 가운데 하나가 맹세 없는 판과 같은 값을 잰다",
+     "scenario": "새 판에서 dev.equip('mjolnir') → dev.choose('thor')는 자리를 손·심장·숨 [thor]로 만든다(Relics.choose). 이어지는 dev.endgame()은 북유럽 신을 progress.open()으로만 열어 mythOpened가 나지 않으므로 숨 칸에 아무도 들어가지 않는다(도구 확인 판 test-results/oaths-0c-bot.json의 opened도 thor 하나뿐). 홀로의 규칙은 oathPantheon의 breath.slice(0, 1)이라 숨이 [thor] 하나면 그대로다. 그래서 「홀로 30초」는 제약 없이 왕을 잡은 초이고, 0C 고침 14번(남는 숨이 손의 신부터)이나 홀로 규칙이 깨져도 이 값은 움직이지 않는다. 덩어리 1의 엔딩 뒤 문(8.2)은 이 값을 ±20%로 견준다. 숨 상태는 코드와 판 기록으로 추적했고 브라우저로는 확인하지 못했다.",
+     "suggestion": "dev.endgame() 뒤에 열린 신으로 숨 칸을 둘 이상 채운다(dev.pantheon에 hand·heart는 thor, breath에 thor와 다른 북유럽 신들, 또는 relics.fillBreath()를 칸 수만큼). 값이 달라지니 0C ③ 곁의 기준 값을 재기 전에 넣고, baselines.md의 도구 확인 값(55·39·30초)에는 옛 빌드 값이라고 적는다."
+    },
+    {
+     "severity": "should",
+     "file": "/home/user/mythic-relics/tests/curve.test.mjs",
+     "line": 226,
+     "summary": "killGap 시험이 「첫 신 뒤부터」를 쥐고 있지 않다: 재기 시작 전의 처치를 걸러 내는 조건을 지워도 30개가 모두 통과한다",
+     "scenario": "scripts/lib/curve.mjs 171줄의 `e.t >= from`을 지운 변이본으로 tests/curve.test.mjs를 돌리면 전부 통과한다(스크래치 사본으로 확인). 시험 기록에서 첫 신 전의 끊김(100 → 400초, 300초)이 그 뒤의 가장 긴 끊김(650 → 1000초, 350초)보다 짧아 어느 쪽이든 350이 나오기 때문이다. 1-bot이 감시 시작을 첫 fragment로 옮기며(사양 6.2) 이 줄을 고칠 때 조건이 빠지면, 첫 신 전에 맨몸으로 오래 끊긴 구간이 판의 killGap으로 찍혀도 시험은 초록이다.",
+     "suggestion": "시험 기록의 시작 전 끊김을 시작 뒤의 가장 긴 끊김보다 길게 둔다(예: 처치 100·590초, from 600이면 앞 끊김 490초). 그 상태에서 seconds 350과 at >= from을 확인한다."
+    },
+    {
+     "severity": "should",
+     "file": "/home/user/mythic-relics/tests/curve.test.mjs",
+     "line": 324,
+     "summary": "strikeDummy 시험이 「서 있기만 하는 허수아비」를 쥐고 있지 않다: `dummy.update = () => {}`를 지워도 통과한다",
+     "scenario": "흉내 게임의 advance(324줄)가 pressed.takeHit만 부르고 적의 update를 한 번도 부르지 않는다. 그래서 316줄의 'foe-moved'는 어떤 경우에도 calls에 들어가지 않고, 356줄 시험의 calls 비교는 허수아비가 움직이는지를 가리지 못한다. scripts/lib/curve.mjs 216줄을 지운 변이본이 30개 모두 통과하는 것을 확인했다. 진짜 게임에서는 허수아비(서리 거인)가 공격하고 물러서고 밀려나 20초 피해가 달라지니, 공격 지수의 기준 줄(546)이 시험이 초록인 채로 바뀔 수 있다.",
+     "suggestion": "흉내 advance가 걸음마다 pressed.update()를 부르게 하고, calls에 'foe-moved'가 없음을 확인한다."
+    },
+    {
+     "severity": "should",
+     "file": "/home/user/mythic-relics/tests/botRules.test.ts",
+     "line": 41,
+     "summary": "봇 규칙 시험이 20m 문턱과 붙드는 원의 식을 쥐고 있지 않다",
+     "scenario": "(1) bossTurn의 거리 시험 값이 12·15·19.9(참)와 35(거짓)뿐이라 src/dev/botRules.ts 26줄의 BOSS_NEAR를 20에서 34로 바꿔도 15개가 모두 통과한다(변이본으로 확인. 보스 쪽 SOAK_HP 0.6 → 0.56도 통과). 사양 6.1의 「20m 안」이 바뀌면 장 보스에 다가간 초·싸운 초가 달라지는데 시험은 초록이다. (2) 붙드는 원의 반지름(leashRange × LEASH_REENGAGE)은 src/dev/autoplay.ts 226줄에서 만들고, 시험 80~86줄은 시험이 직접 만든 Hold의 값을 확인한다. autoplay가 0.75를 빼먹어 줄 끝(30m)까지 피해도 시험은 통과하고, 그러면 보스가 줄 끝에서 돌아가 생명이 되찬다.",
+     "suggestion": "문턱 바로 옆을 더한다: 거리 20·졸개 1·쉬는 보스는 거짓, 19.99는 참, 보스 생명 문턱 0.6은 soaksFalling 거짓. Hold를 만드는 일을 botRules.ts의 함수(보스의 home·spec을 받아 Hold를 돌려줌)로 옮겨 autoplay가 그것을 쓰게 하고, 시험은 그 함수에 king·skyKing 사양을 넣어 22.5·30을 확인한다."
+    },
+    {
+     "severity": "nit",
+     "file": "/home/user/mythic-relics/scripts/timeline-check.mjs",
+     "line": 58,
+     "summary": "timeline-check --curve는 새 칸(killGap·errors·branch)을 읽지 않고, power-curve도 300초 넘김을 표시하지 않는다",
+     "scenario": "58줄이 곡선 파일에서 rows·log·timeline·ending·bossFights만 옮긴다. 0C ③에서 한 판의 killGap이 300초를 넘거나 페이지 오류가 나도 timeline-check 출력에는 흔적이 없고, power-curve는 「처치 끊김 N초」「오류 N」을 판 표 끝(power-curve.mjs 348~351줄)에 실패 표시 없이 찍고 종료 코드 0으로 끝난다. 8.1의 실패 셋은 긴 기록에서 사람이 줄을 찾아 읽어야 한다. 사양 6.3이 이 판정을 1-bot에 두었으니 사양과 다른 것은 아니다.",
+     "suggestion": "1-bot 전까지는 power-curve가 마지막에 판마다 한 줄(엔딩 닿음·killGap·오류 수)을 모아 찍고 300초 넘김·오류·엔딩 못 닿음에 「실패」를 붙이면 0c-close가 ③을 잴 때 놓치지 않는다."
+    },
+    {
+     "severity": "nit",
+     "file": "/home/user/mythic-relics/scripts/power-curve.mjs",
+     "line": 134,
+     "summary": "--depth와 --branch=old를 함께 주면 결과에는 old로 적히는데 봇은 늘 승천으로 돈다",
+     "scenario": "깊이 봇은 src/dev/autoplay.ts 346줄에서 `this.deepen ? 'ascend' : this.branch`라 branch 설정을 따르지 않는다. `power-curve.mjs 40 --depth=3 --branch=old`의 결과 파일에는 branch: 'old'가 남아 옛 갈래 판으로 읽힌다. playtest.json에는 branch 칸이 아예 없어 timeline.returns의 갈래를 봐야 어느 판인지 안다. 허용 값 목록도 세 곳에 따로 있다(botRules.ts의 BRANCH_MODES는 쓰는 곳이 없고, playtest·power-curve가 각자 적었다).",
+     "suggestion": "power-curve는 깊이 판이면 branch를 'ascend'로 적거나 두 옵션을 함께 주면 멈춘다. playtest 판 기록에도 branch를 남긴다."
+    },
+    {
+     "severity": "nit",
+     "file": "/home/user/mythic-relics/scripts/harness/rules.mjs",
+     "line": 118,
+     "summary": "봇 판정이 옮겨 간 src/dev/botRules.ts를 하네스의 bot 규칙이 모른다",
+     "scenario": "bot 규칙의 files는 `^src/dev/autoplay\\.ts$|^scripts/playtest\\.mjs$`뿐이다. 다음 갈래가 botRules.ts의 BOSS_NEAR나 갈래 규칙만 고치면 「봇 돌려 보기·baselines.md」 알림이 뜨지 않고 what-to-run에도 나오지 않는다. 그 파일의 머리 주석이 말하듯 봇 규칙은 재는 자의 일부라, 바뀌고도 기준선을 다시 재지 않으면 앞뒤 점을 견줄 수 없다. rules.mjs는 이 갈래가 맡은 파일이 아니다.",
+     "suggestion": "0c-close에 인계한다: bot 규칙의 files에 src/dev/botRules.ts를 더하고 tests/harness.test.mjs를 맞춘다. CLAUDE.md 코드 지도의 src/dev 줄에도 botRules.ts를 적는다."
+    }
+   ]
+  }
+ }
+]
