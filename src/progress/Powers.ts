@@ -1,4 +1,4 @@
-import { AURA_SLOTS, auraSlots, emptySlots, godPowers, isPowerId, offer, parseSource, power, type PowerId, type PowerSlots, slotted } from '../data/powers'
+import { AURA_SLOTS, auraSlots, emptySlots, godPowers, isComboId, isPowerId, offer, parseSource, power, type PowerId, type PowerSlots, slotted } from '../data/powers'
 import { type God, GODS } from '../relics/data'
 
 /** 저장 모양 (v18): 가진 힘·칸·이미 고른 출처·만난 신·내밀기의 씨앗 */
@@ -13,6 +13,8 @@ export interface PowerData {
   met: God[]
   /** 내밀기의 씨앗: 같은 저장은 다시 불러와도 같은 셋을 내민다 */
   seed: number
+  /** 켜 본 조합 (P3): 처음 켜질 때의 큰 카드는 한 번만. 하나도 없으면 키를 쓰지 않는다 */
+  combos?: string[]
 }
 
 const isGod = (v: unknown): v is God => typeof v === 'string' && Object.hasOwn(GODS, v)
@@ -34,6 +36,8 @@ export class PowerProgress {
   /** 만난 신 (만난 차례) */
   met: God[] = []
   seed: number
+  /** 켜 본 조합: 처음 켜질 때만 큰 카드가 뜬다 */
+  readonly combos = new Set<string>()
 
   /** @param returns 귀환 수 (원정 기록에서 읽는다): 도는 힘의 칸 수를 정한다 */
   constructor(
@@ -110,6 +114,7 @@ export class PowerProgress {
     this.slots = emptySlots()
     this.claimed.clear()
     this.met = []
+    this.combos.clear()
   }
 
   /**
@@ -155,7 +160,8 @@ export class PowerProgress {
   }
 
   toData(): PowerData {
-    return { owned: [...this.owned], slots: { weapon: this.slots.weapon, ultimate: this.slots.ultimate, auras: [...this.slots.auras] }, claimed: [...this.claimed], met: [...this.met], seed: this.seed }
+    const combos = this.combos.size ? { combos: [...this.combos] } : {}
+    return { owned: [...this.owned], slots: { weapon: this.slots.weapon, ultimate: this.slots.ultimate, auras: [...this.slots.auras] }, claimed: [...this.claimed], met: [...this.met], seed: this.seed, ...combos }
   }
 
   /** 불러온다. 지금 칸 수를 넘친 도는 힘은 뒤에서부터 칸에서 뺀다 (힘은 그대로 갖는다) */
@@ -166,6 +172,8 @@ export class PowerProgress {
     for (const s of data.claimed) this.claimed.add(s)
     this.met = [...data.met]
     this.seed = data.seed >>> 0
+    this.combos.clear()
+    for (const id of data.combos ?? []) this.combos.add(id)
   }
 }
 
@@ -194,6 +202,7 @@ export function mergePowers(saved: PowerData, derived: PowerData): PowerData {
     claimed: [...saved.claimed, ...claimed],
     met: [...saved.met, ...missing],
     seed: saved.seed,
+    ...(saved.combos ? { combos: saved.combos } : {}),
   }
 }
 
@@ -218,5 +227,6 @@ export function parsePowers(raw: unknown, fallbackSeed = 0): PowerData {
   const claimed = [...new Set(list(o.claimed).filter((v): v is string => typeof v === 'string' && v.length <= 60 && parseSource(v) !== null))].slice(0, CLAIMED_CAP)
   const met = [...new Set(list(o.met).filter(isGod))]
   const seed = typeof o.seed === 'number' && Number.isInteger(o.seed) && o.seed >= 0 && o.seed <= 0xffffffff ? o.seed : fallbackSeed >>> 0
-  return { owned, slots, claimed, met, seed }
+  const combos = [...new Set(list(o.combos).filter(isComboId))]
+  return { owned, slots, claimed, met, seed, ...(combos.length ? { combos } : {}) }
 }

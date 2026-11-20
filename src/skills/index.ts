@@ -1,6 +1,7 @@
 import type * as THREE from 'three'
 
 import { DATA } from '../data'
+import type { RelicBoost } from '../data/powers'
 import type { RelicDef } from '../data/schema'
 import type { CombatTarget } from '../game/PlayerCombat'
 import { type Action, type Aura, type Boost, createAction, createAura, type Cue } from './actions'
@@ -57,13 +58,28 @@ export class DataRelicEffect implements RelicEffect {
 
   /** 고른 신화·개방 단계와 유물 단계에 맞는 세진 정도 */
   private boost(ctx: SkillContext): Boost {
-    const out: Boost = { damageScale: this.stageScale, lightning: null }
+    const out: Boost = { damageScale: this.stageScale, lightning: null, reach: 1 }
     for (const b of this.trigger.bonus) {
       if (ctx.manifested !== b.manifested || ctx.level < b.minLevel) continue
       out.damageScale *= b.damageScale
       if (b.lightning !== undefined) out.lightning = (out.lightning ?? 0) + b.lightning
     }
+    // 조합 (P3): 켜져 있는 동안 얹는다
+    const combo = this.combo
+    if (combo) {
+      out.damageScale *= combo.damageScale ?? 1
+      out.reach *= combo.reach ?? 1
+      if (combo.lightning !== undefined) out.lightning = (out.lightning ?? 0) + combo.lightning
+    }
     return out
+  }
+
+  /** 켜진 조합이 이 유물 행동에 얹는 것 (`RelicPowers`가 칸을 볼 때마다 정한다). 없으면 null */
+  combo: RelicBoost | null = null
+
+  /** 충전을 그 값으로 맞춘다 (조합이 두 유물을 번갈아 터지게 어긋낼 때). 동작 중이면 그대로 */
+  setCharge(value: number): void {
+    if (!this.action.busy) this.progress = Math.max(0, Math.min(1, value))
   }
 
   private fire(ctx: SkillContext, cue: Cue): void {

@@ -14,7 +14,7 @@ import { betterLines, gearIcon } from '../../ui/gearCard'
 import type { GameContext } from '../context'
 import type { LoadoutChange } from '../RelicPowers'
 import { godMoment } from './godMoments'
-import { godPowers, type PowerId, powerRelic, ultimateId, weaponId } from '../../data/powers'
+import { godPowers, power, type PowerId, powerRelic, ultimateId, weaponId } from '../../data/powers'
 import { inPantheon, MAX_BREATH, oathSlots, type PartKind, slotsPantheon } from '../../myth/pantheon'
 import { PowerBridge } from './PowerBridge'
 
@@ -63,12 +63,29 @@ export class RelicSystem {
    * 자리 셋(손·심장·숨)은 칸에서 읽은 모습일 뿐이라(`slotsPantheon`) 자리 셋을 읽는 화면·규칙이 그대로 돈다.
    * 칸을 바꾼 뒤에는 꼭 이것을 부른다. 맹세를 건 동안은 줄어든 칸이 돈다 (저장되는 칸은 그대로)
    */
-  syncPowers(announce = false): void {
+  syncPowers(announce = false, quiet = false): void {
     const { progress, powers, mythPowers, bus } = this.ctx
     progress.pantheon = slotsPantheon(mythPowers.slots)
     const change = powers.setSlots(oathSlots(mythPowers.slots, this.ctx.build.rules))
+    this.litCombos(quiet)
     bus.emit('progressChanged', {})
     this.changed(change, announce)
+  }
+
+  /**
+   * 조합 (P3): 처음 켜진 조합은 큰 카드 한 번 (이름과 한 줄). 켜 본 조합은 저장에 남아, 꺼졌다 다시 켜져도 뜨지 않는다.
+   * 불러올 때·맹세로 도는 칸이 바뀔 때(quiet)와 점검용 실행(칸 상한을 푼 판)은 카드 없이 켜 본 것으로만 적는다
+   */
+  private litCombos(quiet: boolean): void {
+    const { powers, mythPowers, bus } = this.ctx
+    for (const combo of powers.combos) {
+      if (mythPowers.combos.has(combo.id)) continue
+      mythPowers.combos.add(combo.id)
+      if (quiet || mythPowers.uncapped) continue
+      const def = godDef(power(combo.needs[0])!.god)
+      const parts = combo.needs.map((id) => power(id)!.name).join(' + ')
+      bus.emit('moment', { id: 'comboLit', card: { kind: '조합', title: combo.name, color: def.color, icon: classIcon(def.name), lines: [combo.line, parts] } })
+    }
   }
 
   /** 가진 힘을 칸에 끼운다 (무기·궁극기는 바꿔 끼우고, 도는 힘은 빈 칸이 있을 때만). 끼웠으면 true */
@@ -146,7 +163,7 @@ export class RelicSystem {
 
   /** 맹세를 걸거나 풀었다 (E305-01)·저장을 불러왔다: 저장된 칸 그대로 도는 칸만 다시 맞춘다 */
   reapply(): void {
-    this.syncPowers()
+    this.syncPowers(false, true)
   }
 
   /** 그 신이 자리에 들었나 (칸에 그 신의 무기·궁극기·패시브 힘이 있나) */

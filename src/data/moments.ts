@@ -56,6 +56,8 @@ export const MOMENTS = {
   limitBroken: 3,
   oathKept: 3,
   godAwakened: 3,
+  // 조합이 처음 켜짐 (재미 재설계 P3): 조합마다 한 번만
+  comboLit: 3,
   // 4 장면: 첫 신이 깨어남(주신), 신의 흔적(무리를 이겨 힘을 빌리고 유물이 켜짐), 장 보스 처치, 장 넘어가기, 엔딩
   mythChosen: 4,
   fragment: 4,

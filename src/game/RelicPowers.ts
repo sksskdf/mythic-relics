@@ -1,7 +1,7 @@
 import type * as THREE from 'three'
 
 import { type God, godDef, isRelicId, relicDef, type RelicId } from '../relics/data'
-import { emptySlots, powerRelic, type PowerSlots } from '../data/powers'
+import { activeCombos, type Combo, emptySlots, type PowerId, powerRelic, type PowerSlots, type RelicBoost } from '../data/powers'
 import { effectScale, RELIC_STAGES } from '../gear/mythRelic'
 import { craft, melt } from '../gear/forge'
 import { Loadout } from '../gear/Loadout'
@@ -71,7 +71,34 @@ export class RelicPowers {
     }
     this.loadout.pantheon = slotsPantheon(this.slots)
     this.refreshStages()
+    this.applyCombos()
     return this.refresh()
+  }
+
+  /** 지금 켜진 조합 (도는 칸의 두 재료가 모두 있는 것, 자료의 차례) */
+  combos: readonly Combo[] = []
+  /** 동료가 친 자리에 번개가 떨어지는 패시브 힘 → 그 번개 피해 (조합 「발키리」) */
+  private readonly companionLightning = new Map<PowerId, number>()
+
+  /**
+   * 조합 (재미 재설계 P3): 도는 칸에 두 재료가 함께 있으면 켜지고 하나를 빼면 꺼진다.
+   * 켜진 조합의 일을 유물 효과와 동료 묶음에 건다 (꺼지면 걷는다). 새로 켜진 「번갈아」 조합은 둘째 유물의 충전을 반 박자 어긋낸다
+   */
+  private applyCombos(): void {
+    const before = new Set(this.combos.map((c) => c.id))
+    this.combos = activeCombos(this.slots.auras)
+    this.companionLightning.clear()
+    const boosts = new Map<RelicId, RelicBoost>()
+    for (const combo of this.combos) {
+      const e = combo.effect
+      if (e.kind === 'companionLightning') this.companionLightning.set(e.power, e.damage)
+      else {
+        for (const relic of e.relics) boosts.set(relic, mergeBoost(boosts.get(relic), e.boost))
+        const [first, second] = e.relics.map((r) => this.effects.get(r))
+        if (e.alternate && !before.has(combo.id) && first && second) second.setCharge?.((first.charge + 0.5) % 1)
+      }
+    }
+    for (const [id, effect] of this.effects) effect.combo = boosts.get(id) ?? null
   }
 
   /** 지금 도는 유물 효과 (잠든 유물은 뺀다). 프레임마다 부르니 배열을 다시 쓴다 */
@@ -126,10 +153,14 @@ export class RelicPowers {
    * 칸의 패시브 힘을 돌린다: 힘마다 그 부품만 든 패시브를 그 신 단계로.
    * 힘이 바뀌면 그 자리의 동료·도는 것은 부품이 다시 만든다
    */
-  setLent(list: readonly { passive: ClassPassive; level: number }[]): void {
+  setLent(list: readonly { passive: ClassPassive; level: number; power?: PowerId }[]): void {
     while (this.lentPassives.length > list.length) this.lentPassives.pop()!.dispose()
     while (this.lentPassives.length < list.length) this.lentPassives.push(new ClassPassives(this.fx))
-    list.forEach((l, i) => (this.lentPassives[i]!.bound = l))
+    list.forEach((l, i) => {
+      const passives = this.lentPassives[i]!
+      passives.bound = l
+      passives.comboLightning = (l.power && this.companionLightning.get(l.power)) || 0
+    })
   }
 
   /** 도는 패시브 묶음 모두: 연출 묶음 다음에 숨 칸 */
@@ -271,4 +302,10 @@ export class RelicPowers {
     this.state = this.loadout.state
     return { before, after: this.state }
   }
+}
+
+/** 한 유물에 걸린 조합이 둘이면 얹는 것을 합친다 (번개는 더하고 넓이·배율은 곱한다) */
+function mergeBoost(a: RelicBoost | undefined, b: RelicBoost): RelicBoost {
+  if (!a) return b
+  return { lightning: (a.lightning ?? 0) + (b.lightning ?? 0) || undefined, reach: (a.reach ?? 1) * (b.reach ?? 1), damageScale: (a.damageScale ?? 1) * (b.damageScale ?? 1) } as RelicBoost
 }

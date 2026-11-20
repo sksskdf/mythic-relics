@@ -17,9 +17,11 @@ export interface Boost {
   damageScale: number
   /** 맞은 적마다 함께 떨어지는 번개 피해. null이면 번개 없음, 0이면 연출만 */
   lightning: number | null
+  /** 닿는 넓이 배율 (조합, P3): 땅 울림의 반지름·넉백, 분신이 터지는 넓이, 쓸어 내는 길이. 1이 그대로 */
+  reach: number
 }
 
-export const NO_BOOST: Boost = { damageScale: 1, lightning: null }
+export const NO_BOOST: Boost = { damageScale: 1, lightning: null, reach: 1 }
 
 /** 행동 연동 효과가 터질 때 넘겨받는 것 */
 export interface Cue {
@@ -240,16 +242,17 @@ class Quake implements Action {
 
   fire(ctx: SkillContext, _cue: Cue, boost: Boost): void {
     const hero = ctx.hero.object.position
-    for (const enemy of enemiesWithin(ctx.enemies, hero.x, hero.z, this.p.radius!)) {
+    const radius = this.p.radius! * boost.reach
+    for (const enemy of enemiesWithin(ctx.enemies, hero.x, hero.z, radius)) {
       const [dx, dz] = away(hero.x, hero.z, enemy)
-      ctx.hit(enemy, this.p.damage! * boost.damageScale, dx, dz, this.p.knockback!, 'strong')
+      ctx.hit(enemy, this.p.damage! * boost.damageScale, dx, dz, this.p.knockback! * boost.reach, 'strong')
       boostLightning(ctx, enemy, boost, dx, dz)
     }
     this.ring.position.set(hero.x, hero.y + 0.15, hero.z)
     this.ring.visible = true
     this.ringLife = 0.3
-    ctx.puffs.burst(hero, this.look.look === 'boar' ? 40 : 28, 4)
-    this.look.fire(ctx, this.p.radius!)
+    ctx.puffs.burst(hero, this.look.look === 'boar' ? 40 : 28, 4 * boost.reach)
+    this.look.fire(ctx, radius)
     ctx.shake(0.3)
   }
 
@@ -407,12 +410,12 @@ class Decoy implements Action {
     const p = this.decoy.root.position
     this.decoy.root.visible = false
     ctx.setDecoy(null)
-    for (const enemy of enemiesWithin(ctx.enemies, p.x, p.z, this.p.blastRadius!)) {
+    for (const enemy of enemiesWithin(ctx.enemies, p.x, p.z, this.p.blastRadius! * this.boost.reach)) {
       const [dx, dz] = away(p.x, p.z, enemy)
       ctx.hit(enemy, this.p.blastDamage! * this.boost.damageScale, dx, dz, this.p.knockback!, 'normal')
       boostLightning(ctx, enemy, this.boost, dx, dz)
     }
-    ctx.puffs.burst(p, 18, 3)
+    ctx.puffs.burst(p, Math.round(18 * this.boost.reach), 3 * this.boost.reach)
     if (this.look === 'shade') ctx.chips(p, [0x2a1a3a, 0x8a5fd0, 0x5a3a8a], 24, 1.2, 0.14)
     ctx.shake(0.12)
   }
@@ -458,7 +461,7 @@ class FlameSweep implements Action {
     const facing = cue.target ? Math.atan2(cue.target.x - hero.x, cue.target.z - hero.z) : ctx.hero.facing
     const half = (this.p.halfAngle! * Math.PI) / 180
     for (const enemy of ctx.enemies) {
-      if (!enemy.alive || !inArc(hero.x, hero.z, facing, this.p.range!, half, enemy.x, enemy.z, enemy.radius)) continue
+      if (!enemy.alive || !inArc(hero.x, hero.z, facing, this.p.range! * boost.reach, half, enemy.x, enemy.z, enemy.radius)) continue
       const [dx, dz] = away(hero.x, hero.z, enemy)
       ctx.hit(enemy, this.p.damage! * boost.damageScale, dx, dz, this.p.knockback!, 'strong')
       boostLightning(ctx, enemy, boost, dx, dz)
@@ -468,14 +471,18 @@ class FlameSweep implements Action {
     this.turn.rotation.y = facing
     this.turn.visible = true
     this.life = 0.35
+    this.reach = boost.reach
     ctx.shake(0.15)
   }
+
+  /** 이번에 쓸어 내는 길이의 배율 (조합) */
+  private reach = 1
 
   update(dt: number): void {
     if (this.life <= 0) return
     this.life -= dt
     const t = 1 - this.life / 0.35
-    this.fan.scale.setScalar(0.6 + t * this.p.range!)
+    this.fan.scale.setScalar(0.6 + t * this.p.range! * this.reach)
     this.material.opacity = Math.max(0, 1 - t) * 0.8
     this.turn.visible = this.life > 0
   }

@@ -202,9 +202,26 @@ export function slotted(slots: PowerSlots): PowerId[] {
 // ── 조합 ───────────────────────────────────────────
 
 /**
+ * 조합이 켜지면 유물 효과에 얹는 것 (재미 재설계 P3). 화면에서 보이는 얽힘이 먼저이고 숫자 덤은 작다:
+ * 맞은 적마다 번개(피해는 작게), 닿는 넓이(땅 울림의 반지름·넉백, 분신이 터지는 넓이, 쓸어 내는 길이), 그 유물 행동의 피해 배율.
+ * 빌드 전체의 피해 배율은 주지 않는다 (층 목록에 조합 층이 없는 까닭)
+ */
+export interface RelicBoost {
+  readonly lightning?: number
+  readonly reach?: number
+  readonly damageScale?: number
+}
+
+/** 조합이 하는 일: 있는 장치로만 낸다 */
+export type ComboEffect =
+  /** 그 패시브 힘의 동료가 친 자리에 번개가 떨어진다 (`ClassPassives`의 동료 타격) */
+  | { readonly kind: 'companionLightning'; readonly power: PowerId; readonly damage: number }
+  /** 그 유물들의 행동에 얹는다. alternate면 켜질 때 둘째 유물의 충전을 반 박자 어긋나게 해 번갈아 터지게 한다 */
+  | { readonly kind: 'relicBoost'; readonly relics: readonly RelicId[]; readonly boost: RelicBoost; readonly alternate?: boolean }
+
+/**
  * 이름 붙은 조합: 두 힘이 함께 칸에 있으면 켜지고 빼면 꺼진다. 배율이 아니라 화면에서 보이는 얽힘이다.
- * 이 갈래는 자료와 판정만 둔다. `line`은 뒤 갈래가 지금 있는 장치로 낼 수 있는 것만 적었다:
- * 동료 타격에 번개 한 줄(`ClassPassives`), 유물의 「맞은 적마다 번개」·피해 덤(`relics.json`의 `bonus`, 조건만 「조합이 켜졌나」로)
+ * `line`은 화면에서 실제로 보이는 것 그대로 적는다 (큰 카드와 힘 탭이 읽는다). 효과는 `effect`대로 `RelicPowers`가 건다
  */
 export interface Combo {
   readonly id: string
@@ -212,16 +229,55 @@ export interface Combo {
   readonly needs: readonly [PowerId, PowerId]
   /** 켜지면 화면에서 보일 얽힘 */
   readonly line: string
+  readonly effect: ComboEffect
 }
 
 export const COMBOS: readonly Combo[] = [
-  { id: 'valkyrie', name: '발키리', needs: [partId('odin', 'companions'), partId('thor', 'basicLightning')], line: '까마귀가 쫀 자리에 번개가 떨어진다' },
-  { id: 'thunderSpear', name: '천둥 창', needs: [partId('thor', 'basicLightning'), relicPowerId('gungnir')], line: '던진 창이 오가며 맞힌 적마다 번개가 친다' },
-  { id: 'returningThunder', name: '돌아오는 천둥', needs: [partId('thor', 'basicLightning'), relicPowerId('mjolnir')], line: '던진 망치가 맞힌 적마다 번개가 친다' },
-  { id: 'herald', name: '종말의 전령', needs: [relicPowerId('megingjord'), relicPowerId('draupnir')], line: '땅 내리찍기 둘이 함께 터져 더 멀리 날린다' },
-  { id: 'thousandFaces', name: '천의 얼굴', needs: [relicPowerId('lokiMask'), relicPowerId('huginnFeather')], line: '분신과 까마귀 떼가 번갈아 서고 더 크게 터진다' },
-  { id: 'dawn', name: '여명의 화신', needs: [relicPowerId('laevateinn'), relicPowerId('sumarbrandr')], line: '초록 불꽃과 금빛 검이 함께 쓸고 더 세게 벤다' },
+  {
+    id: 'valkyrie',
+    name: '발키리',
+    needs: [partId('odin', 'companions'), partId('thor', 'basicLightning')],
+    line: '까마귀가 쫀 자리에 번개가 떨어진다',
+    effect: { kind: 'companionLightning', power: partId('odin', 'companions'), damage: 6 },
+  },
+  {
+    id: 'thunderSpear',
+    name: '천둥 창',
+    needs: [partId('thor', 'basicLightning'), relicPowerId('gungnir')],
+    line: '던진 창이 오가며 맞힌 적마다 번개가 친다',
+    effect: { kind: 'relicBoost', relics: ['gungnir'], boost: { lightning: 5 } },
+  },
+  {
+    id: 'returningThunder',
+    name: '돌아오는 천둥',
+    needs: [partId('thor', 'basicLightning'), relicPowerId('mjolnir')],
+    line: '던진 망치가 맞힌 적마다 번개가 친다',
+    effect: { kind: 'relicBoost', relics: ['mjolnir'], boost: { lightning: 5 } },
+  },
+  {
+    id: 'herald',
+    name: '종말의 전령',
+    needs: [relicPowerId('megingjord'), relicPowerId('draupnir')],
+    line: '땅 내리찍기 둘이 함께 터져 더 넓게, 더 멀리 날린다',
+    effect: { kind: 'relicBoost', relics: ['megingjord', 'draupnir'], boost: { reach: 1.3, damageScale: 1.1 } },
+  },
+  {
+    id: 'thousandFaces',
+    name: '천의 얼굴',
+    needs: [relicPowerId('lokiMask'), relicPowerId('huginnFeather')],
+    line: '분신과 까마귀 떼가 번갈아 서고 더 넓게 터진다',
+    effect: { kind: 'relicBoost', relics: ['lokiMask', 'huginnFeather'], boost: { reach: 1.3, damageScale: 1.15 }, alternate: true },
+  },
+  {
+    id: 'dawn',
+    name: '여명의 화신',
+    needs: [relicPowerId('laevateinn'), relicPowerId('sumarbrandr')],
+    line: '초록 불꽃과 금빛 검이 함께, 더 멀리 쓸고 더 세게 벤다',
+    effect: { kind: 'relicBoost', relics: ['laevateinn', 'sumarbrandr'], boost: { reach: 1.2, damageScale: 1.15 } },
+  },
 ]
+
+export const isComboId = (v: unknown): v is string => typeof v === 'string' && COMBOS.some((c) => c.id === v)
 
 /** 칸에 끼운 힘으로 켜진 조합 (자료의 차례) */
 export function activeCombos(inSlots: Iterable<PowerId>): Combo[] {

@@ -83,6 +83,8 @@ export function orbMesh(shape: OrbitShape, color: number): THREE.Mesh {
 export class ClassPassives {
   /** 이 묶음이 돌리는 패시브와 단계 (빌린 힘, E237). 없으면 고른 신화(주신)의 것 */
   bound: { passive: ClassPassive; level: number } | null = null
+  /** 조합 「발키리」(P3): 0보다 크면 동료가 친 자리에 번개가 떨어지고 이만큼 피해를 더 준다 */
+  comboLightning = 0
   private skyTimer = 0
   private pulseTimer = 0
   private bloomTimer = 0
@@ -450,6 +452,16 @@ export class ClassPassives {
     ctx.slashes.spawn(from, Math.atan2(dx, dz), 1.4, 0.9, false, tint)
     if (target.alive) ctx.hit(target, atLevel(p.damage, level), dx / len, dz / len, p.look === 'boar' ? 6 : 2, 'normal', 'companion')
     ctx.sound('clone', target.x, target.z)
+    if (this.comboLightning > 0) {
+      // 쫀 자리에 하늘에서 번개가 떨어진다: 그 일격에 쓰러진 적의 자리에도 떨어지고, 살아 있으면 번개 피해를 더 준다
+      const y = ctx.hero.object.position.y
+      const at = new THREE.Vector3(target.x, y, target.z)
+      ctx.lightning.fromSky(at, 0.2)
+      // 번개는 한순간이라, 떨어진 자리에 하늘빛 기둥이 잠깐 남아 얽힘이 눈에 들어오게 한다
+      ctx.flash(at, SKY_COLORS.lightning, 1)
+      ctx.puffs.burst(new THREE.Vector3(target.x, y + 0.3, target.z), 5, 1.2)
+      if (target.alive) ctx.hit(target, this.comboLightning, dx / len, dz / len, 0, 'thunder', 'companion')
+    }
     if (level < p.burstMinLevel) return
     ctx.puffs.burst(new THREE.Vector3(target.x, from.y + 0.5, target.z), 6, 1.5)
     for (const enemy of enemiesWithin(ctx.enemies, target.x, target.z, p.burstRadius)) {

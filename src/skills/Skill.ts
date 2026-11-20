@@ -8,6 +8,7 @@ import type { Slashes } from '../fx/Slashes'
 import type { CombatTarget } from '../game/PlayerCombat'
 import type { HeroController } from '../game/HeroController'
 import type { ModifierKey } from '../data/schema'
+import type { RelicBoost } from '../data/powers'
 import type { God, RelicId } from '../relics/data'
 import type { DamageStyle } from '../ui/DamageNumbers'
 
@@ -81,6 +82,10 @@ export interface RelicEffect {
   readonly charge: number
   /** 유물 단계에 따른 피해 배율 (E13-03, 1단계 1) */
   stageScale: number
+  /** 켜진 조합이 이 유물 행동에 얹는 것 (P3). 없으면 null */
+  combo: RelicBoost | null
+  /** 충전을 그 값으로 맞춘다 (조합이 두 유물을 번갈아 터지게 어긋낼 때) */
+  setCharge?(value: number): void
   /** 매 프레임: 오라, 날아가는 투사체 등 */
   update(dt: number, ctx: SkillContext): void
   /** 기본 공격이 적을 맞혔다. */

@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { Giant, GRUNT, type GiantWorld } from '../src/enemies/Giant'
 import { Lightning } from '../src/fx/Lightning'
@@ -248,3 +248,134 @@ describe('로키 유물과 변신술사 (E6)', () => {
   })
 
 })
+
+describe('조합의 효과 (재미 재설계 P3): 켜지면 실제 피해와 번개로 나타난다', () => {
+  const finisher = (target: CombatTarget) => ({ targets: [target], comboIndex: 2, comboLength: 3, finisher: true })
+
+  it('발키리: 까마귀가 쫀 자리마다 하늘에서 번개가 떨어지고 번개 피해가 더 들어간다. 꺼지면 멎는다', async () => {
+    const { ClassPassives } = await import('../src/skills/ClassPassives')
+    const { powerPassive, COMBOS } = await import('../src/data/powers')
+    const combo = COMBOS.find((c) => c.id === 'valkyrie')!.effect as { power: string; damage: number }
+    const measure = (lightning: number) => {
+      const hits: number[] = []
+      const { ctx, fx } = setup([dummy(2, 2, hits)])
+      const styles: string[] = []
+      const base = ctx.hit
+      ctx.hit = (target, damage, dirX, dirZ, knockback, style, source) => {
+        styles.push(`${style}:${source}`)
+        base(target, damage, dirX, dirZ, knockback, style, source)
+      }
+      const sky = vi.spyOn(ctx.lightning, 'fromSky')
+      const passives = new ClassPassives(fx)
+      passives.bound = { passive: powerPassive(combo.power)!, level: 1 }
+      passives.comboLightning = lightning
+      for (let t = 0; t < 4; t += 1 / 60) passives.update(1 / 60, ctx)
+      return { pecks: styles.filter((s) => s === 'normal:companion').length, bolts: styles.filter((s) => s === 'thunder:companion').length, sky: sky.mock.calls.length, hits }
+    }
+    const on = measure(combo.damage)
+    expect(on.pecks).toBeGreaterThan(1)
+    expect(on.bolts).toBe(on.pecks)
+    expect(on.sky).toBe(on.pecks)
+    expect(on.hits.filter((d) => d === combo.damage)).toHaveLength(on.bolts)
+    const off = measure(0)
+    expect(off.pecks).toBe(on.pecks)
+    expect(off.bolts).toBe(0)
+    expect(off.sky).toBe(0)
+  })
+
+  it('돌아오는 천둥·천둥 창: 던진 망치·창이 맞힌 적마다 번개가 치고 번개 피해가 더 들어간다', () => {
+    for (const relic of ['mjolnir', 'gungnir']) {
+      const measure = (combo: { lightning: number } | null) => {
+        const hits: number[] = []
+        const target = dummy(5, 0, hits)
+        const { ctx, fx } = setup([target])
+        const sky = vi.spyOn(ctx.lightning, 'fromSky')
+        const skill = effect(relic, fx)
+        skill.combo = combo
+        skill.onBasicHit(finisher(target), ctx)
+        run(skill, ctx, 2)
+        return { hits, sky: sky.mock.calls.length }
+      }
+      const plain = measure(null)
+      expect(plain.sky, relic).toBe(0)
+      const lit = measure({ lightning: 5 })
+      // 가는 길과 돌아오는 길에 한 번씩 맞고, 맞을 때마다 번개
+      expect(lit.sky, relic).toBe(plain.hits.length)
+      expect(lit.hits.filter((d) => d === 5), relic).toHaveLength(plain.hits.length)
+      expect(lit.hits.length, relic).toBe(plain.hits.length * 2)
+    }
+  })
+
+  it('종말의 전령: 땅 내리찍기가 더 넓게 닿고 더 멀리 날린다 (피해 덤은 작게)', () => {
+    const fire = (combo: { reach: number; damageScale: number } | null) => {
+      const hits: number[] = []
+      const knocks: number[] = []
+      // 메긴교르드의 반지름 3.4m 바로 밖 (몸 반지름 0.75)
+      const far = { ...dummy(4.6, 0, hits), takeHit: (damage: number, _x: number, _z: number, knockback: number) => (hits.push(damage), knocks.push(knockback), damage) }
+      const { ctx, fx } = setup([far])
+      const skill = effect('megingjord', fx)
+      skill.combo = combo
+      for (let i = 0; i < 5; i++) skill.onKill(far)
+      skill.onBasicHit(finisher(far), ctx)
+      return { hits, knocks }
+    }
+    expect(fire(null).hits).toEqual([])
+    const lit = fire({ reach: 1.3, damageScale: 1.1 })
+    expect(lit.hits).toHaveLength(1)
+    expect(lit.hits[0]).toBeCloseTo(26 * 1.1)
+    expect(lit.knocks[0]).toBeCloseTo(11 * 1.3)
+  })
+
+  it('여명의 화신: 불꽃과 검이 더 멀리 쓸고 더 세게 벤다', () => {
+    for (const relic of ['laevateinn', 'sumarbrandr']) {
+      const fire = (combo: { reach: number; damageScale: number } | null) => {
+        const hits: number[] = []
+        // 쓸어 내는 길이 4.2m 바로 밖
+        const far = dummy(5.4, 0, hits)
+        const near = dummy(2, 0, hits)
+        const { ctx, fx } = setup([near, far])
+        const skill = effect(relic, fx)
+        skill.combo = combo
+        skill.onBasicHit(finisher(near), ctx)
+        return hits
+      }
+      expect(fire(null), relic).toEqual([20])
+      const lit = fire({ reach: 1.2, damageScale: 1.15 })
+      expect(lit, relic).toHaveLength(2)
+      for (const d of lit) expect(d, relic).toBeCloseTo(20 * 1.15)
+    }
+  })
+
+  it('천의 얼굴: 켜질 때 까마귀 떼의 충전이 분신과 반 박자 어긋나 번갈아 서고, 터지는 넓이가 넓다', async () => {
+    const { RelicPowers } = await import('../src/game/RelicPowers')
+    const { ctx, fx } = setup([])
+    const powers = new RelicPowers(fx)
+    powers.setSlots({ weapon: null, ultimate: null, auras: ['relic:lokiMask'] })
+    // 분신은 12m를 걸으면 찬다: 3m 걸어 넷에 하나
+    powers.onWalk(3, ctx)
+    expect(powers.effectOf('lokiMask')!.charge).toBeCloseTo(0.25)
+    powers.setSlots({ weapon: null, ultimate: null, auras: ['relic:lokiMask', 'relic:huginnFeather'] })
+    expect(powers.combos.map((c) => c.id)).toEqual(['thousandFaces'])
+    expect(powers.effectOf('huginnFeather')!.charge).toBeCloseTo(0.75)
+    // 같은 걸음으로 차니 그 뒤로도 반 박자씩 어긋난 채다. 다시 맞춰도(칸이 그대로면) 충전을 건드리지 않는다
+    powers.onWalk(1.2, ctx)
+    powers.setSlots({ weapon: null, ultimate: null, auras: ['relic:lokiMask', 'relic:huginnFeather'] })
+    expect(powers.effectOf('lokiMask')!.charge).toBeCloseTo(0.35)
+    expect(powers.effectOf('huginnFeather')!.charge).toBeCloseTo(0.85)
+    // 터지는 넓이: 분신이 사라질 때 2.6m 바로 밖의 적도 맞는다
+    const blast = (combo: { reach: number; damageScale: number } | null) => {
+      const hits: number[] = []
+      const s = setup([dummy(3.8, 0, hits)])
+      const skill = effect('lokiMask', s.fx)
+      skill.combo = combo
+      skill.onWalk(12)
+      run(skill, s.ctx, 5)
+      return hits
+    }
+    expect(blast(null)).toEqual([])
+    const wide = blast({ reach: 1.3, damageScale: 1.15 })
+    expect(wide).toHaveLength(1)
+    expect(wide[0]).toBeCloseTo(20 * 1.15)
+  })
+})
+
