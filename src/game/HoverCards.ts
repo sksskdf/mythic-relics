@@ -144,7 +144,7 @@ export class HoverCards {
     if ('god' in item) {
       // 신의 흔적 (E238): 무엇을 고르는지 알고 고르게 그 신의 무기·빌려주는 힘
       const now = { ...this.parts.traceContext(item.god), state: item.state }
-      this.tooltip.showCard(`trace:${item.god}`, `${item.god}|${now.state}|${now.fragments}|${now.hunt}|${now.sealedText}`, () => traceCard(item.god, now), x, y, above, band)
+      this.tooltip.showCard(`trace:${item.god}`, `${item.god}|${now.state}|${now.waking}|${now.sealedText}`, () => traceCard(item.god, now), x, y, above, band)
       return
     }
     const gear = ctx.pickups.gearOf(item.id)
@@ -203,11 +203,11 @@ export class HoverCards {
     return item
   }
 
-  /** 흔적의 형편: 카드의 「지금 할 일」 줄이 달라지는 것만 (사냥 수처럼 늘 움직이는 것은 뺀다). 바뀌면 다시 읽을 카드다 */
+  /** 흔적의 형편: 카드의 「지금 할 일」 줄이 달라지는 것만 (늘 움직이는 것은 뺀다). 바뀌면 다시 읽을 카드다 */
   private traceLook(t: { god: God; state: TraceState }): string {
     if (t.state !== 'waking' && t.state !== 'sealed' && t.state !== 'busy') return t.state
     const now = this.parts.traceContext(t.god)
-    return `${t.state}|${t.state === 'waking' ? now.fragments : t.state === 'sealed' ? now.sealedText : now.waking}`
+    return `${t.state}|${t.state === 'sealed' ? now.sealedText : now.waking}`
   }
 
   /**

@@ -117,7 +117,7 @@ export class GodsTab {
     return box
   }
 
-  /** 깨우는 중인 신 (E238): 조각 셋 가운데 모은 것, 빌린 힘, 다음 할 일 */
+  /** 깨우는 중인 신 (E238): 흔적은 지났고 수호자가 남았다는 점 둘, 빌린 힘, 다음 할 일 */
   private wakingBox(): HTMLElement | null {
     const waking = this.ctx.host.gods.waking()
     if (!waking) return null
@@ -126,9 +126,9 @@ export class GodsTab {
     box.style.setProperty('--god', def.color)
     box.append(img(classIcon(def.name), 'menu-slots__emblem'))
     const words = el('div', 'menu-waking__words')
-    words.append(el('small', '', `깨우는 신 · 조각 ${waking.fragments}/3`), el('b', '', def.name))
+    words.append(el('small', '', '깨우는 신'), el('b', '', def.name))
     const pieces = el('div', 'menu-waking__pieces')
-    for (const [i, name] of ['흔적', '사냥', '수호자'].entries()) pieces.append(el('span', i < waking.fragments ? 'is-have' : i === waking.fragments ? 'is-now' : '', name))
+    pieces.append(el('span', 'is-have', '흔적'), el('span', 'is-now', '수호자'))
     words.append(pieces, el('p', '', `빌린 힘: ${lendText(waking.god, 1)}`), el('p', 'menu-waking__next', `다음: ${waking.next}`))
     box.append(words)
     return box
@@ -284,7 +284,7 @@ export class GodsTab {
       const open = el('div', 'menu-myth__part')
       open.append(el('b', '', '여는 법'))
       const path = wakeDef(god)
-      const steps = `흔적을 지키는 것들을 물리치고, 그 땅에서 사냥하고, ${josa(path?.guardian.name ?? '', '을')} 쓰러뜨리면 깨어난다.`
+      const steps = `흔적을 지키는 것들을 물리치고 ${josa(path?.guardian.name ?? '', '을')} 쓰러뜨리면 깨어난다.`
       // 데모의 그리스 셋 (E241): 흔적은 서 있되 엔딩 뒤에 응답한다
       const how = path
         ? path.afterEnding && !this.ctx.host.afterEnding('realms')
@@ -352,8 +352,8 @@ export class GodsTab {
       now.append(img(unknownSigil(), 'menu-classes__emblem'))
       const info = el('div', 'menu-classes__info')
       info.append(el('div', 'menu-classes__title', '이름 없는 모험가'))
-      // 처음 여는 사람도 무엇을 하면 되는지 바로 알게 (체크리스트 QA, 2026-10-27). 신은 조각 셋으로 깨운다 (E238)
-      info.append(el('p', 'menu-classes__how', '신의 흔적·사냥·수호자, 조각 셋을 모으면 그 신이 깨어난다.'))
+      // 처음 여는 사람도 무엇을 하면 되는지 바로 알게 (체크리스트 QA, 2026-10-27). 신은 흔적과 수호자로 깨운다 (E238)
+      info.append(el('p', 'menu-classes__how', '신의 흔적을 찾아 지키는 것들을 물리치고, 수호자를 쓰러뜨리면 그 신이 깨어난다.'))
       now.append(info)
       this.ctx.hintOn(now, '흔적에 커서를 올리면 그 신이 무엇을 주는지 보인다.')
     }

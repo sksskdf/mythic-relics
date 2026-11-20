@@ -50,29 +50,24 @@ export const FLAME = {
 /** 원정을 떠난 뒤 이 초가 지나야 귀환할 수 있다 (떠나자마자 다시 귀환 카드가 뜨지 않게) */
 export const RETURN_MIN_SECONDS = 120
 /**
- * 원정이 무르익어야 귀환한다: 이번 원정의 기세 레벨(수련 깨달음)이 이만큼은 되어야 귀환 카드가 뜬다 (E306 D9: 귀환 번호마다).
- * n번째 귀환에 필요한 기세 레벨, 표 끝을 넘으면 마지막 값. 뒤 원정일수록 처치가 빠르고 출발점(⅓·½)도 붙어 8에 일찍 닿으니
- * 문턱을 올려 원정 길이를 `TIMELINE.md` 4장(18·15·18·24분)에 맞춘다. 옛 신 경험치 막대(1500·3000)가 맡던 박자를 기세가 맡는다.
- * E306-02 첫 바퀴: [8, 12, 14, 16]에서 봇 귀환이 12.9·19.2·28.7·37.1분(목표 14·26·40·59)이라 둘째부터 올림.
- * 둘째 바퀴: [8, 16, 16, 20](땅 세기를 한 번 더 올린 탐색)에서 귀환 1이 요르문간드 뒤 1.5분(목표 3.1분), 거인 왕이 귀환 2 뒤 4.6분(목표 8.2분),
- * 귀환 4가 키마이라 뒤 4분(목표 3.1분)이라 [9, 17, 17, 19]. 표는 줄지 않는다(tests/expedition.test.ts)
+ * 귀환할 만한 원정인가 (2026-11-20: 귀환의 기세 문턱을 걷으며 둔 조건). 귀환은 빈손이어도 원천 불씨 하나와 명성을 주니,
+ * 2분마다 화로에 서서 불씨를 뽑는 길이 생기지 않게 엔딩 전에는 이번 원정에서 한 일이 있어야 한다:
+ * 수호자·장 보스를 하나 이상 이겼거나(bosses), 장의 목표가 귀환이거나 다음 신의 흔적이 귀환을 기다린다(asked).
+ * 엔딩 뒤의 깊이 순환은 문턱(`RETURN_MIN_LEVEL_AFTER_ENDING`)이 그대로 맡는다
  */
-export const RETURN_MIN_LEVEL: readonly number[] = [9, 17, 17, 19]
-/** 엔딩을 본 뒤의 귀환 문턱 (깊이 순환은 그대로 빠르게) */
-export const RETURN_MIN_LEVEL_AFTER_ENDING = 8
-
-/** returnNo번째 귀환(1부터)에 필요한 기세 레벨. 엔딩 뒤에는 RETURN_MIN_LEVEL_AFTER_ENDING */
-export function returnMinLevel(returnNo: number, afterEnding = false): number {
-  if (afterEnding) return RETURN_MIN_LEVEL_AFTER_ENDING
-  return RETURN_MIN_LEVEL[Math.min(RETURN_MIN_LEVEL.length - 1, Math.max(0, returnNo - 1))]!
+export function returnEarned(now: { ending: boolean; bosses: number; asked: boolean; level: number }): boolean {
+  if (now.ending) return now.level >= RETURN_MIN_LEVEL_AFTER_ENDING
+  return now.bosses >= 1 || now.asked
 }
+/** 엔딩을 본 뒤의 귀환 문턱: 이번 원정에 모은 수련 깨달음 (깊이 순환은 그대로 빠르게) */
+export const RETURN_MIN_LEVEL_AFTER_ENDING = 8
 
 /** 새 불길: 다시 떠난 뒤 이 초 동안 장비 드랍 배율 */
 export const NEW_FIRE = { seconds: 120, drop: 3 } as const
 
 /**
- * 귀환을 알리는 때 (목표 한 줄이 「화로에서 원정을 마친다」로, E306 D10: `DESIGN.md` 5.3): 첫 귀환 뒤로, 귀환 문턱을 넘었고,
- * 지난 기세 레벨에서 quietLevel초가 지났거나(기세가 느려짐) 받을 배율이 지금의 gain배를 넘으면. 목표가 합치기인 동안은 알리지 않는다
+ * 귀환을 알리는 때 (목표 한 줄이 「화로에서 원정을 마친다」로, E306 D10: `DESIGN.md` 5.3): 첫 귀환 뒤로, 귀환할 수 있고,
+ * 지난 깨달음에서 quietLevel초가 지났거나(성장이 느려짐) 받을 배율이 지금의 gain배를 넘으면. 목표가 합치기인 동안은 알리지 않는다
  */
 export const RETURN_SIGNAL = { quietLevel: 180, gain: 1.25 } as const
 
@@ -84,7 +79,7 @@ export const AUTOMATION = {
   heirloom: [0, 1, 1, 2] as readonly number[],
   /** 자동 합치기: 이 횟수부터 그 등급 */
   autoMerge: { good: 2, rare: 3 } as const,
-  /** 기세 출발점: 귀환 횟수 → 지난 원정 최고 경험치의 몫 */
+  /** 수련 출발점: 귀환 횟수 → 지난 원정 최고 경험치의 몫 */
   head: [0, 0, 1 / 3, 1 / 2] as readonly number[],
   /** 엔딩을 봤으면 귀환 횟수를 이만큼은 친다 (자동화를 유지, `expedition.count`는 그대로, E305-03) */
   endingReturns: 3,

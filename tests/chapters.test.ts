@@ -505,6 +505,70 @@ describe('목표 한 줄의 합치기 막대 (E306)', () => {
   })
 })
 
+describe('엔딩 전 깨우는 길의 목표 한 줄 (2026-11-20: 사냥 막대와 기세 막대를 걷음)', () => {
+  /** 목표 한 줄을 읽는 데 드는 것만 흉내 낸 게임 상태 */
+  const viewOf = (chapters: ChapterProgress, now: { waking?: string | null; opened?: number; returns?: number; seconds?: number; insights?: number; bosses?: number }) => {
+    const ctx = {
+      bus: new EventBus<GameEvents>(),
+      chapters,
+      progress: { pantheon: { hand: null }, isOpen: () => false, opened: { length: now.opened ?? 0 } },
+      build: { chosen: null },
+      powers: { loadout: new Loadout() },
+      awaken: { waking: now.waking ?? null, fragments: now.waking ? 2 : 0 },
+      ending: { reached: false, has: () => false },
+      expedition: { preview: () => ({ seconds: now.seconds ?? 0, now: 1, next: 1.2 }), returns: now.returns ?? 0, elapsed: now.seconds ?? 0, bosses: now.bosses ?? 0 },
+      training: { insights: now.insights ?? 0 },
+    }
+    return new ChapterSystem(ctx as never).goalView()
+  }
+  /** 「2/3」처럼 세는 꼴 */
+  const counted = /\d+\s*\/\s*\d+/
+
+  it('흔적을 찾는 목표는 깨달음이 0이어도 그 글 그대로다 (「기세를 모은다 n/m」이 아니다)', () => {
+    const chapters = new ChapterProgress(world())
+    chapters.enter('midgard')
+    expect(chapters.goal?.kind).toBe('awaken')
+    const view = viewOf(chapters, { insights: 0 })
+    expect(view).toEqual({ text: '미드가르드에서 신의 흔적을 찾는다', ratio: null })
+  })
+
+  it('흔적의 무리를 이긴 뒤에는 곧바로 수호자다: 사냥 막대도 세는 꼴도 없다', () => {
+    const chapters = new ChapterProgress(world())
+    chapters.enter('midgard')
+    for (const god of ['thor', 'odin'] as const) {
+      const view = viewOf(chapters, { waking: god })
+      expect(view?.ratio, god).toBeNull()
+      expect(view?.text, god).toMatch(/쓰러뜨려 .+ 깨운다$/)
+      expect(view?.text, god).not.toMatch(counted)
+      expect(view?.text, god).not.toMatch(/사냥|기세/)
+    }
+    expect(viewOf(chapters, { waking: 'thor' })?.text).toBe('요르문간드를 쓰러뜨려 토르를 깨운다')
+  })
+
+  it('귀환 목표는 떠난 지 2분 전에는 글 그대로에 시간 막대만, 지나면 받을 배율: 깨달음 수를 세지 않는다', () => {
+    const w = world()
+    const chapters = new ChapterProgress(w)
+    chapters.enter('midgard')
+    w.awake.set('norse', 1)
+    expect(chapters.goal?.kind).toBe('return')
+    const early = viewOf(chapters, { opened: 1, seconds: 30, insights: 0, bosses: 1 })
+    expect(early).toEqual({ text: '성소 화로에서 첫 원정을 마친다', ratio: 0.25 })
+    const ripe = viewOf(chapters, { opened: 1, seconds: 130, insights: 0, bosses: 1 })
+    expect(ripe).toEqual({ text: '성소 화로에서 첫 원정을 마친다 (×1.20)', ratio: null })
+    for (const view of [early, ripe]) expect(view?.text).not.toMatch(counted)
+  })
+
+  it('둘째 신의 흔적이 귀환을 기다리면 귀환을 안내한다 (세는 꼴 없이)', () => {
+    const w = world()
+    const chapters = new ChapterProgress(w)
+    chapters.enter('midgard')
+    // 첫 신을 깨웠는데 장 진행은 아직 깨우기 목표인 판 (귀환 0)
+    const view = viewOf(chapters, { opened: 1, seconds: 200 })
+    expect(view?.text).toBe('성소 화로에서 원정을 마친다 (×1.20)')
+    expect(view?.text).not.toMatch(counted)
+  })
+})
+
 describe('장 진행 시스템과 탈것 (E241)', () => {
   it('귀환 3을 먼저 한 판은 고개지기를 만나면 바로 목표가 올림포스로 넘어간다 (goalChanged: 결계·작은 지도가 다시 셈한다)', () => {
     const bus = new EventBus<GameEvents>()

@@ -4,12 +4,11 @@ import { breathSlots } from '../../myth/pantheon'
 import { REGIONS } from '../../data/regions'
 import { sceneId } from '../../data/scenes'
 import { missing, nextRecipe } from '../../gear/forge'
-import { WAKE, WAKE_GODS, wakeDef, mayWake, traceLevel, traceStateOf } from '../../data/wake'
-import type { God } from '../../relics/data'
+import { wakeDef, mayWake } from '../../data/wake'
 import { godDef } from '../../relics/data'
 import { josa } from '../../ui/josa'
 import type { GoalView } from '../../ui/ChapterHud'
-import { RETURN_MIN_SECONDS, RETURN_SIGNAL, returnMinLevel } from '../../data/cycle'
+import { RETURN_MIN_SECONDS, RETURN_SIGNAL, returnEarned } from '../../data/cycle'
 import { MERGE_COUNT } from '../../gear/merge'
 import type { GameContext } from '../context'
 
@@ -103,25 +102,25 @@ export class ChapterSystem {
 
   /**
    * HUD 목표 한 줄 (E22-04): 지금 목표의 글과, 채워야 하는 목표면 그 비율.
-   * 신 깨우기(E238)는 깨우는 신이 있으면 그 조각의 할 일(사냥 막대·수호자), 흔적이 기세를 기다리면 기세 막대(E306),
+   * 신 깨우기(E238)는 깨우는 신이 있으면 수호자를 쓰러뜨리는 일을 (사냥 막대와 기세 막대는 2026-11-20에 걷었다: 엔딩 전 깨우는 길에는 「n/m」이 없다),
    * 벼리기는 재료, 합치기는 같은 부위 희귀 수(E306), 맹세는 건 맹세가 있는지(E306)를 보인다
    */
   goalView(): GoalView | null {
     const { chapters, progress, build, powers, awaken, ending } = this.ctx
     const goal = chapters.goal
     if (!goal) return null
-    // 귀환 (E304): 무르익기 전에는 기세 막대(깨달음 n/문턱, 문턱은 귀환 번호마다 E306 D9), 무르익으면 받을 배율
+    // 귀환 (E304): 떠난 지 2분이 안 됐으면 그 시간의 막대(숫자 없이), 지났으면 받을 배율
     const { expedition } = this.ctx
     const p = expedition.preview()
     const mult = ` (×${p.next.toFixed(2)})`
-    const level = this.ctx.training.insights
-    const need = returnMinLevel(expedition.returns + 1, ending.reached)
-    const ripe = p.seconds >= RETURN_MIN_SECONDS && level >= need
-    const toReturn = (text: string): GoalView => (ripe ? { text: text + mult, ratio: null } : { text: `기세를 모은다 ${Math.min(level, need)}/${need}`, ratio: Math.min(1, level / need) })
+    const timed = p.seconds >= RETURN_MIN_SECONDS
+    const toReturn = (text: string): GoalView => (timed ? { text: text + mult, ratio: null } : { text, ratio: Math.min(1, p.seconds / RETURN_MIN_SECONDS) })
     if (goal.kind === 'return') return toReturn(goal.goal)
     // 깨울 신의 흔적이 잠잠하다 (E305-03: 신을 더 깨우려면 귀환이나 장 정복을 더 해야 함): 깨우기 대신 귀환을 안내한다
     if (this.awaitsReturn()) return toReturn('성소 화로에서 원정을 마친다')
-    // 귀환 신호 (E306 D10, `DESIGN.md` 5.3): 첫 귀환 뒤로, 문턱을 넘었고 기세가 느려졌거나 받을 배율이 넉넉하면. 합치기 목표 동안은 알리지 않는다 (D8: 모은 희귀가 원형으로 녹는다)
+    // 귀환할 수 있나 (`ExpeditionSystem.ripe`와 같은 셈: 여기까지 왔으면 목표가 귀환을 바라지 않으니 이번 원정에서 이긴 수호자·장 보스가 있어야 한다)
+    const ripe = timed && returnEarned({ ending: ending.reached, bosses: expedition.bosses, asked: false, level: this.ctx.training.insights })
+    // 귀환 신호 (E306 D10, `DESIGN.md` 5.3): 첫 귀환 뒤로, 귀환할 수 있고 성장이 느려졌거나 받을 배율이 넉넉하면. 합치기 목표 동안은 알리지 않는다 (D8: 모은 희귀가 원형으로 녹는다)
     const quiet = p.seconds - this.levelAt >= RETURN_SIGNAL.quietLevel
     if (goal.kind !== 'merge' && expedition.returns >= 1 && ripe && (quiet || p.next >= p.now * RETURN_SIGNAL.gain)) return { text: `성소 화로에서 원정을 마친다${mult}`, ratio: null }
     let ratio: number | null = null
@@ -129,13 +128,7 @@ export class ChapterSystem {
     if (goal.kind === 'awaken' && waking) {
       const path = wakeDef(waking)!
       const name = godDef(waking).name
-      if (awaken.fragments >= 2) return { text: `${josa(path.guardian.name, '을')} 쓰러뜨려 ${josa(name, '을')} 깨운다`, ratio: null }
-      return { text: `${REGIONS[path.land]?.name ?? path.land}에서 사냥한다 ${awaken.hunt}/${awaken.need}`, ratio: awaken.huntRatio }
-    }
-    // 흔적이 기세를 기다린다 (E306 D11): 그 신화권의 열린 땅에 응답할 흔적이 없고 기세가 모자란 흔적이 있으면 기세 막대
-    if (goal.kind === 'awaken') {
-      const gate = this.levelGate(goal.realm!)
-      if (gate !== null) return { text: `기세를 모은다 ${Math.min(level, gate)}/${gate}`, ratio: Math.min(1, level / gate) }
+      return { text: `${josa(path.guardian.name, '을')} 쓰러뜨려 ${josa(name, '을')} 깨운다`, ratio: null }
     }
     // 합치기 (E306): 가방에 든 같은 부위 희귀가 가장 많은 수 ÷ 셋 (합치기는 가방의 것만 받는다, 낀 것은 세지 않는다)
     if (goal.kind === 'merge') {
@@ -160,20 +153,6 @@ export class ChapterSystem {
     }
     // 다 찼으면 막대 없이 할 일만
     return { text: goal.goal, ratio: ratio !== null && ratio < 1 ? ratio : null }
-  }
-
-  /**
-   * 그 신화권 열린 땅의 흔적이 기세만 모자라 잠잠하면 그 문턱 (깨운 차례의 것, E306 D11).
-   * 이미 응답하는 흔적이 있거나 기세가 아닌 까닭(귀환·장 정복·엔딩 뒤)으로 잠잠하면 null
-   */
-  private levelGate(realm: string): number | null {
-    const { progress, expedition, chapters, ending, training } = this.ctx
-    const gods = WAKE_GODS.filter((g) => godDef(g).realm === realm && chapters.isOpen(WAKE[g]!.trace.region))
-    const state = (god: God, level: number) =>
-      traceStateOf(god, { open: progress.isOpen(god), waking: null, awakened: progress.opened.length, returns: expedition.returns, conquered: chapters.conquered, ending: ending.has('realms'), level })
-    if (gods.some((g) => state(g, training.insights) === 'open')) return null
-    // 문턱은 깨운 차례마다 하나 (`TRACE_LEVELS`)
-    return gods.some((g) => state(g, training.insights) === 'sealed' && state(g, Infinity) === 'open') ? traceLevel(progress.opened.length) : null
   }
 
   /** 목표가 신 깨우기인데 깨우는 신이 없고 흔적이 잠잠한가 (귀환해야 다음 신이 응답한다). HUD 한 줄과 작은 지도의 목표 자리가 읽는다 */

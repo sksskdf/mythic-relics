@@ -63,7 +63,7 @@ export function throughGame(data: SaveData): SaveData {
     },
     () => ending.has('realms'),
   )
-  const awaken = new WakeProgress(() => progress.opened.length)
+  const awaken = new WakeProgress()
   // 땅의 물건: 자리와 내용만 (모델 없이)
   const ground: { id: string; x: number; z: number; gear?: GearItem }[] = []
   const pickups = { list: ground, drop: (id: string, x: number, z: number, _armed: boolean, gear?: GearItem) => void ground.push({ id, x, z, gear }) }

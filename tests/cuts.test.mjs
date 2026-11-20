@@ -176,7 +176,7 @@ describe.skipIf(!BROWSER)('잘린 요소 검사 (scripts/lib/cuts.mjs, E307)', (
       '<div class="return-card__mult"><b>×1.32 → ×1.45</b><small>명성 +10</small></div>' +
       '<div class="return-card__line">이번 원정 5:00 · 지난 원정 5:00</div>' +
       '<div class="return-card__line is-keep">남는 것: 깨운 신·신 단계·유물표·원형·장 진행·웨이포인트·가장 좋은 장비 2</div>' +
-      '<div class="return-card__line is-clear">지워지는 것: 기세(수련 마디), 일반 장비</div>' +
+      '<div class="return-card__line is-clear">지워지는 것: 수련(깨달음과 마디), 일반 장비</div>' +
       (depth ? '<div class="return-card__depth"><button class="ui-pill is-on" type="button">그대로 · 깊이 1</button><button class="ui-pill" type="button">+1 · 깊이 2</button></div>' : '') +
       '<div class="return-card__ask">하나를 골라 돌아간다</div><div class="pick-card__row">' +
       `<button class="pick-card__card" type="button">${depth ? '<small class="return-card__again">지난번 그대로</small>' : ''}<b>불꽃 불씨</b><small>원천 +2, 모든 피해 ×1.1</small></button>` +
@@ -302,7 +302,7 @@ describe.skipIf(!BROWSER)('잘린 요소 검사 (scripts/lib/cuts.mjs, E307)', (
     }, 30000)
 
     it('짧은 목표는 한 줄이고, 채우는 목표의 막대는 글 아래에서 상자 폭을 다 쓴다', async () => {
-      const p = await page([393, 852], goal('기세를 모은다 0/3', { bar: true }))
+      const p = await page([393, 852], goal('유물을 벼린다 0/3', { bar: true }))
       try {
         const at = await boxes(p)
         expect(at.text.height).toBeLessThan(at.line * 1.5)
@@ -342,7 +342,7 @@ describe.skipIf(!BROWSER)('잘린 요소 검사 (scripts/lib/cuts.mjs, E307)', (
 
     it.each([[393, 659], [393, 852]])('%i×%i: 보스 막대는 목표 한 줄 아래에 서고(지도가 줄어도 따라 올라가지 않는다) 작은 지도와 겹치지 않는다', async (width, height) => {
       const boss = '<div class="hud__boss is-visible has-name"><div class="ui-bar ui-bar--capped hud__boss-track"></div><div class="hud__boss-head"><span class="hud__boss-grade">보스</span><span class="hud__boss-name">요르문간드</span></div></div>'
-      const p = await page([width, height], goal('기세를 모은다 0/3', { bar: true }) + boss)
+      const p = await page([width, height], goal('유물을 벼린다 0/3', { bar: true }) + boss)
       try {
         const at = await boxes(p)
         const bar = await p.evaluate(() => {

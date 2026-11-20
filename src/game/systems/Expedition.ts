@@ -1,5 +1,6 @@
 import { SOURCE_IDS, type SourceId } from '../../data/schema'
-import { FLAME, RETURN_MIN_SECONDS, returnMinLevel } from '../../data/cycle'
+import { mayWake } from '../../data/wake'
+import { FLAME, RETURN_MIN_SECONDS, returnEarned } from '../../data/cycle'
 import { isBossLike } from '../../enemies/grade'
 import { gearName, gearScore, isGearUid } from '../../gear/roll'
 import { pantheonGods } from '../../myth/pantheon'
@@ -101,14 +102,22 @@ export class ExpeditionSystem {
     }
   }
 
-  /** 이번 귀환에 필요한 기세 레벨 (E306 D9: 귀환 번호마다, 엔딩 뒤에는 8) */
-  get minLevel(): number {
-    return returnMinLevel(this.ctx.expedition.returns + 1, this.ctx.ending.reached)
+  /** 장의 목표가 귀환이거나, 다음 신의 흔적이 귀환을 기다린다 (`ChapterSystem.awaitsReturn`과 같은 셈) */
+  private get asked(): boolean {
+    const { chapters, progress, awaken, expedition, ending } = this.ctx
+    const kind = chapters.goal?.kind
+    if (kind === 'return') return true
+    if (kind !== 'awaken' || (awaken.waking && !progress.isOpen(awaken.waking))) return false
+    return !mayWake(progress.opened.length, expedition.returns, chapters.conquered, ending.has('realms'))
   }
 
-  /** 원정이 무르익었나: 떠난 지 2분이 지났고 기세 레벨이 문턱을 넘었다 */
+  /**
+   * 원정이 무르익었나: 떠난 지 2분이 지났고 귀환할 만한 원정이다 (`returnEarned`: 엔딩 전에는 이번 원정에서 수호자·장 보스를 이겼거나
+   * 목표가 귀환을 바란다. 깨달음 수의 문턱은 2026-11-20에 걷었다. 엔딩 뒤에는 깨달음 8)
+   */
   get ripe(): boolean {
-    return this.ctx.expedition.elapsed >= RETURN_MIN_SECONDS && this.ctx.training.insights >= this.minLevel
+    const { expedition, ending, training } = this.ctx
+    return expedition.elapsed >= RETURN_MIN_SECONDS && returnEarned({ ending: ending.reached, bosses: expedition.bosses, asked: this.asked, level: training.insights })
   }
 
   /** 지금 귀환할 수 있나: 원정이 무르익었고 살아 있다 */
@@ -156,7 +165,7 @@ export class ExpeditionSystem {
       time: clock(p.seconds),
       last: p.last === null ? null : clock(p.last),
       keeps: `깨운 신·신 단계·유물표·원형·장 진행·웨이포인트${heirloom > 0 ? `·가장 좋은 장비 ${heirloom}` : ''}`,
-      clears: '기세(수련 마디), 일반 장비',
+      clears: '수련(깨달음과 마디), 일반 장비',
       branches: this.branches(),
       // 깊이 (E305-03, D9): 엔딩 뒤에만 다음 원정을 그대로나 한 걸음 더 깊이
       ...(ending.has('depth') ? { depth: { now: depth.level, max: depth.max } } : {}),

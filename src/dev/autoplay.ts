@@ -149,7 +149,7 @@ export class Autoplayer {
     const { chapters, powers } = this.game
     const goal = chapters.goal
     if (!goal) return null
-    // 신 깨우기 (E238): 깨우는 신의 다음 조각을 하는 땅, 없으면 응답하는 흔적의 땅
+    // 신 깨우기 (E238): 깨우는 신의 수호자 땅, 없으면 응답하는 흔적의 땅
     if (goal.kind === 'awaken') return this.game.awakening.target(goal.region)?.region ?? goal.region
     // 맹세 (E306 D6): 기다리지 않고 그 장의 다음 할 일 땅으로 (맹세는 귀환 3의 출발 카드에서 걸어 티폰에서 지킨다). 합치기는 그 땅에서 사냥한다
     if (goal.kind === 'oath') {
@@ -305,8 +305,8 @@ export class Autoplayer {
       }
     }
 
-    // 4.7 신 깨우기 (E238): 생명이 넉넉하면 흔적·수호자 자리로 간다 (지키는 무리·수호자와의 싸움은 아래 싸움이 맡고,
-    // 사냥은 그 땅에서 싸우면 찬다). 멀면 둘레의 적을 달고서라도 가고, 가까우면 둘레가 빌 때 간다
+    // 4.7 신 깨우기 (E238): 생명이 넉넉하면 흔적·수호자 자리로 간다 (지키는 무리·수호자와의 싸움은 아래 싸움이 맡는다).
+    // 멀면 둘레의 적을 달고서라도 가고, 가까우면 둘레가 빌 때 간다
     if (wake && (toWake || (hp > 0.75 && near.length === 0))) {
       if (dist(here, wake) > 1.5 && (!hero.isMoving || dist(hero.goal ?? here, wake) > 1)) hero.moveTo(wake)
       this.game.orders.tryRide()
@@ -497,13 +497,13 @@ export class Autoplayer {
     return best
   }
 
-  /** 신 깨우기 목표에서 걸어갈 자리 (지금 땅의 흔적, 수호자가 아직 안 나온 수호자 자리). 장 흐름을 따르지 않거나 사냥이면 null */
+  /** 신 깨우기 목표에서 걸어갈 자리 (지금 땅의 흔적, 수호자가 아직 안 나온 수호자 자리). 장 흐름을 따르지 않으면 null */
   private awakenSpot(): Point2 | null {
     const goal = this.chapters ? this.game.chapters.goal : null
     if (goal?.kind !== 'awaken') return null
     const { awakening } = this.game
     const target = awakening.target(goal.region)
-    if (!target || target.kind === 'hunt' || target.region !== this.game.region.id) return null
+    if (!target || target.region !== this.game.region.id) return null
     if (target.kind === 'guardian' && awakening.fighting) return null
     if (target.kind === 'trace' && awakening.roused) return null
     return awakening.placed(target)

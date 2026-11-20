@@ -147,7 +147,7 @@ export interface MenuHost {
     /** 숨 칸에서 뺀다 */
     unplace(god: God): boolean
     /** 깨우는 중인 신 (E238): 모은 조각과 다음 할 일 한 줄. 없으면 null */
-    waking(): { god: God; fragments: number; next: string } | null
+    waking(): { god: God; next: string } | null
     /** 유물표 (E303-04): 신화의 유물과 고유 효과 칸, 켰는지·깨어났는지 */
     table(): { relics: { id: RelicId; lit: boolean; awake: boolean; stage: number }[]; uniques: { id: string; name: string; text: string; lit: boolean }[] }
   }

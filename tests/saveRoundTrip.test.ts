@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
 import { REGIONS } from '../src/data/regions'
-import { HUNT_KILLS } from '../src/data/wake'
 import { parseSave, SAVE_VERSION, type SaveData } from '../src/save/SaveData'
 import TEXT from './fixtures/save-v17-full.json?raw'
 import { throughGame } from './helpers/saveBench'
@@ -79,7 +78,7 @@ describe('저장 왕복: 꽉 찬 v17 견본', () => {
       [
         '조각 2를 모은 깨우는 신을 손에 쥔 판',
         (o) => {
-          o.awaken = { waking: 'artemis', fragments: 2, hunt: Math.max(...HUNT_KILLS) }
+          o.awaken = { waking: 'artemis', fragments: 2 }
           o.pantheon.hand = 'artemis'
         },
       ],

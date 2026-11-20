@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { LEVEL_CAP_BASE, RETURN_MIN_LEVEL, RETURN_MIN_LEVEL_AFTER_ENDING, RETURN_SIGNAL, returnMinLevel, renownFor, renownMultiplier } from '../src/data/cycle'
+import { LEVEL_CAP_BASE, RETURN_MIN_LEVEL_AFTER_ENDING, RETURN_SIGNAL, returnEarned, renownFor, renownMultiplier } from '../src/data/cycle'
 import { computeBuild } from '../src/build/BuildState'
 import { layerProduct } from '../src/build/layers'
 import { DEMO_MAX_LEVEL, MAX_LEVEL } from '../src/myth/ClassProgress'
@@ -19,13 +19,16 @@ describe('원정과 귀환 (E304)', () => {
     expect(renownFor(2, 2)).toBe(40)
   })
 
-  it('귀환 문턱은 귀환 번호마다 (E306 D9·E306-02): 첫 귀환 9, 표 끝을 넘으면 마지막 값, 엔딩 뒤에는 8', () => {
-    expect([1, 2, 3, 4, 5, 9].map((n) => returnMinLevel(n))).toEqual([...RETURN_MIN_LEVEL, RETURN_MIN_LEVEL.at(-1), RETURN_MIN_LEVEL.at(-1)])
-    expect(returnMinLevel(1)).toBe(9)
-    for (let i = 1; i < RETURN_MIN_LEVEL.length; i++) expect(RETURN_MIN_LEVEL[i]).toBeGreaterThanOrEqual(RETURN_MIN_LEVEL[i - 1]!)
-    expect(returnMinLevel(4, true)).toBe(RETURN_MIN_LEVEL_AFTER_ENDING)
+  it('귀환할 만한 원정 (2026-11-20 문턱을 걷음): 엔딩 전에는 깨달음 수를 보지 않고, 이번 원정에서 수호자·장 보스를 이겼거나 목표가 귀환을 바랄 때만', () => {
+    // 빈손으로 화로에 서서 불씨만 뽑는 길은 없다
+    expect(returnEarned({ ending: false, bosses: 0, asked: false, level: 99 })).toBe(false)
+    expect(returnEarned({ ending: false, bosses: 1, asked: false, level: 0 })).toBe(true)
+    expect(returnEarned({ ending: false, bosses: 0, asked: true, level: 0 })).toBe(true)
+    // 엔딩 뒤의 깊이 순환은 깨달음 8 그대로
     expect(RETURN_MIN_LEVEL_AFTER_ENDING).toBe(8)
-    // 귀환 신호 (D10, DESIGN.md 5.3): 기세가 3분 넘게 멈췄거나 받을 배율 ×1.25
+    expect(returnEarned({ ending: true, bosses: 3, asked: true, level: 7 })).toBe(false)
+    expect(returnEarned({ ending: true, bosses: 0, asked: false, level: 8 })).toBe(true)
+    // 귀환 신호 (D10, DESIGN.md 5.3): 깨달음이 3분 넘게 멈췄거나 받을 배율 ×1.25
     expect(RETURN_SIGNAL).toEqual({ quietLevel: 180, gain: 1.25 })
   })
 
@@ -136,9 +139,47 @@ describe('원정과 귀환 (E304)', () => {
 })
 
 describe('귀환 카드 (E304)', () => {
+  it('엔딩 전의 귀환은 깨달음 수가 아니라 이번 원정에서 한 일을 본다: 빈손이면 화로에 서도 카드가 뜨지 않고, 수호자·장 보스를 이겼거나 목표가 귀환이면 뜬다', () => {
+    const offered = (now: { bosses: number; goal: string | null; insights: number; elapsed?: number }) => {
+      const expedition = new ExpeditionProgress()
+      expedition.elapsed = now.elapsed ?? 300
+      expedition.bosses = now.bosses
+      const ctx = {
+        bus: new EventBus<GameEvents>(),
+        expedition,
+        chapters: { index: 1, goal: now.goal ? { kind: now.goal } : null, conquered: 0 },
+        training: { insights: now.insights, unspent: 0 },
+        ending: { reached: false, has: () => false },
+        sanctuary: { present: true, center: { x: 0, z: 0 }, beacon: false },
+        hero: { object: { position: { x: 0, y: 0, z: 0 } } },
+        combat: { alive: true },
+        progress: { pantheon: { hand: null, heart: null, breath: [] }, opened: ['thor'], isOpen: () => true },
+        awaken: { waking: null },
+        depth: { level: 1, max: 1 },
+        automation: { now: {} },
+        powers: { loadout: { mergeable: () => [] } },
+      }
+      let offers = 0
+      const system = new ExpeditionSystem(ctx as never, { offer: () => (offers += 1), offering: () => offers > 0, close: () => {}, ascend: () => {}, merge: () => {}, deepen: () => {} })
+      system.update(0)
+      return offers
+    }
+    // 깨달음을 아무리 모아도 한 일이 없으면 귀환은 없다 (2분마다 불씨를 뽑는 길을 막는다)
+    expect(offered({ bosses: 0, goal: 'enter', insights: 40 })).toBe(0)
+    // 깨달음이 0이어도 수호자를 이겼으면 된다
+    expect(offered({ bosses: 1, goal: 'enter', insights: 0 })).toBe(1)
+    // 장의 목표가 귀환이면 된다
+    expect(offered({ bosses: 0, goal: 'return', insights: 0 })).toBe(1)
+    // 깨운 신이 하나인데 귀환이 0이라 다음 흔적이 귀환을 기다릴 때도 된다
+    expect(offered({ bosses: 0, goal: 'awaken', insights: 0 })).toBe(1)
+    // 떠난 지 2분이 안 됐으면 어느 쪽이든 아니다
+    expect(offered({ bosses: 2, goal: 'return', insights: 40, elapsed: 100 })).toBe(0)
+  })
+
   it('귀환 카드를 띄운 채 화로를 떠나면 카드가 닫히고, 돌아오면 다시 뜬다 (E306 리뷰: 떠 있는 동안 얻은 것 카드·장면이 끝없이 밀리던 것)', () => {
     const expedition = new ExpeditionProgress()
     expedition.elapsed = 300
+    expedition.bosses = 1
     const position = { x: 0, y: 0, z: 0 }
     const ctx = {
       bus: new EventBus<GameEvents>(),

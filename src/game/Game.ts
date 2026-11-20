@@ -159,7 +159,7 @@ export class Game {
   /** 원정 (E304): 원정 번호·명성·원천 불씨·기록 */
   readonly expedition = Object.assign(new ExpeditionProgress(), { conquests: (): number => this.chapters.conquered, automation: () => this.automation.now, oathScale: (): number => this.oaths.renownScale() })
   /** 신을 깨우는 진행 (E238): 깨우는 신과 모은 조각 */
-  readonly awaken = new WakeProgress(() => this.progress.opened.length)
+  readonly awaken = new WakeProgress()
   /** 탈것 (E241): 고개지기의 산양을 얻었나, 타고 내리기 */
   readonly mount = new MountProgress()
   readonly mountSystem: MountSystem
@@ -421,7 +421,7 @@ export class Game {
       hovered: () => this.playerInput.hovered,
       screenPoint: (x, y, z) => this.screenPoint(x, y, z),
       traces: () => this.awakening.spots,
-      traceContext: (god) => ({ waking: this.awaken.waking, fragments: this.awaken.fragments, hunt: this.awaken.hunt, need: this.awaken.need, sealedText: this.awakening.sealedText(god) }),
+      traceContext: () => ({ waking: this.awaken.waking, sealedText: this.awakening.sealedText() }),
       guardian: () => this.awakening.fighting,
     })
     // 정보 화면 탭은 쓸 일이 생길 때 하나씩 열린다 (E236-05): 열리면 한 줄짜리 카드와 메뉴 단추 표시

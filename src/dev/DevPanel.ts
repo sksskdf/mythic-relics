@@ -198,7 +198,7 @@ export class DevPanel {
         button('단계 올리기', () => g.dev.promote()),
         button('레벨 초기화', () => g.dev.resetMyths()),
         button('깨달음 하나', () => g.dev.insight()),
-        // 신의 조각 (E238): 깨우는 신의 다음 조각 (흔적 → 사냥 → 수호자)
+        // 신을 깨우는 길 (E238): 다음 걸음 (흔적의 무리를 이김 → 수호자를 쓰러뜨림)
         button('다음 조각', () => {
           g.dev.awaken()
           g.menu.refresh()
@@ -234,7 +234,7 @@ export class DevPanel {
           for (const slot of WARDROBE_SLOTS) g.appearance.choose(slot, 'auto')
         }),
       ),
-      // 귀환 (E304): 원정을 무르익게(2분·기세 23, 귀환 문턱 표의 어느 값보다 위) 하고 성소 화로에 선다 (빛기둥이 서고 귀환 카드가 뜬다)
+      // 귀환 (E304): 원정을 무르익게(2분·깨달음 넉넉히·이긴 보스 하나) 하고 성소 화로에 선다 (빛기둥이 서고 귀환 카드가 뜬다)
       // 탈것 (E241): 고개지기의 산양을 카드와 함께 얻고, 보는 쪽 20m 앞을 눌러 올라탄다
       row(
         button('귀환 준비', () => this.readyReturn()),
@@ -328,6 +328,8 @@ export class DevPanel {
     if (!g.sanctuary.present && midgard) g.enterRegion(midgard)
     g.expedition.elapsed = Math.max(g.expedition.elapsed, 300)
     g.training.xp = Math.max(g.training.xp, 8000)
+    // 엔딩 전 귀환은 이번 원정에서 수호자·장 보스를 이겼어야 한다 (`returnEarned`)
+    g.expedition.bosses = Math.max(g.expedition.bosses, 1)
     g.dev.teleport(g.sanctuary.center.x, g.sanctuary.center.z)
   }
 

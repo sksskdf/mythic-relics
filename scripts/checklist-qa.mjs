@@ -162,7 +162,7 @@ const sections = {
         g.encounter.clearAll()
       })
       const swaps = []
-      /** 조각 하나를 얻고, 두 갈래 카드가 뜨면 찍은 뒤 「지금 그대로」로 닫는다 (어느 조각에 무슨 카드가 떴는지 남긴다) */
+      /** 깨우는 길의 한 걸음(1: 흔적의 무리를 이김, 2: 수호자를 쓰러뜨림. 사냥 걸음은 2026-11-20에 걷었다)을 얻고, 두 갈래 카드가 뜨면 찍은 뒤 「지금 그대로」로 닫는다 (어느 조각에 무슨 카드가 떴는지 남긴다) */
       const piece = async (n) => {
         await page2.evaluate(() => window.__game.dev.awaken('odin'))
         if (!(await page2.waitForFunction(() => window.__game.swapOpen, null, { timeout: 4000 }).then(() => true, () => false))) return
@@ -174,8 +174,6 @@ const sections = {
       await piece(1)
       await calm(page2)
       await piece(2)
-      await calm(page2)
-      await piece(3)
       const card = await waitCard(page2, '신이 깨어남')
       const opened = await page2.evaluate(() => ({ opened: window.__game.progress.opened, pantheon: window.__game.progress.pantheon }))
       await shot(page2, 'e12-1-open')
@@ -247,11 +245,11 @@ const sections = {
     const empty = await tab('e12-3-none')
     await page.evaluate(() => window.__qa.seat('thor'))
     const one = await tab('e12-3-thor')
-    // 원정이 무르익어 성소 화로에서 승천할 수 있을 때 (E305-03: 신화 경험치 대신 귀환. 첫 귀환의 문턱은 기세 9, `RETURN_MIN_LEVEL`)
+    // 원정이 무르익어 성소 화로에서 승천할 수 있을 때 (E305-03: 신화 경험치 대신 귀환. 엔딩 전 귀환은 이번 원정에서 수호자·장 보스를 이겼어야 한다, `returnEarned`)
     await page.evaluate(() => {
       const g = window.__game
       g.expedition.elapsed = 600
-      g.dev.insight(12)
+      g.expedition.bosses = 1
     })
     const ready = await tab('e12-3-ready')
     await page.close()
@@ -678,7 +676,8 @@ const sections = {
         g.dev.equip('mjolnir')
         g.encounter.clearAll()
         g.expedition.elapsed = 300
-        g.dev.insight(12)
+        // 엔딩 전 귀환은 이번 원정에서 수호자·장 보스를 이겼어야 한다
+        g.expedition.bosses = 1
         g.dev.teleport(g.sanctuary.center.x, g.sanctuary.center.z)
       })
       r.return = await snap('return', () => window.__game.returnCardOpen)
@@ -698,11 +697,9 @@ const sections = {
         g.oathSystem.swear(null)
         g.encounter.clearAll()
       })
-      // 조각을 하나씩 (앞 조각의 큰 카드가 지나간 뒤에): 조각 2에 손·심장 부품이 오며 두 갈래 카드
-      for (let i = 0; i < 2; i++) {
-        await calm(page)
-        await page.evaluate(() => window.__game.dev.awaken('odin'))
-      }
+      // 흔적의 무리를 이기면 손 부품이 오며 두 갈래 카드 (사냥 걸음은 걷었다)
+      await calm(page)
+      await page.evaluate(() => window.__game.dev.awaken('odin'))
       r.swap = await snap('swap', () => window.__game.swapOpen)
       await keepSeats(page)
       // 합치기 (E303): 같은 부위 희귀 넷을 주워 하나는 끼고 셋은 가방에 (희귀는 귀환 3부터 저절로 합쳐지니 아직 손으로 합친다)
@@ -1070,21 +1067,16 @@ const sections = {
     await waitScene()
     await record('e23-1-chapter-north')
     await settle()
-    // 첫 신 깨우기 (E238): 조각 하나씩. 흔적(조각 1)은 느린 동작 → 장면 → 큰 카드 「신의 조각 1/3」
+    // 첫 신 깨우기 (E238): 흔적의 무리를 이기면 느린 동작 → 장면 → 큰 카드 「신의 흔적」(빌린 힘과 켜진 유물이 한 장에)
     const awaken = () => page.evaluate(() => window.__game.dev.awaken('thor'))
     await awaken()
     await waitScene()
     await record('e23-1-trace-scene')
     await skipOne()
-    await waitCard(page, '신의 조각 1')
+    await waitCard(page, '신의 흔적')
     await record('e23-1-trace-card')
     await settle()
-    // 사냥(조각 2): 유물이 유물표에 켜지며 큰 카드 「신의 조각 2/3」
-    await awaken()
-    await waitCard(page, '신의 조각 2')
-    await record('e23-1-relic-card')
-    await settle()
-    // 수호자(조각 3): 토르가 깨어나며 장면 → 큰 카드 「신이 깨어남」
+    // 수호자: 토르가 깨어나며 장면 → 큰 카드 「신이 깨어남」
     await awaken()
     await waitScene()
     await record('e23-1-awaken-scene')

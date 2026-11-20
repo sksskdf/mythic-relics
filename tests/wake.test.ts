@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest'
 
 import { computeBuild } from '../src/build/BuildState'
 import { hsv } from '../src/art/palette'
-import { WAKE, WAKE_GODS, GUARDIAN_LEASH, HUNT_KILLS, huntKills, LATER_TEXT, levelSealed, levelText, mayWake, TRACE_LEVELS, TRACE_MODELS, traceLevel, traceStateOf, type TraceNow } from '../src/data/wake'
+import { WAKE, WAKE_GODS, GUARDIAN_LEASH, LATER_TEXT, mayWake, TRACE_MODELS, traceStateOf, type TraceNow } from '../src/data/wake'
 import { REGIONS } from '../src/data/regions'
 import { SCENES, sceneId } from '../src/data/scenes'
 import { ENEMIES } from '../src/enemies/Giant'
-import { guardianSpec, relicPieceLines } from '../src/game/systems/Wake'
+import { guardianSpec, traceWonLines } from '../src/game/systems/Wake'
 import { mythRelic } from '../src/gear/mythRelic'
 import { WakeProgress, parseWake } from '../src/progress/Wake'
 import { godDef } from '../src/relics/data'
@@ -149,7 +149,7 @@ describe('깨우는 진행 (E238)', () => {
   })
 
   it('데모의 그리스 셋과 로키·프레이는 엔딩 뒤에 응답한다 (E241·E306): 엔딩 전에는 귀환·정복이 넉넉해도 「later」, 엔딩 뒤에는 다른 흔적처럼', () => {
-    const now: TraceNow = { open: false, waking: null, awakened: 5, returns: 9, conquered: 2, ending: false, level: 20 }
+    const now: TraceNow = { open: false, waking: null, awakened: 5, returns: 9, conquered: 2, ending: false }
     for (const god of ['poseidon', 'artemis', 'hades', 'loki', 'freyr'] as const) {
       expect(traceStateOf(god, now), god).toBe('later')
       expect(traceStateOf(god, { ...now, ending: true }), god).toBe('open')
@@ -162,81 +162,41 @@ describe('깨우는 진행 (E238)', () => {
     expect(traceStateOf('zeus', { ...now, waking: 'zeus' })).toBe('waking')
   })
 
-  it('흔적은 깨운 차례의 기세에 응답한다 (E306 D11·E306-02): 첫 신 3, 둘째 10, 제우스 12, 그 뒤로는 문턱 없음. 그 아래면 잠잠하고, 엔딩 뒤에는 기세를 보지 않는다', () => {
-    expect([0, 1, 2, 3, 9].map(traceLevel)).toEqual([...TRACE_LEVELS, 0, 0].slice(0, 5))
-    expect(TRACE_LEVELS.slice(0, 3)).toEqual([3, 10, 12])
-    const now: TraceNow = { open: false, waking: null, awakened: 0, returns: 0, conquered: 0, ending: false, level: 2 }
-    for (const god of ['thor', 'odin'] as const) {
-      expect(traceStateOf(god, now), god).toBe('sealed')
-      expect(levelSealed(0, 2)).toBe(true)
-      expect(traceStateOf(god, { ...now, level: 3 }), god).toBe('open')
-      expect(traceStateOf(god, { ...now, ending: true }), god).toBe('open')
-    }
-    // 둘째 신: 첫 귀환 뒤에도 기세 10 전에는 잠잠하다
-    const second: TraceNow = { ...now, awakened: 1, returns: 1, level: 9 }
-    expect(traceStateOf('odin', second)).toBe('sealed')
-    expect(traceStateOf('odin', { ...second, level: 10 })).toBe('open')
-    // 제우스 (셋째): 거인 왕을 이겨도 기세 12 전에는 잠잠하다
-    const third: TraceNow = { ...now, awakened: 2, returns: 3, conquered: 1, level: 11 }
-    expect(traceStateOf('zeus', third)).toBe('sealed')
-    expect(traceStateOf('zeus', { ...third, level: 12 })).toBe('open')
-    expect(levelSealed(3, 0)).toBe(false)
+  it('흔적은 수련을 얼마나 했는지 보지 않는다 (2026-11-20 문턱을 걷음): 마을을 나서자마자 첫 흔적이 응답하고, 둘째·셋째는 귀환·장 정복만 본다', () => {
+    const now: TraceNow = { open: false, waking: null, awakened: 0, returns: 0, conquered: 0, ending: false }
+    for (const god of ['thor', 'odin'] as const) expect(traceStateOf(god, now), god).toBe('open')
+    expect(traceStateOf('odin', { ...now, awakened: 1 })).toBe('sealed')
+    expect(traceStateOf('odin', { ...now, awakened: 1, returns: 1 })).toBe('open')
+    expect(traceStateOf('zeus', { ...now, awakened: 2, returns: 3, conquered: 1 })).toBe('open')
   })
 
-  it('사냥 수는 깨운 차례마다 (E306 D12·E306-02): 첫 신 30, 둘째 70, 셋째 45, 그 뒤로는 마지막 값', () => {
-    expect([0, 1, 2, 3, 9].map(huntKills)).toEqual([30, 70, 45, 45, 45])
-    let order = 0
-    const a = new WakeProgress(() => order)
-    a.trace('odin')
-    order = 1
-    for (let i = 1; i < 70; i++) expect(a.addKill()).toBe(false)
-    expect(a.need).toBe(70)
-    expect(a.addKill()).toBe(true)
-  })
-
-  it('흔적 → 사냥 → 수호자: 조각마다 하나씩, 깨어나면 처음으로', () => {
+  it('흔적의 무리를 이기면 곧바로 조각 2이고 수호자가 다음이다 (사냥 단계 없음), 깨어나면 처음으로', () => {
     const a = new WakeProgress()
-    const need = HUNT_KILLS[0]!
-    expect(a.need).toBe(need)
-    expect(a.addKill()).toBe(false)
-    expect(a.trace('thor')).toBe(true)
-    expect(a.fragments).toBe(1)
-    // 조각 2를 모으기 전에는 깨어나지 않는다
+    // 깨우는 신이 없으면 깨어날 것도 없다
     expect(a.awaken()).toBeNull()
-    for (let i = 1; i < need; i++) expect(a.addKill()).toBe(false)
-    expect(a.huntRatio).toBeCloseTo((need - 1) / need)
-    expect(a.addKill()).toBe(true)
-    expect(a.fragments).toBe(2)
-    expect(a.huntRatio).toBe(1)
-    expect(a.addKill()).toBe(false)
+    expect(a.trace('thor')).toBe(true)
+    expect(a.toData()).toEqual({ waking: 'thor', fragments: 2 })
     expect(a.awaken()).toBe('thor')
-    expect(a.toData()).toEqual({ waking: null, fragments: 0, hunt: 0 })
+    expect(a.toData()).toEqual({ waking: null, fragments: 0 })
   })
 
   it('깨우는 신은 한 번에 하나: 다른 흔적은 응답하지 않고, 같은 흔적을 다시 만져도 처음으로 돌아가지 않는다', () => {
     const a = new WakeProgress()
     a.trace('odin')
-    a.addKill()
     expect(a.trace('thor')).toBe(false)
     expect(a.trace('odin')).toBe(false)
-    expect(a.toData()).toEqual({ waking: 'odin', fragments: 1, hunt: 1 })
+    expect(a.toData()).toEqual({ waking: 'odin', fragments: 2 })
   })
 
-  it('저장에서 읽기: 깨우는 길이 없는 신·깨진 값은 처음으로, 사냥한 수는 범위 안으로', () => {
-    // 사냥 수가 표의 가장 큰 값을 넘은 저장은 조각 2로, 그 아래는 그대로 (차례의 수에 닿았으면 다음 처치에 조각 2, E306)
-    const most = Math.max(...HUNT_KILLS)
-    expect(parseWake({ waking: 'loki', fragments: 1, hunt: 99 })).toEqual({ waking: 'loki', fragments: 2, hunt: most })
-    expect(parseWake({ waking: 'loki', fragments: 1, hunt: most - 1 })).toEqual({ waking: 'loki', fragments: 1, hunt: most - 1 })
-    const b = new WakeProgress(() => 0)
-    b.load(parseWake({ waking: 'thor', fragments: 1, hunt: 35 }))
-    expect(b.addKill()).toBe(true)
-    expect(parseWake({ waking: 'loki', fragments: 7, hunt: 2 })).toEqual({ waking: 'loki', fragments: 1, hunt: 2 })
-    expect(parseWake({ waking: 'wukong', fragments: 1, hunt: 2 })).toEqual({ waking: null, fragments: 0, hunt: 0 })
-    expect(parseWake('broken')).toEqual({ waking: null, fragments: 0, hunt: 0 })
+  it('저장에서 읽기: 깨우는 길이 없는 신·깨진 값은 처음으로, 사냥하던 옛 저장(조각 1)은 조각 2로', () => {
+    expect(parseWake({ waking: 'loki', fragments: 1, hunt: 12 })).toEqual({ waking: 'loki', fragments: 2 })
+    expect(parseWake({ waking: 'loki', fragments: 7, hunt: 2 })).toEqual({ waking: 'loki', fragments: 2 })
+    expect(parseWake({ waking: 'wukong', fragments: 1, hunt: 2 })).toEqual({ waking: null, fragments: 0 })
+    expect(parseWake('broken')).toEqual({ waking: null, fragments: 0 })
+    // 옛 저장을 불러오면 다음은 바로 수호자다
     const a = new WakeProgress()
-    a.load(parseWake({ waking: 'freyr', fragments: 2, hunt: 0 }))
-    expect(a.fragments).toBe(2)
-    expect(a.huntRatio).toBe(1)
+    a.load(parseWake({ waking: 'thor', fragments: 1, hunt: 3 }))
+    expect(a.awaken()).toBe('thor')
   })
 })
 
@@ -244,28 +204,36 @@ describe('깨우는 진행 (E238)', () => {
  * 신을 깨우는 길의 화면 글 (E307 손 QA): 처음 보는 사람이 카드를 읽고 무엇을 하면 되는지 안다
  */
 describe('신을 깨우는 길의 글 (E307 손 QA)', () => {
-  it('조각 2/3 카드: 깨어난 것은 유물의 힘이고, 신은 수호자를 쓰러뜨려야 깨어난다 (「바로 깨어난다」로 읽히지 않는다)', () => {
-    expect(relicPieceLines('thor')).toEqual(['묠니르가 유물표에 켜졌다 · 유물의 힘이 깨어났다', '마지막 조각: 요르문간드를 쓰러뜨리면 토르가 깨어난다'])
+  it('흔적의 무리를 이긴 카드 한 장: 빌린 힘, 켜진 유물(깨어난 것은 유물의 힘), 다음은 수호자 (「바로 깨어난다」로 읽히지 않고 사냥을 시키지 않는다)', () => {
+    const thor = traceWonLines('thor')
+    expect(thor[0]).toMatch(/^빌린 힘: /)
+    expect(thor.slice(1)).toEqual(['묠니르가 유물표에 켜졌다 · 유물의 힘이 깨어났다', '다음: 요르문간드를 쓰러뜨리면 토르가 깨어난다'])
     for (const god of WAKE_GODS) {
-      const [lit, last] = relicPieceLines(god)
-      expect(lit, god).not.toContain('바로 깨어난다')
-      // 마지막 조각 줄은 수호자의 이름과 그 신의 이름을 댄다
-      expect(last, god).toContain(WAKE[god]!.guardian.name)
-      expect(last, god).toMatch(new RegExp(`쓰러뜨리면 ${godDef(god).name}[이가] 깨어난다$`))
+      const lines = traceWonLines(god)
+      expect(lines, god).toHaveLength(3)
+      expect(lines.join(' '), god).not.toMatch(/바로 깨어난다|사냥|\d+\/\d+/)
+      // 마지막 줄은 수호자의 이름과 그 신의 이름을 댄다
+      expect(lines[2], god).toContain(WAKE[god]!.guardian.name)
+      expect(lines[2], god).toMatch(new RegExp(`쓰러뜨리면 ${godDef(god).name}[이가] 깨어난다$`))
     }
   })
 
-  it('잠잠한 흔적의 한 줄은 기세를 올리는 법까지 적는다', () => {
-    expect(levelText(3)).toBe('기세 3에 응답한다 (적을 잡으면 오른다)')
+  it('흔적 장면의 마지막 대사는 그 수호자를 쓰러뜨리라고 한다 (「그 땅에서 더 싸워라」가 아니다)', () => {
+    for (const god of WAKE_GODS) {
+      const last = SCENES[sceneId('trace', god)]!.lines.at(-1)!.text
+      expect(last, god).toMatch(/쓰러뜨려/)
+      expect(last, god).not.toMatch(/더 (싸워|사냥)/)
+    }
+    expect(SCENES[sceneId('trace', 'thor')]!.lines.at(-1)!.text).toContain('요르문간드')
   })
 
-  it('흔적 카드의 「지금 할 일」: 응답하는 흔적은 다가가 물리치면 첫 조각, 깨우는 중이면 그 조각의 할 일', () => {
-    const base: TraceCardContext = { state: 'open', sealedText: levelText(3), waking: null, fragments: 0, hunt: 0, need: 30 }
+  it('흔적 카드의 「지금 할 일」: 응답하는 흔적은 다가가 물리치면 힘을 빌리고, 깨우는 중이면 수호자', () => {
+    const sealed = '성소 화로에서 원정을 마치면 응답한다'
+    const base: TraceCardContext = { state: 'open', sealedText: sealed, waking: null }
     expect(traceNow('thor', base)).toBe(TRACE_WORDS.open)
-    expect(TRACE_WORDS.open).toContain('물리치면 첫 조각')
-    expect(traceNow('thor', { ...base, state: 'sealed' })).toBe('기세 3에 응답한다 (적을 잡으면 오른다)')
-    expect(traceNow('thor', { ...base, state: 'waking', waking: 'thor', fragments: 1, hunt: 12 })).toBe('조각 1/3 · 사냥 12/30')
-    expect(traceNow('thor', { ...base, state: 'waking', waking: 'thor', fragments: 2 })).toBe('조각 2/3 · 요르문간드를 쓰러뜨린다')
+    expect(TRACE_WORDS.open).toContain('물리치면 힘을 빌린다')
+    expect(traceNow('thor', { ...base, state: 'sealed' })).toBe(sealed)
+    expect(traceNow('thor', { ...base, state: 'waking', waking: 'thor' })).toBe('요르문간드를 쓰러뜨리면 깨어난다')
     expect(traceNow('odin', { ...base, state: 'busy', waking: 'thor' })).toBe('토르가 깨어난 뒤에 응답한다')
     expect(traceNow('poseidon', { ...base, state: 'later' })).toBe(LATER_TEXT)
     expect(traceNow('thor', { ...base, state: 'awake' })).toBe('깨어난 신')
@@ -273,7 +241,7 @@ describe('신을 깨우는 길의 글 (E307 손 QA)', () => {
 
   it('흔적 카드의 단락 이름은 자리 이름(손·심장) 대신 얻는 것을 적는다', () => {
     expect(TRACE_WORDS.gain).toBe('깨우면 얻는 무기와 궁극기')
-    expect(TRACE_WORDS.lend).toBe('첫 조각부터 빌리는 힘')
+    expect(TRACE_WORDS.lend).toBe('흔적에서 빌리는 힘')
     for (const words of Object.values(TRACE_WORDS)) expect(words).not.toMatch(/손과 심장/)
   })
 })

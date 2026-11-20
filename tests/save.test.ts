@@ -16,7 +16,6 @@ import { parseOaths } from '../src/progress/Oaths'
 import { parseEndless } from '../src/progress/Endless'
 import { STEP_TABS } from '../src/progress/Tabs'
 import { parseSave, SAVE_VERSION, type SaveData, saveStorage } from '../src/save/SaveData'
-import { HUNT_KILLS } from '../src/data/wake'
 import { ChapterProgress } from '../src/progress/Chapters'
 import { type God, godDef } from '../src/relics/data'
 import { REGIONS } from '../src/data/regions'
@@ -51,7 +50,7 @@ const sample: SaveData = {
   training: { xp: 1500, taken: ['awaken', 'edge'] },
   expedition: { count: 4, renown: 20, flames: { stone: 1 }, best: [900], elapsed: 30, bosses: 0, deepest: 1, lastTaken: ['awaken'], bestXp: 1200, heirloom: [], oath: 'silence', oathPending: false, lastBranch: 'ascend:thor', deepWin: true },
   tabs: ['relics', 'training'],
-  awaken: { waking: 'odin', fragments: 1, hunt: 7 },
+  awaken: { waking: 'odin', fragments: 2 },
   mount: true,
   region: { id: 'olympus', x: 3.5, z: -12 },
   scenes: ['opening'],
@@ -119,9 +118,10 @@ describe('저장 데이터', () => {
     const many = { thor: { level: 2, xp: 0 }, loki: { level: 1, xp: 0 }, odin: { level: 1, xp: 0 }, freyr: { level: 1, xp: 0 }, zeus: { level: 1, xp: 0 }, poseidon: { level: 1, xp: 0 } }
     expect(parseSave(JSON.stringify({ ...sample, pantheon: { hand: 'zeus', heart: 'nobody', breath: ['thor', 'thor', 'nobody'] } }))?.pantheon).toEqual({ hand: null, heart: null, breath: ['thor'] })
     expect(parseSave(JSON.stringify({ ...sample, classes: many, pantheon: { hand: 'loki', heart: 'odin', breath: ['thor', 'loki', 'odin', 'freyr', 'zeus', 'poseidon'] } }))?.pantheon.breath).toHaveLength(5)
-    // 손은 조각 2를 모은 깨우는 신도 쥘 수 있다
-    expect(parseSave(JSON.stringify({ ...sample, awaken: { waking: 'odin', fragments: 2, hunt: 0 }, pantheon: { hand: 'odin', heart: null, breath: [] } }))?.pantheon.hand).toBe('odin')
-    expect(parseSave(JSON.stringify({ ...sample, awaken: { waking: 'odin', fragments: 1, hunt: 0 }, pantheon: { hand: 'odin', heart: null, breath: [] } }))?.pantheon.hand).toBeNull()
+    // 손은 깨우는 신(흔적의 무리를 이긴 신)도 쥘 수 있다. 사냥하던 옛 저장(조각 1)도 조각 2로 읽히니 쥔다
+    expect(parseSave(JSON.stringify({ ...sample, awaken: { waking: 'odin', fragments: 2 }, pantheon: { hand: 'odin', heart: null, breath: [] } }))?.pantheon.hand).toBe('odin')
+    expect(parseSave(JSON.stringify({ ...sample, awaken: { waking: 'odin', fragments: 1 }, pantheon: { hand: 'odin', heart: null, breath: [] } }))?.pantheon.hand).toBe('odin')
+    expect(parseSave(JSON.stringify({ ...sample, awaken: { waking: null, fragments: 0 }, pantheon: { hand: 'odin', heart: null, breath: [] } }))?.pantheon.hand).toBeNull()
     // 단계 0(옛 신화 숙련만 쌓인 신)도 그대로 남고, 신화 경험치는 내보내지 않는다 (v17)
     expect(parseSave(JSON.stringify({ ...sample, classes: { ...sample.classes, zeus: { level: 0, xp: 120 } } }))?.classes.zeus).toEqual({ level: 0 })
   })
@@ -300,13 +300,13 @@ describe('저장 v11: 연 탭 (E236-05)', () => {
 })
 
 describe('저장 v13: 신을 깨우는 조각 (E238)', () => {
-  it('깨우는 신과 조각·사냥한 수는 그대로, 조각 2면 사냥 막대는 찬 것으로', () => {
-    expect(parseSave(JSON.stringify(sample))?.awaken).toEqual({ waking: 'odin', fragments: 1, hunt: 7 })
-    expect(parseSave(JSON.stringify({ ...sample, awaken: { waking: 'odin', fragments: 2, hunt: 3 } }))?.awaken).toEqual({ waking: 'odin', fragments: 2, hunt: Math.max(...HUNT_KILLS) })
+  it('깨우는 신은 그대로, 사냥하던 옛 저장(조각 1)도 조각 2로 읽는다 (사냥 단계를 걷음)', () => {
+    expect(parseSave(JSON.stringify({ ...sample, awaken: { waking: 'odin', fragments: 1, hunt: 7 } }))?.awaken).toEqual({ waking: 'odin', fragments: 2 })
+    expect(parseSave(JSON.stringify({ ...sample, awaken: { waking: 'odin', fragments: 2, hunt: 3 } }))?.awaken).toEqual({ waking: 'odin', fragments: 2 })
   })
 
   it('옛 저장(v12)·깨우는 길이 없는 신·이미 연 신이면 깨우는 신 없이', () => {
-    const empty = { waking: null, fragments: 0, hunt: 0 }
+    const empty = { waking: null, fragments: 0 }
     expect(parseSave(JSON.stringify({ ...sample, version: 12, awaken: undefined }))?.awaken).toEqual(empty)
     expect(parseSave(JSON.stringify({ ...sample, awaken: { waking: 'wukong', fragments: 1, hunt: 2 } }))?.awaken).toEqual(empty)
     expect(parseSave(JSON.stringify({ ...sample, awaken: { waking: 'thor', fragments: 1, hunt: 2 } }))?.awaken).toEqual(empty)
@@ -348,7 +348,7 @@ describe('그리스 장의 옛 저장 (E305-03: 성소의 신화 고르기 → �
 
   it('북유럽 신을 깨우는 중인 채 그리스 장: 깨우는 신은 그대로 남는다 (제우스는 그 뒤에 응답한다)', () => {
     const data = parseSave(JSON.stringify({ ...greek, classes: { thor: { level: 2, xp: 0 } }, awaken: { waking: 'loki', fragments: 1, hunt: 5 } }))!
-    expect(data.awaken).toEqual({ waking: 'loki', fragments: 1, hunt: 5 })
+    expect(data.awaken).toEqual({ waking: 'loki', fragments: 2 })
   })
 })
 
@@ -653,7 +653,7 @@ const SAMPLES: { name: string; raw: Record<string, unknown>; awakened: string[];
       threat: { level: 1, unlocked: 1, reached: 1, cleared: {}, limitBroken: false }, conveniences: { counters: { pickups: 61 }, open: [], autoSalvage: true, visited: ['midgard', 'jotunheim', 'utgard', 'olympus', 'delphi'] },
       trials: { cleared: {}, best: {} }, rift: { best: 0, stars: 0, lit: [] }, ending: false,
       chapters: { entered: ['village', 'midgard', 'ironwood', 'jotunheim', 'utgard', 'olympus', 'delphi'], bosses: ['utgard'] }, training: { xp: 9000, taken: ['awaken', 'edge', 'body'] },
-      tabs: ['relics', 'training', 'map', 'sources', 'classes', 'looks'], awaken: { waking: null, fragments: 0, hunt: 0 }, region: { id: 'delphi', x: 0, z: 4 }, scenes: ['opening', 'chapterGreek'],
+      tabs: ['relics', 'training', 'map', 'sources', 'classes', 'looks'], awaken: { waking: null, fragments: 0 }, region: { id: 'delphi', x: 0, z: 4 }, scenes: ['opening', 'chapterGreek'],
     },
     awakened: ['odin', 'thor', 'zeus'],
     chapters: { entered: ['village', 'midgard', 'ironwood', 'jotunheim', 'utgard', 'olympus', 'delphi'], bosses: ['utgard'] },
@@ -669,7 +669,7 @@ const SAMPLES: { name: string; raw: Record<string, unknown>; awakened: string[];
       threat: { level: 4, unlocked: 5, reached: 4, cleared: { norse: 3 }, limitBroken: false }, conveniences: { counters: { pickups: 140, salvaged: 40 }, open: ['autoPickup', 'autoSalvage'], autoSalvage: true, visited: ['midgard', 'jotunheim', 'utgard', 'olympus', 'delphi', 'lycia'] },
       trials: { cleared: { noUltimate: 2, fewSlots: 3, glass: 1 }, best: { 'noUltimate:2': 70 } }, rift: { best: 0, stars: 0, lit: [] }, ending: true,
       chapters: { entered: ['village', 'midgard', 'jotunheim', 'utgard', 'olympus', 'delphi', 'lycia', 'sky'], bosses: ['utgard', 'lycia', 'sky'] }, training: { xp: 30000, taken: ['awaken', 'edge'] },
-      tabs: ['relics', 'training', 'map', 'sources', 'classes', 'looks'], awaken: { waking: null, fragments: 0, hunt: 0 }, region: { id: 'village', x: 0, z: 0 }, scenes: ['opening', 'ending'],
+      tabs: ['relics', 'training', 'map', 'sources', 'classes', 'looks'], awaken: { waking: null, fragments: 0 }, region: { id: 'village', x: 0, z: 0 }, scenes: ['opening', 'ending'],
     },
     awakened: ['odin', 'poseidon', 'thor', 'zeus'],
     chapters: { entered: ['village', 'midgard', 'jotunheim', 'utgard', 'olympus', 'delphi', 'lycia', 'sky'], bosses: ['utgard', 'lycia', 'sky'] },
@@ -685,7 +685,7 @@ const SAMPLES: { name: string; raw: Record<string, unknown>; awakened: string[];
       trials: { cleared: {}, best: {} }, rift: { best: 0, stars: 0, lit: [] }, ending: false,
       chapters: { entered: ['village', 'midgard', 'jotunheim'], bosses: [] }, training: { xp: 3000, taken: ['awaken'] },
       expedition: { count: 2, renown: 30, flames: { flame: 1 }, best: [960], elapsed: 200, bosses: 0, deepest: 1, lastTaken: ['awaken'], bestXp: 2500, heirloom: ['g:w1'] },
-      tabs: ['relics', 'training', 'map', 'sources'], awaken: { waking: 'loki', fragments: 0, hunt: 0 }, region: { id: 'jotunheim', x: 0, z: 0 }, scenes: ['opening'],
+      tabs: ['relics', 'training', 'map', 'sources'], awaken: { waking: 'loki', fragments: 0 }, region: { id: 'jotunheim', x: 0, z: 0 }, scenes: ['opening'],
     },
     awakened: ['loki', 'thor'],
     chapters: { entered: ['village', 'midgard', 'jotunheim'], bosses: [] },

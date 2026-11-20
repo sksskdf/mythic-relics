@@ -306,7 +306,7 @@ function parseUniques(raw: unknown, owned: readonly GearItem[]): string[] {
 
 /** 깨우는 신이 이미 열린 신이면 (어긋난 저장) 처음으로 */
 function openedAwaken(awaken: WakeData, classes: SaveData['classes']): WakeData {
-  return awaken.waking && (classes[awaken.waking]?.level ?? 0) >= 1 ? { waking: null, fragments: 0, hunt: 0 } : awaken
+  return awaken.waking && (classes[awaken.waking]?.level ?? 0) >= 1 ? { waking: null, fragments: 0 } : awaken
 }
 
 /** 고른 신화: 열린 신화만. 없으면(옛 저장) 칸의 유물로 1차 스프린트 발현 규칙을 따른다 */

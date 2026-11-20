@@ -58,7 +58,7 @@
     "deepWin": true
   },
   "tabs": ["relics", "training", "gods", "map", "sources", "oaths"],
-  "awaken": { "waking": "artemis", "fragments": 1, "hunt": 5 },
+  "awaken": { "waking": "artemis", "fragments": 2 },
   "mount": true,
   "region": { "id": "lycia", "x": 3.5, "z": -12 },
   "scenes": ["opening", "mythThor", "traceOdin", "guardianOdin", "bossKing", "chapterGreek", "bossChimera", "chapterFinale", "bossSkyKing", "ending", "limitBreak"]

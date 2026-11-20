@@ -48,14 +48,13 @@ export const MOMENTS = {
   tabOpened: 2,
   // 탈것 (E241): 고개지기의 산양을 얻음 (새 장치가 처음 열림)
   mountGained: 2,
-  // 3 큰 카드: 신화 단계, 유물 벼리기, 신의 조각 2(유물)와 두 번째 신부터 깨어남 (엔딩 뒤에는 한계를 깸도)
+  // 3 큰 카드: 신화 단계, 유물 벼리기, 두 번째 신부터 깨어남 (엔딩 뒤에는 한계를 깸도)
   mythLevel: 3,
   forged: 3,
   limitBroken: 3,
-  fragmentRelic: 3,
   oathKept: 3,
   godAwakened: 3,
-  // 4 장면: 첫 신이 깨어남(주신), 신의 흔적(조각 1), 장 보스 처치, 장 넘어가기, 엔딩
+  // 4 장면: 첫 신이 깨어남(주신), 신의 흔적(무리를 이겨 힘을 빌리고 유물이 켜짐), 장 보스 처치, 장 넘어가기, 엔딩
   mythChosen: 4,
   fragment: 4,
   chapterBoss: 4,

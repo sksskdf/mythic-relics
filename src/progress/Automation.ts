@@ -36,11 +36,11 @@ export function automationAt(returns: number, ending: boolean, pickups: number):
 /** 정보 화면에 보일 「귀환이 여는 것」: 차례마다 무엇이 켜지는가 (`at`: 귀환 횟수, null이면 엔딩) */
 export const AUTOMATION_STEPS: readonly { at: number | null; name: string; lines: readonly string[] }[] = [
   { at: AUTOMATION.retake, name: `귀환 ${AUTOMATION.retake}`, lines: ['수련 마디를 지난 원정 차례대로 저절로 다시 찍는다', `가보 칸 ${atCount(AUTOMATION.heirloom, AUTOMATION.retake)}`] },
-  { at: AUTOMATION.autoMerge.good, name: `귀환 ${AUTOMATION.autoMerge.good}`, lines: ['보통·좋음 장비를 주우면 셋씩 저절로 합친다', `기세 출발점: 지난 원정 최고의 ${fraction(atCount(AUTOMATION.head, AUTOMATION.autoMerge.good))}`] },
+  { at: AUTOMATION.autoMerge.good, name: `귀환 ${AUTOMATION.autoMerge.good}`, lines: ['보통·좋음 장비를 주우면 셋씩 저절로 합친다', `수련 출발점: 지난 원정 최고의 ${fraction(atCount(AUTOMATION.head, AUTOMATION.autoMerge.good))}`] },
   {
     at: AUTOMATION.autoMerge.rare,
     name: `귀환 ${AUTOMATION.autoMerge.rare}`,
-    lines: ['희귀 장비도 저절로 합친다', `기세 출발점 ${fraction(atCount(AUTOMATION.head, AUTOMATION.autoMerge.rare))}, 가보 칸 ${atCount(AUTOMATION.heirloom, AUTOMATION.autoMerge.rare)}`],
+    lines: ['희귀 장비도 저절로 합친다', `수련 출발점 ${fraction(atCount(AUTOMATION.head, AUTOMATION.autoMerge.rare))}, 가보 칸 ${atCount(AUTOMATION.heirloom, AUTOMATION.autoMerge.rare)}`],
   },
   { at: null, name: '엔딩', lines: [`자동 줍기 (${AUTOMATION.pickup.need}번 주운 뒤, 둘레 ${AUTOMATION.pickup.radius}m)`, '귀환 카드 맨 앞에 지난번 갈래 그대로', `귀환 횟수를 ${AUTOMATION.endingReturns} 이상으로 친다`] },
 ]

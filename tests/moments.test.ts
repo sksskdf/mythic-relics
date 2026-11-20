@@ -65,7 +65,7 @@ describe('순간의 크기 (E23-01)', () => {
     // 깨달음은 순간이 아니다: 메뉴 단추와 수련 탭의 작은 점으로만 알린다 (E307)
     expect(Object.keys(MOMENTS)).not.toContain('insight')
     // 3 큰 카드: 신화 단계, 유물 벼리기, 신의 조각 2(유물)와 두 번째 신부터 깨어남 (E238)
-    expect(tiers(3)).toEqual(expect.arrayContaining(['mythLevel', 'forged', 'fragmentRelic', 'godAwakened', 'mergedHigh']))
+    expect(tiers(3)).toEqual(expect.arrayContaining(['mythLevel', 'forged', 'godAwakened', 'mergedHigh']))
     // 4 장면: 첫 신이 깨어남, 신의 흔적(조각 1, E238), 장 보스 처치, 장 넘어가기, 엔딩
     expect(tiers(4).sort()).toEqual(['chapterBoss', 'chapterChanged', 'ending', 'fragment', 'mythChosen'])
   })

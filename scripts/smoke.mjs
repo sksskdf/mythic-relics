@@ -307,15 +307,11 @@ try {
   if (gearTabs.join() !== 'relics') throw new Error(`탭 차례: 장비를 주운 뒤 열린 탭이 장비 하나가 아닙니다 (${gearTabs.join()})`)
   console.log('탭 차례 확인: 새 판에는 상태 탭만, 장비를 주우면 장비 탭과 카드')
   await lookShot('2-gear')
-  // 신을 깨우는 조각 셋 (E238 → E302): 흔적(조각 1: 숨) → 사냥(조각 2: 손과 묠니르) → 수호자(심장, 깨어나 세 자리 모두).
+  // 신을 깨우는 길 (E238 → E302 → 사냥 단계를 걷음): 흔적의 무리를 이기면 숨·손과 묠니르가 함께 → 수호자(심장, 깨어나 세 자리 모두).
   // 데모에서는 유물을 가져도 신화가 열리지 않는다
-  await page.evaluate(() => {
-    const g = window.__game
-    g.dev.awaken('thor')
-    g.dev.awaken()
-  })
+  await page.evaluate(() => window.__game.dev.awaken('thor'))
   await page.waitForFunction(() => window.__game.powers.loadout.lit.includes('mjolnir'), null, { timeout: 15000 }).catch(() => {
-    throw new Error('신의 조각: 조각 2를 모았는데 묠니르가 유물표에 켜지지 않았습니다.')
+    throw new Error('신의 흔적: 무리를 이겼는데 묠니르가 유물표에 켜지지 않았습니다.')
   })
   if ((await page.evaluate(() => window.__game.powers.loadout.slots.includes('mjolnir')))) throw new Error('유물표: 묠니르가 장비 칸에 들어갔습니다 (유물은 칸을 떠났다, E303-04).')
   if ((await page.evaluate(() => window.__game.hero.rig.outfit.weapon)) !== 'mjolnirHammer') throw new Error('외형: 묠니르를 얻자마자 망치가 보이지 않습니다.')
@@ -636,11 +632,11 @@ try {
   const back = await page.evaluate(() => ({ x: window.__game.hero.object.position.x, z: window.__game.hero.object.position.z }))
   if (Math.hypot(back.x - savedAt.x, back.z - savedAt.z) > 1) throw new Error(`이어서 플레이 실패: 저장한 자리가 아닙니다 ${JSON.stringify({ savedAt, back })}`)
   console.log('저장 확인: 새로 고침하면 단추 없이 바로 이어서, 유물·일반 장비·재료와 고른 외형, 신의 자리·조각·단계·수련·깊이·자동화 세기·웨이포인트, 있던 지역과 자리 유지')
-  // 귀환 점검 (E304): 원정이 무르익어(2분·기세 8) 성소 화로에 서면 귀환 카드. 승천을 고르면 명성·단계가 오르고 일반 장비는 가보 하나만 남는다
+  // 귀환 점검 (E304): 원정이 무르익어(2분, 엔딩 뒤라 깨달음 8) 성소 화로에 서면 귀환 카드. 승천을 고르면 명성·단계가 오르고 일반 장비는 가보 하나만 남는다
   await page.evaluate(() => {
     const g = window.__game
     g.expedition.elapsed = 300
-    // 원정이 무르익게 (기세 레벨 8)
+    // 원정이 무르익게 (깨달음 8)
     g.training.xp = Math.max(g.training.xp, 5000)
     g.hero.teleport(g.sanctuary.center.x, g.sanctuary.center.z)
   })
@@ -1004,7 +1000,7 @@ try {
     const chapters = []
     // 땅 차례 (E236-01): 제1장에서 첫 신을 깨우기 전에는 요툰헤임·우트가르드가 막혀 있다
     let early = null
-    // 첫 신은 건너뛰지 않고 깨운다 (E238): 흔적에 다가가면 무리 → 조각 1(빌린 힘) → 사냥 → 조각 2(유물) → 수호자 → 깨어남
+    // 첫 신은 건너뛰지 않고 깨운다 (E238): 흔적에 다가가면 무리 → 이기면 빌린 힘과 유물이 함께(사냥 단계 없음) → 수호자 → 깨어남
     let woke = null
     const kill = (near) => {
       for (const e of g.encounter.alive) if (near(e)) e.takeHit(1e6, 0, 0, 0)
@@ -1024,9 +1020,8 @@ try {
         const past = g.hero.object.position
         const sealed = { region: g.region.id, out: Math.max(Math.abs(past.x), Math.abs(past.z)), half: g.region.halfExtent }
         if (g.region.id !== 'midgard') g.enterRegion(g.regions.midgard)
-        // 미드가르드의 흔적은 기세 3부터 응답한다 (E306 D11): 그 아래면 흔적이 잠잠하고 목표 한 줄은 기세 막대
-        const low = { quiet: g.awakening.target('midgard') === null, line: g.chapterSystem.goalView()?.text ?? '' }
-        g.dev.insight(Math.max(0, 3 - g.training.insights))
+        // 흔적은 깨달음을 얼마나 모았는지 보지 않는다 (문턱을 걷음): 깨달음이 적어도 응답하고 목표 한 줄은 흔적을 찾으라는 글 그대로
+        const low = { insights: g.training.insights, quiet: g.awakening.target('midgard') === null, line: g.chapterSystem.goalView()?.text ?? '' }
         const target = g.awakening.target('midgard')
         const spot = g.awakening.placed(target)
         woke = { god: target.god, sealed, low }
@@ -1045,16 +1040,20 @@ try {
         g.advance(1, 1 / 30)
         woke.piece1 = g.awaken.fragments
         woke.lent = g.ctx.build.passives().map((p) => p.god)
-        // 사냥과 수호자는 그 신의 땅에서 (E239: 토르는 세계 뱀의 바닷가, 오딘은 철의 숲)
+        // 무리를 이긴 그 자리에서 다음은 바로 수호자다: 사냥 단계가 없고 목표 한 줄에 세는 꼴(n/m)이 없다
+        woke.next = g.awakening.target('midgard')?.kind ?? null
+        woke.line = g.chapterSystem.goalView()?.text ?? ''
+        // 수호자는 그 신의 땅에서 (E239: 토르는 세계 뱀의 바닷가, 오딘은 철의 숲)
         woke.land = g.awakening.target('midgard')?.region ?? null
         if (woke.land) g.enterRegion(g.regions[woke.land])
         g.advance(0.5, 1 / 30)
-        for (let k = 0; k < 60 && g.awaken.fragments < 2; k++) {
+        // 그 땅에서 적을 잡아도 달라지는 것이 없다 (조각은 그대로, 다음은 여전히 수호자)
+        for (let k = 0; k < 3; k++) {
           const p = g.hero.object.position
           g.dev.spawn('grunt', p.x + 3, p.z)
           g.advance(0.1, 1 / 30)
           kill(() => true)
-          g.advance(0.1, 1 / 30)
+          g.advance(0.7, 1 / 30)
         }
         woke.piece2 = g.awaken.fragments
         woke.relic = g.pickups.list.some((it) => it.id === 'mjolnir' || it.id === 'gungnir') || g.powers.loadout.ownedRelics.length > 0
@@ -1086,9 +1085,8 @@ try {
     g.advance(1, 1 / 30)
     later.after = g.awakening.traceState('poseidon')
     const greek = g.progress.opened.filter((god) => ['zeus', 'poseidon', 'hades', 'artemis'].includes(god))
-    // 엔딩 뒤 그리스 셋은 흔적 → 사냥 → 수호자로 깨운다 (E241): 조각 2로 받은 유물이 신을 바로 열지 않는다
+    // 엔딩 뒤 그리스 셋은 흔적 → 수호자로 깨운다 (E241): 흔적에서 받은 유물이 신을 바로 열지 않는다
     g.awakening.skip('poseidon')
-    g.awakening.skip()
     later.relic = g.powers.loadout.has('triaina')
     later.openAt2 = g.progress.isOpen('poseidon')
     later.next = g.awakening.target()?.kind ?? null
@@ -1109,17 +1107,18 @@ try {
   // 그리스는 성소에서 고르지 않고 제우스를 깨운다 (E305-03): 키마이라도 신화권을 통째로 열지 않는다
   if (ending.greek.join() !== 'zeus') throw new Error(`장 흐름: 그리스에서 제우스 하나만 깨어나야 합니다 ${JSON.stringify(ending.greek)}`)
   if (ending.later.before !== 'later' || ending.later.after !== 'open') throw new Error(`장 흐름: 포세이돈의 흔적이 엔딩 전에는 잠자코(later), 엔딩 뒤에는 응답(open)해야 합니다 ${JSON.stringify(ending.later)}`)
-  if (!ending.later.relic || ending.later.openAt2 || ending.later.next !== 'guardian' || !ending.later.woke) throw new Error(`엔딩 뒤 깨우기: 포세이돈이 조각 2(삼지창)에서 바로 열리거나 케토스를 쓰러뜨려도 깨어나지 않습니다 ${JSON.stringify(ending.later)}`)
+  if (!ending.later.relic || ending.later.openAt2 || ending.later.next !== 'guardian' || !ending.later.woke) throw new Error(`엔딩 뒤 깨우기: 포세이돈이 흔적(삼지창)에서 바로 열리거나 케토스를 쓰러뜨려도 깨어나지 않습니다 ${JSON.stringify(ending.later)}`)
   if (!ending.later.forgot) throw new Error(`엔딩 뒤 깨우기: 깨우던 신이 다른 길로 열렸는데 그 길이 남아 다른 흔적이 응답하지 않습니다 ${JSON.stringify(ending.later)}`)
   if (!ending.early || ending.early.jotunheim || ending.early.utgard) throw new Error(`땅 차례: 첫 신을 깨우기 전에 요툰헤임·우트가르드가 열려 있습니다 ${JSON.stringify(ending.early)}`)
   if (!ending.early.ironwood || !ending.early.serpentshore) throw new Error(`땅 차례: 첫 신의 수호자 땅(철의 숲·바닷가)이 제1장에 열려 있지 않습니다 ${JSON.stringify(ending.early)}`)
   const w = ending.woke
   if (!w || w.sealed.region !== 'midgard' || w.sealed.out > w.sealed.half + 0.6) throw new Error(`장 흐름: 결계가 요툰헤임으로 가는 길을 막지 않습니다 ${JSON.stringify(w?.sealed)}`)
-  if (!w.low.quiet || !w.low.line.startsWith('기세를 모은다')) throw new Error(`신의 흔적: 기세 3 전에 흔적이 응답하거나 목표 한 줄이 기세 막대가 아닙니다 ${JSON.stringify(w.low)}`)
+  if (w.low.quiet || w.low.insights >= 3 || /기세|\d+\/\d+/.test(w.low.line)) throw new Error(`신의 흔적: 깨달음이 적다고 흔적이 잠잠하거나 목표 한 줄이 무언가를 세고 있습니다 ${JSON.stringify(w.low)}`)
   if (w.fled !== 0 || w.fledGuardian || !(w.wound < 0.7)) throw new Error(`신의 조각 셋: 워프로 떠났는데 조각을 주거나 수호자의 상처를 잊습니다 ${JSON.stringify(w)}`)
-  if (!w || w.pack < 4 || w.piece1 !== 1 || !w.lent.includes(w.god) || w.piece2 !== 2 || !w.relic || !w.guardian || !w.opened.includes(w.god))
-    throw new Error(`신의 조각 셋: 흔적 → 사냥 → 수호자로 신이 깨어나지 않습니다 ${JSON.stringify(w)}`)
-  console.log(`신의 조각 확인: 기세 3 전에는 흔적이 잠잠(「${w.low.line}」), 흔적에 다가가면 무리 ${w.pack} → 조각 1(빌린 힘 ${w.god}) → ${w.land}에서 사냥 → 조각 2(유물) → 수호자 「${w.guardian}」 → ${w.god} 깨어남 (싸우다 워프하면 조각 없음, 수호자 상처 ${Math.round(w.wound * 100)}%로 기억, 요툰헤임 결계에서 걸음이 막힘)`)
+  if (!w || w.pack < 4 || w.piece1 !== 2 || w.next !== 'guardian' || !w.lent.includes(w.god) || w.piece2 !== 2 || !w.relic || !w.guardian || !w.opened.includes(w.god))
+    throw new Error(`신을 깨우는 길: 흔적 → 수호자로 신이 깨어나지 않습니다 ${JSON.stringify(w)}`)
+  if (!w.line.includes('쓰러뜨려') || /사냥|기세|\d+\/\d+/.test(w.line)) throw new Error(`신을 깨우는 길: 무리를 이긴 뒤 목표 한 줄이 수호자가 아니거나 무언가를 세고 있습니다 「${w.line}」`)
+  console.log(`신을 깨우는 길 확인: 깨달음 ${w.low.insights}에도 흔적이 응답(「${w.low.line}」), 흔적에 다가가면 무리 ${w.pack} → 이기면 빌린 힘(${w.god})과 유물이 함께, 목표는 「${w.line}」(사냥 단계 없음) → ${w.land}의 수호자 「${w.guardian}」 → ${w.god} 깨어남 (싸우다 워프하면 조각 없음, 수호자 상처 ${Math.round(w.wound * 100)}%로 기억, 요툰헤임 결계에서 걸음이 막힘)`)
   console.log(`엔딩 확인: ${ending.chapters.join(' → ')} → 갈라진 하늘의 왕을 이기면 엔딩(그리스는 제우스 하나를 깨우고 셋은 엔딩 뒤에 응답), 결계가 모두 풀리고 목표 한 줄이 사라짐 (첫 신을 깨우기 전에는 요툰헤임·우트가르드가 막히고 철의 숲·바닷가는 열림)`)
 
   // 휴대폰 (E235): 세로로 든 터치 기기에서 끌기 = 떠다니는 조이스틱으로 걷기, 떼면 멈춤, 톡 = 그곳까지, 두 손가락 = 확대,

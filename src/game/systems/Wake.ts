@@ -1,8 +1,7 @@
 import * as THREE from 'three'
 
-import { WAKE, WAKE_GODS, wakeDef, GUARDIAN_LEASH, GUARDIAN_MEND, GUARDIAN_RADIUS, LATER_TEXT, levelSealed, levelText, TRACE_LEASH, TRACE_RADIUS, traceLevel, traceStateOf, type TraceState } from '../../data/wake'
+import { WAKE, WAKE_GODS, wakeDef, GUARDIAN_LEASH, GUARDIAN_MEND, GUARDIAN_RADIUS, LATER_TEXT, TRACE_LEASH, TRACE_RADIUS, traceStateOf, type TraceState } from '../../data/wake'
 import { conquestBoss, CONQUESTS } from '../../data/chapters'
-import { REGIONS } from '../../data/regions'
 import { sceneId } from '../../data/scenes'
 import type { GiantSpec } from '../../data/schema'
 import { ENEMIES, type Giant } from '../../enemies/Giant'
@@ -19,14 +18,14 @@ import type { GameContext } from '../context'
 
 type Point2 = { x: number; z: number }
 
-/** 다음에 할 일 (목표 한 줄·작은 지도·봇): 흔적에 다가가기, 그 땅에서 사냥, 수호자와 싸우기 */
+/** 다음에 할 일 (목표 한 줄·작은 지도·봇): 흔적에 다가가기, 수호자와 싸우기 */
 export interface AwakenTarget {
   god: God
-  kind: 'trace' | 'hunt' | 'guardian'
+  kind: 'trace' | 'guardian'
   /** 그 일을 하는 땅 */
   region: string
-  /** 그 땅 좌표 (사냥은 그 땅 어디서나라 null) */
-  spot: Point2 | null
+  /** 그 땅 좌표 */
+  spot: Point2
 }
 
 /** 흔적·수호자 빛기둥의 높이 (m) */
@@ -44,22 +43,23 @@ export function guardianSpec(god: God): GiantSpec | null {
 }
 
 /**
- * 「신의 조각 2/3」 카드의 두 줄 (E307 손 QA): 유물이 유물표에 켜져 그 힘이 깨어났다는 것과, 마지막 조각으로 할 일.
- * 「묠니르가 유물표에 켜졌다 · 바로 깨어난다」는 마지막 조각이 남았는데 신이 지금 깨어난다는 말로 읽혔다:
- * 깨어난 것이 유물의 힘임을 적고, 신은 수호자를 쓰러뜨려야 깨어난다는 것을 둘째 줄에 적는다.
+ * 흔적의 무리를 이겼을 때 뜨는 카드의 줄 (E307 손 QA → 2026-11-20 사냥 단계를 걷으며 조각 1·2 카드를 한 장으로):
+ * 빌린 힘, 유물이 유물표에 켜져 그 힘이 깨어났다는 것, 다음에 할 일.
+ * 「묠니르가 유물표에 켜졌다 · 바로 깨어난다」는 신이 지금 깨어난다는 말로 읽혔다:
+ * 깨어난 것이 유물의 힘임을 적고, 신은 수호자를 쓰러뜨려야 깨어난다는 것을 마지막 줄에 적는다.
  * (유물은 칸·가방이 아니라 유물표에 켜진다. 「가방에 들어왔다 · 장비 탭에서 낀다」는 틀린 글이었다)
  */
-export function relicPieceLines(god: God): string[] {
+export function traceWonLines(god: God): string[] {
   const def = godDef(god)
   const guardian = wakeDef(god)?.guardian.name ?? '수호자'
-  return [`${josa(relicDef(mythRelic(god)).name, '이')} 유물표에 켜졌다 · 유물의 힘이 깨어났다`, `마지막 조각: ${josa(guardian, '을')} 쓰러뜨리면 ${josa(def.name, '이')} 깨어난다`]
+  return [`빌린 힘: ${lendText(god, 1)}`, `${josa(relicDef(mythRelic(god)).name, '이')} 유물표에 켜졌다 · 유물의 힘이 깨어났다`, `다음: ${josa(guardian, '을')} 쓰러뜨리면 ${josa(def.name, '이')} 깨어난다`]
 }
 
 /**
- * 신을 깨우는 길 (E238, `DESIGN.md` 4.2.2): 흔적 → 사냥 → 수호자, 조각 셋.
- * - 흔적: 그 땅에 흔적 모형과 빛기둥을 세운다. 다가가면 지키는 무리가 깨어나고, 다 쓰러뜨리면 조각 1(대표 힘을 빌린다)
- * - 사냥: 그 신의 땅에서 잡을 때마다 막대가 차고, 다 차면 조각 2(그 신의 유물이 손에 들어온다)
- * - 수호자: 그 땅 깊은 곳에 빛기둥이 서고, 다가가면 수호자가 나타난다. 쓰러뜨리면 그 신이 깨어난다
+ * 신을 깨우는 길 (E238, `DESIGN.md` 4.2.2): 흔적 → 수호자.
+ * - 흔적: 그 땅에 흔적 모형과 빛기둥을 세운다. 다가가면 지키는 무리가 깨어나고, 다 쓰러뜨리면 대표 힘을 빌리고 그 신의 유물이 켜진다
+ *   (그 땅에서 정한 수만큼 사냥해야 유물을 받던 단계는 2026-11-20에 걷었다)
+ * - 수호자: 그 신의 땅 깊은 곳에 빛기둥이 서고, 다가가면 수호자가 나타난다. 쓰러뜨리면 그 신이 깨어난다
  * 깨우는 신은 한 번에 하나. 쓰러지면 무리와 수호자는 물러나고 조각은 그대로 남는다.
  * 무리의 마지막·수호자는 생명이 다한 순간 조각을 준다 (무너지는 동안 쓰러지거나 땅을 넘어도 잃지 않게).
  */
@@ -77,8 +77,6 @@ export class WakeSystem {
   private guardian: Giant | null = null
   /** 다른 신을 깨우는 중이라 응답하지 않은 흔적: 한 번만 알린다 */
   private told: God | null = null
-  /** 이 시스템이 세운 적 (무리·수호자): 사냥 수에 넣지 않는다 */
-  private readonly ours = new WeakSet<Giant>()
   private time = 0
   private readonly beamGeometry = new THREE.CylinderGeometry(0.22, 0.34, 1, 10, 1, true)
 
@@ -95,7 +93,6 @@ export class WakeSystem {
     ctx.bus.on('regionEntered', () => this.refresh())
     // 쓰러지면 무리와 수호자는 물러난다 (조각은 남는다)
     ctx.bus.on('heroDied', () => this.calm())
-    ctx.bus.on('giantKilled', ({ giant }) => this.killed(giant))
   }
 
   /** 깨우는 중인 신 (다른 길로 이미 열렸으면 없음) */
@@ -104,9 +101,9 @@ export class WakeSystem {
     return god && !this.ctx.progress.isOpen(god) ? god : null
   }
 
-  /** 흔적이 지금 어떤가 (데모의 다섯은 엔딩 뒤에 응답한다 E241·E306, 기세가 모자라면 잠잠하다 E306). anyLevel이면 기세를 보지 않는다 (개발 지름길) */
-  traceState(god: God, anyLevel = false): TraceState {
-    const { progress, expedition, chapters, ending, training } = this.ctx
+  /** 흔적이 지금 어떤가 (데모의 다섯은 엔딩 뒤에 응답한다 E241·E306) */
+  traceState(god: God): TraceState {
+    const { progress, expedition, chapters, ending } = this.ctx
     return traceStateOf(god, {
       open: progress.isOpen(god),
       waking: this.waking,
@@ -114,21 +111,11 @@ export class WakeSystem {
       returns: expedition.returns,
       conquered: chapters.conquered,
       ending: ending.has('realms'),
-      level: anyLevel ? Infinity : training.insights,
     })
   }
 
-  /** 다음 흔적이 기세만 모자라 잠잠한가 (E306 D11: 귀환·장 정복은 넉넉하고 깨운 차례의 기세 문턱 아래) */
-  levelSealed(god: God): boolean {
-    return levelSealed(this.ctx.progress.opened.length, this.ctx.training.insights, this.ctx.ending.has('realms')) && this.traceState(god, true) === 'open'
-  }
-
-  /**
-   * 흔적이 잠잠할 때 그 신이 응답하는 때: 기세만 모자라면 「기세 10에 응답한다」처럼(E306, 깨운 차례의 문턱), 아니면 (E305-03)
-   * 「성소 화로에서 원정을 마치거나 거인 왕을 이기면 응답한다」
-   */
-  sealedText(god?: God): string {
-    if (god && this.levelSealed(god)) return levelText(traceLevel(this.ctx.progress.opened.length))
+  /** 흔적이 잠잠할 때 그 신이 응답하는 때 (E305-03): 「성소 화로에서 원정을 마치거나 거인 왕을 이기면 응답한다」 */
+  sealedText(): string {
     const region = CONQUESTS.find((r) => !this.ctx.chapters.bosses.has(r))
     const boss = region ? ENEMIES[conquestBoss(region)]?.name : undefined
     return boss ? `성소 화로에서 원정을 마치거나 ${josa(boss, '을')} 이기면 응답한다` : '성소 화로에서 원정을 마치면 응답한다'
@@ -160,16 +147,15 @@ export class WakeSystem {
   }
 
   /**
-   * 다음에 할 일: 깨우는 신이 있으면 그 신의 사냥·수호자, 없으면 응답하는 흔적 (목표 땅의 것부터, 다음은 열린 땅의 것).
+   * 다음에 할 일: 깨우는 신이 있으면 그 신의 수호자, 없으면 응답하는 흔적 (목표 땅의 것부터, 다음은 열린 땅의 것).
    * 깨울 신이 남지 않았으면 null
    */
   target(prefer?: string): AwakenTarget | null {
-    const { awaken, chapters } = this.ctx
+    const { chapters } = this.ctx
     const waking = this.waking
     if (waking) {
       const def = wakeDef(waking)!
-      if (awaken.fragments >= 2) return { god: waking, kind: 'guardian', region: def.guardian.region, spot: { x: def.guardian.x, z: def.guardian.z } }
-      if (awaken.fragments >= 1) return { god: waking, kind: 'hunt', region: def.land, spot: null }
+      return { god: waking, kind: 'guardian', region: def.guardian.region, spot: { x: def.guardian.x, z: def.guardian.z } }
     }
     const open = WAKE_GODS.filter((g) => this.traceState(g) === 'open' && chapters.isOpen(WAKE[g]!.trace.region))
     const god = open.find((g) => WAKE[g]!.trace.region === prefer) ?? open[0]
@@ -179,8 +165,8 @@ export class WakeSystem {
   }
 
   /** 지금 땅 좌표로 본 자리: 흔적·수호자 자리는 세울 때 빈 곳으로 옮긴 자리 */
-  placed(target: AwakenTarget): Point2 | null {
-    if (target.region !== this.ctx.map.region.id || !target.spot) return target.spot
+  placed(target: AwakenTarget): Point2 {
+    if (target.region !== this.ctx.map.region.id) return target.spot
     if (target.kind === 'trace') return this.traces.find((t) => t.god === target.god) ?? target.spot
     return this.lair ?? target.spot
   }
@@ -211,7 +197,7 @@ export class WakeSystem {
     this.placeLair()
   }
 
-  /** 조각 2를 모은 신의 수호자 자리에 빛기둥 (그 땅에 있을 때) */
+  /** 깨우는 신의 수호자 자리에 빛기둥 (그 땅에 있을 때) */
   private placeLair(): void {
     const { awaken, map } = this.ctx
     const god = awaken.waking
@@ -250,7 +236,7 @@ export class WakeSystem {
     if (this.pack && this.pack.giants.every((g) => g.health.dead)) {
       const god = this.pack.god
       this.pack = null
-      this.piece1(god)
+      this.won(god)
     }
     if (this.guardian?.health.dead) {
       this.guardian = null
@@ -291,7 +277,7 @@ export class WakeSystem {
         else if ((state === 'busy' || state === 'sealed' || state === 'later') && this.told !== t.god) {
           this.told = t.god
           const waking = this.waking
-          const text = state === 'later' ? LATER_TEXT : waking ? `${josa(godDef(waking).name, '이')} 깨어난 뒤에 응답한다` : this.sealedText(t.god)
+          const text = state === 'later' ? LATER_TEXT : waking ? `${josa(godDef(waking).name, '이')} 깨어난 뒤에 응답한다` : this.sealedText()
           this.ctx.bus.emit('moment', { id: 'traceBusy', text })
         }
       }
@@ -314,11 +300,10 @@ export class WakeSystem {
       const a = (i / members.length) * Math.PI * 2 + 0.4
       const at = { x: t.x + Math.sin(a) * 4, z: t.z + Math.cos(a) * 4 }
       const giant = this.ctx.encounter.spawn(spec, this.free(at) ?? at, true)
-      this.ours.add(giant)
       giants.push(giant)
       this.ctx.fx.puffs.burst(giant.object.position, 10, 2)
     })
-    if (giants.length === 0) return this.piece1(t.god)
+    if (giants.length === 0) return this.won(t.god)
     this.pack = { god: t.god, x: t.x, z: t.z, giants }
     this.ctx.fx.power.burst(new THREE.Vector3(t.x, heightAt(t.x, t.z), t.z), godDef(t.god).color, 2)
     this.ctx.view.shake(0.25)
@@ -368,49 +353,24 @@ export class WakeSystem {
     this.told = null
   }
 
-  /** 적이 쓰러졌다 (무너지고 난 뒤): 사냥 수. 무리·수호자는 생명이 다한 순간 이미 조각을 주었다 */
-  private killed(giant: Giant): void {
-    const { awaken, map, bus } = this.ctx
-    if (this.ours.has(giant)) return
-    // 사냥: 그 신의 땅에서 잡을 때마다 (흔적을 지키는 무리·수호자는 빼고)
-    const waking = this.waking
-    if (!waking || awaken.fragments !== 1 || map.region.id !== wakeDef(waking)?.land) return
-    if (awaken.addKill()) this.piece2(waking)
-    else bus.emit('progressChanged', {})
-  }
-
-  /** 조각 1: 지키는 무리를 물리쳤다. 그 신을 깨우기 시작하고 대표 힘을 바로 빌린다 */
-  private piece1(god: God): void {
-    const { awaken, bus, fx, hero, hud } = this.ctx
+  /**
+   * 흔적을 지키는 무리를 물리쳤다: 그 신을 깨우기 시작한다. 대표 힘을 빌리고, 그 신의 유물이 유물표에 켜지며(땅에 두면 잃을 수 있어 바로)
+   * 그 유물이 깨어난다. 첫 신이면 손에 그 신의 무기를 쥔다 (`RelicSystem`이 조각 2 사건을 듣는다). 다음은 바로 수호자다.
+   * 사냥 단계가 있던 때의 조각 1·조각 2가 이 자리에서 이어서 일어난다: 카드는 한 장으로 (장면 뒤 큰 카드)
+   */
+  private won(god: God): void {
+    const { awaken, bus, fx, hero, hud, powers } = this.ctx
     if (!awaken.trace(god)) return
     const def = godDef(god)
-    const path = wakeDef(god)!
     hud.flash(def.color)
-    fx.power.burst(hero.object.position, def.color, 3)
-    const card = {
-      kind: '신의 조각 1/3',
-      title: `${def.name}의 흔적`,
-      color: def.color,
-      icon: classIcon(def.name),
-      lines: [`빌린 힘: ${lendText(god, 1)}`, `다음 조각: ${REGIONS[path.land]?.name ?? path.land}에서 사냥한다`],
-    }
+    fx.power.burst(hero.object.position, def.color, 4)
+    const relic = mythRelic(god)
+    powers.loadout.waking = god
+    if (!powers.loadout.has(relic)) this.give(relic, true)
+    const card = { kind: '신의 흔적', title: `${def.name}의 흔적`, color: def.color, icon: classIcon(def.name), lines: traceWonLines(god) }
     // 흔적에서 그 신이 처음 말을 건다 (E23 장면): 첫 흔적을 고르는 것이 곧 첫 신을 고르는 순간 (`DESIGN.md` 4.2.2)
     bus.emit('moment', { id: 'fragment', scene: sceneId('trace', god), card, slow: true })
     bus.emit('fragment', { god, piece: 1 })
-    bus.emit('progressChanged', {})
-  }
-
-  /** 조각 2: 그 땅에서 사냥을 마쳤다. 그 신의 유물이 유물표에 켜지고(땅에 두면 잃을 수 있어 바로), 조각 2부터 그 유물이 깨어난다 */
-  private piece2(god: God): void {
-    const { powers, hero, bus, fx } = this.ctx
-    const relic = mythRelic(god)
-    powers.loadout.waking = god
-    const p = hero.object.position
-    if (!powers.loadout.has(relic)) this.give(relic, true)
-    const def = godDef(god)
-    fx.power.burst(p, def.color, 4)
-    const card = { kind: '신의 조각 2/3', title: relicDef(relic).name, color: def.color, icon: classIcon(def.name), lines: relicPieceLines(god) }
-    bus.emit('moment', { id: 'fragmentRelic', card })
     bus.emit('fragment', { god, piece: 2 })
     this.placeLair()
     bus.emit('progressChanged', {})
@@ -422,7 +382,6 @@ export class WakeSystem {
     if (!spec || !this.lair) return
     const at = { x: this.lair.x, z: this.lair.z }
     this.guardian = this.ctx.encounter.spawn(spec, at, true)
-    this.ours.add(this.guardian)
     const wound = this.wound?.god === god ? this.wound : null
     if (wound) {
       const health = this.guardian.health
@@ -438,7 +397,7 @@ export class WakeSystem {
     this.ctx.bus.emit('guardianAppeared', { god })
   }
 
-  /** 조각 3: 수호자를 쓰러뜨렸다. 그 신이 깨어난다 (첫 신이면 세 자리에 들며 장면, 아니면 빈 칸에 큰 카드) */
+  /** 수호자를 쓰러뜨렸다. 그 신이 깨어난다 (첫 신이면 세 자리에 들며 장면, 아니면 빈 칸에 큰 카드) */
   private awaken(): void {
     const { awaken, progress, powers, bus } = this.ctx
     const god = awaken.awaken()
@@ -463,23 +422,13 @@ export class WakeSystem {
     bus.emit('progressChanged', {})
   }
 
-  /** 개발 지름길: 깨우는 신의 다음 조각을 바로 얻는다 (깨우는 신이 없으면 god부터) */
+  /** 개발 지름길: 깨우는 신이 없으면 god(없으면 응답하는 첫 흔적)의 무리를 이긴 것으로, 깨우는 신이 있으면 수호자를 쓰러뜨린 것으로 */
   skip(god?: God): boolean {
-    const { awaken } = this.ctx
-    const waking = this.waking
-    if (!waking) {
-      // 개발 지름길은 기세를 기다리지 않는다
-      const next = god ?? WAKE_GODS.find((g) => this.traceState(g, true) === 'open')
-      if (!next || this.traceState(next, true) !== 'open') return false
+    if (!this.waking) {
+      const next = god ?? WAKE_GODS.find((g) => this.traceState(g) === 'open')
+      if (!next || this.traceState(next) !== 'open') return false
       this.calm()
-      this.piece1(next)
-      return true
-    }
-    if (awaken.fragments === 1) {
-      while (!awaken.addKill()) {
-        /* 막대를 채운다 */
-      }
-      this.piece2(waking)
+      this.won(next)
       return true
     }
     this.calm()
@@ -487,13 +436,17 @@ export class WakeSystem {
     return true
   }
 
-  /** 불러온 뒤: 조각 2를 모은 신이면 유물이 깨어나게 (저장에는 조각만 있다). 흔적·수호자 자리는 refresh가 세운다 */
+  /**
+   * 불러온 뒤: 깨우는 신의 유물이 깨어나게 (저장에는 조각만 있다). 흔적·수호자 자리는 refresh가 세운다.
+   * 사냥하던 옛 저장(조각 1)은 조각 2로 읽히니 여기서 유물을 주고, 손이 비었으면 그 신의 무기를 쥐여 준다
+   */
   settle(): void {
-    const { awaken, powers } = this.ctx
+    const { awaken, powers, progress, bus } = this.ctx
     const waking = this.waking
     powers.loadout.waking = waking && awaken.fragments >= 2 ? waking : null
-    // 조각 2의 유물을 잃었으면(옛 판) 다시 준다
-    if (powers.loadout.waking && !powers.loadout.has(mythRelic(powers.loadout.waking))) this.give(mythRelic(powers.loadout.waking), false)
+    if (!powers.loadout.waking) return
+    // 유물을 잃었으면(옛 판) 다시 준다
+    if (!powers.loadout.has(mythRelic(powers.loadout.waking))) this.give(mythRelic(powers.loadout.waking), false)
+    if (!progress.pantheon.hand) bus.emit('fragment', { god: powers.loadout.waking, piece: 2 })
   }
 }
-

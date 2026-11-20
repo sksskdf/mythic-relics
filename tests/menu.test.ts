@@ -155,9 +155,9 @@ describe('장비 탭: 가방의 장비가 들어갈 칸 (E307 손 QA)', () => {
 })
 
 describe('수련 탭의 머리줄 (E307 손 QA)', () => {
-  it('모은 깨달음의 수를 「기세」라는 이름과 함께 적는다: 목표 한 줄·흔적 카드의 기세와 같은 수다', () => {
-    expect(momentumLine(3)).toBe('기세 3 · 이번 원정에 모은 깨달음')
-    expect(momentumLine(0)).toContain('기세 0')
+  it('모은 깨달음의 수를 쉬운 말로 적는다 (따로 부르던 이름은 화면에서 걷었다)', () => {
+    expect(momentumLine(3)).toBe('이번 원정에 모은 깨달음 3')
+    expect(momentumLine(0)).not.toContain('기세')
   })
 })
 

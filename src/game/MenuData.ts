@@ -1,7 +1,7 @@
 import { activeLayers, LAYER_NAMES } from '../build/layers'
 import { WAKE, WAKE_GODS, wakeDef } from '../data/wake'
 import { awakeningLevel } from '../data/awakening'
-import { REALM_COLORS, REGIONS } from '../data/regions'
+import { REALM_COLORS } from '../data/regions'
 import { chapterOf, conquestBoss, CONQUESTS } from '../data/chapters'
 import { ENEMIES } from '../enemies/Giant'
 import { CELL, cellOrigin } from '../data/world'
@@ -310,14 +310,13 @@ export class MenuData {
     return { hand: p.hand, heart: p.heart, breath: p.breath, count, locked: locked.slice(0, Math.max(0, cap - Math.max(1, count))), focus: build.focus, emptyHand: build.rules.emptyHand }
   }
 
-  /** 깨우는 중인 신 (E238): 모은 조각과 다음 할 일 (신 탭) */
-  private wakingView(): { god: string; fragments: number; next: string } | null {
+  /** 깨우는 중인 신 (E238): 다음 할 일 (신 탭). 흔적의 무리를 이긴 뒤이니 남은 것은 수호자다 */
+  private wakingView(): { god: string; next: string } | null {
     const { progress, awaken } = this.parts.ctx
-    const { waking, fragments, hunt, need } = awaken
+    const { waking } = awaken
     const path = waking ? wakeDef(waking) : undefined
     if (!waking || !path || progress.isOpen(waking)) return null
-    const next = fragments >= 2 ? `${josa(path.guardian.name, '을')} 쓰러뜨린다` : `${REGIONS[path.land]?.name ?? path.land}에서 사냥한다 (${hunt}/${need})`
-    return { god: waking, fragments, next }
+    return { god: waking, next: `${josa(path.guardian.name, '을')} 쓰러뜨린다` }
   }
 
   /** 정보 화면에 보일 깊이 (읽을 때마다 지금 값) */
