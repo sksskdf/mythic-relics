@@ -77,6 +77,7 @@ export class Persistence {
       expedition: this.ctx.expedition.toData(),
       tabs: this.ctx.tabs.toData(),
       awaken: this.ctx.awaken.toData(),
+      powers: this.ctx.mythPowers.toData(),
       mount: this.ctx.mount.toData(),
       region: { id: this.ctx.map.region.id, x: this.ctx.hero.object.position.x, z: this.ctx.hero.object.position.z },
       scenes: [...this.ctx.scenesSeen],
@@ -94,6 +95,8 @@ export class Persistence {
     this.ctx.expedition.load(data.expedition)
     this.ctx.tabs.load(data.tabs)
     this.ctx.awaken.load(data.awaken)
+    // 힘의 칸 수는 귀환 수를 읽는다: 원정 기록을 불러온 뒤에
+    this.ctx.mythPowers.load(data.powers)
     this.ctx.mount.load(data.mount)
     this.ctx.depth.load(data.depth)
     this.ctx.automation.load(data.automation)

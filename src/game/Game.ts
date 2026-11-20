@@ -67,6 +67,7 @@ import { ChapterProgress } from '../progress/Chapters'
 import { TrainingProgress } from '../progress/Training'
 import { ExpeditionProgress } from '../progress/Expedition'
 import { WakeProgress } from '../progress/Wake'
+import { PowerProgress } from '../progress/Powers'
 import { MountProgress } from '../progress/Mount'
 import { MountSystem } from './systems/Mount'
 import { TabUnlocks } from '../progress/Tabs'
@@ -388,6 +389,7 @@ export class Game {
       expedition: this.expedition,
       tabs: this.tabs,
       awaken: this.awaken,
+      mythPowers: new PowerProgress(() => this.expedition.returns),
       mount: this.mount,
       uniques: new UniqueState(),
       build: new Build({ powers: this.powers, progress: this.progress, oaths: this.oaths, oath: () => this.expedition.oath, training: this.training, awaken: this.awaken, expedition: this.expedition }),

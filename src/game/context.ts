@@ -7,6 +7,7 @@ import type { MountProgress } from '../progress/Mount'
 import type { ExpeditionProgress } from '../progress/Expedition'
 import type { TrainingProgress } from '../progress/Training'
 import type { WakeProgress } from '../progress/Wake'
+import type { PowerProgress } from '../progress/Powers'
 import type { TabUnlocks } from '../progress/Tabs'
 import type { Ending } from '../progress/Ending'
 import type { DepthProgress } from '../progress/Depth'
@@ -101,6 +102,8 @@ export interface GameContext {
   readonly expedition: ExpeditionProgress
   /** 신을 깨우는 진행: 깨우는 신과 모은 조각 (E238) */
   readonly awaken: WakeProgress
+  /** 힘의 진행: 가진 힘·칸·만난 신 (재미 재설계, 저장 키 `powers`. `powers`는 장착한 유물 효과 `RelicPowers`의 이름이라 비킨다) */
+  readonly mythPowers: PowerProgress
   /** 탈것: 고개지기의 산양을 얻었나 (E241) */
   readonly mount: MountProgress
   /** 차례로 연 정보 화면 탭 (E236-05) */

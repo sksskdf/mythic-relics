@@ -16,12 +16,14 @@ import { type ExpeditionData, parseExpedition } from '../progress/Expedition'
 import { parseTabs } from '../progress/Tabs'
 import { type WakeData, parseWake } from '../progress/Wake'
 import { parseMount } from '../progress/Mount'
+import { parsePowers, type PowerData } from '../progress/Powers'
 import { type BodyLook, parseBody } from '../looks/body'
 import { isLookId, lookDef, type LookSlot, STARTING_LOOKS, WARDROBE_SLOTS } from '../looks/catalog'
 import type { LookChoice } from '../looks/outfit'
 import { godDef, GODS, type God, isRelicId, type RelicId } from '../relics/data'
 import { legacySlots, migrateLooks, oldChapters, oldThreat, oldTrainingXp, fillEmptySlots, meltOverflow, openOwned, realmToPrototype, refundCycle, refundMythMaterials } from './migrate/legacy'
 import { estimateExpeditions, legacyStarRenown, legacyTrialRenown, oathsFromTrials, oldAutomation, oldVisited } from './migrate/v17'
+import { powersFromV17 } from './migrate/v18'
 import { CONQUESTS } from '../data/chapters'
 
 /**
@@ -61,8 +63,11 @@ import { CONQUESTS } from '../data/chapters'
  *   - 신위 게이지(divine) → 심장 게이지(heartGauge). 신화 경험치(classes[*].xp)는 내보내지 않는다 (v10 이하 수련 짐작만 원본에서 읽는다)
  *   - 연 탭: classes·looks → gods, trials → oaths. 원정 기록이 없던 저장(v15 이하)은 원정 번호를 장 진행이 지나온 할 일 「귀환」으로 짐작한다
  *   - E241: 탈것(mount, 참·거짓). 키가 없으면 고개나 그리스 땅에 들어선 적이 있을 때 얻은 것으로 친다. 탄 상태는 저장하지 않는다
+ * - v18: 힘 (재미 재설계 2026-11-20, `migrate/v18.ts`). powers { owned, slots, claimed, met, seed }: 가진 힘·칸·이미 고른 출처·만난 신·내밀기의 씨앗.
+ *   `powers` 키가 없는 저장(v17 이하)은 깨운 신의 힘을 모두 가진 것으로, 깨우는 도중인 신은 무기를 가진 것으로 옮기고, 자리 셋에 든 신의 힘을 칸에 끼운다.
+ *   신 단계·자리 셋·유물표는 그대로 둔다 (힘을 전투에 꽂는 갈래까지는 그것들이 전투를 돌린다)
  */
-export const SAVE_VERSION = 17
+export const SAVE_VERSION = 18
 
 export interface SaveData {
   version: typeof SAVE_VERSION
@@ -116,6 +121,8 @@ export interface SaveData {
   tabs: string[]
   /** 신을 깨우는 진행 (E238): 깨우는 신과 모은 조각 */
   awaken: WakeData
+  /** 힘 (v18): 가진 힘·칸·이미 고른 출처·만난 신·내밀기의 씨앗. 키가 없던 저장은 깨운 신과 자리 셋에서 옮긴다 */
+  powers: PowerData
   /** 탈것을 얻었나 (E241: 고개지기의 산양). 키가 없던 저장은 그리스 땅에 들어선 적이 있으면 참 */
   mount: boolean
   /** 지금 있는 지역과 자리 (E7). 옛 저장이거나 모르는 지역이면 null (마을에서 시작) */
@@ -143,7 +150,7 @@ export function parseSave(text: string | null): SaveData | null {
   }
   if (typeof raw !== 'object' || raw === null) return null
   const data = raw as Record<string, unknown>
-  if (data.version !== SAVE_VERSION && ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16].includes(data.version as number)) return null
+  if (data.version !== SAVE_VERSION && ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17].includes(data.version as number)) return null
   const old = (data.version as number) < 5
 
   // 일반 장비 (v5)
@@ -244,6 +251,11 @@ export function parseSave(text: string | null): SaveData | null {
   const waypoints = Array.isArray(data.waypoints) ? parseWaypoints(data.waypoints) : oldVisited(data.conveniences)
   const chapters = oldDanger ? oldChapters(region, waypoints, oldDanger.cleared, materials, relicsOwned) : parseChapterData(data.chapters)
   const awaken = openedAwaken(parseWake(data.awaken), myths)
+  const pantheon = (data.version as number) < 14 ? fromChosen(parseChosen(data.chosen, legacySlots(data.slots), myths)) : parsePantheon(data.pantheon, myths, awaken.fragments >= 2 ? awaken.waking : null)
+  const expedition = oldExpedition(data, chapters, myths, stages)
+  // 힘 (v18): 키가 없는 저장은 깨운 신·자리 셋에서 옮긴다. 씨앗이 빠진 저장도 옮길 때와 같은 씨앗을 받는다
+  const moved = powersFromV17({ classes: myths, pantheon, waking: awaken.waking, lit, returns: expedition.count - 1 })
+  const powers = typeof data.powers === 'object' && data.powers !== null && !Array.isArray(data.powers) ? parsePowers(data.powers, moved.seed) : moved
   return {
     version: SAVE_VERSION,
     slots: slots.slice(0, SLOT_PARTS.length),
@@ -255,7 +267,7 @@ export function parseSave(text: string | null): SaveData | null {
     materials,
     ground,
     classes: myths,
-    pantheon: (data.version as number) < 14 ? fromChosen(parseChosen(data.chosen, legacySlots(data.slots), myths)) : parsePantheon(data.pantheon, myths, awaken.fragments >= 2 ? awaken.waking : null),
+    pantheon,
     dropMisses: Math.round(num(data.dropMisses, 0, 1000, 0)),
     // 옛 키 divine은 키가 있는지로 알아본다 (v16 이하와 E305-04 전의 v17 개발판)
     heartGauge: num(data.heartGauge ?? data.divine, 0, 1, 0),
@@ -268,10 +280,11 @@ export function parseSave(text: string | null): SaveData | null {
     endless,
     ending: data.ending === true || ((data.version as number) < 9 && tried),
     chapters,
-    expedition: oldExpedition(data, chapters, myths, stages),
+    expedition,
     training: parseTraining(data.training, (data.version as number) < 11 ? oldTrainingXp(myths, oldXp) : 0),
     tabs: parseTabs(data.tabs, (data.version as number) < 11),
     awaken,
+    powers,
     mount: parseMount(data.mount, has('mount'), chapters.entered),
     region,
     scenes: Array.isArray(data.scenes) ? [...new Set(data.scenes.filter((s): s is string => typeof s === 'string' && s.length < 40))] : [],

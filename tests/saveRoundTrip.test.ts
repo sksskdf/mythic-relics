@@ -2,12 +2,14 @@ import { describe, expect, it } from 'vitest'
 
 import { REGIONS } from '../src/data/regions'
 import { parseSave, SAVE_VERSION, type SaveData } from '../src/save/SaveData'
-import TEXT from './fixtures/save-v17-full.json?raw'
+import { POWERS } from '../src/data/powers'
+import OLD_TEXT from './fixtures/save-v17-full.json?raw'
+import TEXT from './fixtures/save-v18-full.json?raw'
 import { throughGame } from './helpers/saveBench'
 
 /**
- * 저장 왕복 시험 (E307 0B 「재는 자」: 저장을 v18로 올리기 전의 안전망).
- * 꽉 찬 견본(`tests/fixtures/save-v17-full.json`: 깨운 신 여럿·자리 셋·유물표·장비와 가방·수련·원정과 귀환 기록·맹세·자동화·웨이포인트·탈것·장 진행·엔딩 뒤 장치)을
+ * 저장 왕복 시험 (E307 0B 「재는 자」: 저장 버전을 올릴 때의 안전망).
+ * 꽉 찬 견본(`tests/fixtures/save-v18-full.json`: 깨운 신 여럿·자리 셋·유물표·장비와 가방·수련·원정과 귀환 기록·맹세·자동화·웨이포인트·탈것·장 진행·엔딩 뒤 장치·힘)을
  * 두 겹으로 돌린다:
  * - 글 왕복: 읽고(`parseSave`) → 쓰고(JSON) → 다시 읽는다
  * - 게임 왕복: 읽은 것을 게임에 불러오고(`Persistence.restore`) → 저장하고(`snapshot`) → 다시 읽는다 (`helpers/saveBench.ts`)
@@ -24,7 +26,7 @@ const read = (o: unknown): SaveData => parseSave(JSON.stringify(o))!
 /** 게임 왕복: 불러오기 → 저장 → 다시 읽기 */
 const game = (data: SaveData): SaveData => read(throughGame(data))
 
-describe('저장 왕복: 꽉 찬 v17 견본', () => {
+describe('저장 왕복: 꽉 찬 v18 견본', () => {
   it('견본은 지금 버전이고, 검사에서 버려지거나 바로잡히는 값 없이 그대로 읽힌다', () => {
     expect(JSON.parse(TEXT).version).toBe(SAVE_VERSION)
     expect(full()).toEqual(JSON.parse(TEXT))
@@ -308,4 +310,52 @@ describe('어긋난 값이 섞인 저장', () => {
     }
     expect(problems).toEqual([])
   }, 30000)
+})
+
+/**
+ * v17 → v18 (`migrate/v18.ts`): `powers` 키가 없는 꽉 찬 v17 견본(`tests/fixtures/save-v17-full.json`)을 읽으면 깨운 신과 자리 셋에서 힘이 옮겨 온다.
+ * 옮긴 저장은 그 뒤로 왕복에서 그대로다 (두 번 옮기지 않는다)
+ */
+describe('저장 v17 견본을 v18로 옮긴다', () => {
+  const old = (): SaveData => parseSave(OLD_TEXT)!
+
+  it('옛 견본은 v17이고 힘의 키가 없다. 읽으면 지금 버전이 되고 나머지 칸은 v18 견본과 같다', () => {
+    const source = JSON.parse(OLD_TEXT) as Record<string, unknown>
+    expect(source.version).toBe(17)
+    expect('powers' in source).toBe(false)
+    const { powers: _moved, ...rest } = old()
+    const { powers: _full, ...same } = full()
+    expect(rest).toEqual(same)
+    expect(rest.version).toBe(SAVE_VERSION)
+  })
+
+  it('깨운 신 다섯의 힘을 모두 갖고, 깨우는 도중인 아르테미스는 무기만. 자리 셋의 힘이 칸에 든다', () => {
+    const { powers } = old()
+    expect(powers.met).toEqual(['thor', 'odin', 'loki', 'zeus', 'poseidon', 'artemis'])
+    for (const god of ['thor', 'odin', 'loki', 'zeus', 'poseidon']) {
+      const all = POWERS.filter((p) => p.god === god).map((p) => p.id)
+      expect(powers.owned, god).toEqual(expect.arrayContaining(all))
+      expect(powers.claimed, god).toEqual(expect.arrayContaining([`trace:${god}`, `guardian:${god}`]))
+    }
+    expect(powers.owned.filter((id) => id.endsWith('artemis') || id.includes('artemis.'))).toEqual(['weapon:artemis'])
+    expect(powers.claimed).toContain('trace:artemis')
+    expect(powers.claimed).not.toContain('guardian:artemis')
+    // 닫힌 프레이(단계 0)는 만난 적 없는 신이다
+    expect(powers.met).not.toContain('freyr')
+    expect(powers.slots.weapon).toBe('weapon:thor')
+    expect(powers.slots.ultimate).toBe('ultimate:zeus')
+    // 귀환 여섯 번이라 도는 힘의 칸이 여섯: 숨의 신 다섯의 패시브 부품이 먼저 든다
+    expect(powers.slots.auras).toEqual(['aura:thor.basicLightning', 'aura:thor.skyStrike', 'aura:odin.companions', 'aura:zeus.skyStrike', 'aura:loki.companions', 'aura:poseidon.pulse'])
+  })
+
+  it('옮긴 저장은 글 왕복·게임 왕복에서 그대로다', () => {
+    const once = old()
+    expect(read(once)).toEqual(once)
+    expect(throughGame(once)).toEqual(once)
+    expect(game(game(once))).toEqual(once)
+  })
+
+  it('힘의 키가 어긋난 저장(묶음이 아님)은 키가 없는 저장처럼 옮긴다', () => {
+    for (const junk of [null, 3, 'x', []]) expect(read(raw((o) => (o.powers = junk))).powers, JSON.stringify(junk)).toEqual(old().powers)
+  })
 })

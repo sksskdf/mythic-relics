@@ -17,6 +17,7 @@ import { EndlessProgress } from '../../src/progress/Endless'
 import { ExpeditionProgress } from '../../src/progress/Expedition'
 import { MountProgress } from '../../src/progress/Mount'
 import { OathProgress } from '../../src/progress/Oaths'
+import { PowerProgress } from '../../src/progress/Powers'
 import { TabUnlocks } from '../../src/progress/Tabs'
 import { TrainingProgress } from '../../src/progress/Training'
 import { WakeProgress } from '../../src/progress/Wake'
@@ -89,6 +90,7 @@ export function throughGame(data: SaveData): SaveData {
     expedition,
     tabs: new TabUnlocks(),
     awaken,
+    mythPowers: new PowerProgress(() => expedition.returns),
     mount,
     map: { region },
     hero: { object: { position }, teleport: (x: number, z: number) => Object.assign(position, { x, z }) },

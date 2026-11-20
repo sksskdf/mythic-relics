@@ -51,6 +51,7 @@ const sample: SaveData = {
   expedition: { count: 4, renown: 20, flames: { stone: 1 }, best: [900], elapsed: 30, bosses: 0, deepest: 1, lastTaken: ['awaken'], bestXp: 1200, heirloom: [], oath: 'silence', oathPending: false, lastBranch: 'ascend:thor', deepWin: true, falls: 2 },
   tabs: ['relics', 'training'],
   awaken: { waking: 'odin', fragments: 2 },
+  powers: { owned: ['weapon:thor', 'aura:thor.basicLightning', 'relic:mjolnir', 'weapon:odin'], slots: { weapon: 'weapon:thor', ultimate: null, auras: ['aura:thor.basicLightning'] }, claimed: ['trace:thor', 'trace:odin'], met: ['thor', 'odin'], seed: 12345 },
   mount: true,
   region: { id: 'olympus', x: 3.5, z: -12 },
   scenes: ['opening'],
@@ -418,11 +419,74 @@ describe('저장 v15: 원형 (E303-04)', () => {
   })
 })
 
+describe('저장 v18: 힘 (재미 재설계)', () => {
+  /** 저장소 흉내 */
+  const withStore = (run: (store: Map<string, string>) => void) => {
+    const store = new Map<string, string>()
+    const fake = { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v), removeItem: (k: string) => void store.delete(k) }
+    const before = (globalThis as { localStorage?: unknown }).localStorage
+    ;(globalThis as { localStorage?: unknown }).localStorage = fake
+    try {
+      run(store)
+    } finally {
+      ;(globalThis as { localStorage?: unknown }).localStorage = before
+    }
+  }
+  const { powers: _powers, ...noPowers } = sample
+
+  it('v18은 힘의 기록을 그대로 읽는다', () => {
+    expect(parseSave(JSON.stringify(sample))?.powers).toEqual(sample.powers)
+  })
+
+  it('v17 저장(힘의 키 없음)은 깨운 신의 힘을 모두 갖고, 깨우는 도중인 신은 무기를, 자리 셋의 힘을 칸에', () => {
+    const data = parseSave(JSON.stringify({ ...noPowers, version: 17 }))!
+    expect(data.version).toBe(SAVE_VERSION)
+    // 견본: 토르 2단계(손·심장·숨), 오딘은 깨우는 도중, 묠니르를 켬, 귀환 셋(원정 4)
+    expect(data.powers.met).toEqual(['thor', 'odin'])
+    expect(data.powers.owned).toEqual(['weapon:thor', 'ultimate:thor', 'aura:thor.basicLightning', 'aura:thor.skyStrike', 'relic:mjolnir', 'relic:megingjord', 'relic:jarngreipr', 'weapon:odin'])
+    expect(data.powers.slots).toEqual({ weapon: 'weapon:thor', ultimate: 'ultimate:thor', auras: ['aura:thor.basicLightning', 'aura:thor.skyStrike', 'relic:mjolnir'] })
+    expect(data.powers.claimed).toEqual(['trace:thor', 'guardian:thor', 'trace:odin'])
+    // 두 번 읽어도 같은 씨앗, 한 번 옮긴 뒤에는 그대로
+    expect(parseSave(JSON.stringify({ ...noPowers, version: 17 }))?.powers.seed).toBe(data.powers.seed)
+    expect(parseSave(JSON.stringify(data))?.powers).toEqual(data.powers)
+    // 자리 셋·신 단계·유물표는 그대로 둔다 (전투는 아직 그것들이 돌린다)
+    expect(data.pantheon).toEqual(sample.pantheon)
+    expect(data.classes).toEqual(sample.classes)
+    expect(data.lit).toEqual(sample.lit)
+  })
+
+  it('더 옛 저장(v13 주신)도 같은 규칙으로 옮긴다', () => {
+    const data = parseSave(JSON.stringify({ version: 13, slots: [], bag: [], classes: { loki: { level: 1 } }, chosen: ['loki'] }))!
+    expect(data.powers.met).toEqual(['loki'])
+    expect(data.powers.slots).toEqual({ weapon: 'weapon:loki', ultimate: 'ultimate:loki', auras: ['aura:loki.companions'] })
+  })
+
+  it('v17 저장을 처음 옮길 때 원본을 `…:v17.bak`에 남긴다', () => {
+    withStore((store) => {
+      const old = JSON.stringify({ ...noPowers, version: 17 })
+      store.set('mythic-relics/save/0', old)
+      expect(saveStorage.load(0)?.version).toBe(SAVE_VERSION)
+      expect(store.get('mythic-relics/save/0:v17.bak')).toBe(old)
+    })
+  })
+
+  it('v18보다 새 버전의 저장은 읽지 않고 원본을 옆에 남긴다 (옛 판이 새 저장의 힘을 지우지 않게)', () => {
+    withStore((store) => {
+      const newer = JSON.stringify({ ...sample, version: SAVE_VERSION + 1 })
+      store.set('mythic-relics/save/0', newer)
+      expect(saveStorage.load(0)).toBeNull()
+      expect(saveStorage.unread(0)).toEqual({ unread: 'newer', kept: true })
+      expect(store.get(`mythic-relics/save/0:unread-v${SAVE_VERSION + 1}.bak`)).toBe(newer)
+      expect(store.get('mythic-relics/save/0')).toBe(newer)
+    })
+  })
+})
+
 describe('저장 v17: 맹세·깊이·자동화·끝없는 원정 (E305)', () => {
   it('v16 저장의 시련 기록은 짝인 맹세를 지킨 것으로, 원정에 건 맹세는 없이', () => {
     const v16 = JSON.stringify({ ...asOld(sample, 16), trials: { cleared: { noUltimate: 1, fewSlots: 3 }, best: {} } })
     const data = parseSave(v16)
-    expect(data?.version).toBe(17)
+    expect(data?.version).toBe(SAVE_VERSION)
     expect(data?.oaths.kept.sort()).toEqual(['alone', 'silence'])
     expect(data?.expedition.oath).toBeNull()
   })
