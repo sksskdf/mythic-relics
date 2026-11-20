@@ -1,5 +1,5 @@
 // 곡선·시각표 재기의 셈 (E307 0B 「재는 자」): power-curve·playtest·timeline-check가 함께 쓴다.
-// 브라우저 없이 시험할 수 있게 셈만 둔다 (tests/curve.test.mjs). 하나만 페이지 안에서 돈다: 표준 허수아비 치기 `strikeDummy`
+// 브라우저 없이 시험할 수 있게 셈만 둔다 (tests/curve.test.mjs). 둘만 페이지 안에서 돈다: 표준 허수아비 치기 `strikeDummy`, 맹세 봇의 한 구간 `oathBotRun`
 
 /**
  * 표준 허수아비의 생명. 땅 세기·깊이와 무관하게 고정이고, 20초 안에 죽지 않게 크다.
@@ -176,22 +176,63 @@ export function killGap(log, from, end, fallbackRegion = null) {
 }
 
 /**
+ * 맹세 봇이 맹세 하나를 붙드는 상한 (초): 건 뒤 이만큼 지나도 걸려 있으면 못 끝내는 맹세로 치고 푼다 (`oathBotRun`).
+ * 타는 모래시계가 스스로 깨지는 10분(`src/data/oaths.ts`의 OATH.timed 600초)보다 길게 둔다: 그 맹세는 게임이 먼저 끝낸다
+ */
+export const OATH_LIMIT = 660
+
+/**
+ * 맹세 봇의 한 구간 (**페이지 안에서 돈다**: `page.evaluate(oathBotRun, { seconds, limit, demo })`. 이 파일의 다른 것을 쓰지 못한다).
+ * 봇을 1초씩 seconds초 돌리며 걸음마다 맹세를 본다. 건 맹세는 `window.__oathSworn`에 쌓는다 (id, 건 때 t, 건 직후 도는 숨 칸 수 breath):
+ * - 걸린 맹세가 없고 보스가 서 있으면 아직 걸어 보지 않은 다음 맹세를 건다 (출발 카드를 기다리지 않는다).
+ *   보스가 다시 서기를 기다렸다 거는 것은 지킨 초에 다시 서는 45초가 섞이지 않게 하려는 것이다 (첫 맹세만 기다림이 없으면 셋을 못 견준다).
+ *   맹세는 다시 떠날 때 거는 것이라 원정 시계를 0으로 둔다: 기록(지킨 초)이 건 뒤부터이고, 타는 모래시계의 10분도 건 때부터 센다
+ * - 건 뒤 limit초가 지나도 걸려 있으면 못 끝내는 맹세다: 풀고(`swear(null)`) 건 뒤의 초를 gaveUp에 적은 다음, 다음 맹세로 간다.
+ *   마른 샘은 저절로 차는 생명까지 막는데, 봇은 생명이 70% 아래면 둘레가 빈 자리에서 찰 때까지 서서 쉰다.
+ *   그 맹세를 풀지 않으면 봇이 영영 쉬어 뒤의 맹세를 하나도 못 건다
+ * 돌려주는 것: left(걸린 맹세가 있거나 걸 맹세가 남았다), demoLeft(demo 가운데 아직 안 걸었거나 걸려 있는 것이 있다)
+ */
+export function oathBotRun({ seconds, limit, demo }) {
+  const g = window.__game
+  const sworn = window.__oathSworn
+  const nextOath = () => g.oathSystem.available().find((id) => !sworn.some((s) => s.id === id))
+  for (let i = 0; i < seconds; i++) {
+    const held = sworn.at(-1)
+    if (g.expedition.oath && held?.id === g.expedition.oath && g.time - held.t > limit) {
+      held.gaveUp = Math.round(g.time - held.t)
+      g.oathSystem.swear(null)
+    }
+    const id = g.expedition.oath || !g.encounter.boss?.alive ? undefined : nextOath()
+    if (id) {
+      g.expedition.elapsed = 0
+      g.oathSystem.swear(id)
+      sworn.push({ id, t: g.time, breath: g.powers.loadout.pantheon.breath.length })
+    }
+    window.__autoplay.run(1)
+  }
+  const open = (id) => g.expedition.oath === id || !sworn.some((s) => s.id === id)
+  return { left: Boolean(g.expedition.oath) || nextOath() !== undefined, demoLeft: demo.some(open) }
+}
+
+/**
  * 맹세 봇의 판 기록 (`playtest.mjs --oaths`, E307 0C): 건 맹세(sworn: id와 건 때 t)마다 그 뒤 처음 끝난 기록(`oath`: 맹세:결과:초)을 붙인다.
  * seconds는 건 뒤 끝날 때까지의 게임 초 (보스가 다시 서기를 기다린 시간도 든다). 아직 안 끝났으면 ended·seconds·win이 없다.
- * demo는 덩어리 사이에 견주는 데모 셋인가
+ * demo는 덩어리 사이에 견주는 데모 셋인가. 건 맹세에 적힌 것은 그대로 싣는다: breath(건 직후 도는 숨 칸 수: 홀로의 맹세가 실제로
+ * 숨을 껐는지 판 기록으로 본다), gaveUp(상한을 넘겨 봇이 푼 맹세: 건 뒤의 초)
  */
 export function oathRuns(log, sworn, demo = []) {
   const ends = log.filter((e) => e.type === 'oath')
   return sworn.map((s) => {
     const end = ends.find((e) => e.t >= s.t && String(e.detail).startsWith(`${s.id}:`))
-    const out = { id: s.id, demo: demo.includes(s.id), sworn: Math.round(s.t) }
+    const out = { id: s.id, demo: demo.includes(s.id), sworn: Math.round(s.t), ...(s.breath === undefined ? {} : { breath: s.breath }), ...(s.gaveUp === undefined ? {} : { gaveUp: s.gaveUp }) }
     return end ? { ...out, ended: Math.round(end.t), seconds: Math.round(end.t - s.t), win: String(end.detail).includes(':win:') } : out
   })
 }
 
-/** 맹세 기록을 한 줄 글로: 「silence 지킴 95초, timed 깨짐 600초, slow 못 끝냄」 */
+/** 맹세 기록을 한 줄 글로: 「silence 지킴 95초, timed 깨짐 600초, noHeal 못 끝냄(661초에 풂), slow 못 끝냄」 */
 export function oathText(runs) {
-  return runs.map((o) => `${o.id} ${o.win === undefined ? '못 끝냄' : `${o.win ? '지킴' : '깨짐'} ${o.seconds}초`}`).join(', ') || '-'
+  const open = (o) => (o.gaveUp === undefined ? '못 끝냄' : `못 끝냄(${o.gaveUp}초에 풂)`)
+  return runs.map((o) => `${o.id} ${o.win === undefined ? open(o) : `${o.win ? '지킴' : '깨짐'} ${o.seconds}초`}`).join(', ') || '-'
 }
 
 /**

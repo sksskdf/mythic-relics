@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import enemies from '../src/data/enemies.json'
-import { bossTurn, type Hold, OLD_BRANCH_ORDER, returnBranch, soaksFalling, staysInHold } from '../src/dev/botRules'
+import { bossTurn, holdOf, OLD_BRANCH_ORDER, returnBranch, soaksFalling, staysInHold } from '../src/dev/botRules'
 import { LEASH_REENGAGE } from '../src/enemies/Giant'
 
 describe('봇의 귀환 갈래 (E307 0C)', () => {
@@ -41,6 +41,14 @@ describe('봇이 목표 보스를 치는 때 (E307 0C)', () => {
     expect(bossTurn({ hp: 0.9, distance: 19.9, engaged: false, strays: 2 })).toBe(true)
   })
 
+  it('문턱은 20m다: 쉬는 보스가 딱 20m면 졸개 하나만 있어도 졸개부터, 바로 안쪽(19.99m)이면 보스다', () => {
+    expect(bossTurn({ hp: 0.9, distance: 20, engaged: false, strays: 1 })).toBe(false)
+    expect(bossTurn({ hp: 0.9, distance: 19.99, engaged: false, strays: 1 })).toBe(true)
+    // 문턱 바로 밖도 둘레가 비었거나 보스가 싸움에 끼어들었으면 친다
+    expect(bossTurn({ hp: 0.9, distance: 20, engaged: false, strays: 0 })).toBe(true)
+    expect(bossTurn({ hp: 0.9, distance: 20, engaged: true, strays: 1 })).toBe(true)
+  })
+
   it('보스가 싸움에 끼어들었으면 멀어도, 졸개가 있어도 보스를 친다', () => {
     expect(bossTurn({ hp: 0.9, distance: 35, engaged: true, strays: 4 })).toBe(true)
   })
@@ -65,6 +73,9 @@ describe('큰 싸움에서 떨어지는 것을 맞으며 붙는가 (E307 0C)', (
     expect(soaksFalling('guardian', 0.51)).toBe(true)
     expect(soaksFalling('guardian', 0.5)).toBe(false)
     expect(soaksFalling('boss', 0.61)).toBe(true)
+    // 딱 문턱(60%)이면 피한다: 보스를 치기 시작하는 문턱과 같은 값이다
+    expect(soaksFalling('boss', 0.6)).toBe(false)
+    expect(bossTurn({ hp: 0.6, distance: 5, engaged: true, strays: 0 })).toBe(false)
     expect(soaksFalling('boss', 0.55)).toBe(false)
   })
 
@@ -74,16 +85,21 @@ describe('큰 싸움에서 떨어지는 것을 맞으며 붙는가 (E307 0C)', (
 })
 
 describe('보스를 줄 밖으로 끌고 나가지 않는 자리 (E307 0C)', () => {
-  // 거인 왕의 줄은 30m, 돌아가던 보스가 다시 쫓는 몫은 0.75: 붙드는 원은 22.5m
-  const specs = enemies as Record<string, { leashRange?: number }>
-  const leash = specs.king!.leashRange!
-  const hold: Hold = { home: { x: 10, z: -4 }, radius: leash * LEASH_REENGAGE }
+  // 거인 왕의 줄은 30m, 돌아가던 보스가 다시 쫓는 몫은 0.75: 붙드는 원은 22.5m.
+  // 원은 봇이 쓰는 그 함수(`holdOf`)로 만든다: 봇이 0.75를 빼먹고 줄 끝까지 피하면 보스가 돌아가 생명이 되찬다
+  const specs = enemies as unknown as Record<string, { leashRange: number }>
+  const home = { x: 10, z: -4 }
+  const hold = holdOf({ home, spec: specs.king! })
   const at = (d: number) => ({ x: hold.home.x + d, z: hold.home.z })
 
-  it('붙드는 원은 그 보스의 줄 × 0.75다: 거인 왕·키마이라 22.5m, 갈라진 하늘의 왕 30m', () => {
+  it('붙드는 원은 그 보스의 집에서 줄 × 0.75다: 거인 왕·키마이라 22.5m, 갈라진 하늘의 왕 30m', () => {
     expect(LEASH_REENGAGE).toBe(0.75)
     expect([specs.king!.leashRange, specs.chimera!.leashRange, specs.skyKing!.leashRange]).toEqual([30, 30, 40])
-    expect(hold.radius).toBe(22.5)
+    expect(hold).toEqual({ home, radius: 22.5 })
+    expect(holdOf({ home, spec: specs.chimera! }).radius).toBe(22.5)
+    expect(holdOf({ home, spec: specs.skyKing! }).radius).toBe(30)
+    // 줄 끝(30m)은 원 밖이다
+    expect(staysInHold(at(specs.king!.leashRange), at(20), hold)).toBe(false)
   })
 
   it('원 안의 자리는 되고, 원 밖으로 나가는 자리는 안 된다', () => {

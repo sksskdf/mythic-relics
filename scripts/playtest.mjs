@@ -10,10 +10,11 @@
 // 판마다 보스·수호자 싸움의 초(bossFights: 그 땅에 들어서 처음 때릴 때까지·처음 때려 쓰러질 때까지)를 남긴다 (E307 0B, 셈은 scripts/lib/curve.mjs).
 // --branch=old 를 붙이면 봇이 귀환 갈래를 옛 고정 차례(승천 → 불꽃 → 승천 → 사냥)로 고른다. 기본은 승천할 신이 있으면 늘 승천 (E307 0C, src/dev/botRules.ts).
 // --oaths 를 붙이면 엔딩 뒤 빌드로 우트가르드에 서서 맹세 여덟을 차례로 걸고 거인 왕을 이겨 지킨 초를 잰다 (E307 0C: 맹세는 엔딩 뒤 장치가 된다).
+//   건 뒤 OATH_LIMIT초가 지나도 못 끝낸 맹세는 풀고 다음으로 간다. --gate의 「처치 없이 STALL초」는 데모 셋을 재는 동안에만 본다.
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { chromium } from 'playwright-core'
-import { bossFights, bossText, killGap, killWatchStart, oathRuns, oathText, timelineOf } from './lib/curve.mjs'
+import { bossFights, bossText, killGap, killWatchStart, OATH_LIMIT, oathBotRun, oathRuns, oathText, timelineOf } from './lib/curve.mjs'
 
 const args = process.argv.slice(2).filter((a) => !a.startsWith('--'))
 const GATE = process.argv.includes('--gate')
@@ -26,10 +27,11 @@ const DEPTH_AT = Number(process.argv.find((a) => a.startsWith('--depth-at='))?.s
 const STACK = process.argv.find((a) => a.startsWith('--stack='))?.slice(8) ?? null
 /**
  * --oaths 를 붙이면 맹세를 엔딩 뒤 꼴로 잰다 (E305-01 → E307 0C: 데모에서는 맹세가 빠지고 엔딩 뒤에 여덟이 함께 열린다).
- * 엔딩 뒤로 넘기고 한계를 깬 무렵의 빌드(묠니르·토르, `game.dev.endgame()`)로 우트가르드에 서서(봇의 stay) 맹세를 하나씩 건다:
+ * 엔딩 뒤로 넘기고 한계를 깬 무렵의 빌드(묠니르·토르, `game.dev.endgame()`, 숨 칸 넷)로 우트가르드에 서서(봇의 stay) 맹세를 하나씩 건다:
  * 먼저 데모 셋(침묵·빈 손·홀로), 그다음 나머지 다섯. 건 맹세가 없고 거인 왕이 서 있으면 아직 걸어 보지 않은 다음 맹세를 개발 지름길로 걸고
  * (출발 카드에서 건 것처럼 원정 시계를 0으로), 거인 왕을 이기면 지킨 것이다. 깨진 맹세(타는 모래시계 10분)는 다시 걸지 않는다. 여덟을 다 걸어 봤으면 끝.
- * 견주는 값은 데모 셋의 「건 뒤 지킨 초」(oathRuns: 왕에게 다가가 쓰러뜨리기까지)이고, 다섯은 기록만 남긴다
+ * 건 뒤 OATH_LIMIT초가 지나도 못 끝낸 맹세는 풀고 「못 끝냄」으로 적은 뒤 다음 맹세로 간다 (생명이 차지 않는 마른 샘에서 봇이 쉬기만 하는 판).
+ * 견주는 값은 데모 셋의 「건 뒤 지킨 초」(oathRuns: 왕에게 다가가 쓰러뜨리기까지)이고, 다섯은 기록만 남긴다. 걸음마다의 셈은 `scripts/lib/curve.mjs`의 `oathBotRun`
  */
 const OATHS = process.argv.includes('--oaths')
 /** 데모 셋: 덩어리 사이에 견주는 값 (`src/data/oaths.ts`의 DEMO_OATHS) */
@@ -127,9 +129,15 @@ try {
             g.dev.choose('thor')
           }
           g.dev.endgame()
+          // 숨 칸을 채운다: endgame은 같은 신화권의 신을 열기만 해(깨어난 것으로 알리지 않는다) 숨에는 손의 신 하나뿐이다.
+          // 그대로면 홀로의 맹세(숨 칸 하나만 돈다)가 아무것도 끄지 않아 맹세 없는 판과 같은 값을 잰다.
+          // 한계를 깬 무렵이면 숨 칸은 넷이다(신 둘 이상 + 정복한 장 둘): 지금 숨(손의 신)부터, 열린 차례로 넷까지
+          const p = g.progress.pantheon
+          g.dev.pantheon({ hand: p.hand, heart: p.heart, breath: [...new Set([...p.breath, ...g.progress.opened])].slice(0, 4) })
+          if (g.progress.pantheon.breath.length < 2) throw new Error('맹세 봇: 숨 칸이 둘보다 적어 홀로의 맹세가 아무것도 끄지 않습니다.')
           g.enterRegion(g.regions.utgard)
           Object.assign(window.__autoplay, { oaths: true, stay: true })
-          /** 건 맹세마다 건 때 (걸어 본 맹세는 지켰든 깨졌든 다시 걸지 않는다) */
+          /** 건 맹세마다 건 때·건 직후 도는 숨 칸 수 (걸어 본 맹세는 지켰든 깨졌든 풀었든 다시 걸지 않는다) */
           window.__oathSworn = []
         })
       if (ENDLESS)
@@ -163,37 +171,23 @@ try {
       let stalled = false
       let endTime = 0
       while (!done) {
-        const state = await page.evaluate(() => {
-          const bot = window.__autoplay
+        // 맹세 봇은 1초마다 맹세를 보며 30초를 돈다 (걸기·못 끝낸 맹세 풀기, `oathBotRun`). 다른 봇은 30초를 그대로 돈다
+        const oath = OATHS ? await page.evaluate(oathBotRun, { seconds: 30, limit: OATH_LIMIT, demo: DEMO_OATHS }) : null
+        const state = await page.evaluate((ran) => {
           const g = window.__game
-          // 맹세 봇: 걸린 맹세가 없고 거인 왕이 서 있으면 아직 걸어 보지 않은 다음 맹세를 건다 (출발 카드를 기다리지 않고, 1초마다 본다).
-          // 왕이 다시 서기를 기다렸다 거는 것은 지킨 초에 다시 서는 45초가 섞이지 않게 하려는 것이다 (첫 맹세만 기다림이 없어 셋을 못 견준다).
-          // 맹세는 다시 떠날 때 거는 것이라 원정 시계를 0으로 둔다: 기록(지킨 초)이 건 뒤부터이고, 타는 모래시계의 10분도 건 때부터 센다
-          const sworn = window.__oathSworn
-          const nextOath = () => (sworn ? g.oathSystem.available().find((id) => !sworn.some((s) => s.id === id)) : undefined)
-          if (sworn) {
-            for (let i = 0; i < 30; i++) {
-              const id = g.expedition.oath || !g.encounter.boss?.alive ? undefined : nextOath()
-              if (id) {
-                g.expedition.elapsed = 0
-                g.oathSystem.swear(id)
-                sworn.push({ id, t: g.time })
-              }
-              bot.run(1)
-            }
-          } else bot.run(30)
+          if (!ran) window.__autoplay.run(30)
           // 처치가 끊긴 때를 재는 기준: 첫 신(유물을 끼고 시작하면 처음), 마지막 처치
           const events = g.log
           const from = window.__killFrom ?? events.find((e) => e.type === 'manifest' || e.type === 'open')?.t
           const lastKill = events.findLast((e) => e.type === 'kill' || e.type === 'bossKill')?.t
-          // 맹세 봇이 끝날 때: 걸린 맹세가 없고 더 걸 맹세도 없다
-          const oathsLeft = g.expedition.oath !== null || nextOath() !== undefined
-          return { t: g.time, from, lastKill, promoted: g.progress.promotions >= 1, reached: g.depth.reached, oathsLeft, depth: window.__game.endless.best, ending: g.ending.reached }
-        })
+          return { t: g.time, from, lastKill, promoted: g.progress.promotions >= 1, reached: g.depth.reached, depth: window.__game.endless.best, ending: g.ending.reached }
+        }, oath !== null)
         endTime = state.t
-        // 멈춘 판 (E241): 첫 신 뒤 처치 없이 STALL초가 지났으면 끝낸다
-        stalled = GATE && state.from !== undefined && state.t - Math.max(state.from, state.lastKill ?? 0) > STALL
-        done = (ENDING ? state.ending : ENDLESS ? state.depth >= 10 : OATHS ? !state.oathsLeft : RELICS || DEPTH_AT > 0 ? false : DEPTH > 0 ? state.reached >= DEPTH : state.promoted) || state.t > LIMIT_MIN * 60 || stalled
+        // 멈춘 판 (E241): 첫 신 뒤 처치 없이 STALL초가 지났으면 끝낸다.
+        // 맹세 봇은 데모 셋을 재는 동안에만 본다: 엔딩 뒤 다섯은 기록만 남기는 값이고, 못 끝내는 맹세(마른 샘에서 쉬기만 하는 판)는 상한이 풀어 다음으로 넘긴다
+        stalled = GATE && (!oath || oath.demoLeft) && state.from !== undefined && state.t - Math.max(state.from, state.lastKill ?? 0) > STALL
+        // 맹세 봇이 끝날 때: 걸린 맹세가 없고 더 걸 맹세도 없다
+        done = (ENDING ? state.ending : ENDLESS ? state.depth >= 10 : oath ? !oath.left : RELICS || DEPTH_AT > 0 ? false : DEPTH > 0 ? state.reached >= DEPTH : state.promoted) || state.t > LIMIT_MIN * 60 || stalled
       }
       const depths = await page.evaluate(() => [...window.__autoplay.depths])
       // 끝났을 때 봇이 어디서 무엇을 하고 있었나 (멈춤을 찾을 때)
@@ -249,7 +243,8 @@ try {
         depths,
         // 맹세 (E305-01): 맹세:결과:초 (초는 그 원정을 떠난 뒤. 맹세 봇은 걸 때 원정 시계를 0으로 두니 건 뒤의 초다)
         oaths: log.filter((e) => e.type === 'oath').map((e) => e.detail),
-        // 맹세 봇 (E307 0C): 건 맹세마다 건 때·끝난 때·건 뒤 지킨 초(seconds)·지켰나. 데모 셋(demo)이 덩어리 사이에 견주는 값이다
+        // 맹세 봇 (E307 0C): 건 맹세마다 건 때·끝난 때·건 뒤 지킨 초(seconds)·지켰나, 건 직후 도는 숨 칸 수(breath: 홀로만 1), 상한을 넘겨 푼 맹세(gaveUp).
+        // 데모 셋(demo)이 덩어리 사이에 견주는 값이다
         oathRuns: oathRuns(log, await page.evaluate(() => window.__oathSworn ?? []), DEMO_OATHS),
         // 끝없는 원정 (E17-07): 층마다 들어간 때, 끝난 까닭
         endless: log.filter((e) => e.type === 'endless').map((e) => `${e.detail}@${Math.round(e.t)}`),
@@ -288,7 +283,7 @@ try {
           (ENDING ? ` | 귀환 ${result.timeline.returns.map((r) => `${r.n} ${fmt(r.t)}(${r.branch})`).join(', ')} | 깨어남 ${Object.entries(result.timeline.awakened).map(([g, t]) => `${g} ${fmt(t)}`).join(', ')} | 첫 영웅 ${fmt(result.timeline.firstHero)} | 맹세 지킴 ${fmt(result.timeline.oathKept)}` : '') +
           (ENDING && result.bossFights.length ? ` | 보스·수호자 ${bossText(result.bossFights)}` : '') +
           (ENDLESS ? ` | 끝없는 원정 ${result.endlessFloors.map((f) => `${f.depth}층 ${fmt(f.t)}`).join(', ')} | ${result.endless.filter((x) => !x.startsWith('floor')).join(', ')}` : '') +
-          (OATHS ? ` | 맹세 데모 셋 ${oathText(result.oathRuns.filter((o) => o.demo))} | 엔딩 뒤 다섯(기록만) ${oathText(result.oathRuns.filter((o) => !o.demo))}` : '') +
+          (OATHS ? ` | 맹세 데모 셋 ${oathText(result.oathRuns.filter((o) => o.demo))} | 엔딩 뒤 다섯(기록만) ${oathText(result.oathRuns.filter((o) => !o.demo))} | 건 직후 도는 숨 칸 ${result.oathRuns.map((o) => `${o.id} ${o.breath}`).join(', ')}` : '') +
           (DEPTH > 0 || DEPTH_AT > 0 ? ` | 깊이 ${result.depth.map((x) => `${x.level} ${fmt(x.time)}·처치 ${x.kills}·쓰러짐 ${x.deaths}·피격 ${x.hurt}`).join(' → ')} | 원천 ${result.sources.map((x) => `${x.id} ${x.total}(${x.level})`).join(' ')}` : '') +
           (errors.length ? ` | 오류 ${errors.length}` : ''),
       )

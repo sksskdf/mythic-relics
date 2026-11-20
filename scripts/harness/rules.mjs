@@ -115,7 +115,8 @@ export const RULES = [
   },
   {
     id: 'bot',
-    files: /^src\/dev\/autoplay\.ts$|^scripts\/playtest\.mjs$/,
+    // 봇의 판정(보스를 치는 때·붙드는 원·귀환 갈래)은 botRules.ts에 있다: 재는 자의 일부라 바뀌면 기준선을 다시 잰다
+    files: /^src\/dev\/(autoplay|botRules)\.ts$|^scripts\/playtest\.mjs$/,
     run: [`${B}node scripts/playtest.mjs 2 40 (첫 신화·2단계 시간, CI는 35분 안)`],
     docs: ['PLAYTEST.md 7장', 'docs/knowledge/baselines.md'],
   },

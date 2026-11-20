@@ -1,5 +1,5 @@
 import { SAMPLE_ORDER } from '../data/training'
-import { type Giant, type GiantDanger, LEASH_REENGAGE } from '../enemies/Giant'
+import type { Giant, GiantDanger } from '../enemies/Giant'
 import type { Game } from '../game/Game'
 import { angleDiff, angleTo, inLine } from '../combat/arc'
 import { nextHop, PASSES } from '../data/regions'
@@ -12,7 +12,7 @@ import { type God, godDef, relicDef } from '../relics/data'
 import { relicGods } from '../relics/model'
 import type { Point2 } from '../world/colliders'
 import { type BossFight, BossWatch } from './bossWatch'
-import { bossTurn, type BranchMode, type Hold, returnBranch, soaksFalling, staysInHold } from './botRules'
+import { bossTurn, type BranchMode, type Hold, holdOf, returnBranch, soaksFalling, staysInHold } from './botRules'
 
 /** 판단 간격 (초). 사람의 반응 속도쯤으로 둔다. */
 const THINK = 0.25
@@ -222,8 +222,8 @@ export class Autoplayer {
     // 싸움에 끼어든 목표 보스도 같다 (E307 0C)
     const bossFight = this.bossGoal() && encounter.bossEngaged ? encounter.boss : null
     const soak = soaksFalling(this.game.awakening.fighting ? 'guardian' : bossFight ? 'boss' : null, hp)
-    // 목표 보스와 싸우는 동안은 보스를 줄 밖으로 끌고 나가지 않는다 (E307 0C): 피하고 물러나는 자리를 보스 집에서 줄의 LEASH_REENGAGE 안으로
-    const hold: Hold | null = bossFight ? { home: bossFight.home, radius: bossFight.spec.leashRange * LEASH_REENGAGE } : null
+    // 목표 보스와 싸우는 동안은 보스를 줄 밖으로 끌고 나가지 않는다 (E307 0C): 피하고 물러나는 자리를 보스 집에서 줄의 LEASH_REENGAGE 안으로 (`holdOf`)
+    const hold = bossFight ? holdOf(bossFight) : null
     // 1. 예고 범위 안에 있으면 빠져나간다.
     const dangers = leaving || toWake ? [] : enemies.flatMap((g) => g.dangers).filter((d) => !soak || d.kind !== 'circle')
     if (dangers.some((d) => inDanger(here, d, MARGIN))) {

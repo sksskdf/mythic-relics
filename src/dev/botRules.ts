@@ -1,3 +1,4 @@
+import { LEASH_REENGAGE } from '../enemies/Giant'
 import type { Point2 } from '../world/colliders'
 
 /**
@@ -57,6 +58,14 @@ export function soaksFalling(fight: 'guardian' | 'boss' | null, hp: number): boo
 export interface Hold {
   home: Point2
   radius: number
+}
+
+/**
+ * 그 보스를 붙드는 원: 집에서 줄(`leashRange`) × `LEASH_REENGAGE` 안. 거인 왕·키마이라 22.5m, 갈라진 하늘의 왕 30m.
+ * 줄 끝까지 쓰면 안 된다: 주인공이 줄 끝에 서면 쫓아온 보스가 집으로 돌아서고, 이 원 안으로 들어온 뒤에야 다시 쫓는다
+ */
+export function holdOf(boss: { home: Point2; spec: { leashRange: number } }): Hold {
+  return { home: boss.home, radius: boss.spec.leashRange * LEASH_REENGAGE }
 }
 
 /**
