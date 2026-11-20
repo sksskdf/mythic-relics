@@ -4,11 +4,12 @@ import { breathSlots } from '../../myth/pantheon'
 import { REGIONS } from '../../data/regions'
 import { sceneId } from '../../data/scenes'
 import { missing, nextRecipe } from '../../gear/forge'
-import { wakeDef, mayWake } from '../../data/wake'
+import { wakeDef } from '../../data/wake'
 import { godDef } from '../../relics/data'
 import { josa } from '../../ui/josa'
 import type { GoalView } from '../../ui/ChapterHud'
-import { RETURN_MIN_SECONDS, RETURN_SIGNAL, returnEarned } from '../../data/cycle'
+import { RETURN_SIGNAL, tracesAwaitReturn } from '../../data/cycle'
+import { returnAskNow, ripeNow } from './Expedition'
 import { MERGE_COUNT } from '../../gear/merge'
 import type { GameContext } from '../context'
 
@@ -106,23 +107,22 @@ export class ChapterSystem {
    * 벼리기는 재료, 합치기는 같은 부위 희귀 수(E306), 맹세는 건 맹세가 있는지(E306)를 보인다
    */
   goalView(): GoalView | null {
-    const { chapters, progress, build, powers, awaken, ending } = this.ctx
+    const { chapters, progress, build, powers, awaken } = this.ctx
     const goal = chapters.goal
     if (!goal) return null
-    // 귀환 (E304): 떠난 지 2분이 안 됐으면 그 시간의 막대(숫자 없이), 지났으면 받을 배율
+    // 귀환 (E304): 글만 보인다. 목표 글은 움직이는 수(받을 배율 「×1.39」)도 시간 막대도 품지 않는다
+    // (2026-11-20 손 QA: 배율은 귀환 카드가 보이고, 393 폭에서 두 줄이 된 글이 보스 막대와 겹쳤다)
     const { expedition } = this.ctx
     const p = expedition.preview()
-    const mult = ` (×${p.next.toFixed(2)})`
-    const timed = p.seconds >= RETURN_MIN_SECONDS
-    const toReturn = (text: string): GoalView => (timed ? { text: text + mult, ratio: null } : { text, ratio: Math.min(1, p.seconds / RETURN_MIN_SECONDS) })
+    const toReturn = (text: string): GoalView => ({ text, ratio: null })
     if (goal.kind === 'return') return toReturn(goal.goal)
     // 깨울 신의 흔적이 잠잠하다 (E305-03: 신을 더 깨우려면 귀환이나 장 정복을 더 해야 함): 깨우기 대신 귀환을 안내한다
     if (this.awaitsReturn()) return toReturn('성소 화로에서 원정을 마친다')
-    // 귀환할 수 있나 (`ExpeditionSystem.ripe`와 같은 셈: 여기까지 왔으면 목표가 귀환을 바라지 않으니 이번 원정에서 이긴 수호자·장 보스가 있어야 한다)
-    const ripe = timed && returnEarned({ ending: ending.reached, bosses: expedition.bosses, asked: false, level: this.ctx.training.insights })
+    // 귀환할 수 있나 (`ExpeditionSystem.ripe`와 같은 셈: 여기까지 왔으면 목표가 귀환을 바라지 않으니 이번 원정에서 한 일이 있어야 한다)
+    const ripe = ripeNow(this.ctx, false)
     // 귀환 신호 (E306 D10, `DESIGN.md` 5.3): 첫 귀환 뒤로, 귀환할 수 있고 성장이 느려졌거나 받을 배율이 넉넉하면. 합치기 목표 동안은 알리지 않는다 (D8: 모은 희귀가 원형으로 녹는다)
     const quiet = p.seconds - this.levelAt >= RETURN_SIGNAL.quietLevel
-    if (goal.kind !== 'merge' && expedition.returns >= 1 && ripe && (quiet || p.next >= p.now * RETURN_SIGNAL.gain)) return { text: `성소 화로에서 원정을 마친다${mult}`, ratio: null }
+    if (goal.kind !== 'merge' && expedition.returns >= 1 && ripe && (quiet || p.next >= p.now * RETURN_SIGNAL.gain)) return toReturn('성소 화로에서 원정을 마친다')
     let ratio: number | null = null
     const waking = awaken.waking && !progress.isOpen(awaken.waking) ? awaken.waking : null
     if (goal.kind === 'awaken' && waking) {
@@ -157,10 +157,7 @@ export class ChapterSystem {
 
   /** 목표가 신 깨우기인데 깨우는 신이 없고 흔적이 잠잠한가 (귀환해야 다음 신이 응답한다). HUD 한 줄과 작은 지도의 목표 자리가 읽는다 */
   awaitsReturn(): boolean {
-    const { chapters, progress, awaken, expedition, ending } = this.ctx
-    if (chapters.goal?.kind !== 'awaken') return false
-    if (awaken.waking && !progress.isOpen(awaken.waking)) return false
-    return !mayWake(progress.opened.length, expedition.returns, chapters.conquered, ending.has('realms'))
+    return tracesAwaitReturn(returnAskNow(this.ctx))
   }
 
   /** 불러온 뒤: 알리지 않고 지금 장과 목표를 맞춘다 (기세가 오른 때는 불러온 때부터 잰다) */

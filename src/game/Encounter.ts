@@ -389,10 +389,15 @@ export class Encounter {
     this.boss = null
   }
 
-  /** 승급 전설 등에서 거인을 따로 세운다. alert면 바로 주인공을 쫓는다. 그 땅의 세기를 건다 */
-  spawn(spec: GiantSpec, home: Point2, alert: boolean): Giant {
+  /** 지금 땅의 세기 (장 데이터의 적 지수) */
+  get power(): number {
+    return this.regionPower
+  }
+
+  /** 승급 전설 등에서 거인을 따로 세운다. alert면 바로 주인공을 쫓는다. 그 땅의 세기를 건다 (power를 주면 그 세기로: 흔적의 무리·수호자) */
+  spawn(spec: GiantSpec, home: Point2, alert: boolean, power = this.regionPower): Giant {
     const nav = this.navFor(spec)
-    const giant = this.addGiant(spec, nav.nearestFree(home) ?? home, this.scaled(this.regionPower))
+    const giant = this.addGiant(spec, nav.nearestFree(home) ?? home, this.scaled(power))
     if (alert) giant.alert()
     return giant
   }

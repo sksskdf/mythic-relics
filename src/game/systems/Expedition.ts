@@ -1,6 +1,5 @@
 import { SOURCE_IDS, type SourceId } from '../../data/schema'
-import { mayWake } from '../../data/wake'
-import { FLAME, RETURN_MIN_SECONDS, returnEarned } from '../../data/cycle'
+import { FLAME, RETURN_MIN_SECONDS, returnAsked, returnEarned, type ReturnAskNow } from '../../data/cycle'
 import { isBossLike } from '../../enemies/grade'
 import { gearName, gearScore, isGearUid } from '../../gear/roll'
 import { pantheonGods } from '../../myth/pantheon'
@@ -22,6 +21,29 @@ const FLAME_TEXT: Readonly<Record<SourceId, string>> = {
 export const HEARTH_RADIUS = 2.5
 
 const clock = (s: number): string => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`
+
+/** 귀환을 바라는지 정하는 지금 값을 게임에서 모은다 (`returnAsked`·`tracesAwaitReturn`에 넘긴다: 귀환 카드와 목표 한 줄이 같은 값을 본다) */
+export function returnAskNow(ctx: GameContext): ReturnAskNow {
+  const { chapters, progress, awaken, expedition, ending } = ctx
+  return {
+    goal: chapters.goal?.kind,
+    waking: !!awaken.waking && !progress.isOpen(awaken.waking),
+    awakened: progress.opened.length,
+    returns: expedition.returns,
+    conquered: chapters.conquered,
+    afterEnding: ending.has('realms'),
+  }
+}
+
+/**
+ * 지금 귀환할 만큼 원정이 무르익었나 (`ExpeditionSystem.ripe`). asks가 false면 목표가 귀환을 바라는지는 치지 않는다
+ * (목표 한 줄의 귀환 신호: 목표가 귀환을 바라면 이미 그 글이 귀환이다)
+ */
+export function ripeNow(ctx: GameContext, asks: boolean): boolean {
+  const { expedition, ending, training } = ctx
+  if (expedition.elapsed < RETURN_MIN_SECONDS) return false
+  return returnEarned({ ending: ending.reached, bosses: expedition.bosses, asked: asks && returnAsked(returnAskNow(ctx)), level: training.insights, falls: expedition.falls, seconds: expedition.elapsed })
+}
 
 /** 게임이 귀환 시스템에 넘기는 것 */
 export interface ExpeditionParts {
@@ -59,6 +81,8 @@ export class ExpeditionSystem {
       if (ctx.map.region.kind === 'endless') return
       if (giant.spec.boss !== undefined || isBossLike(giant.spec)) ctx.expedition.beatBoss()
     })
+    // 쓰러진 원정은 5분 뒤부터 귀환할 수 있다 (`returnEarned`의 둘째 길)
+    ctx.bus.on('heroDied', () => ctx.map.region.kind !== 'endless' && ctx.expedition.fell())
     // 귀환 횟수 자동화 (E304-03): 귀환 2부터 보통·좋음, 3부터 희귀를 주울 때 저절로 합친다
     ctx.bus.on('gearPicked', () => (this.mergeDue = true))
   }
@@ -102,22 +126,12 @@ export class ExpeditionSystem {
     }
   }
 
-  /** 장의 목표가 귀환이거나, 다음 신의 흔적이 귀환을 기다린다 (`ChapterSystem.awaitsReturn`과 같은 셈) */
-  private get asked(): boolean {
-    const { chapters, progress, awaken, expedition, ending } = this.ctx
-    const kind = chapters.goal?.kind
-    if (kind === 'return') return true
-    if (kind !== 'awaken' || (awaken.waking && !progress.isOpen(awaken.waking))) return false
-    return !mayWake(progress.opened.length, expedition.returns, chapters.conquered, ending.has('realms'))
-  }
-
   /**
    * 원정이 무르익었나: 떠난 지 2분이 지났고 귀환할 만한 원정이다 (`returnEarned`: 엔딩 전에는 이번 원정에서 수호자·장 보스를 이겼거나
-   * 목표가 귀환을 바란다. 깨달음 수의 문턱은 2026-11-20에 걷었다. 엔딩 뒤에는 깨달음 8)
+   * 목표가 귀환을 바라거나, 쓰러진 적이 있고 5분이 지났다. 깨달음 수의 문턱은 2026-11-20에 걷었다. 엔딩 뒤에는 깨달음 8)
    */
   get ripe(): boolean {
-    const { expedition, ending, training } = this.ctx
-    return expedition.elapsed >= RETURN_MIN_SECONDS && returnEarned({ ending: ending.reached, bosses: expedition.bosses, asked: this.asked, level: training.insights })
+    return ripeNow(this.ctx, true)
   }
 
   /** 지금 귀환할 수 있나: 원정이 무르익었고 살아 있다 */

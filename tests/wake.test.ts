@@ -2,14 +2,16 @@ import { describe, expect, it } from 'vitest'
 
 import { computeBuild } from '../src/build/BuildState'
 import { hsv } from '../src/art/palette'
-import { WAKE, WAKE_GODS, GUARDIAN_LEASH, LATER_TEXT, mayWake, TRACE_MODELS, traceStateOf, type TraceNow } from '../src/data/wake'
+import { WAKE, WAKE_GODS, GUARDIAN_LEASH, LATER_TEXT, mayWake, ORDER_POWER, TRACE_MODELS, traceStateOf, wakePower, type TraceNow } from '../src/data/wake'
 import { REGIONS } from '../src/data/regions'
 import { SCENES, sceneId } from '../src/data/scenes'
 import { ENEMIES } from '../src/enemies/Giant'
-import { guardianSpec, traceWonLines } from '../src/game/systems/Wake'
+import { EventBus, type GameEvents } from '../src/game/events'
+import { guardianSpec, traceWonLines, WakeSystem } from '../src/game/systems/Wake'
 import { mythRelic } from '../src/gear/mythRelic'
 import { WakeProgress, parseWake } from '../src/progress/Wake'
 import { godDef } from '../src/relics/data'
+import { swapHandNote } from '../src/ui/SwapCard'
 import { TRACE_WORDS, traceNow, type TraceCardContext } from '../src/ui/traceCard'
 import { TRACE_GLOW, traceGrid } from '../src/voxel/models/traces'
 
@@ -240,8 +242,84 @@ describe('신을 깨우는 길의 글 (E307 손 QA)', () => {
   })
 
   it('흔적 카드의 단락 이름은 자리 이름(손·심장) 대신 얻는 것을 적는다', () => {
-    expect(TRACE_WORDS.gain).toBe('깨우면 얻는 무기와 궁극기')
+    expect(TRACE_WORDS.gain).toBe('물리치면 무기 · 깨우면 궁극기')
     expect(TRACE_WORDS.lend).toBe('흔적에서 빌리는 힘')
     for (const words of Object.values(TRACE_WORDS)) expect(words).not.toMatch(/손과 심장/)
+  })
+})
+
+describe('흔적의 무리·수호자의 세기 (2026-11-20 손 QA: 둘째 흔적의 무리가 깨어나자마자 쓰러졌다)', () => {
+  it('깨운 신 수에 따른 세기는 1 · 4 · 7, 그 땅의 세기와 견줘 큰 쪽을 쓴다', () => {
+    expect(ORDER_POWER).toEqual([1, 4, 7])
+    // 첫 신: 그 땅 그대로 (미드가르드 1, 바닷가 1.25)
+    expect(wakePower(1, 0, false)).toBe(1)
+    expect(wakePower(1.25, 0, false)).toBe(1.25)
+    // 깨운 신이 하나일 때 둘째 흔적(미드가르드, 세기 1)의 무리는 4, 그 수호자(철의 숲 1.25)도 4
+    expect(wakePower(1, 1, false)).toBe(4)
+    expect(wakePower(1.25, 1, false)).toBe(4)
+    // 셋째부터는 7이지만 그리스 땅(11.7)은 땅이 더 세다
+    expect(wakePower(1, 2, false)).toBe(7)
+    expect(wakePower(1, 5, false)).toBe(7)
+    expect(wakePower(11.7, 2, false)).toBe(11.7)
+  })
+
+  it('엔딩 뒤에는 그 땅의 세기 그대로다', () => {
+    expect(wakePower(1, 1, true)).toBe(1)
+    expect(wakePower(1, 4, true)).toBe(1)
+    expect(wakePower(13, 2, true)).toBe(13)
+  })
+})
+
+describe('불러온 뒤 깨우는 길 맞추기 (`WakeSystem.settle`)', () => {
+  /** settle이 읽는 것만 흉내 낸 게임 상태 */
+  const settled = (now: { waking: 'thor' | null; fragments: number; has: boolean; hand: string | null; open?: boolean }) => {
+    const bus = new EventBus<GameEvents>()
+    const loadout = { waking: null as string | null, has: () => now.has }
+    const ctx = {
+      bus,
+      scene: { add: () => {} },
+      awaken: { waking: now.waking, fragments: now.fragments },
+      progress: { isOpen: () => now.open ?? false, pantheon: { hand: now.hand } },
+      powers: { loadout },
+    }
+    const given: [string, boolean][] = []
+    const pieces: GameEvents['fragment'][] = []
+    bus.on('fragment', (e) => pieces.push(e))
+    new WakeSystem(ctx as never, () => null, (relic, announce) => given.push([relic, announce])).settle()
+    return { waking: loadout.waking, given, pieces }
+  }
+
+  it('사냥하던 옛 저장(조각 2로 읽힘): 유물을 연출 없이 주고, 빈 손에 그 신의 무기를 조용히 쥐여 준다 (플레이 기록에 줄이 찍히지 않는다)', () => {
+    const r = settled({ waking: 'thor', fragments: 2, has: false, hand: null })
+    expect(r.waking).toBe('thor')
+    expect(r.given).toEqual([[mythRelic('thor'), false]])
+    expect(r.pieces).toEqual([{ god: 'thor', piece: 2, silent: true }])
+  })
+
+  it('유물이 있고 손이 차 있으면 아무것도 주지 않는다 (두 갈래 카드도 띄우지 않는다)', () => {
+    const r = settled({ waking: 'thor', fragments: 2, has: true, hand: 'odin' })
+    expect(r.waking).toBe('thor')
+    expect(r.given).toEqual([])
+    expect(r.pieces).toEqual([])
+  })
+
+  it('깨우는 신이 없거나 이미 열린 신이면 그대로 둔다', () => {
+    for (const now of [
+      { waking: null, fragments: 0, has: false, hand: null },
+      { waking: 'thor' as const, fragments: 2, has: false, hand: null, open: true },
+    ]) {
+      const r = settled(now)
+      expect(r.waking).toBeNull()
+      expect(r.given).toEqual([])
+      expect(r.pieces).toEqual([])
+    }
+  })
+})
+
+describe('손의 두 갈래 카드 안내 (2026-11-20 손 QA)', () => {
+  it('새 무기는 지금 쥘 수 있다고 적는다: 「무기는 깨어난 뒤부터」로 읽히지 않는다', () => {
+    expect(swapHandNote('오딘')).toBe('오딘의 무기를 지금 쥘 수 있다. 미루면 오딘이 깨어난 뒤 신 탭에서 쥔다.')
+    expect(swapHandNote('토르')).toContain('토르가 깨어난 뒤')
+    expect(swapHandNote('오딘')).not.toMatch(/깨어난 뒤부터/)
   })
 })

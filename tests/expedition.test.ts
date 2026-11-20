@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { LEVEL_CAP_BASE, RETURN_MIN_LEVEL_AFTER_ENDING, RETURN_SIGNAL, returnEarned, renownFor, renownMultiplier } from '../src/data/cycle'
+import { LEVEL_CAP_BASE, RETURN_MIN_LEVEL_AFTER_ENDING, RETURN_SIGNAL, RETURN_STUCK_SECONDS, returnAsked, returnEarned, renownFor, renownMultiplier, tracesAwaitReturn } from '../src/data/cycle'
 import { computeBuild } from '../src/build/BuildState'
 import { layerProduct } from '../src/build/layers'
 import { DEMO_MAX_LEVEL, MAX_LEVEL } from '../src/myth/ClassProgress'
@@ -24,6 +24,12 @@ describe('원정과 귀환 (E304)', () => {
     expect(returnEarned({ ending: false, bosses: 0, asked: false, level: 99 })).toBe(false)
     expect(returnEarned({ ending: false, bosses: 1, asked: false, level: 0 })).toBe(true)
     expect(returnEarned({ ending: false, bosses: 0, asked: true, level: 0 })).toBe(true)
+    // 둘째 길: 쓰러진 적이 있고 5분이 지났다 (엔딩 뒤에는 보지 않는다)
+    expect(RETURN_STUCK_SECONDS).toBe(300)
+    expect(returnEarned({ ending: false, bosses: 0, asked: false, level: 0, falls: 1, seconds: 300 })).toBe(true)
+    expect(returnEarned({ ending: false, bosses: 0, asked: false, level: 0, falls: 1, seconds: 299 })).toBe(false)
+    expect(returnEarned({ ending: false, bosses: 0, asked: false, level: 0, falls: 0, seconds: 999 })).toBe(false)
+    expect(returnEarned({ ending: true, bosses: 0, asked: false, level: 0, falls: 9, seconds: 999 })).toBe(false)
     // 엔딩 뒤의 깊이 순환은 깨달음 8 그대로
     expect(RETURN_MIN_LEVEL_AFTER_ENDING).toBe(8)
     expect(returnEarned({ ending: true, bosses: 3, asked: true, level: 7 })).toBe(false)
@@ -140,10 +146,11 @@ describe('원정과 귀환 (E304)', () => {
 
 describe('귀환 카드 (E304)', () => {
   it('엔딩 전의 귀환은 깨달음 수가 아니라 이번 원정에서 한 일을 본다: 빈손이면 화로에 서도 카드가 뜨지 않고, 수호자·장 보스를 이겼거나 목표가 귀환이면 뜬다', () => {
-    const offered = (now: { bosses: number; goal: string | null; insights: number; elapsed?: number }) => {
+    const offered = (now: { bosses: number; goal: string | null; insights: number; elapsed?: number; falls?: number }) => {
       const expedition = new ExpeditionProgress()
       expedition.elapsed = now.elapsed ?? 300
       expedition.bosses = now.bosses
+      for (let i = 0; i < (now.falls ?? 0); i++) expedition.fell()
       const ctx = {
         bus: new EventBus<GameEvents>(),
         expedition,
@@ -174,6 +181,51 @@ describe('귀환 카드 (E304)', () => {
     expect(offered({ bosses: 0, goal: 'awaken', insights: 0 })).toBe(1)
     // 떠난 지 2분이 안 됐으면 어느 쪽이든 아니다
     expect(offered({ bosses: 2, goal: 'return', insights: 40, elapsed: 100 })).toBe(0)
+    // 둘째 길: 이번 원정에서 쓰러진 적이 있고 5분이 지났으면 된다 (보스 앞에서 막힌 사람). 5분 전이나 쓰러진 적이 없으면 아니다
+    expect(offered({ bosses: 0, goal: 'boss', insights: 0, elapsed: 300, falls: 1 })).toBe(1)
+    expect(offered({ bosses: 0, goal: 'boss', insights: 0, elapsed: 299, falls: 3 })).toBe(0)
+    expect(offered({ bosses: 0, goal: 'boss', insights: 0, elapsed: 900, falls: 0 })).toBe(0)
+  })
+
+  it('쓰러지면 이번 원정의 쓰러짐으로 세고(끝없는 원정은 빼고), 귀환하면 처음으로. 저장에는 쓰러진 적이 있을 때만 남는다', () => {
+    const expedition = new ExpeditionProgress()
+    const region = { kind: 'field' }
+    const bus = new EventBus<GameEvents>()
+    new ExpeditionSystem({ bus, expedition, map: { region } } as never, {} as never)
+    expect('falls' in expedition.toData()).toBe(false)
+    bus.emit('heroDied', {})
+    region.kind = 'endless'
+    bus.emit('heroDied', {})
+    expect(expedition.falls).toBe(1)
+    const again = new ExpeditionProgress()
+    again.load(parseExpedition(JSON.parse(JSON.stringify(expedition.toData()))))
+    expect(again.falls).toBe(1)
+    // 키가 없는 저장은 0, 깨진 값은 버린다
+    again.load(parseExpedition({ count: 2 }))
+    expect(again.falls).toBe(0)
+    expect(parseExpedition({ falls: -3 }).falls).toBeUndefined()
+    expedition.return({}, 0, [])
+    expect(expedition.falls).toBe(0)
+  })
+
+  it('귀환을 바라는 때는 한 곳에서 센다: 목표가 귀환이거나, 깨우기 목표인데 깨우는 신이 없고 흔적이 잠잠할 때', () => {
+    const now = { goal: 'awaken' as string | undefined, waking: false, awakened: 1, returns: 0, conquered: 0, afterEnding: false }
+    // 깨운 신 하나·귀환 0: 다음 흔적은 귀환을 기다린다
+    expect(tracesAwaitReturn(now)).toBe(true)
+    expect(returnAsked(now)).toBe(true)
+    // 깨우는 중이면 수호자가 먼저다
+    expect(returnAsked({ ...now, waking: true })).toBe(false)
+    // 귀환하거나 장을 정복했으면 흔적이 응답한다. 엔딩 뒤에는 기다리지 않는다
+    expect(returnAsked({ ...now, returns: 1 })).toBe(false)
+    expect(returnAsked({ ...now, conquered: 1 })).toBe(false)
+    expect(returnAsked({ ...now, afterEnding: true })).toBe(false)
+    // 첫 신은 언제나 깨울 수 있다
+    expect(returnAsked({ ...now, awakened: 0 })).toBe(false)
+    // 목표가 귀환이면 흔적과 상관없이. 흔적이 잠잠한 것은 깨우기 목표일 때만 귀환을 안내한다
+    expect(returnAsked({ ...now, goal: 'return', returns: 5 })).toBe(true)
+    expect(tracesAwaitReturn({ ...now, goal: 'return' })).toBe(false)
+    expect(returnAsked({ ...now, goal: 'enter' })).toBe(false)
+    expect(returnAsked({ ...now, goal: undefined })).toBe(false)
   })
 
   it('귀환 카드를 띄운 채 화로를 떠나면 카드가 닫히고, 돌아오면 다시 뜬다 (E306 리뷰: 떠 있는 동안 얻은 것 카드·장면이 끝없이 밀리던 것)', () => {
@@ -184,13 +236,14 @@ describe('귀환 카드 (E304)', () => {
     const ctx = {
       bus: new EventBus<GameEvents>(),
       expedition,
-      chapters: { index: 1 },
+      chapters: { index: 1, goal: null, conquered: 0 },
       training: { insights: 30, unspent: 0 },
       ending: { reached: false, has: () => false },
       sanctuary: { present: true, center: { x: 0, z: 0 }, beacon: false },
       hero: { object: { position } },
       combat: { alive: true },
-      progress: { pantheon: { hand: null, heart: null, breath: [] } },
+      progress: { pantheon: { hand: null, heart: null, breath: [] }, opened: [], isOpen: () => true },
+      awaken: { waking: null },
       depth: { level: 1, max: 1 },
       automation: { now: {} },
       powers: { loadout: { mergeable: () => [] } },

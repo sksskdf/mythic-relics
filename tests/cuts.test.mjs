@@ -195,7 +195,7 @@ describe.skipIf(!BROWSER)('잘린 요소 검사 (scripts/lib/cuts.mjs, E307)', (
       `<style>${STYLES.map(css).join('\n')}</style><script>document.documentElement.classList.add('is-touch')</script><div class="hud">` +
       '<div class="hud__status"><div style="width:113px;height:52px"></div></div><div class="hud__essence"><span class="hud__essence-cell">2</span></div>' +
       `<div class="hud__dock"><div class="hud__life ui-bar"></div><div class="hud__slots">${'<div class="hud__slot"></div>'.repeat(4)}</div></div>` +
-      `<canvas class="minimap" width="64" height="64"></canvas><div class="chapter-goal"><span>성소 화로에서 첫 원정을 마친다 (×1.32)</span></div>${card}</div>`
+      `<canvas class="minimap" width="64" height="64"></canvas><div class="chapter-goal"><span>성소 화로에서 첫 원정을 마친다</span></div>${card}</div>`
     /** 그 화면에서 잘린 요소와 자리들 */
     const layout = async (html, [width, height]) => {
       const page = await browser.newPage({ viewport: { width, height }, ...(width < height ? { hasTouch: true, isMobile: true } : {}) })
@@ -279,7 +279,7 @@ describe.skipIf(!BROWSER)('잘린 요소 검사 (scripts/lib/cuts.mjs, E307)', (
         const span = document.querySelector('.chapter-goal > span')
         return { goal: box('.chapter-goal'), mark: box('.chapter-goal__mark'), text: box('.chapter-goal > span'), bar: box('.chapter-goal__bar'), minimap: box('.minimap'), line: parseFloat(getComputedStyle(span).lineHeight), shown: getComputedStyle(document.querySelector('.chapter-goal')).display }
       })
-    const LONG = '성소 화로에서 첫 원정을 마친다 그리고 더 긴 목표의 글이 이어진다 (×1.32)'
+    const LONG = '성소 화로에서 첫 원정을 마친다 그리고 더 긴 목표의 글이 이어지고 또 이어진다'
 
     it.each([[393, 852], [393, 659], [390, 844]])('%i×%i: 목표가 길어 줄을 바꿔도 금빛 마름모는 글의 첫 줄 옆에 선다 (혼자 윗줄에 남지 않는다)', async (width, height) => {
       const p = await page([width, height], goal(LONG))

@@ -33,6 +33,8 @@ export interface ExpeditionData {
   lastBranch: string | null
   /** 이번 원정에서 깊이 10(한계 전 끝)의 장 보스나 수호자를 이겼다 (엔딩 뒤): 귀환하면 한계를 깬다 */
   deepWin: boolean
+  /** 이번 원정에서 쓰러진 횟수 (막힌 원정의 귀환 `returnEarned`). 쓰러진 적이 없으면 키를 두지 않는다 (옛 저장과 같은 모양) */
+  falls?: number
 }
 
 /** 귀환 카드에 보일 것 */
@@ -66,6 +68,7 @@ export class ExpeditionProgress {
   oathPending = false
   lastBranch: string | null = null
   deepWin = false
+  falls = 0
   /** 새 불길이 남은 초 (저장하지 않는다) */
   fire = 0
   /** 정복한 장의 수 (E305-02, 장 진행에서 읽는다): 명성 배율에 지수가 붙는다 */
@@ -130,6 +133,11 @@ export class ExpeditionProgress {
     this.bosses += 1
   }
 
+  /** 쓰러졌다 */
+  fell(): void {
+    this.falls += 1
+  }
+
   /** 닿은 장 */
   reach(chapter: number): void {
     this.deepest = Math.max(this.deepest, chapter)
@@ -156,6 +164,7 @@ export class ExpeditionProgress {
     this.count += 1
     this.elapsed = 0
     this.bosses = 0
+    this.falls = 0
     this.deepest = 1
     this.heirloom = this.heirloom.slice(0, this.heirloomSlots)
     // 지키지 못한 맹세는 벌 없이 풀린다 (출발 카드는 맹세 시스템이 다시 연다)
@@ -183,11 +192,12 @@ export class ExpeditionProgress {
       oathPending: this.oathPending,
       lastBranch: this.lastBranch,
       deepWin: this.deepWin,
+      ...(this.falls > 0 ? { falls: this.falls } : {}),
     }
   }
 
   load(data: ExpeditionData): void {
-    Object.assign(this, { ...data, flames: { ...data.flames }, best: [...data.best], lastTaken: [...data.lastTaken], heirloom: [...data.heirloom] })
+    Object.assign(this, { ...data, falls: data.falls ?? 0, flames: { ...data.flames }, best: [...data.best], lastTaken: [...data.lastTaken], heirloom: [...data.heirloom] })
   }
 }
 
@@ -216,5 +226,6 @@ export function parseExpedition(raw: unknown): ExpeditionData {
     oathPending: o.oathPending === true && !OATH_IDS.includes(o.oath as OathId),
     lastBranch: typeof o.lastBranch === 'string' && /^(ascend|flame):[a-z]{1,20}$/i.test(o.lastBranch) ? o.lastBranch : null,
     deepWin: o.deepWin === true,
+    ...(num(o.falls, 0, 999, 0) >= 1 ? { falls: Math.round(num(o.falls, 0, 999, 0)) } : {}),
   }
 }

@@ -48,7 +48,7 @@ const sample: SaveData = {
   ending: true,
   chapters: { entered: ['village', 'midgard', 'olympus'], bosses: ['utgard'] },
   training: { xp: 1500, taken: ['awaken', 'edge'] },
-  expedition: { count: 4, renown: 20, flames: { stone: 1 }, best: [900], elapsed: 30, bosses: 0, deepest: 1, lastTaken: ['awaken'], bestXp: 1200, heirloom: [], oath: 'silence', oathPending: false, lastBranch: 'ascend:thor', deepWin: true },
+  expedition: { count: 4, renown: 20, flames: { stone: 1 }, best: [900], elapsed: 30, bosses: 0, deepest: 1, lastTaken: ['awaken'], bestXp: 1200, heirloom: [], oath: 'silence', oathPending: false, lastBranch: 'ascend:thor', deepWin: true, falls: 2 },
   tabs: ['relics', 'training'],
   awaken: { waking: 'odin', fragments: 2 },
   mount: true,

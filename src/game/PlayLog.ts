@@ -23,7 +23,7 @@ export class PlayLog {
     const record = (type: PlayEvent['type'], detail?: string) => this.record(type, detail)
     bus.on('relicPicked', ({ id }) => record('relic', id))
     bus.on('mythOpened', ({ god }) => record('open', god))
-    bus.on('fragment', ({ god, piece }) => record('fragment', `${god}:${piece}`))
+    bus.on('fragment', ({ god, piece, silent }) => !silent && record('fragment', `${god}:${piece}`))
     bus.on('forged', ({ relic, stage }) => record('forge', `${relic}:${stage}`))
     bus.on('gearPicked', ({ item }) => record('gear', item.grade))
     bus.on('manifested', ({ god }) => record('manifest', god))

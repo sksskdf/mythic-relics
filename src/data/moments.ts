@@ -32,6 +32,8 @@ export const MOMENTS = {
   endlessEnded: 1,
   traceRoused: 1,
   traceBusy: 1,
+  // 쓰러졌다 일어남: 싸우던 수호자의 상처가 남아 있다
+  woundKept: 1,
   // 보통·좋음 장비 (E307): 빈 칸에 낌, 가방에 지금 것보다 좋은 것이 들어옴
   gearWorn: 1,
   gearBetter: 1,
@@ -59,6 +61,8 @@ export const MOMENTS = {
   fragment: 4,
   chapterBoss: 4,
   chapterChanged: 4,
+  // 두 갈래 카드 (손·심장): 장면이 아니지만 장면의 차례를 탄다. 앞의 장면과 큰 카드가 자리를 내준 뒤에 뜬다
+  swapOffer: 4,
   ending: 4,
 } as const satisfies Record<string, MomentTier>
 

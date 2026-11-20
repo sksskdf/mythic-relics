@@ -31,8 +31,8 @@ export interface TraceCardContext {
 export const TRACE_WORDS = {
   /** 응답하는 흔적의 「지금 할 일」: 다가가면 싸움이 붙고, 이기면 그 신의 힘을 빌린다 */
   open: '다가가면 지키는 것들이 깨어난다 · 물리치면 힘을 빌린다',
-  /** 깨우면 얻는 것 (손 = 무기, 심장 = 궁극기) */
-  gain: '깨우면 얻는 무기와 궁극기',
+  /** 얻는 것 (손 = 무기는 흔적의 무리를 물리치면 바로, 심장 = 궁극기는 수호자를 쓰러뜨려 깨우면) */
+  gain: '물리치면 무기 · 깨우면 궁극기',
   /** 빌려주는 힘 (흔적의 무리를 물리치면 바로) */
   lend: '흔적에서 빌리는 힘',
 } as const
@@ -66,7 +66,7 @@ export function traceCard(god: God, ctx: TraceCardContext): HTMLElement {
 
   card.append(el('div', `rc__place${ctx.state === 'open' ? ' rc__place--ground' : ''}`, traceNow(god, ctx)))
 
-  // 깨우면 얻는 것: 손(무기)과 심장(궁극기)
+  // 얻는 것: 손(무기, 무리를 물리치면)과 심장(궁극기, 깨우면)
   const weapon = levelGains(god, 1).find((g) => g.kind === 'power')?.text ?? ''
   const main = el('section', 'rc__section')
   main.append(el('div', 'rc__label', TRACE_WORDS.gain), el('p', 'rc__text', `${weapon} · 궁극기 「${def.ultimate.name}」`))

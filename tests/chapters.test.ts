@@ -492,11 +492,11 @@ describe('목표 한 줄의 합치기 막대 (E306)', () => {
     const ctx = {
       bus: new EventBus<GameEvents>(),
       chapters,
-      progress: { pantheon: { hand: null }, isOpen: () => true },
+      progress: { pantheon: { hand: null }, isOpen: () => true, opened: ['thor', 'odin'] },
       build: { chosen: null },
       powers: { loadout },
       awaken: { waking: null },
-      ending: { reached: false },
+      ending: { reached: false, has: () => false },
       expedition: { preview: () => ({ seconds: 0, now: 1, next: 1 }), returns: 2, elapsed: 0 },
       training: { insights: 0 },
     }
@@ -545,17 +545,20 @@ describe('엔딩 전 깨우는 길의 목표 한 줄 (2026-11-20: 사냥 막대�
     expect(viewOf(chapters, { waking: 'thor' })?.text).toBe('요르문간드를 쓰러뜨려 토르를 깨운다')
   })
 
-  it('귀환 목표는 떠난 지 2분 전에는 글 그대로에 시간 막대만, 지나면 받을 배율: 깨달음 수를 세지 않는다', () => {
+  it('귀환 목표는 글만 보인다: 받을 배율(×1.20) 같은 움직이는 수도, 시간 막대도 없다 (2026-11-20 손 QA)', () => {
     const w = world()
     const chapters = new ChapterProgress(w)
     chapters.enter('midgard')
     w.awake.set('norse', 1)
     expect(chapters.goal?.kind).toBe('return')
     const early = viewOf(chapters, { opened: 1, seconds: 30, insights: 0, bosses: 1 })
-    expect(early).toEqual({ text: '성소 화로에서 첫 원정을 마친다', ratio: 0.25 })
+    expect(early).toEqual({ text: '성소 화로에서 첫 원정을 마친다', ratio: null })
     const ripe = viewOf(chapters, { opened: 1, seconds: 130, insights: 0, bosses: 1 })
-    expect(ripe).toEqual({ text: '성소 화로에서 첫 원정을 마친다 (×1.20)', ratio: null })
-    for (const view of [early, ripe]) expect(view?.text).not.toMatch(counted)
+    expect(ripe).toEqual({ text: '성소 화로에서 첫 원정을 마친다', ratio: null })
+    for (const view of [early, ripe]) {
+      expect(view?.text).not.toMatch(counted)
+      expect(view?.text).not.toMatch(/[×\d]/)
+    }
   })
 
   it('둘째 신의 흔적이 귀환을 기다리면 귀환을 안내한다 (세는 꼴 없이)', () => {
@@ -564,7 +567,7 @@ describe('엔딩 전 깨우는 길의 목표 한 줄 (2026-11-20: 사냥 막대�
     chapters.enter('midgard')
     // 첫 신을 깨웠는데 장 진행은 아직 깨우기 목표인 판 (귀환 0)
     const view = viewOf(chapters, { opened: 1, seconds: 200 })
-    expect(view?.text).toBe('성소 화로에서 원정을 마친다 (×1.20)')
+    expect(view).toEqual({ text: '성소 화로에서 원정을 마친다', ratio: null })
     expect(view?.text).not.toMatch(counted)
   })
 })

@@ -1,4 +1,5 @@
 import type { SourceId } from './schema'
+import { mayWake } from './wake'
 
 /**
  * 원정 순환의 수치 (E304, `DESIGN.md` 5.3): 명성 식·명성 배율·갈래·새 불길·귀환 횟수 자동화를 한곳에.
@@ -53,11 +54,38 @@ export const RETURN_MIN_SECONDS = 120
  * 귀환할 만한 원정인가 (2026-11-20: 귀환의 기세 문턱을 걷으며 둔 조건). 귀환은 빈손이어도 원천 불씨 하나와 명성을 주니,
  * 2분마다 화로에 서서 불씨를 뽑는 길이 생기지 않게 엔딩 전에는 이번 원정에서 한 일이 있어야 한다:
  * 수호자·장 보스를 하나 이상 이겼거나(bosses), 장의 목표가 귀환이거나 다음 신의 흔적이 귀환을 기다린다(asked).
+ * 둘째 길: 이번 원정에서 쓰러진 적이 있고 떠난 지 `RETURN_STUCK_SECONDS`초가 지났다 (거인 왕·마지막 보스 앞에서 막힌 사람이
+ * 귀환해 강해질 수 있게. 쓰러짐이 값이라 불씨를 뽑는 길로는 느리다).
  * 엔딩 뒤의 깊이 순환은 문턱(`RETURN_MIN_LEVEL_AFTER_ENDING`)이 그대로 맡는다
  */
-export function returnEarned(now: { ending: boolean; bosses: number; asked: boolean; level: number }): boolean {
+export function returnEarned(now: { ending: boolean; bosses: number; asked: boolean; level: number; falls?: number; seconds?: number }): boolean {
   if (now.ending) return now.level >= RETURN_MIN_LEVEL_AFTER_ENDING
-  return now.bosses >= 1 || now.asked
+  return now.bosses >= 1 || now.asked || ((now.falls ?? 0) >= 1 && (now.seconds ?? 0) >= RETURN_STUCK_SECONDS)
+}
+/** 막힌 원정의 귀환 (엔딩 전): 이번 원정에서 쓰러진 적이 있으면 떠난 지 이 초 뒤부터 귀환할 수 있다 */
+export const RETURN_STUCK_SECONDS = 300
+
+/** 귀환을 바라는지 정하는 지금 값 */
+export interface ReturnAskNow {
+  /** 지금 목표의 종류 (목표가 없으면 undefined) */
+  goal: string | undefined
+  /** 깨우는 중인 신이 있다 (아직 열리지 않은 신) */
+  waking: boolean
+  awakened: number
+  returns: number
+  conquered: number
+  /** 남은 신화권이 열렸다 (엔딩 뒤: 흔적이 귀환을 기다리지 않는다) */
+  afterEnding: boolean
+}
+
+/** 목표가 신 깨우기인데 깨우는 신이 없고 흔적이 잠잠한가 (귀환이나 장 정복을 더 해야 다음 신이 응답한다). 목표 한 줄·작은 지도가 귀환을 안내한다 */
+export function tracesAwaitReturn(now: ReturnAskNow): boolean {
+  return now.goal === 'awaken' && !now.waking && !mayWake(now.awakened, now.returns, now.conquered, now.afterEnding)
+}
+
+/** 귀환을 바라는가 (`returnEarned`의 asked): 장의 목표가 귀환이거나, 다음 신의 흔적이 귀환을 기다린다. 귀환 카드와 목표 한 줄이 같은 셈을 쓴다 */
+export function returnAsked(now: ReturnAskNow): boolean {
+  return now.goal === 'return' || tracesAwaitReturn(now)
 }
 /** 엔딩을 본 뒤의 귀환 문턱: 이번 원정에 모은 수련 깨달음 (깊이 순환은 그대로 빠르게) */
 export const RETURN_MIN_LEVEL_AFTER_ENDING = 8

@@ -165,7 +165,7 @@ const sections = {
       /** 깨우는 길의 한 걸음(1: 흔적의 무리를 이김, 2: 수호자를 쓰러뜨림. 사냥 걸음은 2026-11-20에 걷었다)을 얻고, 두 갈래 카드가 뜨면 찍은 뒤 「지금 그대로」로 닫는다 (어느 조각에 무슨 카드가 떴는지 남긴다) */
       const piece = async (n) => {
         await page2.evaluate(() => window.__game.dev.awaken('odin'))
-        if (!(await page2.waitForFunction(() => window.__game.swapOpen, null, { timeout: 4000 }).then(() => true, () => false))) return
+        if (!(await page2.waitForFunction(() => window.__game.swapOpen, null, { timeout: 12000 }).then(() => true, () => false))) return
         await page2.waitForFunction(() => !document.querySelector('.swap-card')?.classList.contains('is-arming'), null, { timeout: 5000 }).catch(() => {})
         swaps.push({ piece: n, title: await page2.evaluate(() => document.querySelector('.swap-card__title')?.textContent ?? '') })
         await shot(page2, `e12-1-swap${n}`)

@@ -43,6 +43,24 @@ export function mayWake(awakened: number, returns: number, conquered: number, af
   return afterEnding || awakened < 1 + returns + conquered
 }
 
+/**
+ * 깨운 신 수(0·1·2 이상)에 따른 흔적의 무리·수호자의 세기 (2026-11-20 손 QA): 둘째 신의 흔적은 첫 신의 땅(세기 1)에 서 있어,
+ * 귀환 1을 마친 주인공 앞에서 무리가 깨어나자마자 쓰러졌다. 깨울수록 지키는 것들도 세진다
+ */
+export const ORDER_POWER: readonly number[] = [1, 4, 7]
+
+/**
+ * 흔적의 무리와 그 신의 수호자를 세울 때의 세기: 그 땅의 세기와 깨운 신 수에 따른 세기 가운데 큰 쪽.
+ * 엔딩 뒤에는 그 땅의 세기 그대로다 (깊이가 세기를 맡는다)
+ */
+export function wakePower(land: number, awakened: number, afterEnding: boolean): number {
+  if (afterEnding) return land
+  return Math.max(land, ORDER_POWER[Math.min(ORDER_POWER.length - 1, Math.max(0, awakened))]!)
+}
+
+/** 무리가 깨어난 뒤 이 초 안에는 이긴 것으로 치지 않는다 (「깨어났다」 알림과 흔적의 장면·카드가 한 화면에 겹치지 않게) */
+export const TRACE_WIN_DELAY = 1
+
 /** 데모에서 그리스 셋의 흔적에 다가가거나 흔적 카드를 볼 때의 한 줄 (E241) */
 export const LATER_TEXT = '엔딩 뒤에 응답한다'
 

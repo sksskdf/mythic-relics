@@ -131,14 +131,23 @@ export class RelicSystem {
   }
 
   /**
-   * 새 신의 손·심장 부품이 왔다 (E302-03): 비었으면 저절로 넣고, 차 있으면 두 갈래 카드. 저절로 넣었으면 1
+   * 새 신의 손·심장 부품이 왔다 (E302-03): 비었으면 저절로 넣고, 차 있으면 두 갈래 카드. 저절로 넣었으면 1.
+   * 카드는 순간의 줄에 세운다: 그 신의 장면(흔적의 첫 대사)과 큰 카드가 지나간 뒤에 뜬다 (바로 띄우면 신이 말을 걸기도 전에 고르라고 한다)
    */
   private offer(god: God, part: 'hand' | 'heart'): number {
     const current = this.ctx.progress.pantheon[part]
     if (current === god) return 0
     if (!current) return this.fill(god, [part]).length
-    this.offerSwap?.(part, god, current, (take) => {
-      if (take) this.apply(withPart(this.ctx.progress.pantheon, part, god, this.slots), false)
+    this.ctx.bus.emit('moment', {
+      id: 'swapOffer',
+      after: () => {
+        // 기다리는 동안 자리가 바뀌었으면 지금 자리로 묻는다 (이미 그 신이면 묻지 않는다)
+        const now = this.ctx.progress.pantheon[part]
+        if (!now || now === god) return
+        this.offerSwap?.(part, god, now, (take) => {
+          if (take) this.apply(withPart(this.ctx.progress.pantheon, part, god, this.slots), false)
+        })
+      },
     })
     return 0
   }

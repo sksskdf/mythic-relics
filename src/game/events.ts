@@ -56,7 +56,7 @@ export interface GameEvents {
    */
   mythOpened: { god: God; quiet?: boolean }
   /** 신을 깨우는 조각을 얻었다 (E238): 1 흔적, 2 사냥(유물), 3 수호자(깨어남) */
-  fragment: { god: God; piece: 1 | 2 | 3 }
+  fragment: { god: God; piece: 1 | 2 | 3; /** 불러온 뒤 맞추는 것 (플레이 기록에 적지 않는다) */ silent?: true }
   /** 신의 수호자가 나타났다 (E238): 처음이면 수호자의 한마디 */
   guardianAppeared: { god: God }
   /** 수련의 깨달음을 얻었다 (E236): 새로 얻은 수와 쓰지 않은 수 */

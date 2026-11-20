@@ -115,6 +115,8 @@ export class Giant {
   private flash = 0
   /** 생명이 반 아래로 처음 떨어져 포효했는가 (물러났다 다시 나타난 수호자는 기억한 값을 받는다, E239) */
   roared = false
+  /** 거리를 두지 않고 다가온다 (흔적의 무리에 던지는 적만 남았을 때: 서 있는 주인공의 자동 공격이 닿게) */
+  closeIn = false
   /** 돌진 중: 남은 거리와 방향, 이미 쳤는지 */
   private dash: { left: number; dirX: number; dirZ: number; hit: boolean; attack: AttackSpec } | null = null
   /** 날아가는 것들 (던지기) */
@@ -378,10 +380,10 @@ export class Giant {
         }
         const attack = this.chooseAttack(distToHero, world)
         if (attack) this.beginAttack(attack, world)
-        else if (this.spec.keepAway && distToHero < this.spec.keepAway && distFromHome < this.spec.leashRange - BACKOFF_LEASH_MARGIN) this.backOff(hero, dt, world)
+        else if (this.keepAway && distToHero < this.keepAway && distFromHome < this.spec.leashRange - BACKOFF_LEASH_MARGIN) this.backOff(hero, dt, world)
         else {
           const point = this.approachPoint(hero, distToHero)
-          const stopAt = this.spec.keepAway ?? (point === hero ? this.radius + hero.radius + 0.3 : 0.3)
+          const stopAt = this.keepAway ?? (point === hero ? this.radius + hero.radius + 0.3 : 0.3)
           this.walkTo(point, dt, world, stopAt)
           if (point !== hero) this.face(hero.x, hero.z)
         }
@@ -476,6 +478,11 @@ export class Giant {
       return { ...decoy, alive: true }
     }
     return world.hero
+  }
+
+  /** 주인공과 두는 거리 (다가오게 했으면 없음) */
+  private get keepAway(): number | undefined {
+    return this.closeIn ? undefined : this.spec.keepAway
   }
 
   private setState(state: GiantState): void {
@@ -689,7 +696,7 @@ export class Giant {
 
   /** 둘러싸기: 가까워지면 주인공의 정면이 아니라 자기 몫의 옆쪽으로 붙는다 (보스·원거리는 곧장) */
   private approachPoint(hero: { x: number; z: number; radius: number }, dist: number): Point2 {
-    if (this.spec.role === 'boss' || this.spec.role === 'guardian' || this.spec.keepAway || dist > 6) return hero
+    if (this.spec.role === 'boss' || this.spec.role === 'guardian' || this.keepAway || dist > 6) return hero
     const toMe = Math.atan2(this.x - hero.x, this.z - hero.z)
     const want = toMe + this.flank * 0.6
     const r = this.radius + hero.radius + 0.3
