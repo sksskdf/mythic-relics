@@ -2,9 +2,8 @@ import { describe, expect, it } from 'vitest'
 
 import { computeBuild } from '../src/build/BuildState'
 import { PASSIVE_PARTS } from '../src/data/classKit'
-import { relicAwake } from '../src/gear/mythRelic'
 import { lendText } from '../src/myth/levelGains'
-import { autoFill, breathCount, breathPassive, DEMO_BREATH, emptyPantheon, focusGod, fromChosen, MAX_BREATH, oathPantheon, partLevel, pantheonGods, withoutBreath, withPart } from '../src/myth/pantheon'
+import { autoFill, breathCount, breathPassive, DEMO_BREATH, emptyPantheon, focusGod, fromChosen, MAX_BREATH, oathPantheon, oathSlots, partLevel, pantheonGods, seatedSlots, slotsPantheon, withoutBreath, withPart } from '../src/myth/pantheon'
 import { GODS, godDef } from '../src/relics/data'
 
 describe('신의 자리 셋 (E302)', () => {
@@ -31,15 +30,15 @@ describe('신의 자리 셋 (E302)', () => {
     expect(withoutBreath(p, 'thor').breath).toEqual([])
   })
 
-  it('손·심장·숨 하나가 모두 같은 신이면 한 신에 몰기: 그 신 부품의 효과 단계가 하나 위', () => {
+  it('한 신에 모아도 덤은 없다: 힘은 그 신의 단계 그대로 돌고, 만나기만 한 신(단계 0)은 1단계 값으로 돈다', () => {
     expect(focusGod({ hand: 'thor', heart: 'thor', breath: ['loki', 'thor'] })).toBe('thor')
     expect(focusGod({ hand: 'thor', heart: 'odin', breath: ['thor'] })).toBeNull()
     expect(focusGod({ hand: 'thor', heart: 'thor', breath: ['loki'] })).toBeNull()
     expect(focusGod(emptyPantheon())).toBeNull()
-    const focused = { hand: 'thor', heart: 'thor', breath: ['thor', 'loki'] }
-    expect(partLevel(focused, 'thor', 2)).toBe(3)
-    expect(partLevel(focused, 'loki', 2)).toBe(2)
-    expect(partLevel(focused, 'thor', 4)).toBe(4)
+    expect(partLevel(2)).toBe(2)
+    expect(partLevel(0)).toBe(1)
+    expect(partLevel(4)).toBe(4)
+    expect(partLevel(9)).toBe(4)
   })
 
   it('새 부품은 빈 자리에만 저절로 들어간다 (손이 낡은 검이면 쥔다)', () => {
@@ -70,18 +69,17 @@ describe('신의 자리 셋 (E302)', () => {
     }
   })
 
-  it('자리에 든 신의 유물이 깨어나고, 공격 동작·피해 배율은 손의 신을 따른다', () => {
-    expect(relicAwake('lokiMask', 'thor')).toBe(false)
-    expect(relicAwake('lokiMask', 'thor', ['loki'])).toBe(true)
-    expect(relicAwake('mjolnir', null, ['loki'])).toBe(false)
-    const base = { open: new Map([['thor', 1], ['loki', 1]]), gear: ['lokiMask'], promotions: 0 }
+  it('칸에 든 유물 힘은 그 신이 자리에 없어도 돌고, 공격 동작·피해 배율은 무기의 신을 따른다 (P2)', () => {
+    const base = { open: new Map([['thor', 1], ['loki', 1]]), gear: [], promotions: 0 }
     const alone = computeBuild({ ...base, hand: 'thor' })
-    const mixed = computeBuild({ ...base, hand: 'thor', present: ['thor', 'loki'] })
+    const mixed = computeBuild({ ...base, hand: 'thor', present: ['thor', 'loki'], gear: ['lokiMask'] })
     expect(mixed.chosen).toBe('thor')
     expect(mixed.borrowed).toEqual(['loki'])
     expect(mixed.damageScale).toBeCloseTo(alone.damageScale)
     expect(mixed.attack).toBe(godDef('thor').attack)
     expect(mixed.modifiers).not.toEqual(alone.modifiers)
+    // 로키가 자리에 없어도 유물 힘이 칸에 있으면 같은 지속 효과가 돈다
+    expect(computeBuild({ ...base, hand: 'thor', gear: ['lokiMask'] }).modifiers).toEqual(mixed.modifiers)
     const lokiHand = computeBuild({ ...base, hand: 'loki', present: ['loki', 'thor'] })
     expect(lokiHand.attack).toBe(godDef('loki').attack)
   })
@@ -92,5 +90,23 @@ describe('신의 자리 셋 (E302)', () => {
     expect(oathPantheon(p, { emptyHand: true, breath: null })).toEqual({ hand: null, heart: 'odin', breath: ['thor', 'odin', 'freyr'] })
     expect(oathPantheon(p, { emptyHand: false, breath: 1 })).toEqual({ hand: 'thor', heart: 'odin', breath: ['thor'] })
     expect(p.breath).toHaveLength(3)
+  })
+
+  it('자리 셋은 칸에서 읽는다 (P2): 손 = 칸 무기의 신, 심장 = 칸 궁극기의 신, 숨 = 칸의 패시브 힘의 신들', () => {
+    expect(slotsPantheon({ weapon: null, ultimate: null, auras: [] })).toEqual(emptyPantheon())
+    const slots = { weapon: 'weapon:odin', ultimate: 'ultimate:thor', auras: ['aura:thor.basicLightning', 'relic:lokiMask', 'aura:odin.companions', 'aura:thor.skyStrike'] }
+    // 유물 힘의 신은 숨에 들지 않고, 같은 신의 패시브 힘이 둘이어도 숨에는 한 번
+    expect(slotsPantheon(slots)).toEqual({ hand: 'odin', heart: 'thor', breath: ['thor', 'odin'] })
+    // 자리 셋 모양으로 채운 칸은 같은 자리 셋으로 읽힌다
+    const p = { hand: 'thor', heart: 'odin', breath: ['loki', 'thor'] }
+    expect(slotsPantheon(seatedSlots(p, ['mjolnir']))).toEqual(p)
+  })
+
+  it('맹세를 건 동안 도는 칸: 빈 손은 무기만 비고, 홀로는 패시브 힘을 앞의 신 것만 남긴다. 유물 힘과 원본은 그대로', () => {
+    const slots = { weapon: 'weapon:thor', ultimate: 'ultimate:odin', auras: ['aura:thor.basicLightning', 'relic:mjolnir', 'aura:odin.companions', 'aura:thor.skyStrike'] }
+    expect(oathSlots(slots, { emptyHand: false, breath: null })).toBe(slots)
+    expect(oathSlots(slots, { emptyHand: true, breath: null })).toEqual({ ...slots, weapon: null })
+    expect(oathSlots(slots, { emptyHand: false, breath: 1 }).auras).toEqual(['aura:thor.basicLightning', 'relic:mjolnir', 'aura:thor.skyStrike'])
+    expect(slots.auras).toHaveLength(4)
   })
 })

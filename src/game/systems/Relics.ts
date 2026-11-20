@@ -7,15 +7,16 @@ import { GRADE_COLORS } from '../../art/palette'
 import { statText } from '../../myth/alwaysText'
 import { materialName } from '../../gear/materials'
 import { GEAR, type GearItem, gearName, gearScore } from '../../gear/roll'
-import { lendText, levelGains } from '../../myth/levelGains'
+import { levelGains } from '../../myth/levelGains'
 import { sceneId } from '../../data/scenes'
 import { classIcon } from '../../ui/classIcons'
-import { josa } from '../../ui/josa'
 import { betterLines, gearIcon } from '../../ui/gearCard'
 import type { GameContext } from '../context'
 import type { LoadoutChange } from '../RelicPowers'
 import { godMoment } from './godMoments'
-import { autoFill, breathSlots, fitBreath, focusGod, inPantheon, oathPantheon, type PartKind, withoutBreath, withPart } from '../../myth/pantheon'
+import { godPowers, type PowerId, powerRelic, ultimateId, weaponId } from '../../data/powers'
+import { inPantheon, MAX_BREATH, oathSlots, type PartKind, slotsPantheon } from '../../myth/pantheon'
+import { PowerBridge } from './PowerBridge'
 
 /** 신이 깨어나 손에 드는 순간 주변 적을 밀어내는 범위와 피해 */
 const MANIFEST_RADIUS = 4
@@ -40,8 +41,10 @@ export class RelicSystem {
   private readonly labelAt = new THREE.Vector3()
   /** 신화를 고를 때 터지는 충격을 다시 쓸 수 있을 때까지 (초) */
   private burstCooldown = 0
-  /** 새 부품의 자리가 차 있을 때 두 갈래 카드를 띄운다 (E302-03, 게임이 정한다). 없으면 그대로 둔다 */
+  /** 새 신의 무기·궁극기가 왔는데 그 칸이 차 있을 때 두 갈래 카드를 띄운다 (E302-03, 게임이 정한다). 없으면 그대로 둔다 */
   offerSwap: ((part: 'hand' | 'heart', incoming: God, current: God, choose: (take: boolean) => void) => void) | null = null
+  /** 임시 다리 (P2): 지금의 깨우는 흐름이 힘을 주게 잇는다. P4·P5가 걷는다 */
+  private readonly bridge: PowerBridge
 
   constructor(private readonly ctx: GameContext) {
     ctx.bus.on('targetKilled', ({ target }) => {
@@ -51,144 +54,102 @@ export class RelicSystem {
     ctx.bus.on('heroRevived', () => {
       this.decoy = null
     })
-    // 조각 2 (E302): 그 신의 손 부품. 손이 비었으면(낡은 검) 저절로 쥔다: 동작이 바뀌는 순간
-    // 조각 3 (수호자): 그 신의 심장 부품. 심장이 차 있으면 두 갈래 카드
-    ctx.bus.on('fragment', ({ god, piece }) => {
-      if (piece === 2) this.offer(god, 'hand')
-      if (piece === 3) this.offer(god, 'heart')
-    })
-    // 장 정복 (E305-02): 숨 칸이 늘면 아직 숨에 없는 깨어난 신 하나를 빈 칸에 넣는다 (카드는 장 보스 장면 뒤에 함께)
-    ctx.bus.on('chapterConquered', () => this.fillBreath())
-    // 처음 깨어난 신: 손·심장·숨을 모두 그 신으로 (E12-04 → E302). 있으면 빈 자리에 저절로 넣는다
-    ctx.bus.on('mythOpened', ({ god, quiet }) => {
-      // 심장이 비었으면 첫 신이다 (손은 조각 2에 이미 쥐었을 수 있다): 세 자리에 넣고 깨어나는 장면
-      if (!ctx.progress.pantheon.heart) this.choose(god, true)
-      // 한꺼번에 열린 것(장 보스)은 신화권 카드가 함께 알린다
-      // 장 보스·개발 지름길로 한꺼번에 열린 신은 카드 없이 빈 자리에만 (두 갈래는 조각으로 깨울 때만)
-      else if (this.fill(god, ['heart', 'breath']).length && !quiet) {
-        const def = godDef(god)
-        ctx.bus.emit('moment', {
-          id: 'mythLent',
-          card: { kind: '빌린 힘', title: def.name, color: def.color, icon: classIcon(def.name), lines: [lendText(god, ctx.progress.level(god)), `${josa(relicDef(def.relic).name, '이')} 깨어난다`] },
-        })
-      }
-    })
+    this.bridge = new PowerBridge(ctx, this)
   }
 
   /**
-   * 세 자리를 모두 그 신으로 (E12-04 → E302): 손·심장·숨 첫 칸. 앞의 숨 칸 신들은 뒤로 물러난다.
-   * 첫 신이 깨어날 때와 개발 지름길이 쓴다. 열린 신만 고를 수 있다 (화면에서는 「한 신에 몰기」라는 이름·단추를 걷었다, E307)
+   * 칸의 힘을 전투에 맞춘다 (재미 재설계 P2). 전투의 원천은 `ctx.mythPowers`의 칸이다:
+   * 무기 = 칸의 무기(없으면 맨손), 궁극기 = 칸의 궁극기, 늘 도는 힘 = 칸의 도는 힘들.
+   * 자리 셋(손·심장·숨)은 칸에서 읽은 모습일 뿐이라(`slotsPantheon`) 자리 셋을 읽는 화면·규칙이 그대로 돈다.
+   * 칸을 바꾼 뒤에는 꼭 이것을 부른다. 맹세를 건 동안은 줄어든 칸이 돈다 (저장되는 칸은 그대로)
    */
-  choose(god: God, announce: boolean): boolean {
-    const { progress } = this.ctx
-    if (!progress.isOpen(god)) return false
-    const p = progress.pantheon
-    // 이미 손에 쥔 신이면(조각 2) 손이 바뀌지 않아도 깨어나는 순간을 알린다
-    const held = p.hand === god
-    const breath = [god, ...p.breath.filter((g) => g !== god)].slice(0, Math.max(1, this.slots))
-    this.apply({ hand: god, heart: god, breath }, announce)
-    if (announce && held) this.announce(god)
-    return true
-  }
-
-  /** 숨 칸 수 (E302): 깨어난 신 수, 정복한 장(E305-02), 지킨 홀로의 맹세(E305-01)로 정한다. 끝은 데모 4, 엔딩 뒤 5 */
-  get slots(): number {
-    return breathSlots(this.ctx)
-  }
-
-  /** 그 자리에 그 신을 낀다 (정보 화면 신 탭, 어디서나). 숨은 빈 칸이 있어야 한다 */
-  place(part: PartKind, god: God): boolean {
-    const { progress } = this.ctx
-    if (!progress.isOpen(god)) return false
-    const next = withPart(progress.pantheon, part, god, this.slots)
-    if (next === progress.pantheon || (part !== 'breath' && progress.pantheon[part] === god)) return false
-    this.apply(next, false)
-    if (part === 'breath') this.ctx.bus.emit('mythLent', { god })
-    return true
-  }
-
-  /** 숨 칸에서 뺀다 */
-  unplace(god: God): boolean {
-    const { progress } = this.ctx
-    const next = withoutBreath(progress.pantheon, god)
-    if (next === progress.pantheon) return false
-    this.apply(next, false)
-    return true
-  }
-
-  /** 숨 칸이 늘었다 (장 정복·홀로의 맹세): 아직 숨에 없는 깨어난 신 하나를 빈 칸에 넣는다 */
-  fillBreath(): void {
-    const p = this.ctx.progress.pantheon
-    const god = this.ctx.progress.opened.find((g) => !p.breath.includes(g))
-    if (god) this.fill(god, ['breath'])
-  }
-
-  /** 새로 얻은 부품을 빈 자리에 저절로 넣는다 (E302-03). 들어간 자리를 돌려준다 */
-  fill(god: God, parts: readonly PartKind[]): PartKind[] {
-    const { next, placed } = autoFill(this.ctx.progress.pantheon, god, parts, this.slots)
-    if (placed.length) this.apply(next, false)
-    return placed
-  }
-
-  /**
-   * 새 신의 손·심장 부품이 왔다 (E302-03): 비었으면 저절로 넣고, 차 있으면 두 갈래 카드. 저절로 넣었으면 1.
-   * 카드는 순간의 줄에 세운다: 그 신의 장면(흔적의 첫 대사)과 큰 카드가 지나간 뒤에 뜬다 (바로 띄우면 신이 말을 걸기도 전에 고르라고 한다)
-   */
-  private offer(god: God, part: 'hand' | 'heart'): number {
-    const current = this.ctx.progress.pantheon[part]
-    if (current === god) return 0
-    if (!current) return this.fill(god, [part]).length
-    this.ctx.bus.emit('moment', {
-      id: 'swapOffer',
-      after: () => {
-        // 기다리는 동안 자리가 바뀌었으면 지금 자리로 묻는다 (이미 그 신이면 묻지 않는다)
-        const now = this.ctx.progress.pantheon[part]
-        if (!now || now === god) return
-        this.offerSwap?.(part, god, now, (take) => {
-          if (take) this.apply(withPart(this.ctx.progress.pantheon, part, god, this.slots), false)
-        })
-      },
-    })
-    return 0
-  }
-
-  /** 자리를 바꿔 낀다: 기록·힘·연출을 함께 맞춘다 */
-  private apply(next: typeof this.ctx.progress.pantheon, announce: boolean): void {
-    const { progress, powers, bus } = this.ctx
-    progress.pantheon = fitBreath(next, Math.max(1, this.slots))
-    const change = powers.setPantheon(this.running(progress.pantheon))
+  syncPowers(announce = false): void {
+    const { progress, powers, mythPowers, bus } = this.ctx
+    progress.pantheon = slotsPantheon(mythPowers.slots)
+    const change = powers.setSlots(oathSlots(mythPowers.slots, this.ctx.build.rules))
     bus.emit('progressChanged', {})
     this.changed(change, announce)
   }
 
-  /** 불러온 자리 셋을 연출 없이 낀다 (열린 신만) */
-  restore(p: typeof this.ctx.progress.pantheon, anyBreath = false): void {
-    const { progress, awaken } = this.ctx
-    const open = (g: God | null) => (g && progress.isOpen(g) ? g : null)
-    // 손은 조각 2를 모은 깨우는 신도 쥘 수 있다
-    const hand = p.hand && awaken.waking === p.hand && awaken.fragments >= 2 ? p.hand : open(p.hand)
-    const next = { hand, heart: open(p.heart), breath: p.breath.filter((g) => progress.isOpen(g)) }
-    // 개발 지름길은 숨 칸 수를 장 진행에 맞추지 않는다
-    if (anyBreath) {
-      progress.pantheon = next
-      this.changed(this.ctx.powers.setPantheon(this.running(next)), false)
-      this.ctx.bus.emit('progressChanged', {})
-    } else this.apply(next, false)
+  /** 가진 힘을 칸에 끼운다 (무기·궁극기는 바꿔 끼우고, 도는 힘은 빈 칸이 있을 때만). 끼웠으면 true */
+  slotPower(id: PowerId, announce = false): boolean {
+    if (!this.ctx.mythPowers.slot(id)) return false
+    this.syncPowers(announce)
+    return true
   }
 
-  /** 도는 자리: 맹세를 건 동안 빈 손이면 손을 비우고, 홀로면 숨을 하나만 (저장되는 자리는 그대로) */
-  private running(p: typeof this.ctx.progress.pantheon): typeof this.ctx.progress.pantheon {
-    return oathPantheon(p, this.ctx.build.rules)
+  /** 칸에서 뺀다 (힘은 그대로 갖는다) */
+  unslotPower(id: PowerId): boolean {
+    if (!this.ctx.mythPowers.unslot(id)) return false
+    this.syncPowers()
+    return true
   }
 
-  /** 맹세를 걸거나 풀었다 (E305-01): 저장된 자리 그대로 도는 자리만 다시 맞춘다 */
+  /** 힘을 갖는다: 빈 칸이 있으면 끼운다. 새로 가졌으면 true */
+  gainPower(id: PowerId): boolean {
+    if (!this.ctx.mythPowers.gain(id)) return false
+    this.syncPowers()
+    return true
+  }
+
+  /**
+   * 점검용 지름길 (개발 도구·`?relics=`·점검 스크립트): 그 신의 힘을 모두 갖고 칸에 끼운다. 무기·궁극기는 그 신의 것으로 바뀐다.
+   * 유물 힘은 유물표에 켠 것만 칸에 둔다 (점검 스크립트의 빌드가 낀 유물만 돌게). 열린 신만 고를 수 있다
+   */
+  choose(god: God, announce: boolean): boolean {
+    const { progress, mythPowers, powers } = this.ctx
+    if (!progress.isOpen(god)) return false
+    // 이미 그 신의 무기를 쥐었으면 무기가 바뀌지 않아도 깨어나는 순간을 알린다
+    const held = progress.pantheon.hand === god
+    mythPowers.grantAll(god)
+    for (const p of godPowers(god)) {
+      const relic = powerRelic(p.id)
+      if (relic && !powers.loadout.lit.includes(relic)) mythPowers.unslot(p.id)
+    }
+    this.syncPowers(announce)
+    if (announce && held) this.announce(god)
+    return true
+  }
+
+  /** 신 탭이 보이는 숨 칸 수 (힘 탭이 생길 때까지): 칸에 든 패시브 힘의 신 수에 빈 도는 힘 칸을 더한다 */
+  get slots(): number {
+    const { mythPowers, progress } = this.ctx
+    return Math.min(MAX_BREATH, progress.pantheon.breath.length + Math.max(0, mythPowers.auraSlots - mythPowers.slots.auras.length))
+  }
+
+  /**
+   * 그 자리에 그 신을 낀다 (정보 화면 신 탭, 어디서나): 손 = 그 신의 무기를 무기 칸에, 심장 = 그 신의 궁극기를 궁극기 칸에,
+   * 숨 = 그 신의 패시브 힘을 빈 도는 힘 칸에 (들어가는 만큼). 가진 힘만 낄 수 있다
+   */
+  place(part: PartKind, god: God): boolean {
+    const { mythPowers } = this.ctx
+    if (part !== 'breath') return this.slotPower(part === 'hand' ? weaponId(god) : ultimateId(god))
+    let placed = false
+    for (const p of godPowers(god)) if (p.source.from === 'passive' && mythPowers.slot(p.id)) placed = true
+    if (!placed) return false
+    this.syncPowers()
+    this.ctx.bus.emit('mythLent', { god })
+    return true
+  }
+
+  /** 숨 칸에서 뺀다: 그 신의 패시브 힘을 칸에서 뺀다 */
+  unplace(god: God): boolean {
+    const { mythPowers } = this.ctx
+    let removed = false
+    for (const p of godPowers(god)) if (p.source.from === 'passive' && mythPowers.unslot(p.id)) removed = true
+    if (removed) this.syncPowers()
+    return removed
+  }
+
+  /** 장 정복·홀로의 맹세로 숨 칸이 늘던 자리. 도는 힘의 칸은 귀환이 늘리니 여기서 할 일은 없다 (그 카드의 말은 흐름 갈래가 고친다) */
+  fillBreath(): void {}
+
+  /** 맹세를 걸거나 풀었다 (E305-01)·저장을 불러왔다: 저장된 칸 그대로 도는 칸만 다시 맞춘다 */
   reapply(): void {
-    const { powers, progress, bus } = this.ctx
-    this.changed(powers.setPantheon(this.running(progress.pantheon)), false)
-    bus.emit('progressChanged', {})
+    this.syncPowers()
   }
 
-  /** 그 신이 자리에 들었나 */
+  /** 그 신이 자리에 들었나 (칸에 그 신의 무기·궁극기·패시브 힘이 있나) */
   has(god: God): boolean {
     return inPantheon(this.ctx.progress.pantheon, god)
   }
@@ -223,7 +184,7 @@ export class RelicSystem {
     // 새 단계의 효과 배율: 지금 자리로 실제 도는 값만 (E21-04 → E303-04: 유물은 유물표에, 기본 수치 없음. E307: 「몰면」 글을 걷음)
     const lines = [
       made.stage === 1 ? '대장간에서 처음 벼렸다 · 유물표에 켜짐' : `${made.stage}단계`,
-      `유물 효과 피해 ×${effectScale(made.relic, made.stage, focusGod(powers.loadout.pantheon))}`,
+      `유물 효과 피해 ×${effectScale(made.relic, made.stage, null)}`,
     ]
     // 큰 카드 (E23-03): 그 신의 색으로 번쩍임·하늘 기둥·북소리. 벼려서 다음 장이 열리면 그 장면은 이 카드 뒤에 온다
     bus.emit('moment', { id: 'forged', card: { kind: '대장간', title: name, color: def.color, icon: classIcon(def.name), lines } })
@@ -315,7 +276,7 @@ export class RelicSystem {
     skills.enemies = encounter.alive
     skills.manifested = this.ctx.build.chosen
     skills.level = this.ctx.build.level
-    // 숨 (E302): 숨 칸의 신마다 그 신의 패시브를 그 신 단계로 돌린다 (깨우는 신의 숨도)
+    // 칸의 패시브 힘마다 그 부품을 그 신 단계로 돌린다
     powers.setLent(this.ctx.build.passives())
     this.updateGlow()
 
@@ -357,7 +318,7 @@ export class RelicSystem {
       powers.update(dt, skills)
     }
 
-    // 궁극기: 심장에 신이 있고 심장 게이지가 가득 차고, 쓸 만한 때가 오면 저절로 나간다.
+    // 궁극기: 칸에 궁극기가 있고 심장 게이지가 가득 차고, 쓸 만한 때가 오면 저절로 나간다.
     const boss = encounter.boss
     const bossNear = !!boss && boss.alive && Math.hypot(boss.x - position.x, boss.z - position.z) < 10
     const ultimate = powers.ultimate
@@ -395,6 +356,8 @@ export class RelicSystem {
   equip(id: RelicId, announce: boolean): void {
     this.changed(this.ctx.powers.equip(id), announce, id)
     this.unlock(id, announce)
+    // 유물표에 켠 유물은 그 유물 힘을 갖는다 (임시 다리)
+    if (isRelicId(id)) this.bridge.relicLit(id)
   }
 
   /**
@@ -476,7 +439,7 @@ export class RelicSystem {
    * 신이 깨어나 손에 드는 순간: 장면이나 카드, 번쩍임, 주변 적 밀어내기.
    * 주인공의 모습·초상은 바뀌지 않는다 (E307, 사용자 의견 4): 그 신의 옷은 보관함에 풀릴 뿐이고, 카드는 칭호가 아니라 신의 이름으로 뜬다
    */
-  private announce(id: God): void {
+  announce(id: God): void {
     const { bus, hud, progress, hero, fx, view, feel, encounter, skills } = this.ctx
     bus.emit('manifested', { god: id })
     const god = godDef(id)

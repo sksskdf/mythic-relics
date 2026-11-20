@@ -6,6 +6,7 @@ import { isBossLike } from '../../enemies/grade'
 import { MATERIALS, materialName, rollMaterials } from '../../gear/materials'
 import { GEAR, landChances, landTier, rollGear } from '../../gear/roll'
 import { PER_PROMOTION } from '../../myth/ClassProgress'
+import { emptySlots } from '../../data/powers'
 import { emptyPantheon, inPantheon } from '../../myth/pantheon'
 import { collectionText } from '../../myth/alwaysText'
 import { levelGains } from '../../myth/levelGains'
@@ -153,7 +154,8 @@ export class ProgressionSystem {
   reset(): void {
     this.ctx.progress.records.clear()
     this.ctx.progress.pantheon = emptyPantheon()
-    this.ctx.powers.setPantheon(emptyPantheon())
+    this.ctx.mythPowers.clear()
+    this.ctx.powers.setSlots(emptySlots())
     this.applyStats()
     this.ctx.combat.health.reset()
     this.ctx.bus.emit('progressChanged', {})

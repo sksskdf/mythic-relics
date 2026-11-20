@@ -25,7 +25,7 @@
     { "id": "g:y1", "x": 2, "z": 9 }
   ],
   "classes": { "thor": { "level": 4 }, "odin": { "level": 2 }, "loki": { "level": 1 }, "zeus": { "level": 2 }, "poseidon": { "level": 1 }, "freyr": { "level": 0 } },
-  "pantheon": { "hand": "thor", "heart": "zeus", "breath": ["thor", "odin", "zeus", "loki", "poseidon"] },
+  "pantheon": { "hand": "odin", "heart": "zeus", "breath": ["thor", "odin", "zeus", "poseidon"] },
   "dropMisses": 7,
   "heartGauge": 0.75,
   "looks": {

@@ -4,7 +4,10 @@ import type { Pickups } from '../gear/Pickups'
 import { nextRecipe } from '../gear/forge'
 import { type GearItem, rollGear } from '../gear/roll'
 import { gearIcon } from '../ui/gearCard'
-import { GODS, isRelicId, type RelicId } from '../relics/data'
+import { GODS, isRelicId, relicDef, type RelicId } from '../relics/data'
+import { activeCombos, power, powerRelic, relicPowerId } from '../data/powers'
+import { seatedSlots } from '../myth/pantheon'
+import type { PowerProgress } from '../progress/Powers'
 import type { ClassProgress } from '../myth/ClassProgress'
 import type { EventBus, GameEvents } from '../game/events'
 import type { HeroController } from '../game/HeroController'
@@ -31,6 +34,8 @@ import { GRADES } from '../data/gearData'
 export interface DevParts {
   bus: EventBus<GameEvents>
   relics: RelicSystem
+  /** 힘의 진행 (재미 재설계): 가진 힘과 칸 */
+  mythPowers: PowerProgress
   powers: RelicPowers
   progress: ClassProgress
   growth: ProgressionSystem
@@ -136,9 +141,45 @@ export class DevTools {
   equip(id: RelicId): void {
     const { powers, relics, bus } = this.parts
     // 유물은 유물표에 켜니 칸이 차 있어도 된다 (E303-04)
-    if (powers.loadout.has(id)) return
-    relics.equip(id, true)
+    // 그 유물 힘을 갖고 칸에 끼운다 (P2): 유물표에 이미 켰어도 칸에서 빠져 있으면 다시 끼운다
+    if (!powers.loadout.has(id)) relics.equip(id, true)
+    this.power(relicPowerId(id))
     bus.emit('progressChanged', {})
+  }
+
+  /** 힘 하나를 갖고 칸에 끼운다 (재미 재설계 P2). 무기·궁극기는 바꿔 끼우고, 도는 힘은 빈 칸이 있어야 한다. 칸에 들었으면 true */
+  power(id: string): boolean {
+    const { mythPowers, relics } = this.parts
+    const p = power(id)
+    if (!p) return false
+    mythPowers.meet(p.god)
+    if (!mythPowers.has(id)) mythPowers.owned.push(id)
+    relics.slotPower(id)
+    return mythPowers.isSlotted(id)
+  }
+
+  /** 힘 하나를 칸에서 뺀다 (힘은 그대로 갖는다) */
+  unslot(id: string): boolean {
+    return this.parts.relics.unslotPower(id)
+  }
+
+  /** 그 신의 힘을 모두 갖고 칸에 끼운다 (신을 열지 않아도 된다: 만나기만 한 신의 힘은 1단계 값으로 돈다) */
+  grant(god: string): void {
+    this.parts.mythPowers.grantAll(god)
+    this.parts.relics.syncPowers()
+  }
+
+  /** 지금 켜진 조합의 이름 (칸에 든 힘으로 판정) */
+  combos(): string[] {
+    return activeCombos(this.parts.powers.slots.auras).map((c) => c.name)
+  }
+
+  /** 지금 칸과 가진 힘 (이름으로) */
+  slots(): { weapon: string | null; ultimate: string | null; auras: string[]; free: number; owned: string[] } {
+    const { mythPowers } = this.parts
+    const name = (id: string | null) => (id ? `${power(id)?.name ?? id} (${id})` : null)
+    const { slots } = mythPowers
+    return { weapon: name(slots.weapon), ultimate: name(slots.ultimate), auras: slots.auras.map((id) => name(id)!), free: Math.max(0, mythPowers.auraSlots - slots.auras.length), owned: [...mythPowers.owned] }
   }
 
   /** 일반 장비 하나를 그 자리에 떨어뜨린다 (부위·등급·단계를 정할 수 있다). 장비 id를 돌려준다 */
@@ -235,18 +276,30 @@ export class DevTools {
 
   /**
    * 신의 자리 셋을 그대로 낀다 (E302, 점검·봇). 닫힌 신은 먼저 연다. 예: `pantheon({ hand: 'thor', heart: 'odin', breath: ['loki'] })`
-   * 숨 칸 수는 장 진행을 따르지 않고 준 만큼 낀다 (넷까지)
+   * 칸으로 옮겨 낀다 (P2): 손 = 그 신의 무기, 심장 = 그 신의 궁극기, 숨 = 그 신들의 패시브 힘 모두, 자리에 든 신의 켠 유물 힘.
+   * 도는 힘의 칸 상한은 풀고 준 만큼 낀다
    */
   pantheon(p: { hand?: string | null; heart?: string | null; breath?: readonly string[] }): void {
-    const { progress, relics } = this.parts
-    for (const g of [p.hand, p.heart, ...(p.breath ?? [])]) if (g) progress.open(g)
-    relics.restore({ hand: p.hand ?? null, heart: p.heart ?? null, breath: [...(p.breath ?? [])] }, true)
+    const { progress, relics, mythPowers, powers } = this.parts
+    const seated = [p.hand, p.heart, ...(p.breath ?? [])].filter((g): g is string => !!g)
+    for (const g of seated) {
+      progress.open(g)
+      mythPowers.own(g)
+    }
+    mythPowers.uncapped = true
+    // 이미 칸에 든 유물 힘은 그대로 둔다
+    const kept = mythPowers.slots.auras.flatMap((id) => powerRelic(id) ?? [])
+    const next = seatedSlots({ hand: p.hand ?? null, heart: p.heart ?? null, breath: [...(p.breath ?? [])] }, [...kept, ...powers.loadout.lit.filter((id) => seated.includes(relicDef(id).god))])
+    for (const id of next.auras) if (!mythPowers.has(id)) mythPowers.owned.push(id)
+    mythPowers.slots = next
+    relics.syncPowers()
   }
 
   /** 유물 하나를 유물표에서 끄거나 장비 하나를 뺀다. (땅에 내려놓지 않고 없앤다) */
   unequip(id: string): void {
     if (isRelicId(id)) {
       this.parts.relics.unlight(id)
+      this.unslot(relicPowerId(id))
       return
     }
     const slot = this.parts.powers.loadout.slots.indexOf(id)
@@ -316,16 +369,20 @@ export class DevTools {
   }
 
   /**
-   * 신의 자리 셋 (E302): 신을 열고 빈 자리에 넣는다 (곳을 가리지 않는다). 자리가 비었으면 첫 신에 몰고, 나머지는 빈 숨 칸에.
-   * 숨 칸 수는 장 진행 그대로라, 넣지 못한 신은 열리기만 한다
+   * 신을 열고 그 신의 힘을 모두 갖는다 (곳을 가리지 않는다). 무기 칸이 비었으면 첫 신의 힘을 모두 끼우고, 나머지는 패시브 힘을 빈 도는 힘 칸에.
+   * 칸 수는 그대로라, 넣지 못한 힘은 가진 힘으로만 남는다
    */
   lend(...gods: string[]): void {
-    const { progress, relics } = this.parts
+    const { progress, relics, mythPowers } = this.parts
     for (const god of gods) {
       progress.open(god)
       if (!progress.pantheon.hand) relics.choose(god, false)
-      else relics.fill(god, ['breath'])
+      else {
+        mythPowers.own(god)
+        relics.place('breath', god)
+      }
     }
+    relics.syncPowers()
   }
 
   /** 지금 신화를 바로 다음 개방 단계로 올린다 (승천과 같은 길). 데모 끝 단계(3)·장 정복 상한도 넘긴다 */

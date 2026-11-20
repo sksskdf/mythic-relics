@@ -43,9 +43,12 @@ export class PowerProgress {
     this.seed = seed >>> 0
   }
 
+  /** 점검용 실행(`?relics=`)과 개발 지름길만 켠다: 도는 힘의 칸 상한을 푼다 (엔드게임 빌드처럼 칸을 넘는 점검 상태) */
+  uncapped = false
+
   /** 지금 도는 힘의 칸 수 */
   get auraSlots(): number {
-    return auraSlots(this.returns())
+    return this.uncapped ? UNCAPPED_SLOTS : auraSlots(this.returns())
   }
 
   has(id: PowerId): boolean {
@@ -69,35 +72,44 @@ export class PowerProgress {
     return true
   }
 
-  /** 그 출처에서 아직 고르지 않았나 */
+  /** 그 출처에서 고를 것이 있나: 아직 고르지 않았고 내밀 힘이 남았다 */
   canClaim(source: string): boolean {
-    return parseSource(source) !== null && !this.claimed.has(source)
+    return this.offer(source).length > 0
   }
 
   /** 그 출처가 내미는 힘 셋 (이미 골랐으면 빈 목록). 씨앗과 출처로 정해져 다시 불러와도 같다 */
   offer(source: string): PowerId[] {
-    return this.canClaim(source) ? offer(source, this, this.seed) : []
+    return parseSource(source) !== null && !this.claimed.has(source) ? offer(source, this, this.seed) : []
   }
 
   /**
    * 그 출처가 내민 힘 하나를 고른다: 가진 힘에 더하고 빈 칸이 있으면 끼운다. 출처는 한 번만.
-   * 흔적에서 고르면 그 신을 만난 것이다. 내밀지 않은 힘·이미 고른 출처면 false
+   * 흔적·수호자에서 고르면 그 신을 만난 것이다. 내밀지 않은 힘·이미 고른 출처면 false
    */
   claim(source: string, id: PowerId): boolean {
     if (!this.offer(source).includes(id)) return false
     const at = parseSource(source)!
     this.claimed.add(source)
-    if (at.kind === 'trace') this.meet(at.arg)
+    if (at.kind === 'trace' || at.kind === 'guardian') this.meet(at.arg)
     this.gain(id)
     return true
   }
 
-  /** 가진 힘에 더하고 빈 칸이 있으면 끼운다 (찬 칸은 건드리지 않는다) */
-  private gain(id: PowerId): void {
-    if (this.has(id)) return
+  /** 가진 힘에 더하고 빈 칸이 있으면 끼운다 (찬 칸은 건드리지 않는다). 새로 가졌으면 true */
+  gain(id: PowerId): boolean {
+    const p = power(id)
+    if (!p || this.has(id)) return false
     this.owned.push(id)
-    const kind = power(id)!.kind
-    if (kind === 'aura' ? this.slots.auras.length < this.auraSlots : this.slots[kind] === null) this.slot(id)
+    if (p.kind === 'aura' ? this.slots.auras.length < this.auraSlots : this.slots[p.kind] === null) this.slot(id)
+    return true
+  }
+
+  /** 처음으로 (개발 지름길: 신화 성장을 되돌릴 때). 씨앗은 그대로 */
+  clear(): void {
+    this.owned = []
+    this.slots = emptySlots()
+    this.claimed.clear()
+    this.met = []
   }
 
   /**
@@ -131,11 +143,15 @@ export class PowerProgress {
    */
   grantAll(god: God): void {
     if (!isGod(god)) return
+    this.own(god)
+    for (const p of godPowers(god)) this.slot(p.id)
+  }
+
+  /** 점검용 지름길: 그 신을 만나고 그 신의 힘을 모두 갖는다 (칸은 건드리지 않는다) */
+  own(god: God): void {
+    if (!isGod(god)) return
     this.meet(god)
-    for (const p of godPowers(god)) {
-      if (!this.has(p.id)) this.owned.push(p.id)
-      this.slot(p.id)
-    }
+    for (const p of godPowers(god)) if (!this.has(p.id)) this.owned.push(p.id)
   }
 
   toData(): PowerData {
@@ -150,6 +166,34 @@ export class PowerProgress {
     for (const s of data.claimed) this.claimed.add(s)
     this.met = [...data.met]
     this.seed = data.seed >>> 0
+  }
+}
+
+/** 칸 상한을 푼 동안의 칸 수 (힘 전체보다 넉넉하게) */
+const UNCAPPED_SLOTS = 999
+
+/**
+ * 저장된 힘에 옛 상태(깨운 신·깨우는 신·자리 셋·켠 유물)에서 셈한 힘을 합친다. `powers` 키가 한 번 쓰인 뒤에도 힘이 굳지 않게:
+ * 깨웠는데(또는 깨우는 중인데) 힘의 기록이 아직 모르는 신(만난 신에 없는 신)만, 그 신의 셈한 힘·출처를 더하고 빈 칸을 그 힘으로 채운다.
+ * 이미 만난 신의 힘과 칸은 저장된 그대로다 (가졌는데 일부러 뺀 힘을 다시 끼우지 않고, 하나씩 고른 힘에 나머지를 얹지 않는다).
+ * 깨운 신은 있는데 힘이 빈 저장(힘이 전투에 꽂히기 전 판에서 쓴 저장)이 맨손·궁극기 없음으로 굳지 않는다
+ */
+export function mergePowers(saved: PowerData, derived: PowerData): PowerData {
+  const missing = new Set(derived.met.filter((god) => !saved.met.includes(god)))
+  if (missing.size === 0) return saved
+  const fresh = new Set(derived.owned.filter((id) => !saved.owned.includes(id) && missing.has(power(id)!.god)))
+  const pick = (id: PowerId | null) => (id !== null && fresh.has(id) ? id : null)
+  const claimed = derived.claimed.filter((s) => !saved.claimed.includes(s) && missing.has(parseSource(s)?.arg ?? ''))
+  return {
+    owned: [...saved.owned, ...fresh],
+    slots: {
+      weapon: saved.slots.weapon ?? pick(derived.slots.weapon),
+      ultimate: saved.slots.ultimate ?? pick(derived.slots.ultimate),
+      auras: [...saved.slots.auras, ...derived.slots.auras.filter((id) => fresh.has(id))].slice(0, AURA_SLOTS.max),
+    },
+    claimed: [...saved.claimed, ...claimed],
+    met: [...saved.met, ...missing],
+    seed: saved.seed,
   }
 }
 

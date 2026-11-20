@@ -128,14 +128,14 @@ describe('신을 깨우는 길 데이터 (E238)', () => {
     expect(guardianSpec('wukong')).toBeNull()
   })
 
-  it('조각 2로 받는 유물은 그 신의 유물이고, 그때부터 칸에 들지 않아도 깨어난다', () => {
+  it('조각 2로 받는 유물은 그 신의 유물이고, 그 유물 힘이 칸에 있으면 그 신의 무기를 쥐지 않아도 지속 효과가 돈다', () => {
     for (const god of WAKE_GODS) expect(mythRelic(god)).toBe(godDef(god).relic)
-    const base = { open: new Map<string, number>(), gear: ['lokiMask' as const], promotions: 0, hand: null }
+    const base = { open: new Map<string, number>(), gear: [], promotions: 0, hand: null }
     const asleep = computeBuild(base)
-    const waking = computeBuild({ ...base, waking: 'loki' })
-    expect(waking.modifiers).not.toEqual(asleep.modifiers)
-    expect(waking.chosen).toBeNull()
-    expect(waking.borrowed).toEqual([])
+    const slotted = computeBuild({ ...base, gear: ['lokiMask' as const] })
+    expect(slotted.modifiers).not.toEqual(asleep.modifiers)
+    expect(slotted.chosen).toBeNull()
+    expect(slotted.borrowed).toEqual([])
   })
 })
 

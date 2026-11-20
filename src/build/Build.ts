@@ -9,7 +9,8 @@ import type { WakeProgress } from '../progress/Wake'
 import type { ExpeditionProgress } from '../progress/Expedition'
 import { isGearUid } from '../gear/roll'
 import type { ClassPassive } from '../data/classKit'
-import { breathPassive, focusGod, partLevel, pantheonGods } from '../myth/pantheon'
+import { power, type PowerId, powerPassive } from '../data/powers'
+import { partLevel, pantheonGods } from '../myth/pantheon'
 import type { God } from '../relics/data'
 import { UNIQUE_STATS } from '../skills/uniques'
 import { type BuildInputs, type BuildState, computeBuild } from './BuildState'
@@ -32,13 +33,11 @@ export class Build {
     const gearItems = loadout.slots.flatMap((id) => (isGearUid(id) && loadout.gear.has(id) ? [withUniqueStats(loadout.gear.get(id)!)] : []))
     return {
       open,
-      // 신의 자리 셋 (E302): 손의 신과 자리에 든 신들
+      // 칸에서 읽은 자리 셋 (P2): 무기의 신과 칸에 든 신들
       hand: loadout.pantheon.hand,
       present: pantheonGods(loadout.pantheon),
-      // 깨우는 신 (E238): 조각 2부터 유물이 깨어난다
-      waking: loadout.waking,
-      // 유물표 (E303-04): 유물은 칸을 떠나 기본 수치·원천 없이 지속·행동 효과만, 켠 칸마다 +1%
-      gear: loadout.relics,
+      // 칸에 끼운 유물 힘 (P2): 기본 수치·원천 없이 지속·행동 효과만. 유물표는 켠 칸마다 +1%인 수집 기록이다
+      gear: powers.slottedRelics,
       lit: loadout.litCount,
       gearItems,
       // 원정 (E304): 명성과 원천 불씨
@@ -52,7 +51,7 @@ export class Build {
     }
   }
 
-  /** 지금 건 맹세의 제약 (없으면 제약 없음). 빈 손·홀로는 도는 자리(`oathPantheon`)가 맡는다 */
+  /** 지금 건 맹세의 제약 (없으면 제약 없음). 빈 손·홀로는 도는 칸(`oathSlots`)이 맡는다 */
   get rules(): ReturnType<typeof oathRules> {
     return oathRules(this.from.oath?.() ?? null)
   }
@@ -73,25 +72,8 @@ export class Build {
     return pantheonGods(pantheon).filter((g) => g !== pantheon.hand)
   }
 
-  /** 한 신에 몰았으면 그 신 (손·심장·숨 하나가 같은 신) */
-  get focus(): God | null {
-    return focusGod(this.from.powers.loadout.pantheon)
-  }
-
   /**
-   * 깨우는 중인 신 (E238): 조각 1(흔적)부터 그 신의 숨을 빌린다. 자리가 없어도 켜지고, 깨어나면 자리로 옮긴다.
-   * 홀로의 맹세 동안은 칸 밖의 숨도 돌지 않는다
-   */
-  get waking(): God | null {
-    const awaken = this.from.awaken
-    if (!awaken?.waking || awaken.fragments < 1 || this.rules.breath !== null) return null
-    // 숨 칸에 들었으면 그쪽이 돌린다 (조각 2에 손에 쥔 것만으로는 숨이 아니다)
-    if (this.from.powers.loadout.pantheon.breath.includes(awaken.waking)) return null
-    return this.from.progress.isOpen(awaken.waking) ? null : awaken.waking
-  }
-
-  /**
-   * 도는 패시브: 숨 칸의 신마다 그 신의 패시브(대표 힘은 1단계부터, 나머지는 단계대로, 한 신에 몰면 하나 위), 깨우는 신의 숨(1단계).
+   * 도는 패시브: 칸의 패시브 힘마다 그 힘의 부품만 든 패시브를 그 신의 단계로 (만나기만 한 신은 1단계 값).
    * 피해마다 읽으므로 판이 그대로면 지난 목록을 돌려준다 (E301-02). 돌려준 목록은 고치지 않는다
    */
   passives(): readonly ActivePassive[] {
@@ -106,12 +88,14 @@ export class Build {
   private passiveVersion = -1
 
   private listPassives(): ActivePassive[] {
-    const { progress } = this.from
-    const { pantheon } = this.from.powers.loadout
-    const focus = focusGod(pantheon)
-    const out = pantheon.breath.map((god) => ({ god, passive: breathPassive(god), level: partLevel(pantheon, god, progress.level(god)), main: god === focus }))
-    const waking = this.waking
-    if (waking) out.push({ god: waking, passive: breathPassive(waking), level: 1, main: false })
+    const { progress, powers } = this.from
+    const out: ActivePassive[] = []
+    for (const id of powers.slots.auras) {
+      const passive = powerPassive(id)
+      if (!passive) continue
+      const god = power(id)!.god
+      out.push({ power: id, god, passive, level: partLevel(progress.level(god)) })
+    }
     return out
   }
 
@@ -158,7 +142,7 @@ export class Build {
   private readonly probe: unknown[] = []
 
   /**
-   * inputs()가 읽는 재료를 차례로 적는다: 건 맹세, 고른 신화·빌린 신·깨우는 신, 칸마다 장비(일반 장비는 그 물건, 유물은 단계),
+   * inputs()가 읽는 재료를 차례로 적는다: 건 맹세, 도는 칸의 힘, 칸마다 장비(일반 장비는 그 물건, 유물은 단계),
    * 열린 신화의 단계(승급 합도 여기서 나온다), 맹세 보상(지킨 맹세), 수련 수치(익히고 되돌릴 때만 바뀌는 객체), 원정(명성·정복·불씨).
    * 길이가 바뀌는 묶음 사이에는 가름표를 둔다
    */
@@ -166,10 +150,10 @@ export class Build {
     out.length = 0
     const { powers, progress, oaths, training } = this.from
     const { loadout } = powers
-    // 깨우는 신은 장비 쪽(loadout.waking)과 조각 쪽(awaken: 도는 패시브가 읽음)을 함께 본다
-    const { pantheon } = loadout
-    out.push(this.from.oath?.() ?? null, loadout, pantheon.hand, pantheon.heart, loadout.waking, this.from.awaken?.waking ?? null, this.from.awaken?.fragments ?? 0, pantheon.breath.length)
-    for (const god of pantheon.breath) out.push(god)
+    // 도는 칸 (P2): 무기·궁극기·도는 힘. 도는 패시브와 유물 효과가 여기서 나오니 칸이 바뀌면 판이 바뀐다
+    const { slots } = powers
+    out.push(this.from.oath?.() ?? null, loadout, slots.weapon, slots.ultimate, slots.auras.length)
+    for (const id of slots.auras) out.push(id)
     for (const id of loadout.slots) out.push(id, id && isGearUid(id) ? loadout.gear.get(id) : null)
     // 유물표: 켠 유물과 그 단계, 켠 고유 효과 수
     out.push(loadout.lit.length, loadout.uniquesSeen.size)
@@ -189,12 +173,12 @@ function withUniqueStats<T extends { stats: readonly { kind: StatKind; value: nu
   return extra.length ? { ...item, stats: [...item.stats, ...extra] } : item
 }
 
-/** 도는 패시브 하나: 그 신, 패시브, 단계, 주신인가 */
+/** 도는 패시브 하나: 그 힘, 그 신, 그 힘의 부품만 든 패시브, 단계 */
 export interface ActivePassive {
+  power: PowerId
   god: God
   passive: ClassPassive
   level: number
-  main: boolean
 }
 
 /** 두 목록이 차례대로 같은가 (값은 ===로 견준다) */

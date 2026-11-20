@@ -1,6 +1,6 @@
 import type { AttackStyle } from '../combat/styles'
 import { STYLES } from '../combat/styles'
-import { type God, GODS, RELICS, type RelicId } from '../relics/data'
+import { type God, GODS, isRelicId, RELICS, type RelicId } from '../relics/data'
 import { createRng } from '../world/rng'
 import type { ClassPassive, UltimateKind } from './classKit'
 
@@ -139,6 +139,42 @@ export function godPowers(god: God): readonly Power[] {
   return POWERS.filter((p) => p.god === god)
 }
 
+/** 대표 패시브의 힘 (`gods.json`의 lend). 그 부품이 힘이 아니면 undefined */
+export function lendPower(god: God): PowerId | undefined {
+  const id = partId(god, GODS[god]!.lend as PassivePartKey)
+  return BY_ID.has(id) ? id : undefined
+}
+
+const passiveCache = new Map<PowerId, ClassPassive>()
+
+/**
+ * 패시브 힘이 돌리는 패시브: 그 신의 패시브에서 이 힘의 부품만. 피해 배율·공격 빠르기는 무기의 몫이라 1이다.
+ * 힘에는 단계가 없다: 칸에 끼운 힘은 그 신의 단계와 상관없이 돌아야 하니 머리 부품의 여는 단계(`minLevel`)는 1로 둔다.
+ * 딸린 부품(옮겨 붙는 번개)과 단계별 숫자는 그 신의 단계를 그대로 읽는다. 패시브 힘이 아니면 null
+ */
+export function powerPassive(id: PowerId): ClassPassive | null {
+  const p = BY_ID.get(id)
+  if (!p || p.source.from !== 'passive') return null
+  let out = passiveCache.get(id)
+  if (!out) {
+    const from = GODS[p.god]!.passive as unknown as Record<string, unknown>
+    const made: Record<string, unknown> = { damageScale: 1, attackSpeed: 1 }
+    p.source.parts.forEach((key, i) => {
+      const part = from[key]
+      made[key] = i === 0 && typeof part === 'object' && part !== null && 'minLevel' in part ? { ...part, minLevel: 1 } : part
+    })
+    out = made as unknown as ClassPassive
+    passiveCache.set(id, out)
+  }
+  return out
+}
+
+/** 유물 힘이면 그 유물 */
+export function powerRelic(id: PowerId): RelicId | null {
+  const relic = id.startsWith('relic:') ? id.slice(6) : ''
+  return isRelicId(relic) ? relic : null
+}
+
 // ── 칸 ─────────────────────────────────────────────
 
 /** 칸에 끼운 힘: 무기 하나, 궁극기 하나, 도는 힘 여럿 */
@@ -247,7 +283,8 @@ export function offer(source: string, state: OfferState, seed: number): PowerId[
   if (!at) return []
   const owned = new Set(state.owned)
   const rng = createRng((seed ^ hashText(source)) >>> 0)
-  const left = (gods: readonly God[]) => POWERS.filter((p) => gods.includes(p.god) && !owned.has(p.id))
+  // 첫 판에서는 첫 판의 신(북유럽 넷)의 힘만 내민다
+  const left = (gods: readonly God[]) => POWERS.filter((p) => p.demo && gods.includes(p.god) && !owned.has(p.id))
   /** 만난 신들의 것에서 섞어 뽑는다: 아직 안 나온 신의 힘을 앞세운다 */
   const mixed = (taken: readonly Power[], n: number): Power[] => {
     const pool = shuffled(

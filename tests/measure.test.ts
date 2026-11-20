@@ -7,6 +7,7 @@ import { type BossFoe, BossWatch } from '../src/dev/bossWatch'
 import { type DevParts, DevTools } from '../src/dev/DevTools'
 import { Giant, type GiantWorld, GRUNT } from '../src/enemies/Giant'
 import { RelicPowers } from '../src/game/RelicPowers'
+import { seat } from './helpers/seat'
 import { ClassProgress } from '../src/myth/ClassProgress'
 import { ExpeditionProgress } from '../src/progress/Expedition'
 import { TrainingProgress } from '../src/progress/Training'
@@ -142,7 +143,7 @@ describe('재는 자 (E307 0B): 보스·수호자 싸움 재기', () => {
 describe('재는 자 (E307 0B): 빌드 장부', () => {
   it('층 목록의 곱이 피해 배율과 같고, 층마다 이름이 붙으며, 수치는 0이 아닌 것만 남는다', () => {
     const powers = new RelicPowers(new THREE.Group())
-    powers.setPantheon({ hand: 'thor', heart: 'thor', breath: ['thor'] })
+    seat(powers, { hand: 'thor', heart: 'thor', breath: ['thor'] })
     const progress = new ClassProgress()
     progress.record('thor')
     progress.ascend('thor')

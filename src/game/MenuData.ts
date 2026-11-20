@@ -277,7 +277,7 @@ export class MenuData {
       equipped: loadout.relics,
       owned: new Set(loadout.ownedRelics),
       awake: game.powers.awake(id),
-      focus: ctx.build.focus,
+      focus: null,
       manifested,
       level: manifested ? game.progress.level(manifested) : 0,
       stage: loadout.stage(id),
@@ -307,7 +307,7 @@ export class MenuData {
     const p = progress.pantheon
     // 잠긴 칸은 지금 끝(엔딩 전 4)까지만: 홀로의 맹세로 끝에 닿았으면 남은 장 보스는 칸을 더 주지 않는다
     const cap = breathCap(ending.has('oaths'))
-    return { hand: p.hand, heart: p.heart, breath: p.breath, count, locked: locked.slice(0, Math.max(0, cap - Math.max(1, count))), focus: build.focus, emptyHand: build.rules.emptyHand }
+    return { hand: p.hand, heart: p.heart, breath: p.breath, count, locked: locked.slice(0, Math.max(0, cap - Math.max(1, count))), focus: null, emptyHand: build.rules.emptyHand }
   }
 
   /** 깨우는 중인 신 (E238): 다음 할 일 (신 탭). 흔적의 무리를 이긴 뒤이니 남은 것은 수호자다 */

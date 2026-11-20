@@ -1,3 +1,4 @@
+import { seatedSlots } from '../src/myth/pantheon'
 import * as THREE from 'three'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -81,7 +82,7 @@ describe('데이터에만 넣은 시험용 유물', () => {
     expect(pickups.list.map(({ id, x, z }) => ({ id, x, z }))).toEqual([{ id: 'testRelic', x: 5, z: -70 }])
   })
 
-  it('유물표에 켜면 그 신의 유물로 세고, 그 신이 자리에 들면 깨어나 지속 효과와 행동 연동 효과가 붙는다 (E21-04)', () => {
+  it('유물표에 켜기만 해서는 잠들어 있고, 그 유물 힘이 칸에 있을 때만 깨어나 지속 효과와 행동 연동 효과가 붙는다 (P2)', () => {
     const fx = new THREE.Group()
     const powers = new RelicPowers(fx)
     powers.equip('testRelic')
@@ -89,7 +90,15 @@ describe('데이터에만 넣은 시험용 유물', () => {
     const change = powers.equip('megingjord')
     expect(change?.after.manifested).toBeNull()
     expect(powers.awake('testRelic')).toBe(false)
-    powers.setPantheon({ hand: 'thor', heart: 'thor', breath: ['thor'] })
+    // 그 신의 무기·궁극기·패시브가 칸에 있어도 유물 힘이 칸에 없으면 잠들어 있다
+    powers.setSlots(seatedSlots({ hand: 'thor', heart: 'thor', breath: ['thor'] }))
+    expect(powers.awake('testRelic')).toBe(false)
+    expect(powers.slottedRelics).toEqual([])
+    // 유물 힘만 칸에 있어도(그 신이 자리에 없어도) 깨어난다
+    powers.setSlots({ weapon: null, ultimate: null, auras: ['relic:mjolnir'] })
+    expect(powers.awake('mjolnir')).toBe(true)
+    expect(powers.awake('megingjord')).toBe(false)
+    powers.setSlots(seatedSlots({ hand: 'thor', heart: 'thor', breath: ['thor'] }, ['testRelic', 'mjolnir', 'megingjord']))
     expect(powers.awake('testRelic')).toBe(true)
     expect(gearModifiers(powers.loadout.relics).damageTaken).toBeCloseTo(0.8)
     // 유물은 장비 칸에 들지 않고 유물표에 켜진다 (E303-04)

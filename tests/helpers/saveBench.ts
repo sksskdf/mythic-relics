@@ -8,7 +8,7 @@ import { isMythRelic } from '../../src/gear/mythRelic'
 import type { GearItem } from '../../src/gear/roll'
 import { Wardrobe } from '../../src/looks/outfit'
 import { ClassProgress } from '../../src/myth/ClassProgress'
-import { breathSlots, fitBreath } from '../../src/myth/pantheon'
+import { slotsPantheon } from '../../src/myth/pantheon'
 import { AutomationProgress } from '../../src/progress/Automation'
 import { ChapterProgress } from '../../src/progress/Chapters'
 import { DepthProgress } from '../../src/progress/Depth'
@@ -22,7 +22,7 @@ import { TabUnlocks } from '../../src/progress/Tabs'
 import { TrainingProgress } from '../../src/progress/Training'
 import { WakeProgress } from '../../src/progress/Wake'
 import { Waypoints } from '../../src/progress/Waypoints'
-import { type God, godDef } from '../../src/relics/data'
+import { godDef } from '../../src/relics/data'
 import type { SaveData } from '../../src/save/SaveData'
 
 /**
@@ -99,11 +99,9 @@ export function throughGame(data: SaveData): SaveData {
   const persistence = new Persistence(ctx as unknown as GameContext, false)
   persistence.restore(data, {
     equip: (id) => void loadout.equip(id),
-    pantheon: (p) => {
-      const open = (g: God | null) => (g && progress.isOpen(g) ? g : null)
-      const hand = p.hand && awaken.waking === p.hand && awaken.fragments >= 2 ? p.hand : open(p.hand)
-      const next = { hand, heart: open(p.heart), breath: p.breath.filter((g) => progress.isOpen(g)) }
-      progress.pantheon = fitBreath(next, Math.max(1, breathSlots({ progress, chapters, oaths, ending })))
+    // 자리 셋은 칸에서 읽는다 (P2)
+    powers: () => {
+      progress.pantheon = slotsPantheon(ctx.mythPowers.slots)
     },
     applyStats: () => {},
     applyLooks: () => {},

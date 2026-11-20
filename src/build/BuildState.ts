@@ -3,7 +3,6 @@ import { awakeningLevel } from '../data/awakening'
 import { NO_RULES, type OathRules } from '../data/oaths'
 import { type MythAlways, STAT_KINDS, type StatKind } from '../data/mythAlways'
 import { SOURCE_IDS, type SourceId } from '../data/schema'
-import { relicAwake } from '../gear/mythRelic'
 import { PER_LIT, PER_OPENED, PER_PROMOTION } from '../myth/ClassProgress'
 import { type God, godDef, relicDef, type RelicId } from '../relics/data'
 import { type Modifiers, NO_MODIFIERS } from '../skills/Skill'
@@ -25,11 +24,9 @@ export interface BuildInputs {
   open: ReadonlyMap<God, number>
   /** 손에 낀 신 (E302): 공격 동작·리듬·피해 배율. 없으면 낡은 검 */
   hand: God | null
-  /** 자리 셋(손·심장·숨)에 든 신들 (E302): 그 신의 유물이 깨어난다 */
+  /** 칸에 든 신들 (무기·궁극기·패시브 힘의 신) */
   present?: readonly God[]
-  /** 깨우는 중인 신 (E238): 조각 2부터 그 신의 유물이 깨어난다. 자리에는 들지 않는다 */
-  waking?: God | null
-  /** 유물표에 켠 유물 (E303-04): 그 신이 자리에 들면 지속 효과가 깨어난다 */
+  /** 칸에 끼운 유물 힘의 유물 (재미 재설계 P2): 칸에 있으면 지속 효과가 돈다. 그 신이 칸에 있는지는 보지 않는다 */
   gear: readonly (RelicId | null)[]
   /** 유물표에 켠 칸 수 (유물 + 고유 효과): 하나마다 모든 피해 +1% */
   lit?: number
@@ -168,11 +165,10 @@ export function computeBuild(inputs: BuildInputs): BuildState {
   layers.push({ id: 'conquest', kind: 'mul', value: renownMultiplier(inputs.renown ?? 0, inputs.conquered ?? 0) / renown })
   layers.push({ id: 'flames', kind: 'mul', value: FLAME.flame.damage ** (flames.flame ?? 0) })
   const damageScale = layerProduct(layers)
-  // 유물의 지속 효과는 그 신이 자리에 들었을 때만 깨어난다 (E21-04 → E302). 시련으로 신화를 막아도 자리는 그대로 본다
+  // 유물의 지속 효과는 그 유물 힘이 칸에 있으면 돈다 (P2: 재료가 칸에 든 것만 준다)
   const present = inputs.present ?? (inputs.hand ? [inputs.hand] : [])
   const borrowed = present.filter((g) => g !== inputs.hand)
-  const lent = inputs.waking ? [...present, inputs.waking] : present
-  const modifiers = gearModifiers(inputs.gear.map((id) => (id && relicAwake(id, inputs.hand, lent) ? id : null)))
+  const modifiers = gearModifiers(inputs.gear)
   return {
     chosen,
     borrowed,

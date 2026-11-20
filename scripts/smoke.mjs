@@ -323,8 +323,10 @@ try {
   if (asleep.hand !== 'thor') throw new Error(`신의 조각: 조각 2인데 토르의 망치를 손에 쥐지 않았습니다 ${JSON.stringify(asleep)}`)
   if (!asleep.lent.includes('thor') || !asleep.awake) throw new Error(`신의 조각: 조각 2인데 토르의 힘을 빌리지 않거나 묠니르가 잠들어 있습니다 ${JSON.stringify(asleep)}`)
   await page.evaluate(() => window.__game.dev.awaken())
-  const woke = await page.evaluate(() => ({ ...window.__game.progress.pantheon, focus: window.__game.ctx.build.focus }))
-  if (woke.heart !== 'thor' || woke.focus !== 'thor') throw new Error(`신화 고르기 실패: 토르의 수호자를 쓰러뜨렸는데 세 자리에 들지 않았습니다 ${JSON.stringify(woke)}`)
+  // 칸 (재미 재설계 P2): 수호자를 이기면 토르의 궁극기와 남은 힘이 오고, 빈 칸에 든다. 자리 셋은 칸에서 읽은 모습이다
+  const woke = await page.evaluate(() => ({ ...window.__game.progress.pantheon, slots: window.__game.ctx.mythPowers.slots, owned: window.__game.ctx.mythPowers.owned.length }))
+  if (woke.hand !== 'thor' || woke.heart !== 'thor' || !woke.breath.includes('thor')) throw new Error(`신화 고르기 실패: 토르의 수호자를 쓰러뜨렸는데 세 자리에 들지 않았습니다 ${JSON.stringify(woke)}`)
+  if (woke.slots.weapon !== 'weapon:thor' || woke.slots.ultimate !== 'ultimate:thor' || woke.slots.auras.length !== 3 || !woke.slots.auras.includes('relic:mjolnir') || woke.owned < 7) throw new Error(`힘의 칸: 토르가 깨어났는데 무기·궁극기·도는 힘 셋이 칸에 들지 않았습니다 ${JSON.stringify(woke)}`)
   // 손은 조각 2에 이미 쥐었어도 깨어나는 순간(장면·큰 카드)은 수호자 뒤에 온다
   await page.waitForFunction(() => window.__game.moments.shown.some((m) => m.id === 'mythChosen'), null, { timeout: 90000 }).catch(() => {
     throw new Error('신화 고르기: 토르가 깨어났는데 깨어나는 순간(mythChosen)이 없습니다.')
@@ -412,6 +414,9 @@ try {
   await page.evaluate(() => {
     const g = window.__game
     g.progress.open('loki')
+    // 칸 (P2): 가진 힘만 칸에 든다. 도는 힘의 칸 셋이 토르의 것으로 찼으니 하나를 빼 자리를 낸다
+    g.ctx.mythPowers.own('loki')
+    g.dev.unslot('aura:thor.skyStrike')
     g.menu.gods.selected = 'loki'
     g.menu.refresh()
   })

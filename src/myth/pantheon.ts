@@ -1,5 +1,6 @@
 import type { ClassPassive } from '../data/classKit'
-import { type God, godDef } from '../relics/data'
+import { godPowers, power, type PowerSlots, relicPowerId, ultimateId, weaponId } from '../data/powers'
+import { type God, godDef, type RelicId } from '../relics/data'
 
 /**
  * 신의 자리 셋 (E302, `DESIGN.md` 4.2): 주신 하나가 무기·궁극기·패시브·모습을 통째로 정하던 고정 클래스를 풀었다.
@@ -70,9 +71,44 @@ export function focusGod(p: Pantheon): God | null {
   return p.hand !== null && p.hand === p.heart && p.breath.includes(p.hand) ? p.hand : null
 }
 
-/** 그 신 부품의 효과 단계: 신 단계, 한 신에 몰면 하나 위 (데모 끝 단계를 넘어 4까지) */
-export function partLevel(p: Pantheon, god: God, level: number): number {
-  return Math.min(4, Math.max(1, level) + (focusGod(p) === god ? 1 : 0))
+/**
+ * 그 신의 힘이 도는 단계: 신 단계 그대로. 만나기만 한 신(단계 0)의 힘도 1단계 값으로 돈다.
+ * 한 신에 모아도 덤은 없다 (재미 재설계: 한 신 덤을 걷었다)
+ */
+export function partLevel(level: number): number {
+  return Math.min(4, Math.max(1, level))
+}
+
+/**
+ * 칸에서 자리 셋을 읽는다 (재미 재설계 P2): 전투의 원천은 칸이고, 자리 셋은 칸을 신 단위로 본 모습일 뿐이다.
+ * 손 = 칸 무기의 신, 심장 = 칸 궁극기의 신, 숨 = 칸의 패시브 힘의 신들 (칸의 차례, 겹치지 않게).
+ * 자리 셋을 읽던 화면·규칙(초상, 승천 갈래, 신 탭)은 이 모습을 그대로 읽는다
+ */
+export function slotsPantheon(slots: PowerSlots): Pantheon {
+  const god = (id: string | null) => (id ? (power(id)?.god ?? null) : null)
+  const breath = slots.auras.flatMap((id) => (power(id)?.source.from === 'passive' ? [power(id)!.god] : []))
+  return { hand: god(slots.weapon), heart: god(slots.ultimate), breath: [...new Set(breath)] }
+}
+
+/**
+ * 자리 셋 → 칸 (점검용 지름길 `dev.pantheon`과 시험): 손 = 그 신의 무기, 심장 = 그 신의 궁극기,
+ * 숨 = 그 신들의 패시브 힘 모두, 그리고 함께 끼울 유물(`relics`)의 힘. 칸 수는 보지 않는다
+ */
+export function seatedSlots(p: Pantheon, relics: readonly RelicId[] = []): PowerSlots {
+  const passives = p.breath.flatMap((g) => godPowers(g).filter((x) => x.source.from === 'passive').map((x) => x.id))
+  const lit = relics.map(relicPowerId)
+  return { weapon: p.hand ? weaponId(p.hand) : null, ultimate: p.heart ? ultimateId(p.heart) : null, auras: [...new Set([...passives, ...lit])] }
+}
+
+/**
+ * 맹세를 건 동안 도는 칸 (E305-01 → P2): 저장되는 칸은 그대로 두고, 빈 손이면 무기를 비우고(맨손),
+ * 홀로면 패시브 힘을 앞의 신 그만큼만 남긴다 (유물 힘은 그대로 돈다). 원본은 바꾸지 않는다
+ */
+export function oathSlots(slots: PowerSlots, rules: { emptyHand: boolean; breath: number | null }): PowerSlots {
+  if (!rules.emptyHand && rules.breath === null) return slots
+  const keep = rules.breath === null ? null : new Set(slotsPantheon(slots).breath.slice(0, rules.breath))
+  const auras = keep ? slots.auras.filter((id) => power(id)?.source.from !== 'passive' || keep.has(power(id)!.god)) : slots.auras
+  return { weapon: rules.emptyHand ? null : slots.weapon, ultimate: slots.ultimate, auras }
 }
 
 const breathCache = new Map<God, ClassPassive>()

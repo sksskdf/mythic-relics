@@ -7,7 +7,7 @@ import { DEMO_OATHS, NO_RULES, OATH, OATH_IDS, type OathId, oathRules, OATHS } f
 import { RelicPowers } from '../src/game/RelicPowers'
 import { rollGear } from '../src/gear/roll'
 import { ClassProgress } from '../src/myth/ClassProgress'
-import { MAX_BREATH, oathPantheon } from '../src/myth/pantheon'
+import { MAX_BREATH, oathSlots, seatedSlots } from '../src/myth/pantheon'
 import { OathProgress, parseOaths } from '../src/progress/Oaths'
 import { ExpeditionProgress, type ExpeditionData, parseExpedition } from '../src/progress/Expedition'
 import { oathsFromTrials } from '../src/save/migrate/v17'
@@ -67,29 +67,32 @@ function geared(sworn: () => OathId | null) {
   progress.open('thor')
   progress.open('odin')
   const build = new Build({ powers, progress, oaths: new OathProgress(), oath: sworn })
-  const sync = () => powers.setPantheon(oathPantheon(pantheon, build.rules))
+  const sync = () => powers.setSlots(oathSlots(seatedSlots(pantheon, ['mjolnir']), build.rules))
   sync()
-  return { build, sync }
+  return { build, sync, powers }
 }
 
 describe('맹세 제약 (E305-01)', () => {
   it('제약은 건 동안만 걸리고 풀면 처음과 같다 (모든 맹세)', () => {
     let sworn: OathId | null = null
-    const { build, sync } = geared(() => sworn)
+    const { build, sync, powers } = geared(() => sworn)
     const free = build.state
     for (const id of OATH_IDS) {
       sworn = id
       sync()
       const on = build.state
       const rules = oathRules(id)
-      // 빈 손: 손만 비고(낡은 검) 심장·숨은 그대로
+      // 빈 손: 무기 칸만 비고(맨손) 궁극기·도는 힘은 그대로 (토르의 패시브 힘 둘 + 오딘의 하나)
       if (rules.emptyHand) {
         expect(on.chosen, id).toBeNull()
         expect(build.heart, id).toBe('thor')
-        expect(build.passives().length, id).toBe(2)
+        expect(build.passives().length, id).toBe(3)
       }
-      // 홀로: 숨 하나만 돈다
-      if (rules.breath !== null) expect(build.passives().length, id).toBe(1)
+      // 홀로: 패시브 힘은 앞의 신 하나의 것만 돈다 (유물 힘은 그대로)
+      if (rules.breath !== null) {
+        expect(build.passives().map((p) => p.god), id).toEqual(['thor', 'thor'])
+        expect(powers.awake('mjolnir'), id).toBe(true)
+      }
       if (rules.maxHpScale !== 1) expect(Math.abs(on.maxHp - free.maxHp * rules.maxHpScale), id).toBeLessThanOrEqual(1)
       if (rules.moveScale !== 1) expect(on.moveSpeed, id).toBeCloseTo(free.moveSpeed * rules.moveScale)
       expect(on.noHeal, id).toBe(rules.noHeal)

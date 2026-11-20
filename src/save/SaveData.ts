@@ -1,5 +1,5 @@
 import { REGIONS } from '../data/regions'
-import { fromChosen, MAX_BREATH, type Pantheon } from '../myth/pantheon'
+import { fromChosen, MAX_BREATH, type Pantheon, slotsPantheon } from '../myth/pantheon'
 import { SLOT_PARTS } from '../data/gearData'
 import { isMythRelic } from '../gear/mythRelic'
 import { GEAR, type GearItem, parseGearItem } from '../gear/roll'
@@ -16,7 +16,7 @@ import { type ExpeditionData, parseExpedition } from '../progress/Expedition'
 import { parseTabs } from '../progress/Tabs'
 import { type WakeData, parseWake } from '../progress/Wake'
 import { parseMount } from '../progress/Mount'
-import { parsePowers, type PowerData } from '../progress/Powers'
+import { mergePowers, parsePowers, type PowerData } from '../progress/Powers'
 import { type BodyLook, parseBody } from '../looks/body'
 import { isLookId, lookDef, type LookSlot, STARTING_LOOKS, WARDROBE_SLOTS } from '../looks/catalog'
 import type { LookChoice } from '../looks/outfit'
@@ -255,7 +255,8 @@ export function parseSave(text: string | null): SaveData | null {
   const expedition = oldExpedition(data, chapters, myths, stages)
   // 힘 (v18): 키가 없는 저장은 깨운 신·자리 셋에서 옮긴다. 씨앗이 빠진 저장도 옮길 때와 같은 씨앗을 받는다
   const moved = powersFromV17({ classes: myths, pantheon, waking: awaken.waking, lit, returns: expedition.count - 1 })
-  const powers = typeof data.powers === 'object' && data.powers !== null && !Array.isArray(data.powers) ? parsePowers(data.powers, moved.seed) : moved
+  // 키가 있는 저장도 옛 상태에서 셈한 것과 합친다: 깨운 신은 있는데 힘이 빈 저장이 맨손으로 굳지 않게 (`mergePowers`)
+  const powers = typeof data.powers === 'object' && data.powers !== null && !Array.isArray(data.powers) ? mergePowers(parsePowers(data.powers, moved.seed), moved) : moved
   return {
     version: SAVE_VERSION,
     slots: slots.slice(0, SLOT_PARTS.length),
@@ -267,7 +268,8 @@ export function parseSave(text: string | null): SaveData | null {
     materials,
     ground,
     classes: myths,
-    pantheon,
+    // 자리 셋은 칸에서 읽은 모습이다 (재미 재설계 P2): 저장의 자리 셋은 옛 저장을 옮길 때만 읽는다
+    pantheon: slotsPantheon(powers.slots),
     dropMisses: Math.round(num(data.dropMisses, 0, 1000, 0)),
     // 옛 키 divine은 키가 있는지로 알아본다 (v16 이하와 E305-04 전의 v17 개발판)
     heartGauge: num(data.heartGauge ?? data.divine, 0, 1, 0),

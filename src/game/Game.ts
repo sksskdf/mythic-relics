@@ -389,7 +389,8 @@ export class Game {
       expedition: this.expedition,
       tabs: this.tabs,
       awaken: this.awaken,
-      mythPowers: new PowerProgress(() => this.expedition.returns),
+      // 점검용 실행(?relics=)은 도는 힘의 칸 상한을 푼다
+      mythPowers: Object.assign(new PowerProgress(() => this.expedition.returns), { uncapped: options.testRun ?? false }),
       mount: this.mount,
       uniques: new UniqueState(),
       build: new Build({ powers: this.powers, progress: this.progress, oaths: this.oaths, oath: () => this.expedition.oath, training: this.training, awaken: this.awaken, expedition: this.expedition }),
@@ -514,7 +515,7 @@ export class Game {
     if (options.load) {
       this.persistence.restore(options.load, {
         equip: (id) => this.relics.equip(id, false),
-        pantheon: (p) => this.relics.restore(p),
+        powers: () => this.relics.reapply(),
         applyStats: () => this.growth.applyStats(),
         applyLooks: () => this.appearance.apply(),
       })
@@ -533,7 +534,7 @@ export class Game {
     }
     // 점검용 실행과 엔딩 뒤 판은 정보 화면 탭을 모두 연 채로 (E236-05)
     if (options.allTabs || this.ending.reached) this.tabs.openAll()
-    // 점검용 실행(?relics=): 데모에서는 유물로 신이 열리지 않으니(엔딩 뒤에만) 끼고 시작한 신화 유물의 신을 여기서 연다. 첫 신을 손·심장·숨에
+    // 점검용 실행(?relics=): 끼고 시작한 유물의 힘을 칸에 끼우고, 신화 유물의 첫 신은 열어 그 신의 힘을 모두 갖는다 (`choose`)
     for (const id of options.startRelics ?? []) {
       this.relics.equip(id, false)
       const god = relicMyth(id)

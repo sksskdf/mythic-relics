@@ -51,11 +51,14 @@ const sample: SaveData = {
   expedition: { count: 4, renown: 20, flames: { stone: 1 }, best: [900], elapsed: 30, bosses: 0, deepest: 1, lastTaken: ['awaken'], bestXp: 1200, heirloom: [], oath: 'silence', oathPending: false, lastBranch: 'ascend:thor', deepWin: true, falls: 2 },
   tabs: ['relics', 'training'],
   awaken: { waking: 'odin', fragments: 2 },
-  powers: { owned: ['weapon:thor', 'aura:thor.basicLightning', 'relic:mjolnir', 'weapon:odin'], slots: { weapon: 'weapon:thor', ultimate: null, auras: ['aura:thor.basicLightning'] }, claimed: ['trace:thor', 'trace:odin'], met: ['thor', 'odin'], seed: 12345 },
+  powers: { owned: ['weapon:thor', 'ultimate:thor', 'aura:thor.basicLightning', 'relic:mjolnir', 'weapon:odin'], slots: { weapon: 'weapon:thor', ultimate: 'ultimate:thor', auras: ['aura:thor.basicLightning'] }, claimed: ['trace:thor', 'trace:odin'], met: ['thor', 'odin'], seed: 12345 },
   mount: true,
   region: { id: 'olympus', x: 3.5, z: -12 },
   scenes: ['opening'],
 }
+
+/** 힘의 키가 없는 판 (v17 이하의 저장은 힘을 깨운 신·자리 셋에서 옮긴다. 자리 셋은 옮긴 칸에서 다시 읽는다). 깨우는 신도 없이 */
+const { powers: _powers, awaken: _awaken, ...legacy } = sample
 
 /**
  * 옛 모양 (v16 이하): 새 키(깊이·자동화·끝없는 원정·맹세·웨이포인트·심장 게이지)를 옛 키로 되돌린다.
@@ -95,7 +98,7 @@ describe('저장 데이터', () => {
   })
 
   it('v4: 신화. 옛 저장(v3)은 가진 유물의 신화를 열고, 고른 신화는 유물 셋 발현 규칙으로 정한다 (E12-05)', () => {
-    const { pantheon: _, ...v3 } = { ...sample, version: 3, slots: ['mjolnir', 'megingjord', null, 'jarngreipr'], bag: ['lokiMask'] }
+    const { pantheon: _, ...v3 } = { ...legacy, version: 3, slots: ['mjolnir', 'megingjord', null, 'jarngreipr'], bag: ['lokiMask'] }
     const data = parseSave(JSON.stringify(v3))!
     expect(data.version).toBe(SAVE_VERSION)
     // 토르는 원래 2단계 그대로, 가방의 로키 유물로 로키가 1단계로 열린다
@@ -115,21 +118,22 @@ describe('저장 데이터', () => {
     expect(() => parseSave(JSON.stringify({ ...sample, gear: [{ uid: 5, part: 'head', grade: 'rare', base: '철 투구' }] }))).not.toThrow()
   })
 
-  it('자리 셋은 열린 신만, 숨은 겹치지 않게 다섯까지 (E302, v14 · 엔딩 뒤 다섯째는 E305-01)', () => {
+  it('옛 자리 셋은 열린 신만 읽어 칸으로 옮긴다: 숨의 신들의 패시브 힘은 도는 힘의 칸 수까지 (넘친 신은 숨에서 빠진다)', () => {
     const many = { thor: { level: 2, xp: 0 }, loki: { level: 1, xp: 0 }, odin: { level: 1, xp: 0 }, freyr: { level: 1, xp: 0 }, zeus: { level: 1, xp: 0 }, poseidon: { level: 1, xp: 0 } }
-    expect(parseSave(JSON.stringify({ ...sample, pantheon: { hand: 'zeus', heart: 'nobody', breath: ['thor', 'thor', 'nobody'] } }))?.pantheon).toEqual({ hand: null, heart: null, breath: ['thor'] })
-    expect(parseSave(JSON.stringify({ ...sample, classes: many, pantheon: { hand: 'loki', heart: 'odin', breath: ['thor', 'loki', 'odin', 'freyr', 'zeus', 'poseidon'] } }))?.pantheon.breath).toHaveLength(5)
+    // 견본은 귀환 셋(도는 힘 여섯 칸): 손의 신이 아닌 토르의 묠니르는 뒤로 밀리고, 토르 둘·로키·오딘·프레이 둘까지 든다
+    expect(parseSave(JSON.stringify({ ...legacy, version: 17, pantheon: { hand: 'zeus', heart: 'nobody', breath: ['thor', 'thor', 'nobody'] } }))?.pantheon).toEqual({ hand: null, heart: null, breath: ['thor'] })
+    expect(parseSave(JSON.stringify({ ...legacy, version: 17, classes: many, pantheon: { hand: 'loki', heart: 'odin', breath: ['thor', 'loki', 'odin', 'freyr', 'zeus', 'poseidon'] } }))?.pantheon.breath).toEqual(['thor', 'loki', 'odin', 'freyr'])
     // 손은 깨우는 신(흔적의 무리를 이긴 신)도 쥘 수 있다. 사냥하던 옛 저장(조각 1)도 조각 2로 읽히니 쥔다
-    expect(parseSave(JSON.stringify({ ...sample, awaken: { waking: 'odin', fragments: 2 }, pantheon: { hand: 'odin', heart: null, breath: [] } }))?.pantheon.hand).toBe('odin')
-    expect(parseSave(JSON.stringify({ ...sample, awaken: { waking: 'odin', fragments: 1 }, pantheon: { hand: 'odin', heart: null, breath: [] } }))?.pantheon.hand).toBe('odin')
-    expect(parseSave(JSON.stringify({ ...sample, awaken: { waking: null, fragments: 0 }, pantheon: { hand: 'odin', heart: null, breath: [] } }))?.pantheon.hand).toBeNull()
+    expect(parseSave(JSON.stringify({ ...legacy, version: 17, awaken: { waking: 'odin', fragments: 2 }, pantheon: { hand: 'odin', heart: null, breath: [] } }))?.pantheon.hand).toBe('odin')
+    expect(parseSave(JSON.stringify({ ...legacy, version: 17, awaken: { waking: 'odin', fragments: 1 }, pantheon: { hand: 'odin', heart: null, breath: [] } }))?.pantheon.hand).toBe('odin')
+    expect(parseSave(JSON.stringify({ ...legacy, version: 17, awaken: { waking: null, fragments: 0 }, pantheon: { hand: 'odin', heart: null, breath: [] } }))?.pantheon.hand).toBeNull()
     // 단계 0(옛 신화 숙련만 쌓인 신)도 그대로 남고, 신화 경험치는 내보내지 않는다 (v17)
     expect(parseSave(JSON.stringify({ ...sample, classes: { ...sample.classes, zeus: { level: 0, xp: 120 } } }))?.classes.zeus).toEqual({ level: 0 })
   })
 
   it('v13 이하의 주신·빌린 신 칸은 주신을 손·심장·숨 첫 칸으로, 빌린 신을 숨으로 옮긴다', () => {
     const many = { thor: { level: 2, xp: 0 }, loki: { level: 1, xp: 0 }, odin: { level: 1, xp: 0 } }
-    const { pantheon: _, ...rest } = sample
+    const { pantheon: _, ...rest } = legacy
     const v13 = { ...rest, version: 13, classes: many, chosen: ['thor', 'loki', 'odin', 'nobody'] }
     expect(parseSave(JSON.stringify(v13))?.pantheon).toEqual({ hand: 'thor', heart: 'thor', breath: ['thor', 'loki', 'odin'] })
   })
@@ -438,19 +442,19 @@ describe('저장 v18: 힘 (재미 재설계)', () => {
     expect(parseSave(JSON.stringify(sample))?.powers).toEqual(sample.powers)
   })
 
-  it('v17 저장(힘의 키 없음)은 깨운 신의 힘을 모두 갖고, 깨우는 도중인 신은 무기를, 자리 셋의 힘을 칸에', () => {
+  it('v17 저장(힘의 키 없음)은 깨운 신의 힘을 모두 갖고, 깨우는 도중인 신은 무기와 대표 패시브를, 자리 셋의 힘을 칸에', () => {
     const data = parseSave(JSON.stringify({ ...noPowers, version: 17 }))!
     expect(data.version).toBe(SAVE_VERSION)
     // 견본: 토르 2단계(손·심장·숨), 오딘은 깨우는 도중, 묠니르를 켬, 귀환 셋(원정 4)
     expect(data.powers.met).toEqual(['thor', 'odin'])
-    expect(data.powers.owned).toEqual(['weapon:thor', 'ultimate:thor', 'aura:thor.basicLightning', 'aura:thor.skyStrike', 'relic:mjolnir', 'relic:megingjord', 'relic:jarngreipr', 'weapon:odin'])
-    expect(data.powers.slots).toEqual({ weapon: 'weapon:thor', ultimate: 'ultimate:thor', auras: ['aura:thor.basicLightning', 'aura:thor.skyStrike', 'relic:mjolnir'] })
+    expect(data.powers.owned).toEqual(['weapon:thor', 'ultimate:thor', 'aura:thor.basicLightning', 'aura:thor.skyStrike', 'relic:mjolnir', 'relic:megingjord', 'relic:jarngreipr', 'weapon:odin', 'aura:odin.companions'])
+    expect(data.powers.slots).toEqual({ weapon: 'weapon:thor', ultimate: 'ultimate:thor', auras: ['relic:mjolnir', 'aura:thor.basicLightning', 'aura:thor.skyStrike', 'aura:odin.companions'] })
     expect(data.powers.claimed).toEqual(['trace:thor', 'guardian:thor', 'trace:odin'])
     // 두 번 읽어도 같은 씨앗, 한 번 옮긴 뒤에는 그대로
     expect(parseSave(JSON.stringify({ ...noPowers, version: 17 }))?.powers.seed).toBe(data.powers.seed)
     expect(parseSave(JSON.stringify(data))?.powers).toEqual(data.powers)
-    // 자리 셋·신 단계·유물표는 그대로 둔다 (전투는 아직 그것들이 돌린다)
-    expect(data.pantheon).toEqual(sample.pantheon)
+    // 자리 셋은 옮긴 칸에서 읽는다 (깨우는 오딘의 까마귀가 칸에 들어 숨에 보인다). 신 단계·유물표는 그대로 둔다
+    expect(data.pantheon).toEqual({ hand: 'thor', heart: 'thor', breath: ['thor', 'odin'] })
     expect(data.classes).toEqual(sample.classes)
     expect(data.lit).toEqual(sample.lit)
   })

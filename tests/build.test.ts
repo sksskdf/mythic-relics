@@ -5,7 +5,7 @@ import { Build } from '../src/build/Build'
 import { activeLayers, layerProduct } from '../src/build/layers'
 import { computeBuild, gearModifiers, statAt } from '../src/build/BuildState'
 import { RelicPowers } from '../src/game/RelicPowers'
-import { relicAwake } from '../src/gear/mythRelic'
+import { seat } from './helpers/seat'
 import { ClassProgress, PER_LIT, PER_OPENED, PER_PROMOTION } from '../src/myth/ClassProgress'
 import { TrainingProgress } from '../src/progress/Training'
 import { OathProgress } from '../src/progress/Oaths'
@@ -23,7 +23,7 @@ function legacyDamage(progress: ClassProgress, manifested: string | null): numbe
 function manifest(god: string): RelicPowers {
   const powers = new RelicPowers(new THREE.Group())
   for (const id of RELIC_IDS.filter((r) => relicDef(r).god === god).slice(0, godDef(god).manifestCount)) powers.equip(id)
-  powers.setPantheon({ hand: god, heart: god, breath: [god] })
+  seat(powers, { hand: god, heart: god, breath: [god] })
   return powers
 }
 
@@ -56,8 +56,8 @@ describe('빌드 상태 (E11-04)', () => {
       expect(state.level, god).toBe(progress.level(god))
       const st = state.stats
       expect(state.damageScale, god).toBeCloseTo(legacyDamage(progress, god) * (1 + st.damage + state.lit * PER_LIT), 10)
-      // 유물의 지속 효과는 고른 신화의 것만 깨어 있다 (E21-04)
-      const mods = gearModifiers(powers.loadout.relics.map((id) => (id && relicAwake(id, god) ? id : null)))
+      // 유물의 지속 효과는 칸에 든 유물 힘의 것만 돈다 (P2)
+      const mods = gearModifiers(powers.slottedRelics)
       expect(state.modifiers, god).toEqual(mods)
       expect(state.damageTaken, god).toBeCloseTo(mods.damageTaken * (1 + st.damageTaken), 10)
       expect(state.moveSpeed, god).toBeCloseTo(mods.moveSpeed * (1 + st.moveSpeed), 10)
@@ -161,7 +161,7 @@ describe('빌드 상태 다시 쓰기', () => {
       () => powers.equip('mjolnir'),
       () => powers.loadout.stages.set('mjolnir', 3),
       () => progress.open('thor'),
-      () => powers.setPantheon({ hand: 'thor', heart: 'thor', breath: ['thor'] }),
+      () => seat(powers, { hand: 'thor', heart: 'thor', breath: ['thor'] }),
       () => promoteTimes(progress, 'thor', 1),
       () => {
         training.gain(1e7)
@@ -193,7 +193,7 @@ describe('빌드 층 목록 (E301-01)', () => {
       { open: new Map([['thor', 3], ['loki', 2]]), hand: 'thor', present: ['thor', 'loki'], gear: ['mjolnir'], lit: 4, gearItems, promotions: 3 },
       { open: new Map([['zeus', 2]]), hand: 'zeus', gear: [], gearItems, promotions: 1, bonus: { oaths: { damage: 0.1 }, training: { damage: 0.12, maxHp: 10 } } },
       { open: new Map([['odin', 4], ['thor', 2]]), hand: null, gear: ['mjolnir'], promotions: 4 },
-      { open: new Map([['artemis', 2]]), hand: 'artemis', waking: 'loki', gear: [], lit: 1, promotions: 1 },
+      { open: new Map([['artemis', 2]]), hand: 'artemis', gear: ['lokiMask'], lit: 1, promotions: 1 },
     ]
     for (const input of samples) {
       const state = computeBuild(input)

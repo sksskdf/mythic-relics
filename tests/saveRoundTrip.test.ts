@@ -81,6 +81,8 @@ describe('저장 왕복: 꽉 찬 v18 견본', () => {
         '조각 2를 모은 깨우는 신을 손에 쥔 판',
         (o) => {
           o.awaken = { waking: 'artemis', fragments: 2 }
+          // 손은 칸의 무기에서 읽는다 (P2)
+          o.powers.slots.weapon = 'weapon:artemis'
           o.pantheon.hand = 'artemis'
         },
       ],
@@ -180,18 +182,17 @@ describe('저장 왕복에서 바뀌는 칸 (지금 동작)', () => {
     expect(changed(before, after)).toEqual(['training'])
   })
 
-  it('숨 칸 수를 넘친 숨의 신은 뒤에서부터 빠진다 (홀로의 맹세를 지킨 적이 없으면 엔딩 뒤에도 넷)', () => {
-    const { before, after } = settle((o) => {
-      o.oaths.kept = ['silence', 'emptyHand', 'glass']
-    })
-    expect(before.pantheon.breath).toHaveLength(5)
-    expect(after.pantheon.breath).toEqual(['thor', 'odin', 'zeus', 'loki'])
-    expect(changed(before, after)).toEqual(['pantheon'])
+  it('저장의 자리 셋이 칸과 어긋나 있으면 칸에서 다시 읽는다 (글 왕복에서 이미): 숨 칸 수 규칙은 도는 힘의 칸 수가 갈음했다 (P2)', () => {
+    const data = read(raw((o) => (o.pantheon = { hand: 'thor', heart: null, breath: ['loki', 'thor', 'odin', 'zeus', 'poseidon'] })))
+    expect(data.pantheon).toEqual({ hand: 'odin', heart: 'zeus', breath: ['thor', 'odin', 'zeus', 'poseidon'] })
+    expect(data).toEqual(full())
+    expect(game(data)).toEqual(data)
   })
 
-  it('닫힌 신은 자리에서 빠진다 (글 왕복에서 이미)', () => {
+  it('신 단계가 0으로 읽혀도 가진 힘과 칸은 그대로다: 자리 셋은 열린 신이 아니라 칸에서 읽는다 (P2)', () => {
     const data = read(raw((o) => (o.classes.zeus.level = 0)))
-    expect(data.pantheon).toEqual({ hand: 'thor', heart: null, breath: ['thor', 'odin', 'loki', 'poseidon'] })
+    expect(data.powers).toEqual(full().powers)
+    expect(data.pantheon).toEqual(full().pantheon)
     expect(game(data)).toEqual(data)
   })
 
@@ -319,17 +320,18 @@ describe('어긋난 값이 섞인 저장', () => {
 describe('저장 v17 견본을 v18로 옮긴다', () => {
   const old = (): SaveData => parseSave(OLD_TEXT)!
 
-  it('옛 견본은 v17이고 힘의 키가 없다. 읽으면 지금 버전이 되고 나머지 칸은 v18 견본과 같다', () => {
+  it('옛 견본은 v17이고 힘의 키가 없다. 읽으면 지금 버전이 되고 힘·자리 셋 말고는 v18 견본과 같다', () => {
     const source = JSON.parse(OLD_TEXT) as Record<string, unknown>
     expect(source.version).toBe(17)
     expect('powers' in source).toBe(false)
-    const { powers: _moved, ...rest } = old()
-    const { powers: _full, ...same } = full()
+    // 자리 셋은 힘의 칸에서 읽으니(P2) 힘과 함께 견줄 것에서 뺀다
+    const { powers: _moved, pantheon: _seats, ...rest } = old()
+    const { powers: _full, pantheon: _same, ...same } = full()
     expect(rest).toEqual(same)
     expect(rest.version).toBe(SAVE_VERSION)
   })
 
-  it('깨운 신 다섯의 힘을 모두 갖고, 깨우는 도중인 아르테미스는 무기만. 자리 셋의 힘이 칸에 든다', () => {
+  it('깨운 신 다섯의 힘을 모두 갖고, 깨우는 도중인 아르테미스는 무기와 대표 패시브만. 자리 셋의 힘이 칸에 든다', () => {
     const { powers } = old()
     expect(powers.met).toEqual(['thor', 'odin', 'loki', 'zeus', 'poseidon', 'artemis'])
     for (const god of ['thor', 'odin', 'loki', 'zeus', 'poseidon']) {
@@ -337,15 +339,16 @@ describe('저장 v17 견본을 v18로 옮긴다', () => {
       expect(powers.owned, god).toEqual(expect.arrayContaining(all))
       expect(powers.claimed, god).toEqual(expect.arrayContaining([`trace:${god}`, `guardian:${god}`]))
     }
-    expect(powers.owned.filter((id) => id.endsWith('artemis') || id.includes('artemis.'))).toEqual(['weapon:artemis'])
+    expect(powers.owned.filter((id) => id.endsWith('artemis') || id.includes('artemis.'))).toEqual(['weapon:artemis', 'aura:artemis.volley'])
     expect(powers.claimed).toContain('trace:artemis')
     expect(powers.claimed).not.toContain('guardian:artemis')
     // 닫힌 프레이(단계 0)는 만난 적 없는 신이다
     expect(powers.met).not.toContain('freyr')
     expect(powers.slots.weapon).toBe('weapon:thor')
     expect(powers.slots.ultimate).toBe('ultimate:zeus')
-    // 귀환 여섯 번이라 도는 힘의 칸이 여섯: 숨의 신 다섯의 패시브 부품이 먼저 든다
-    expect(powers.slots.auras).toEqual(['aura:thor.basicLightning', 'aura:thor.skyStrike', 'aura:odin.companions', 'aura:zeus.skyStrike', 'aura:loki.companions', 'aura:poseidon.pulse'])
+    // 귀환 여섯 번이라 도는 힘의 칸이 여섯: 손에 쥔 토르의 켠 유물이 맨 앞, 그다음 숨의 신들의 패시브 부품 (넘친 포세이돈은 가진 힘으로만)
+    expect(powers.slots.auras).toEqual(['relic:mjolnir', 'aura:thor.basicLightning', 'aura:thor.skyStrike', 'aura:odin.companions', 'aura:zeus.skyStrike', 'aura:loki.companions'])
+    expect(old().pantheon).toEqual({ hand: 'thor', heart: 'zeus', breath: ['thor', 'odin', 'zeus', 'loki'] })
   })
 
   it('옮긴 저장은 글 왕복·게임 왕복에서 그대로다', () => {
@@ -356,6 +359,8 @@ describe('저장 v17 견본을 v18로 옮긴다', () => {
   })
 
   it('힘의 키가 어긋난 저장(묶음이 아님)은 키가 없는 저장처럼 옮긴다', () => {
-    for (const junk of [null, 3, 'x', []]) expect(read(raw((o) => (o.powers = junk))).powers, JSON.stringify(junk)).toEqual(old().powers)
+    // 옛 자리 셋이 있어야 옮길 수 있다: v17 견본에 어긋난 키를 얹는다
+    const withKey = (junk: unknown) => parseSave(JSON.stringify({ ...(JSON.parse(OLD_TEXT) as object), powers: junk }))!
+    for (const junk of [null, 3, 'x', []]) expect(withKey(junk).powers, JSON.stringify(junk)).toEqual(old().powers)
   })
 })

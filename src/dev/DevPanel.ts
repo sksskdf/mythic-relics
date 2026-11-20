@@ -1,6 +1,7 @@
 import { THEME_IDS, type ThemeId } from '../audio/music'
 import { CONQUESTS } from '../data/chapters'
 import { AUTOMATION } from '../data/cycle'
+import { DEMO_GODS, POWERS } from '../data/powers'
 import { SOUND_CUES } from '../audio/sounds'
 import { type Realm, REALM_NAMES, REALMS } from '../data/classKit'
 import { REGIONS } from '../data/regions'
@@ -191,6 +192,40 @@ export class DevPanel {
 
   // ───────────── 클래스 ─────────────
 
+  /** 힘 시험: 「힘 모두 갖기」(신), 힘 하나 끼우기·빼기, 지금 칸 보기 */
+  private powerRows(): HTMLElement {
+    const g = this.game
+    const box = el('div', 'devpanel__powers')
+    const now = el('div', 'devpanel__hint')
+    const show = () => {
+      const s = g.dev.slots()
+      const combos = g.dev.combos()
+      now.textContent = `무기 ${s.weapon ?? '맨손'} · 궁극기 ${s.ultimate ?? '없음'} · 도는 힘 ${s.auras.join(', ') || '없음'} (빈 칸 ${s.free})${combos.length ? ` · 조합 ${combos.join(', ')}` : ''}`
+      g.menu.refresh()
+    }
+    this.refreshers.push(show)
+    const powers = POWERS.filter((p) => p.demo).map((p) => [p.id, `${godDef(p.god).name} · ${p.name}`] as const)
+    box.append(
+      row(
+        select('힘 모두 갖기', DEMO_GODS.map((god) => [god, godDef(god).name] as const), (god) => {
+          g.dev.grant(god)
+          show()
+        }),
+        select('힘 끼우기', powers, (id) => {
+          g.dev.power(id)
+          show()
+        }),
+        select('힘 빼기', powers, (id) => {
+          g.dev.unslot(id)
+          show()
+        }),
+        button('지금 칸 보기', show),
+      ),
+      now,
+    )
+    return box
+  }
+
   private buildClasses(page: HTMLElement): void {
     const g = this.game
     page.append(
@@ -223,6 +258,8 @@ export class DevPanel {
         button('2단계 장비', () => g.dev.dropGear(undefined, undefined, undefined, undefined, 2)),
         button('대장간 재료', () => g.dev.fillForge()),
       ),
+      // 힘 (재미 재설계 P2): 신을 골라 그 신의 힘을 모두 갖거나, 힘 하나를 칸에 끼우고 뺀다. 지금 칸은 아래 한 줄에
+      this.powerRows(),
       row(
         button('궁극기 충전', () => (g.combat.heartGauge = 1)),
         button('유물 행동', () => g.dev.fireRelic()),

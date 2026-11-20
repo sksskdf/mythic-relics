@@ -359,10 +359,11 @@ describe('저장 v17 → v18: 신 단위에서 힘으로', () => {
     expect(data.slots).toEqual({ weapon: null, ultimate: null, auras: [] })
   })
 
-  it('깨우는 도중인 신은 만난 신이고 무기를 가진다. 수호자는 아직 고르지 않았다', () => {
+  it('깨우는 도중인 신은 만난 신이고 무기와 대표 패시브(빌린 힘)를 가진다. 수호자는 아직 고르지 않았다', () => {
     const data = powersFromV17({ ...base, classes: { thor: { level: 1 } }, waking: 'odin', pantheon: { hand: 'odin', heart: 'thor', breath: ['thor'] } })
     expect(data.met).toEqual(['thor', 'odin'])
-    expect(data.owned).toEqual([...ids('thor'), weaponId('odin')])
+    expect(data.owned).toEqual([...ids('thor'), weaponId('odin'), partId('odin', 'companions')])
+    expect(data.slots.auras).toContain(partId('odin', 'companions'))
     expect(data.claimed).toEqual(['trace:thor', 'guardian:thor', 'trace:odin'])
     expect(data.slots.weapon).toBe(weaponId('odin'))
     const p = new PowerProgress()
@@ -371,7 +372,17 @@ describe('저장 v17 → v18: 신 단위에서 힘으로', () => {
     expect(p.offer('guardian:odin')).toHaveLength(3)
   })
 
-  it('자리 셋에 든 신의 힘을 칸에 끼운다: 손은 무기, 심장은 궁극기, 숨은 패시브 부품, 그다음 켠 유물', () => {
+  it('깨우는 도중인 신의 켠 유물(조각 2에 함께 온다)도 가진 힘이고 칸에 든다', () => {
+    const data = powersFromV17({ ...base, classes: { thor: { level: 1 } }, waking: 'odin', pantheon: { hand: 'thor', heart: 'thor', breath: ['thor'] }, lit: ['mjolnir', 'gungnir'], returns: 3 })
+    expect(data.owned).toContain(relicPowerId('gungnir'))
+    expect(data.slots.auras).toEqual([relicPowerId('mjolnir'), partId('thor', 'basicLightning'), partId('thor', 'skyStrike'), partId('odin', 'companions'), relicPowerId('gungnir')])
+    // 깨우지도 자리에 넣지도 않은 신의 켠 유물은 가진 힘으로만 남는다
+    const stray = powersFromV17({ ...base, classes: { thor: { level: 1 } }, pantheon: { hand: 'thor', heart: 'thor', breath: ['thor'] }, lit: ['lokiMask'], returns: 3 })
+    expect(stray.owned).toContain(relicPowerId('lokiMask'))
+    expect(stray.slots.auras).not.toContain(relicPowerId('lokiMask'))
+  })
+
+  it('자리 셋에 든 신의 힘을 칸에 끼운다: 손은 무기, 심장은 궁극기, 도는 힘은 손의 신의 켠 유물 → 숨의 패시브 부품 → 나머지 켠 유물', () => {
     const data = powersFromV17({
       ...base,
       classes: { thor: { level: 2 }, odin: { level: 1 }, loki: { level: 1 } },
@@ -382,13 +393,14 @@ describe('저장 v17 → v18: 신 단위에서 힘으로', () => {
     expect(data.slots.weapon).toBe(weaponId('thor'))
     expect(data.slots.ultimate).toBe(ultimateId('odin'))
     // 로키는 자리에 없어 가면은 가진 힘으로만 남는다
-    expect(data.slots.auras).toEqual([partId('odin', 'companions'), relicPowerId('mjolnir'), relicPowerId('gungnir')])
+    expect(data.slots.auras).toEqual([relicPowerId('mjolnir'), partId('odin', 'companions'), relicPowerId('gungnir')])
     expect(data.owned).toContain(relicPowerId('lokiMask'))
   })
 
   it('도는 힘은 칸 수까지만 끼우고, 넘친 것은 가진 힘으로 남는다', () => {
     const o = { ...base, classes: { thor: { level: 3 }, odin: { level: 1 }, freyr: { level: 1 } }, pantheon: { hand: 'thor', heart: 'thor', breath: ['thor', 'odin', 'freyr'] }, lit: ['mjolnir', 'gungnir'] }
-    expect(powersFromV17(o).slots.auras).toEqual([partId('thor', 'basicLightning'), partId('thor', 'skyStrike'), partId('odin', 'companions')])
+    // 칸이 셋뿐이어도 손에 쥔 토르의 묠니르는 패시브에 밀려 빠지지 않는다 (기본 공격에 얽힌 행동이라 앞세운다)
+    expect(powersFromV17(o).slots.auras).toEqual([relicPowerId('mjolnir'), partId('thor', 'basicLightning'), partId('thor', 'skyStrike')])
     expect(powersFromV17({ ...o, returns: 5 }).slots.auras).toHaveLength(6)
     expect(powersFromV17(o).owned).toContain(relicPowerId('gungnir'))
   })
