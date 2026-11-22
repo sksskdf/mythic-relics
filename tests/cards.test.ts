@@ -164,6 +164,33 @@ describe('얻은 것 카드의 줄 (E307 카드 예산)', () => {
   })
 })
 
+describe('장면 밑의 카드 (P5 손 QA)', () => {
+  it('장면이 HUD를 숨기면 떠 있던 새 탭 카드는 줄 맨 앞으로 돌아가 장면 뒤에 다시 뜬다', () => {
+    const line = new GainsLine()
+    line.push(tab('장비'))
+    line.take(0)
+    line.push(big('토르의 흔적'))
+    // 카드가 뜬 지 0.3초 만에 흔적의 장면이 열렸다
+    line.hide(300)
+    expect(line.showing(400)).toBeNull()
+    expect(line.waiting.map((w) => w.title)).toEqual(['장비', '토르의 흔적'])
+    expect(drain(line, 9000)[0]).toEqual({ at: 9000, title: '장비' })
+  })
+
+  it('제 시간을 다 채운 카드는 장면이 숨겨도 다시 뜨지 않는다', () => {
+    const line = new GainsLine()
+    line.push(tab('수련'))
+    line.take(0)
+    line.hide(CARD_HOLD.tab * 1000 + 10)
+    expect(line.waiting).toHaveLength(0)
+  })
+
+  it('HUD는 숨는 동안 카드를 넘기지 않고, 숨을 때 줄의 hide를 부른다', () => {
+    expect(hudSource).toMatch(/this\.line\.hide\(/)
+    expect(hudSource).toMatch(/nextGains\(\): void \{\n    if \([^)]*is-hidden/)
+  })
+})
+
 describe('카드가 사라지는 움직임 (hud.css, E307 손 QA)', () => {
   /** 그 이름의 @keyframes에서 마지막(100%) 걸음의 몸 */
   const lastFrame = (name: string) => hudCss.match(new RegExp(`@keyframes ${name} \\{[^]*?\\n  100% \\{([^}]*)\\}`))?.[1] ?? ''

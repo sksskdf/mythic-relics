@@ -131,4 +131,15 @@ export class GainsLine {
     if (card && card.size === 'big' && now - this.shownAt < CARD_HOLD.big * 1000) this.waiting.unshift(card)
     this.shownAt = -Infinity
   }
+
+  /**
+   * 대화 장면이 HUD를 숨겼다 (P5 손 QA: 「새 탭 장비」·「새 탭 수련」이 흔적의 장면 밑에서 한 번도 보이지 않고 지나갔다).
+   * 정보 화면과 달리 장면 밑의 카드는 아무도 보지 못했다: 제 시간을 못 채운 카드는 크기와 상관없이 줄 맨 앞으로 되돌려 장면 뒤에 다시 뜨게 한다
+   */
+  hide(now: number): void {
+    const card = this.current
+    this.current = null
+    if (card && now - this.shownAt < CARD_HOLD[card.size] * 1000) this.waiting.unshift(card)
+    this.shownAt = -Infinity
+  }
 }

@@ -1,6 +1,6 @@
 import { CHAPTERS, COUNTED_KINDS, type ChapterDef, type ChapterStep, chapterOf, conquestsOf, SOFT_KINDS, TOP_POWER } from '../data/chapters'
 import { REGIONS } from '../data/regions'
-import { ORDER_POWER } from '../data/wake'
+import { FREE_BOSS_POWER, ORDER_POWER } from '../data/wake'
 
 /** 장 진행이 게임에서 읽는 것 (신화·장비는 따로 저장되니 여기서는 묻기만 한다) */
 export interface ChapterWorld {
@@ -133,13 +133,18 @@ export class ChapterProgress {
     return gate < 0 || this.lastDone(chapter) >= gate
   }
 
-  /** 그 땅 보통 적의 세기 (처음 땅 = 1). 어느 땅부터 가도 되는 장(`free`)은 만난 신 수로 낮춘다. 장 흐름 밖의 들판(엔딩 뒤)은 가장 센 땅만큼, 끝없는 원정·마을은 1 (끝없는 원정은 층이 세기를 정한다) */
+  /**
+   * 그 땅 보통 적의 세기 (처음 땅 = 1). 어느 땅부터 가도 되는 장(`free`)은 만난 신 수로 낮추고, 그 장 보스의 땅은 `FREE_BOSS_POWER`까지만
+   * (P5 봇: 땅을 만난 신 수로 낮춘 뒤에도 우트가르드만 10.7로 남아, 신 둘을 깨운 몸이 거인 왕과 933초를 싸우고 여섯 번 쓰러졌다).
+   * 장 흐름 밖의 들판(엔딩 뒤)은 가장 센 땅만큼, 끝없는 원정·마을은 1 (끝없는 원정은 층이 세기를 정한다)
+   */
   power(region: string): number {
     const chapter = chapterOf(region, this.chapters)
     if (chapter) {
       const land = chapter.lands[region]!
       const boss = chapter.steps.at(-1)
-      if (!chapter.free || this.world.met === undefined || (boss?.kind === 'boss' && boss.region === region)) return land
+      if (!chapter.free || this.world.met === undefined) return land
+      if (boss?.kind === 'boss' && boss.region === region) return Math.min(land, FREE_BOSS_POWER)
       return Math.min(land, ORDER_POWER[Math.min(ORDER_POWER.length - 1, this.world.met())]!)
     }
     return REGIONS[region]?.kind === 'field' ? TOP_POWER : 1

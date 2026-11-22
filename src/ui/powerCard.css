@@ -8,6 +8,8 @@
   box-sizing: border-box;
   gap: var(--sp-3);
   padding: var(--sp-4);
+  /* 불투명한 판 (P5 손 QA: 틀의 흐린 바탕 너머로 땅·나무가 비쳐 줄 글이 덜 읽혔다) */
+  background: var(--c-bg-1);
 }
 .power-card__head {
   display: flex;
@@ -63,6 +65,10 @@
 .power-card__kind {
   font: var(--t-small);
   color: var(--c-ink-3);
+}
+.power-card__god {
+  /* 신의 이름은 밝게: 신의 색은 줄의 왼쪽 띠가 맡는다 (어두운 신의 색은 읽히지 않는다) */
+  color: var(--c-ink-2);
 }
 .power-card__row b {
   font: var(--t-body);

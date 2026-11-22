@@ -44,7 +44,7 @@
     },
     "trigger": {
       "name": "망치 투척",
-      "description": "3연타의 마지막 타에 망치를 던져 오가는 길의 적을 친다.",
+      "description": "3연타의 마지막 타마다 묠니르가 날아가 오가는 길의 적을 친다.",
       "charge": {
         "by": "combo"
       },
@@ -604,7 +604,7 @@
     },
     "trigger": {
       "name": "창 던지기",
-      "description": "3연타의 마지막 타에 창을 던져 오가는 길의 적을 친다.",
+      "description": "3연타의 마지막 타마다 궁니르가 날아가 오가는 길의 적을 친다.",
       "charge": {
         "by": "combo"
       },

@@ -30,6 +30,8 @@ export interface AwakenTarget {
 
 /** 흔적·수호자 빛기둥의 높이 (m) */
 const BEAM_HEIGHT = 9
+/** 1초 서기의 고리가 조여드는 끝 반지름 (m) */
+const DWELL_END = 1.1
 
 /**
  * 그 신의 수호자 (E239-03): 제 모습과 싸우는 방식은 enemies.json(역할 guardian)에 있다.
@@ -92,7 +94,7 @@ export class WakeSystem {
   private time = 0
   private readonly beamGeometry = new THREE.CylinderGeometry(0.22, 0.34, 1, 10, 1, true)
   /** 고리 안에 서 있는 동안 땅에서 조여드는 고리 (1초 서기의 진행, 글 없이): 고리 끝에서 흔적 둘레까지 줄어든다 */
-  private readonly dwellRing = new THREE.Mesh(new THREE.RingGeometry(0.88, 1, 48), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.7, depthWrite: false, side: THREE.DoubleSide }))
+  private readonly dwellRing = new THREE.Mesh(new THREE.RingGeometry(0.78, 1, 48), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.95, depthWrite: false, side: THREE.DoubleSide }))
 
   constructor(
     private readonly ctx: GameContext,
@@ -366,7 +368,8 @@ export class WakeSystem {
     this.dwellRing.visible = !!t
     if (!dwell || !t) return
     const k = Math.min(1, dwell.t / TRACE_DWELL)
-    const r = TRACE_RADIUS * (1 - k) + 0.6 * k
+    // 끝은 주인공 몸에 가리지 않을 만큼 (0.6m에서는 마지막 0.3초가 몸 밑에 묻혔다, P5 손 QA)
+    const r = TRACE_RADIUS * (1 - k) + DWELL_END * k
     this.dwellRing.scale.set(r, r, 1)
     this.dwellRing.position.set(t.x, heightAt(t.x, t.z) + 0.06, t.z)
     ;(this.dwellRing.material as THREE.MeshBasicMaterial).color.set(godDef(dwell.god).color)

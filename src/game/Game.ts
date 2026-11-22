@@ -494,6 +494,7 @@ export class Game {
     this.playerInput.onZoom = (viewHeight, end) => this.viewport.zoom(viewHeight, end)
     // 대화가 막 끝난 동안의 톡·클릭은 지시로 치지 않는다 (E307: 연타로 넘기던 톡이 새지 않게)
     this.playerInput.muted = () => this.scenes.settling
+    this.playerInput.talking = () => this.scenes.active
     // 개발 지름길은 공용 상태(ctx)에 시스템 몇을 더해 손댄다
     this.dev = new DevTools({
       ...this.ctx,

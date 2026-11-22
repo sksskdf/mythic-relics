@@ -5,7 +5,8 @@ import { parseScenes, SCENES } from '../src/data/scenes'
 import raw from '../src/data/scenes.json'
 import { ENEMIES } from '../src/enemies/Giant'
 import { REGIONS, START_REGION } from '../src/data/regions'
-import { GODS } from '../src/relics/data'
+import { GODS, RELICS } from '../src/relics/data'
+import { POWERS } from '../src/data/powers'
 
 const clone = () => JSON.parse(JSON.stringify(raw)) as Record<string, { region: string; lines: Record<string, unknown>[] }>
 
@@ -43,5 +44,17 @@ describe('대화 장면 데이터 (E12-10)', () => {
     const run = () => parseScenes(data)
     expect(run).toThrow(DataError)
     expect(run).toThrow(message)
+  })
+})
+
+describe('흔적의 장면과 고른 힘 (P5 손 QA)', () => {
+  it('흔적에서 그 신이 하는 말은 특정 힘·유물을 말하지 않는다: 카드에서 무엇을 골랐든 어긋나지 않게 (전: 창을 골랐는데 「후긴과 무닌을 네 곁에 보내 주마」)', () => {
+    const traces = Object.values(SCENES).filter((sc) => sc.id.startsWith('trace'))
+    expect(traces.length).toBeGreaterThan(0)
+    const names = [...POWERS.map((p) => p.name), ...Object.values(RELICS).map((r) => r.name), '망치', '창', '가면', '검은', '삼지창', '활은', '투구']
+    for (const sc of traces) {
+      // 첫 줄은 그 자리를 말한다 (「이 나무에 아직 내 번개가 남아 있었군」): 그 뒤의 줄이 힘을 건네는 말이다
+      for (const line of sc.lines.slice(1)) for (const name of names) expect(line.text.includes(name), `${sc.id}: ${line.text} (${name})`).toBe(false)
+    }
   })
 })

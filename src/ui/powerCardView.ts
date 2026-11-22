@@ -3,6 +3,8 @@ export interface PowerRow {
   id: string
   /** 종류 표시: 무기 · 궁극기 · 힘 */
   kind: string
+  /** 그 힘의 신 이름 (P5 손 QA: 오딘의 빛 카드에 토르의 힘이 섞여도 누구의 것인지 보이게). 종류 표시 곁에 */
+  god?: string
   name: string
   /** 화면에서 무엇이 달라지나 한 줄 */
   line: string
@@ -38,7 +40,7 @@ export function powerCardMarkup(view: PowerCardView): string {
   const rows = view.rows
     .map((r) => {
       const notes = [r.swap ? `<span class="power-card__swap">${escape(r.swap)}</span>` : '', r.combo ? `<span class="power-card__combo">조합 · ${escape(r.combo)}</span>` : '', r.spare ? '<span class="power-card__spare">칸이 차서 가진 힘으로 남는다</span>' : ''].join('')
-      return `<button type="button" class="power-card__row" data-power="${escape(r.id)}" style="--god:${escape(r.color)}"><span class="power-card__kind">${escape(r.kind)}</span><b>${escape(r.name)}</b><small>${escape(r.line)}</small>${notes}</button>`
+      return `<button type="button" class="power-card__row" data-power="${escape(r.id)}" style="--god:${escape(r.color)}"><span class="power-card__kind">${escape(r.kind)}${r.god ? `<span class="power-card__god"> · ${escape(r.god)}</span>` : ''}</span><b>${escape(r.name)}</b><small>${escape(r.line)}</small>${notes}</button>`
     })
     .join('')
   return `${head}<div class="power-card__rows">${rows}</div>`

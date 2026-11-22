@@ -244,7 +244,7 @@ export class PowerSystem {
     // 무기·궁극기는 칸을 바로 바꿔 끼운다: 무엇이 무엇으로 바뀌는지 한 줄
     const held = p.kind === 'aura' ? null : now[p.kind]
     const swap = held && held !== id ? `지금: ${power(held)?.name ?? held} → ${p.name}` : undefined
-    return { id, kind: KIND_NAMES[p.kind], name: p.name, line: p.line, color: godDef(p.god).color, ...(swap ? { swap } : {}), ...(combo ? { combo: combo.name } : {}), ...(spare ? { spare: true } : {}) }
+    return { id, kind: KIND_NAMES[p.kind], god: godDef(p.god).name, name: p.name, line: p.line, color: godDef(p.god).color, ...(swap ? { swap } : {}), ...(combo ? { combo: combo.name } : {}), ...(spare ? { spare: true } : {}) }
   }
 
   /** 머리줄: 흔적·수호자·무리는 그 신, 장 보스는 「<보스>의 자리」(색은 첫 줄의 신) */

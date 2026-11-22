@@ -406,12 +406,34 @@ describe('대화 장면이 끝난 뒤 (E307)', () => {
     expect(scenes.active).toBe(false)
     expect(hidden).toBe(false)
     expect(scenes.settling).toBe(true)
-    expect(SETTLE_SECONDS).toBeGreaterThanOrEqual(0.4)
-    expect(SETTLE_SECONDS).toBeLessThanOrEqual(0.6)
+    // 0.5초는 마지막 줄 뒤 한 번 더 누른 톡이 샜다 (P5 손 QA). 너무 길면 장면 뒤 첫 지시가 먹통이다
+    expect(SETTLE_SECONDS).toBeGreaterThanOrEqual(0.8)
+    expect(SETTLE_SECONDS).toBeLessThanOrEqual(1.2)
     scenes.update(SETTLE_SECONDS - 0.1)
     expect(scenes.settling).toBe(true)
     scenes.update(0.2)
     expect(scenes.settling).toBe(false)
+  })
+})
+
+describe('장면을 넘기던 톡 (P5 손 QA)', () => {
+  it('장면 중(줌아웃 포함)에 닿은 손가락은 장면이 끝난 뒤에 떼어도 톡이 아니다: 마지막 줄을 넘긴 누름이 걷기 지시로 새지 않는다', () => {
+    const { orders, gestures, player, frame, endFrame } = phone()
+    let talking = true
+    player.talking = () => talking
+    // 대화 상자가 닫히고 줌아웃하는 동안 캔버스에 손가락이 닿았다 (그동안 게임은 입력을 읽지 않고 프레임 끝만 돈다)
+    gestures.down(1, 200, 500, 0, true)
+    endFrame()
+    talking = false
+    // 장면이 끝난 뒤에 뗐다
+    gestures.up(1, 0.3)
+    frame()
+    expect(orders.order).toBeNull()
+    // 장면 밖에서 새로 누른 톡은 그대로 지시다
+    gestures.down(2, 200, 500, 1, true)
+    gestures.up(2, 1.1)
+    frame()
+    expect(orders.order?.kind).toBe('move')
   })
 })
 

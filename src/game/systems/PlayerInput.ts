@@ -47,6 +47,8 @@ export class PlayerInput {
   onZoom: (viewHeight: number, end: boolean) => void = () => {}
   /** 지금은 톡·클릭을 지시로 치지 않는다 (대화가 막 끝났다: 연타로 넘기던 톡이 새지 않게, E307). 조이스틱은 그대로 걷고, 누른 채 있는 마우스는 풀릴 때 받는다 (`heard`) */
   muted: () => boolean = () => false
+  /** 대화 장면 중인가 (닫히는 줌아웃까지). 그동안 닿은 손가락은 프레임마다 잊는다: 장면 중에 시작한 누름은 장면이 끝난 뒤에 떼도 톡이 아니다 (P5 손 QA) */
+  talking: () => boolean = () => false
   /**
    * 지금 누르고 있는 마우스 버튼의 누름을 지시로 쳤나 (E307). 못 쳤으면(대화가 막 끝난 동안이나 장면이 닫히는 중에 눌렀다)
    * 칠 수 있게 된 프레임에 아직 누르고 있을 때 그때 누른 것으로 친다: 누른 채 끌어 걸으려던 것이 뗐다 다시 누를 때까지 죽지 않게
@@ -76,7 +78,11 @@ export class PlayerInput {
   /** 휴대폰 조작을 붙인다 (E235). 그 프레임에 읽지 않은 톡은 프레임 끝에 버린다 */
   useTouch(touch: TouchControls): void {
     this.touch = touch
-    this.input.frameEnd.push(() => touch.gestures.endFrame())
+    this.input.frameEnd.push(() => {
+      touch.gestures.endFrame()
+      // 장면을 넘기려고 누른 손가락이 줌아웃 동안 캔버스에 닿아, 장면이 끝난 뒤에 떼면 걷기 지시로 샜다 (P5 손 QA: 주인공이 마을로 되돌아갔다)
+      if (this.talking()) touch.gestures.reset()
+    })
   }
 
   update(): void {

@@ -5,6 +5,7 @@ import { DataError } from '../src/data/check'
 import raw from '../src/data/chapters.json'
 import { CHAPTERS, chapterOf, type ChapterStep, CONQUESTS, GOAL_MAX_CHARS, landScale, parseChapters, TOP_POWER } from '../src/data/chapters'
 import { REGIONS } from '../src/data/regions'
+import { FREE_BOSS_POWER } from '../src/data/wake'
 import { ChapterProgress, type ChapterWorld } from '../src/progress/Chapters'
 import { MountProgress } from '../src/progress/Mount'
 import { EventBus, type GameEvents } from '../src/game/events'
@@ -581,11 +582,13 @@ describe('장 진행 시스템과 탈것 (E241)', () => {
 })
 
 describe('어느 땅부터 가도 되는 제1장의 땅 세기 (2026-11-22)', () => {
-  it('제1장의 땅(거인 왕의 땅 빼고)은 데이터 세기와 만난 신 수의 세기(1·2·3.5·5) 가운데 작은 쪽: 로키부터 가도 첫 요툰헤임은 1', () => {
+  it('제1장의 땅은 데이터 세기와 만난 신 수의 세기(1·2·3.5·5) 가운데 작은 쪽, 거인 왕의 땅은 정한 끝까지: 로키부터 가도 첫 요툰헤임은 1', () => {
     let met = 0
     const chapters = new ChapterProgress({ ...world(), met: () => met })
     expect(CHAPTERS.find((c) => c.id === 'north')!.free).toBe(true)
-    expect(['jotunheim', 'muspel', 'ironwood', 'serpentshore', 'utgard'].map((r) => chapters.power(r))).toEqual([1, 1, 1, 1, 10.7])
+    // 거인 왕의 땅은 만난 신 수와 상관없이 FREE_BOSS_POWER까지만 (P5 봇: 10.7의 거인 왕과 933초)
+    expect(['jotunheim', 'muspel', 'ironwood', 'serpentshore', 'utgard'].map((r) => chapters.power(r))).toEqual([1, 1, 1, 1, FREE_BOSS_POWER])
+    expect(FREE_BOSS_POWER).toBeLessThan(10.7)
     met = 1
     expect(['jotunheim', 'muspel', 'ironwood', 'serpentshore'].map((r) => chapters.power(r))).toEqual([2, 2, 1.25, 1.25])
     met = 2
@@ -595,5 +598,6 @@ describe('어느 땅부터 가도 되는 제1장의 땅 세기 (2026-11-22)', ()
     // 다른 장과 만난 신 수를 모르는 세계는 데이터 그대로
     expect(chapters.power('olympus')).toBe(11.7)
     expect(new ChapterProgress(world()).power('jotunheim')).toBe(7.5)
+    expect(new ChapterProgress(world()).power('utgard')).toBe(10.7)
   })
 })

@@ -406,6 +406,14 @@ export class Hud {
     this.gains.classList.remove('is-showing')
   }
 
+  /** 장면이 HUD를 숨겼다: 떠 있던 카드를 내리고 기다리던 타이머도 멈춘다 (`GainsLine.hide`) */
+  private hideGains(): void {
+    if (this.gainsTimer !== null) clearTimeout(this.gainsTimer)
+    this.gainsTimer = null
+    this.line.hide(performance.now())
+    this.gains.classList.remove('is-showing')
+  }
+
   /**
    * 대화 장면 동안 HUD를 숨긴다 (투명하게만: 움직임은 그대로 흐른다).
    * 숨기기 직전 3초 안에 띄운 지역·전설 제목 카드는 장면 뒤에 다시 띄운다 (장면 밑에서 지나가 버리지 않게)
@@ -413,6 +421,9 @@ export class Hud {
   setHidden(hidden: boolean): void {
     if (this.root.classList.contains('is-hidden') === hidden) return
     this.root.classList.toggle('is-hidden', hidden)
+    // 장면 밑에서 얻은 것 카드가 못 본 채 지나가지 않게: 떠 있던 카드는 내려 줄 앞으로, 장면이 끝나면 줄을 다시 본다
+    if (hidden) this.hideGains()
+    else this.nextGains()
     if (hidden) this.hiddenAt = performance.now()
     else if (this.lastTitle && this.hiddenAt - this.lastTitle.at < TITLE_REPLAY_MS) {
       const { args } = this.lastTitle
@@ -437,7 +448,7 @@ export class Hud {
 
   /** 앞 카드가 제 시간(장비 카드는 줄이 밀렸으면 짧게)을 채웠고 고르는 카드·화면을 덮은 창이 없으면 다음 카드를 띄운다 */
   private nextGains(): void {
-    if (this.gainsTimer !== null || this.covered) return
+    if (this.gainsTimer !== null || this.covered || this.root.classList.contains('is-hidden')) return
     const left = this.line.wait(performance.now())
     if (left === null) return
     const wait = this.choosing ? CHOOSING_POLL_MS : left

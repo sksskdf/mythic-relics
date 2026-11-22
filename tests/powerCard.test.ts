@@ -8,6 +8,7 @@ import { PowerSystem } from '../src/game/systems/Powers'
 import { PowerProgress, parsePowers } from '../src/progress/Powers'
 import { WakeProgress, parseWake } from '../src/progress/Wake'
 import type { PowerCardView } from '../src/ui/powerCardView'
+import powerCardCss from '../src/ui/powerCard.css?raw'
 import { powerCardMarkup } from '../src/ui/powerCardView'
 
 /**
@@ -342,5 +343,20 @@ describe('힘 카드의 마크업', () => {
     expect(html).toContain('조합 · 발키리')
     expect(html).toContain('가진 힘으로 남는다')
     expect(html).not.toMatch(/닫기|×/)
+  })
+
+  it('줄마다 그 힘의 신 이름이 종류 곁에 선다 (P5 손 QA: 오딘의 빛 카드에 토르의 힘이 섞여도 누구의 것인지 보이게)', () => {
+    const html = powerCardMarkup({ title: '오딘', say: '', color: '#fff', rows: [{ id: 'a', kind: '힘', god: '토르', name: '폭풍', line: '번쩍', color: '#0f0' }] })
+    expect(html).toMatch(/power-card__kind">힘<span class="power-card__god"> · 토르<\/span>/)
+    const r = rig()
+    r.system.request('trace:odin')
+    r.system.update(0.1)
+    for (const row of r.system.current?.rows ?? []) expect(row.god, row.id).toBe(power(row.id)!.god === 'odin' ? '오딘' : row.god)
+    expect(r.system.current?.rows.every((row) => !!row.god)).toBe(true)
+  })
+
+  it('판은 불투명하다 (P5 손 QA: 흐린 바탕 너머로 땅이 비쳐 글이 덜 읽혔다)', () => {
+    const rule = powerCardCss.match(/\.pick-card\.power-card \{([^}]*)\}/)?.[1] ?? ''
+    expect(rule).toMatch(/background: var\(--c-bg-1\)/)
   })
 })

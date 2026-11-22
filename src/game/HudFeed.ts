@@ -4,6 +4,7 @@ import { godDef } from '../relics/data'
 import { heroIcon } from '../ui/heroIcon'
 import { PACK_GOAL } from './systems/Chapters'
 import type { Build } from '../build/Build'
+import type { AwakenTarget } from './systems/Wake'
 import type { Game } from './Game'
 
 /** HUD가 읽는 게임의 부품 */
@@ -86,7 +87,7 @@ export class HudFeed {
       sanctuaryReady: game.sanctuary.lit,
       goal: this.goalSpot(spots),
       goals: spots.slice(1),
-      // 신의 흔적 (E238): 아직 응답할 흔적만 그 신의 색 십자로. 땅에서 기다리는 빛(P5)은 작은 마름모로 따로, 서 있는 수호자는 금빛 목표 표시가 맡는다
+      // 신의 흔적 (E238): 아직 응답할 흔적만 그 신의 색 십자로. 땅에서 기다리는 빛(P5)은 작은 기둥으로 따로, 서 있는 수호자는 금빛 목표 표시가 맡는다
       traces: game.awakening.spots.filter((t) => t.state === 'open').map((t) => ({ x: t.x, z: t.z, color: godDef(t.god).color })),
       lights: game.powerPicks.spots,
     })
@@ -97,7 +98,7 @@ export class HudFeed {
    * 작은 지도의 금빛 표시와 봇이 쓴다
    */
   /**
-   * 신 깨우기의 표시 자리 모두 (2026-11-22: 특정 신을 가리키지 않는다): 서 있는 수호자 자리와 응답할 흔적 모두.
+   * 신 깨우기의 표시 자리 (2026-11-22: 특정 신을 가리키지 않는다): 수호자가 서 있으면 가장 가까운 수호자 하나, 아니면 응답할 흔적 모두.
    * 지금 땅의 것은 그 자리, 다른 땅의 것은 그쪽 통로 입구 (같은 통로는 한 번). 신 깨우기 목표가 아니면 빈 목록
    */
   goalSpots(): { x: number; z: number }[] {
@@ -105,6 +106,15 @@ export class HudFeed {
     const region = world.region
     if (chapters.goal?.kind !== 'awaken' || region.kind === 'endless') return []
     const { region: prefer, realm } = chapters.goal
+    const spotOf = (t: AwakenTarget) => (t.region === region.id ? awakening.placed(t) : world.wayTo(t.region))
+    // 수호자가 서 있으면 금빛은 하나만: 가장 가까운 수호자(다른 땅이면 그쪽 통로 입구) (P5 손 QA: 같은 모양 마름모 셋 사이에서 바닷가 출구를 2분 헤맸다)
+    const p = this.parts.game.hero.object.position
+    const guardians = awakening.targets(realm).filter((t) => t.kind === 'guardian')
+    if (guardians.length > 0) {
+      const spots = guardians.map(spotOf).filter((s): s is { x: number; z: number } => s !== null)
+      const near = spots.reduce<{ x: number; z: number } | null>((best, s) => (!best || Math.hypot(s.x - p.x, s.z - p.z) < Math.hypot(best.x - p.x, best.z - p.z) ? s : best), null)
+      return near ? [near] : []
+    }
     const first = awakening.target(prefer, null, realm)
     const out: { x: number; z: number }[] = []
     // 다음 할 일 하나(`target`)가 맨 앞: 봇과 지도 탭이 같은 곳을 본다

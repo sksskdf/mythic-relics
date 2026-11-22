@@ -9,8 +9,11 @@ import type { Villagers } from './Villagers'
 const SCENE_VIEW = 8
 /** 줌인·줌아웃에 걸리는 시간 (초) */
 const ZOOM_SECONDS = 0.6
-/** 대화가 끝난 뒤 이만큼(초)은 톡·클릭을 지시로 치지 않는다 (E307, `settling`) */
-export const SETTLE_SECONDS = 0.5
+/**
+ * 대화가 끝난 뒤 이만큼(초)은 톡·클릭을 지시로 치지 않는다 (E307, `settling`).
+ * 0.5초였을 때 마지막 줄인 줄 모르고 한 번 더 누른 톡이 걷기 지시로 샜다 (P5 손 QA): 줌아웃(0.6초)과 합쳐 닫는 누름 뒤 1.6초
+ */
+export const SETTLE_SECONDS = 1
 
 /** 대화 장면이 게임에서 쓰는 것 */
 export interface SceneHost {
