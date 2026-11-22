@@ -94,7 +94,7 @@ export class ProgressionSystem {
     // 처음 연 신화를 바로 골랐거나 빌린 칸에 넣었으면 그쪽(고른 신화 장면·빌린 힘 카드)이 대신 알린다 (RelicSystem이 먼저 듣는다)
     if (inPantheon(progress.pantheon, god)) return
     const def = godDef(god)
-    const lines = [`${def.name}의 힘이 깨어났다`, '신 탭에서 손·심장·숨 자리에 낀다', `열린 신화: ${collectionText()}`]
+    const lines = [`${def.name}의 힘이 깨어났다`, '힘 탭에서 그 신의 힘을 칸에 끼운다', `열린 신화: ${collectionText()}`]
     bus.emit('moment', { id: 'mythOpened', card: { kind: '신화 개방', title: def.name, color: def.color, icon: classIcon(def.name), lines } })
   }
 

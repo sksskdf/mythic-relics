@@ -31,21 +31,23 @@ export function renderStatus(ctx: TabContext, body: HTMLElement): void {
   const portrait = el('div', 'ui-portrait ui-portrait--large')
   portrait.append(img(heroIcon(host.wardrobe.wardrobe.body)))
   who.append(portrait, el('div', 'menu-status__title', '이름 없는 모험가'))
+  // 신 단계(보석)와 승천은 엔딩 뒤 장치다 (P6): 엔딩 전에는 무기의 신 이름만
+  const after = host.afterEnding('mythStage4')
   if (current) {
     const god = godDef(current)
     const level = host.progress.level(current)
     portrait.style.setProperty('--glow', god.color)
-    who.append(el('div', 'menu-status__name', `손에 쥔 신 · ${god.name}`))
-    const gems = pips(level)
-    gems.classList.remove('ui-gems--small')
-    gems.style.setProperty('--gem', god.color)
-    who.append(gems)
-    // 다음 단계는 귀환의 승천으로 (E305-03: 신화 경험치 막대는 없앰). 조각 2에 무기만 쥔 신은 수호자를 이겨야 깨어난다
-    if (level < 1) ctx.hintOn(portrait, `${god.name}의 마지막 조각을 모으면 깨어난다.`)
-    else if (level < host.progress.levelCap) ctx.hintOn(portrait, `성소 화로에서 원정을 마칠 때 「승천」을 고르면 ${god.name} ${level + 1}단계`)
+    who.append(el('div', 'menu-status__name', `무기의 신 · ${god.name}`))
+    if (after) {
+      const gems = pips(level)
+      gems.classList.remove('ui-gems--small')
+      gems.style.setProperty('--gem', god.color)
+      who.append(gems)
+      if (level >= 1 && level < host.progress.levelCap) ctx.hintOn(portrait, `성소 화로에서 원정을 마칠 때 「승천」을 고르면 ${god.name} ${level + 1}단계`)
+    } else ctx.hintOn(portrait, `${god.name}의 무기를 쥐었다. 힘 탭에서 칸을 바꾼다.`)
   } else {
     portrait.style.setProperty('--glow', 'var(--c-line-2)')
-    ctx.hintOn(portrait, '신의 흔적·사냥·수호자, 조각 셋을 모으면 그 신이 깨어난다.')
+    ctx.hintOn(portrait, '신의 흔적에 서면 그 신이 힘 셋을 내민다. 하나를 고른다.')
   }
   const tags = el('div', 'menu-status__tags')
   who.append(tags)
@@ -66,16 +68,19 @@ export function renderStatus(ctx: TabContext, body: HTMLElement): void {
     grid.append(r)
   }
   const changed = (v: number, higherIsGood: boolean) => (Math.abs(v - 1) < 0.005 ? undefined : { text: pct(v), good: v > 1 === higherIsGood })
-  row('heart', '생명', `${Math.round(stats.hp)} / ${stats.maxHp}`, `생명\n승천 하나마다 최대 생명 +${Math.round(PER_PROMOTION.maxHpPct * 100)}%, 깨운 신 하나마다 +${PER_OPENED.maxHp}. 오르면 가득 찬다.`)
-  row('sword', '주는 피해', `×${stats.damage.toFixed(2)}`, `주는 피해\n승천 하나마다 ×${PER_PROMOTION.damage}, 유물표에 켠 칸 하나마다 +${Math.round(PER_LIT * 100)}%, 손에 쥔 신의 힘이 곱해진다.`, changed(stats.damage, true))
+  const promoted = after ? `승천 하나마다 최대 생명 +${Math.round(PER_PROMOTION.maxHpPct * 100)}%, ` : ''
+  row('heart', '생명', `${Math.round(stats.hp)} / ${stats.maxHp}`, `생명\n${promoted}깨운 신 하나마다 +${PER_OPENED.maxHp}. 오르면 가득 찬다.`)
+  const promotedHit = after ? `승천 하나마다 ×${PER_PROMOTION.damage}, ` : ''
+  row('sword', '주는 피해', `×${stats.damage.toFixed(2)}`, `주는 피해\n${promotedHit}모은 유물 하나마다 +${Math.round(PER_LIT * 100)}%, 귀환할수록 곱해진다.`, changed(stats.damage, true))
   row('shield', '받는 피해', `×${stats.damageTaken.toFixed(2)}`, '낀 유물의 지속 효과', changed(stats.damageTaken, false))
   row('boot', '이동 속도', `${Math.round(stats.moveSpeed * 100)}%`, '낀 유물의 지속 효과', changed(stats.moveSpeed, true))
   // 탈것 (E241): 얻은 뒤에만 한 줄
   if (stats.mount !== null) row('boot', '탈것', `×${stats.mount}`, '고개지기의 산양\n멀리 누르면 올라타 달린다. 탄 동안은 싸우지 않고, 적을 누르거나 멈추면 내린다.')
   row('push', '밀쳐 내기', `×${stats.knockbackDealt.toFixed(2)}`, '내 공격이 적을 미는 힘', changed(stats.knockbackDealt, true))
   row('stand', '버티기', `×${stats.knockbackTaken.toFixed(2)}`, '내가 밀려나는 정도. 낮을수록 잘 버틴다.', changed(stats.knockbackTaken, false))
-  row('divine', '심장 게이지', `${Math.round(stats.heartGauge * 100)}%`, '심장 게이지\n스킬로 맞히고 적을 쓰러뜨릴수록 차오른다. 가득 차면 심장에 둔 신의 궁극기가 저절로 나간다.')
-  row('promote', '승천', `${stats.promotions}`, `승천\n어느 신이든 귀환할 때 승천을 고르면 그 신이 한 단계 오르고, 하나마다 최대 생명 +${Math.round(PER_PROMOTION.maxHpPct * 100)}%, 모든 피해 ×${PER_PROMOTION.damage}. 자리를 바꿔도 남는다.`)
+  row('divine', '궁극기 게이지', `${Math.round(stats.heartGauge * 100)}%`, '궁극기 게이지\n스킬로 맞히고 적을 쓰러뜨릴수록 차오른다. 가득 차면 칸의 궁극기가 저절로 나간다.')
+  // 승천은 엔딩 뒤 귀환의 갈래다 (P6)
+  if (after) row('promote', '승천', `${stats.promotions}`, `승천\n어느 신이든 귀환할 때 승천을 고르면 그 신이 한 단계 오르고, 하나마다 최대 생명 +${Math.round(PER_PROMOTION.maxHpPct * 100)}%, 모든 피해 ×${PER_PROMOTION.damage}. 자리를 바꿔도 남는다.`)
   right.append(grid)
 
   // 주는 피해가 어디서 오나 (E301-01): 곱하는 층과 더하는 층, 합은 「주는 피해」 줄
@@ -86,7 +91,7 @@ export function renderStatus(ctx: TabContext, body: HTMLElement): void {
     right.append(list)
   }
 
-  // 유물표 (E303-04): 켠 칸 하나마다 같은 덧셈, 열린 신화는 생명
+  // 모은 유물 (E303-04 유물표 → P6): 하나마다 같은 덧셈, 깨운 신은 생명
   if (stats.collected > 0 || stats.lit > 0 || stats.powers.length > 0) {
     const list = el('div', 'menu-status__powers')
     if (stats.collected > 0 || stats.lit > 0) {
@@ -95,7 +100,7 @@ export function renderStatus(ctx: TabContext, body: HTMLElement): void {
       const chip = el('span', 'ui-chip')
       chip.style.setProperty('--glow', 'var(--c-gilt)')
       chip.append(img(glyph('star', '#ffd27a', '#a8862e')))
-      line.append(chip, el('span', '', '유물표'), el('em', '', `켠 칸 ${stats.lit} · 모든 피해 +${Math.round(stats.lit * PER_LIT * 100)}%, 깨운 신 ${n} · 최대 생명 +${n * PER_OPENED.maxHp}`))
+      line.append(chip, el('span', '', '모은 유물'), el('em', '', `유물 ${stats.lit} · 모든 피해 +${Math.round(stats.lit * PER_LIT * 100)}%, 깨운 신 ${n} · 최대 생명 +${n * PER_OPENED.maxHp}`))
       list.append(line)
     }
     for (const p of stats.powers) {

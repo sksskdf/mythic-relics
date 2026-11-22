@@ -17,7 +17,7 @@ import { mythRelic, stageName } from '../gear/mythRelic'
 import { GEAR } from '../gear/roll'
 import { TRAINING_UNIQUES } from '../skills/uniques'
 import { levelGains } from '../myth/levelGains'
-import { AUTOMATION_STEPS } from '../progress/Automation'
+import { AUTOMATION_STEPS, trainingLine } from '../progress/Automation'
 import { BRANCHES, insightProgress, TRAINING_NODES } from '../data/training'
 import { statText } from '../myth/alwaysText'
 import type { StatKind } from '../data/mythAlways'
@@ -118,7 +118,8 @@ export class MenuData {
         automation: () => {
           const returns = game.expedition.returns
           const ending = game.ending.has('autoPickup')
-          return AUTOMATION_STEPS.map((s) => ({ name: s.name, lines: s.lines, on: s.at === null ? ending : ending || returns >= s.at }))
+          // 수련의 줄은 수련이 열린 엔딩 뒤에만 (P6)
+          return AUTOMATION_STEPS.map((s) => ({ name: s.name, lines: s.lines.filter((l) => ending || !trainingLine(l)), on: s.at === null ? ending : ending || returns >= s.at }))
         },
         returns: () => game.expedition.returns,
         expedition: () => {

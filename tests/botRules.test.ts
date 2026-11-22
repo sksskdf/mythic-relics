@@ -18,6 +18,8 @@ describe('봇의 귀환 갈래 (E307 0C)', () => {
 
   it('승천할 신이 없을 때만 불씨를 고른다 (불꽃)', () => {
     expect(returnBranch(flames, 'thor', 1, 'ascend')).toBe('flame:flame')
+    // 엔딩 전 귀환은 「돌아간다」 하나뿐이다 (P6): 고르는 것 없이 그것
+    for (const mode of ['ascend', 'old'] as const) expect(returnBranch(['return'], 'thor', 1, mode)).toBe('return')
     expect(returnBranch(flames, null, 0, 'ascend')).toBe('flame:flame')
   })
 

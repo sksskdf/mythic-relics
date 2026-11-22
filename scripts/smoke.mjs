@@ -375,7 +375,8 @@ try {
   const tab = (name) => page.locator('.menu__tab', { hasText: name })
   await tab('상태').click()
   const statRows = await page.locator('.menu-status__stat').count()
-  if (statRows !== 8) throw new Error(`상태 탭: 능력치 줄이 ${statRows}개입니다.`)
+  // 엔딩 전에는 승천 줄이 없다 (P6): 일곱
+  if (statRows !== 7) throw new Error(`상태 탭: 능력치 줄이 ${statRows}개입니다.`)
   await page.screenshot({ path: 'test-results/menu-status.png' })
   // 장비 탭 (E13): 칸 7. 장화를 가방에 넣고, 가방에서 누르면 비교 카드가 뜨고 다시 발 칸에 낀다. 고른 신화는 그대로다 (E12-04).
   await tab('장비').click()
@@ -393,7 +394,7 @@ try {
   if ((await page.evaluate((uid) => window.__game.powers.loadout.slots[4] === uid, bootsUid)) !== true) throw new Error('정보 화면: 가방의 장비를 발 칸에 다시 끼지 못했습니다.')
   // 대장간 (E13-05): 마을에서 재료가 차면 「벼리기」로 묠니르를 2단계로 올린다
   await page.evaluate(() => window.__game.dev.fillForge('thor'))
-  await tab('수련').click()
+  await tab('상태').click()
   await tab('장비').click()
   const forgeRow = page.locator('.menu-forge__row', { hasText: '벼린 묠니르' })
   if (!(await forgeRow.count())) throw new Error('대장간: 묠니르를 올리는 제작법이 보이지 않습니다.')
@@ -456,17 +457,16 @@ try {
   })
   await page.locator('.menu-gods__views .ui-pill', { hasText: '힘' }).click()
   if (!(await page.locator('.menu-powers__slots').isVisible())) throw new Error('힘 탭: 「힘」으로 돌아왔는데 칸이 없습니다.')
-  // 수련 탭 (E236): 깨달음을 얻으면 메뉴 단추에 표시, 뿌리 마디를 누르면 찍히고 피해가 오른다
-  const trainBefore = await page.evaluate(() => {
+  // 수련 탭은 엔딩 전에 닫혀 있다 (P6, `redesign.md` 규칙 8): 깨달음을 얻어도 탭이 보이지 않고 메뉴 단추에 표시도 없다
+  const closedTraining = await page.evaluate(() => {
     const g = window.__game
+    g.menu.toggle(false)
+    g.menu.button.classList.remove('has-new')
     g.dev.insight(1)
-    return { damage: g.ctx.build.state.damageScale, marked: g.menu.button.classList.contains('has-new'), unspent: g.training.unspent }
+    g.menu.toggle(true)
+    return { shown: [...document.querySelectorAll('.menu__tab')].filter((b) => !b.hidden).map((b) => b.textContent), marked: g.menu.button.classList.contains('has-new') }
   })
-  await tab('수련').click()
-  await page.click('.menu-train__node[data-node="awaken"]')
-  const trained = await page.evaluate(() => ({ taken: [...window.__game.training.taken], unspent: window.__game.training.unspent, damage: window.__game.ctx.build.state.damageScale, on: document.querySelector('.menu-train__node[data-node="awaken"]')?.classList.contains('is-taken') }))
-  if (!trainBefore.marked || trained.taken.join() !== 'awaken' || trained.unspent !== trainBefore.unspent - 1 || !trained.on || !(trained.damage > trainBefore.damage)) throw new Error(`수련: 깨달음으로 뿌리 마디를 찍지 못했습니다 ${JSON.stringify({ trainBefore, trained })}`)
-  console.log(`수련 확인: 깨달음을 얻으면 메뉴 단추 표시, 뿌리 마디를 찍으면 피해 ×${(trained.damage / trainBefore.damage).toFixed(2)}`)
+  if (closedTraining.shown.some((t) => t.includes('수련')) || closedTraining.marked) throw new Error(`수련: 엔딩 전인데 수련 탭이 보이거나 깨달음이 메뉴 단추에 표시됐습니다 ${JSON.stringify(closedTraining)}`)
   await page.keyboard.press('Escape')
   if (await page.evaluate(() => window.__game.paused)) throw new Error('정보 화면: 닫았는데 게임이 멈춰 있습니다.')
   // 원천 탭 (E14, E21-06, E305-03): 엔딩 전에는 각성 카드 넷만, 끝없는 원정 탭은 숨김. 엔딩 뒤에는 깊이 한 줄(읽기만, 고르기는 귀환 카드)
@@ -476,16 +476,29 @@ try {
   if (!(await page.locator('.menu-src__expedition').textContent()).includes('명성')) throw new Error('원천 탭: 원정 기록(명성·원정 수)이 없습니다.')
   const srcView = () => ({ depth: document.querySelectorAll('.menu-src__depth').length, levels: document.querySelectorAll('.menu-src__level').length, tabs: [...document.querySelectorAll('.menu__tab')].filter((b) => !b.hidden).length })
   const demo = await page.evaluate(srcView)
-  if (demo.depth !== 0 || demo.levels !== 0 || demo.tabs !== 7) throw new Error(`엔딩 전: 깊이나 끝없는 원정 탭이 보입니다 (${JSON.stringify(demo)})`)
+  if (demo.depth !== 0 || demo.levels !== 0 || demo.tabs !== 6) throw new Error(`엔딩 전: 깊이나 끝없는 원정·수련 탭이 보입니다 (${JSON.stringify(demo)})`)
   await page.evaluate(() => {
     window.__game.reachEnding()
     window.__game.menu.refresh()
   })
   const after = await page.evaluate(srcView)
   if (after.depth !== 1 || after.levels !== 0 || after.tabs !== 8) throw new Error(`엔딩 뒤: 깊이 한 줄이 없거나(고르는 단추는 없어야 함) 탭이 여덟이 아닙니다 (${JSON.stringify(after)})`)
+  // 수련 탭 (E236, 엔딩 뒤에 열린다 P6): 깨달음을 얻으면 메뉴 단추에 표시, 뿌리 마디를 누르면 찍히고 피해가 오른다
+  const trainBefore = await page.evaluate(() => {
+    const g = window.__game
+    g.menu.toggle(false)
+    g.dev.insight(1)
+    return { damage: g.ctx.build.state.damageScale, marked: g.menu.button.classList.contains('has-new'), unspent: g.training.unspent }
+  })
+  await page.click('.menu-button')
+  await tab('수련').click()
+  await page.click('.menu-train__node[data-node="awaken"]')
+  const trained = await page.evaluate(() => ({ taken: [...window.__game.training.taken], unspent: window.__game.training.unspent, damage: window.__game.ctx.build.state.damageScale, on: document.querySelector('.menu-train__node[data-node="awaken"]')?.classList.contains('is-taken') }))
+  if (!trainBefore.marked || trained.taken.join() !== 'awaken' || trained.unspent !== trainBefore.unspent - 1 || !trained.on || !(trained.damage > trainBefore.damage)) throw new Error(`수련: 깨달음으로 뿌리 마디를 찍지 못했습니다 ${JSON.stringify({ trainBefore, trained })}`)
+  console.log(`수련 확인: 깨달음을 얻으면 메뉴 단추 표시, 뿌리 마디를 찍으면 피해 ×${(trained.damage / trainBefore.damage).toFixed(2)}`)
   await page.keyboard.press('Escape')
-  console.log('원천 확인: 원정 기록, 엔딩 전에는 각성 카드 넷과 탭 일곱, 엔딩 뒤에는 끝없는 원정까지 탭 여덟과 깊이 한 줄(고르기는 귀환 카드)')
-  console.log('정보 화면 확인: 상태 탭 능력치 8줄, 열면 멈춤, 가방에 넣기·다시 끼기와 미리 보기, 힘 탭(칸·외형), Esc로 닫기')
+  console.log('원천 확인: 원정 기록, 엔딩 전에는 각성 카드 넷과 탭 여섯(수련 닫힘), 엔딩 뒤에는 끝없는 원정까지 탭 여덟과 깊이 한 줄(고르기는 귀환 카드)')
+  console.log('정보 화면 확인: 상태 탭 능력치 7줄(엔딩 전), 열면 멈춤, 가방에 넣기·다시 끼기와 미리 보기, 힘 탭(칸·외형), Esc로 닫기')
 
   // 일시 정지(E5): 창이 없을 때 Esc를 누르면 멈추고, 멈춘 동안 게임 시간이 흐르지 않는다.
   await page.keyboard.press('Escape')

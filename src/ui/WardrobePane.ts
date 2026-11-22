@@ -93,7 +93,7 @@ export class WardrobePane {
         if (container.isConnected) this.render(container)
       })
       // 고르지 않으면 비는 칸은 「자동」이 곧 「비우기」라 하나로 보인다 (옛 저장의 「비우기」도 같은 칩)
-      if (kind) this.hintOn(chip, kind === 'none' ? '비우기' : '낀 장비와 손에 쥔 무기를 따른다')
+      if (kind) this.hintOn(chip, kind === 'none' ? '비우기' : '낀 장비와 든 무기를 따른다')
       chips.append(chip)
     }
     options.append(el('div', 'wardrobe__options-label', `${SLOT_NAMES[this.selected]}: ${touchUi() ? '누르면 입혀 보고 고른다' : '커서를 올리면 입혀 보고, 누르면 고른다'}`), chips)

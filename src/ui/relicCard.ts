@@ -3,7 +3,6 @@ import { lookDef, SLOT_NAMES } from '../looks/catalog'
 import { effectScale, relicMyth } from '../gear/mythRelic'
 import { type God, godDef, type RelicId } from '../relics/data'
 import { relicIconRows } from '../relics/model'
-import { josa } from './josa'
 import { pixelIcon } from './pixelIcon'
 
 /** 카드가 놓인 자리와 지금 상태. 없으면 도감처럼 정보만 보여 준다. */
@@ -129,7 +128,7 @@ export function relicCard(def: RelicDef, ctx?: RelicCardContext): HTMLElement {
   if (ctx?.place) {
     const place = ctx.place
     const text =
-      place.kind === 'lit' ? '유물표에 켜짐' : '땅에 떨어져 있음 · 밟으면 줍습니다'
+      place.kind === 'lit' ? '모은 유물' : '땅에 떨어져 있음 · 밟으면 줍습니다'
     card.append(el('div', `rc__place rc__place--${place.kind}`, text))
   }
 
@@ -170,7 +169,7 @@ export function relicCard(def: RelicDef, ctx?: RelicCardContext): HTMLElement {
   }
   card.append(trigger)
 
-  // 신화의 유물 (E21-04 → E303-04): 기본 수치는 없다. 그 신이 자리에 들면 깨어난다. 배율은 지금 실제로 도는 값만 (E307: 「몰면」 글을 걷음)
+  // 신화의 유물 (E21-04 → E303-04 → P6): 기본 수치는 없다. 그 유물 힘이 칸에 들면 돈다. 배율은 지금 실제로 도는 값만 (E307: 「몰면」 글을 걷음)
   const owner = relicMyth(def.id)
   if (owner) {
     const stage = ctx?.stage ?? 1
@@ -180,7 +179,7 @@ export function relicCard(def: RelicDef, ctx?: RelicCardContext): HTMLElement {
     section.append(
       withNumbers(
         el('div', `rc__bonus${active ? ' is-active' : ''}`),
-        active ? `${josa(myth.name, '이')} 자리에 있어 깨어남 (유물 효과 피해 ×${effectScale(def.id, stage, ctx?.focus ?? null)})` : `${josa(myth.name, '을')} 자리에 넣으면 깨어난다`,
+        active ? `칸에 있어 돈다 (유물 효과 피해 ×${effectScale(def.id, stage, ctx?.focus ?? null)})` : `${myth.name}의 힘 · 힘 탭에서 칸에 끼우면 돈다`,
       ),
     )
     card.append(section)

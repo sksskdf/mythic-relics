@@ -261,8 +261,8 @@ export class Autoplayer {
 
     // 3. 정한 신이 있으면 그 신화가 열리는 대로 고른다 (사람은 마을·성소에서 고른다)
     if (this.god && powers.manifested !== this.god && this.game.progress.isOpen(this.god)) this.game.dev.choose(this.god)
-    // 깨달음이 있으면 수련 마디를 찍는다 (E236): 힘 갈래를 먼저 끝까지, 그다음 몸·손
-    for (const id of SAMPLE_ORDER) if (this.game.training.unspent > 0) this.game.dev.train(id)
+    // 깨달음이 있으면 수련 마디를 찍는다 (E236): 힘 갈래를 먼저 끝까지, 그다음 몸·손. 수련은 엔딩 뒤에 열린다 (P6: 사람도 그 전에는 못 찍는다)
+    if (this.game.ending.has('training')) for (const id of SAMPLE_ORDER) if (this.game.training.unspent > 0) this.game.dev.train(id)
     // 가방에 셋이 모이면 합친다 (E303): 낮은 등급부터
     for (const group of powers.loadout.mergeable()) this.game.dev.merge(group.map((i) => i.uid))
     // 녹이기 대비책 (E306 D17): 가방이 찼는데 합칠 묶음이 없으면 하나를 녹여 자리를 낸다 (사람은 장비 탭의 「녹이기」)

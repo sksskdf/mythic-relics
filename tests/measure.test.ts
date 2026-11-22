@@ -155,7 +155,7 @@ describe('재는 자 (E307 0B): 빌드 장부', () => {
     const sheet = dev.buildSheet()
     expect(sheet.damageScale).toBeCloseTo(build.state.damageScale, 10)
     expect(layerProduct(sheet.layers)).toBeCloseTo(sheet.damageScale, 10)
-    expect(sheet.layers.find((l) => l.id === 'promotion')).toMatchObject({ name: '승천', kind: 'mul' })
+    expect(sheet.layers.find((l) => l.id === 'promotion')).toMatchObject({ name: '신 단계', kind: 'mul' })
     expect(sheet.layers.find((l) => l.id === 'renown')!.value).toBeGreaterThan(1)
     expect(Object.values(sheet.stats).every((v) => v !== 0)).toBe(true)
     expect(sheet.pantheon).toEqual({ hand: 'thor', heart: 'thor', breath: ['thor'], levels: { thor: progress.level('thor') } })

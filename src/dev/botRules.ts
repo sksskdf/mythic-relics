@@ -27,10 +27,12 @@ const BOSS_HP = 0.6
 const BOSS_NEAR = 20
 
 /**
- * 봇이 고를 귀환 갈래. ids는 귀환 카드의 갈래(`ascend:신`·`flame:원천`), hand는 손의 신, returns는 지금까지 귀환한 횟수.
+ * 봇이 고를 귀환 갈래. ids는 귀환 카드의 갈래(엔딩 전 `return` 하나, 엔딩 뒤 `ascend:신`·`flame:원천`), hand는 손의 신, returns는 지금까지 귀환한 횟수.
  * 승천은 손의 신부터, 손의 신이 다 올랐으면 오를 수 있는 다른 신. 승천할 신이 없으면 불꽃 불씨
  */
 export function returnBranch(ids: readonly string[], hand: string | null, returns: number, mode: BranchMode): string {
+  // 엔딩 전 귀환은 고르는 것이 없다 (P6): 갈래가 「돌아간다」 하나뿐이면 그것
+  if (ids.length === 1 && ids[0] === 'return') return 'return'
   const ascend = ids.find((id) => id === `ascend:${hand}`) ?? ids.find((id) => id.startsWith('ascend:'))
   const order = mode === 'old' ? (OLD_BRANCH_ORDER[returns] ?? 'ascend') : 'ascend'
   return (order === 'ascend' ? ascend : order) ?? 'flame:flame'

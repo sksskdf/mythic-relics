@@ -393,8 +393,8 @@ export class Game {
       expedition: this.expedition,
       tabs: this.tabs,
       awaken: this.awaken,
-      // 점검용 실행(?relics=)은 도는 힘의 칸 상한을 푼다
-      mythPowers: Object.assign(new PowerProgress(() => this.expedition.returns), { uncapped: options.testRun ?? false, testRun: options.testRun ?? false }),
+      // 도는 힘의 칸은 귀환마다, 장을 정복할 때마다 하나 더 (P6). 점검용 실행(?relics=)은 칸 상한을 푼다
+      mythPowers: Object.assign(new PowerProgress(() => this.expedition.returns + this.chapters.conquered), { uncapped: options.testRun ?? false, testRun: options.testRun ?? false }),
       mount: this.mount,
       uniques: new UniqueState(),
       build: new Build({ powers: this.powers, progress: this.progress, oaths: this.oaths, oath: () => this.expedition.oath, training: this.training, awaken: this.awaken, expedition: this.expedition }),

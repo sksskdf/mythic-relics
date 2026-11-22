@@ -101,6 +101,8 @@ export class PowerSystem {
     bus.on('heroHurt', () => (this.sinceHurt = 0))
     // 귀환으로 도는 힘의 칸이 늘었다: 가진 도는 힘으로 빈 칸을 채운다
     bus.on('expeditionReturned', () => mythPowers.fill() && this.relics.syncPowers())
+    // 장을 정복해도 칸이 하나 는다 (P6): 같은 길로 채운다
+    bus.on('chapterConquered', () => mythPowers.fill() && this.relics.syncPowers())
     // 땅을 옮기거나 쓰러지면 기다리던 흔적의 카드는 거둔다 (그 흔적에 다시 서면 다시 응답한다. 흔적도 이때 기다림을 푼다)
     const dropTraces = () => {
       for (let i = this.queue.length - 1; i >= 0; i--) if (this.queue[i]!.at) this.queue.splice(i, 1)

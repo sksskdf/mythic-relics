@@ -474,9 +474,9 @@ export class RelicSystem {
       for (const g of levelGains(god.id, lv)) if (lv === 1 || g.kind === 'power') gains.push(g.text)
     }
     const ultimate = `궁극기 「${god.ultimate.name}」`
-    // 첫 신의 큰 카드는 네 줄로 (E307: 여섯 줄이면 세로 화면에서 주인공까지 덮는다): 공격과 궁극기를 한 줄에, 힘은 둘까지(나머지는 신 탭의 단계 목록),
+    // 첫 신의 큰 카드는 네 줄로 (E307: 여섯 줄이면 세로 화면에서 주인공까지 덮는다): 공격과 궁극기를 한 줄에, 힘은 둘까지(나머지는 힘 탭),
     // 마지막 줄은 모습이 그대로라는 것과 그 신의 옷이 풀린 곳 (그 뒤의 신은 「외형」 알약의 새 표시로만)
-    const lines = first ? [`${gains[0]} · ${ultimate}`, ...gains.slice(1, 3), `모습은 그대로 · ${god.name}의 옷은 신 탭 「외형」에`] : [...gains, ultimate]
+    const lines = first ? [`${gains[0]} · ${ultimate}`, ...gains.slice(1, 3), `모습은 그대로 · ${god.name}의 옷은 힘 탭 「외형」에`] : [...gains, ultimate]
     const card = { kind: first ? '신이 깨어남' : '손에 쥠', title: god.name, color: god.color, icon: classIcon(god.name), lines }
     bus.emit('moment', first ? { id: 'mythChosen', scene: sceneId('myth', god.id), card } : { id: 'mythSwitched', card })
     // 주변 적을 밀어낸다 (피해는 대기 시간마다 한 번, 멈춘 화면에서 번갈아 골라도 한 번)

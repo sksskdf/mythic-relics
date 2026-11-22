@@ -84,8 +84,8 @@ export class MenuWiring {
     // 첫 깨달음은 수련 탭이 열리는 카드가 알린다
     bus.on('insightGained', () => {
       const { training, expedition } = game
-      // 마디를 다 익혔으면 더 얻는 깨달음은 쓸 곳이 없다 (엔딩 뒤)
-      if (training.complete) return
+      // 마디를 다 익혔으면 더 얻는 깨달음은 쓸 곳이 없다 (엔딩 뒤). 수련 탭은 엔딩 뒤에 연다 (P6): 그 전에는 알리지 않는다
+      if (training.complete || !game.ending.has('training')) return
       if (!tabs.has('training')) {
         game.tabSystem.check()
         return
@@ -105,6 +105,6 @@ export class MenuWiring {
   /** 불러온 뒤: 익히지 않은 깨달음이 남았으면 메뉴 단추에 수련 탭 표시 */
   afterLoad(): void {
     const { training, tabs } = this.parts.game
-    if (tabs.has('training') && training.unspent > 0 && !training.complete) this.menu.markTab('training')
+    if (tabs.has('training') && this.parts.game.ending.has('training') && training.unspent > 0 && !training.complete) this.menu.markTab('training')
   }
 }

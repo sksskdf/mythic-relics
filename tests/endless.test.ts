@@ -58,7 +58,7 @@ describe('끝없는 원정 기록 (E17-04, 성좌판은 E305-03에서 걷음)', 
 
 describe('엔딩 문 (E305-03, DESIGN.md 9.4)', () => {
   it('엔딩 뒤에 여는 것은 일곱이고, 첫 엔딩 큰 카드가 일곱을 모두 적는다', () => {
-    expect(Object.keys(AFTER_ENDING).sort()).toEqual(['autoPickup', 'depth', 'endless', 'mythStage4', 'oaths', 'realms', 'relicStages'])
+    expect(Object.keys(AFTER_ENDING).sort()).toEqual(['autoPickup', 'depth', 'endless', 'mythStage4', 'oaths', 'realms', 'relicStages', 'training'])
     const card = endingLines().join('\n')
     for (const text of Object.values(AFTER_ENDING)) expect(card).toContain(text)
   })

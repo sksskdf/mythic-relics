@@ -68,7 +68,7 @@ export class RelicsTab {
       const badge = el('span', 'menu-relics__manifest', god.name)
       badge.style.setProperty('--god', god.color)
       badge.prepend(img(classIcon(god.name)))
-      this.ctx.hintOn(badge, `손에 쥔 신 ${god.name}`)
+      this.ctx.hintOn(badge, `무기의 신 ${god.name}`)
       state.append(badge)
     }
     left.append(state)

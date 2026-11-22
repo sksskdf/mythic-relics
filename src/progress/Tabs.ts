@@ -28,6 +28,8 @@ export interface TabFacts {
   myth: boolean
   /** 귀환한 횟수 (첫 귀환에 원천, 귀환 2에 맹세) */
   returns: number
+  /** 엔딩을 보았다 (수련은 엔딩 뒤에 연다, P6) */
+  ending?: boolean
 }
 
 export interface StepTabDef {
@@ -44,7 +46,7 @@ export interface StepTabDef {
 export const STEP_TAB_DEFS: Readonly<Record<StepTab, StepTabDef>> = {
   relics: { name: '장비', icon: 'relics', text: '주운 장비를 칸에 끼우고, 같은 것 셋은 합친다', due: (f) => f.gear },
   // 수련은 깨달음 2부터 (E306 D11): 장비(2분)·수련(4분)·신(6분) 탭이 마을을 나서자마자 몰려 열리지 않게
-  training: { name: '수련', icon: 'tree', text: '깨달음으로 마디를 익히면 바로 강해진다. 되돌리기는 무료', due: (f) => f.insights >= TRAINING_TAB_INSIGHTS },
+  training: { name: '수련', icon: 'tree', text: '깨달음으로 마디를 익히면 바로 강해진다. 되돌리기는 무료', due: (f) => !!f.ending && f.insights >= TRAINING_TAB_INSIGHTS },
   gods: { name: '힘', icon: 'classes', text: '가진 힘을 칸에 끼우고 바꾼다. 조합과 모습도 여기서', due: (f) => f.myth },
   map: { name: '지도', icon: 'map', text: '이어진 땅과 다음 목표를 보고, 켠 성소로 바로 간다', due: (f) => f.shrine },
   sources: { name: '원천', icon: 'cycle', text: '명성과 귀환 기록, 원천 각성과 자동화를 본다', due: (f) => f.returns >= 1 },

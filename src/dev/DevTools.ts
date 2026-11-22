@@ -438,7 +438,7 @@ export class DevTools {
         const hand = progress.pantheon.hand
         while (expedition.returns < goal.n!) {
           const ids = expeditionSystem.branches().map((b) => b.id)
-          expeditionSystem.returnNow(ids.find((id) => id === `ascend:${hand}`) ?? 'flame:flame')
+          expeditionSystem.returnNow(ids.find((id) => id === `ascend:${hand}`) ?? (ids.includes('return') ? 'return' : 'flame:flame'))
         }
         break
       }

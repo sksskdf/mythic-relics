@@ -8,11 +8,12 @@ describe('정보 화면 탭 차례로 열기 (E236-05, E305-04 탭 일곱)', () 
     expect(tabsDue(none, new Set())).toEqual([])
   })
 
-  it('쓸 일이 생기면 그 탭: 장비를 주우면 장비, 깨달음을 얻으면 수련, 신의 흔적을 찾으면 신, 성소를 찾으면 지도', () => {
+  it('쓸 일이 생기면 그 탭: 장비를 주우면 장비, 엔딩 뒤 깨달음을 얻으면 수련, 첫 힘을 가지면 힘, 성소를 찾으면 지도', () => {
     expect(tabsDue({ ...none, gear: true }, new Set())).toEqual(['relics'])
-    // 수련은 깨달음 2부터 (E306 D11: 장비·수련·신 탭이 몰려 열리지 않게)
-    expect(tabsDue({ ...none, insights: 1 }, new Set())).toEqual([])
-    expect(tabsDue({ ...none, insights: 2 }, new Set())).toEqual(['training'])
+    // 수련은 엔딩 뒤에 열고(P6, `redesign.md` 규칙 8: 엔딩 전에는 깨달음을 아무리 모아도 닫혀 있다), 깨달음 2부터 (E306 D11)
+    expect(tabsDue({ ...none, insights: 9 }, new Set())).toEqual([])
+    expect(tabsDue({ ...none, ending: true, insights: 1 }, new Set())).toEqual([])
+    expect(tabsDue({ ...none, ending: true, insights: 2 }, new Set())).toEqual(['training'])
     expect(tabsDue({ ...none, myth: true }, new Set())).toEqual(['gods'])
     expect(tabsDue({ ...none, shrine: true }, new Set())).toEqual(['map'])
     // 원천은 첫 귀환, 맹세는 귀환 2에 (E305-01·04)
@@ -25,7 +26,7 @@ describe('정보 화면 탭 차례로 열기 (E236-05, E305-04 탭 일곱)', () 
   })
 
   it('이미 연 탭은 다시 열지 않고, 여럿이면 정한 차례대로', () => {
-    const all: TabFacts = { gear: true, insights: 3, shrine: true, myth: true, returns: 2 }
+    const all: TabFacts = { gear: true, insights: 3, shrine: true, myth: true, returns: 2, ending: true }
     expect(tabsDue(all, new Set())).toEqual([...STEP_TABS])
     expect(tabsDue(all, new Set(['relics', 'map']))).toEqual(['training', 'gods', 'sources', 'oaths'])
   })

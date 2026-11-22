@@ -224,7 +224,7 @@ export function parseExpedition(raw: unknown): ExpeditionData {
     oath: OATH_IDS.includes(o.oath as OathId) ? (o.oath as OathId) : null,
     // 맹세를 걸었으면 출발 카드는 이미 고른 것이다
     oathPending: o.oathPending === true && !OATH_IDS.includes(o.oath as OathId),
-    lastBranch: typeof o.lastBranch === 'string' && /^(ascend|flame):[a-z]{1,20}$/i.test(o.lastBranch) ? o.lastBranch : null,
+    lastBranch: typeof o.lastBranch === 'string' && /^(return|(ascend|flame):[a-z]{1,20})$/i.test(o.lastBranch) ? o.lastBranch : null,
     deepWin: o.deepWin === true,
     ...(num(o.falls, 0, 999, 0) >= 1 ? { falls: Math.round(num(o.falls, 0, 999, 0)) } : {}),
   }

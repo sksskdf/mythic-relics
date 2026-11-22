@@ -1,4 +1,5 @@
 import { SOURCE_IDS, type SourceId } from '../../data/schema'
+import { AURA_SLOTS } from '../../data/powers'
 import { FLAME, RETURN_MIN_SECONDS, returnAsked, returnEarned, type ReturnAskNow } from '../../data/cycle'
 import { isBossLike } from '../../enemies/grade'
 import { gearName, gearScore, isGearUid } from '../../gear/roll'
@@ -19,6 +20,8 @@ const FLAME_TEXT: Readonly<Record<SourceId, string>> = {
 }
 /** 성소 한가운데에서 이만큼 안에 서면 귀환 카드가 뜬다 (맹세 출발 카드도 띄운 자리에서 이만큼 걸어 나가면 닫힌다) */
 export const HEARTH_RADIUS = 2.5
+/** 엔딩 전 귀환의 갈래 id (고르는 것이 없다, P6) */
+export const PLAIN_RETURN = 'return'
 
 const clock = (s: number): string => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`
 
@@ -140,11 +143,13 @@ export class ExpeditionSystem {
   }
 
   /**
-   * 고를 수 있는 갈래: 자리에 든 신 가운데 더 오를 수 있는 신의 승천, 원천 불씨 넷.
+   * 고를 수 있는 갈래 (엔딩 뒤): 자리에 든 신 가운데 더 오를 수 있는 신의 승천, 원천 불씨 넷. 엔딩 전에는 「돌아간다」 하나.
    * 엔딩 뒤(자동화 「지난번 갈래 그대로」)에는 지난 귀환의 갈래를 맨 앞에 둔다 (E305-03)
    */
   branches(): ReturnBranch[] {
-    const { progress, expedition, automation } = this.ctx
+    const { progress, expedition, automation, ending } = this.ctx
+    // 엔딩 전 (P6, `redesign.md` 1장 규칙 7): 고르는 것 없이 하나. 머리 보상은 도는 힘의 칸 하나 더
+    if (!ending.reached) return [{ id: PLAIN_RETURN, name: '돌아간다', text: '도는 힘 칸 하나 더', color: '#ffd27a' }]
     const out: ReturnBranch[] = []
     for (const god of pantheonGods(progress.pantheon)) {
       const level = progress.level(god)
@@ -160,18 +165,19 @@ export class ExpeditionSystem {
 
   /** 귀환 카드에 보일 것 */
   view(): ReturnView {
-    const { expedition, depth, ending } = this.ctx
+    const { expedition, depth, ending, mythPowers } = this.ctx
     const p = expedition.preview()
     const heirloom = expedition.heirloomSlots
+    const best = heirloom > 0 ? `·가장 좋은 장비 ${heirloom}` : ''
+    const slots = mythPowers.auraSlots
     return {
       count: expedition.count,
-      gain: p.gain,
-      now: p.now,
-      next: p.next,
+      // 엔딩 전에는 명성·배율을 보이지 않고 도는 힘 칸만 (P6). 배율은 그대로 쌓여 상태 탭의 「귀환」 층으로 보인다
+      ...(ending.reached ? { renown: { gain: p.gain, now: p.now, next: p.next } } : { slots: { now: slots, next: Math.min(AURA_SLOTS.max, slots + 1) } }),
       time: clock(p.seconds),
       last: p.last === null ? null : clock(p.last),
-      keeps: `깨운 신·신 단계·유물표·원형·장 진행·웨이포인트${heirloom > 0 ? `·가장 좋은 장비 ${heirloom}` : ''}`,
-      clears: '수련(깨달음과 마디), 일반 장비',
+      keeps: ending.reached ? `깨운 신·신 단계·유물표·원형·장 진행·웨이포인트${best}` : `가진 힘과 칸·유물·재료·장 진행·켠 성소${best}`,
+      clears: ending.reached ? '수련(깨달음과 마디), 일반 장비' : '일반 장비',
       branches: this.branches(),
       // 깊이 (E305-03, D9): 엔딩 뒤에만 다음 원정을 그대로나 한 걸음 더 깊이
       ...(ending.has('depth') ? { depth: { now: depth.level, max: depth.max } } : {}),
@@ -187,19 +193,21 @@ export class ExpeditionSystem {
   }
 
   /**
-   * 귀환한다 (카드의 갈래, 봇·점검). 갈래 id는 `ascend:신` 또는 `flame:원천`, depth는 다음 원정의 깊이(엔딩 뒤, 없으면 그대로).
-   * 받은 명성 (못 했으면 -1)
+   * 귀환한다 (카드의 갈래, 봇·점검). 갈래 id는 `return`(엔딩 전) · `ascend:신` · `flame:원천`(엔딩 뒤), depth는 다음 원정의 깊이(엔딩 뒤, 없으면 그대로).
+   * 엔딩 전에는 고르는 것이 없다 (P6): 승천·불씨 id가 와도(옛 점검 스크립트) 그냥 돌아간다. 받은 명성 (못 했으면 -1)
    */
   returnNow(id: string, depth?: number): number {
-    const { expedition, training, powers, pickups, bus } = this.ctx
+    const { expedition, training, powers, pickups, bus, ending, mythPowers } = this.ctx
     const [kind, what] = id.split(':') as [string, string]
-    if (kind !== 'ascend' && kind !== 'flame') return -1
-    const flame = kind === 'flame' && SOURCE_IDS.includes(what as SourceId) ? (what as SourceId) : undefined
+    if (kind !== PLAIN_RETURN && kind !== 'ascend' && kind !== 'flame') return -1
+    const chosen = ending.reached ? kind : PLAIN_RETURN
+    const flame = chosen === 'flame' && SOURCE_IDS.includes(what as SourceId) ? (what as SourceId) : undefined
     const before = expedition.multiplier
+    const slotsBefore = mythPowers.auraSlots
     // 마친 원정에서 깊이 한계 보스를 이겼나 (저장되는 원정 기록, 귀환하면 지워지니 먼저 읽는다)
     const deepWin = expedition.deepWin
     const gain = expedition.return({ ...(flame ? { flame } : {}) }, training.xp, [...training.taken])
-    expedition.lastBranch = id
+    expedition.lastBranch = chosen === PLAIN_RETURN ? PLAIN_RETURN : id
     // 가보 (귀환 1부터): 낀 일반 장비 가운데 가장 좋은 것을 칸 수만큼 남긴다 (고르는 단추 없이)
     expedition.heirloom = powers.loadout.wornGear
       .sort((a, b) => gearScore(b) - gearScore(a))
@@ -215,18 +223,18 @@ export class ExpeditionSystem {
     for (const uid of [...loadout.bag]) if (isGearUid(uid) && !keep.has(uid)) loadout.discard(uid)
     for (const uid of [...loadout.gear.keys()]) if (!keep.has(uid) && !loadout.has(uid)) loadout.gear.delete(uid)
     for (const item of [...pickups.list]) if (item.gear) pickups.remove(item.id)
-    if (kind === 'ascend') this.parts.ascend(what)
+    if (chosen === 'ascend') this.parts.ascend(what)
     this.declined = true
-    bus.emit('expeditionReturned', { count: expedition.count - 1, renown: gain, mult: expedition.multiplier, branch: id, deepWin })
+    bus.emit('expeditionReturned', { count: expedition.count - 1, renown: gain, mult: expedition.multiplier, branch: expedition.lastBranch, deepWin })
     // 다음 원정의 깊이: 지난 원정의 한계를 깸(DepthSystem이 expeditionReturned에서 본다) 뒤에 바꾼다
     if (depth !== undefined && depth !== this.ctx.depth.level) this.parts.deepen(depth)
     const heirlooms = expedition.heirloom.map((uid) => loadout.gear.get(uid)).filter((g) => g !== undefined)
-    const lines = [
-      `명성 +${gain} · 모든 피해 ×${before.toFixed(2)} → ×${expedition.multiplier.toFixed(2)}`,
-      ...(flame ? [`${SOURCE_NAMES[flame]} 불씨: ${FLAME_TEXT[flame]}`] : []),
-      ...heirlooms.map((g) => `가보로 남김: ${gearName(g)}`),
-      '새 불길: 2분 동안 장비가 더 떨어진다',
-    ]
+    // 엔딩 전 (P6): 명성·배율 대신 늘어난 도는 힘 칸
+    const slotsAfter = mythPowers.auraSlots
+    const head = ending.reached
+      ? [`명성 +${gain} · 모든 피해 ×${before.toFixed(2)} → ×${expedition.multiplier.toFixed(2)}`, ...(flame ? [`${SOURCE_NAMES[flame]} 불씨: ${FLAME_TEXT[flame]}`] : [])]
+      : [slotsAfter > slotsBefore ? `도는 힘 칸 ${slotsBefore} → ${slotsAfter}` : `도는 힘 칸 ${slotsAfter} · 모두 열렸다`]
+    const lines = [...head, ...heirlooms.map((g) => `가보로 남김: ${gearName(g)}`), '2분 동안 장비가 더 떨어진다']
     bus.emit('moment', { id: 'returned', card: { kind: '귀환', title: `원정 ${expedition.count} 출발`, color: '#ffd27a', lines } })
     bus.emit('loadoutChanged', { change: { before: powers.state, after: powers.state }, announce: false })
     bus.emit('progressChanged', {})

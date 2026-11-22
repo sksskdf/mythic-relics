@@ -187,7 +187,7 @@ export interface PowerSlots {
 /** 도는 힘의 칸: 처음 셋, 끝은 여섯 */
 export const AURA_SLOTS = { start: 3, max: 6 } as const
 
-/** 도는 힘의 칸 수: 귀환마다 하나 더, 여섯까지 */
+/** 도는 힘의 칸 수: 귀환마다·장을 정복할 때마다 하나 더(게임이 둘을 더해 넘긴다, P6), 여섯까지 */
 export function auraSlots(returns: number): number {
   return Math.min(AURA_SLOTS.max, AURA_SLOTS.start + Math.max(0, Math.floor(returns)))
 }

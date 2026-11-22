@@ -165,6 +165,7 @@ describe('귀환 카드 (E304)', () => {
         depth: { level: 1, max: 1 },
         automation: { now: {} },
         powers: { loadout: { mergeable: () => [] } },
+        mythPowers: { auraSlots: 3 },
       }
       let offers = 0
       const system = new ExpeditionSystem(ctx as never, { offer: () => (offers += 1), offering: () => offers > 0, close: () => {}, ascend: () => {}, merge: () => {}, deepen: () => {} })
@@ -232,6 +233,7 @@ describe('귀환 카드 (E304)', () => {
       depth: { level: 1, max: 1 },
       automation: { now: {} },
       powers: { loadout: { mergeable: () => [] } },
+      mythPowers: { auraSlots: 3 },
     }
     let open = false
     let offers = 0
@@ -251,5 +253,67 @@ describe('귀환 카드 (E304)', () => {
     position.x = 0
     system.update(0)
     expect([open, offers]).toEqual([true, 2])
+  })
+})
+
+describe('엔딩 전 귀환은 고르는 것 없이 칸 하나 더 (P6)', () => {
+  const rig = (reached: boolean) => {
+    const expedition = new ExpeditionProgress()
+    expedition.elapsed = 300
+    expedition.bosses = 1
+    const ctx = {
+      bus: new EventBus<GameEvents>(),
+      expedition,
+      chapters: { index: 1, goal: null, conquered: 0 },
+      training: { insights: 30, unspent: 0, xp: 0, taken: new Set(), reset: () => {} },
+      ending: { reached, has: () => reached },
+      progress: { pantheon: { hand: 'thor', heart: null, breath: [] }, level: () => 1, levelCap: 2 },
+      automation: { now: {} },
+      depth: { level: 1, max: 1 },
+      powers: { loadout: { wornGear: [], slots: [], bag: [], gear: new Map(), mergeable: () => [] }, state: {} },
+      pickups: { list: [] },
+      mythPowers: { auraSlots: 3 },
+    }
+    // 도는 힘의 칸은 귀환 수를 읽는다 (게임의 PowerProgress와 같은 셈)
+    Object.defineProperty(ctx.mythPowers, 'auraSlots', { get: () => Math.min(6, 3 + expedition.returns) })
+    const moments: (readonly string[])[] = []
+    ctx.bus.on('moment', (m) => m.card && moments.push(m.card.lines))
+    const flames: string[] = []
+    const system = new ExpeditionSystem(ctx as never, { ascend: (god: string) => flames.push(`ascend:${god}`) } as never)
+    return { system, expedition, moments, flames }
+  }
+
+  it('엔딩 전: 갈래는 「돌아간다」 하나, 카드에는 명성·배율 대신 도는 힘 칸 지금 → 하나 더, 지워지는 것은 일반 장비만', () => {
+    const { system } = rig(false)
+    expect(system.branches().map((b) => b.id)).toEqual(['return'])
+    const view = system.view()
+    expect(view.renown).toBeUndefined()
+    expect(view.slots).toEqual({ now: 3, next: 4 })
+    expect(view.clears).toBe('일반 장비')
+    expect(`${view.keeps} ${view.clears}`).not.toMatch(/승천|불씨|유물표|수련|깨달음|신 단계/)
+  })
+
+  it('엔딩 전에는 승천·불씨 id가 와도(옛 점검 스크립트) 그냥 돌아간다: 불씨도 승천도 없고 칸이 하나 는다', () => {
+    const { system, expedition, moments, flames } = rig(false)
+    expect(system.returnNow('flame:stone')).toBeGreaterThan(0)
+    expect(system.returnNow('ascend:thor')).toBeGreaterThan(0)
+    expect(expedition.flamePoints().stone).toBe(0)
+    expect(flames).toEqual([])
+    expect(expedition.lastBranch).toBe('return')
+    expect(moments[0]![0]).toBe('도는 힘 칸 3 → 4')
+    expect(moments.flat().join(' ')).not.toMatch(/명성|불씨|새 불길/)
+    expect(system.returnNow('nothing')).toBe(-1)
+  })
+
+  it('엔딩 뒤: 승천·불씨 갈래와 명성·배율은 그대로', () => {
+    const { system, expedition, flames } = rig(true)
+    const ids = system.branches().map((b) => b.id)
+    expect(ids).toContain('ascend:thor')
+    expect(ids).toContain('flame:stone')
+    expect(system.view().renown).toBeDefined()
+    system.returnNow('flame:stone')
+    expect(expedition.flamePoints().stone).toBeGreaterThan(0)
+    system.returnNow('ascend:thor')
+    expect(flames).toEqual(['ascend:thor'])
   })
 })

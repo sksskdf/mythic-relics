@@ -32,6 +32,7 @@ export class TabSystem {
       // 힘 탭(옛 신 탭)은 첫 힘을 고른 때부터 (P7). 옛 저장의 깨운 신·깨우는 신도 연다
       myth: this.ctx.mythPowers.owned.length > 0 || progress.opened.length > 0 || awaken.waking.length > 0,
       returns: expedition.returns,
+      ending: this.ctx.ending.has('training'),
     }
   }
 

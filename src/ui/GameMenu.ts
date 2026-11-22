@@ -267,6 +267,8 @@ export class GameMenu {
     const { host } = this.ctx
     if (tab === 'status') return true
     if (ENDING_TABS.includes(tab)) return host.afterEnding('endless')
+    // 수련은 엔딩 뒤에 연다 (P6): 옛 저장에서 이미 연 탭이어도 엔딩 전에는 숨긴다
+    if (tab === 'training' && !host.afterEnding('training')) return false
     return host.tabOpen(tab)
   }
 

@@ -153,7 +153,7 @@ export class Hud {
       this.tip.hidden = true
       this.onPortraitClick()
     })
-    this.tipOn(this.portrait, () => (this.statusTip || '이름 없는 모험가\n신의 흔적·사냥·수호자, 조각 셋을 모으면 그 신이 깨어난다.') + '\n누르면 자세한 상태')
+    this.tipOn(this.portrait, () => (this.statusTip || '이름 없는 모험가\n신의 흔적에 서면 그 신이 힘 셋을 내민다. 하나를 고른다.') + '\n누르면 자세한 상태')
     this.portraitIcon = document.createElement('img')
     this.portraitIcon.alt = ''
     this.portraitIcon.src = heroIcon()
@@ -322,10 +322,9 @@ export class Hud {
   /** 왼쪽 위 지금의 나: 바뀌었을 때만 다시 그린다. 초상은 늘 주인공의 얼굴이고, 손에 쥔 신은 테의 빛·보석·첫 칩으로만 보인다 (E307) */
   private updateStatus(state: HudState): void {
     const { face, hand, lent, promote } = state
-    const borrowed = lent.length ? `\n빌린 힘: ${lent.map((b) => b.name).join('·')}` : ''
-    // 조각 2에 무기만 쥔 신은 아직 깨어나지 않았다 (0단계)
-    const stage = hand ? (hand.level > 0 ? `${hand.level}단계` : '깨우는 중') : ''
-    this.statusTip = hand ? `이름 없는 모험가\n손에 쥔 신: ${hand.name} ${stage}${borrowed}${promote ? ' · 성소 화로에서 귀환할 수 있다' : ''}` : ''
+    const borrowed = lent.length ? `\n도는 힘의 신: ${lent.map((b) => b.name).join('·')}` : ''
+    // 단계는 엔딩 전 화면에 숫자로 두지 않는다 (P6): 무기의 신 이름만
+    this.statusTip = hand ? `이름 없는 모험가\n무기의 신: ${hand.name}${borrowed}${promote ? ' · 성소 화로에서 귀환할 수 있다' : ''}` : ''
     const key = `${hand?.name}|${hand?.level}|${lent.map((b) => b.name).join()}|${promote}`
     if (key === this.statusKey && face === this.faceShown) return
     this.statusKey = key

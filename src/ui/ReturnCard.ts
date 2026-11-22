@@ -18,9 +18,10 @@ export interface ReturnBranch {
 export interface ReturnView {
   /** 이번 원정 (1부터) */
   count: number
-  gain: number
-  now: number
-  next: number
+  /** 받을 명성과 지금·다음 배율 (엔딩 뒤에만 보인다, P6: 엔딩 전에는 고르는 것도 배율도 없이 칸 하나 더) */
+  renown?: { gain: number; now: number; next: number }
+  /** 도는 힘의 칸: 지금 → 귀환 뒤 (엔딩 전 귀환의 머리 보상, P6) */
+  slots?: { now: number; next: number }
   /** 이번 원정 시간과 지난 기록 (분:초 글) */
   time: string
   last: string | null
@@ -32,7 +33,8 @@ export interface ReturnView {
 }
 
 /**
- * 귀환 카드 (E304, `DESIGN.md` 5.3): 받을 명성·다음 배율·원정 시간과 지난 기록·남는 것과 지워지는 것·갈래.
+ * 귀환 카드 (E304, `DESIGN.md` 5.3): 원정 시간과 지난 기록·남는 것과 지워지는 것·갈래.
+ * 엔딩 전(P6)은 고르는 것 없이 도는 힘 칸 하나 더와 단추 하나, 엔딩 뒤는 받을 명성·다음 배율과 승천·불씨 갈래.
  * 갈래를 누르는 것이 곧 귀환이다. 「아직」을 누르면 닫힌다. 틀은 고르는 카드(`pickCard.css`)를 쓴다.
  * 엔딩 뒤에는 갈래 위에 다음 원정의 깊이 「그대로 / +1」 (E305-03, D9). 고른 깊이는 갈래를 누를 때 함께 넘긴다.
  * 화로에 들어선 프레임에 뜨고 귀환은 되돌릴 수 없으니, 뜬 직후의 누름은 받지 않는다 (`pickGate.ts`, E307)
@@ -60,9 +62,19 @@ export class ReturnCard {
     }
     this.root.replaceChildren()
     this.root.append(el('div', 'pick-card__title', `${josa(`원정 ${view.count}`, '을')} 마친다`))
-    const mult = el('div', 'return-card__mult')
-    mult.append(el('b', '', `×${view.now.toFixed(2)} → ×${view.next.toFixed(2)}`), el('small', '', `명성 +${view.gain}`))
-    this.root.append(mult)
+    if (view.renown) {
+      const mult = el('div', 'return-card__mult')
+      mult.append(el('b', '', `×${view.renown.now.toFixed(2)} → ×${view.renown.next.toFixed(2)}`), el('small', '', `명성 +${view.renown.gain}`))
+      this.root.append(mult)
+    }
+    if (view.slots) {
+      const slots = el('div', 'return-card__mult')
+      slots.append(
+        el('b', '', view.slots.next > view.slots.now ? `도는 힘 칸 ${view.slots.now} → ${view.slots.next}` : `도는 힘 칸 ${view.slots.now}`),
+        el('small', '', view.slots.next > view.slots.now ? '칸 하나 더' : '칸이 모두 열렸다'),
+      )
+      this.root.append(slots)
+    }
     this.root.append(el('div', 'return-card__line', `이번 원정 ${view.time}${view.last ? ` · 지난 원정 ${view.last}` : ''}`))
     this.root.append(el('div', 'return-card__line is-keep', `남는 것: ${view.keeps}`))
     this.root.append(el('div', 'return-card__line is-clear', `지워지는 것: ${view.clears}`))
@@ -88,7 +100,8 @@ export class ReturnCard {
       }
       this.root.append(pills)
     }
-    this.root.append(el('div', 'return-card__ask', '하나를 골라 돌아간다'))
+    // 갈래가 하나뿐이면(엔딩 전) 고르는 것 없이 그 단추로 돌아간다
+    this.root.append(el('div', 'return-card__ask', view.branches.length > 1 ? '하나를 골라 돌아간다' : '돌아가면 그 자리에서 다시 떠난다'))
     const row = el('div', 'pick-card__row')
     for (const b of view.branches) {
       const card = el('button', 'pick-card__card') as HTMLButtonElement

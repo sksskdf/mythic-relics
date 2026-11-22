@@ -187,6 +187,16 @@ describe.skipIf(!BROWSER)('잘린 요소 검사 (scripts/lib/cuts.mjs, E307)', (
       branch('바람 불씨', '원천 +2, 공격·이동 ×1.06') +
       branch('바위 불씨', '원천 +2, 최대 생명 ×1.15·받는 피해 ×0.95') +
       '</div><button class="ui-btn return-card__later" type="button">아직</button></div>'
+    /** 엔딩 전 귀환 카드 (P6): 고르는 것 없이 도는 힘 칸 하나 더와 단추 하나 */
+    const plainReturn =
+      '<div class="pick-card return-card"><div class="pick-card__title">원정 2를 마친다</div>' +
+      '<div class="return-card__mult"><b>도는 힘 칸 3 → 4</b><small>칸 하나 더</small></div>' +
+      '<div class="return-card__line">이번 원정 5:00 · 지난 원정 5:00</div>' +
+      '<div class="return-card__line is-keep">남는 것: 가진 힘과 칸·유물·재료·장 진행·켠 성소·가장 좋은 장비 1</div>' +
+      '<div class="return-card__line is-clear">지워지는 것: 일반 장비</div>' +
+      '<div class="return-card__ask">돌아가면 그 자리에서 다시 떠난다</div><div class="pick-card__row">' +
+      branch('돌아간다', '도는 힘 칸 하나 더') +
+      '</div><button class="ui-btn return-card__later" type="button">아직</button></div>'
     /** 맹세 출발 카드 (`OathCard`): 맹세 count장 */
     const oathCard = (count) =>
       '<div class="pick-card return-card oath-card"><div class="pick-card__title">맹세를 걸고 떠난다</div><div class="return-card__ask">그 원정에서 장 보스나 수호자를 이기면 지킨다</div><div class="pick-card__row">' +
@@ -219,6 +229,7 @@ describe.skipIf(!BROWSER)('잘린 요소 검사 (scripts/lib/cuts.mjs, E307)', (
     }
     const PHONES = [[393, 659], [393, 852], [390, 844]]
     const CARDS = [
+      ['엔딩 전 귀환 카드 (고르는 것 없이 칸 하나 더, P6)', plainReturn],
       ['귀환 카드', returnCard()],
       ['엔딩 뒤 귀환 카드 (깊이 알약·지난번 그대로)', returnCard({ depth: true })],
       ['맹세 셋', oathCard(3)],

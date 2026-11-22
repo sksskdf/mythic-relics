@@ -535,7 +535,7 @@ export class WakeSystem {
     // 신이 깨어난다 (P5): 힘은 주지 않는다. 쓰러진 자리에 빛이 서고(`PowerSystem`, 내밀 힘이 남았을 때) 싸움이 풀린 뒤 밟으면 하나를 더 고른다.
     // 첫 신은 그 신의 장면 뒤 큰 카드, 그다음 신은 큰 카드
     const def = godDef(god)
-    const lines = this.ctx.mythPowers.canClaim(guardianSource(god)) ? ['쓰러진 자리에 빛이 섰다 · 밟으면 힘을 하나 더 고른다'] : [`${def.name}의 옷은 신 탭 「외형」에`]
+    const lines = this.ctx.mythPowers.canClaim(guardianSource(god)) ? ['쓰러진 자리에 빛이 섰다 · 밟으면 힘을 하나 더 고른다'] : [`${def.name}의 옷은 힘 탭 「외형」에`]
     const card = { kind: '신이 깨어남', title: def.name, color: def.color, icon: classIcon(def.name), lines }
     bus.emit('moment', first ? { id: 'mythChosen', scene: sceneId('myth', god), card } : { id: 'godAwakened', card })
     bus.emit('fragment', { god, piece: 3 })

@@ -51,7 +51,7 @@ export class PowerProgress {
   /** 땅에서 기다리는 빛 (밟을 때까지 남고 저장된다) */
   lights: PowerLight[] = []
 
-  /** @param returns 귀환 수 (원정 기록에서 읽는다): 도는 힘의 칸 수를 정한다 */
+  /** @param returns 칸을 늘린 수 (귀환 수 + 정복한 장 수, P6): 도는 힘의 칸 수를 정한다 */
   constructor(
     private readonly returns: () => number = () => 0,
     seed: number = newSeed(),

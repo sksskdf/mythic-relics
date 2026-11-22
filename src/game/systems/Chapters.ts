@@ -1,6 +1,6 @@
 import { CONQUESTS, type ChapterDef, type ChapterStep } from '../../data/chapters'
 import { ENEMIES } from '../../enemies/Giant'
-import { breathSlots } from '../../myth/pantheon'
+import { AURA_SLOTS } from '../../data/powers'
 import { REGIONS } from '../../data/regions'
 import { sceneId } from '../../data/scenes'
 import { missing, nextRecipe } from '../../gear/forge'
@@ -57,23 +57,24 @@ export class ChapterSystem {
    * 장 정복 보스(E305-02)면 그 카드와 `chapterConquered`. 마지막 보스는 엔딩 장면이 대신한다
    */
   bossDown(region: string, enemy = REGIONS[region]?.boss?.enemy ?? ''): void {
-    const { bus, chapters, progress, expedition } = this.ctx
-    // 숨 칸은 자리와 같은 셈으로 (지킨 홀로의 맹세와 엔딩 전 끝 4까지 넣어, 늘지 않았으면 줄을 뺀다)
-    const before = { breath: breathSlots(this.ctx), cap: progress.levelCap, mult: expedition.multiplier }
+    const { bus, chapters, progress, expedition, mythPowers, ending } = this.ctx
+    // 장 정복은 도는 힘의 칸을 하나 늘린다 (P6: 칸 수가 정복한 장을 센다). 늘지 않았으면(여섯) 줄을 뺀다
+    const before = { aura: mythPowers.auraSlots, cap: progress.levelCap, mult: expedition.multiplier }
     if (!chapters.bossDefeated(region)) return
     const last = chapters.chapters.at(-1)?.steps.at(-1)
     const step = chapters.chapters.flatMap((c) => c.steps).find((s) => s.kind === 'boss' && s.region === region)
     const conquest = CONQUESTS.includes(region)
     if (step && step !== last) {
-      const breath = breathSlots(this.ctx)
+      const aura = mythPowers.auraSlots
       // 다음 장의 첫 할 일이 땅에 들어서는 것이면 그 땅이 바로 열린다 (E241: 거인 왕 → 올림포스 고개)
       const next = chapters.chapters[chapters.chapters.findIndex((c) => c.steps.includes(step)) + 1]
       const opens = next?.steps[0]?.kind === 'enter' ? REGIONS[next.steps[0].region] : undefined
       const lines = conquest
         ? [
-            ...(breath > before.breath ? [`숨 칸 ${before.breath} → ${breath}`] : []),
-            ...(progress.levelCap > before.cap ? [`신 단계 끝 ${before.cap} → ${progress.levelCap}`] : []),
-            `명성 배율 ×${before.mult.toFixed(2)} → ×${expedition.multiplier.toFixed(2)}`,
+            ...(aura > before.aura && aura <= AURA_SLOTS.max ? [`도는 힘 칸 ${before.aura} → ${aura}`] : []),
+            // 신 단계·명성 배율은 엔딩 뒤 장치라 그때만 적는다 (P6: 엔딩 전 화면에 없는 말)
+            ...(ending.reached && progress.levelCap > before.cap ? [`신 단계 끝 ${before.cap} → ${progress.levelCap}`] : []),
+            ...(ending.reached ? [`명성 배율 ×${before.mult.toFixed(2)} → ×${expedition.multiplier.toFixed(2)}`] : []),
             ...(opens ? [`${josa(opens.name, '이')} 열렸다`] : []),
           ]
         : []
