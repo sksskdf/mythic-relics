@@ -255,7 +255,8 @@ export class MenuData {
     return {
       hp: game.combat.health.hp,
       maxHp: game.combat.health.max,
-      damage: build.damageScale,
+      // 엔딩 전에는 무기 층을 뺀 값: 무기 배율은 모양마다 빠르기를 맞춘 것이라(초당 피해는 같다) 「×0.95」가 약해진 것처럼 읽혔다 (2026-11-22 손 QA)
+      damage: after ? build.damageScale : build.damageScale / (build.layers.find((l) => l.id === 'myth' && l.kind === 'mul')?.value || 1),
       damageTaken: mods.damageTaken,
       moveSpeed: mods.moveSpeed,
       knockbackDealt: mods.knockbackDealt,
