@@ -11,6 +11,8 @@ export interface CombatTarget {
   readonly z: number
   readonly radius: number
   readonly alive: boolean
+  /** 적의 상태 (거인은 `GiantState`). 쉬거나 돌아가는 적은 주인공을 노리지 않는다 */
+  readonly state?: string
   takeHit(damage: number, dirX: number, dirZ: number, knockback: number): number
 }
 
@@ -86,6 +88,11 @@ export class PlayerCombat {
 
   get alive(): boolean {
     return !this.health.dead
+  }
+
+  /** 마지막으로 맞은 뒤 지난 초 */
+  get hurtAgo(): number {
+    return this.sinceHurt
   }
 
   /** 지금 맞을 수 있는가 (쓰러졌거나 무적 시간이면 아니다) */

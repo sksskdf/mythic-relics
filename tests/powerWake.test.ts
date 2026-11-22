@@ -166,6 +166,39 @@ describe('흔적이 카드를 기다리는 동안 (P5 고침, 실제 WakeSystem�
   })
 })
 
+describe('빛은 밟으면 곧 카드가 뜬다 (2026-11-22 손 QA)', () => {
+  /** 수호자를 이긴 자리(주인공에서 10m)에 빛을 세우고 주인공을 그 위에 세운다 */
+  const onLight = (r: ReturnType<typeof rig>) => {
+    r.bus.emit('guardianBeaten', { god: 'thor', region: 'midgard', x: 10, z: 0 } as never)
+    const light = r.powers.spots[0]!
+    r.hero.object.position.set(light.x, 0, light.z)
+    return light
+  }
+
+  it('멀리서 던지는 적에게 줄곧 맞는 중이어도 뜬다 (맞은 지 몇 초를 따지지 않는다)', () => {
+    const r = rig()
+    const light = onLight(r)
+    r.spawned.push({ health: { dead: false, ratio: 1 }, alive: true, x: light.x + 9, z: light.z, spec: {}, object: { position: new THREE.Vector3() }, state: 'windup' } as never)
+    for (let t = 0; t < 0.5 && !r.powers.current; t += 0.1) {
+      r.bus.emit('heroHurt', { damage: 3 })
+      r.powers.update(0.1)
+    }
+    expect(r.powers.current?.source).toBe('guardian:thor')
+  })
+
+  it('6m 안에 깨어 있는 적이 붙어 있으면 기다리고, 그 적이 떨어지면 뜬다', () => {
+    const r = rig()
+    const light = onLight(r)
+    const foe = { health: { dead: false, ratio: 1 }, alive: true, x: light.x + 3, z: light.z, spec: {}, object: { position: new THREE.Vector3() }, state: 'chase' }
+    r.spawned.push(foe as never)
+    r.run(1)
+    expect(r.powers.current).toBeNull()
+    foe.x = light.x + 8
+    r.run(0.2)
+    expect(r.powers.current?.source).toBe('guardian:thor')
+  })
+})
+
 describe('고른 힘의 터뜨림 (P5 고침)', () => {
   it('침묵의 맹세 중에 고른 궁극기는 나가지 않고 둘레를 한 번 친다', () => {
     const r = rig()

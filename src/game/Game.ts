@@ -449,6 +449,7 @@ export class Game {
       // 점검용 실행(?relics=)에서는 흔적이 응답하지 않는다: 봇·점검 스크립트의 신화에 다른 신의 힘이 섞이지 않게
       () => options.testRun ?? false,
     )
+    this.chapterSystem.nextWake = (goal) => this.awakening.target(goal.region, null, goal.realm)?.kind ?? null
     // 목표 한 줄과 장 제목 띠 (E22-04), 장 넘어가기와 첫 엔딩 (E22-05)
     this.chapterHud = new ChapterHud(this.hud.root)
     this.chapterFlow = new ChapterFlow({ game: this, fx: this.fx, record: (type) => this.playLog.record(type) })

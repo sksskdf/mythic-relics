@@ -375,8 +375,8 @@ try {
   const tab = (name) => page.locator('.menu__tab', { hasText: name })
   await tab('상태').click()
   const statRows = await page.locator('.menu-status__stat').count()
-  // 엔딩 전에는 승천 줄이 없다 (P6): 일곱
-  if (statRows !== 7) throw new Error(`상태 탭: 능력치 줄이 ${statRows}개입니다.`)
+  // 엔딩 전에는 승천 줄이 없고(P6), 밀쳐 내기·버티기도 없다(2026-11-22 손 QA: 숫자를 줄인다): 다섯
+  if (statRows !== 5) throw new Error(`상태 탭: 능력치 줄이 ${statRows}개입니다.`)
   await page.screenshot({ path: 'test-results/menu-status.png' })
   // 장비 탭 (E13): 칸 7. 장화를 가방에 넣고, 가방에서 누르면 비교 카드가 뜨고 다시 발 칸에 낀다. 고른 신화는 그대로다 (E12-04).
   await tab('장비').click()
@@ -469,20 +469,20 @@ try {
   if (closedTraining.shown.some((t) => t.includes('수련')) || closedTraining.marked) throw new Error(`수련: 엔딩 전인데 수련 탭이 보이거나 깨달음이 메뉴 단추에 표시됐습니다 ${JSON.stringify(closedTraining)}`)
   await page.keyboard.press('Escape')
   if (await page.evaluate(() => window.__game.paused)) throw new Error('정보 화면: 닫았는데 게임이 멈춰 있습니다.')
-  // 원천 탭 (E14, E21-06, E305-03): 엔딩 전에는 각성 카드 넷만, 끝없는 원정 탭은 숨김. 엔딩 뒤에는 깊이 한 줄(읽기만, 고르기는 귀환 카드)
+  // 원천 탭 (E14, E21-06, E305-03 → 2026-11-22): 엔딩 전에는 귀환했어도 원천·수련·끝없는 원정 탭이 숨는다. 엔딩 뒤에는 각성 카드 넷과 깊이 한 줄(읽기만, 고르기는 귀환 카드)
   await page.click('.menu-button')
-  await tab('원천').click()
-  if ((await page.locator('.menu-src__source').count()) !== 4) throw new Error('원천 탭: 각성 카드가 넷이 아닙니다.')
-  if (!(await page.locator('.menu-src__expedition').textContent()).includes('명성')) throw new Error('원천 탭: 원정 기록(명성·원정 수)이 없습니다.')
-  const srcView = () => ({ depth: document.querySelectorAll('.menu-src__depth').length, levels: document.querySelectorAll('.menu-src__level').length, tabs: [...document.querySelectorAll('.menu__tab')].filter((b) => !b.hidden).length })
+  const srcView = () => ({ depth: document.querySelectorAll('.menu-src__depth').length, levels: document.querySelectorAll('.menu-src__level').length, tabs: [...document.querySelectorAll('.menu__tab')].filter((b) => !b.hidden).map((b) => b.textContent.trim()) })
   const demo = await page.evaluate(srcView)
-  if (demo.depth !== 0 || demo.levels !== 0 || demo.tabs !== 6) throw new Error(`엔딩 전: 깊이나 끝없는 원정·수련 탭이 보입니다 (${JSON.stringify(demo)})`)
+  if (demo.tabs.some((t) => t.includes('원천') || t.includes('수련')) || demo.tabs.length !== 5) throw new Error(`엔딩 전: 원천·수련·끝없는 원정 탭이 보입니다 (${JSON.stringify(demo)})`)
   await page.evaluate(() => {
     window.__game.reachEnding()
     window.__game.menu.refresh()
   })
+  await tab('원천').click()
+  if ((await page.locator('.menu-src__source').count()) !== 4) throw new Error('원천 탭: 각성 카드가 넷이 아닙니다.')
+  if (!(await page.locator('.menu-src__expedition').textContent()).includes('명성')) throw new Error('원천 탭: 원정 기록(명성·원정 수)이 없습니다.')
   const after = await page.evaluate(srcView)
-  if (after.depth !== 1 || after.levels !== 0 || after.tabs !== 8) throw new Error(`엔딩 뒤: 깊이 한 줄이 없거나(고르는 단추는 없어야 함) 탭이 여덟이 아닙니다 (${JSON.stringify(after)})`)
+  if (after.depth !== 1 || after.levels !== 0 || after.tabs.length !== 8) throw new Error(`엔딩 뒤: 깊이 한 줄이 없거나(고르는 단추는 없어야 함) 탭이 여덟이 아닙니다 (${JSON.stringify(after)})`)
   // 수련 탭 (E236, 엔딩 뒤에 열린다 P6): 깨달음을 얻으면 메뉴 단추에 표시, 뿌리 마디를 누르면 찍히고 피해가 오른다
   const trainBefore = await page.evaluate(() => {
     const g = window.__game
@@ -497,7 +497,7 @@ try {
   if (!trainBefore.marked || trained.taken.join() !== 'awaken' || trained.unspent !== trainBefore.unspent - 1 || !trained.on || !(trained.damage > trainBefore.damage)) throw new Error(`수련: 깨달음으로 뿌리 마디를 찍지 못했습니다 ${JSON.stringify({ trainBefore, trained })}`)
   console.log(`수련 확인: 깨달음을 얻으면 메뉴 단추 표시, 뿌리 마디를 찍으면 피해 ×${(trained.damage / trainBefore.damage).toFixed(2)}`)
   await page.keyboard.press('Escape')
-  console.log('원천 확인: 원정 기록, 엔딩 전에는 각성 카드 넷과 탭 여섯(수련 닫힘), 엔딩 뒤에는 끝없는 원정까지 탭 여덟과 깊이 한 줄(고르기는 귀환 카드)')
+  console.log('원천 확인: 엔딩 전에는 탭 다섯(원천·수련 닫힘), 엔딩 뒤에는 원정 기록·각성 카드 넷, 끝없는 원정까지 탭 여덟과 깊이 한 줄(고르기는 귀환 카드)')
   console.log('정보 화면 확인: 상태 탭 능력치 7줄(엔딩 전), 열면 멈춤, 가방에 넣기·다시 끼기와 미리 보기, 힘 탭(칸·외형), Esc로 닫기')
 
   // 일시 정지(E5): 창이 없을 때 Esc를 누르면 멈추고, 멈춘 동안 게임 시간이 흐르지 않는다.
@@ -1125,7 +1125,7 @@ try {
         // 흔적의 무리를 이긴 자리에 빛 (큰 싸움): 밟으면 싸움이 풀린 뒤 카드가 뜬다
         stepOnLight(`pack:midgard:${woke.god}`)
         woke.packCard = pickFirst()
-        // 무리를 이긴 그 자리에서 다음은 바로 수호자다: 사냥 단계가 없고 목표 한 줄에 세는 꼴(n/m)이 없다
+        // 무리를 이긴 그 자리에서 다음은 같은 땅의 오딘 흔적이다 (옆 땅의 수호자보다 가깝다, 2026-11-22 손 QA): 사냥 단계가 없고 목표 한 줄에 세는 꼴(n/m)이 없다
         woke.next = g.awakening.target('midgard')?.kind ?? null
         woke.line = g.chapterSystem.goalView()?.text ?? ''
         // 둘째 흔적도 곧바로 응답한다 (깨우는 신이 하나가 아니다): 오딘의 무리까지 이기면 수호자 둘이 함께 선다
@@ -1141,6 +1141,9 @@ try {
         stepOnLight('pack:midgard:odin')
         woke.odinPack = pickFirst()
         woke.both = [...g.awaken.waking].sort()
+        // 지금 땅에 응답할 흔적이 남지 않았으면 그다음은 수호자다
+        woke.next2 = g.awakening.target('midgard')?.kind ?? null
+        woke.line2 = g.chapterSystem.goalView()?.text ?? ''
         // 수호자는 그 신의 땅에서 (E239: 토르는 세계 뱀의 바닷가, 오딘은 철의 숲)
         woke.land = g.awakening.target('midgard', woke.god)?.region ?? null
         if (woke.land) g.enterRegion(g.regions[woke.land])
@@ -1242,15 +1245,16 @@ try {
   if (w.again.card || w.again.pack < 4) throw new Error(`힘 카드: 이미 고른 흔적에 다시 섰는데 카드가 또 뜨거나 무리가 깨어나지 않습니다 ${JSON.stringify(w.again)}`)
   if (!w.light?.here || !w.light.saved || !w.light.fighting?.awake || w.light.fighting.card || w.light.calm !== `guardian:${w.god}` || !w.light.picked || w.light.left !== 0)
     throw new Error(`빛: 수호자가 쓰러진 자리에 빛이 서지 않거나, 저장에 없거나, 싸움 중에 카드가 뜨거나, 싸움이 풀린 뒤 뜨지 않습니다 ${JSON.stringify(w.light)}`)
-  if (!w || w.pack < 4 || w.piece1 !== 2 || w.next !== 'guardian' || w.piece2 !== 2 || !w.relic || !w.guardian || !w.opened.includes(w.god))
+  if (!w || w.pack < 4 || w.piece1 !== 2 || w.next !== 'trace' || w.next2 !== 'guardian' || w.piece2 !== 2 || !w.relic || !w.guardian || !w.opened.includes(w.god))
     throw new Error(`신을 깨우는 길: 흔적 → 수호자로 신이 깨어나지 않습니다 ${JSON.stringify(w)}`)
   if (w.packCard !== `pack:midgard:${w.god}` || w.odinPack !== 'pack:midgard:odin') throw new Error(`빛: 흔적의 무리를 이긴 자리에 빛이 서지 않거나 싸움이 풀린 뒤 카드가 뜨지 않습니다 ${JSON.stringify({ pack: w.packCard, odin: w.odinPack })}`)
   if (w.odinCard !== 'trace:odin' || w.second < 4 || w.both.join() !== 'odin,thor') throw new Error(`신을 깨우는 길: 둘째 흔적이 곧바로 응답하지 않거나 두 신을 함께 깨우는 중일 수 없습니다 ${JSON.stringify(w)}`)
   // 무리가 흩어진 뒤 다시 서면 다시 응답한다 (토르 둘)
   if ([...new Set(w.answered)].join() !== 'thor,odin' || w.answered.filter((g) => g === 'thor').length !== 2 || w.beaten[0] !== 'thor') throw new Error(`신을 깨우는 길: 응답·수호자 사건이 나지 않습니다 ${JSON.stringify(w)}`)
-  if (w.line !== '수호자를 쓰러뜨린다' || w.utgard) throw new Error(`신을 깨우는 길: 무리를 이긴 뒤 목표 한 줄이 「수호자를 쓰러뜨린다」가 아니거나 신 하나로 우트가르드가 열립니다 「${w.line}」 ${w.utgard}`)
+  if (w.line !== '신의 흔적을 찾는다' || !/^수호자를 쓰러뜨린다/.test(w.line2) || w.utgard)
+    throw new Error(`신을 깨우는 길: 첫 무리를 이긴 뒤 같은 땅의 흔적을 가리키지 않거나(「${w.line}」), 흔적을 다 마친 뒤 「수호자를 쓰러뜨린다」가 아니거나(「${w.line2}」) 신 하나로 우트가르드가 열립니다 ${w.utgard}`)
   console.log(`힘 카드 확인: 흔적에 1초 서면 ${w.god}의 힘 셋(게임이 멈춤) → 고르면 무기가 칸에 들고 무리가 깨어남, 다시 서면 카드 없이 무리만, 흔적의 무리·수호자를 이긴 자리의 빛은 저장에 남고 싸움이 풀린 뒤 밟아야 카드`)
-  console.log(`신을 깨우는 길 확인: 북유럽 넷의 흔적이 처음부터 응답(「${w.low.line}」), 달려 지나가면 응답 없음·고리에 1초 서면 카드 뒤 무리 ${w.pack} → 이기면 유물, 목표는 「${w.line}」 → 오딘의 흔적도 곧바로 응답(수호자 둘이 함께 섬) → ${w.land}의 수호자 「${w.guardian}」 → ${w.god} 깨어남 (싸우다 워프하면 이긴 것 아님, 수호자 상처 ${Math.round(w.wound * 100)}%로 기억, 우트가르드 결계에서 걸음이 막힘)`)
+  console.log(`신을 깨우는 길 확인: 북유럽 넷의 흔적이 처음부터 응답(「${w.low.line}」), 달려 지나가면 응답 없음·고리에 1초 서면 카드 뒤 무리 ${w.pack} → 이기면 유물, 목표는 「${w.line}」 → 오딘의 흔적도 곧바로 응답(수호자 둘이 함께 섬, 목표 「${w.line2}」) → ${w.land}의 수호자 「${w.guardian}」 → ${w.god} 깨어남 (싸우다 워프하면 이긴 것 아님, 수호자 상처 ${Math.round(w.wound * 100)}%로 기억, 우트가르드 결계에서 걸음이 막힘)`)
   console.log(`엔딩 확인: ${ending.chapters.join(' → ')} → 갈라진 하늘의 왕을 이기면 엔딩(그리스는 제우스 하나를 깨우고 셋은 엔딩 뒤에 응답), 결계가 모두 풀리고 목표 한 줄이 사라짐 (신 둘을 깨우기 전에는 우트가르드만 막히고 흔적·수호자의 땅은 열림)`)
 
   // 휴대폰 (E235): 세로로 든 터치 기기에서 끌기 = 떠다니는 조이스틱으로 걷기, 떼면 멈춤, 톡 = 그곳까지, 두 손가락 = 확대,

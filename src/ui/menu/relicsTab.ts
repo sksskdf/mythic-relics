@@ -188,7 +188,7 @@ export class RelicsTab {
       const target = inBag ? this.wieldSlot(id) : undefined
       const wornId = inBag ? (target === undefined ? null : host.slots[target]) : host.slotsFor(id).map((i) => host.slots[i]).find((x) => x && x !== id && host.gearOf(x))
       const totals = Object.fromEntries(host.sources.rows().map((r) => [r.id, r.total])) as Record<SourceId, number>
-      detail.append(gearCard(gear, wornId ? host.gearOf(wornId) : null, totals))
+      detail.append(gearCard(gear, wornId ? host.gearOf(wornId) : null, host.afterEnding('sources') ? totals : null))
       const group = host.mergeable().find((g) => g.includes(id))
       if (group) detail.append(this.mergeBox(group))
       const actions = el('div', 'menu-relics__dos')

@@ -29,14 +29,16 @@ export interface PowerHost {
 
 /** 빛을 밟는 거리 (m) */
 const LIGHT_RADIUS = 1.6
-/** 싸움이 풀렸다고 보는 때: 맞은 지 이 초가 지났고, 이 거리(m) 안에 깨어 있는 적이 없다 */
-const CALM_SECONDS = 2
-const CALM_RADIUS = 12
+/**
+ * 빛을 밟으면 곧 카드가 뜬다: 이 거리(m) 안에 깨어 있는 적이 붙어 있지만 않으면 (2026-11-22 손 QA: 멀리서 던지는 적에게 맞는 동안은
+ * 「맞은 지 2초」가 늘 0으로 돌아가 빛 위에 서 있어도 카드가 영영 뜨지 않았다)
+ */
+const CALM_RADIUS = 6
 /** 고른 힘이 그 자리에서 한 번 터질 때 닿는 거리(m)와 피해 */
 const BURST_RADIUS = 4
 const BURST_DAMAGE = 20
-/** 빛기둥의 높이 (m) */
-const BEAM_HEIGHT = 11
+/** 빛기둥의 높이 (m): 나무 너머로도 보이게 높게 */
+const BEAM_HEIGHT = 22
 /** 빛이 주인공에서 이 거리(m) 안에 서면 주인공 반대쪽으로 `LIGHT_PUSH`m 밀어 세운다 (장면이 끝나자마자 저절로 밟히지 않게, P5 손 QA) */
 const LIGHT_NEAR = 2.5
 const LIGHT_PUSH = 3
@@ -52,7 +54,7 @@ const SAYS = { trace: '내 힘 가운데 하나를 가져가라', guardian: '내
 /**
  * 힘을 고르는 카드와 빛 (재미 재설계 P5, `docs/knowledge/review-e307/redesign.md` 1장 2·6):
  * - 흔적: 고리에 서서 응답하면(`traceAnswered`) 그 신이 힘 셋을 내민다. 고르면 그 힘이 한 번 터지고, 그 뒤 지키는 무리가 깨어난다 (`WakeSystem`이 `powerPicked`를 듣는다)
- * - 흔적의 무리·수호자·장 보스를 처음 이김(큰 싸움, `redesign.md` 0장 「고르는 순간」): 그 자리에 빛(그 신의 색 기둥, 작은 지도 표시)이 선다. 싸움이 풀린 뒤 밟으면 카드. 빛은 밟을 때까지 땅에서 기다리고 저장에 남는다
+ * - 흔적의 무리·수호자·장 보스를 처음 이김(큰 싸움, `redesign.md` 0장 「고르는 순간」): 그 자리에 빛(그 신의 색 기둥, 작은 지도 표시)이 선다. 밟으면 곧 카드 (6m 안에 깨어 있는 적이 붙어 있지 않으면). 빛은 밟을 때까지 땅에서 기다리고 저장에 남는다
  * - 카드는 장면·느린 동작·다른 고르는 카드 중에는 뜨지 않고 차례를 기다린다. 뜬 동안 게임은 멈춘다
  * 고른 뒤의 일은 한 곳(`pick`)이다: 카드·봇·개발 지름길이 모두 이것을 부른다
  */
@@ -66,10 +68,9 @@ export class PowerSystem {
   /** 지금 땅의 빛 (땅이나 빛 목록이 바뀔 때만 다시 짓는다) */
   private spotList: { source: string; x: number; z: number; color: string }[] = []
   private spotKey: { region: string; lights: unknown; count: number } | null = null
-  private sinceHurt = CALM_SECONDS
   private time = 0
   private readonly group = new THREE.Group()
-  private beams: { source: string; mesh: THREE.Mesh }[] = []
+  private beams: { source: string; mesh: THREE.Mesh; core: THREE.Mesh }[] = []
   /** 빛기둥을 세운 땅과 빛들 (바뀌면 다시 세운다) */
   private built = ''
   private readonly beamGeometry = new THREE.CylinderGeometry(0.3, 0.45, 1, 10, 1, true)
@@ -98,7 +99,6 @@ export class PowerSystem {
       const at = region.id === here.id ? { x: giant.x, z: giant.z } : region.boss
       this.light(`boss:${region.id}`, region.id, at.x, at.z)
     })
-    bus.on('heroHurt', () => (this.sinceHurt = 0))
     // 귀환으로 도는 힘의 칸이 늘었다: 가진 도는 힘으로 빈 칸을 채운다
     bus.on('expeditionReturned', () => mythPowers.fill() && this.relics.syncPowers())
     // 장을 정복해도 칸이 하나 는다 (P6): 같은 길로 채운다
@@ -182,10 +182,12 @@ export class PowerSystem {
   /** 프레임마다: 빛기둥, 기다리는 카드, 싸움이 풀린 뒤 밟은 빛 */
   update(dt: number): void {
     this.time += dt
-    this.sinceHurt += dt
     this.placeBeams()
-    const pulse = 0.3 + Math.sin(this.time * 2.6) * 0.08
-    for (const b of this.beams) (b.mesh.material as THREE.MeshBasicMaterial).opacity = pulse
+    const pulse = Math.sin(this.time * 2.6) * 0.08
+    for (const b of this.beams) {
+      ;(b.mesh.material as THREE.MeshBasicMaterial).opacity = 0.42 + pulse
+      ;(b.core.material as THREE.MeshBasicMaterial).opacity = 0.75 + pulse
+    }
     if (this.current || this.host.card.open || this.host.blocked()) return
     const next = this.queue.shift()
     if (next) {
@@ -198,10 +200,10 @@ export class PowerSystem {
     if (light && this.calm) this.show(light.source)
   }
 
-  /** 싸움이 풀렸나: 쓰러지지 않았고, 싸우지 않고, 맞은 지 2초가 지났고, 둘레에 깨어 있는 적이 없다 */
+  /** 카드를 띄워도 되나: 쓰러지지 않았고, 6m 안에 깨어 있는 적이 없다 (멀리서 맞는 중이어도 뜬다: 카드가 뜬 동안 게임은 멈춘다) */
   get calm(): boolean {
     const { combat, encounter, hero } = this.ctx
-    if (!combat.alive || combat.engaged || this.sinceHurt < CALM_SECONDS) return false
+    if (!combat.alive) return false
     const p = hero.object.position
     return !encounter.alive.some((g) => g.state !== 'idle' && g.state !== 'return' && Math.hypot(g.x - p.x, g.z - p.z) <= CALM_RADIUS)
   }
@@ -311,17 +313,25 @@ export class PowerSystem {
     if (key === this.built) return
     this.built = key
     for (const b of this.beams) {
-      this.group.remove(b.mesh)
+      this.group.remove(b.mesh, b.core)
       ;(b.mesh.material as THREE.Material).dispose()
+      ;(b.core.material as THREE.Material).dispose()
+    }
+    // 깊이 검사를 끄고 늦게 그린다: 나무·바위·적에 가리지 않고 위로 길게 보인다 (겉은 그 신의 색, 속은 흰빛에 가까운 심)
+    const beam = (color: THREE.Color, width: number, opacity: number, order: number) => {
+      const mesh = new THREE.Mesh(this.beamGeometry, new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false, depthTest: false }))
+      mesh.scale.set(width, BEAM_HEIGHT, width)
+      mesh.layers.set(EFFECT_LAYER)
+      mesh.renderOrder = order
+      this.group.add(mesh)
+      return mesh
     }
     this.beams = spots.map((s) => {
-      const mesh = new THREE.Mesh(this.beamGeometry, new THREE.MeshBasicMaterial({ color: new THREE.Color(s.color), transparent: true, opacity: 0.3, depthWrite: false }))
-      mesh.scale.set(1.6, BEAM_HEIGHT, 1.6)
-      mesh.position.set(s.x, heightAt(s.x, s.z) + BEAM_HEIGHT / 2, s.z)
-      mesh.layers.set(EFFECT_LAYER)
-      mesh.renderOrder = 12
-      this.group.add(mesh)
-      return { source: s.source, mesh }
+      const color = new THREE.Color(s.color)
+      const mesh = beam(color, 1.8, 0.42, 30)
+      const core = beam(color.clone().lerp(new THREE.Color(1, 1, 1), 0.6), 0.7, 0.75, 31)
+      for (const m of [mesh, core]) m.position.set(s.x, heightAt(s.x, s.z) + BEAM_HEIGHT / 2, s.z)
+      return { source: s.source, mesh, core }
     })
   }
 

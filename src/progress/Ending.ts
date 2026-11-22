@@ -2,7 +2,7 @@
  * 엔딩 (E21-06, TIMELINE.md 3장): 첫 엔딩을 보기 전(데모)에는 엔딩 뒤 장치를 숨긴다.
  * 코드는 그대로 두고, 여는 곳은 여기 한 곳이다. 모두 엔딩을 보면 함께 열린다.
  * 마지막 무대 「갈라진 하늘」의 우트가르드의 왕을 이기면 엔딩 장면 뒤에 열린다 (E22-05). 개발 패널과 옛 저장(위협 단계(지금 깊이)·시련·균열을 해 본 저장)도 엔딩 뒤가 된다.
- * 엔딩 뒤에 여는 것은 이 여덟이 전부다 (P6에서 수련을 더함) (E305-03, `DESIGN.md` 9.4). 값은 첫 엔딩 큰 카드의 글이다
+ * 엔딩 뒤에 여는 것은 이 아홉이 전부다 (P6에서 수련, 2026-11-22에 원천 각성을 더함) (E305-03, `DESIGN.md` 9.4). 값은 첫 엔딩 큰 카드의 글이다
  */
 export const AFTER_ENDING = {
   /** 남은 신화권 셋: 결계가 풀리고, 땅에 떨어지는 신화 유물로 그 신을 연다. 그리스의 흔적 셋도 응답한다 (E241) */
@@ -15,6 +15,8 @@ export const AFTER_ENDING = {
   oaths: '맹세 다섯',
   /** 자동 줍기·지난번 갈래 그대로 (자동화는 귀환 3 이상으로 친다) */
   autoPickup: '자동 줍기',
+  /** 원천 탭·HUD의 원천 칸·장비 카드의 원천 줄 (2026-11-22 손 QA: 원천·각성은 첫 판에서 배우지 않는 말. 각성 효과는 엔딩 전에도 전투에 들어간다) */
+  sources: '원천 각성',
   /** 수련 탭: 깨달음으로 마디를 익힌다 (P6, `redesign.md` 규칙 8: 첫 판에서는 닫는다. 경험치는 엔딩 전에도 쌓인다) */
   training: '수련',
   mythStage4: '신 4단계',
@@ -23,10 +25,10 @@ export const AFTER_ENDING = {
 
 export type EndingFeature = keyof typeof AFTER_ENDING
 
-/** 첫 엔딩 큰 카드의 줄: 긴 셋은 한 줄씩, 짧은 다섯은 한 줄로 모은다 */
+/** 첫 엔딩 큰 카드의 줄: 긴 셋은 한 줄씩, 짧은 여섯은 한 줄로 모은다 */
 export function endingLines(): string[] {
-  const { realms, depth, endless, oaths, autoPickup, training, mythStage4, relicStages } = AFTER_ENDING
-  return [realms, depth, endless, [oaths, autoPickup, training, mythStage4, relicStages].join(' · ')]
+  const { realms, depth, endless, oaths, autoPickup, sources, training, mythStage4, relicStages } = AFTER_ENDING
+  return [realms, depth, endless, [oaths, autoPickup, sources, training, mythStage4, relicStages].join(' · ')]
 }
 
 export class Ending {

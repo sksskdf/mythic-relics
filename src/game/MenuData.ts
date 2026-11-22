@@ -1,6 +1,5 @@
 import { activeLayers, LAYER_NAMES } from '../build/layers'
 import { WAKE, WAKE_GODS } from '../data/wake'
-import { WAKE_WON } from '../progress/Wake'
 import { power } from '../data/powers'
 import { awakeningLevel } from '../data/awakening'
 import { REALM_COLORS } from '../data/regions'
@@ -95,7 +94,8 @@ export class MenuData {
         // 무기·궁극기는 힘 탭에서 비우지 않는다 (바꾸기만, `redesign.md` P7)
         unslot: (id) => power(id)?.kind === 'aura' && relics.unslotPower(id),
         swap: (out, id) => relics.swapPower(out, id),
-        awake: (god) => ctx.awaken.stage(god) >= WAKE_WON,
+        // 깨어난 신 = 수호자를 이겨 연 신 (흔적의 무리만 이긴 신은 아직 깨우는 중이다, 2026-11-22 손 QA)
+        awake: (god) => ctx.progress.isOpen(god),
       },
       cardContext: (id) => this.cardContext(id),
       stats: () => this.heroStats(),
@@ -230,6 +230,7 @@ export class MenuData {
     const mods = build.modifiers
     const { manifested } = game.powers.state
     const powers: HeroStats['powers'] = []
+    const after = ctx.ending.reached
     if (manifested) {
       const god = godDef(manifested)
       // 지금 레벨까지 열린 힘 (승급 카드와 같은 문구에서 고른다)
@@ -239,8 +240,11 @@ export class MenuData {
         .map((g) => g.text)
       for (let lv = 2; lv <= level; lv++) for (const g of levelGains(manifested, lv)) if (g.kind === 'power') what.push(g.text)
       what.push(`궁극기 「${god.ultimate.name}」`)
+      // 엔딩 전에는 수치 없이 칸에 든 무기·궁극기의 이름만 (2026-11-22 손 QA: 단계마다 얻는 수치 줄이 길었다)
+      const { weapon, ultimate } = ctx.mythPowers.slots
+      const plain = [...(weapon ? [`무기 · ${power(weapon)?.name ?? ''}`] : []), ...(ultimate ? [`궁극기 「${power(ultimate)?.name ?? ''}」`] : [])]
       // 칭호 대신 신의 이름 (E307)
-      powers.push({ kind: 'god', name: god.name, color: god.color, label: god.name, what: what.join(' · ') })
+      powers.push({ kind: 'god', name: god.name, color: god.color, label: god.name, what: (after ? what : plain).join(' · ') })
     }
     for (const id of game.powers.loadout.relics) {
       if (!id) continue
@@ -260,7 +264,12 @@ export class MenuData {
       promotions: game.progress.promotions,
       collected: build.collected,
       lit: build.lit,
-      layers: activeLayers(build.layers).map((l) => ({ name: LAYER_NAMES[l.id], text: l.kind === 'mul' ? `×${l.value.toFixed(2)}` : `${l.value > 0 ? '+' : '−'}${Math.round(Math.abs(l.value) * 100)}%` })),
+      // 엔딩 전에는 무기 층을 수치 없이 모양만 (2026-11-22 손 QA: 「무기 ×0.95」는 무기를 바꾸면 약해진 것처럼 읽혔다. 무기는 모양을 고른다)
+      layers: activeLayers(build.layers).map((l) =>
+        !after && l.id === 'myth'
+          ? { name: LAYER_NAMES[l.id], text: `· ${power(ctx.mythPowers.slots.weapon ?? '')?.name ?? ''}` }
+          : { name: LAYER_NAMES[l.id], text: l.kind === 'mul' ? `×${l.value.toFixed(2)}` : `${l.value > 0 ? '+' : '−'}${Math.round(Math.abs(l.value) * 100)}%` },
+      ),
       powers,
       mount: ctx.mount.owned ? MOUNT.speed : null,
     }

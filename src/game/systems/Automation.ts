@@ -16,8 +16,9 @@ export class AutomationSystem {
     bus.on('gearPicked', picked)
     bus.on('relicPicked', picked)
     // 귀환 1·2·3이 처음 연 것 (엔딩을 봤으면 이미 귀환 3 이상으로 쳐서 새로 열리는 것이 없다)
+    // 엔딩 전에는 카드를 띄우지 않는다 (2026-11-22 손 QA: 「수련 마디를 다시 찍는다 · 가보 칸」은 첫 판에 없는 말이다. 켜진 자동화는 조용히 돈다)
     bus.on('expeditionReturned', () => {
-      if (ending.has('autoPickup')) return
+      if (!ending.reached || ending.has('autoPickup')) return
       const step = AUTOMATION_STEPS.find((s) => s.at === expedition.returns)
       if (step) bus.emit('moment', { id: 'automation', card: { kind: '자동화', title: `${step.name} · 새 자동화`, color: '#9fe3ff', lines: [...step.lines] } })
     })

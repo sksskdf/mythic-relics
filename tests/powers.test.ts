@@ -84,6 +84,21 @@ describe('힘의 자료 (gods.json·relics.json에서 만든다)', () => {
       expect(p.line, p.id).not.toMatch(/×|%$/)
     }
   })
+
+  it('첫 판의 힘 스물여섯은 한 줄이 서로 다르다: 같은 행동이어도 무엇이 날아가고 어떤 모양으로 터지는지가 보인다 (2026-11-22 손 QA)', () => {
+    const demo = POWERS.filter((p) => p.demo)
+    expect(demo).toHaveLength(26)
+    const seen = new Map<string, string>()
+    const same: string[] = []
+    for (const p of demo) {
+      // 이름만 바꾼 꼴을 잡으려고 힘 이름은 지우고 견준다 (「묠니르가 날아가」 ↔ 「궁니르가 날아가」)
+      const bare = p.line.replaceAll(p.name, '○')
+      const other = seen.get(bare)
+      if (other) same.push(`${other} = ${p.id}: ${p.line}`)
+      seen.set(bare, p.id)
+    }
+    expect(same).toEqual([])
+  })
 })
 
 describe('조합', () => {

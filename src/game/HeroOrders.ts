@@ -5,6 +5,12 @@ import type { CombatTarget, PlayerCombat } from './PlayerCombat'
 
 /** 공격하러 쫓을 때 사거리 안쪽으로 이만큼(m) 더 들어가서 멈춘다 (경계에서 멈췄다 걸었다 하지 않게) */
 const CHASE_INSIDE = 0.6
+/**
+ * 멈춰 서서 맞는데 칠 적이 사거리 밖이면(멀리서 던지거나 쏘는 적) 이 거리(m) 안에서 깨어 있는 가장 가까운 적에게 다가가 친다.
+ * 맞은 지 `ANSWER_SECONDS`초 안일 때만 (2026-11-22 손 QA: 드라우그르·물에 빠진 자에게 서서 깎이기만 했다)
+ */
+const ANSWER_RADIUS = 7
+const ANSWER_SECONDS = 1.5
 
 /** 플레이어가 내린 지시 */
 export type Order =
@@ -13,11 +19,18 @@ export type Order =
   /** 적을 눌러 공격. 그 적에게 다가가 쓰러질 때까지 친다. */
   | { kind: 'attack'; target: CombatTarget; clicked: boolean }
 
+/** 깨어 있는 적인가 (쉬거나 제자리로 돌아가는 적은 주인공을 노리지 않는다) */
+function awake(target: CombatTarget): boolean {
+  return target.alive && target.state !== 'idle' && target.state !== 'return' && target.state !== 'dead'
+}
+
 /**
  * 클릭을 지시로 바꾸는 규칙 (E12-08). 조작은 클릭 하나뿐이다.
  * - 적을 누르면: 그 적에게 가서 쓰러질 때까지 자동으로 친다.
  * - 땅을 누르면: 싸우던 중이어도 그곳까지 끝까지 걷는다. 졸개는 밀고 지나간다. (빠져나가기, 공격 피하기)
  * - 아무 지시가 없으면(도착해 멈추면): 멈춰 선 채 사거리 안의 가장 가까운 적을 자동으로 친다.
+ *   사거리 안에 적이 없는데 맞고 있으면 7m 안의 깨어 있는 가장 가까운 적에게 다가가 친다 (스스로 낸 공격 지시, `clicked: false`).
+ *   그 사이 다른 적이 사거리에 들거나 다른 걸음이 내려지면(봇) 그 지시를 거둔다
  * - 탈것(E241): 탈것을 가졌으면 멀리(15m 넘게) 누른 땅은 올라타 달려간다. 싸우는 중이면 걸어서 빠져나가다 싸움이 풀리는 순간 탄다.
  *   적을 누르거나 멈추면 내린다. 같은 클릭 하나라 버튼이 늘지 않는다
  * (1차 스프린트에는 땅 한 번 = 가다가 적을 만나면 싸움, 두 번 = 적 무시였다. 한 번으로 빠져나가지 못해 불편하다는 의견으로 바꿈)
@@ -30,6 +43,8 @@ export class HeroOrders {
   destination: Point2 | null = null
   /** 버튼을 누른 채로 커서를 따라가는 중인가 */
   private following = false
+  /** 스스로 낸 공격 지시로 쫓으며 내린 걸음의 끝 (다른 걸음이 내려졌는지 알아보려고) */
+  private chase: Point2 | null = null
   /** 탈 수 있나 (E241: 탈것을 가졌고 싸우는 중이 아니다). MountSystem이 정한다 */
   mayRide: () => boolean = () => false
   /** 이번 걸음은 타고 가려 한다 (멀리 눌렀다). 멈추면 지운다 */
@@ -147,12 +162,13 @@ export class HeroOrders {
     else if (this.order?.kind === 'move' && this.hero.isMoving && this.destination) this.hero.moveTo(this.destination)
   }
 
-  update(_enemies: readonly CombatTarget[]): void {
+  update(enemies: readonly CombatTarget[]): void {
     // 멈췄으면 타려는 걸음도 끝났다 (조이스틱을 쥔 동안 길이 잠깐 빈 것은 빼고)
     if (!this.hero.isMoving && !this.hero.holding) this.wantRide = false
     const order = this.order
-    if (!order) return
+    if (!order) return void this.answer(enemies)
     if (order.kind === 'attack') {
+      if (!order.clicked && this.yields(order.target, enemies)) return void this.clear()
       this.updateAttack(order.target)
       return
     }
@@ -160,7 +176,36 @@ export class HeroOrders {
     if (!this.hero.isMoving) this.order = null
   }
 
+  /** 멈춰 서서 맞는데 사거리 안에 칠 적이 없으면 둘레의 깨어 있는 가장 가까운 적에게 스스로 공격 지시를 낸다 */
+  private answer(enemies: readonly CombatTarget[]): void {
+    const { hero, combat } = this
+    if (hero.locked || hero.isMoving || hero.riding || hero.holding || !combat.alive) return
+    if (combat.target || combat.combo.swinging || combat.hurtAgo > ANSWER_SECONDS) return
+    const p = hero.object.position
+    let best: CombatTarget | null = null
+    let bestDist = ANSWER_RADIUS
+    for (const enemy of enemies) {
+      if (!awake(enemy)) continue
+      const d = Math.hypot(enemy.x - p.x, enemy.z - p.z) - enemy.radius
+      if (d < bestDist) {
+        best = enemy
+        bestDist = d
+      }
+    }
+    if (best) this.attack(best, false)
+  }
+
+  /** 스스로 낸 공격 지시를 거둘 때인가: 다른 적이 사거리에 들었거나(그 적을 여느 때처럼 친다) 다른 걸음이 내려졌다 */
+  private yields(target: CombatTarget, enemies: readonly CombatTarget[]): boolean {
+    const goal = this.hero.goal
+    if (this.hero.isMoving && this.chase && goal && Math.hypot(goal.x - this.chase.x, goal.z - this.chase.z) > 0.3) return true
+    if (this.combat.combo.swinging) return false
+    const p = this.hero.object.position
+    return enemies.some((e) => e !== target && e.alive && Math.hypot(e.x - p.x, e.z - p.z) <= this.combat.reachTo(e))
+  }
+
   private attack(target: CombatTarget, clicked: boolean): void {
+    this.chase = null
     this.order = { kind: 'attack', target, clicked }
     this.combat.focus = target
     this.updateAttack(target)
@@ -187,9 +232,14 @@ export class HeroOrders {
     const reach = this.combat.reachTo(target)
     if (this.hero.isMoving) {
       if (dist <= reach - CHASE_INSIDE) this.hero.stop()
-      else if (this.hero.canRepath) this.hero.moveTo({ x: target.x, z: target.z })
+      else if (this.hero.canRepath) this.chaseTo(target)
     } else if (dist > reach) {
-      this.hero.moveTo({ x: target.x, z: target.z })
+      this.chaseTo(target)
     }
+  }
+
+  private chaseTo(target: CombatTarget): void {
+    this.hero.moveTo({ x: target.x, z: target.z })
+    this.chase = this.hero.goal
   }
 }

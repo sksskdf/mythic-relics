@@ -135,7 +135,7 @@ describe('차례 없는 흔적의 봇 (2026-11-22)', () => {
     expect(selfReturn({ ...now, chapters: false })).toBe(false)
   })
 
-  it('다음 깨우는 일: --first의 신, 서 있는 수호자, 지금 땅의 가까운 흔적, 장 할 일의 땅의 흔적 차례', () => {
+  it('다음 깨우는 일: --first의 신, 가까운 땅(넘는 통로 수), 같으면 서 있는 수호자, 지금 땅의 가까운 흔적, 장 할 일의 땅의 흔적 차례', () => {
     type T = { god: God; kind: 'trace' | 'guardian'; region: string; d: number }
     const thor: T = { god: 'thor', kind: 'trace', region: 'midgard', d: 30 }
     const odin: T = { god: 'odin', kind: 'trace', region: 'midgard', d: 10 }
@@ -147,8 +147,15 @@ describe('차례 없는 흔적의 봇 (2026-11-22)', () => {
     // 다른 땅에 있으면 장 할 일의 땅(prefer)의 것, 없으면 차례대로
     expect(pick([thor, loki], 'village', null, 'jotunheim')).toBe('loki')
     expect(pick([thor, loki], 'village')).toBe('thor')
-    // 서 있는 수호자가 흔적보다 먼저
-    expect(pick([thor, odin, freyr], 'midgard')).toBe('freyr')
+    // 같은 땅이면(넘는 통로 수가 같으면) 서 있는 수호자가 흔적보다 먼저
+    const surt: T = { god: 'freyr', kind: 'guardian', region: 'midgard', d: 40 }
+    expect(pick([thor, odin, surt], 'midgard')).toBe('freyr')
+    // 지금 땅에 응답할 흔적이 남았으면 옆 땅의 수호자보다 그 흔적이 먼저 (2026-11-22 손 QA: 약한 채로 바닷가에 끌려가 쓰러졌다)
+    expect(pick([thor, odin, freyr], 'midgard')).toBe('odin')
+    // 둘 다 다른 땅이면 넘는 통로가 적은 쪽, 같으면 수호자
+    const hops = (h: Record<string, number>) => (all: T[], here: string) => pickAwaken(all, { here, distance: (t) => t.d, hops: (t) => h[t.region] ?? 9 })?.god ?? null
+    expect(hops({ jotunheim: 1, muspel: 2 })([loki, freyr], 'village')).toBe('loki')
+    expect(hops({ jotunheim: 2, muspel: 2 })([loki, freyr], 'village')).toBe('freyr')
     // --first가 있으면 그 신부터 (할 일 가운데 없으면 여느 차례)
     expect(pick([thor, odin, loki, freyr], 'midgard', 'loki')).toBe('loki')
     expect(pick([thor, odin], 'midgard', 'loki')).toBe('odin')

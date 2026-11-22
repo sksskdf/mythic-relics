@@ -65,6 +65,25 @@
   :root .hud__gains.is-side li {
     word-break: keep-all;
   }
+  /*
+   * 새 탭 카드: 가운데 위(9vh)에 폭 360px로 뜨면 작은 지도·목표 한 줄을 덮었다 (2026-11-22 손 QA). 세로 화면에서는 작은 지도 아래에서 떠
+   * 메뉴 단추로 날아간다 (날아가는 길도 이 위 끝으로 잰다). 폭은 화면 안쪽으로
+   */
+  :root .hud__gains.is-fly {
+    --gains-top: calc(var(--unit) * 12 + var(--minimap) + env(safe-area-inset-top, 0px));
+    min-width: min(300px, calc(100vw - var(--unit) * 4));
+  }
+  /*
+   * 땅 이름 띠: 22%에 큰 글씨 두 줄로 떠 주인공 머리 위까지 덮었다 (2026-11-22 손 QA). 세로 화면에서는 한 줄 크기(30px)로 주인공 아래에 띄운다
+   */
+  :root .hud__banner {
+    top: 62%;
+    font-size: 30px;
+  }
+  /* 초상 마름모는 상자보다 2px쯤 위로 나온다: 393×659에서 윗끝이 화면 끝에 닿지 않게 조금 내린다 */
+  :root .hud__status {
+    top: calc(var(--unit) * 2 + 4px + env(safe-area-inset-top, 0px));
+  }
   :root .menu-button,
   :root .minimap,
   :root .hud__gains.is-side {

@@ -153,7 +153,7 @@ export class HoverCards {
       // 아직 줍지 않은 장비는 가방에 없어 fits로는 알 수 없으니 부위로 고른다
       const wornId = loadout.slots.find((id) => id && loadout.gear.has(id) && loadout.partOf(id) === gear.part)
       const worn = wornId ? loadout.gear.get(wornId) : null
-      this.tooltip.showCard(item.id, `${item.id}|${wornId ?? ''}`, () => gearCard(gear, worn, ctx.build.state.sources), x, y, above, band)
+      this.tooltip.showCard(item.id, `${item.id}|${wornId ?? ''}`, () => gearCard(gear, worn, ctx.ending.reached ? ctx.build.state.sources : null), x, y, above, band)
     } else {
       const place = { kind: 'ground' } as const
       this.tooltip.show(relicDef(item.id), { ...cardContext(item.id), place }, x, y, above, band)

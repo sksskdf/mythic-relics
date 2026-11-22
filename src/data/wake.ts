@@ -92,16 +92,19 @@ export function traceStateOf(god: God, now: TraceNow): TraceState {
 
 /**
  * 다음에 할 깨우는 일 하나 (목표 표시의 맨 앞·봇이 가는 곳): first가 할 일 가운데 있으면 그 신의 것(봇의 `--first`),
- * 아니면 서 있는 수호자가 먼저, 그다음 지금 땅의 가장 가까운 흔적, prefer 땅(장 할 일의 땅)의 흔적, 남은 흔적 차례.
- * distance는 지금 땅의 것까지의 거리 (m)
+ * 아니면 넘는 통로가 적은 땅의 것이 먼저(hops, 주지 않으면 지금 땅 0·다른 땅 1), 같으면 서 있는 수호자, 그다음 지금 땅의 가장 가까운 흔적,
+ * prefer 땅(장 할 일의 땅)의 흔적, 남은 흔적 차례. distance는 지금 땅의 것까지의 거리 (m)
  */
 export function pickAwaken<T extends { god: God; kind: 'trace' | 'guardian'; region: string }>(
   all: readonly T[],
-  now: { here: string; prefer?: string; first?: God | null; distance: (t: T) => number },
+  now: { here: string; prefer?: string; first?: God | null; distance: (t: T) => number; hops?: (t: T) => number },
 ): T | null {
   const mine = now.first ? all.find((t) => t.god === now.first) : undefined
   if (mine) return mine
-  const rank = (t: T): number => (t.kind === 'guardian' ? 0 : 10000) + (t.region === now.here ? Math.min(1000, now.distance(t)) : t.region === now.prefer ? 2000 : 4000)
+  // 가까운 땅이 먼저다 (넘는 통로 수, 2026-11-22 손 QA: 첫 흔적 뒤 약한 채로 옆 땅의 수호자에게 끌려가 쓰러졌다. 지금 땅에 응답할 흔적이 남았으면 그것부터).
+  // 같은 거리면 서 있는 수호자가 흔적보다 먼저
+  const hops = (t: T): number => Math.min(50, now.hops?.(t) ?? (t.region === now.here ? 0 : 1))
+  const rank = (t: T): number => hops(t) * 100000 + (t.kind === 'guardian' ? 0 : 10000) + (t.region === now.here ? Math.min(1000, now.distance(t)) : t.region === now.prefer ? 2000 : 4000)
   return all.reduce<T | null>((best, t) => (best === null || rank(t) < rank(best) ? t : best), null)
 }
 

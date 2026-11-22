@@ -192,7 +192,7 @@ describe('흔적의 카드 (P5)', () => {
 })
 
 describe('수호자·장 보스의 빛 (P5)', () => {
-  it('수호자를 이기면 쓰러진 자리에 빛이 서고 저장에 남는다. 싸움이 풀려야(맞은 지 2초, 둘레에 깨어 있는 적 없음) 밟으면 카드', () => {
+  it('수호자를 이기면 쓰러진 자리에 빛이 서고 저장에 남는다. 6m 안에 깨어 있는 적이 없으면 밟자마자 카드 (맞은 지 몇 초는 따지지 않는다, 2026-11-22 손 QA)', () => {
     const r = rig()
     r.mythPowers.meet('thor')
     r.bus.emit('guardianBeaten', { god: 'thor', region: 'midgard', x: 3, z: 4 })
@@ -202,20 +202,14 @@ describe('수호자·장 보스의 빛 (P5)', () => {
     // 멀리 있으면 뜨지 않는다
     r.run(3)
     expect(r.shown).toHaveLength(0)
-    // 빛 위에 섰지만 깨어 있는 적이 곁에 있다
+    // 빛 위에 섰지만 깨어 있는 적이 5m 곁에 있다
     r.hero.object.position.set(3, 0, 4)
     r.enemies.push({ x: 8, z: 4, radius: 1, state: 'chase' })
     r.run(3)
     expect(r.shown).toHaveLength(0)
-    // 적이 쉬고 있으면 싸움이 풀린 것이다. 그래도 방금 맞았으면 2초를 기다린다
+    // 적이 쉬고 있으면 싸움이 풀린 것이다: 방금 맞았어도(멀리서 던진 것) 곧 뜬다
     r.enemies[0]!.state = 'idle'
     r.bus.emit('heroHurt', { damage: 3 })
-    r.run(1.5)
-    expect(r.shown).toHaveLength(0)
-    r.combat.engaged = true
-    r.run(1)
-    expect(r.shown).toHaveLength(0)
-    r.combat.engaged = false
     r.run(0.2)
     expect(r.shown.map((v) => v.title)).toEqual(['토르'])
     r.press(1)

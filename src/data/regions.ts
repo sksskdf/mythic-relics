@@ -372,6 +372,24 @@ export function nextHop(from: string, to: string, regions: Readonly<Record<strin
   return null
 }
 
+/** from에서 to까지 넘는 통로 수 (같으면 0, 길이 없으면 Infinity): 출구를 따라 가장 적게 넘는 길 */
+export function hopCount(from: string, to: string, regions: Readonly<Record<string, RegionDef>> = REGIONS): number {
+  if (from === to) return 0
+  const seen = new Map<string, number>([[from, 0]])
+  const queue = [from]
+  while (queue.length > 0) {
+    const id = queue.shift()!
+    const d = seen.get(id)!
+    for (const e of regions[id]?.exits ?? []) {
+      if (seen.has(e.to)) continue
+      if (e.to === to) return d + 1
+      seen.set(e.to, d + 1)
+      queue.push(e.to)
+    }
+  }
+  return Infinity
+}
+
 /** 들어간 곳: 갈 지역에서 온 지역으로 되돌아가는 출구 앞 (없으면 시작점) */
 export function arrivalSpot(to: RegionDef, from: string): Spot {
   const back = to.exits.find((e) => e.to === from)

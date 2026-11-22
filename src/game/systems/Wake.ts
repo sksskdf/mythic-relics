@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 
 import { FREE_GODS, pickAwaken, WAKE, WAKE_GODS, wakeDef, GUARDIAN_LEASH, GUARDIAN_MEND, GUARDIAN_RADIUS, LATER_TEXT, ORDER_POWER, TRACE_DWELL, TRACE_LEASH, TRACE_RADIUS, TRACE_WIN_DELAY, traceStateOf, wakePower, type TraceState } from '../../data/wake'
+import { hopCount } from '../../data/regions'
 import { sceneId } from '../../data/scenes'
 import type { GiantSpec } from '../../data/schema'
 import { ENEMIES, type Giant } from '../../enemies/Giant'
@@ -202,6 +203,7 @@ export class WakeSystem {
       here: this.ctx.map.region.id,
       prefer,
       first,
+      hops: (t) => hopCount(this.ctx.map.region.id, t.region),
       distance: (t) => {
         const spot = this.placed(t)
         return Math.hypot(spot.x - p.x, spot.z - p.z)

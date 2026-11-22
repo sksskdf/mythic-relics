@@ -101,6 +101,48 @@ describe('클릭 지시', () => {
     expect(hits.length).toBeGreaterThan(0)
   })
 
+  it('멈춰 서서 사거리 밖의 깨어 있는 적에게 맞으면 7m 안이면 다가가 친다 (멀리서 던지는 적, 2026-11-22 손 QA)', () => {
+    const thrower = dummy(0, 6)
+    const sleeper = dummy(4, 0)
+    const targets = [{ ...thrower.target, state: 'windup' }, { ...sleeper.target, state: 'idle' }]
+    const { orders, combat, step } = setup(targets)
+    // 맞지 않으면 서 있기만 한다
+    step(0.5)
+    expect(orders.order).toBeNull()
+    combat.takeHit(1, 0, 6, 0)
+    step(3)
+    expect(orders.attackTarget).toBe(targets[0])
+    expect(thrower.hits.length).toBeGreaterThan(0)
+    expect(sleeper.hits).toEqual([])
+  })
+
+  it('7m 밖에서 맞거나, 걷는 중에 맞으면 쫓지 않는다', () => {
+    const far = dummy(0, 9)
+    const target = { ...far.target, state: 'chase' }
+    const { hero, orders, combat, step } = setup([target])
+    combat.takeHit(1, 0, 9, 0)
+    step(0.5)
+    expect(orders.order).toBeNull()
+    orders.press({ x: -8, z: 0 }, null)
+    combat.takeHit(1, 0, 9, 0)
+    step(0.3)
+    expect(orders.order).toEqual({ kind: 'move' })
+    expect(hero.isMoving).toBe(true)
+  })
+
+  it('스스로 쫓는 중에 다른 걸음이 내려지면(봇) 쫓기를 거둔다', () => {
+    const thrower = dummy(0, 6)
+    const target = { ...thrower.target, state: 'windup' }
+    const { hero, orders, combat, step } = setup([target])
+    combat.takeHit(1, 0, 6, 0)
+    step(0.1)
+    expect(orders.attackTarget).toBe(target)
+    hero.moveTo({ x: -6, z: -6 })
+    step(0.1)
+    expect(orders.order).toBeNull()
+    expect(hero.goal).not.toBeNull()
+  })
+
   it('적을 누르면 그 적에게 다가가 친다', () => {
     const { target, hits } = dummy(5, 5)
     const { orders, step } = setup([target])

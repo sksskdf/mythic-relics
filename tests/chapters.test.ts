@@ -536,6 +536,31 @@ describe('엔딩 전 깨우는 길의 목표 한 줄 (2026-11-20: 사냥 막대�
     expect(viewOf(chapters, { waking: ['thor'], open: ['thor'] })?.text).toBe('신의 흔적을 찾는다')
   })
 
+  it('수호자가 서 있어도 다음 할 일 하나가 더 가까운 흔적이면 「신의 흔적을 찾는다」, 귀환할 수 있으면 한 마디를 덧붙인다 (2026-11-22 손 QA)', () => {
+    const chapters = new ChapterProgress(world())
+    chapters.enter('midgard')
+    const ctx = {
+      bus: new EventBus<GameEvents>(),
+      chapters,
+      progress: { pantheon: { hand: null }, isOpen: () => false, opened: [] },
+      build: { chosen: null },
+      powers: { loadout: new Loadout() },
+      awaken: { waking: ['thor'] },
+      ending: { reached: false, has: () => false },
+      expedition: { preview: () => ({ seconds: 200, now: 1, next: 1.2 }), returns: 0, elapsed: 200, bosses: 0, falls: 0 },
+      training: { insights: 0 },
+    }
+    const system = new ChapterSystem(ctx as never)
+    let next: 'trace' | 'guardian' = 'trace'
+    system.nextWake = () => next
+    expect(system.goalView()?.text).toBe('신의 흔적을 찾는다')
+    next = 'guardian'
+    expect(system.goalView()?.text).toBe('수호자를 쓰러뜨린다')
+    // 이번 원정에서 수호자를 이겼다: 귀환할 수 있다
+    ctx.expedition.bosses = 1
+    expect(system.goalView()?.text).toBe('수호자를 쓰러뜨린다 · 귀환할 수 있다')
+  })
+
   it('귀환 목표는 글만 보인다: 받을 배율(×1.20) 같은 움직이는 수도, 시간 막대도 없다 (2026-11-20 손 QA. 지금 데이터에는 귀환 할 일이 없어 고개에 귀환을 끼운 장으로 본다)', () => {
     const w = world()
     const greek = CHAPTERS.find((c) => c.id === 'greek')!

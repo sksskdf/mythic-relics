@@ -54,7 +54,12 @@ export class PowersTab {
       this.from = from
     }
     this.ctx.render()
+    // 펴진 카드가 화면 아래에 걸리면 보이게 밀어 준다 (2026-11-22 손 QA, 393×659: 카드의 단추가 화면 밖에 있었다)
+    if (this.selected) this.card?.scrollIntoView?.({ block: 'nearest' })
   }
+
+  /** 마지막으로 그린 설명 카드 */
+  private card: HTMLElement | null = null
 
   /** 맨 위 칸 줄 */
   private slotRow(): HTMLElement {
@@ -143,6 +148,7 @@ export class PowersTab {
     const p = power(id)!
     const def = godDef(p.god)
     const card = el('section', 'menu-power')
+    this.card = card
     card.style.setProperty('--god', def.color)
     const head = el('div', 'menu-power__head')
     head.append(img(classIcon(def.name), 'menu-power__emblem'))
@@ -204,7 +210,7 @@ export class PowersTab {
       line.append(el('b', '', `${c.name}${on ? ' · 켜짐' : ''}`), el('small', '', c.line))
       const parts = el('div', 'menu-powers__parts')
       for (const part of c.parts) {
-        const chip = el('span', `menu-powers__part${part.slotted ? ' is-slotted' : part.have ? ' is-have' : ''}`, `${part.name} · ${part.slotted ? '끼움' : part.have ? '가졌다' : `${part.god}에게서`}`)
+        const chip = el('span', `menu-powers__part${part.slotted ? ' is-slotted' : part.have ? ' is-have' : ''}`, `${part.name} · ${part.slotted ? '끼움' : part.have ? '가졌다' : `${part.god}의 흔적·빛에서`}`)
         chip.style.setProperty('--god', part.color)
         parts.append(chip)
       }

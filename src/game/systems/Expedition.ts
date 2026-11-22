@@ -176,7 +176,7 @@ export class ExpeditionSystem {
       ...(ending.reached ? { renown: { gain: p.gain, now: p.now, next: p.next } } : { slots: { now: slots, next: Math.min(AURA_SLOTS.max, slots + 1) } }),
       time: clock(p.seconds),
       last: p.last === null ? null : clock(p.last),
-      keeps: ending.reached ? `깨운 신·신 단계·유물표·원형·장 진행·웨이포인트${best}` : `가진 힘과 칸·유물·재료·장 진행·켠 성소${best}`,
+      keeps: ending.reached ? `깨운 신·신 단계·유물표·원형·장 진행·웨이포인트${best}` : `가진 힘과 칸·모은 유물·재료·장 진행·켠 성소${best}`,
       clears: ending.reached ? '수련(깨달음과 마디), 일반 장비' : '일반 장비',
       branches: this.branches(),
       // 깊이 (E305-03, D9): 엔딩 뒤에만 다음 원정을 그대로나 한 걸음 더 깊이
@@ -234,7 +234,7 @@ export class ExpeditionSystem {
     const head = ending.reached
       ? [`명성 +${gain} · 모든 피해 ×${before.toFixed(2)} → ×${expedition.multiplier.toFixed(2)}`, ...(flame ? [`${SOURCE_NAMES[flame]} 불씨: ${FLAME_TEXT[flame]}`] : [])]
       : [slotsAfter > slotsBefore ? `도는 힘 칸 ${slotsBefore} → ${slotsAfter}` : `도는 힘 칸 ${slotsAfter} · 모두 열렸다`]
-    const lines = [...head, ...heirlooms.map((g) => `가보로 남김: ${gearName(g)}`), '2분 동안 장비가 더 떨어진다']
+    const lines = [...head, ...heirlooms.map((g) => `${ending.reached ? '가보로 남김' : '남긴 장비'}: ${gearName(g)}`), '2분 동안 장비가 더 떨어진다']
     bus.emit('moment', { id: 'returned', card: { kind: '귀환', title: `원정 ${expedition.count} 출발`, color: '#ffd27a', lines } })
     bus.emit('loadoutChanged', { change: { before: powers.state, after: powers.state }, announce: false })
     bus.emit('progressChanged', {})

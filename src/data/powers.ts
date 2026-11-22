@@ -96,6 +96,16 @@ const PART_TEXT: Readonly<Record<PassivePartKey, { name?: string; line: string }
   guard: { line: '생명이 바닥나기 전에 한 번 크게 차오른다' },
 }
 
+/**
+ * 신마다 모습이 다른 부품의 한 줄 (2026-11-22 손 QA: 동료 셋이 같은 풀이였다). 동료는 모습·빠르기·세기가 신마다 다르다 (`gods.json`의 companions):
+ * 오딘의 까마귀는 7m까지 날아가고, 로키의 분신은 곁에서 뛰어들어, 프레이의 멧돼지는 느리게 세게
+ */
+const GOD_PART_LINES: Readonly<Partial<Record<PowerId, string>>> = {
+  'aura:odin.companions': '까마귀가 머리 위를 맴돌다 조금 더 멀리 있는 적까지 날아가 쫀다',
+  'aura:loki.companions': '그림자 분신이 곁을 따르다 적에게 뛰어들어 벤다',
+  'aura:freyr.companions': '금빛 멧돼지가 곁을 달리다 적을 들이받는다. 느리지만 세다',
+}
+
 /** 한 힘으로 묶는 부품: 앞의 부품이 뒤의 부품을 데려온다 */
 const PART_WITH: Readonly<Partial<Record<PassivePartKey, readonly PassivePartKey[]>>> = { basicLightning: ['chainLightning'] }
 
@@ -115,7 +125,8 @@ function build(): Power[] {
       const part = def.passive[key] as { name?: string } | undefined
       if (!text || !part) continue
       const parts = [key, ...(PART_WITH[key] ?? []).filter((k) => def.passive[k])]
-      out.push({ id: partId(god, key), god, kind: 'aura', name: part.name ?? text.name ?? key, line: text.line, source: { from: 'passive', god, parts }, demo })
+      const id = partId(god, key)
+      out.push({ id, god, kind: 'aura', name: part.name ?? text.name ?? key, line: GOD_PART_LINES[id] ?? text.line, source: { from: 'passive', god, parts }, demo })
     }
     for (const [relic, r] of Object.entries(RELICS)) {
       if (r.god !== god) continue

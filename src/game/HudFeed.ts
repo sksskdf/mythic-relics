@@ -2,7 +2,7 @@ import { KEEPER, MOUNT } from '../data/mount'
 import { insightProgress } from '../data/training'
 import { godDef } from '../relics/data'
 import { heroIcon } from '../ui/heroIcon'
-import { PACK_GOAL } from './systems/Chapters'
+import { LIGHT_GOAL, PACK_GOAL } from './systems/Chapters'
 import type { Build } from '../build/Build'
 import type { AwakenTarget } from './systems/Wake'
 import type { Game } from './Game'
@@ -62,7 +62,8 @@ export class HudFeed {
         // 손 말고 자리에 든 신(E237 → E302)도 칩으로
         lent: build.borrowed.filter((g) => g !== manifested).map((g) => ({ name: godDef(g).name, color: godDef(g).color })),
         promote: manifested !== null && game.expeditionSystem.canReturn,
-        sources: Object.fromEntries(game.sourceRows().map((r) => [r.id, { value: r.total, level: r.level }])),
+        // 원천 칸은 엔딩 뒤에만 (2026-11-22 손 QA): 빈 것을 주면 HUD가 숨긴다
+        sources: game.ending.reached ? Object.fromEntries(game.sourceRows().map((r) => [r.id, { value: r.total, level: r.level }])) : {},
       },
       realDt,
     )
@@ -71,8 +72,10 @@ export class HudFeed {
     // 목표 한 줄 (E22-04): 보스 막대가 서거나 대화 중이면 잠깐 감춘다
     const fighting = (boss !== null && encounter.bossEngaged) || awakening.fighting !== null
     // 흔적을 지키는 무리가 깨어나 있으면 지금 할 일은 그 무리다 (P5 손 QA: 힘을 고른 뒤에도 「신의 흔적을 찾는다」에 머물렀다)
+    // 지금 땅에 밟지 않은 빛이 있으면 그것이 먼저다 (2026-11-22 손 QA: 금빛 표시도 그 빛을 가리킨다)
     const view = game.chapterSystem.goalView()
-    game.chapterHud.setGoal(view && awakening.roused ? { text: PACK_GOAL, ratio: null } : view, fighting || game.scenes.active || game.world.traveling)
+    const line = awakening.roused ? { text: PACK_GOAL, ratio: null } : this.lightSpot() ? { text: LIGHT_GOAL, ratio: null } : view
+    game.chapterHud.setGoal(view && line, fighting || game.scenes.active || game.world.traveling)
   }
 
   /** 작은 지도 (게임 한 프레임마다, 게임 시간) */
@@ -85,7 +88,7 @@ export class HudFeed {
       relics: game.pickups.list,
       // 원정이 무르익으면 성소 화로가 깜빡인다 (E305-03: 성소 전설 대신 귀환)
       sanctuaryReady: game.sanctuary.lit,
-      goal: this.goalSpot(spots),
+      goal: this.lightSpot() ?? this.goalSpot(spots),
       goals: spots.slice(1),
       // 신의 흔적 (E238): 아직 응답할 흔적만 그 신의 색 십자로. 땅에서 기다리는 빛(P5)은 작은 기둥으로 따로, 서 있는 수호자는 금빛 목표 표시가 맡는다
       traces: game.awakening.spots.filter((t) => t.state === 'open').map((t) => ({ x: t.x, z: t.z, color: godDef(t.god).color })),
@@ -107,22 +110,30 @@ export class HudFeed {
     if (chapters.goal?.kind !== 'awaken' || region.kind === 'endless') return []
     const { region: prefer, realm } = chapters.goal
     const spotOf = (t: AwakenTarget) => (t.region === region.id ? awakening.placed(t) : world.wayTo(t.region))
-    // 수호자가 서 있으면 금빛은 하나만: 가장 가까운 수호자(다른 땅이면 그쪽 통로 입구) (P5 손 QA: 같은 모양 마름모 셋 사이에서 바닷가 출구를 2분 헤맸다)
-    const p = this.parts.game.hero.object.position
-    const guardians = awakening.targets(realm).filter((t) => t.kind === 'guardian')
-    if (guardians.length > 0) {
-      const spots = guardians.map(spotOf).filter((s): s is { x: number; z: number } => s !== null)
-      const near = spots.reduce<{ x: number; z: number } | null>((best, s) => (!best || Math.hypot(s.x - p.x, s.z - p.z) < Math.hypot(best.x - p.x, best.z - p.z) ? s : best), null)
-      return near ? [near] : []
-    }
+    // 다음 할 일 하나(`target`: 가까운 땅이 먼저, 같으면 서 있는 수호자)가 맨 앞: 봇과 지도 탭이 같은 곳을 본다
     const first = awakening.target(prefer, null, realm)
+    // 수호자면 금빛은 그 하나만 (P5 손 QA: 같은 모양 마름모 셋 사이에서 바닷가 출구를 2분 헤맸다)
+    if (first?.kind === 'guardian') {
+      const spot = spotOf(first)
+      return spot ? [spot] : []
+    }
+    // 흔적이면 응답할 흔적들만 (그보다 먼 땅의 수호자는 흔적을 마친 뒤에 가리킨다, 2026-11-22 손 QA)
     const out: { x: number; z: number }[] = []
-    // 다음 할 일 하나(`target`)가 맨 앞: 봇과 지도 탭이 같은 곳을 본다
-    for (const t of [...(first ? [first] : []), ...awakening.targets(realm)]) {
+    for (const t of [...(first ? [first] : []), ...awakening.targets(realm).filter((t) => t.kind === 'trace')]) {
       const spot = t.region === region.id ? awakening.placed(t) : world.wayTo(t.region)
       if (spot && !out.some((o) => Math.hypot(o.x - spot.x, o.z - spot.z) < 1)) out.push(spot)
     }
     return out
+  }
+
+  /** 지금 땅에서 기다리는 빛 가운데 가장 가까운 것 (목표 한 줄과 금빛 표시가 그것을 먼저 가리킨다). 끝없는 원정에는 없다 */
+  private lightSpot(): { x: number; z: number } | null {
+    const { game } = this.parts
+    if (game.world.region.kind === 'endless') return null
+    const p = game.hero.object.position
+    let best: { x: number; z: number } | null = null
+    for (const l of game.powerPicks.spots) if (!best || Math.hypot(l.x - p.x, l.z - p.z) < Math.hypot(best.x - p.x, best.z - p.z)) best = l
+    return best
   }
 
   /** awakenSpots: 이미 센 신 깨우기의 자리 (`goalSpots`, 없으면 여기서 센다) */

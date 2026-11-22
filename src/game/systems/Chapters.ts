@@ -21,6 +21,8 @@ export class ChapterSystem {
   private goal: ChapterStep | null
   /** 이번 원정에서 마지막으로 기세 레벨이 오른 때 (떠난 뒤 초, 귀환 신호의 「기세가 느려짐」, E306 D10) */
   private levelAt = 0
+  /** 신 깨우기의 다음 할 일 하나가 흔적인가 수호자인가 (게임이 `WakeSystem.target`으로 단다. 없으면 깨우는 중인 신으로 짐작) */
+  nextWake?: (goal: ChapterStep) => 'trace' | 'guardian' | null
 
   constructor(private readonly ctx: GameContext) {
     const { bus, chapters } = ctx
@@ -124,8 +126,12 @@ export class ChapterSystem {
     if (goal.kind !== 'merge' && expedition.returns >= 1 && ripe && (quiet || p.next >= p.now * RETURN_SIGNAL.gain)) return toReturn('성소 화로에서 원정을 마친다')
     let ratio: number | null = null
     if (goal.kind === 'awaken') {
-      const standing = this.ctx.awaken.waking.some((g) => !progress.isOpen(g) && godDef(g).realm === goal.realm)
-      return { text: standing ? GUARDIAN_GOAL : goal.goal, ratio: null }
+      // 다음 할 일 하나가 흔적이면 수호자가 서 있어도 「신의 흔적을 찾는다」 (그 흔적이 더 가깝다, `pickAwaken`)
+      const next = this.nextWake?.(goal)
+      const standing = next !== undefined ? next === 'guardian' : this.ctx.awaken.waking.some((g) => !progress.isOpen(g) && godDef(g).realm === goal.realm)
+      const text = standing ? GUARDIAN_GOAL : goal.goal
+      // 첫 귀환 전에도 귀환할 수 있게 되면 한 마디 덧붙인다 (성소의 빛기둥과 함께, 2026-11-22 손 QA)
+      return { text: ripe ? `${text} · ${RETURN_NOTE}` : text, ratio: null }
     }
     // 합치기 (E306): 가방에 든 같은 부위 희귀가 가장 많은 수 ÷ 셋 (합치기는 가방의 것만 받는다, 낀 것은 세지 않는다)
     if (goal.kind === 'merge') {
@@ -162,6 +168,10 @@ export class ChapterSystem {
 
 /** 신 깨우기의 목표 한 줄 (특정 신을 가리키지 않는다): 그 신화권 신의 수호자가 서 있을 때. 아니면 장 자료의 글(「신의 흔적을 찾는다」) */
 export const GUARDIAN_GOAL = '수호자를 쓰러뜨린다'
+/** 귀환할 수 있을 때 목표 한 줄에 덧붙이는 말 */
+export const RETURN_NOTE = '귀환할 수 있다'
+/** 지금 땅에 밟지 않은 빛이 있을 때의 목표 한 줄 */
+export const LIGHT_GOAL = '신들의 빛을 밟는다'
 /** 흔적을 지키는 무리가 깨어나 있을 때의 목표 한 줄 (P5): 힘을 고른 뒤 */
 export const PACK_GOAL = '지키는 것들을 쓰러뜨린다'
 

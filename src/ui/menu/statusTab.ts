@@ -76,8 +76,11 @@ export function renderStatus(ctx: TabContext, body: HTMLElement): void {
   row('boot', '이동 속도', `${Math.round(stats.moveSpeed * 100)}%`, '낀 유물의 지속 효과', changed(stats.moveSpeed, true))
   // 탈것 (E241): 얻은 뒤에만 한 줄
   if (stats.mount !== null) row('boot', '탈것', `×${stats.mount}`, '고개지기의 산양\n멀리 누르면 올라타 달린다. 탄 동안은 싸우지 않고, 적을 누르거나 멈추면 내린다.')
-  row('push', '밀쳐 내기', `×${stats.knockbackDealt.toFixed(2)}`, '내 공격이 적을 미는 힘', changed(stats.knockbackDealt, true))
-  row('stand', '버티기', `×${stats.knockbackTaken.toFixed(2)}`, '내가 밀려나는 정도. 낮을수록 잘 버틴다.', changed(stats.knockbackTaken, false))
+  // 밀쳐 내기·버티기는 엔딩 뒤에만 (2026-11-22 손 QA: 엔딩 전 상태 탭의 숫자를 줄인다)
+  if (after) {
+    row('push', '밀쳐 내기', `×${stats.knockbackDealt.toFixed(2)}`, '내 공격이 적을 미는 힘', changed(stats.knockbackDealt, true))
+    row('stand', '버티기', `×${stats.knockbackTaken.toFixed(2)}`, '내가 밀려나는 정도. 낮을수록 잘 버틴다.', changed(stats.knockbackTaken, false))
+  }
   row('divine', '궁극기 게이지', `${Math.round(stats.heartGauge * 100)}%`, '궁극기 게이지\n스킬로 맞히고 적을 쓰러뜨릴수록 차오른다. 가득 차면 칸의 궁극기가 저절로 나간다.')
   // 승천은 엔딩 뒤 귀환의 갈래다 (P6)
   if (after) row('promote', '승천', `${stats.promotions}`, `승천\n어느 신이든 귀환할 때 승천을 고르면 그 신이 한 단계 오르고, 하나마다 최대 생명 +${Math.round(PER_PROMOTION.maxHpPct * 100)}%, 모든 피해 ×${PER_PROMOTION.damage}. 자리를 바꿔도 남는다.`)
