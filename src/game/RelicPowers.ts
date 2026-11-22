@@ -63,12 +63,15 @@ export class RelicPowers {
    */
   setSlots(next: PowerSlots): LoadoutChange {
     this.slots = { weapon: next.weapon, ultimate: next.ultimate, auras: [...next.auras] }
+    const before = [...this.slotted]
     this.slottedList = this.slots.auras.flatMap((id) => powerRelic(id) ?? [])
     this.slotted.clear()
     for (const id of this.slottedList) {
       this.slotted.add(id)
       this.light(id)
     }
+    // 칸에서 빠진 유물 힘은 쉬게 한다: 돌던 분신·불꽃 부채·땅 울림 고리가 그 자리에 굳어 남지 않게
+    for (const id of before) if (!this.slotted.has(id)) this.rest(id)
     this.loadout.pantheon = slotsPantheon(this.slots)
     this.refreshStages()
     this.applyCombos()
@@ -191,6 +194,17 @@ export class RelicPowers {
       this.effects.delete(id)
     }
     return this.refresh()
+  }
+
+  /**
+   * 칸에서 빠진 유물의 효과를 쉬게 한다 (P7, p2p3 리뷰): 떠 있던 연출을 걷고 효과를 버린다. 다시 끼우면 새로 만든다 (`light`).
+   * 돌지 않는 효과는 갱신되지 않아, 그대로 두면 빼는 순간의 분신·불꽃·고리가 땅에 멈춘 채 남았다. 충전도 처음부터다
+   */
+  rest(id: RelicId): void {
+    const effect = this.effects.get(id)
+    if (!effect) return
+    effect.dispose()
+    this.effects.delete(id)
   }
 
   /** 그 유물의 효과를 만든다 (이미 있으면 그대로) */

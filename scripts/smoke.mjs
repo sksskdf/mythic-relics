@@ -363,9 +363,9 @@ try {
   const face = await page.evaluate(() => ({ now: document.querySelector('.hud__portrait img').src, chips: document.querySelectorAll('.hud__chips .ui-chip').length }))
   if (face.now !== baseFace) throw new Error('상태: 토르를 깨웠더니 왼쪽 위 초상이 바뀌었습니다.')
   if (face.chips < 1) throw new Error('상태: 손에 쥔 신의 칩이 없습니다.')
-  // 신의 흔적(조각 1)을 찾으면 신 탭(자리·유물표·외형, E305-04)이 열린다. 원천·맹세는 귀환해야 열린다. 아래 점검은 탭을 모두 연 채로 한다
+  // 첫 힘을 가지면 힘 탭(칸·외형, P7)이 열린다. 원천·맹세는 귀환해야 열린다. 아래 점검은 탭을 모두 연 채로 한다
   const mythTabs = await page.evaluate(() => [...window.__game.tabs.opened])
-  if (!['relics', 'gods'].every((t) => mythTabs.includes(t)) || mythTabs.includes('sources') || mythTabs.includes('oaths')) throw new Error(`탭 차례: 토르를 깨웠는데 신 탭이 닫혀 있거나, 귀환 전에 원천·맹세 탭이 열렸습니다 (${mythTabs.join()})`)
+  if (!['relics', 'gods'].every((t) => mythTabs.includes(t)) || mythTabs.includes('sources') || mythTabs.includes('oaths')) throw new Error(`탭 차례: 토르를 깨웠는데 힘 탭이 닫혀 있거나, 귀환 전에 원천·맹세 탭이 열렸습니다 (${mythTabs.join()})`)
   await page.evaluate(() => window.__game.tabs.openAll())
   // 정보 화면(E4): 문장 단추로 열면 게임이 멈춘다. 새로 열린 탭이 있으면 그 탭부터 보이니(E236-05) 상태 탭을 누른다
   await page.click('.menu-button')
@@ -399,45 +399,50 @@ try {
   if (!(await forgeRow.count())) throw new Error('대장간: 묠니르를 올리는 제작법이 보이지 않습니다.')
   await forgeRow.getByRole('button', { name: '벼리기' }).click()
   if ((await page.evaluate(() => window.__game.powers.loadout.stage('mjolnir'))) !== 2) throw new Error('대장간: 벼렸는데 묠니르가 2단계가 아닙니다.')
-  await tab('신').click()
-  const nowGod = await page.locator('.menu-classes__now').textContent()
-  if (!nowGod.includes('토르') || nowGod.includes('천둥의 신')) throw new Error(`정보 화면: 신 탭 맨 위에 손에 쥔 신의 이름이 없거나 칭호가 남았습니다 (${nowGod.slice(0, 40)})`)
-  // 신의 카드 (E12-06, E21-02, E302 → E307): 열린 신화·손·심장·숨에 끼면 얻는 것. 「한 신에 몰기」 꼬리표·단추는 없다
-  const myth = await page.locator('.menu-myth').textContent()
-  // 유물표 (E303-04): 묠니르 칸이 켜져 깨어 있고, 못 켠 칸은 실루엣
-  const table = await page.evaluate(() => ({ lit: document.querySelectorAll('.menu-table__cell.is-lit').length, awake: document.querySelectorAll('.menu-table__cell.is-awake').length, all: document.querySelectorAll('.menu-table__cell').length, head: document.querySelector('.menu-table__head')?.textContent ?? '' }))
-  if (table.lit < 1 || table.awake < 1 || table.all < 20 || !table.head.includes('+')) throw new Error(`유물표: 묠니르 칸이 켜지지 않았습니다 ${JSON.stringify(table)}`)
-  console.log(`유물표 확인: ${table.head}, 칸 ${table.all}`)
-  if (!['열린 신화', '손에 쥐면', '심장에 두면', '숨에 넣으면', '손·심장·숨'].every((w) => myth.includes(w))) throw new Error(`정보 화면: 신화 카드가 모자랍니다 (${myth.slice(0, 60)})`)
-  if (/몰기|천둥의 신|천둥군주/.test(myth)) throw new Error(`정보 화면: 신의 카드에 「몰기」나 칭호가 남았습니다 (${myth.slice(0, 80)})`)
-  // 신의 자리 셋 (E302): 둘째 신이 깨어나면 숨 칸이 둘, 그 신의 카드에서 「숨에 넣기」를 누르면 그 신의 패시브가 돈다
+  // 힘 탭 (재미 재설계 P7, 옛 신 탭): 칸(무기·궁극기·도는 힘 셋·잠긴 칸 하나), 가진 힘, 조합. 누르면 그 힘의 카드에서 끼우고 빼고 바꾼다
+  await tab('힘').click()
+  const cells = await page.evaluate(() => [...document.querySelectorAll('.menu-powers__slot')].map((e) => e.textContent))
+  if (cells.length !== 6 || !cells[0].includes('망치') || !cells[5].includes('귀환하면 하나 는다')) throw new Error(`힘 탭: 칸이 무기·궁극기·도는 힘 셋·잠긴 칸이 아닙니다 ${JSON.stringify(cells)}`)
+  const oldWords = await page.locator('.menu-powers').textContent()
+  if (/손에 쥐|심장에|숨에|유물표|승천|단계/.test(oldWords)) throw new Error(`힘 탭: 옛 신 탭의 말이 남았습니다 (${oldWords.slice(0, 80)})`)
+  const shelf = await page.evaluate(() => ({ owned: document.querySelectorAll('.menu-powers__item').length, slotted: document.querySelectorAll('.menu-powers__item.is-slotted').length, auras: [...window.__game.ctx.mythPowers.slots.auras] }))
+  if (shelf.owned !== 7 || shelf.slotted !== 5) throw new Error(`힘 탭: 토르의 힘 일곱 가운데 다섯이 끼워져 보이지 않습니다 ${JSON.stringify(shelf)}`)
+  // 도는 힘 칸이 다 찼다: 메긴교르드를 누르면 카드가 펴지고 「바꿀 칸」을 이어서 누른다. 바꾸면 곧바로 전투에서 돈다
+  await page.locator('.menu-powers__item[data-power="relic:megingjord"]').click()
+  if (!(await page.locator('.menu-power', { hasText: '바꿀 칸을 누른다' }).isVisible())) throw new Error('힘 탭: 칸이 다 찼는데 메긴교르드의 카드에 바꿀 칸이 없습니다.')
+  const out = shelf.auras[0]
+  const outName = await page.evaluate((id) => document.querySelector(`.menu-powers__slot[data-power="${id}"] b`)?.textContent, out)
+  await page.locator('.menu-power__act', { hasText: `${outName} 대신` }).click()
+  const swappedIn = await page.evaluate(() => ({ auras: [...window.__game.ctx.mythPowers.slots.auras], combat: [...window.__game.powers.slots.auras], awake: window.__game.powers.awake('megingjord') }))
+  if (swappedIn.auras[0] !== 'relic:megingjord' || swappedIn.combat[0] !== 'relic:megingjord' || !swappedIn.awake) throw new Error(`힘 탭: 메긴교르드로 바꿨는데 칸이나 전투가 그대로입니다 ${JSON.stringify(swappedIn)}`)
+  // 끼운 도는 힘은 「빼기」(바꾼 뒤에도 카드는 펴진 채다), 빈 칸이 생기면 「끼우기」로 돌려놓는다
+  await page.locator('.menu-power__act', { hasText: '빼기' }).click()
+  if (await page.evaluate(() => window.__game.powers.awake('megingjord'))) throw new Error('힘 탭: 메긴교르드를 뺐는데 아직 돕니다.')
+  await page.locator(`.menu-powers__item[data-power="${out}"]`).click()
+  await page.locator('.menu-power__act', { hasText: '끼우기' }).click()
+  if (!(await page.evaluate((id) => window.__game.powers.slots.auras.includes(id), out))) throw new Error('힘 탭: 빈 칸에 끼웠는데 전투에 들지 않았습니다.')
+  // 무기는 비울 수 없고 바꾸기만: 오딘의 창을 가지면 「끼우기」로 망치와 바뀌고 동작이 바뀐다
   await page.evaluate(() => {
-    const g = window.__game
-    g.progress.open('loki')
-    // 칸 (P2): 가진 힘만 칸에 든다. 도는 힘의 칸 셋이 토르의 것으로 찼으니 하나를 빼 자리를 낸다
-    g.ctx.mythPowers.own('loki')
-    g.dev.unslot('aura:thor.skyStrike')
-    g.menu.gods.selected = 'loki'
-    g.menu.refresh()
+    window.__game.ctx.mythPowers.own('odin')
+    window.__game.menu.refresh()
   })
-  await page.locator('.menu-myth__choose', { hasText: '숨에 넣기' }).click()
-  const lent = await page.evaluate(() => ({ borrowed: [...window.__game.ctx.build.borrowed], breath: window.__game.ctx.build.passives().map((p) => p.god), slots: [...document.querySelectorAll('.menu-slots__slot')].map((e) => e.textContent) }))
-  if (lent.borrowed.join() !== 'loki' || !lent.breath.includes('loki') || !lent.slots.some((t) => t.includes('숨') && t.includes('로키'))) throw new Error(`신의 자리: 로키를 숨에 넣지 못했습니다 ${JSON.stringify(lent)}`)
-  // 손을 로키로 바꾸면 공격 동작이 바뀐다 (어디서나)
-  await page.locator('.menu-myth__choose', { hasText: '손에 쥐기' }).click()
-  const swapped = await page.evaluate(() => ({ hand: window.__game.progress.pantheon.hand, attack: window.__game.ctx.build.state.attack }))
-  if (swapped.hand !== 'loki' || swapped.attack === 'hammer') throw new Error(`신의 자리: 손을 로키로 바꿨는데 동작이 그대로입니다 ${JSON.stringify(swapped)}`)
-  console.log(`신의 자리 확인: ${lent.slots.join(' / ')}, 숨에 로키, 손을 로키로 바꾸면 동작 ${swapped.attack}`)
-  await page.evaluate(() => {
-    window.__game.placeMyth('hand', 'thor')
-    window.__game.unplaceMyth('loki')
-  })
-  // 신 탭의 「외형」 알약 (E305-04): 외형 탭을 신 탭에 합쳤다. 보관함이 뜨고, 「자리」로 돌아온다
+  await page.locator('.menu-powers__slot[data-power="weapon:thor"]').click()
+  if (await page.locator('.menu-power__act', { hasText: '빼기' }).count()) throw new Error('힘 탭: 무기 칸에 「빼기」가 있습니다 (무기는 바꾸기만).')
+  await page.locator('.menu-powers__item[data-power="weapon:odin"]').click()
+  await page.locator('.menu-power__act', { hasText: '끼우기' }).click()
+  const spear = await page.evaluate(() => ({ weapon: window.__game.ctx.mythPowers.slots.weapon, attack: window.__game.ctx.build.state.attack }))
+  if (spear.weapon !== 'weapon:odin' || spear.attack === 'hammer') throw new Error(`힘 탭: 오딘의 창으로 바꿨는데 동작이 그대로입니다 ${JSON.stringify(spear)}`)
+  // 조합 줄: 번개와 묠니르가 칸에 있으면 켜진 「돌아오는 천둥」, 하나만 더 끼우면 켜지는 「발키리」(남은 재료 까마귀는 가졌다)
+  const combos = await page.locator('.menu-powers__combos').textContent()
+  if (!combos.includes('발키리') || !combos.includes('가졌다')) throw new Error(`힘 탭: 하나만 더 끼우면 켜지는 조합이 보이지 않습니다 (${combos.slice(0, 80)})`)
+  console.log(`힘 탭 확인: 칸 ${cells.length}, 가진 힘 ${shelf.owned}, 다 찬 칸에서 바꾸기·빼기·끼우기, 무기는 바꾸기만(${spear.attack})`)
+  await page.evaluate(() => window.__game.relics.slotPower('weapon:thor'))
+  // 힘 탭의 「외형」 알약 (E305-04): 외형 탭을 합쳤다. 보관함이 뜨고, 「힘」으로 돌아온다
   await page.locator('.menu-gods__views .ui-pill', { hasText: '외형' }).click()
-  if (!(await page.locator('.wardrobe').isVisible())) throw new Error('신 탭: 「외형」을 눌렀는데 보관함이 없습니다.')
+  if (!(await page.locator('.wardrobe').isVisible())) throw new Error('힘 탭: 「외형」을 눌렀는데 보관함이 없습니다.')
   // 외형 칩(머리의 「장착을 따른다」, 모습은 그대로)을 눌러도 가운데 미리 보기 인형이 문서에 붙어 있다 (E307: 다시 그려 떼어진 옛 칸으로 옮겨져 사라졌다)
   await page.locator('.wardrobe__chip').first().click()
-  if (!(await page.evaluate(() => !!document.querySelector('.wardrobe .hero-preview')))) throw new Error('신 탭: 외형 칩을 눌렀더니 가운데 미리 보기 인형이 사라졌습니다.')
+  if (!(await page.evaluate(() => !!document.querySelector('.wardrobe .hero-preview')))) throw new Error('힘 탭: 외형 칩을 눌렀더니 가운데 미리 보기 인형이 사라졌습니다.')
   // 깨운 신의 옷은 여기서 부위마다 직접 골라 입는다 (E307): 머리 칸 → 「천둥의 날개 투구」. 표식 칸도 고를 수 있다
   await page.locator('.wardrobe__slot', { hasText: '머리' }).first().click()
   await page.locator('.wardrobe__chip', { hasText: '천둥의 날개 투구' }).click()
@@ -449,8 +454,8 @@ try {
     window.__game.appearance.choose('head', 'auto')
     window.__game.appearance.choose('mark', 'auto')
   })
-  await page.locator('.menu-gods__views .ui-pill', { hasText: '자리' }).click()
-  if (!(await page.locator('.menu-slots').isVisible())) throw new Error('신 탭: 「자리」로 돌아왔는데 신의 자리가 없습니다.')
+  await page.locator('.menu-gods__views .ui-pill', { hasText: '힘' }).click()
+  if (!(await page.locator('.menu-powers__slots').isVisible())) throw new Error('힘 탭: 「힘」으로 돌아왔는데 칸이 없습니다.')
   // 수련 탭 (E236): 깨달음을 얻으면 메뉴 단추에 표시, 뿌리 마디를 누르면 찍히고 피해가 오른다
   const trainBefore = await page.evaluate(() => {
     const g = window.__game
@@ -480,7 +485,7 @@ try {
   if (after.depth !== 1 || after.levels !== 0 || after.tabs !== 8) throw new Error(`엔딩 뒤: 깊이 한 줄이 없거나(고르는 단추는 없어야 함) 탭이 여덟이 아닙니다 (${JSON.stringify(after)})`)
   await page.keyboard.press('Escape')
   console.log('원천 확인: 원정 기록, 엔딩 전에는 각성 카드 넷과 탭 일곱, 엔딩 뒤에는 끝없는 원정까지 탭 여덟과 깊이 한 줄(고르기는 귀환 카드)')
-  console.log('정보 화면 확인: 상태 탭 능력치 8줄, 열면 멈춤, 가방에 넣기·다시 끼기와 미리 보기, 신 탭(자리·외형), Esc로 닫기')
+  console.log('정보 화면 확인: 상태 탭 능력치 8줄, 열면 멈춤, 가방에 넣기·다시 끼기와 미리 보기, 힘 탭(칸·외형), Esc로 닫기')
 
   // 일시 정지(E5): 창이 없을 때 Esc를 누르면 멈추고, 멈춘 동안 게임 시간이 흐르지 않는다.
   await page.keyboard.press('Escape')
@@ -607,8 +612,12 @@ try {
     return { pantheon: d.pantheon, awakenGods: d.awaken.gods, slots: d.slots, bag: d.bag, stages: d.stages, taken: d.training.taken, ending: d.ending, depth: d.depth.reached, pickups: d.automation.counters.pickups ?? 0, waypoints: d.waypoints, lastBranch: d.expedition.lastBranch }
   }
   await page.evaluate(() => {
-    window.__game.relics.place('breath', 'loki')
-    window.__game.menu.toggle(true)
+    // 로키의 힘을 갖고, 도는 힘 칸 하나를 비워 그 패시브 힘을 끼운다 (칸이 다 찼으면 끼우지 못한다)
+    const g = window.__game
+    g.ctx.mythPowers.own('loki')
+    if (g.ctx.mythPowers.slots.auras.length >= g.ctx.mythPowers.auraSlots) g.dev.unslot(g.ctx.mythPowers.slots.auras.at(-1))
+    g.relics.place('breath', 'loki')
+    g.menu.toggle(true)
   })
   const kept = await page.evaluate(keep)
   const savedAt = await page.evaluate(() => {

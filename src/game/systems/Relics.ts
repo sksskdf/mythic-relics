@@ -17,7 +17,7 @@ import type { GameContext } from '../context'
 import type { LoadoutChange } from '../RelicPowers'
 import { godMoment } from './godMoments'
 import { godPowers, power, type PowerId, powerRelic, ultimateId, weaponId } from '../../data/powers'
-import { inPantheon, MAX_BREATH, oathSlots, type PartKind, slotsPantheon } from '../../myth/pantheon'
+import { inPantheon, oathSlots, type PartKind, slotsPantheon } from '../../myth/pantheon'
 
 /** 신이 깨어나 손에 드는 순간 주변 적을 밀어내는 범위와 피해 */
 const MANIFEST_RADIUS = 4
@@ -91,9 +91,19 @@ export class RelicSystem {
     return true
   }
 
-  /** 칸에서 뺀다 (힘은 그대로 갖는다) */
+  /**
+   * 칸에서 뺀다 (힘은 그대로 갖는다). 무기·궁극기는 힘 탭에서 비울 수 없지만(바꾸기만), 점검용 지름길은 비울 수 있다.
+   * 뺀 유물 힘의 효과는 `RelicPowers.setSlots`가 쉬게 한다 (그 자리에 굳지 않게)
+   */
   unslotPower(id: PowerId): boolean {
     if (!this.ctx.mythPowers.unslot(id)) return false
+    this.syncPowers()
+    return true
+  }
+
+  /** 끼운 도는 힘을 가진 도는 힘으로 바꾼다 (힘 탭: 칸이 다 찼을 때, 같은 칸 자리에). 바꿨으면 true */
+  swapPower(out: PowerId, id: PowerId): boolean {
+    if (!this.ctx.mythPowers.swap(out, id)) return false
     this.syncPowers()
     return true
   }
@@ -124,14 +134,8 @@ export class RelicSystem {
     return true
   }
 
-  /** 신 탭이 보이는 숨 칸 수 (힘 탭이 생길 때까지): 칸에 든 패시브 힘의 신 수에 빈 도는 힘 칸을 더한다 */
-  get slots(): number {
-    const { mythPowers, progress } = this.ctx
-    return Math.min(MAX_BREATH, progress.pantheon.breath.length + Math.max(0, mythPowers.auraSlots - mythPowers.slots.auras.length))
-  }
-
   /**
-   * 그 자리에 그 신을 낀다 (정보 화면 신 탭, 어디서나): 손 = 그 신의 무기를 무기 칸에, 심장 = 그 신의 궁극기를 궁극기 칸에,
+   * 그 자리에 그 신을 낀다 (점검용 지름길, P7부터 화면은 힘 탭의 끼우기·바꾸기): 손 = 그 신의 무기를 무기 칸에, 심장 = 그 신의 궁극기를 궁극기 칸에,
    * 숨 = 그 신의 패시브 힘을 빈 도는 힘 칸에 (들어가는 만큼). 가진 힘만 낄 수 있다
    */
   place(part: PartKind, god: God): boolean {

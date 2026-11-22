@@ -2169,3 +2169,237 @@ button.menu-slots__slot {
 .menu-gods__atlas > summary:hover {
   color: var(--c-ink-1);
 }
+/* 힘 탭 (재미 재설계 P7, 옛 신 탭): 칸 줄, 가진 힘(종류별), 힘의 설명 카드, 조합 줄. 누르는 것은 모두 높이 44px 이상 */
+.menu-powers {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+}
+.menu-powers__slots {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--sp-3);
+}
+.menu-powers__slot {
+  --god: var(--c-line-2);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  min-height: 48px;
+  padding: var(--sp-2) var(--sp-4);
+  border: var(--bw) solid var(--god);
+  background: color-mix(in srgb, var(--god) 14%, var(--c-bg-1));
+  color: var(--c-ink-1);
+  font: var(--t-body);
+  text-align: left;
+}
+button.menu-powers__slot {
+  cursor: pointer;
+}
+.menu-powers__slot small {
+  font: var(--t-small);
+  color: var(--c-ink-3);
+}
+.menu-powers__slot b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.menu-powers__slot.is-empty {
+  border-style: dashed;
+  background: transparent;
+  color: var(--c-ink-3);
+}
+.menu-powers__slot.is-locked {
+  border-style: dashed;
+  border-color: var(--c-line-1);
+  background: transparent;
+  color: var(--c-ink-4);
+  font: var(--t-small);
+}
+.menu-powers__slot.is-selected,
+.menu-powers__item.is-selected {
+  outline: 1px solid var(--c-gold-soft);
+  outline-offset: 1px;
+}
+.menu-powers__group,
+.menu-powers__combos {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.menu-powers__head {
+  font: var(--t-small);
+  color: var(--c-ink-3);
+}
+.menu-powers__empty {
+  font: var(--t-body);
+  color: var(--c-ink-2);
+}
+.menu-powers__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-auto-flow: dense;
+  gap: var(--sp-3);
+}
+.menu-powers__list > .menu-power {
+  grid-column: 1 / -1;
+}
+.menu-powers__item {
+  --god: var(--c-line-2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  min-width: 0;
+  min-height: 44px;
+  padding: var(--sp-2) var(--sp-4);
+  border: 1px solid color-mix(in srgb, var(--god) 60%, var(--c-line-1));
+  border-left: var(--bw) solid var(--god);
+  background: var(--c-bg-1);
+  color: var(--c-ink-2);
+  font: var(--t-body);
+  text-align: left;
+  cursor: pointer;
+}
+.menu-powers__item.is-slotted {
+  color: var(--c-ink-1);
+  background: color-mix(in srgb, var(--god) 14%, var(--c-bg-1));
+}
+.menu-powers__words {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.menu-powers__words b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.menu-powers__words small {
+  font: var(--t-small);
+  color: var(--c-ink-3);
+}
+.menu-powers__tag {
+  flex: none;
+}
+.menu-power {
+  --god: var(--c-line-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-5);
+  border: var(--bw) solid var(--god);
+  background: color-mix(in srgb, var(--god) 8%, var(--c-bg-1));
+}
+.menu-power__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+}
+.menu-power__emblem {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  image-rendering: pixelated;
+}
+.menu-power__name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font: var(--t-strong);
+  color: var(--c-ink-1);
+}
+.menu-power__name small,
+.menu-power__combo small,
+.menu-power__note {
+  font: var(--t-small);
+  color: var(--c-ink-3);
+}
+.menu-power__line {
+  font: var(--t-body);
+  color: var(--c-ink-1);
+}
+.menu-power__combo {
+  display: flex;
+  flex-direction: column;
+  padding-left: var(--sp-4);
+  border-left: var(--bw) solid var(--c-line-2);
+  font: var(--t-body);
+  color: var(--c-ink-2);
+}
+.menu-power__combo.is-lit {
+  border-left-color: var(--c-gold);
+  color: var(--c-ink-1);
+}
+.menu-power__dos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.menu-power__act {
+  --god: var(--c-stone-hi);
+  min-height: 44px;
+  padding: var(--sp-3) var(--sp-5);
+  font: var(--t-body);
+  color: var(--c-ink-1);
+  border: 0;
+  background: var(--c-stone-hi);
+  box-shadow: var(--stone-raised);
+  cursor: pointer;
+}
+.menu-power__act.is-swap {
+  border-left: var(--bw) solid var(--god);
+}
+.menu-power__act:hover {
+  background: var(--c-stone-hover);
+}
+.menu-power__note {
+  flex: 1 1 100%;
+}
+.menu-powers__combo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px dashed var(--c-line-2);
+  font: var(--t-body);
+  color: var(--c-ink-2);
+}
+.menu-powers__combo.is-lit {
+  border-style: solid;
+  border-color: var(--c-gold);
+  color: var(--c-ink-1);
+}
+.menu-powers__combo small {
+  font: var(--t-small);
+  color: var(--c-ink-3);
+}
+.menu-powers__parts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+.menu-powers__part {
+  --god: var(--c-line-2);
+  padding: 0 var(--sp-3);
+  border-left: var(--bw) solid var(--god);
+  font: var(--t-small);
+  color: var(--c-ink-3);
+}
+.menu-powers__part.is-have {
+  color: var(--c-ink-2);
+}
+.menu-powers__part.is-slotted {
+  color: var(--c-ink-1);
+}
+@media (max-width: 600px) {
+  .menu-powers__slots {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .menu-powers__list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

@@ -1,6 +1,6 @@
 // 정보 화면·HUD 모음 (QA): 중반쯤의 상태를 꾸민 뒤 정보 화면 탭마다, 화면 크기마다 찍는다.
 // 사용법: npm run build && node scripts/ui-sheet.mjs [저장 폴더=test-results/ui] [크기=1280x720,960x540,390x844,393x852,393x659]
-// 결과: <폴더>/<크기>-<탭>.png (탭 여덟, 신 탭은 자리·외형 둘), <크기>-hud.png (카드가 다 지나간 HUD), <크기>-hud-card.png (큰 카드가 뜬 HUD).
+// 결과: <폴더>/<크기>-<탭>.png (탭 여덟, 힘 탭(옛 신 탭, id gods)은 힘·외형 둘), <크기>-hud.png (카드가 다 지나간 HUD), <크기>-hud-card.png (큰 카드가 뜬 HUD).
 // HUD 둘은 목표 한 줄이 보이게 엔딩 전에, 탭은 여덟이 다 열리게 엔딩 뒤로 넘겨 찍는다. 글이 넘치거나 잘리는지, 좁은 화면에서 깨지는지 직접 본다.
 // UI_DOM=1 이면 탭마다 정보 화면의 DOM도 <크기>-<탭>.html로 남긴다 (코드를 나눈 뒤 화면이 그대로인지 diff로 견줄 때)
 // 세로 크기(가로 < 세로)는 터치 기기로 연다. 393x852는 아이폰 15 Pro, 393x659는 그 사파리에서 주소창·도구 막대가 보일 때의 높이다 (E307).
@@ -14,7 +14,7 @@ import { findCuts } from './lib/cuts.mjs'
 const [dir = 'test-results/ui', sizesArg = '1280x720,960x540,390x844,393x852,393x659'] = process.argv.slice(2)
 const PORT = 4194
 import { BROWSER } from './lib/browser.mjs'
-// 탭 일곱과 엔딩 뒤 하나 (E305-04), 신 탭은 「자리」와 「외형」을 따로 찍는다
+// 탭 일곱과 엔딩 뒤 하나 (E305-04), 힘 탭은 「힘」과 「외형」을 따로 찍는다
 const TABS = ['status', 'relics', 'training', 'gods', 'gods-looks', 'sources', 'map', 'oaths', 'endless']
 const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'ignore', detached: true })
 const stop = () => {
@@ -61,6 +61,11 @@ try {
       g.dev.choose('thor')
       g.dev.promote()
       for (const god of ['loki', 'odin']) g.progress.open(god)
+      // 힘 (P7): 오딘의 힘도 갖고(칸 밖), 점검용 실행이 푼 칸 상한을 다시 닫아 플레이어처럼 도는 힘 칸 셋으로 둔다
+      g.ctx.mythPowers.own('odin')
+      g.ctx.mythPowers.uncapped = false
+      g.ctx.mythPowers.load(g.ctx.mythPowers.toData())
+      g.relics.syncPowers()
       for (const part of ['head', 'body', 'hands', 'feet', 'trinket']) g.dev.dropGear(part, part === 'trinket' ? 'hero' : 'rare', g.hero.object.position.x, g.hero.object.position.z)
       g.advance(1.5, 1 / 30)
       g.dev.fillForge('thor')
@@ -105,7 +110,9 @@ try {
       await page.evaluate((tab) => {
         const g = window.__game
         const [id, view] = tab.split('-')
-        g.menu.gods.view = view ?? 'slots'
+        g.menu.powers.view = view ?? 'slots'
+        // 힘 탭: 칸이 다 찬 채 가진 도는 힘 하나(궁니르)의 카드를 펴 둔다 (바꿀 칸 단추까지 잘리지 않는지 본다)
+        g.menu.powers.selected = id === 'gods' && !view ? 'relic:gungnir' : null
         g.menu.show(id)
       }, tab)
       await wait()

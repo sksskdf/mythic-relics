@@ -65,7 +65,7 @@ E12~E14에서 새 규칙을 넣을 때는 `BuildInputs`에 재료를 더하고 `
 | `src/game/systems/Oaths.ts`·`src/ui/OathCard.ts` | 출발 카드(띄운 자리에서 걸어 나가면 맹세 없이 떠남), 지킴·깨짐 | 시스템·UI |
 | `src/game/systems/Automation.ts` | 귀환할 때 새로 켜진 자동화를 카드로 | 시스템 |
 | `src/ui/ReturnCard.ts`·`src/ui/SwapCard.ts` | 귀환 카드(고르는 카드 틀 `pickCard.css`), 두 갈래 카드. 맹세 출발 카드(`OathCard`)까지 셋의 누름 규칙은 `src/ui/pickGate.ts` 한 곳(뜬 뒤 0.5초는 받지 않음, 카드 위에서 시작된 누름만, E307). 세로 화면에서 귀환·맹세 출발 카드의 자리(초상 줄과 아래 묶음 사이 한가운데, 떠 있는 동안 작은 지도·원천 칩·목표 한 줄 숨김)는 `portrait.css`, 시험은 `tests/cuts.test.mjs` | UI |
-| `src/ui/menu/godsTab.ts` | 자리 셋·유물표·외형(옛 신화·외형 탭을 합침) | UI |
+| `src/ui/menu/powersTab.ts` | 힘 탭(옛 신 탭, id `gods`): 칸·가진 힘·조합·끼우기와 외형. 규칙은 `powersView.ts` (P7) | UI |
 
 - 계획에 있던 `systems/Pantheon.ts`·`systems/Merge.ts`는 만들지 않았다. 부품 얻기와 빈 칸 채우기는 `systems/Relics.ts`(`autoFill`)와 `systems/Wake.ts`, 두 갈래 카드는 `SwapCard`, 합치기는 장비 탭(`menu/relicsTab.ts`)과 `systems/Expedition.ts`의 자동 합치기가 맡는다. 마이그레이션도 버전마다 파일을 두지 않고 `migrate/legacy.ts`(v16 모양까지)와 `migrate/v17.ts` 둘이다.
 - **버스 사건 (원정 순환에서 더하거나 바꾼 것):** `expeditionReturned {count, renown, mult, branch, deepWin}`(귀환, 자동화·깊이가 받음), `gearMerged {item}`, `oathEnded {id, win, seconds}`, `chapterConquered {region, conquered}`, `ultimateCast`(고유 효과가 받음), `depthChanged {level}`(옛 `threatChanged`), `endlessFloor`·`endlessEnded`(옛 균열), `mountGained`·`rode`(E241). 계획의 `momentumLevel`·`ascended`·`pantheonChanged`·`partGained`·`buildChanged`는 만들지 않고 옛 이름(`insightGained`·`promoted`·`mythLent`·`fragment`)과 판 번호를 그대로 썼다. 없앤 것: `gearSalvaged`, `legendStarted`·`legendFailed`, `riftFloor`·`riftEnded`, `threatChanged`.

@@ -6,6 +6,8 @@ import type { EndingFeature } from '../../progress/Ending'
 import type { God, RelicId } from '../../relics/data'
 import type { RelicCardContext } from '../relicCard'
 import type { WardrobeHost } from '../WardrobePane'
+import type { PowerId } from '../../data/powers'
+import type { PowerTabState } from './powersView'
 
 /** 상태 탭에 넣을 지금의 능력치와 걸린 힘 */
 export interface HeroStats {
@@ -124,6 +126,8 @@ export interface MenuHost {
     /** 그 신화의 다음 제작: 만들 것의 이름, 재료(가진 수/필요한 수). 다 올렸으면(데모는 2단계) null */
     next(god: God): { name: string; stage: number; materials: { name: string; have: number; need: number }[] } | null
     make(god: God): boolean
+    /** 그 유물의 지금 단계 (만들지 않았으면 1) */
+    stage(relic: RelicId): number
   }
   readonly loadout: LoadoutState
   wield(id: RelicId, slot: number): void
@@ -136,20 +140,18 @@ export interface MenuHost {
   /** 셋을 합친다 */
   merge(uids: readonly string[]): void
   readonly progress: ClassProgress
-  /** 신 탭 (E12-06 신화 탭 → E305-04): 신의 자리와 유물표 */
-  readonly gods: {
-    /** 지금 신의 자리를 바꿀 수 있는가 (E302: 어디서나) */
-    canSwap(): boolean
-    /** 신의 자리 셋 (E302): 손·심장·숨, 숨 칸 수, 잠긴 숨 칸마다 열리는 때, 지금 도는 세 자리가 모두 같은 신이면 그 신(효과가 한 단계 위로 돈다. 화면에는 이름 없이 값만, E307), 빈 손의 맹세를 걸었나 (E305-01) */
-    pantheon(): { hand: God | null; heart: God | null; breath: readonly God[]; count: number; locked: readonly string[]; focus: God | null; emptyHand: boolean }
-    /** 그 자리에 낀다 (손·심장은 바꿔 끼고, 숨은 빈 칸에) */
-    place(part: 'hand' | 'heart' | 'breath', god: God): boolean
-    /** 숨 칸에서 뺀다 */
-    unplace(god: God): boolean
-    /** 깨우는 중인 신 (E238): 모은 조각과 다음 할 일 한 줄. 없으면 null */
-    waking(): { god: God; next: string } | null
-    /** 유물표 (E303-04): 신화의 유물과 고유 효과 칸, 켰는지·깨어났는지 */
-    table(): { relics: { id: RelicId; lit: boolean; awake: boolean; stage: number }[]; uniques: { id: string; name: string; text: string; lit: boolean }[] }
+  /** 힘 탭 (재미 재설계 P7, 옛 신 탭): 가진 힘과 칸, 끼우기·빼기·바꾸기. 바꾸면 곧바로 전투에 맞춘다 (`RelicSystem.syncPowers`) */
+  readonly powers: {
+    /** 가진 힘·칸·도는 힘의 칸 수 */
+    state(): PowerTabState
+    /** 가진 힘을 칸에 끼운다 (무기·궁극기는 바꿔 끼우고, 도는 힘은 빈 칸에) */
+    slot(id: PowerId): boolean
+    /** 도는 힘을 칸에서 뺀다 (무기·궁극기는 비우지 않는다) */
+    unslot(id: PowerId): boolean
+    /** 끼운 도는 힘(out)을 가진 도는 힘(id)으로 바꾼다 (같은 칸 자리에) */
+    swap(out: PowerId, id: PowerId): boolean
+    /** 그 힘의 신이 깨어났나 (힘 설명 카드의 「깨어난 신」 한 줄) */
+    awake(god: God): boolean
   }
   readonly wardrobe: WardrobeHost
   /** 설명 카드에 넣을 지금 상태 */

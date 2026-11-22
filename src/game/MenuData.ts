@@ -1,5 +1,7 @@
 import { activeLayers, LAYER_NAMES } from '../build/layers'
-import { WAKE, WAKE_GODS, wakeDef } from '../data/wake'
+import { WAKE, WAKE_GODS } from '../data/wake'
+import { WAKE_WON } from '../progress/Wake'
+import { power } from '../data/powers'
 import { awakeningLevel } from '../data/awakening'
 import { REALM_COLORS } from '../data/regions'
 import { chapterOf, conquestBoss, CONQUESTS } from '../data/chapters'
@@ -11,12 +13,10 @@ import { OATHS } from '../data/oaths'
 import { MOUNT } from '../data/mount'
 import { nextRecipe } from '../gear/forge'
 import { materialName } from '../gear/materials'
-import { MYTH_RELICS, mythRelic, relicMyth, stageName } from '../gear/mythRelic'
+import { mythRelic, stageName } from '../gear/mythRelic'
 import { GEAR } from '../gear/roll'
 import { TRAINING_UNIQUES } from '../skills/uniques'
 import { levelGains } from '../myth/levelGains'
-import { breathCap } from '../myth/pantheon'
-import { josa } from '../ui/josa'
 import { AUTOMATION_STEPS } from '../progress/Automation'
 import { BRANCHES, insightProgress, TRAINING_NODES } from '../data/training'
 import { statText } from '../myth/alwaysText'
@@ -77,6 +77,7 @@ export class MenuData {
           }
         },
         make: (god) => ctx.map.region.kind === 'hub' && relics.forge(god),
+        stage: (relic) => powers.loadout.stage(relic),
       },
       get loadout() {
         return powers.state
@@ -88,17 +89,13 @@ export class MenuData {
       mergeable: () => game.powers.loadout.mergeable().map((g) => g.map((i) => i.uid)),
       merge: (uids) => relics.merge(uids) && game.menu.refresh(),
       progress: game.progress,
-      gods: {
-        // 신의 자리는 어디서나 바꾼다 (E302, 막던 전설 판은 E305-03에서 걷음)
-        canSwap: () => true,
-        pantheon: () => this.pantheonView(),
-        place: (part, god) => relics.place(part, god),
-        unplace: (god) => relics.unplace(god),
-        waking: () => this.wakingView(),
-        table: () => ({
-          relics: MYTH_RELICS.filter((id) => !godDef(relicMyth(id)!).hidden || powers.loadout.lit.includes(id)).map((id) => ({ id, lit: powers.loadout.lit.includes(id), awake: powers.awake(id), stage: powers.loadout.stage(id) })),
-          uniques: Object.entries(GEAR.uniques).map(([id, u]) => ({ id, name: u.name, text: u.text, lit: powers.loadout.uniquesSeen.has(id) })),
-        }),
+      powers: {
+        state: () => ({ owned: ctx.mythPowers.owned, slots: ctx.mythPowers.slots, auraSlots: ctx.mythPowers.auraSlots }),
+        slot: (id) => relics.slotPower(id),
+        // 무기·궁극기는 힘 탭에서 비우지 않는다 (바꾸기만, `redesign.md` P7)
+        unslot: (id) => power(id)?.kind === 'aura' && relics.unslotPower(id),
+        swap: (out, id) => relics.swapPower(out, id),
+        awake: (god) => ctx.awaken.stage(god) >= WAKE_WON,
       },
       cardContext: (id) => this.cardContext(id),
       stats: () => this.heroStats(),
@@ -294,31 +291,6 @@ export class MenuData {
     // 원천 불씨 (E304): 귀환 갈래로 쌓은 영구 몫 (합에 이미 들어 있다)
     const flames = expedition.flamePoints()
     return SOURCE_IDS.map((id) => ({ id, total: state.sources[id], level: awakeningLevel(state.sources[id]), flames: flames[id] }))
-  }
-
-  /** 신의 자리 셋 (E302): 손·심장·숨, 숨 칸 수, 잠긴 숨 칸마다 열리는 때, 지금 도는 자리의 세 자리가 모두 같은 신이면 그 신 (신 탭) */
-  private pantheonView(): ReturnType<MenuHost['gods']['pantheon']> {
-    const { ctx, relics } = this.parts
-    const { progress, chapters, ending, build } = ctx
-    const count = relics.slots
-    const locked: string[] = []
-    if (progress.opened.length < 2) locked.push('두 번째 신이 깨어나면')
-    for (const region of CONQUESTS) {
-      if (chapters.bosses.has(region)) continue
-      locked.push(`${josa(ENEMIES[conquestBoss(region)]?.name ?? '장 보스', '을')} 이기면`)
-    }
-    const p = progress.pantheon
-    // 잠긴 칸은 지금 끝(엔딩 전 4)까지만: 홀로의 맹세로 끝에 닿았으면 남은 장 보스는 칸을 더 주지 않는다
-    const cap = breathCap(ending.has('oaths'))
-    return { hand: p.hand, heart: p.heart, breath: p.breath, count, locked: locked.slice(0, Math.max(0, cap - Math.max(1, count))), focus: null, emptyHand: build.rules.emptyHand }
-  }
-
-  /** 깨우는 중인 신 (E238): 다음 할 일 (신 탭). 흔적의 무리를 이긴 뒤이니 남은 것은 수호자다. 여럿이면 먼저 이긴 신 */
-  private wakingView(): { god: string; next: string } | null {
-    const waking = this.parts.game.awakening.waking[0]
-    const path = waking ? wakeDef(waking) : undefined
-    if (!waking || !path) return null
-    return { god: waking, next: `${josa(path.guardian.name, '을')} 쓰러뜨린다` }
   }
 
   /** 정보 화면에 보일 깊이 (읽을 때마다 지금 값) */

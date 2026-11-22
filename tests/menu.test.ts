@@ -1,10 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { RELIC_STAGES } from '../src/gear/mythRelic'
-import { lendText } from '../src/myth/levelGains'
-import { godDef } from '../src/relics/data'
-import { SEAT_MEANS, seatHint } from '../src/ui/menu/godsTab'
-import godsTabSource from '../src/ui/menu/godsTab.ts?raw'
+import powersTabSource from '../src/ui/menu/powersTab.ts?raw'
 import { hintSpot, HintTaps } from '../src/ui/menu/hintTaps'
 import { forgedLine, meltHint, wieldTarget } from '../src/ui/menu/relicsTab'
 import { momentumLine } from '../src/ui/menu/trainingTab'
@@ -63,26 +60,19 @@ describe('정보 화면 힌트 말풍선: 손가락으로 누른 칸 (E307)', ()
   })
 })
 
-describe('신 탭의 자리 칸 (E307 손 QA): 휴대폰에서 눌러도 설명이 뜬다', () => {
-  it('자리 칸을 눌러도 창을 통째로 다시 그리지 않는다: 손가락 힌트 규칙이 그 톡에 설명을 띄운다', () => {
-    // 자리 줄을 짓는 코드 (다음 메서드 앞까지)
-    const row = godsTabSource.slice(godsTabSource.indexOf('private slotRow()'), godsTabSource.indexOf('private focusOn('))
-    expect(row).toContain('this.focusOn(god)')
-    expect(row).not.toContain('ctx.render()')
-    // 같은 톡을 규칙으로 밟아 본다: 누를 때와 click이 올라올 때의 그리기 번호가 같으니 그 칸의 설명이 뜬다
-    const taps = new HintTaps<string>()
-    taps.press('손 토르', 4)
-    expect(taps.lift('손 토르', true)).toBe(false)
-    expect(taps.click(4)).toBe('손 토르')
+describe('힘 탭의 칸과 가진 힘 (P7): 휴대폰에서 눌러도 카드가 그 자리에 펴진다', () => {
+  it('칸이나 가진 힘을 누르면 그 힘의 설명 카드를 그 자리 바로 아래에 편다: 칸에서 누르면 칸 줄 아래, 목록에서 누르면 그 힘의 바로 아랫줄', () => {
+    const render = powersTabSource.slice(powersTabSource.indexOf('  render(body'))
+    expect(render).toMatch(/this\.slotRow\(\)\)\s*\n\s*if \(this\.selected && this\.from === 'slots'\) wrap\.append\(this\.powerCard/)
+    const list = powersTabSource.slice(powersTabSource.indexOf('private ownedList()'), powersTabSource.indexOf('private act('))
+    expect(list).toContain("if (this.from === 'list' && this.selected === item.id) list.append(this.powerCard(item.id))")
   })
 
-  it('칸의 설명은 그 자리가 지금 주는 것(무기·궁극기·숨의 힘)을 먼저, 자리의 뜻을 아랫줄에 적는다', () => {
-    const thor = godDef('thor')
-    expect(seatHint('hand', 'thor')).toBe(`기본 공격: 망치\n${SEAT_MEANS.hand}`)
-    expect(seatHint('heart', 'thor')).toBe(`궁극기 「${thor.ultimate.name}」\n${SEAT_MEANS.heart}`)
-    expect(seatHint('breath', 'thor', 2)).toBe(`${lendText('thor', 2)}\n${SEAT_MEANS.breath}`)
-    // 두 줄을 넘지 않는다 (말풍선의 첫 줄은 「손 토르」 같은 자리와 신의 이름)
-    for (const seat of ['hand', 'heart', 'breath'] as const) expect(seatHint(seat, 'odin').split('\n')).toHaveLength(2)
+  it('누르면 일을 하는 단추(힘·칸·끼우기)는 창을 다시 그린다: 손가락 힌트 규칙이 그 톡에는 말풍선을 띄우지 않는다 (카드가 곧 설명이다)', () => {
+    const taps = new HintTaps<string>()
+    taps.press('번개', 4)
+    expect(taps.lift('번개', true)).toBe(false)
+    expect(taps.click(5)).toBeNull()
   })
 })
 

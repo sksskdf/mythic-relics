@@ -2,7 +2,7 @@ import { smallSigilRing } from './emblem'
 import { renderMap } from './menu/mapTab'
 import { RelicsTab } from './menu/relicsTab'
 import { renderEndless } from './menu/endlessTab'
-import { GodsTab } from './menu/godsTab'
+import { PowersTab } from './menu/powersTab'
 import { renderSources } from './menu/sourcesTab'
 import { renderStatus } from './menu/statusTab'
 import { renderOaths } from './menu/oathsTab'
@@ -20,7 +20,7 @@ const TABS: readonly [MenuTab, Parameters<typeof glyph>[0], string][] = [
   ['status', 'status', '상태'],
   ['relics', 'relics', '장비'],
   ['training', 'tree', '수련'],
-  ['gods', 'classes', '신'],
+  ['gods', 'classes', '힘'],
   ['sources', 'cycle', '원천'],
   ['map', 'map', '지도'],
   ['oaths', 'scroll', '맹세'],
@@ -35,7 +35,7 @@ const TAB_HINTS: Record<MenuTab, string> = {
   status: '상태\n지금 내 능력치와 무엇으로 얼마나 강해졌나',
   relics: '장비\n낀 장비와 가방. 같은 것 셋은 합치고, 바꾸면 어떻게 되는지 미리 본다. 마을에서는 대장간',
   training: '수련\n적을 잡아 얻은 깨달음으로 힘·몸·손 갈래의 마디를 익힌다. 언제든 무료로 되돌린다',
-  gods: '신\n손·심장·숨에 든 신, 얻은 유물, 깨우는 신. 외형도 여기서 고른다',
+  gods: '힘\n가진 힘과 칸. 눌러서 끼우고 빼고 바꾼다. 조합과 외형도 여기서 본다',
   sources: '원천\n명성과 원정 기록, 원천 각성, 귀환이 여는 자동화 (엔딩 뒤에는 깊이도)',
   map: '지도\n마을에서 북쪽으로 한 줄로 이어진 땅. 켠 성소와 마을은 눌러서 바로 간다',
   oaths: '맹세\n다시 떠날 때 거는 제약. 그 원정에서 장 보스나 수호자를 이기면 지킨 것이고, 짝을 이룬 힘이 영구히 붙는다',
@@ -57,8 +57,8 @@ export class GameMenu {
   private readonly ctx: TabContext
   /** 장비 탭 (고른 칸·커서를 올린 것을 기억한다) */
   private readonly relics: RelicsTab
-  /** 신 탭 (눌러 본 신·자리와 외형 중 보던 쪽을 기억한다) */
-  readonly gods: GodsTab
+  /** 힘 탭 (옛 신 탭, 탭 id는 `gods`: 눌러 본 힘·힘과 외형 중 보던 쪽을 기억한다) */
+  readonly powers: PowersTab
   /** 수련 탭 (손가락으로 한 번 누른 마디를 기억한다) */
   private readonly training: TrainingTab
   /** 힌트 말풍선 */
@@ -81,7 +81,7 @@ export class GameMenu {
       close: () => this.toggle(false),
     }
     this.relics = new RelicsTab(this.ctx)
-    this.gods = new GodsTab(this.ctx)
+    this.powers = new PowersTab(this.ctx)
     this.training = new TrainingTab(this.ctx)
     this.button = el('button', 'menu-button')
     this.button.type = 'button'
@@ -204,10 +204,10 @@ export class GameMenu {
     else this.render()
   }
 
-  /** 새 외형을 얻었다: 단추(누르면 신 탭부터)와 신 탭의 「외형」 알약에 표시 (외형을 보고 있으면 그대로) */
+  /** 새 외형을 얻었다: 단추(누르면 힘 탭부터)와 힘 탭의 「외형」 알약에 표시 (외형을 보고 있으면 그대로) */
   markNew(): void {
-    if (this.open && this.tab === 'gods' && this.gods.view === 'looks') return
-    this.gods.looksNew = true
+    if (this.open && this.tab === 'gods' && this.powers.view === 'looks') return
+    this.powers.looksNew = true
     this.markTab('gods')
   }
 
@@ -285,7 +285,7 @@ export class GameMenu {
     if (this.tab === 'status') renderStatus(ctx, body)
     else if (this.tab === 'relics') this.relics.render(body)
     else if (this.tab === 'training') this.training.render(body)
-    else if (this.tab === 'gods') this.gods.render(body)
+    else if (this.tab === 'gods') this.powers.render(body)
     else if (this.tab === 'sources') renderSources(ctx, body)
     else if (this.tab === 'map') renderMap(ctx, body)
     else if (this.tab === 'oaths') renderOaths(ctx, body)

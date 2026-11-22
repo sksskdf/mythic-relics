@@ -19,7 +19,7 @@ export class TabSystem {
 
   constructor(private readonly ctx: GameContext) {
     const check = () => this.check()
-    for (const name of ['gearPicked', 'loadoutChanged', 'mythOpened', 'expeditionReturned', 'progressChanged'] as const) ctx.bus.on(name, check)
+    for (const name of ['gearPicked', 'loadoutChanged', 'mythOpened', 'expeditionReturned', 'progressChanged', 'powerPicked'] as const) ctx.bus.on(name, check)
   }
 
   /** 탭을 여는 때를 가리는 지금 상태 */
@@ -29,8 +29,8 @@ export class TabSystem {
       gear: powers.loadout.owned.length > 0,
       insights: training.insights,
       shrine: waypoints.size > 0,
-      // 신 탭은 첫 신의 흔적(조각 1)부터 (E238)
-      myth: progress.opened.length > 0 || awaken.waking.length > 0,
+      // 힘 탭(옛 신 탭)은 첫 힘을 고른 때부터 (P7). 옛 저장의 깨운 신·깨우는 신도 연다
+      myth: this.ctx.mythPowers.owned.length > 0 || progress.opened.length > 0 || awaken.waking.length > 0,
       returns: expedition.returns,
     }
   }

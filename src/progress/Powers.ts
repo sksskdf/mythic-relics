@@ -158,6 +158,17 @@ export class PowerProgress {
     return true
   }
 
+  /**
+   * 끼운 도는 힘(out)을 가진 도는 힘(id)으로 바꾼다: 같은 칸 자리에 (힘 탭, 칸이 다 찼을 때).
+   * out이 끼워져 있지 않거나, id가 안 가졌거나 이미 끼웠거나 도는 힘이 아니면 false
+   */
+  swap(out: PowerId, id: PowerId): boolean {
+    const at = this.slots.auras.indexOf(out)
+    if (at < 0 || power(id)?.kind !== 'aura' || !this.has(id) || this.isSlotted(id)) return false
+    this.slots.auras[at] = id
+    return true
+  }
+
   /** 칸에서 뺀다 (힘은 그대로 갖는다). 끼워져 있지 않았으면 false */
   unslot(id: PowerId): boolean {
     if (!this.isSlotted(id)) return false

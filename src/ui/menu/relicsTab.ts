@@ -290,7 +290,7 @@ export class RelicsTab {
       if (!next) {
         // 더 올릴 수 없다: 데모는 2단계가 끝이라 「4단계 완성」이 아니다 (`forgedLine`)
         const relic = mythRelic(god)
-        const stage = this.ctx.host.gods.table().relics.find((r) => r.id === relic)?.stage ?? 1
+        const stage = forge.stage(relic)
         const line = forgedLine(stageName(relic, stage), stage)
         row.append(el('span', 'menu-forge__name', line.name))
         if (line.note) {

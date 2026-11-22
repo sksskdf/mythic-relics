@@ -5,7 +5,7 @@ import { REGIONS } from '../src/data/regions'
 import { ENEMIES } from '../src/enemies/Giant'
 import { GODS, godDef } from '../src/relics/data'
 import type { SaveData } from '../src/save/SaveData'
-import { mythCaption } from '../src/ui/menu/godsTab'
+import { godCaption } from '../src/ui/menu/powersTab'
 import { slotSummary } from '../src/ui/slotSummary'
 import { confirmsDelete, DELETE_ARMED_MS, DELETE_GUARD_MS, pressDelete } from '../src/ui/TitleScreen'
 
@@ -21,7 +21,7 @@ const code = (text: string) => text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\
 describe('화면 글 (E307)', () => {
   it('읽을 파일이 잡힌다', () => {
     expect(Object.keys(sources).length).toBeGreaterThan(80)
-    expect(Object.keys(sources).some((p) => p.endsWith('/ui/menu/godsTab.ts'))).toBe(true)
+    expect(Object.keys(sources).some((p) => p.endsWith('/ui/menu/powersTab.ts'))).toBe(true)
   })
 
   it('「몰기」라는 말이 화면 글에 없다 (카드·꼬리표·단추·힌트)', () => {
@@ -45,12 +45,15 @@ describe('화면 글 (E307)', () => {
   })
 })
 
-describe('신의 카드 (E307)', () => {
-  it('이름 아래 작은 글은 칭호 대신 신화권과 단계: 신화권이 없는 숨겨진 신화는 개발 패널의 묶음 이름 「히든」을 쓰지 않는다', () => {
-    expect(mythCaption('thor', 1)).toBe('북유럽의 신 · 1단계')
-    expect(mythCaption('zeus', 3)).toBe('그리스의 신 · 3단계')
-    expect(mythCaption('asura', 2)).toBe('숨겨진 신 · 2단계')
-    for (const god of Object.keys(GODS)) expect(mythCaption(god, 1), god).not.toContain('히든')
+describe('힘 설명 카드의 신 (E307 → P7)', () => {
+  it('신의 이름 곁 작은 글은 칭호 대신 신화권(단계는 걷음): 신화권이 없는 숨겨진 신화는 개발 패널의 묶음 이름 「히든」을 쓰지 않는다', () => {
+    expect(godCaption('thor')).toBe('북유럽의 신')
+    expect(godCaption('zeus')).toBe('그리스의 신')
+    expect(godCaption('asura')).toBe('숨겨진 신')
+    for (const god of Object.keys(GODS)) {
+      expect(godCaption(god), god).not.toContain('히든')
+      expect(godCaption(god), god).not.toContain('단계')
+    }
   })
 
   it('단계 사다리·숨 칸·흔적이 다음 장 정복 보스를 같은 이름으로 부른다: 보스 이름이 빠진 우트가르드는 거인 왕 (「엔딩 뒤」가 아니다)', () => {
