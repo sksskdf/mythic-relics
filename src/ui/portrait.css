@@ -65,21 +65,6 @@
   :root .hud__gains.is-side li {
     word-break: keep-all;
   }
-  /*
-   * 새 탭 카드: 가운데 위(9vh)에 폭 360px로 뜨면 작은 지도·목표 한 줄을 덮었다 (2026-11-22 손 QA). 세로 화면에서는 작은 지도 아래에서 떠
-   * 메뉴 단추로 날아간다 (날아가는 길도 이 위 끝으로 잰다). 폭은 화면 안쪽으로
-   */
-  :root .hud__gains.is-fly {
-    --gains-top: calc(var(--unit) * 12 + var(--minimap) + env(safe-area-inset-top, 0px));
-    min-width: min(300px, calc(100vw - var(--unit) * 4));
-  }
-  /*
-   * 땅 이름 띠: 22%에 큰 글씨 두 줄로 떠 주인공 머리 위까지 덮었다 (2026-11-22 손 QA). 세로 화면에서는 한 줄 크기(30px)로 주인공 아래에 띄운다
-   */
-  :root .hud__banner {
-    top: 62%;
-    font-size: 30px;
-  }
   /* 초상 마름모는 상자보다 2px쯤 위로 나온다: 393×659에서 윗끝이 화면 끝에 닿지 않게 조금 내린다 */
   :root .hud__status {
     top: calc(var(--unit) * 2 + 4px + env(safe-area-inset-top, 0px));
@@ -206,12 +191,21 @@
   :root .menu__close {
     min-width: 44px;
   }
-  /* 땅·전설 이름 카드: 양옆 띠를 줄이고 이름은 화면 폭 안에서 줄을 바꾼다 */
+  /*
+   * 땅·전설 이름 카드: 양옆 띠를 줄이고 이름은 화면 폭 안에서 줄을 바꾼다.
+   * 위 20%에 화면 폭의 반(가운데 기준 상자)에 갇혀 두 줄로 서면 주인공 머리까지 덮었다 (2026-11-22 손 QA): 주인공 아래에, 폭은 내용만큼
+   */
+  :root .hud__card {
+    top: 58%;
+    width: max-content;
+    max-width: calc(100vw - var(--sp-6) * 2);
+  }
   :root .hud__card-band {
-    width: calc(var(--unit) * 8);
+    width: calc(var(--unit) * 4);
   }
   :root .hud__card-name {
-    max-width: calc(100vw - var(--sp-6) * 2);
+    max-width: calc(100vw - var(--sp-6) * 2 - var(--unit) * 8 - var(--sp-5) * 2);
+    font-size: 30px;
     text-align: center;
   }
   /* 장 제목 띠: 좁으면 줄을 바꾼다 */
@@ -227,6 +221,13 @@
     min-width: 0;
     width: calc(100vw - var(--sp-6) * 2);
     max-width: 420px;
+  }
+  /*
+   * 새 탭 카드: 큰 카드처럼 메뉴 단추 아래에 뜨면 작은 지도·목표 한 줄을 덮었다 (2026-11-22 손 QA). 세로 화면에서는 작은 지도 아래에서 떠
+   * 메뉴 단추로 날아간다 (날아가는 길도 이 위 끝으로 잰다). 393×659에서도 주인공 머리 위에서 끝난다. 큰 카드 줄보다 뒤에 둬야 이긴다
+   */
+  :root .hud__gains.is-fly {
+    --gains-top: calc(var(--unit) * 12 + var(--minimap) + env(safe-area-inset-top, 0px));
   }
   /*
    * 고르는 카드 (귀환·맹세 출발, E307): 위쪽 묶음(초상·메뉴 단추) 아래부터 아래 묶음(생명 막대·유물 칸) 위까지의 띠 한가운데에 둔다.

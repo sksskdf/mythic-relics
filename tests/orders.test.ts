@@ -130,10 +130,36 @@ describe('클릭 지시', () => {
     expect(hero.isMoving).toBe(true)
   })
 
+  it('보스·수호자에게 멀리서 맞았다고 그 품으로 걸어 들어가지는 않는다', () => {
+    const boss = dummy(0, 5)
+    const target = { ...boss.target, state: 'windup', spec: { role: 'boss' } }
+    const { orders, combat, step } = setup([target])
+    step(0.3)
+    combat.takeHit(1, 0, 5, 0)
+    step(0.5)
+    expect(orders.order).toBeNull()
+  })
+
+  it('피해 걸어 나와 멈추자마자는, 걷는 동안(멈추기 전에) 맞은 것으로 그 적에게 되돌아가지 않는다', () => {
+    const thrower = dummy(0, 6)
+    const target = { ...thrower.target, state: 'windup' }
+    const { orders, combat, step } = setup([target])
+    orders.press({ x: -1, z: 0 }, null)
+    step(0.1)
+    combat.takeHit(1, 0, 6, 0)
+    step(1)
+    expect(orders.order).toBeNull()
+    // 서 있는 동안 다시 맞으면 그때는 다가간다
+    combat.takeHit(1, 0, 6, 0)
+    step(0.1)
+    expect(orders.attackTarget).toBe(target)
+  })
+
   it('스스로 쫓는 중에 다른 걸음이 내려지면(봇) 쫓기를 거둔다', () => {
     const thrower = dummy(0, 6)
     const target = { ...thrower.target, state: 'windup' }
     const { hero, orders, combat, step } = setup([target])
+    step(0.2)
     combat.takeHit(1, 0, 6, 0)
     step(0.1)
     expect(orders.attackTarget).toBe(target)

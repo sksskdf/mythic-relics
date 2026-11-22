@@ -13,6 +13,8 @@ export interface CombatTarget {
   readonly alive: boolean
   /** 적의 상태 (거인은 `GiantState`). 쉬거나 돌아가는 적은 주인공을 노리지 않는다 */
   readonly state?: string
+  /** 적의 자료 (역할: 보스·수호자는 스스로 쫓지 않는다) */
+  readonly spec?: { readonly role?: string; readonly boss?: unknown }
   takeHit(damage: number, dirX: number, dirZ: number, knockback: number): number
 }
 
@@ -95,6 +97,12 @@ export class PlayerCombat {
     return this.sinceHurt
   }
 
+  /** 걷지도 타지도 않고 서 있은 초 */
+  get stillFor(): number {
+    return this.still
+  }
+  private still = 0
+
   /** 지금 맞을 수 있는가 (쓰러졌거나 무적 시간이면 아니다) */
   get canBeHit(): boolean {
     return this.alive && this.invulnerable <= 0
@@ -128,6 +136,7 @@ export class PlayerCombat {
   update(dt: number, enemies: readonly CombatTarget[], hooks: CombatHooks): void {
     this.invulnerable = Math.max(0, this.invulnerable - dt)
     this.sinceHurt += dt
+    this.still = this.hero.isMoving || this.hero.riding ? 0 : this.still + dt
     // 지난 프레임까지 싸웠으면 (걷기 시작해 아래에서 휘두르기·대상을 비우기 전에 본다)
     this.sinceFought = this.engaged ? 0 : this.sinceFought + dt
     if (this.alive && this.sinceHurt > REGEN_DELAY) this.heal(REGEN_PER_SECOND * dt)

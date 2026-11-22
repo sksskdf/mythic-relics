@@ -1,4 +1,5 @@
 import { MOUNT } from '../data/mount'
+import { isBossLike } from '../enemies/grade'
 import type { Point2 } from '../world/colliders'
 import type { HeroController } from './HeroController'
 import type { CombatTarget, PlayerCombat } from './PlayerCombat'
@@ -7,7 +8,7 @@ import type { CombatTarget, PlayerCombat } from './PlayerCombat'
 const CHASE_INSIDE = 0.6
 /**
  * 멈춰 서서 맞는데 칠 적이 사거리 밖이면(멀리서 던지거나 쏘는 적) 이 거리(m) 안에서 깨어 있는 가장 가까운 적에게 다가가 친다.
- * 맞은 지 `ANSWER_SECONDS`초 안일 때만 (2026-11-22 손 QA: 드라우그르·물에 빠진 자에게 서서 깎이기만 했다)
+ * 서 있는 동안 맞았고 맞은 지 `ANSWER_SECONDS`초 안일 때만 (2026-11-22 손 QA: 드라우그르·물에 빠진 자에게 서서 깎이기만 했다)
  */
 const ANSWER_RADIUS = 7
 const ANSWER_SECONDS = 1.5
@@ -19,9 +20,13 @@ export type Order =
   /** 적을 눌러 공격. 그 적에게 다가가 쓰러질 때까지 친다. */
   | { kind: 'attack'; target: CombatTarget; clicked: boolean }
 
-/** 깨어 있는 적인가 (쉬거나 제자리로 돌아가는 적은 주인공을 노리지 않는다) */
-function awake(target: CombatTarget): boolean {
-  return target.alive && target.state !== 'idle' && target.state !== 'return' && target.state !== 'dead'
+/**
+ * 스스로 다가가 칠 적인가: 깨어 있고(쉬거나 제자리로 돌아가는 적은 주인공을 노리지 않는다) 보스·수호자가 아니다
+ * (큰 싸움은 플레이어가 고른다: 보스의 넓은 공격에 멀리서 맞았다고 그 품으로 걸어 들어가지 않게)
+ */
+function answerable(target: CombatTarget): boolean {
+  if (!target.alive || target.state === 'idle' || target.state === 'return' || target.state === 'dead') return false
+  return !target.spec || !(isBossLike(target.spec) || !!target.spec.boss)
 }
 
 /**
@@ -29,7 +34,7 @@ function awake(target: CombatTarget): boolean {
  * - 적을 누르면: 그 적에게 가서 쓰러질 때까지 자동으로 친다.
  * - 땅을 누르면: 싸우던 중이어도 그곳까지 끝까지 걷는다. 졸개는 밀고 지나간다. (빠져나가기, 공격 피하기)
  * - 아무 지시가 없으면(도착해 멈추면): 멈춰 선 채 사거리 안의 가장 가까운 적을 자동으로 친다.
- *   사거리 안에 적이 없는데 맞고 있으면 7m 안의 깨어 있는 가장 가까운 적에게 다가가 친다 (스스로 낸 공격 지시, `clicked: false`).
+ *   사거리 안에 적이 없는데 서서 맞고 있으면 7m 안의 깨어 있는 가장 가까운 적(보스·수호자 말고)에게 다가가 친다 (스스로 낸 공격 지시, `clicked: false`).
  *   그 사이 다른 적이 사거리에 들거나 다른 걸음이 내려지면(봇) 그 지시를 거둔다
  * - 탈것(E241): 탈것을 가졌으면 멀리(15m 넘게) 누른 땅은 올라타 달려간다. 싸우는 중이면 걸어서 빠져나가다 싸움이 풀리는 순간 탄다.
  *   적을 누르거나 멈추면 내린다. 같은 클릭 하나라 버튼이 늘지 않는다
@@ -180,12 +185,13 @@ export class HeroOrders {
   private answer(enemies: readonly CombatTarget[]): void {
     const { hero, combat } = this
     if (hero.locked || hero.isMoving || hero.riding || hero.holding || !combat.alive) return
-    if (combat.target || combat.combo.swinging || combat.hurtAgo > ANSWER_SECONDS) return
+    // 서 있는 동안 맞은 것만: 피해 걸어 나와 멈추자마자 피하기 전에 맞은 것으로 그 적에게 되돌아가지 않게 (보스의 예고를 피한 걸음)
+    if (combat.target || combat.combo.swinging || combat.hurtAgo > ANSWER_SECONDS || combat.hurtAgo >= combat.stillFor) return
     const p = hero.object.position
     let best: CombatTarget | null = null
     let bestDist = ANSWER_RADIUS
     for (const enemy of enemies) {
-      if (!awake(enemy)) continue
+      if (!answerable(enemy)) continue
       const d = Math.hypot(enemy.x - p.x, enemy.z - p.z) - enemy.radius
       if (d < bestDist) {
         best = enemy
