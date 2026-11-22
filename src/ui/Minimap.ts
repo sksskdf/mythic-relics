@@ -99,12 +99,14 @@ function drawn(rows: readonly string[]): Mark {
 /**
  * 표시의 모양 (E307): 글이나 범례 없이 모양과 색으로만 구분한다.
  * 나 = 가장 큰 흰 둥근 점, 목표 = 속이 빈 금빛 마름모(깜빡임), 신의 흔적 = 그 신의 색 십자, 떨어진 것 = 작은 금빛 점,
+ * 밟지 않은 빛(P5) = 그 빛의 색 작은 속 빈 마름모,
  * 성소 = 고리(돌 고리, 원정이 무르익으면 금빛으로 깜빡임), 출구 = 갈 땅의 색 네모(결계로 막힌 출구는 속이 빈 네모)
  */
 export const MARKS = {
   me: drawn(['  ###  ', ' ##### ', '#######', '#######', '#######', ' ##### ', '  ###  ']),
   relic: drawn(['##', '##']),
   trace: drawn(['  #  ', '  #  ', '#####', '  #  ', '  #  ']),
+  light: drawn([' # ', '# #', ' # ']),
   sanctuary: drawn([' ### ', '#   #', '#   #', '#   #', ' ### ']),
   exit: drawn(['####', '####', '####', '####']),
   exitLocked: drawn(['####', '#  #', '#  #', '####']),
@@ -141,6 +143,8 @@ export interface MinimapState {
   goals?: readonly { x: number; z: number }[]
   /** 응답하는 신의 흔적 (E238): 그 신의 색 십자 */
   traces?: readonly { x: number; z: number; color: string }[]
+  /** 밟지 않은 빛 (P5: 수호자·무리·장 보스가 쓰러진 자리): 그 빛의 색 작은 마름모 */
+  lights?: readonly { x: number; z: number; color: string }[]
 }
 
 /**
@@ -270,6 +274,7 @@ export class Minimap {
     for (const r of state.relics) this.stamp(g, r, MARKS.relic, this.ink.relic)
     // 신의 흔적 (E238): 그 신의 색 십자
     for (const t of state.traces ?? []) this.stamp(g, t, MARKS.trace, t.color)
+    for (const l of state.lights ?? []) this.stamp(g, l, MARKS.light, l.color)
     // 다음 목표: 금빛 마름모 테가 그 자리를 두르고 깜빡인다 (출구 표시를 가리지 않게 속은 비움, 지도 밖이면 가장자리로 당겨 방향만)
     for (const spot of [...(state.goal ? [state.goal] : []), ...(state.goals ?? [])]) this.stamp(g, spot, MARKS.goal, blink ? this.ink.relic : this.ink.ready, true)
     // 나: 맨 위에. 통로 끝처럼 그림 밖으로 나가는 자리에서도 잘리지 않게 가장자리에 붙인다

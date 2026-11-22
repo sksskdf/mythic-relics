@@ -454,9 +454,10 @@ export class Game {
     this.oathCard = new OathCard(this.hud.root)
     this.powerPicks = new PowerSystem(this.ctx, this.relics, {
       card: new PowerCard(this.hud.root),
-      blocked: () => this.scenes.active || this.world.traveling || this.feel.slowLeft > 0 || this.moments.busy || this.returnCard.open || this.oathCard.open,
+      blocked: () => this.scenes.active || this.world.traveling || this.feel.slowLeft > 0 || this.moments.holding || this.returnCard.open || this.oathCard.open,
       swing: (style) => this.attackFx.swing(STYLES[style].combo.at(-1)!, true),
       save: () => (this.bus.emit('progressChanged', {}), this.persistence.saveNow()),
+      free: (p) => this.nav.nearestFree(p),
     })
     this.expeditionSystem = new ExpeditionSystem(this.ctx, {
       offer: (view, pick, later) => this.returnCard.show(view, pick, later),

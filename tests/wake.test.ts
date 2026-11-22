@@ -206,11 +206,11 @@ describe('깨우는 진행 (E238, 차례 없음 2026-11-22)', () => {
  */
 describe('신을 깨우는 길의 글 (E307 손 QA)', () => {
   it('흔적의 무리를 이긴 카드 한 장: 켜진 유물, 다음은 수호자 (힘은 흔적의 카드에서 이미 골랐다 P5. 「바로 깨어난다」로 읽히지 않고 사냥을 시키지 않는다)', () => {
-    expect(traceWonLines('thor')).toEqual(['묠니르가 유물표에 켜졌다', '다음: 요르문간드를 쓰러뜨리면 토르가 깨어난다'])
+    expect(traceWonLines('thor')).toEqual(['묠니르를 얻었다', '다음: 요르문간드를 쓰러뜨리면 토르가 깨어난다'])
     for (const god of WAKE_GODS) {
       const lines = traceWonLines(god)
       expect(lines, god).toHaveLength(2)
-      expect(lines.join(' '), god).not.toMatch(/바로 깨어난다|사냥|빌린 힘|\d+\/\d+/)
+      expect(lines.join(' '), god).not.toMatch(/바로 깨어난다|사냥|빌린 힘|유물표|\d+\/\d+/)
       // 마지막 줄은 수호자의 이름과 그 신의 이름을 댄다
       expect(lines[1], god).toContain(WAKE[god]!.guardian.name)
       expect(lines[1], god).toMatch(new RegExp(`쓰러뜨리면 ${godDef(god).name}[이가] 깨어난다$`))
@@ -226,34 +226,34 @@ describe('신을 깨우는 길의 글 (E307 손 QA)', () => {
     expect(SCENES[sceneId('trace', 'thor')]!.lines.at(-1)!.text).toContain('요르문간드')
   })
 
-  it('흔적 카드의 「지금 할 일」: 응답하는 흔적은 곁에 서서 물리치면 힘을 빌리고, 무리를 이겼으면 수호자. 차례를 말하는 글은 없다', () => {
+  it('흔적 카드의 「지금 할 일」: 아직 고르지 않았으면 서면 힘 셋을 내밀고, 골랐으면 지키는 것들이 다시 깨어나고, 무리를 이겼으면 수호자. 숫자와 옛 규칙은 없다', () => {
     const base: TraceCardContext = { state: 'open' }
-    expect(traceNow('thor', base)).toBe(TRACE_WORDS.open)
-    expect(TRACE_WORDS.open).toContain('물리치면 힘을 빌린다')
+    expect(traceNow('thor', base)).toBe('고리 안에 서면 힘 셋을 내민다')
+    expect(traceNow('thor', { state: 'open', claimed: true })).toBe('고리 안에 서면 지키는 것들이 다시 깨어난다')
     expect(traceNow('thor', { state: 'waking' })).toBe('요르문간드를 쓰러뜨리면 깨어난다')
     expect(traceNow('poseidon', { state: 'later' })).toBe(LATER_TEXT)
     expect(traceNow('thor', { state: 'awake' })).toBe('깨어난 신')
-    for (const god of WAKE_GODS) for (const state of ['open', 'waking', 'later', 'awake'] as const) expect(traceNow(god, { state }), `${god} ${state}`).not.toMatch(/깨어난 뒤에|원정을 마치면/)
-  })
-
-  it('흔적 카드의 단락 이름은 자리 이름(손·심장) 대신 얻는 것을 적는다', () => {
-    expect(TRACE_WORDS.gain).toBe('물리치면 무기 · 깨우면 궁극기')
-    expect(TRACE_WORDS.lend).toBe('흔적에서 빌리는 힘')
-    for (const words of Object.values(TRACE_WORDS)) expect(words).not.toMatch(/손과 심장/)
+    for (const god of WAKE_GODS)
+      for (const state of ['open', 'waking', 'later', 'awake'] as const)
+        for (const claimed of [false, true]) {
+          const line = traceNow(god, { state, claimed })
+          expect(line, `${god} ${state}`).not.toMatch(/깨어난 뒤에|원정을 마치면|빌린다|무기 · 깨우면|\d/)
+        }
+    for (const words of Object.values(TRACE_WORDS)) expect(words).not.toMatch(/손과 심장|\d/)
   })
 })
 
 describe('흔적의 무리·수호자의 세기 (2026-11-22: 이미 이긴 무리의 수를 따른다)', () => {
-  it('첫 판의 넷은 이긴 무리 수(그 신을 빼고)에 따라 1 · 4 · 7 · 9: 땅의 세기와 상관없다 (요툰헤임 7.5의 로키를 첫 신으로 골라도 1)', () => {
-    expect(ORDER_POWER).toEqual([1, 4, 7, 9])
-    expect([0, 1, 2, 3].map((n) => wakePower(7.5, n, false))).toEqual([1, 4, 7, 9])
-    expect([0, 1, 2, 3].map((n) => wakePower(1, n, false))).toEqual([1, 4, 7, 9])
-    expect(wakePower(1.25, 5, false)).toBe(9)
+  it('첫 판의 넷은 이긴 무리 수(그 신을 빼고)에 따라 1 · 2 · 3.5 · 5: 땅의 세기와 상관없다 (요툰헤임 7.5의 로키를 첫 신으로 골라도 1)', () => {
+    expect(ORDER_POWER).toEqual([1, 2, 3.5, 5])
+    expect([0, 1, 2, 3].map((n) => wakePower(7.5, n, false))).toEqual([1, 2, 3.5, 5])
+    expect([0, 1, 2, 3].map((n) => wakePower(1, n, false))).toEqual([1, 2, 3.5, 5])
+    expect(wakePower(1.25, 5, false)).toBe(5)
   })
 
   it('그 밖의 신(그리스)은 그 땅의 세기와 견줘 큰 쪽, 엔딩 뒤에는 그 땅의 세기 그대로다', () => {
     expect(wakePower(11.7, 2, false, false)).toBe(11.7)
-    expect(wakePower(1, 3, false, false)).toBe(9)
+    expect(wakePower(1, 3, false, false)).toBe(5)
     expect(wakePower(1, 1, true)).toBe(1)
     expect(wakePower(13, 2, true, false)).toBe(13)
   })

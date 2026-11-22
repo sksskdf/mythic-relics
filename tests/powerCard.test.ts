@@ -194,7 +194,7 @@ describe('수호자·장 보스의 빛 (P5)', () => {
   it('수호자를 이기면 쓰러진 자리에 빛이 서고 저장에 남는다. 싸움이 풀려야(맞은 지 2초, 둘레에 깨어 있는 적 없음) 밟으면 카드', () => {
     const r = rig()
     r.mythPowers.meet('thor')
-    r.bus.emit('guardianBeaten', { god: 'thor', x: 3, z: 4 })
+    r.bus.emit('guardianBeaten', { god: 'thor', region: 'midgard', x: 3, z: 4 })
     expect(r.mythPowers.lights).toEqual([{ source: 'guardian:thor', region: 'midgard', x: 3, z: 4 }])
     expect(r.system.spots).toHaveLength(1)
     expect(parsePowers(r.mythPowers.toData()).lights).toEqual(r.mythPowers.lights)
@@ -223,16 +223,42 @@ describe('수호자·장 보스의 빛 (P5)', () => {
     expect(r.mythPowers.claimed.has('guardian:thor')).toBe(true)
   })
 
-  it('흔적을 지키는 무리를 처음 이기면(조각 2) 그 자리에 빛: 출처 `pack:<땅>:<신>`, 만난 신들의 힘을 내민다', () => {
+  it('흔적을 지키는 무리를 처음 이기면 마지막 적이 쓰러진 자리에 빛: 출처 `pack:<땅>:<신>`, 머리줄은 그 신이고 그 신의 힘을 먼저 내민다', () => {
     const r = rig()
     r.mythPowers.meet('thor')
+    r.mythPowers.meet('odin')
+    r.bus.emit('packBeaten', { god: 'odin', region: 'midgard', x: 5, z: -2 })
+    expect(r.mythPowers.lights).toEqual([{ source: 'pack:midgard:odin', region: 'midgard', x: 5, z: -2 }])
     r.hero.object.position.set(5, 0, -2)
-    r.bus.emit('fragment', { god: 'thor', piece: 2 })
-    r.bus.emit('fragment', { god: 'thor', piece: 3 })
-    expect(r.mythPowers.lights).toEqual([{ source: 'pack:midgard:thor', region: 'midgard', x: 5, z: -2 }])
     r.run(2.2)
-    expect(r.shown.map((v) => v.title)).toEqual(['신들의 빛'])
+    expect(r.shown.map((v) => v.title)).toEqual(['오딘'])
     expect(r.system.current!.rows).toHaveLength(3)
+    expect(power(r.system.current!.rows[0]!.id)!.god).toBe('odin')
+  })
+
+  it('빛은 주인공 발밑에 서지 않는다: 2.5m 안에서 이기면 주인공 반대쪽으로 3m쯤 밀어 세우고, 밟아야 카드가 뜬다', () => {
+    const r = rig()
+    r.mythPowers.meet('thor')
+    r.hero.object.position.set(0, 0, 0)
+    r.bus.emit('packBeaten', { god: 'thor', region: 'midgard', x: 1, z: 0 })
+    const light = r.mythPowers.lights[0]!
+    expect(light.x).toBeCloseTo(4)
+    expect(light.z).toBeCloseTo(0)
+    // 같은 자리에서 이겨도 발밑이 아니다
+    r.bus.emit('guardianBeaten', { god: 'thor', region: 'midgard', x: 0, z: 0 })
+    const other = r.mythPowers.lights[1]!
+    expect(Math.hypot(other.x, other.z)).toBeGreaterThan(2.5)
+    // 서 있기만 하면 카드가 뜨지 않는다
+    r.run(3)
+    expect(r.shown).toHaveLength(0)
+    r.hero.object.position.set(light.x, 0, light.z)
+    r.run(0.2)
+    expect(r.shown).toHaveLength(1)
+    // 다른 땅의 빛은 그 땅 좌표 그대로 (주인공과 견주지 않는다)
+    r.bus.emit('guardianBeaten', { god: 'odin', region: 'ironwood', x: 4, z: 0 })
+    r.mythPowers.meet('odin')
+    r.bus.emit('guardianBeaten', { god: 'odin', region: 'ironwood', x: 4, z: 0 })
+    expect(r.mythPowers.lights.find((l) => l.region === 'ironwood')).toEqual({ source: 'guardian:odin', region: 'ironwood', x: 4, z: 0 })
   })
 
   it('불러온 저장에서도 빛은 그 땅에서 기다린다: 다른 땅에서는 보이지 않고 그 땅에 들어서면 선다', () => {
@@ -250,13 +276,15 @@ describe('수호자·장 보스의 빛 (P5)', () => {
     const r = rig()
     r.region.boss = { x: 0, z: 0 }
     r.bus.emit('giantKilled', { giant: { spec: { role: 'boss' }, x: 1, z: 1 } as never })
-    r.bus.emit('guardianBeaten', { god: 'zeus', x: 0, z: 0 })
+    r.bus.emit('guardianBeaten', { god: 'zeus', region: 'midgard', x: 0, z: 0 })
     expect(r.mythPowers.lights).toEqual([])
     // 만난 신이 있으면 장 보스도 빛을 세운다 (출처 `boss:<땅>`), 같은 출처는 한 번
     r.mythPowers.meet('thor')
     r.bus.emit('giantKilled', { giant: { spec: { role: 'boss' }, x: 1, z: 1 } as never })
     r.bus.emit('giantKilled', { giant: { spec: { role: 'boss' }, x: 2, z: 2 } as never })
-    expect(r.mythPowers.lights).toEqual([{ source: 'boss:midgard', region: 'midgard', x: 1, z: 1 }])
+    expect(r.mythPowers.lights.map((l) => l.source)).toEqual(['boss:midgard'])
+    // 주인공(원점) 곁에서 쓰러져 반대쪽으로 밀어 세웠다
+    expect(Math.hypot(r.mythPowers.lights[0]!.x, r.mythPowers.lights[0]!.z)).toBeGreaterThan(2.5)
   })
 })
 

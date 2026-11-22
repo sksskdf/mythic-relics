@@ -233,3 +233,37 @@ describe('순간의 크기 (E23-01)', () => {
     expect(calls).toEqual(['곡:ending', '장면:ending', '곡:땅'])
   })
 })
+
+describe('장면·큰 카드와 겹치지 않기 (P5 손 QA: 흔적을 이긴 1.5초 안에 알림·장면이 겹쳤다)', () => {
+  it('장면이 줄에 섰거나 도는 동안 온 작은 알림은 장면과 그 뒤 카드 다음에 뜬다', () => {
+    const { calls, emit, run, endScene } = setup({ slow: false })
+    emit({ id: 'fragment', scene: 'traceThor', card: { kind: '신의 흔적', title: '토르의 흔적', color: '#fff', lines: ['한 줄'] } })
+    emit({ id: 'gearPicked', text: '묠니르를 얻었다' })
+    run(0.1)
+    expect(calls).toEqual(['장면:traceThor'])
+    endScene()
+    run(0.1)
+    // 큰 카드가 자리를 지키는 동안도 기다린다
+    expect(calls).toEqual(['장면:traceThor', '큰 카드:토르의 흔적'])
+    run(CARD_HOLD.big + 0.5)
+    expect(calls.indexOf('알림:묠니르를 얻었다')).toBeGreaterThan(calls.findIndex((c) => c.startsWith('큰 카드:') || c.startsWith('카드:')))
+  })
+
+  it('기다리는 장면·카드가 없으면 작은 알림은 바로 뜬다', () => {
+    const { calls, emit } = setup({ slow: false })
+    emit({ id: 'gearPicked', text: '묠니르를 얻었다' })
+    expect(calls).toEqual(['알림:묠니르를 얻었다'])
+  })
+
+  it('카드가 자리를 지키는 동안 holding이다: 힘 카드는 이것을 보고 기다린다 (`Game`의 힘 카드 blocked)', () => {
+    let busy = true
+    const { emit, moments, run } = setup({ slow: false, cardBusy: () => busy })
+    emit({ id: 'godAwakened', card: { kind: '신이 깨어남', title: '오딘', color: '#fff', lines: ['한 줄'] } })
+    run(0.2)
+    expect(moments.busy).toBe(false)
+    expect(moments.holding).toBe(true)
+    busy = false
+    run(CARD_HOLD.big + 0.5)
+    expect(moments.holding).toBe(false)
+  })
+})

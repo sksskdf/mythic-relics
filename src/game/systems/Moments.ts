@@ -75,6 +75,11 @@ export class MomentSystem {
     return this.queue.length > 0 || this.afterScene !== null || this.slowing !== null
   }
 
+  /** 장면·큰 카드가 줄에 섰거나 도는 중인가 (작은 알림은 그 뒤에 선다) */
+  private get bigAhead(): boolean {
+    return this.afterScene !== null || this.slowing !== null || this.host.sceneActive() || this.queue.some((m) => tierOf(m.id) >= 3)
+  }
+
   /** 순간을 보이는 중인가 (처음 보는 일의 짧은 대화는 이것이 끝난 뒤에 연다) */
   get holding(): boolean {
     return this.busy || this.cardShowing
@@ -86,7 +91,8 @@ export class MomentSystem {
   }
 
   private receive(m: MomentShow): void {
-    if (tierOf(m.id) === 1) return this.present(m)
+    // 작은 알림은 바로 뜬다. 다만 장면·큰 카드가 차례를 기다리거나 도는 중이면 그 뒤에 선다 (P5 손 QA: 흔적을 이긴 순간 알림·장면이 겹쳤다)
+    if (tierOf(m.id) === 1 && !this.bigAhead) return this.present(m)
     // 느린 동작은 쓰러진 바로 그 순간에 건다 (앞의 카드를 기다리는 동안에도)
     if (m.slow && this.host.slowMotion()) this.ctx.feel.slow(SLOW_MOTION.seconds, SLOW_MOTION.scale)
     this.queue.push(m)
@@ -119,6 +125,8 @@ export class MomentSystem {
         // 장면이나 느린 동작이 시작됐으면 그것이 끝나길 기다린다
         if (this.slowing || this.afterScene) return
       } else {
+        // 줄에 선 작은 알림은 앞의 카드가 자리를 비운 뒤에
+        if (tierOf(head.id) === 1 && this.cardShowing) return
         this.queue.shift()
         this.present(head)
       }

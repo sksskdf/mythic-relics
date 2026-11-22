@@ -24,6 +24,11 @@ export interface SkillContext {
   manifested: God | null
   /** 발현된 클래스의 레벨 (발현하지 않았으면 0) */
   level: number
+  /**
+   * 그 신의 단계 (열지 않았으면 0). 유물 행동의 덤(「토르로 발현하면 번개」)은 손에 쥔 무기가 아니라 그 신의 단계로 본다 (P5 손 QA:
+   * 무기는 모양을 고르는 것이라, 망치를 창으로 바꿨다고 묠니르가 약해지지 않는다). 없으면 옛 규칙(손에 쥔 신과 그 단계)
+   */
+  godLevel?: (god: God) => number
   /** 스킬 연출을 붙일 곳 */
   fx: THREE.Object3D
   lightning: Lightning

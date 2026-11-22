@@ -1,8 +1,9 @@
 import * as THREE from 'three'
 
 import type { AttackStyle } from '../../combat/styles'
-import { activeCombos, guardianSource, parseSource, power, type Power, type PowerId, type PowerSlots, powerRelic, slotted, traceSource } from '../../data/powers'
+import { activeCombos, guardianSource, parseSource, power, type Power, type PowerId, type PowerSlots, powerRelic, slotted, sourceGod, traceSource } from '../../data/powers'
 import { REGIONS } from '../../data/regions'
+import { TRACE_LEASH } from '../../data/wake'
 import { ENEMIES } from '../../enemies/Giant'
 import type { PowerLight } from '../../progress/Powers'
 import { godDef } from '../../relics/data'
@@ -22,6 +23,8 @@ export interface PowerHost {
   swing(style: AttackStyle): void
   /** 지금 상태를 저장한다 (카드를 띄울 때: 다시 불러와도 같은 셋이 뜨게) */
   save(): void
+  /** 그 자리가 막혔으면 가까운 갈 수 있는 자리 (지금 땅 길찾기). 없으면 그대로 */
+  free?(p: { x: number; z: number }): { x: number; z: number } | null
 }
 
 /** 빛을 밟는 거리 (m) */
@@ -34,6 +37,11 @@ const BURST_RADIUS = 4
 const BURST_DAMAGE = 20
 /** 빛기둥의 높이 (m) */
 const BEAM_HEIGHT = 11
+/** 빛이 주인공에서 이 거리(m) 안에 서면 주인공 반대쪽으로 `LIGHT_PUSH`m 밀어 세운다 (장면이 끝나자마자 저절로 밟히지 않게, P5 손 QA) */
+const LIGHT_NEAR = 2.5
+const LIGHT_PUSH = 3
+/** 흔적의 카드는 그 흔적에서 이 거리(m) 안에 있을 때만 뜬다 (`TRACE_LEASH`: 무리가 흩어지는 거리와 같다) */
+const TRACE_NEAR = TRACE_LEASH
 
 /** 종류 표시 */
 const KIND_NAMES: Readonly<Record<Power['kind'], string>> = { weapon: '무기', ultimate: '궁극기', aura: '힘' }
@@ -51,8 +59,13 @@ const SAYS = { trace: '내 힘 가운데 하나를 가져가라', guardian: '내
 export class PowerSystem {
   /** 지금 떠 있는 카드 (봇·점검이 읽는다) */
   current: { source: string; rows: PowerRow[] } | null = null
-  /** 차례를 기다리는 출처 (흔적·개발 지름길) */
-  private readonly queue: string[] = []
+  /** 차례를 기다리는 출처 (흔적·개발 지름길). 흔적이면 그 흔적의 땅과 자리: 그 곁에서만 뜬다 */
+  private readonly queue: { source: string; at?: { region: string; x: number; z: number } }[] = []
+  /** 빛의 색 (세울 때 정해 둔다: 프레임마다 내밀기를 다시 셈하지 않게) */
+  private readonly colors = new Map<string, string>()
+  /** 지금 땅의 빛 (땅이나 빛 목록이 바뀔 때만 다시 짓는다) */
+  private spotList: { source: string; x: number; z: number; color: string }[] = []
+  private spotKey: { region: string; lights: unknown; count: number } | null = null
   private sinceHurt = CALM_SECONDS
   private time = 0
   private readonly group = new THREE.Group()
@@ -68,17 +81,14 @@ export class PowerSystem {
   ) {
     const { bus, mythPowers } = ctx
     ctx.scene.add(this.group)
-    bus.on('traceAnswered', ({ god }) => {
+    bus.on('traceAnswered', ({ god, region, x, z }) => {
       const source = traceSource(god)
-      if (mythPowers.canClaim(source)) this.request(source)
+      if (mythPowers.canClaim(source)) this.request(source, region !== undefined && x !== undefined && z !== undefined ? { region, x, z } : undefined)
     })
-    bus.on('guardianBeaten', ({ god, x, z }) => this.light(guardianSource(god), ctx.map.region.id, x, z))
-    // 흔적을 지키는 무리를 처음 이김 (조각 2, 큰 싸움): 그 자리(주인공 발밑)에 빛. 출처 `pack:<땅>:<신>`, 만난 신들의 힘을 섞어 내민다
-    bus.on('fragment', ({ god, piece }) => {
-      if (piece !== 2) return
-      const p = ctx.hero.object.position
-      this.light(`pack:${ctx.map.region.id}:${god}`, ctx.map.region.id, p.x, p.z)
-    })
+    // 사건이 싸운 땅을 싣는다: 땅을 넘는 그 프레임에 정산돼도 빛은 싸운 땅에 선다
+    bus.on('guardianBeaten', ({ god, region, x, z }) => this.light(guardianSource(god), region, x, z))
+    // 흔적을 지키는 무리를 처음 이김 (큰 싸움): 마지막 적이 쓰러진 자리에 빛. 출처 `pack:<땅>:<신>`, 그 신의 힘 하나와 만난 신들의 힘을 내민다
+    bus.on('packBeaten', ({ god, region, x, z }) => this.light(`pack:${region}:${god}`, region, x, z))
     // 장 보스를 이김 (거인 왕·키마이라·하늘의 왕): 출처 `boss:<땅>`. 무너지는 동안 통로를 넘었으면 그 땅의 보스 자리에
     bus.on('giantKilled', ({ giant }) => {
       const fell = ctx.encounter.fellRegion(giant)
@@ -91,10 +101,12 @@ export class PowerSystem {
     bus.on('heroHurt', () => (this.sinceHurt = 0))
     // 귀환으로 도는 힘의 칸이 늘었다: 가진 도는 힘으로 빈 칸을 채운다
     bus.on('expeditionReturned', () => mythPowers.fill() && this.relics.syncPowers())
-    // 땅을 옮기면 기다리던 흔적의 카드는 거둔다 (그 흔적에 다시 서면 다시 응답한다)
-    bus.on('regionEntered', () => {
-      for (let i = this.queue.length - 1; i >= 0; i--) if (parseSource(this.queue[i]!)?.kind === 'trace') this.queue.splice(i, 1)
-    })
+    // 땅을 옮기거나 쓰러지면 기다리던 흔적의 카드는 거둔다 (그 흔적에 다시 서면 다시 응답한다. 흔적도 이때 기다림을 푼다)
+    const dropTraces = () => {
+      for (let i = this.queue.length - 1; i >= 0; i--) if (this.queue[i]!.at) this.queue.splice(i, 1)
+    }
+    bus.on('regionEntered', dropTraces)
+    bus.on('heroDied', dropTraces)
   }
 
   /** 지금 칸 (봇이 읽는다) */
@@ -110,13 +122,19 @@ export class PowerSystem {
   /** 지금 땅에 서 있는 빛 (작은 지도·봇) */
   get spots(): readonly { source: string; x: number; z: number; color: string }[] {
     const here = this.ctx.map.region.id
-    return this.ctx.mythPowers.lights.filter((l) => l.region === here).map((l) => ({ source: l.source, x: l.x, z: l.z, color: this.color(l.source) }))
+    const { lights } = this.ctx.mythPowers
+    const key = this.spotKey
+    if (!key || key.region !== here || key.lights !== lights || key.count !== lights.length) {
+      this.spotKey = { region: here, lights, count: lights.length }
+      this.spotList = lights.filter((l) => l.region === here).map((l) => ({ source: l.source, x: l.x, z: l.z, color: this.color(l.source) }))
+    }
+    return this.spotList
   }
 
-  /** 그 출처의 카드를 차례에 세운다 (흔적·개발 지름길). 내밀 힘이 없으면 false */
-  request(source: string): boolean {
+  /** 그 출처의 카드를 차례에 세운다 (흔적·개발 지름길). 흔적이면 그 자리(at) 곁에서만 뜬다. 내밀 힘이 없으면 false */
+  request(source: string, at?: { region: string; x: number; z: number }): boolean {
     if (!this.ctx.mythPowers.canClaim(source)) return false
-    if (this.current?.source !== source && !this.queue.includes(source)) this.queue.push(source)
+    if (this.current?.source !== source && !this.queue.some((q) => q.source === source)) this.queue.push({ source, ...(at ? { at } : {}) })
     return true
   }
 
@@ -132,13 +150,25 @@ export class PowerSystem {
    */
   pick(source: string, id: PowerId): boolean {
     const { mythPowers, bus } = this.ctx
-    if (!mythPowers.claim(source, id)) return false
+    if (!mythPowers.claim(source, id)) {
+      // 카드에서 눌렀는데 받지 못했다 (그사이 출처가 닫힘 등): 떠 있던 것을 비우고 그 출처를 다시 차례에 (그대로 두면 그 판 내내 카드가 안 뜬다)
+      if (this.current?.source === source) {
+        const at = this.currentAt
+        this.current = null
+        this.currentAt = undefined
+        this.host.card.hide()
+        if (mythPowers.canClaim(source)) this.queue.unshift({ source, ...(at ? { at } : {}) })
+        else if (at) bus.emit('powerPicked', { source, id: null })
+      }
+      return false
+    }
     const p = power(id)!
     if (p.kind !== 'aura' && mythPowers.slots[p.kind] !== id) mythPowers.slot(id)
     this.relics.syncPowers()
     this.dropLight(source)
     if (this.current?.source === source) {
       this.current = null
+      this.currentAt = undefined
       this.host.card.hide()
     }
     this.burst(p)
@@ -156,7 +186,11 @@ export class PowerSystem {
     for (const b of this.beams) (b.mesh.material as THREE.MeshBasicMaterial).opacity = pulse
     if (this.current || this.host.card.open || this.host.blocked()) return
     const next = this.queue.shift()
-    if (next) return this.show(next)
+    if (next) {
+      // 흔적의 카드는 그 흔적 곁에서만: 멀어졌으면 거두고 흔적의 기다림을 푼다 (다시 서면 다시 응답한다)
+      if (next.at && !this.near(next.at)) return void this.ctx.bus.emit('powerPicked', { source: next.source, id: null })
+      return this.show(next.source, next.at)
+    }
     const p = this.ctx.hero.object.position
     const light = this.spots.find((l) => Math.hypot(l.x - p.x, l.z - p.z) <= LIGHT_RADIUS)
     if (light && this.calm) this.show(light.source)
@@ -170,8 +204,17 @@ export class PowerSystem {
     return !encounter.alive.some((g) => g.state !== 'idle' && g.state !== 'return' && Math.hypot(g.x - p.x, g.z - p.z) <= CALM_RADIUS)
   }
 
+  /** 주인공이 그 자리(그 땅) 곁에 있나 */
+  private near(at: { region: string; x: number; z: number }): boolean {
+    const p = this.ctx.hero.object.position
+    return at.region === this.ctx.map.region.id && Math.hypot(p.x - at.x, p.z - at.z) <= TRACE_NEAR
+  }
+
+  /** 떠 있는 흔적 카드의 자리 */
+  private currentAt: { region: string; x: number; z: number } | undefined
+
   /** 그 출처의 카드를 띄운다. 내밀 힘이 없으면 빛을 거두고 카드 없이 지나간다 */
-  private show(source: string): void {
+  private show(source: string, at?: { region: string; x: number; z: number }): void {
     const { mythPowers, bus } = this.ctx
     const ids = mythPowers.offer(source)
     if (ids.length === 0) {
@@ -181,50 +224,77 @@ export class PowerSystem {
     }
     const rows = ids.map((id) => this.row(id))
     this.current = { source, rows }
+    this.currentAt = at
     // 띄울 때 한 번 저장한다: 고르기 전에 닫고 다시 불러와도 같은 셋이 뜬다 (뽑기는 씨앗·출처·가진 힘으로 정해진다)
     this.host.save()
     bus.emit('powerOffered', { source })
     this.host.card.show(this.view(source, rows), (id) => void this.pick(source, id))
   }
 
-  /** 카드의 한 줄: 종류·이름·한 줄 풀이, 끼우면 켜지는 조합, 칸이 차서 가진 힘으로만 남는가 */
+  /** 카드의 한 줄: 종류·이름·한 줄 풀이, 바꿔 끼우는 무기·궁극기, 끼우면 켜지는 조합, 칸이 차서 가진 힘으로만 남는가 */
   private row(id: PowerId): PowerRow {
     const { mythPowers } = this.ctx
     const p = power(id)!
     const now = mythPowers.slots
     const after = p.kind === 'aura' ? { ...now, auras: [...now.auras, id] } : { ...now, [p.kind]: id }
     const before = new Set(activeCombos(slotted(now)).map((c) => c.id))
-    const combo = activeCombos(slotted(after)).find((c) => !before.has(c.id))
     const spare = p.kind === 'aura' && now.auras.length >= mythPowers.auraSlots
-    return { id, kind: KIND_NAMES[p.kind], name: p.name, line: p.line, color: godDef(p.god).color, ...(combo ? { combo: combo.name } : {}), ...(spare ? { spare: true } : {}) }
+    // 칸이 차서 가진 힘으로 남는 줄에는 켜지지 않을 조합을 붙이지 않는다
+    const combo = spare ? undefined : activeCombos(slotted(after)).find((c) => !before.has(c.id))
+    // 무기·궁극기는 칸을 바로 바꿔 끼운다: 무엇이 무엇으로 바뀌는지 한 줄
+    const held = p.kind === 'aura' ? null : now[p.kind]
+    const swap = held && held !== id ? `지금: ${power(held)?.name ?? held} → ${p.name}` : undefined
+    return { id, kind: KIND_NAMES[p.kind], name: p.name, line: p.line, color: godDef(p.god).color, ...(swap ? { swap } : {}), ...(combo ? { combo: combo.name } : {}), ...(spare ? { spare: true } : {}) }
   }
 
-  /** 머리줄: 흔적·수호자는 그 신, 장 보스·무리는 「신들의 빛」(색은 첫 줄의 신) */
+  /** 머리줄: 흔적·수호자·무리는 그 신, 장 보스는 「<보스>의 자리」(색은 첫 줄의 신) */
   private view(source: string, rows: readonly PowerRow[]): PowerCardView {
     const at = parseSource(source)!
-    if (at.kind === 'trace' || at.kind === 'guardian') {
-      const def = godDef(at.arg)
+    const god = sourceGod(source)
+    if (god) {
+      const def = godDef(god)
       return { title: def.name, say: SAYS[at.kind], color: def.color, icon: classIcon(def.name), rows }
     }
-    const boss = at.kind === 'boss' ? ENEMIES[REGIONS[at.arg]?.boss?.enemy ?? '']?.name : undefined
+    // 보스 자리에 enemy가 없으면 땅의 기본 보스(거인 왕)다 (`Encounter`·`chapters.ts`와 같은 셈)
+    const boss = at.kind === 'boss' ? ENEMIES[REGIONS[at.arg]?.boss?.enemy ?? 'king']?.name : undefined
     return { title: boss ? `${boss}의 자리` : '신들의 빛', say: SAYS[at.kind], color: rows[0]?.color ?? godDef('thor').color, rows }
   }
 
-  /** 빛의 색: 수호자는 그 신, 그 밖은 내밀 첫 힘의 신 */
+  /** 빛의 색: 신이 있는 출처(흔적·수호자·그 신의 무리)는 그 신, 그 밖은 내밀 첫 힘의 신. 처음 셈한 것을 둔다 */
   private color(source: string): string {
-    const at = parseSource(source)
-    if (at?.kind === 'guardian' || at?.kind === 'trace') return godDef(at.arg).color
-    const first = this.ctx.mythPowers.offer(source)[0]
-    return godDef(first ? power(first)!.god : 'thor').color
+    let color = this.colors.get(source)
+    if (!color) {
+      const god = sourceGod(source)
+      const first = god ? null : this.ctx.mythPowers.offer(source)[0]
+      color = godDef(god ?? (first ? power(first)!.god : 'thor')).color
+      this.colors.set(source, color)
+    }
+    return color
   }
 
   /** 쓰러진 자리에 빛을 세운다: 내밀 힘이 없는 출처·이미 선 빛이면 세우지 않는다 */
   private light(source: string, region: string, x: number, z: number): void {
     const { mythPowers, bus } = this.ctx
     if (!mythPowers.canClaim(source) || mythPowers.lights.some((l) => l.source === source)) return
-    const at: PowerLight = { source, region, x, z }
+    const spot = region === this.ctx.map.region.id ? this.awayFromHero(x, z) : { x, z }
+    const at: PowerLight = { source, region, x: spot.x, z: spot.z }
     mythPowers.lights.push(at)
+    this.color(source)
     bus.emit('progressChanged', {})
+  }
+
+  /** 주인공 발밑에 서지 않게: 2.5m 안이면 주인공 반대쪽으로 3m 밀고, 막혔으면 가까운 갈 수 있는 자리 */
+  private awayFromHero(x: number, z: number): { x: number; z: number } {
+    const p = this.ctx.hero.object.position
+    let dx = x - p.x
+    let dz = z - p.z
+    const d = Math.hypot(dx, dz)
+    if (d > LIGHT_NEAR) return { x, z }
+    // 거의 같은 자리면 주인공이 보는 쪽의 반대로 (쿼터뷰에서 화면 아래쪽)
+    if (d < 0.05) [dx, dz] = [0, 1]
+    const len = Math.hypot(dx, dz)
+    const want = { x: x + (dx / len) * LIGHT_PUSH, z: z + (dz / len) * LIGHT_PUSH }
+    return this.host.free?.(want) ?? want
   }
 
   private dropLight(source: string): void {
@@ -266,11 +336,14 @@ export class PowerSystem {
     const relic = powerRelic(p.id)
     if (p.kind === 'ultimate') {
       const ultimate = powers.ultimate
-      if (ultimate && !powers.ultimateActive) {
+      // 침묵의 맹세 중·탄 동안은 궁극기를 쓸 수 없다 (평소 시전과 같은 규칙, `Relics.ts`): 그때는 둘레를 한 번 친다
+      const barred = this.ctx.build.state.noUltimate || hero.riding
+      if (ultimate && !barred && !powers.ultimateActive) {
         ultimate.start(skills)
         bus.emit('ultimateCast', {})
+        return
       }
-      return
+      if (!barred) return
     }
     if (relic) return void powers.effectOf(relic)?.forceFire?.(skills)
     if (p.source.from === 'attack') this.host.swing(p.source.style)

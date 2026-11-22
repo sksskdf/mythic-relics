@@ -161,6 +161,8 @@ export class ChapterSystem {
 
 /** 신 깨우기의 목표 한 줄 (특정 신을 가리키지 않는다): 그 신화권 신의 수호자가 서 있을 때. 아니면 장 자료의 글(「신의 흔적을 찾는다」) */
 export const GUARDIAN_GOAL = '수호자를 쓰러뜨린다'
+/** 흔적을 지키는 무리가 깨어나 있을 때의 목표 한 줄 (P5): 힘을 고른 뒤 */
+export const PACK_GOAL = '지키는 것들을 쓰러뜨린다'
 
 /** 장 제목 띠의 색: 그 장 첫 땅의 신화권 (땅이 없는 장은 마을 빛) */
 export function chapterColor(chapter: ChapterDef): string {

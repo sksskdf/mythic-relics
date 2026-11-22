@@ -302,6 +302,17 @@ export function parseSource(source: string): { kind: OfferKind; arg: string } | 
   return OFFER_KINDS.includes(kind) ? { kind, arg: source.slice(at + 1) } : null
 }
 
+/**
+ * 그 출처의 신: 흔적·수호자는 그 신, 흔적을 지키는 무리(`pack:<땅>:<신>`)는 끝의 신. 장 보스·이름 없는 무리는 null
+ * (P5 손 QA: 오딘의 무리에서 나온 빛의 카드가 「신들의 빛」으로 떠 누구의 것인지 몰랐다)
+ */
+export function sourceGod(source: string): God | null {
+  const at = parseSource(source)
+  if (!at) return null
+  const god = at.kind === 'trace' || at.kind === 'guardian' ? at.arg : at.kind === 'pack' ? at.arg.slice(at.arg.lastIndexOf(':') + 1) : ''
+  return Object.hasOwn(GODS, god) ? god : null
+}
+
 export const traceSource = (god: God): string => `trace:${god}`
 export const guardianSource = (god: God): string => `guardian:${god}`
 
@@ -331,6 +342,7 @@ function shuffled<T>(list: readonly T[], rng: () => number): T[] {
  * 내밀 힘 셋 (모자라면 있는 만큼, 다 가졌으면 빈 목록). 같은 씨앗·출처·상태면 늘 같은 셋이라 다시 불러와도 같다.
  * - 흔적(`trace:<신>`): 그 신의 아직 없는 힘에서. 무기가 아직 없으면 무기를 꼭 낀다 (맨 앞)
  * - 수호자(`guardian:<신>`): 그 신의 남은 것부터, 모자라면 만난 신들의 것으로 채운다
+ * - 그 신의 무리(`pack:<땅>:<신>`): 그 신의 아직 없는 힘 하나를 먼저, 나머지는 만난 신들의 것으로
  * - 그 밖(`pack:`·`boss:`): 만난 신들의 아직 없는 힘에서 섞는다 (될 수 있으면 신이 겹치지 않게)
  * 이미 가진 힘은 내밀지 않는다
  */
@@ -367,7 +379,9 @@ export function offer(source: string, state: OfferState, seed: number): PowerId[
     picks = [...weapon, ...shuffled(own.filter((p) => !weapon.includes(p)), rng)].slice(0, OFFER_COUNT)
     if (at.kind === 'guardian' && picks.length < OFFER_COUNT) picks.push(...mixed(picks, OFFER_COUNT - picks.length))
   } else {
-    picks = mixed([], OFFER_COUNT)
+    const god = at.kind === 'pack' ? sourceGod(source) : null
+    const first = god ? shuffled(left([god]), rng).slice(0, 1) : []
+    picks = [...first, ...mixed(first, OFFER_COUNT - first.length)]
   }
   return picks.map((p) => p.id)
 }

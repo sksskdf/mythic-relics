@@ -1029,6 +1029,18 @@ try {
       g.powerPicks.choose(card.rows[0].id)
       return card.source
     }
+    /**
+     * 그 출처의 빛을 밟고 카드가 뜰 때까지 기다린다 (P5 고침: 빛은 주인공 발밑이 아니라 마지막 적이 쓰러진 자리에 서고,
+     * 장면·큰 카드가 자리를 지키는 동안 힘 카드는 기다린다). 뜬 카드의 출처, 없으면 null
+     */
+    const stepOnLight = (prefix) => {
+      for (let k = 0; k < 20 && !g.powerPicks.current; k++) {
+        const light = g.powerPicks.spots.find((l) => l.source.startsWith(prefix))
+        if (light) g.hero.teleport(light.x, light.z)
+        g.advance(0.5, 1 / 30)
+      }
+      return g.powerPicks.current?.source ?? null
+    }
     g.ctx.bus.on('traceAnswered', ({ god }) => seen.answered.push(god))
     g.ctx.bus.on('guardianBeaten', ({ god, x, z }) => seen.beaten.push({ god, x: Math.round(x), z: Math.round(z) }))
     // 그리스 셋의 흔적은 데모에서 응답하지 않는다 (E241): 엔딩 전에는 later, 엔딩 뒤에는 open
@@ -1088,8 +1100,8 @@ try {
         // 쓰러진 적은 무너지는 동안(0.55초) 기다렸다가 잡은 것으로 센다
         g.advance(1, 1 / 30)
         woke.piece1 = g.awaken.stage(woke.god)
-        // 흔적의 무리를 이긴 자리에 빛 (큰 싸움): 그 자리에 서 있으니 싸움이 풀리면 카드가 뜬다
-        g.advance(2.5, 1 / 30)
+        // 흔적의 무리를 이긴 자리에 빛 (큰 싸움): 밟으면 싸움이 풀린 뒤 카드가 뜬다
+        stepOnLight(`pack:midgard:${woke.god}`)
         woke.packCard = pickFirst()
         // 무리를 이긴 그 자리에서 다음은 바로 수호자다: 사냥 단계가 없고 목표 한 줄에 세는 꼴(n/m)이 없다
         woke.next = g.awakening.target('midgard')?.kind ?? null
@@ -1103,7 +1115,8 @@ try {
         g.advance(0.4, 1 / 30)
         woke.second = g.awakening.guards.length
         kill((e) => Math.hypot(e.x - odin.x, e.z - odin.z) < 10)
-        g.advance(3, 1 / 30)
+        g.advance(1, 1 / 30)
+        stepOnLight('pack:midgard:odin')
         woke.odinPack = pickFirst()
         woke.both = [...g.awaken.waking].sort()
         // 수호자는 그 신의 땅에서 (E239: 토르는 세계 뱀의 바닷가, 오딘은 철의 숲)
@@ -1148,7 +1161,8 @@ try {
           woke.light.fighting = { awake: foe?.state !== 'idle', card: g.powerPicks.open }
           kill(() => true)
           g.hero.teleport(light.x, light.z)
-          g.advance(3, 1 / 30)
+          // 깨어났다는 큰 카드가 자리를 지키는 동안(4.5초)은 힘 카드가 겹치지 않고 기다린다 (P5 고침)
+          for (let k = 0; k < 16 && !g.powerPicks.current; k++) g.advance(0.5, 1 / 30)
           woke.light.calm = g.powerPicks.current?.source ?? null
           woke.light.picked = pickFirst()
           woke.light.left = g.powerPicks.spots.length

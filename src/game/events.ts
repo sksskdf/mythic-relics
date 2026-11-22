@@ -57,10 +57,13 @@ export interface GameEvents {
   mythOpened: { god: God; quiet?: boolean }
   /** 신을 깨우는 조각을 얻었다 (E238): 1 흔적, 2 사냥(유물), 3 수호자(깨어남) */
   fragment: { god: God; piece: 1 | 2 | 3 }
+  /** 흔적을 지키는 무리를 처음 이겼다 (P5): 그 땅과 마지막 적이 쓰러진 자리 (그 땅 좌표. 땅을 넘는 프레임에 정산돼도 싸운 땅이다) */
+  packBeaten: { god: God; region: string; x: number; z: number }
   /** 신의 수호자가 나타났다 (E238): 처음이면 수호자의 한마디 */
   guardianAppeared: { god: God }
   /** 신의 흔적이 응답했다 (2026-11-22): 흔적의 고리 안에 1초 서 있었다. 그 흔적에서 아직 고르지 않았으면 힘 카드가 뜨고 고른 뒤에, 골랐으면 곧바로 지키는 무리가 깨어난다 */
-  traceAnswered: { god: God }
+  /** 흔적이 응답했다: 그 땅과 흔적의 자리 (힘 카드는 그 곁에서만 뜬다, P5). 자리를 모르면(시험) 어디서나 */
+  traceAnswered: { god: God; region?: string; x?: number; z?: number }
   /**
    * 고르는 카드(P5)에서 힘을 골랐다: 그 출처와 고른 힘. id가 null이면 내밀 힘이 없어 카드 없이 지나갔다.
    * 흔적은 이 뒤에 지키는 무리가 깨어난다
@@ -69,7 +72,7 @@ export interface GameEvents {
   /** 고르는 카드가 떴다 (P5, 플레이 기록) */
   powerOffered: { source: string }
   /** 신의 수호자를 쓰러뜨렸다 (2026-11-22): 그 신이 깨어났고, 쓰러진 자리(지금 땅 좌표) */
-  guardianBeaten: { god: God; x: number; z: number }
+  guardianBeaten: { god: God; region: string; x: number; z: number }
   /** 수련의 깨달음을 얻었다 (E236): 새로 얻은 수와 쓰지 않은 수 */
   insightGained: { count: number; unspent: number }
   /** 주인공이 맞았다. */

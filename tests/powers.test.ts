@@ -21,6 +21,7 @@ import {
 import { parsePowers, PowerProgress } from '../src/progress/Powers'
 import { GODS, RELICS } from '../src/relics/data'
 import { powersFromV17 } from '../src/save/migrate/v18'
+import { WAKE } from '../src/data/wake'
 
 const ids = (god: string) => godPowers(god).map((p) => p.id)
 
@@ -371,6 +372,17 @@ describe('저장 v17 → v18: 신 단위에서 힘으로', () => {
     const p = new PowerProgress()
     p.load(data)
     expect(p.canClaim('trace:odin')).toBe(true)
+  })
+
+  it('깨우는 도중이던 신은 흔적이 더는 응답하지 않으니 흔적 자리 곁에 그 흔적의 빛(`trace:<신>`)을 남긴다 (P5 고침)', () => {
+    const data = powersFromV17({ ...base, classes: { thor: { level: 1 } }, waking: ['odin', 'thor'] })
+    const t = WAKE.odin!.trace
+    expect(data.lights).toEqual([{ source: 'trace:odin', region: t.region, x: t.x, z: t.z + 2 }])
+    const p = new PowerProgress()
+    p.load(data)
+    expect(p.lights.map((l) => l.source)).toEqual(['trace:odin'])
+    expect(p.canClaim('trace:odin')).toBe(true)
+    expect(powersFromV17(base).lights).toBeUndefined()
   })
 
   it('자리 셋에 든 신의 힘을 칸에 끼운다: 손은 무기, 심장은 궁극기, 도는 힘은 손의 신의 켠 유물 → 숨의 패시브 부품 → 나머지 켠 유물', () => {

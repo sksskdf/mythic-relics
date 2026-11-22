@@ -77,6 +77,10 @@
   font: var(--t-small);
   color: var(--c-gold);
 }
+.power-card__swap {
+  font: var(--t-small);
+  color: var(--c-moon);
+}
 .power-card__spare {
   font: var(--t-small);
   color: var(--c-ink-3);

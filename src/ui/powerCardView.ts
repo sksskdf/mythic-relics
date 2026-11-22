@@ -12,6 +12,8 @@ export interface PowerRow {
   combo?: string
   /** 칸이 차서 가진 힘으로만 남는다 */
   spare?: boolean
+  /** 무기·궁극기 칸이 차 있으면 바뀌는 것 한 줄: 「지금: 망치 → 창」 (P5 손 QA: 말없이 빠지지 않게) */
+  swap?: string
 }
 
 /** 힘 카드에 보일 것: 머리줄(그 신의 이름과 한마디)과 세로로 셋 */
@@ -35,7 +37,7 @@ export function powerCardMarkup(view: PowerCardView): string {
   const head = `<div class="power-card__head" style="--god:${escape(view.color)}">${view.icon ? `<img src="${escape(view.icon)}" alt="">` : ''}<div><b class="power-card__title">${escape(view.title)}</b><span class="power-card__say">${escape(view.say)}</span></div></div>`
   const rows = view.rows
     .map((r) => {
-      const notes = [r.combo ? `<span class="power-card__combo">조합 · ${escape(r.combo)}</span>` : '', r.spare ? '<span class="power-card__spare">칸이 차서 가진 힘으로 남는다</span>' : ''].join('')
+      const notes = [r.swap ? `<span class="power-card__swap">${escape(r.swap)}</span>` : '', r.combo ? `<span class="power-card__combo">조합 · ${escape(r.combo)}</span>` : '', r.spare ? '<span class="power-card__spare">칸이 차서 가진 힘으로 남는다</span>' : ''].join('')
       return `<button type="button" class="power-card__row" data-power="${escape(r.id)}" style="--god:${escape(r.color)}"><span class="power-card__kind">${escape(r.kind)}</span><b>${escape(r.name)}</b><small>${escape(r.line)}</small>${notes}</button>`
     })
     .join('')

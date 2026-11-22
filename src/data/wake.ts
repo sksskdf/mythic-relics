@@ -38,10 +38,11 @@ export type TraceState = 'awake' | 'waking' | 'later' | 'open'
 export const FREE_GODS: readonly God[] = ['thor', 'odin', 'loki', 'freyr']
 
 /**
- * 이미 이긴 흔적의 무리 수(그 신을 빼고)에 따른 흔적의 무리·수호자의 세기: 첫째 1 · 둘째 4 · 셋째 7 · 넷째 9.
- * 어느 신부터 가도 되게 땅이 아니라 차례가 세기를 정한다 (2026-11-20 손 QA: 둘째 흔적의 무리가 깨어나자마자 쓰러졌다)
+ * 이미 이긴 흔적의 무리 수(그 신을 빼고)에 따른 흔적의 무리·수호자의 세기: 첫째 1 · 둘째 2 · 셋째 3.5 · 넷째 5.
+ * 어느 신부터 가도 되게 땅이 아니라 차례가 세기를 정한다 (2026-11-20 손 QA: 둘째 흔적의 무리가 깨어나자마자 쓰러졌다.
+ * P5 손 QA: 1·4·7·9는 둘째 무리부터 세기가 4로 뛰어 5~9분에 세 번 쓰러졌다 → 1·2·3.5·5)
  */
-export const ORDER_POWER: readonly number[] = [1, 4, 7, 9]
+export const ORDER_POWER: readonly number[] = [1, 2, 3.5, 5]
 
 /**
  * 흔적의 무리와 그 신의 수호자를 세울 때의 세기. 첫 판의 넷(`FREE_GODS`)은 이긴 무리 수에 따른 세기 그대로

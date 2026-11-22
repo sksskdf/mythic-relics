@@ -2,6 +2,7 @@ import { KEEPER, MOUNT } from '../data/mount'
 import { insightProgress } from '../data/training'
 import { godDef } from '../relics/data'
 import { heroIcon } from '../ui/heroIcon'
+import { PACK_GOAL } from './systems/Chapters'
 import type { Build } from '../build/Build'
 import type { Game } from './Game'
 
@@ -68,7 +69,9 @@ export class HudFeed {
     this.letterbox.classList.toggle('is-on', game.scenes.active)
     // 목표 한 줄 (E22-04): 보스 막대가 서거나 대화 중이면 잠깐 감춘다
     const fighting = (boss !== null && encounter.bossEngaged) || awakening.fighting !== null
-    game.chapterHud.setGoal(game.chapterSystem.goalView(), fighting || game.scenes.active || game.world.traveling)
+    // 흔적을 지키는 무리가 깨어나 있으면 지금 할 일은 그 무리다 (P5 손 QA: 힘을 고른 뒤에도 「신의 흔적을 찾는다」에 머물렀다)
+    const view = game.chapterSystem.goalView()
+    game.chapterHud.setGoal(view && awakening.roused ? { text: PACK_GOAL, ratio: null } : view, fighting || game.scenes.active || game.world.traveling)
   }
 
   /** 작은 지도 (게임 한 프레임마다, 게임 시간) */
@@ -83,8 +86,9 @@ export class HudFeed {
       sanctuaryReady: game.sanctuary.lit,
       goal: this.goalSpot(spots),
       goals: spots.slice(1),
-      // 신의 흔적 (E238): 응답하는 흔적만 그 신의 색으로. 땅에서 기다리는 빛(P5)도 같은 표시로
-      traces: [...game.awakening.spots.filter((t) => t.state === 'open').map((t) => ({ x: t.x, z: t.z, color: godDef(t.god).color })), ...game.powerPicks.spots],
+      // 신의 흔적 (E238): 아직 응답할 흔적만 그 신의 색 십자로. 땅에서 기다리는 빛(P5)은 작은 마름모로 따로, 서 있는 수호자는 금빛 목표 표시가 맡는다
+      traces: game.awakening.spots.filter((t) => t.state === 'open').map((t) => ({ x: t.x, z: t.z, color: godDef(t.god).color })),
+      lights: game.powerPicks.spots,
     })
   }
 

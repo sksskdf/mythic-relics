@@ -37,9 +37,10 @@ describe('화면 글 (E307)', () => {
     expect(found).toEqual([])
   })
 
-  it('조각 2 카드는 유물이 유물표에 켜진다고 한다 (가방·장비 탭이 아니다)', () => {
+  it('조각 2 카드는 유물을 얻었다고 한다 (가방·장비 탭도, 처음 보는 사람이 모르는 「유물표」도 아니다)', () => {
     const wake = code(sources[Object.keys(sources).find((p) => p.endsWith('/game/systems/Wake.ts'))!]!)
-    expect(wake).toContain('유물표에 켜졌다')
+    expect(wake).toContain('얻었다`')
+    expect(wake).not.toMatch(/유물표에 켜졌다/)
     expect(wake).not.toMatch(/가방에 들어왔다|장비 탭에서 낀다/)
   })
 })

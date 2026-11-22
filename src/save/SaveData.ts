@@ -257,7 +257,7 @@ export function parseSave(text: string | null): SaveData | null {
   const pantheon = (data.version as number) < 14 ? fromChosen(parseChosen(data.chosen, legacySlots(data.slots), myths)) : parsePantheon(data.pantheon, myths, wakingOf(awaken)[0] ?? null)
   const expedition = oldExpedition(data, chapters, myths)
   // 힘 (v18): 키가 없는 저장은 깨운 신·자리 셋에서 옮긴다. 씨앗이 빠진 저장도 옮길 때와 같은 씨앗을 받는다
-  const moved = powersFromV17({ classes: myths, pantheon, lit, returns: expedition.count - 1 })
+  const moved = powersFromV17({ classes: myths, pantheon, lit, returns: expedition.count - 1, waking: wakingOf(awaken) })
   // 키가 있는 저장은 그대로 읽는다 (P5: 힘은 고른 것만 가진다. 깨운 신의 힘을 거저 얹지 않는다)
   const powers = typeof data.powers === 'object' && data.powers !== null && !Array.isArray(data.powers) ? parsePowers(data.powers, moved.seed) : moved
   return {

@@ -16,7 +16,7 @@
     },
     "attack": "hammer",
     "passive": {
-      "damageScale": 1.15,
+      "damageScale": 1.1,
       "basicLightning": {
         "damage": 6,
         "finisherDamage": 14
@@ -85,7 +85,7 @@
     },
     "attack": "twin",
     "passive": {
-      "damageScale": 0.75,
+      "damageScale": 1,
       "companions": {
         "name": "그림자 분신",
         "look": "shadow",
@@ -207,7 +207,7 @@
     },
     "attack": "spear",
     "passive": {
-      "damageScale": 0.7,
+      "damageScale": 0.95,
       "companions": {
         "name": "후긴과 무닌",
         "look": "raven",

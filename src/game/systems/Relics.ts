@@ -1,3 +1,4 @@
+import { josa } from '../../ui/josa'
 import * as THREE from 'three'
 
 import { AUTOMATION } from '../../data/cycle'
@@ -195,7 +196,7 @@ export class RelicSystem {
     const name = stageName(made.relic, made.stage)
     // 새 단계의 효과 배율: 지금 자리로 실제 도는 값만 (E21-04 → E303-04: 유물은 유물표에, 기본 수치 없음. E307: 「몰면」 글을 걷음)
     const lines = [
-      made.stage === 1 ? '대장간에서 처음 벼렸다 · 유물표에 켜짐' : `${made.stage}단계`,
+      made.stage === 1 ? '대장간에서 처음 벼렸다' : `${made.stage}단계`,
       `유물 효과 피해 ×${effectScale(made.relic, made.stage, null)}`,
     ]
     // 큰 카드 (E23-03): 그 신의 색으로 번쩍임·하늘 기둥·북소리. 벼려서 다음 장이 열리면 그 장면은 이 카드 뒤에 온다
@@ -273,7 +274,7 @@ export class RelicSystem {
       bus.emit('relicPicked', { id })
     } else {
       label(relicDef(id).name, godDef(relicDef(id).god).color)
-      bus.emit('moment', { id: 'gearPicked', text: `${relicDef(id).name} · 유물표` })
+      bus.emit('moment', { id: 'gearPicked', text: `${josa(relicDef(id).name, '을')} 얻었다` })
       bus.emit('relicPicked', { id })
       this.equip(id, true)
     }
@@ -288,6 +289,7 @@ export class RelicSystem {
     skills.enemies = encounter.alive
     skills.manifested = this.ctx.build.chosen
     skills.level = this.ctx.build.level
+    skills.godLevel ??= (god) => this.ctx.progress.level(god)
     // 칸의 패시브 힘마다 그 부품을 그 신 단계로 돌린다
     powers.setLent(this.ctx.build.passives())
     this.updateGlow()

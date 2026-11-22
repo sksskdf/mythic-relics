@@ -12,6 +12,7 @@ import { worldToScreen } from '../render/picking'
 import type { QuarterViewCamera } from '../render/QuarterViewCamera'
 import { gearCard } from '../ui/gearCard'
 import { traceCard } from '../ui/traceCard'
+import { traceSource } from '../data/powers'
 import { TRACE_RADIUS, type TraceState } from '../data/wake'
 import type { God } from '../relics/data'
 import type { Nameplates, PlateBox, PlateTarget } from '../ui/Nameplates'
@@ -140,9 +141,9 @@ export class HoverCards {
     const { ctx, cardContext } = this.parts
     this.groundTooltip = true
     if ('god' in item) {
-      // 신의 흔적 (E238): 무엇을 고르는지 알고 고르게 그 신의 무기·빌려주는 힘
-      const now = { state: item.state }
-      this.tooltip.showCard(`trace:${item.god}`, `${item.god}|${now.state}`, () => traceCard(item.god, now), x, y, above, band)
+      // 신의 흔적 (E238 → P5): 그 신의 이름과 지금 할 일 한 줄 (얻는 것은 서면 뜨는 힘 카드가 보인다)
+      const now = { state: item.state, claimed: !ctx.mythPowers.canClaim(traceSource(item.god)) }
+      this.tooltip.showCard(`trace:${item.god}`, `${item.god}|${now.state}|${now.claimed}`, () => traceCard(item.god, now), x, y, above, band)
       return
     }
     const gear = ctx.pickups.gearOf(item.id)

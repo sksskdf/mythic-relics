@@ -56,11 +56,12 @@ export class DataRelicEffect implements RelicEffect {
   /** 유물 단계에 따른 피해 배율 (E13-03) */
   stageScale = 1
 
-  /** 고른 신화·개방 단계와 유물 단계에 맞는 세진 정도 */
+  /** 그 신의 단계(손에 쥔 무기와 상관없이)와 유물 단계에 맞는 세진 정도 */
   private boost(ctx: SkillContext): Boost {
     const out: Boost = { damageScale: this.stageScale, lightning: null, reach: 1 }
     for (const b of this.trigger.bonus) {
-      if (ctx.manifested !== b.manifested || ctx.level < b.minLevel) continue
+      const level = ctx.godLevel ? ctx.godLevel(b.manifested) : ctx.manifested === b.manifested ? ctx.level : 0
+      if (level < b.minLevel) continue
       out.damageScale *= b.damageScale
       if (b.lightning !== undefined) out.lightning = (out.lightning ?? 0) + b.lightning
     }

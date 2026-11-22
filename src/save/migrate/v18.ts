@@ -1,13 +1,15 @@
 import { auraSlots, emptySlots, godPowers, guardianSource, hashText, power, type PowerId, relicPowerId, traceSource, ultimateId, weaponId } from '../../data/powers'
 import type { Pantheon } from '../../myth/pantheon'
-import type { PowerData } from '../../progress/Powers'
+import type { PowerData, PowerLight } from '../../progress/Powers'
+import { WAKE } from '../../data/wake'
 import type { God, RelicId } from '../../relics/data'
 
 /**
  * 저장 v18 옮기기 (재미 재설계 2026-11-20, `docs/knowledge/review-e307/redesign.md` 2장): 신 단위로 열던 것을 힘 하나하나로.
  * `parseSave`가 `powers` 키가 없는 저장(v17 이하)에서 부른다. 옮긴 뒤에도 힘이 줄지 않게:
  * - 깨운 신(단계 1 이상)은 만난 신이고, 그 신의 힘을 모두 가진 것으로 친다. 흔적과 수호자는 이미 고른 출처다
- * - 깨우는 도중인 신(흔적의 무리를 이김)의 힘은 주지 않는다 (P5: 힘은 고른 것만 가진다. 그 신의 수호자를 이기면 빛에서 고른다)
+ * - 깨우는 도중인 신(흔적의 무리를 이김)의 힘은 주지 않는다 (P5: 힘은 고른 것만 가진다. 그 신의 수호자를 이기면 빛에서 고른다).
+ *   그 흔적은 이제 응답하지 않으니(무리를 이김) 흔적에서 고를 셋은 흔적 자리의 빛(`trace:<신>`)으로 남긴다
  * - 켠 유물의 힘은 모두 가진 것으로
  * - 지금 자리 셋에 든 신의 힘을 칸에 끼운다: 손 → 무기, 심장 → 궁극기,
  *   도는 힘은 손의 신의 켠 유물 → 숨의 신마다 패시브 부품 → 자리에 든 신의 켠 유물
@@ -21,6 +23,8 @@ export function powersFromV17(o: {
   lit: readonly RelicId[]
   /** 귀환 수 (원정 번호 − 1) */
   returns: number
+  /** 깨우는 도중인 신 (흔적의 무리를 이김, 아직 깨지 않음) */
+  waking?: readonly God[]
 }): PowerData {
   const opened = (Object.keys(o.classes) as God[]).filter((god) => (o.classes[god]?.level ?? 0) >= 1)
   const met = [...opened]
@@ -44,5 +48,12 @@ export function powersFromV17(o: {
   slots.auras = [...new Set(auras.filter(has))].slice(0, auraSlots(o.returns))
   // 씨앗은 저장에서 정한다: 같은 옛 저장은 몇 번을 옮겨도 같은 셋을 내민다
   const seed = hashText(JSON.stringify([o.classes, o.pantheon, null, o.lit, o.returns]))
-  return { owned, slots, claimed, met, seed }
+  const lights: PowerLight[] = (o.waking ?? [])
+    .filter((god) => !opened.includes(god) && WAKE[god])
+    .map((god) => {
+      const t = WAKE[god]!.trace
+      // 흔적 모형 바로 위가 아니라 곁에 (모형이 길을 막아 밟지 못하지 않게)
+      return { source: traceSource(god), region: t.region, x: t.x, z: t.z + 2 }
+    })
+  return { owned, slots, claimed, met, seed, ...(lights.length ? { lights } : {}) }
 }

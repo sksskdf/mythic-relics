@@ -271,7 +271,7 @@ describe.skipIf(!BROWSER)('잘린 요소 검사 (scripts/lib/cuts.mjs, E307)', (
       title: '프레이',
       say: '내 수호자를 넘었구나. 하나를 더 가져가라',
       color: '#ffd27a',
-      rows: longest.map((p, i) => ({ id: p.id, kind: KINDS[p.kind], name: p.name, line: p.line, color: '#9fe3ff', combo: '종말의 전령', ...(i > 0 ? { spare: true } : {}) })),
+      rows: longest.map((p, i) => ({ id: p.id, kind: KINDS[p.kind], name: p.name, line: p.line, color: '#9fe3ff', combo: '종말의 전령', swap: '지금: 거합 → 육비', ...(i > 0 ? { spare: true } : {}) })),
     })
     const page = (size) =>
       `<style>${STYLES.map(css).join('\n')}</style>${size[0] < size[1] ? "<script>document.documentElement.classList.add('is-touch')</script>" : ''}<div class="hud">` +
