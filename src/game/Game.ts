@@ -150,6 +150,7 @@ export class Game {
       mounted: () => this.mount.owned,
       merged: () => this.powers.loadout.uniquesSeen.size,
       oathsKept: () => this.oaths.kept.size,
+      met: () => this.ctx.mythPowers.met.length,
     },
     // 엔딩 뒤에는 남은 신화권 셋의 결계가 풀린다
     () => this.ending.has('realms'),
@@ -424,7 +425,6 @@ export class Game {
       hovered: () => this.playerInput.hovered,
       screenPoint: (x, y, z) => this.screenPoint(x, y, z),
       traces: () => this.awakening.spots,
-      traceContext: () => ({ waking: this.awaken.waking, sealedText: this.awakening.sealedText() }),
       guardian: () => this.awakening.fighting,
     })
     // 정보 화면 탭은 쓸 일이 생길 때 하나씩 열린다 (E236-05): 열리면 한 줄짜리 카드와 메뉴 단추 표시

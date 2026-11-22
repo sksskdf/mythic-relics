@@ -11,13 +11,9 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, te
   return e
 }
 
-/** 흔적 카드에 보일 지금 상태: 흔적의 형편, 깨우는 신 */
+/** 흔적 카드에 보일 지금 상태: 흔적의 형편 (다른 신을 깨우는 중이어도 흔적은 응답하니 차례를 말하는 글은 없다, 2026-11-22) */
 export interface TraceCardContext {
   state: TraceState
-  /** 잠잠한 흔적이 응답하는 때 (「성소 화로에서 원정을 마치면 응답한다」, E305-03) */
-  sealedText: string
-  /** 지금 깨우는 신 (다른 신을 깨우는 중일 때 이름을 댄다) */
-  waking: God | null
 }
 
 /**
@@ -29,8 +25,8 @@ export interface TraceCardContext {
  */
 /** 흔적 카드의 정해진 글 */
 export const TRACE_WORDS = {
-  /** 응답하는 흔적의 「지금 할 일」: 다가가면 싸움이 붙고, 이기면 그 신의 힘을 빌린다 */
-  open: '다가가면 지키는 것들이 깨어난다 · 물리치면 힘을 빌린다',
+  /** 응답하는 흔적의 「지금 할 일」: 고리 안에 서 있으면 싸움이 붙고, 이기면 그 신의 힘을 빌린다 */
+  open: '곁에 서면 지키는 것들이 깨어난다 · 물리치면 힘을 빌린다',
   /** 얻는 것 (손 = 무기는 흔적의 무리를 물리치면 바로, 심장 = 궁극기는 수호자를 쓰러뜨려 깨우면) */
   gain: '물리치면 무기 · 깨우면 궁극기',
   /** 빌려주는 힘 (흔적의 무리를 물리치면 바로) */
@@ -43,8 +39,7 @@ export function traceNow(god: God, ctx: TraceCardContext): string {
   if (ctx.state === 'awake') return '깨어난 신'
   if (ctx.state === 'waking') return `${path ? josa(path.guardian.name, '을') : '수호자를'} 쓰러뜨리면 깨어난다`
   if (ctx.state === 'later') return LATER_TEXT
-  if (ctx.state === 'busy' && ctx.waking) return `${josa(godDef(ctx.waking).name, '이')} 깨어난 뒤에 응답한다`
-  return ctx.state === 'sealed' ? ctx.sealedText : TRACE_WORDS.open
+  return TRACE_WORDS.open
 }
 
 export function traceCard(god: God, ctx: TraceCardContext): HTMLElement {

@@ -50,7 +50,7 @@ const sample: SaveData = {
   training: { xp: 1500, taken: ['awaken', 'edge'] },
   expedition: { count: 4, renown: 20, flames: { stone: 1 }, best: [900], elapsed: 30, bosses: 0, deepest: 1, lastTaken: ['awaken'], bestXp: 1200, heirloom: [], oath: 'silence', oathPending: false, lastBranch: 'ascend:thor', deepWin: true, falls: 2 },
   tabs: ['relics', 'training'],
-  awaken: { waking: 'odin', fragments: 2 },
+  awaken: { gods: { odin: 2 } },
   powers: { owned: ['weapon:thor', 'ultimate:thor', 'aura:thor.basicLightning', 'relic:mjolnir', 'weapon:odin'], slots: { weapon: 'weapon:thor', ultimate: 'ultimate:thor', auras: ['aura:thor.basicLightning'] }, claimed: ['trace:thor', 'trace:odin'], met: ['thor', 'odin'], seed: 12345 },
   mount: true,
   region: { id: 'olympus', x: 3.5, z: -12 },
@@ -306,12 +306,12 @@ describe('저장 v11: 연 탭 (E236-05)', () => {
 
 describe('저장 v13: 신을 깨우는 조각 (E238)', () => {
   it('깨우는 신은 그대로, 사냥하던 옛 저장(조각 1)도 조각 2로 읽는다 (사냥 단계를 걷음)', () => {
-    expect(parseSave(JSON.stringify({ ...sample, awaken: { waking: 'odin', fragments: 1, hunt: 7 } }))?.awaken).toEqual({ waking: 'odin', fragments: 2 })
-    expect(parseSave(JSON.stringify({ ...sample, awaken: { waking: 'odin', fragments: 2, hunt: 3 } }))?.awaken).toEqual({ waking: 'odin', fragments: 2 })
+    expect(parseSave(JSON.stringify({ ...sample, awaken: { waking: 'odin', fragments: 1, hunt: 7 } }))?.awaken).toEqual({ gods: { odin: 2 } })
+    expect(parseSave(JSON.stringify({ ...sample, awaken: { waking: 'odin', fragments: 2, hunt: 3 } }))?.awaken).toEqual({ gods: { odin: 2 } })
   })
 
   it('옛 저장(v12)·깨우는 길이 없는 신·이미 연 신이면 깨우는 신 없이', () => {
-    const empty = { waking: null, fragments: 0 }
+    const empty = { gods: {} }
     expect(parseSave(JSON.stringify({ ...sample, version: 12, awaken: undefined }))?.awaken).toEqual(empty)
     expect(parseSave(JSON.stringify({ ...sample, awaken: { waking: 'wukong', fragments: 1, hunt: 2 } }))?.awaken).toEqual(empty)
     expect(parseSave(JSON.stringify({ ...sample, awaken: { waking: 'thor', fragments: 1, hunt: 2 } }))?.awaken).toEqual(empty)
@@ -353,7 +353,7 @@ describe('그리스 장의 옛 저장 (E305-03: 성소의 신화 고르기 → �
 
   it('북유럽 신을 깨우는 중인 채 그리스 장: 깨우는 신은 그대로 남는다 (제우스는 그 뒤에 응답한다)', () => {
     const data = parseSave(JSON.stringify({ ...greek, classes: { thor: { level: 2, xp: 0 } }, awaken: { waking: 'loki', fragments: 1, hunt: 5 } }))!
-    expect(data.awaken).toEqual({ waking: 'loki', fragments: 2 })
+    expect(data.awaken).toEqual({ gods: { loki: 2 } })
   })
 })
 
@@ -861,5 +861,43 @@ describe('저장 v17: 실제 모양의 옛 저장 견본 (v1·v9·v12·v13·v15�
     expect(ratio).toBeGreaterThanOrEqual(0.9)
     expect(ratio).toBeLessThanOrEqual(1.1)
     expect(parseSave(JSON.stringify(data))!.expedition.renown).toBe(1)
+  })
+})
+
+describe('차례가 있던 판을 차례 없는 흐름으로 (2026-11-22, 재미 재설계 P4)', () => {
+  it('토르를 깨우고 귀환 한 번, 오딘을 깨우던 판: 오딘의 수호자가 선 채로 읽고, 장은 「신 둘」 할 일에서 이어 가며 요툰헤임은 열리고 우트가르드는 닫힌 채', () => {
+    const raw = {
+      ...sample,
+      ending: false,
+      classes: { thor: { level: 1 } },
+      awaken: { waking: 'odin', fragments: 2 },
+      chapters: { entered: ['village', 'midgard', 'serpentshore', 'ironwood'], bosses: [] },
+      expedition: { ...sample.expedition, count: 2 },
+    }
+    const data = parseSave(JSON.stringify(raw))!
+    expect(data.awaken).toEqual({ gods: { odin: 2 } })
+    // 게임에 불러와 다시 저장해도 새 꼴 그대로 (옛 키는 남지 않는다)
+    const again = parseSave(JSON.stringify(throughGame(data)))!
+    expect(again.awaken).toEqual({ gods: { odin: 2 } })
+    expect(again.expedition.count).toBe(2)
+    const chapters = new ChapterProgress({
+      awakened: (realm) => Object.entries(again.classes).filter(([g, r]) => (r?.level ?? 0) >= 1 && godDef(g).realm === realm).length,
+      forged: () => 0,
+      returns: () => again.expedition.count - 1,
+      mounted: () => false,
+      merged: () => 0,
+      oathsKept: () => 0,
+    })
+    chapters.load(again.chapters)
+    expect(chapters.goal).toMatchObject({ kind: 'awaken', realm: 'norse', n: 2 })
+    expect(chapters.isOpen('jotunheim')).toBe(true)
+    expect(chapters.isOpen('muspel')).toBe(true)
+    expect(chapters.isOpen('utgard')).toBe(false)
+  })
+
+  it('이미 깨운 신은 깨우는 길에서 빠지고, 신마다의 꼴은 그대로 다시 읽힌다', () => {
+    const data = parseSave(JSON.stringify({ ...sample, classes: { thor: { level: 2 }, odin: { level: 1 } }, awaken: { gods: { odin: 2, loki: 2, freyr: 2 } } }))!
+    expect(data.awaken).toEqual({ gods: { loki: 2, freyr: 2 } })
+    expect(parseSave(JSON.stringify(data))!.awaken).toEqual(data.awaken)
   })
 })

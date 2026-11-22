@@ -137,6 +137,8 @@ export interface MinimapState {
   sanctuaryReady: boolean
   /** 다음 목표의 자리 (지금 땅 좌표, E22-04): 지금 땅의 성소·보스, 다른 땅이면 그쪽으로 가는 통로. 지도 밖이면 가장자리에 */
   goal?: { x: number; z: number } | null
+  /** 함께 표시할 목표 자리 (신 깨우기: 서 있는 수호자와 응답할 흔적 모두, 2026-11-22) */
+  goals?: readonly { x: number; z: number }[]
   /** 응답하는 신의 흔적 (E238): 그 신의 색 십자 */
   traces?: readonly { x: number; z: number; color: string }[]
 }
@@ -269,7 +271,7 @@ export class Minimap {
     // 신의 흔적 (E238): 그 신의 색 십자
     for (const t of state.traces ?? []) this.stamp(g, t, MARKS.trace, t.color)
     // 다음 목표: 금빛 마름모 테가 그 자리를 두르고 깜빡인다 (출구 표시를 가리지 않게 속은 비움, 지도 밖이면 가장자리로 당겨 방향만)
-    if (state.goal) this.stamp(g, state.goal, MARKS.goal, blink ? this.ink.relic : this.ink.ready, true)
+    for (const spot of [...(state.goal ? [state.goal] : []), ...(state.goals ?? [])]) this.stamp(g, spot, MARKS.goal, blink ? this.ink.relic : this.ink.ready, true)
     // 나: 맨 위에. 통로 끝처럼 그림 밖으로 나가는 자리에서도 잘리지 않게 가장자리에 붙인다
     this.stamp(g, state.hero, MARKS.me, this.ink.me, true)
   }

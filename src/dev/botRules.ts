@@ -54,6 +54,14 @@ export function soaksFalling(fight: 'guardian' | 'boss' | null, hp: number): boo
   return fight !== null && hp > SOAK_HP[fight]
 }
 
+/**
+ * 장 흐름 봇이 스스로 귀환할 때인가 (2026-11-22: 제1장의 할 일이 귀환을 시키지 않는다): 이번 원정에서 수호자·장 보스를 이겼고,
+ * 지금 땅에 성소가 있고, 귀환할 수 있다. 수호자 → 귀환 → 다음 흔적. 깊이 봇은 제 규칙으로 귀환한다
+ */
+export function selfReturn(s: { chapters: boolean; deepen: boolean; bosses: number; sanctuary: boolean; canReturn: boolean }): boolean {
+  return s.chapters && !s.deepen && s.bosses >= 1 && s.sanctuary && s.canReturn
+}
+
 /** 보스를 붙들어 두는 자리: 보스의 집과, 집에서 이 거리 안 (줄 길이 × 되돌아 쫓는 몫) */
 export interface Hold {
   home: Point2

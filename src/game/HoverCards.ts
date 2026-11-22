@@ -11,7 +11,7 @@ import type { PixelRenderer } from '../render/PixelRenderer'
 import { worldToScreen } from '../render/picking'
 import type { QuarterViewCamera } from '../render/QuarterViewCamera'
 import { gearCard } from '../ui/gearCard'
-import { traceCard, type TraceCardContext } from '../ui/traceCard'
+import { traceCard } from '../ui/traceCard'
 import { TRACE_RADIUS, type TraceState } from '../data/wake'
 import type { God } from '../relics/data'
 import type { Nameplates, PlateBox, PlateTarget } from '../ui/Nameplates'
@@ -36,8 +36,6 @@ export interface HoverCardsParts {
   screenPoint(x: number, y: number, z: number): { x: number; y: number }
   /** 지금 땅의 신의 흔적 (E238) */
   traces(): readonly { god: God; x: number; z: number; state: TraceState }[]
-  /** 흔적 카드에 보일 깨우는 진행 */
-  traceContext(god: God): Omit<TraceCardContext, 'state'>
   /** 보스 막대에 이름이 뜨는 수호자 (머리 위 이름표는 띄우지 않는다) */
   guardian(): unknown
 }
@@ -143,8 +141,8 @@ export class HoverCards {
     this.groundTooltip = true
     if ('god' in item) {
       // 신의 흔적 (E238): 무엇을 고르는지 알고 고르게 그 신의 무기·빌려주는 힘
-      const now = { ...this.parts.traceContext(item.god), state: item.state }
-      this.tooltip.showCard(`trace:${item.god}`, `${item.god}|${now.state}|${now.waking}|${now.sealedText}`, () => traceCard(item.god, now), x, y, above, band)
+      const now = { state: item.state }
+      this.tooltip.showCard(`trace:${item.god}`, `${item.god}|${now.state}`, () => traceCard(item.god, now), x, y, above, band)
       return
     }
     const gear = ctx.pickups.gearOf(item.id)
@@ -205,9 +203,7 @@ export class HoverCards {
 
   /** 흔적의 형편: 카드의 「지금 할 일」 줄이 달라지는 것만 (늘 움직이는 것은 뺀다). 바뀌면 다시 읽을 카드다 */
   private traceLook(t: { god: God; state: TraceState }): string {
-    if (t.state !== 'waking' && t.state !== 'sealed' && t.state !== 'busy') return t.state
-    const now = this.parts.traceContext(t.god)
-    return `${t.state}|${t.state === 'sealed' ? now.sealedText : now.waking}`
+    return t.state
   }
 
   /**

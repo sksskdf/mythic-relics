@@ -1,5 +1,6 @@
 import { CHAPTERS, COUNTED_KINDS, type ChapterDef, type ChapterStep, chapterOf, conquestsOf, SOFT_KINDS, TOP_POWER } from '../data/chapters'
 import { REGIONS } from '../data/regions'
+import { ORDER_POWER } from '../data/wake'
 
 /** 장 진행이 게임에서 읽는 것 (신화·장비는 따로 저장되니 여기서는 묻기만 한다) */
 export interface ChapterWorld {
@@ -15,6 +16,8 @@ export interface ChapterWorld {
   merged(): number
   /** 지킨 맹세의 수 (E306) */
   oathsKept(): number
+  /** 만난 신의 수 (2026-11-22: 어느 땅부터 가도 되는 장의 땅 세기). 없으면 데이터의 세기 그대로 */
+  met?(): number
 }
 
 export interface ChapterData {
@@ -130,10 +133,15 @@ export class ChapterProgress {
     return gate < 0 || this.lastDone(chapter) >= gate
   }
 
-  /** 그 땅 보통 적의 세기 (처음 땅 = 1). 장 흐름 밖의 들판(엔딩 뒤)은 가장 센 땅만큼, 끝없는 원정·마을은 1 (끝없는 원정은 층이 세기를 정한다) */
+  /** 그 땅 보통 적의 세기 (처음 땅 = 1). 어느 땅부터 가도 되는 장(`free`)은 만난 신 수로 낮춘다. 장 흐름 밖의 들판(엔딩 뒤)은 가장 센 땅만큼, 끝없는 원정·마을은 1 (끝없는 원정은 층이 세기를 정한다) */
   power(region: string): number {
     const chapter = chapterOf(region, this.chapters)
-    if (chapter) return chapter.lands[region]!
+    if (chapter) {
+      const land = chapter.lands[region]!
+      const boss = chapter.steps.at(-1)
+      if (!chapter.free || this.world.met === undefined || (boss?.kind === 'boss' && boss.region === region)) return land
+      return Math.min(land, ORDER_POWER[Math.min(ORDER_POWER.length - 1, this.world.met())]!)
+    }
     return REGIONS[region]?.kind === 'field' ? TOP_POWER : 1
   }
 

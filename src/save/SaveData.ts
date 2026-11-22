@@ -14,7 +14,7 @@ import { parseEndless, type EndlessData } from '../progress/Endless'
 import { parseTraining, type TrainingData } from '../progress/Training'
 import { type ExpeditionData, parseExpedition } from '../progress/Expedition'
 import { parseTabs } from '../progress/Tabs'
-import { type WakeData, parseWake } from '../progress/Wake'
+import { type WakeData, parseWake, wakingOf } from '../progress/Wake'
 import { parseMount } from '../progress/Mount'
 import { mergePowers, parsePowers, type PowerData } from '../progress/Powers'
 import { type BodyLook, parseBody } from '../looks/body'
@@ -251,10 +251,10 @@ export function parseSave(text: string | null): SaveData | null {
   const waypoints = Array.isArray(data.waypoints) ? parseWaypoints(data.waypoints) : oldVisited(data.conveniences)
   const chapters = oldDanger ? oldChapters(region, waypoints, oldDanger.cleared, materials, relicsOwned) : parseChapterData(data.chapters)
   const awaken = openedAwaken(parseWake(data.awaken), myths)
-  const pantheon = (data.version as number) < 14 ? fromChosen(parseChosen(data.chosen, legacySlots(data.slots), myths)) : parsePantheon(data.pantheon, myths, awaken.fragments >= 2 ? awaken.waking : null)
+  const pantheon = (data.version as number) < 14 ? fromChosen(parseChosen(data.chosen, legacySlots(data.slots), myths)) : parsePantheon(data.pantheon, myths, wakingOf(awaken)[0] ?? null)
   const expedition = oldExpedition(data, chapters, myths, stages)
   // 힘 (v18): 키가 없는 저장은 깨운 신·자리 셋에서 옮긴다. 씨앗이 빠진 저장도 옮길 때와 같은 씨앗을 받는다
-  const moved = powersFromV17({ classes: myths, pantheon, waking: awaken.waking, lit, returns: expedition.count - 1 })
+  const moved = powersFromV17({ classes: myths, pantheon, waking: wakingOf(awaken)[0] ?? null, lit, returns: expedition.count - 1 })
   // 키가 있는 저장도 옛 상태에서 셈한 것과 합친다: 깨운 신은 있는데 힘이 빈 저장이 맨손으로 굳지 않게 (`mergePowers`)
   const powers = typeof data.powers === 'object' && data.powers !== null && !Array.isArray(data.powers) ? mergePowers(parsePowers(data.powers, moved.seed), moved) : moved
   return {
@@ -319,9 +319,9 @@ function parseUniques(raw: unknown, owned: readonly GearItem[]): string[] {
   return [...out]
 }
 
-/** 깨우는 신이 이미 열린 신이면 (어긋난 저장) 처음으로 */
+/** 깨우던 신이 이미 열린 신이면 (어긋난 저장) 그 신의 길은 뺀다 */
 function openedAwaken(awaken: WakeData, classes: SaveData['classes']): WakeData {
-  return awaken.waking && (classes[awaken.waking]?.level ?? 0) >= 1 ? { waking: null, fragments: 0 } : awaken
+  return { gods: Object.fromEntries(Object.entries(awaken.gods).filter(([god]) => (classes[god as God]?.level ?? 0) < 1)) }
 }
 
 /** 고른 신화: 열린 신화만. 없으면(옛 저장) 칸의 유물로 1차 스프린트 발현 규칙을 따른다 */

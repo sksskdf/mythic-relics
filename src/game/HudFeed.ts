@@ -80,6 +80,7 @@ export class HudFeed {
       // 원정이 무르익으면 성소 화로가 깜빡인다 (E305-03: 성소 전설 대신 귀환)
       sanctuaryReady: game.sanctuary.lit,
       goal: this.goalSpot(),
+      goals: this.goalSpots().slice(1),
       // 신의 흔적 (E238): 응답하는 흔적만 그 신의 색으로
       traces: game.awakening.spots.filter((t) => t.state === 'open').map((t) => ({ x: t.x, z: t.z, color: godDef(t.god).color })),
     })
@@ -89,21 +90,33 @@ export class HudFeed {
    * 다음 목표의 자리 (지금 땅 좌표, E22-04): 지금 땅이면 성소(귀환)·보스·대장장이·고개지기, 다른 땅이면 그쪽 통로 입구.
    * 작은 지도의 금빛 표시와 봇이 쓴다
    */
+  /**
+   * 신 깨우기의 표시 자리 모두 (2026-11-22: 특정 신을 가리키지 않는다): 서 있는 수호자 자리와 응답할 흔적 모두.
+   * 지금 땅의 것은 그 자리, 다른 땅의 것은 그쪽 통로 입구 (같은 통로는 한 번). 신 깨우기 목표가 아니면 빈 목록
+   */
+  goalSpots(): { x: number; z: number }[] {
+    const { chapters, awakening, world } = this.parts.game
+    const region = world.region
+    if (chapters.goal?.kind !== 'awaken' || region.kind === 'endless') return []
+    const { region: prefer, realm } = chapters.goal
+    const first = awakening.target(prefer, null, realm)
+    const out: { x: number; z: number }[] = []
+    // 다음 할 일 하나(`target`)가 맨 앞: 봇과 지도 탭이 같은 곳을 본다
+    for (const t of [...(first ? [first] : []), ...awakening.targets(realm)]) {
+      const spot = t.region === region.id ? awakening.placed(t) : world.wayTo(t.region)
+      if (spot && !out.some((o) => Math.hypot(o.x - spot.x, o.z - spot.z) < 1)) out.push(spot)
+    }
+    return out
+  }
+
   goalSpot(): { x: number; z: number } | null {
     const { game } = this.parts
-    const { chapters, awakening, world } = game
+    const { chapters, world } = game
     const goal = chapters.goal
     const region = world.region
     if (!goal || region.kind === 'endless') return null
-    // 신 깨우기 (E238): 깨우는 신의 다음 조각(사냥하는 땅·수호자 자리), 없으면 응답하는 흔적
-    if (goal.kind === 'awaken') {
-      // 흔적이 잠잠하면(귀환해야 다음 신이 응답) 성소 화로
-      if (this.parts.game.chapterSystem.awaitsReturn()) return region.sanctuary
-      const target = awakening.target(goal.region)
-      if (!target) return null
-      if (target.region !== region.id) return world.wayTo(target.region)
-      return awakening.placed(target)
-    }
+    // 신 깨우기 (E238): 다음 할 일 하나(서 있는 수호자, 없으면 가까운 흔적). 나머지 자리는 `goalSpots`가 함께 표시한다
+    if (goal.kind === 'awaken') return this.goalSpots()[0] ?? null
     // 합치기 (E306): 가방에서 하는 일이라 자리가 없다
     if (goal.kind === 'merge') return null
     // 귀환 (E306 D2): 어느 성소에서 해도 되니 지금 땅에 성소가 있으면 그 화로, 없으면 데이터의 땅으로

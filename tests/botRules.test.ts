@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
 import enemies from '../src/data/enemies.json'
-import { bossTurn, holdOf, OLD_BRANCH_ORDER, returnBranch, soaksFalling, staysInHold } from '../src/dev/botRules'
+import { bossTurn, holdOf, OLD_BRANCH_ORDER, returnBranch, selfReturn, soaksFalling, staysInHold } from '../src/dev/botRules'
+import { pickAwaken } from '../src/data/wake'
+import type { God } from '../src/relics/data'
 import { LEASH_REENGAGE } from '../src/enemies/Giant'
 
 describe('봇의 귀환 갈래 (E307 0C)', () => {
@@ -117,5 +119,37 @@ describe('보스를 줄 밖으로 끌고 나가지 않는 자리 (E307 0C)', () 
 
   it('붙드는 싸움이 없으면 어디든 된다', () => {
     expect(staysInHold({ x: 500, z: 500 }, { x: 0, z: 0 }, null)).toBe(true)
+  })
+})
+
+describe('차례 없는 흔적의 봇 (2026-11-22)', () => {
+  it('수호자·장 보스를 이긴 원정이고 이 땅에 성소가 있으면 스스로 귀환한다 (깊이 봇·장 흐름 밖은 제 규칙)', () => {
+    const now = { chapters: true, deepen: false, bosses: 1, sanctuary: true, canReturn: true }
+    expect(selfReturn(now)).toBe(true)
+    expect(selfReturn({ ...now, bosses: 0 })).toBe(false)
+    expect(selfReturn({ ...now, sanctuary: false })).toBe(false)
+    expect(selfReturn({ ...now, canReturn: false })).toBe(false)
+    expect(selfReturn({ ...now, deepen: true })).toBe(false)
+    expect(selfReturn({ ...now, chapters: false })).toBe(false)
+  })
+
+  it('다음 깨우는 일: --first의 신, 서 있는 수호자, 지금 땅의 가까운 흔적, 장 할 일의 땅의 흔적 차례', () => {
+    type T = { god: God; kind: 'trace' | 'guardian'; region: string; d: number }
+    const thor: T = { god: 'thor', kind: 'trace', region: 'midgard', d: 30 }
+    const odin: T = { god: 'odin', kind: 'trace', region: 'midgard', d: 10 }
+    const loki: T = { god: 'loki', kind: 'trace', region: 'jotunheim', d: 0 }
+    const freyr: T = { god: 'freyr', kind: 'guardian', region: 'muspel', d: 0 }
+    const pick = (all: T[], here: string, first: God | null = null, prefer?: string) => pickAwaken(all, { here, prefer, first, distance: (t) => t.d })?.god ?? null
+    // 지금 땅의 가장 가까운 흔적
+    expect(pick([thor, odin, loki], 'midgard')).toBe('odin')
+    // 다른 땅에 있으면 장 할 일의 땅(prefer)의 것, 없으면 차례대로
+    expect(pick([thor, loki], 'village', null, 'jotunheim')).toBe('loki')
+    expect(pick([thor, loki], 'village')).toBe('thor')
+    // 서 있는 수호자가 흔적보다 먼저
+    expect(pick([thor, odin, freyr], 'midgard')).toBe('freyr')
+    // --first가 있으면 그 신부터 (할 일 가운데 없으면 여느 차례)
+    expect(pick([thor, odin, loki, freyr], 'midgard', 'loki')).toBe('loki')
+    expect(pick([thor, odin], 'midgard', 'loki')).toBe('odin')
+    expect(pick([], 'midgard')).toBeNull()
   })
 })

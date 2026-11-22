@@ -58,7 +58,7 @@
     "deepWin": true
   },
   "tabs": ["relics", "training", "gods", "map", "sources", "oaths"],
-  "awaken": { "waking": "artemis", "fragments": 2 },
+  "awaken": { "gods": { "artemis": 2 } },
   "powers": {
     "owned": ["weapon:thor", "ultimate:thor", "aura:thor.basicLightning", "aura:thor.skyStrike", "relic:mjolnir", "relic:megingjord", "relic:jarngreipr", "weapon:odin", "ultimate:odin", "aura:odin.companions", "relic:gungnir", "relic:draupnir", "relic:huginnFeather", "weapon:loki", "ultimate:loki", "aura:loki.companions", "relic:lokiMask", "weapon:zeus", "ultimate:zeus", "aura:zeus.skyStrike", "relic:keraunos", "aura:poseidon.pulse", "relic:triaina", "weapon:artemis"],
     "slots": { "weapon": "weapon:odin", "ultimate": "ultimate:zeus", "auras": ["aura:thor.basicLightning", "aura:odin.companions", "relic:gungnir", "relic:mjolnir", "aura:zeus.skyStrike", "aura:poseidon.pulse"] },

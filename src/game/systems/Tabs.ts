@@ -30,7 +30,7 @@ export class TabSystem {
       insights: training.insights,
       shrine: waypoints.size > 0,
       // 신 탭은 첫 신의 흔적(조각 1)부터 (E238)
-      myth: progress.opened.length > 0 || awaken.fragments >= 1,
+      myth: progress.opened.length > 0 || awaken.waking.length > 0,
       returns: expedition.returns,
     }
   }

@@ -22,17 +22,9 @@ export const HEARTH_RADIUS = 2.5
 
 const clock = (s: number): string => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`
 
-/** 귀환을 바라는지 정하는 지금 값을 게임에서 모은다 (`returnAsked`·`tracesAwaitReturn`에 넘긴다: 귀환 카드와 목표 한 줄이 같은 값을 본다) */
+/** 귀환을 바라는지 정하는 지금 값을 게임에서 모은다 (`returnAsked`에 넘긴다: 귀환 카드와 목표 한 줄이 같은 값을 본다) */
 export function returnAskNow(ctx: GameContext): ReturnAskNow {
-  const { chapters, progress, awaken, expedition, ending } = ctx
-  return {
-    goal: chapters.goal?.kind,
-    waking: !!awaken.waking && !progress.isOpen(awaken.waking),
-    awakened: progress.opened.length,
-    returns: expedition.returns,
-    conquered: chapters.conquered,
-    afterEnding: ending.has('realms'),
-  }
+  return { goal: ctx.chapters.goal?.kind }
 }
 
 /**

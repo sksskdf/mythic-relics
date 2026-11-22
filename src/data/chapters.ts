@@ -67,6 +67,11 @@ export interface ChapterDef {
   name: string
   /** 이 장 땅의 단계 (장비 단계) */
   tier: number
+  /**
+   * 어느 땅부터 가도 되는 장 (2026-11-22, 제1장): 장 보스의 땅을 뺀 땅의 세기는 데이터 값과 「만난 신 수」에 따른 세기(`ORDER_POWER`) 가운데 작은 쪽.
+   * 먼저 가는 땅이 쉽고 나중에 가는 땅이 세다 (로키부터 가도 요툰헤임의 무리가 첫 판에 7.5배로 서지 않게)
+   */
+  free?: true
   /** 이 장에 열리는 땅과 그 땅 보통 적의 세기 (처음 땅 = 1) */
   lands: Record<string, number>
   steps: ChapterStep[]
@@ -80,7 +85,8 @@ export function parseChapters(rawChapters: unknown, regions = REGIONS, path = 'c
   const open = new Set(Object.values(regions).filter((r) => r.kind === 'hub').map((r) => r.id))
   for (const [id, o] of table(rawChapters, path)) {
     const p = `${path}.${id}`
-    onlyKeys(o, p, ['title', 'name', 'tier', 'lands', 'steps'])
+    onlyKeys(o, p, ['title', 'name', 'tier', 'free', 'lands', 'steps'])
+    if (o.free !== undefined && o.free !== true) throw new DataError(`${p}.free`, 'free는 true만 씁니다')
     const tier = num(o, 'tier', p, { min: 1, max: 9 })
     const lands: Record<string, number> = {}
     for (const [land, power] of Object.entries(obj(o.lands, `${p}.lands`))) {
@@ -120,7 +126,7 @@ export function parseChapters(rawChapters: unknown, regions = REGIONS, path = 'c
       return step
     })
     if (SOFT_KINDS.has(steps.at(-1)!.kind)) throw new DataError(`${p}.steps`, '합치기·맹세는 장을 끝내는 일이 될 수 없습니다')
-    out.push({ id, title: str(o, 'title', p), name: str(o, 'name', p), tier, lands, steps })
+    out.push({ id, title: str(o, 'title', p), name: str(o, 'name', p), tier, ...(o.free === true ? { free: true } : {}), lands, steps })
   }
   if (out.length === 0) throw new DataError(path, '장이 하나는 있어야 합니다')
   const last = out.at(-1)!.steps.at(-1)!

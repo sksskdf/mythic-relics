@@ -157,7 +157,7 @@ const sections = {
         const g = window.__game
         window.__qa.seat('thor')
         g.dev.equip('mjolnir')
-        // 둘째 신의 흔적은 첫 귀환 뒤에 응답한다 (`traceStateOf`): 귀환 1을 마친 원정으로
+        // 흔적은 차례 없이 응답한다 (2026-11-22). 원정 번호는 예전 장면과 같게 귀환 1을 마친 원정으로
         g.expedition.count = 2
         g.encounter.clearAll()
       })

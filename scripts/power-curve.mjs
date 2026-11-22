@@ -21,6 +21,7 @@
 // - 판마다 처치가 끊긴 가장 긴 구간(killGap: 첫 신 뒤, 깊이 봇은 처음부터)과 그 땅, 페이지 오류(errors)도 남긴다 (E307 0C).
 //   덩어리의 문에서 실패는 엔딩에 못 닿은 판·처치 없이 300초·오류다. killGap은 처치를 걸러 내기 전의 기록으로 셈한다 (남기는 log에는 처치가 없다)
 // --branch=old: 봇이 귀환 갈래를 옛 고정 차례(승천 → 불꽃 → 승천 → 사냥)로 고른다. 기본은 승천할 신이 있으면 늘 승천 (E307 0C, `src/dev/botRules.ts`)
+// --first=thor|odin|loki|freyr: 장 흐름 봇이 그 신의 흔적부터 간다 (2026-11-22: 신의 차례가 없다)
 // --runs=N: N판을 이어 돌린다 (같은 판 기준선 세 판). 둘째 판부터는 power-curve-2.json처럼 옆에 남기고, 판을 쓸 때마다 첫 파일의 siblings에 적는다
 // --out=파일: 결과 파일 (기본 test-results/power-curve.json, 없는 폴더는 만든다)
 // --depth=N: 엔딩 뒤에서 원정이 무르익을 때마다 귀환하며 깊이를 하나씩 내려가 N까지 (E305-03, 옛 --threat)
@@ -45,6 +46,12 @@ const RUNS = SHOTS ? 1 : Math.max(1, Number(flag('--runs=') ?? 1))
 const OUT_FILE = flag('--out=') ?? 'test-results/power-curve.json'
 /** 봇이 귀환 갈래를 고르는 법: 기본 ascend(늘 승천), old는 옛 고정 차례 (E307 0C) */
 const BRANCH = flag('--branch=') ?? 'ascend'
+/** 봇이 먼저 갈 신의 흔적 (없으면 가장 가까운 흔적부터) */
+const FIRST = flag('--first=') ?? null
+if (FIRST && !['thor', 'odin', 'loki', 'freyr'].includes(FIRST)) {
+  console.error(`--first=${FIRST}: thor·odin·loki·freyr만 됩니다.`)
+  process.exit(2)
+}
 if (!['ascend', 'old'].includes(BRANCH)) {
   console.error(`--branch=${BRANCH}: ascend(기본)나 old만 됩니다.`)
   process.exit(2)
@@ -173,6 +180,7 @@ try {
     await page.goto(`${BASE}?fresh&autoplay`)
     await page.waitForFunction(() => window.__autoplay && window.__game.frame > 2, null, { timeout: 60000 })
     await page.evaluate((branch) => (window.__autoplay.branch = branch), BRANCH)
+    if (FIRST) await page.evaluate((god) => (window.__autoplay.first = god), FIRST)
     if (DEPTH > 0) await page.evaluate(() => {
       // 깊이는 엔딩 뒤 장치 (E21-06): 귀환 카드에서 「+1」
       window.__game.reachEnding()

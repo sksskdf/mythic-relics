@@ -265,7 +265,7 @@ function game(returns = 0) {
   bus.on('moment', (m) => moments.push(`${m.id}:${m.card?.title ?? ''}`))
   // 카드의 그림은 캔버스로 그린다: 그리지 못하면 빈 주소
   vi.stubGlobal('document', { createElement: () => ({ getContext: () => null }) })
-  const ctx = { bus, powers, progress, mythPowers, build, ending: { has: () => false }, awaken: { waking: null, fragments: 0 } } as unknown as GameContext
+  const ctx = { bus, powers, progress, mythPowers, build, ending: { has: () => false }, awaken: { waking: [], stage: () => 0 } } as unknown as GameContext
   const relics = new RelicSystem(ctx)
   /** 힘을 갖고 칸에 끼운다 (개발 지름길 `dev.power`와 같은 길) */
   const take = (id: string) => {

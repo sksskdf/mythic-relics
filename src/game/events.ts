@@ -59,6 +59,10 @@ export interface GameEvents {
   fragment: { god: God; piece: 1 | 2 | 3; /** 불러온 뒤 맞추는 것 (플레이 기록에 적지 않는다) */ silent?: true }
   /** 신의 수호자가 나타났다 (E238): 처음이면 수호자의 한마디 */
   guardianAppeared: { god: God }
+  /** 신의 흔적이 응답했다 (2026-11-22): 흔적의 고리 안에 1초 서 있었다. 곧바로 지키는 무리가 깨어난다 */
+  traceAnswered: { god: God }
+  /** 신의 수호자를 쓰러뜨렸다 (2026-11-22): 그 신이 깨어났고, 쓰러진 자리(지금 땅 좌표) */
+  guardianBeaten: { god: God; x: number; z: number }
   /** 수련의 깨달음을 얻었다 (E236): 새로 얻은 수와 쓰지 않은 수 */
   insightGained: { count: number; unspent: number }
   /** 주인공이 맞았다. */

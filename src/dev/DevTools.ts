@@ -50,7 +50,7 @@ export interface DevParts {
   /** 수련 (E236) */
   training: TrainingProgress
   /** 신을 깨우는 길 (E238): 다음 조각을 바로 얻는다. target은 그 신화권에서 깨울 신 */
-  awakening: { skip(god?: string): boolean; target(prefer?: string): { god: string } | null }
+  awakening: { skip(god?: string): boolean; target(prefer?: string, first?: null, realm?: string): { god: string } | null }
   /** 깊이 (E305-03): 바로 정하고 배율을 다시 건다 */
   depth: DepthProgress
   applyDepth(): void
@@ -420,8 +420,8 @@ export class DevTools {
         world.travelTo(goal.region)
         break
       case 'awaken':
-        // 조각을 하나씩 (흔적 → 사냥 → 수호자) 그 할 일을 마칠 때까지
-        for (let i = 0; i < 12 && chapters.goal === goal; i++) if (!awakening.skip(awakening.target(goal.region)?.god)) break
+        // 한 걸음씩 (흔적의 무리 → 수호자, 서 있는 수호자부터) 그 할 일을 마칠 때까지
+        for (let i = 0; i < 12 && chapters.goal === goal; i++) if (!awakening.skip(awakening.target(goal.region, null, goal.realm)?.god)) break
         break
       case 'return': {
         // 귀환 (E304): 떠난 지 2분이 안 됐어도 손의 신 승천(없으면 불꽃 불씨)으로 바로

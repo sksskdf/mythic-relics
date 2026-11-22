@@ -1,5 +1,5 @@
 import { type GearPart, SLOT_PARTS } from '../data/gearData'
-import { type God, isRelicId, type RelicId } from '../relics/data'
+import { isRelicId, type RelicId } from '../relics/data'
 import { type LoadoutState, resolveLoadout } from '../myth/manifest'
 import { emptyPantheon, type Pantheon } from '../myth/pantheon'
 import { mergeGear, mergeGroups } from './merge'
@@ -38,8 +38,6 @@ export class Loadout {
   readonly materials = new Map<string, number>()
   /** 신의 자리 셋 (E302): 손의 신이 무기·리듬, 심장의 신이 궁극기, 숨의 신들이 패시브. 자리에 든 신의 유물이 깨어난다 */
   pantheon: Pantheon = emptyPantheon()
-  /** 깨우는 중인 신 (E238): 조각 2(그 신의 유물)부터 그 신의 유물이 빌린 칸처럼 깨어난다 */
-  waking: God | null = null
 
   get state(): LoadoutState {
     return resolveLoadout(this.pantheon.hand)

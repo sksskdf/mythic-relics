@@ -188,21 +188,24 @@ export class MenuData {
         goal: () => {
           const goal = ctx.chapters.goal
           if (!goal) return null
-          // 신 깨우기 (E238): 깨우는 신의 다음 조각을 하는 땅(없으면 응답하는 흔적의 땅)과 그 조각의 한 줄
+          // 신 깨우기 (E238): 다음 할 일 하나의 땅(서 있는 수호자, 없으면 가까운 흔적)과 목표 한 줄 (특정 신을 가리키지 않는다)
           if (goal.kind === 'awaken') {
-            const target = game.awakening.target(goal.region)
+            const target = game.awakening.target(goal.region, null, goal.realm)
             return { region: target?.region ?? goal.region, text: game.chapterSystem.goalView()?.text ?? goal.goal }
           }
           return { region: goal.region, text: goal.goal }
         },
-        traces: () =>
-          WAKE_GODS.filter((g) => game.awakening.traceState(g) !== 'awake').map((g) => ({
+        traces: () => [
+          // 응답하는 흔적은 그 신의 색으로 채운 십자, 엔딩 뒤에 응답하는 흔적은 테만
+          ...WAKE_GODS.filter((g) => game.awakening.traceState(g) === 'open' || game.awakening.traceState(g) === 'later').map((g) => ({
             region: WAKE[g]!.trace.region,
             name: WAKE[g]!.trace.name,
             color: godDef(g).color,
-            // 응답하는 흔적은 채운 마름모, 깨우는 중·아직 잠잠한 흔적은 테만
             waking: game.awakening.traceState(g) !== 'open',
           })),
+          // 서 있는 수호자 (무리를 이긴 신마다, 2026-11-22): 그 신의 색 테
+          ...game.awakening.waking.map((g) => ({ region: WAKE[g]!.guardian.region, name: WAKE[g]!.guardian.name, color: godDef(g).color, waking: true })),
+        ],
         me: () => {
           const cell = ctx.map.region.cell
           if (!cell) return null
@@ -310,12 +313,11 @@ export class MenuData {
     return { hand: p.hand, heart: p.heart, breath: p.breath, count, locked: locked.slice(0, Math.max(0, cap - Math.max(1, count))), focus: null, emptyHand: build.rules.emptyHand }
   }
 
-  /** 깨우는 중인 신 (E238): 다음 할 일 (신 탭). 흔적의 무리를 이긴 뒤이니 남은 것은 수호자다 */
+  /** 깨우는 중인 신 (E238): 다음 할 일 (신 탭). 흔적의 무리를 이긴 뒤이니 남은 것은 수호자다. 여럿이면 먼저 이긴 신 */
   private wakingView(): { god: string; next: string } | null {
-    const { progress, awaken } = this.parts.ctx
-    const { waking } = awaken
+    const waking = this.parts.game.awakening.waking[0]
     const path = waking ? wakeDef(waking) : undefined
-    if (!waking || !path || progress.isOpen(waking)) return null
+    if (!waking || !path) return null
     return { god: waking, next: `${josa(path.guardian.name, '을')} 쓰러뜨린다` }
   }
 

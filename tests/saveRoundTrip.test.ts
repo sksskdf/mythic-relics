@@ -78,9 +78,9 @@ describe('저장 왕복: 꽉 찬 v18 견본', () => {
         },
       ],
       [
-        '조각 2를 모은 깨우는 신을 손에 쥔 판',
+        '흔적의 무리를 이긴 신(수호자가 섬)을 손에 쥔 판',
         (o) => {
-          o.awaken = { waking: 'artemis', fragments: 2 }
+          o.awaken = { gods: { artemis: 2 } }
           // 손은 칸의 무기에서 읽는다 (P2)
           o.powers.slots.weapon = 'weapon:artemis'
           o.pantheon.hand = 'artemis'

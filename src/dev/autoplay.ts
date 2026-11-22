@@ -12,7 +12,7 @@ import { type God, godDef, relicDef } from '../relics/data'
 import { relicGods } from '../relics/model'
 import type { Point2 } from '../world/colliders'
 import { type BossFight, BossWatch } from './bossWatch'
-import { bossTurn, type BranchMode, type Hold, holdOf, returnBranch, soaksFalling, staysInHold } from './botRules'
+import { bossTurn, type BranchMode, type Hold, holdOf, returnBranch, selfReturn, soaksFalling, staysInHold } from './botRules'
 
 /** 판단 간격 (초). 사람의 반응 속도쯤으로 둔다. */
 const THINK = 0.25
@@ -55,6 +55,8 @@ export class Autoplayer {
   readonly depths: number[] = []
   /** 이 신의 유물만 낀다 (다른 신 유물은 주우면 가방에 넣는다). null이면 가리지 않는다 (scripts/playtest.mjs --god) */
   god: God | null = null
+  /** 이 신의 흔적부터 간다 (2026-11-22: 신의 차례가 없다). null이면 서 있는 수호자, 그다음 가장 가까운 흔적 (scripts/playtest.mjs --first) */
+  first: God | null = null
   /** 다른 지역으로 가지 않고 이 자리에서만 싸운다 (scripts/enemy-trial.mjs) */
   stay = false
   /** 장 흐름의 목표를 따라간다 (E22-06): 들어설 땅·신 깨우기·귀환·보스·대장간 (scripts/playtest.mjs) */
@@ -127,6 +129,8 @@ export class Autoplayer {
     const fieldOf = (god: God) => Object.values(regions).find((r) => r.realm === godDef(god).realm && r.zone === 'entrance' && !PASSES.has(r.id))?.id
     const manifested = powers.manifested
     if (this.chapters) {
+      // 수호자·장 보스를 이긴 원정이고 이 땅에 성소가 있으면 떠나기 전에 귀환한다
+      if (this.returnDue()) return region.id
       const goal = this.chapterRegion()
       if (goal) return goal
     }
@@ -149,8 +153,8 @@ export class Autoplayer {
     const { chapters, powers } = this.game
     const goal = chapters.goal
     if (!goal) return null
-    // 신 깨우기 (E238): 깨우는 신의 수호자 땅, 없으면 응답하는 흔적의 땅
-    if (goal.kind === 'awaken') return this.game.awakening.target(goal.region)?.region ?? goal.region
+    // 신 깨우기 (E238): 서 있는 수호자의 땅, 없으면 가장 가까운 응답하는 흔적의 땅 (`first`가 있으면 그 신의 것)
+    if (goal.kind === 'awaken') return this.game.awakening.target(goal.region, this.first, goal.realm)?.region ?? goal.region
     // 맹세 (E306 D6): 기다리지 않고 그 장의 다음 할 일 땅으로 (맹세는 귀환 3의 출발 카드에서 걸어 티폰에서 지킨다). 합치기는 그 땅에서 사냥한다
     if (goal.kind === 'oath') {
       const steps = chapters.chapter?.steps ?? []
@@ -335,7 +339,7 @@ export class Autoplayer {
     // 4.9 귀환 (E304): 장 목표가 귀환이면(깊이 봇은 원정이 무르익을 때마다) 성소 화로로 가서, 카드가 뜨면 갈래를 고른다 (`returnBranch`: 손의 신 승천, 없으면 불꽃 불씨).
     // 깊이 봇은 귀환 카드에서 「+1」도 고른다 (E305-03)
     const goalNow = this.chapters ? this.game.chapters.goal : null
-    const returning = (goalNow?.kind === 'return' && goalNow.region === this.game.region.id) || (this.deepen && this.wantRegion() === this.game.region.id)
+    const returning = (goalNow?.kind === 'return' && goalNow.region === this.game.region.id) || (this.deepen && this.wantRegion() === this.game.region.id) || this.returnDue()
     if (returning && sanctuary.present && this.game.expeditionSystem.canReturn && hp > 0.5) {
       if (this.game.returnCardOpen) {
         const ids = this.game.expeditionSystem.branches().map((b) => b.id)
@@ -497,12 +501,23 @@ export class Autoplayer {
     return best
   }
 
+  /**
+   * 스스로 귀환할 때인가 (2026-11-22: 장 할 일이 귀환을 시키지 않는다): 장 흐름 봇이 이번 원정에서 수호자·장 보스를 이겼고
+   * 지금 땅에 성소가 있으며 귀환할 수 있다. 수호자 → 귀환 → 다음 흔적
+   */
+  private returnDue(): boolean {
+    const { expedition, expeditionSystem, sanctuary } = this.game
+    return selfReturn({ chapters: this.chapters, deepen: this.deepen, bosses: expedition.bosses, sanctuary: sanctuary.present, canReturn: expeditionSystem.canReturn })
+  }
+
   /** 신 깨우기 목표에서 걸어갈 자리 (지금 땅의 흔적, 수호자가 아직 안 나온 수호자 자리). 장 흐름을 따르지 않으면 null */
   private awakenSpot(): Point2 | null {
     const goal = this.chapters ? this.game.chapters.goal : null
     if (goal?.kind !== 'awaken') return null
+    // 수호자를 이긴 원정이면 다음 흔적보다 귀환이 먼저다 (같은 땅에 흔적이 남아 있어도: 로키 → 요툰헤임의 프레이)
+    if (this.returnDue()) return null
     const { awakening } = this.game
-    const target = awakening.target(goal.region)
+    const target = awakening.target(goal.region, this.first, goal.realm)
     if (!target || target.region !== this.game.region.id) return null
     if (target.kind === 'guardian' && awakening.fighting) return null
     if (target.kind === 'trace' && awakening.roused) return null

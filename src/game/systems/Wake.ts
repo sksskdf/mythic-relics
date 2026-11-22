@@ -1,7 +1,6 @@
 import * as THREE from 'three'
 
-import { WAKE, WAKE_GODS, wakeDef, GUARDIAN_LEASH, GUARDIAN_MEND, GUARDIAN_RADIUS, LATER_TEXT, TRACE_LEASH, TRACE_RADIUS, TRACE_WIN_DELAY, traceStateOf, wakePower, type TraceState } from '../../data/wake'
-import { conquestBoss, CONQUESTS } from '../../data/chapters'
+import { FREE_GODS, pickAwaken, WAKE, WAKE_GODS, wakeDef, GUARDIAN_LEASH, GUARDIAN_MEND, GUARDIAN_RADIUS, LATER_TEXT, TRACE_DWELL, TRACE_LEASH, TRACE_RADIUS, TRACE_WIN_DELAY, traceStateOf, wakePower, type TraceState } from '../../data/wake'
 import { sceneId } from '../../data/scenes'
 import type { GiantSpec } from '../../data/schema'
 import { ENEMIES, type Giant } from '../../enemies/Giant'
@@ -13,6 +12,7 @@ import { classIcon } from '../../ui/classIcons'
 import { josa } from '../../ui/josa'
 import { voxelMesh } from '../../voxel/mesher'
 import { TRACE_VOXEL, traceGrid } from '../../voxel/models/traces'
+import { WAKE_WON } from '../../progress/Wake'
 import { heightAt } from '../../world/terrain'
 import type { GameContext } from '../context'
 
@@ -56,26 +56,29 @@ export function traceWonLines(god: God): string[] {
 }
 
 /**
- * 신을 깨우는 길 (E238, `DESIGN.md` 4.2.2): 흔적 → 수호자.
- * - 흔적: 그 땅에 흔적 모형과 빛기둥을 세운다. 다가가면 지키는 무리가 깨어나고, 다 쓰러뜨리면 대표 힘을 빌리고 그 신의 유물이 켜진다
- *   (그 땅에서 정한 수만큼 사냥해야 유물을 받던 단계는 2026-11-20에 걷었다)
- * - 수호자: 그 신의 땅 깊은 곳에 빛기둥이 서고, 다가가면 수호자가 나타난다. 쓰러뜨리면 그 신이 깨어난다
- * 깨우는 신은 한 번에 하나. 쓰러지면 무리와 수호자는 물러나고 조각은 그대로 남는다.
- * 무리의 마지막·수호자는 생명이 다한 순간 조각을 준다 (무너지는 동안 쓰러지거나 땅을 넘어도 잃지 않게).
+ * 신을 깨우는 길 (E238, `DESIGN.md` 4.2.2): 흔적 → 수호자. 차례는 없다 (2026-11-22): 응답하는 흔적은 모두 함께 응답하고, 신마다 따로 간다.
+ * - 흔적: 그 땅에 흔적 모형과 빛기둥을 세운다. 고리 안에 걷지도 싸우지도 않고 1초 서 있으면 응답하고(`traceAnswered`) 지키는 무리가 깨어난다.
+ *   다 쓰러뜨리면 그 신을 만나고, 그 신의 유물이 켜지고, 그 신의 수호자가 선다 (멀리 물러나거나 쓰러지면 무리는 흩어지고 다시 서면 다시 깨어난다)
+ * - 수호자: 무리를 이긴 신마다 그 신의 땅 깊은 곳에 빛기둥이 서고(여럿이 함께 설 수 있다), 다가가면 수호자가 나타난다.
+ *   쓰러뜨리면 그 신이 깨어난다 (`guardianBeaten`)
+ * 쓰러지면 무리와 수호자는 물러나고 이긴 것은 그대로 남는다.
+ * 무리의 마지막·수호자는 생명이 다한 순간 이긴 것으로 친다 (무너지는 동안 쓰러지거나 땅을 넘어도 잃지 않게).
  */
 export class WakeSystem {
   private readonly group = new THREE.Group()
   /** 지금 땅의 흔적 (지금 땅 좌표) */
   private traces: { god: God; x: number; z: number; beam: THREE.Mesh }[] = []
-  /** 깨어난 지키는 무리 */
+  /** 고리 안에 서 있는 흔적과 선 초 (걷거나 싸우거나 고리를 나가면 처음부터) */
+  private dwell: { god: God; t: number } | null = null
+  /** 깨어난 지키는 무리 (한 번에 한 흔적: 두 흔적의 고리는 겹치지 않는다) */
   private pack: { god: God; x: number; z: number; giants: Giant[]; at: number } | null = null
-  /** 물러난 수호자의 남은 생명 (그 신·비율·물러난 때, E239) */
-  private wound: { god: God; ratio: number; at: number; roared: boolean } | null = null
-  /** 수호자 자리 (조각 2를 모았고 그 땅에 있을 때) */
-  private lair: { god: God; x: number; z: number; beam: THREE.Mesh } | null = null
-  /** 나타난 수호자 */
-  private guardian: Giant | null = null
-  /** 다른 신을 깨우는 중이라 응답하지 않은 흔적: 한 번만 알린다 */
+  /** 물러난 수호자의 남은 생명 (신마다: 비율·물러난 때, E239) */
+  private readonly wounds = new Map<God, { ratio: number; at: number; roared: boolean }>()
+  /** 지금 땅의 수호자 자리 (무리를 이긴 신마다) */
+  private lairs: { god: God; x: number; z: number; beam: THREE.Mesh }[] = []
+  /** 나타난 수호자와 그 자리 */
+  private guardian: { god: God; giant: Giant; x: number; z: number } | null = null
+  /** 엔딩 뒤에 응답하는 흔적: 한 번만 알린다 */
   private told: God | null = null
   /** 쓰러질 때 싸우던 수호자의 이름 (상처를 남기고 물러났다): 일어나면 한 줄로 알린다 */
   private scarred: string | null = null
@@ -86,14 +89,14 @@ export class WakeSystem {
     private readonly ctx: GameContext,
     /** 그 자리가 막혔으면 가까운 빈 자리 (지금 땅 길찾기) */
     private readonly free: (p: Point2) => Point2 | null,
-    /** 조각 2의 유물을 유물표에 켠다 (E303-04: 유물은 칸에 들지 않는다). announce면 켜는 연출과 함께 */
+    /** 무리를 이긴 신의 유물을 유물표에 켠다 (E303-04: 유물은 칸에 들지 않는다). announce면 켜는 연출과 함께 */
     private readonly give: (relic: RelicId, announce: boolean) => void,
     /** 흔적이 다가가도 응답하지 않는다 (점검용 실행: 다른 신의 힘이 재는 값에 섞이지 않게. 개발 패널 「다음 조각」은 된다) */
     private readonly quiet: () => boolean = () => false,
   ) {
     ctx.scene.add(this.group)
     ctx.bus.on('regionEntered', () => this.refresh())
-    // 쓰러지면 무리와 수호자는 물러난다 (조각은 남는다)
+    // 쓰러지면 무리와 수호자는 물러난다 (이긴 것은 남는다)
     ctx.bus.on('heroDied', () => {
       const guardian = this.fighting
       this.scarred = guardian && guardian.health.ratio < 1 ? guardian.spec.name : null
@@ -106,35 +109,21 @@ export class WakeSystem {
     })
   }
 
-  /** 깨우는 중인 신 (다른 길로 이미 열렸으면 없음) */
-  private get waking(): God | null {
-    const god = this.ctx.awaken.waking
-    return god && !this.ctx.progress.isOpen(god) ? god : null
+  /** 무리를 이겨 수호자가 선 신들 (다른 길로 이미 열린 신은 빼고, 이긴 차례) */
+  get waking(): God[] {
+    const { awaken, progress } = this.ctx
+    return awaken.waking.filter((g) => !progress.isOpen(g))
   }
 
-  /** 흔적이 지금 어떤가 (데모의 다섯은 엔딩 뒤에 응답한다 E241·E306) */
+  /** 흔적이 지금 어떤가 (그리스 셋은 엔딩 뒤에 응답한다 E241) */
   traceState(god: God): TraceState {
-    const { progress, expedition, chapters, ending } = this.ctx
-    return traceStateOf(god, {
-      open: progress.isOpen(god),
-      waking: this.waking,
-      awakened: progress.opened.length,
-      returns: expedition.returns,
-      conquered: chapters.conquered,
-      ending: ending.has('realms'),
-    })
-  }
-
-  /** 흔적이 잠잠할 때 그 신이 응답하는 때 (E305-03): 「성소 화로에서 원정을 마치거나 거인 왕을 이기면 응답한다」 */
-  sealedText(): string {
-    const region = CONQUESTS.find((r) => !this.ctx.chapters.bosses.has(r))
-    const boss = region ? ENEMIES[conquestBoss(region)]?.name : undefined
-    return boss ? `성소 화로에서 원정을 마치거나 ${josa(boss, '을')} 이기면 응답한다` : '성소 화로에서 원정을 마치면 응답한다'
+    const { progress, awaken, ending } = this.ctx
+    return traceStateOf(god, { open: progress.isOpen(god), waking: awaken.stage(god) >= WAKE_WON, ending: ending.has('realms') })
   }
 
   /** 나타나 싸우는 수호자 (보스 막대) */
   get fighting(): Giant | null {
-    return this.guardian?.alive ? this.guardian : null
+    return this.guardian?.giant.alive ? this.guardian.giant : null
   }
 
   /** 지금 땅의 흔적 자리 (작은 지도·커서 카드) */
@@ -147,39 +136,59 @@ export class WakeSystem {
     return this.pack !== null
   }
 
-  /** 흔적을 지키는 무리 (봇: 조각 1은 무리를 다 잡아야 하니 멈춤 끊기에서도 피하지 않는다, E241) */
+  /** 흔적을 지키는 무리 (봇: 무리는 다 잡아야 하니 멈춤 끊기에서도 피하지 않는다, E241) */
   get guards(): readonly Giant[] {
     return this.pack?.giants ?? []
   }
 
-  /** 수호자 자리 (작은 지도) */
+  /** 지금 땅의 수호자 자리 (작은 지도·점검) */
+  get lairSpots(): readonly { god: God; x: number; z: number }[] {
+    return this.lairs.map((l) => ({ god: l.god, x: l.x, z: l.z }))
+  }
+
+  /** 지금 땅의 첫 수호자 자리 (점검 스크립트) */
   get lairSpot(): Point2 | null {
-    return this.lair ? { x: this.lair.x, z: this.lair.z } : null
+    const lair = this.lairs[0]
+    return lair ? { x: lair.x, z: lair.z } : null
   }
 
   /**
-   * 다음에 할 일: 깨우는 신이 있으면 그 신의 수호자, 없으면 응답하는 흔적 (목표 땅의 것부터, 다음은 열린 땅의 것).
-   * 깨울 신이 남지 않았으면 null
+   * 지금 할 수 있는 깨우는 일 모두: 서 있는 수호자(무리를 이긴 차례), 그다음 열린 땅의 응답하는 흔적 (목표 한 줄·지도 표시·봇).
+   * realm을 주면 그 신화권 신의 것만 (장 할 일의 신화권)
    */
-  target(prefer?: string): AwakenTarget | null {
+  targets(realm?: string): AwakenTarget[] {
     const { chapters } = this.ctx
-    const waking = this.waking
-    if (waking) {
-      const def = wakeDef(waking)!
-      return { god: waking, kind: 'guardian', region: def.guardian.region, spot: { x: def.guardian.x, z: def.guardian.z } }
-    }
-    const open = WAKE_GODS.filter((g) => this.traceState(g) === 'open' && chapters.isOpen(WAKE[g]!.trace.region))
-    const god = open.find((g) => WAKE[g]!.trace.region === prefer) ?? open[0]
-    if (!god) return null
-    const t = WAKE[god]!.trace
-    return { god, kind: 'trace', region: t.region, spot: { x: t.x, z: t.z } }
+    const mine = (god: God) => !realm || godDef(god).realm === realm
+    const guardians = this.waking.filter(mine).flatMap((god): AwakenTarget[] => {
+      const g = wakeDef(god)?.guardian
+      return g ? [{ god, kind: 'guardian', region: g.region, spot: { x: g.x, z: g.z } }] : []
+    })
+    const traces = WAKE_GODS.filter((g) => mine(g) && this.traceState(g) === 'open' && chapters.isOpen(WAKE[g]!.trace.region)).map((god): AwakenTarget => {
+      const t = WAKE[god]!.trace
+      return { god, kind: 'trace', region: t.region, spot: { x: t.x, z: t.z } }
+    })
+    return [...guardians, ...traces]
+  }
+
+  /** 다음에 할 일 하나 (`pickAwaken`). 깨울 신이 남지 않았으면 null */
+  target(prefer?: string, first?: God | null, realm?: string): AwakenTarget | null {
+    const p = this.ctx.hero.object.position
+    return pickAwaken(this.targets(realm), {
+      here: this.ctx.map.region.id,
+      prefer,
+      first,
+      distance: (t) => {
+        const spot = this.placed(t)
+        return Math.hypot(spot.x - p.x, spot.z - p.z)
+      },
+    })
   }
 
   /** 지금 땅 좌표로 본 자리: 흔적·수호자 자리는 세울 때 빈 곳으로 옮긴 자리 */
   placed(target: AwakenTarget): Point2 {
     if (target.region !== this.ctx.map.region.id) return target.spot
-    if (target.kind === 'trace') return this.traces.find((t) => t.god === target.god) ?? target.spot
-    return this.lair ?? target.spot
+    const at = target.kind === 'trace' ? this.traces.find((t) => t.god === target.god) : this.lairs.find((l) => l.god === target.god)
+    return at ? { x: at.x, z: at.z } : target.spot
   }
 
   /** 땅에 들어섰다: 그 땅의 흔적과 수호자 자리를 다시 세운다 */
@@ -190,7 +199,7 @@ export class WakeSystem {
       child.traverse((o) => this.dispose(o))
     }
     this.traces = []
-    this.lair = null
+    this.lairs = []
     const region = this.ctx.map.region
     if (region.kind !== 'field') return
     for (const god of WAKE_GODS) {
@@ -205,21 +214,32 @@ export class WakeSystem {
       this.group.add(root)
       this.traces.push({ god, x: spot.x, z: spot.z, beam })
     }
-    this.placeLair()
+    this.placeLairs()
   }
 
-  /** 깨우는 신의 수호자 자리에 빛기둥 (그 땅에 있을 때) */
-  private placeLair(): void {
-    const { awaken, map } = this.ctx
-    const god = awaken.waking
-    const def = god ? wakeDef(god) : undefined
-    if (this.lair || !god || !def || awaken.fragments < 2 || def.guardian.region !== map.region.id) return
-    const spot = this.free(def.guardian) ?? def.guardian
-    const beam = this.beam(godDef(god).color)
-    beam.position.set(spot.x, heightAt(spot.x, spot.z), spot.z)
-    beam.scale.set(1.8, BEAM_HEIGHT * 1.4, 1.8)
-    this.group.add(beam)
-    this.lair = { god, x: spot.x, z: spot.z, beam }
+  /** 무리를 이긴 신마다 그 수호자 자리에 빛기둥 (그 땅에 있을 때, 아직 세우지 않은 것만) */
+  private placeLairs(): void {
+    const { map } = this.ctx
+    if (map.region.kind !== 'field') return
+    for (const god of this.waking) {
+      const def = wakeDef(god)
+      if (!def || def.guardian.region !== map.region.id || this.lairs.some((l) => l.god === god)) continue
+      const spot = this.free(def.guardian) ?? def.guardian
+      const beam = this.beam(godDef(god).color)
+      beam.position.set(spot.x, heightAt(spot.x, spot.z), spot.z)
+      beam.scale.set(1.8, BEAM_HEIGHT * 1.4, 1.8)
+      this.group.add(beam)
+      this.lairs.push({ god, x: spot.x, z: spot.z, beam })
+    }
+  }
+
+  /** 수호자 자리의 빛기둥을 거둔다 */
+  private dropLair(god: God): void {
+    const lair = this.lairs.find((l) => l.god === god)
+    if (!lair) return
+    this.group.remove(lair.beam)
+    this.dispose(lair.beam)
+    this.lairs = this.lairs.filter((l) => l !== lair)
   }
 
   /** 빛기둥: 땅에 떨어진 것의 빛기둥처럼 효과 레이어에 (외곽선 없이 뒤의 것을 가리지 않게) */
@@ -240,7 +260,7 @@ export class WakeSystem {
   }
 
   /**
-   * 무리의 마지막·수호자의 생명이 다했으면 바로 조각을 준다 (무너지는 0.55초를 기다리지 않는다).
+   * 무리의 마지막·수호자의 생명이 다했으면 바로 이긴 것으로 친다 (무너지는 0.55초를 기다리지 않는다).
    * 쓰러졌는지는 생명으로 본다: 땅을 옮기며(워프) 지운 적도 alive가 꺼지지만 쓰러뜨린 것이 아니다.
    * 무리는 깨어난 뒤 `TRACE_WIN_DELAY`초가 지나야 이긴 것으로 친다 (now면 기다리지 않는다: 무리를 거둘 때)
    */
@@ -250,33 +270,42 @@ export class WakeSystem {
       this.pack = null
       this.won(god)
     }
-    if (this.guardian?.health.dead) {
+    if (this.guardian?.giant.health.dead) {
+      const { god, giant } = this.guardian
       this.guardian = null
-      this.awaken()
+      this.awaken(god, { x: giant.x, z: giant.z })
     }
   }
 
-  /** 프레임마다: 빛기둥, 흔적에 다가가면 지키는 무리, 수호자 자리에 다가가면 수호자 */
+  /** 걷지도 싸우지도 않고 서 있나 (흔적이 응답하는 때) */
+  private get still(): boolean {
+    const { hero, combat, orders } = this.ctx
+    return !hero.isMoving && !combat.engaged && orders.attackTarget === null
+  }
+
+  /** 프레임마다: 빛기둥, 흔적에 서 있으면 지키는 무리, 수호자 자리에 다가가면 수호자 */
   update(dt: number): void {
     this.time += dt
     this.settleDeaths()
-    // 깨우는 신이 다른 길(엔딩 뒤 대장간·떨어진 유물)로 먼저 열렸다: 그 길을 비워 다른 흔적이 응답하게 (E241)
-    const stale = this.ctx.awaken.waking
-    if (stale && this.ctx.progress.isOpen(stale)) this.forget(stale)
+    // 무리를 이긴 신이 다른 길(엔딩 뒤 대장간·떨어진 유물)로 먼저 열렸다: 그 길을 비운다 (E241)
+    for (const god of this.ctx.awaken.waking) if (this.ctx.progress.isOpen(god)) this.forget(god)
     const pulse = 0.22 + Math.sin(this.time * 2.6) * 0.08
     for (const t of this.traces) {
-      // 응답하는 흔적에만 빛기둥 (깨운 신·다른 신을 깨우는 중이면 꺼진다)
+      // 응답하는 흔적에만 빛기둥 (깨운 신·무리를 이긴 신이면 꺼진다)
       t.beam.visible = this.traceState(t.god) === 'open' && this.pack?.god !== t.god
       t.beam.position.y = BEAM_HEIGHT / 2
       ;(t.beam.material as THREE.MeshBasicMaterial).opacity = pulse
     }
-    if (this.lair) {
-      this.lair.beam.visible = !this.guardian
-      this.lair.beam.position.y = heightAt(this.lair.x, this.lair.z) + (BEAM_HEIGHT * 1.4) / 2
-      ;(this.lair.beam.material as THREE.MeshBasicMaterial).opacity = pulse + 0.08
+    for (const lair of this.lairs) {
+      lair.beam.visible = this.guardian?.god !== lair.god
+      lair.beam.position.y = heightAt(lair.x, lair.z) + (BEAM_HEIGHT * 1.4) / 2
+      ;(lair.beam.material as THREE.MeshBasicMaterial).opacity = pulse + 0.08
     }
     const { hero, combat, map } = this.ctx
-    if (!combat.alive || map.region.kind !== 'field' || this.quiet()) return
+    if (!combat.alive || map.region.kind !== 'field' || this.quiet()) {
+      this.dwell = null
+      return
+    }
     const p = hero.object.position
     if (this.pack) {
       // 멀리 달아나면 무리는 흩어지고 흔적은 다시 응답한다
@@ -286,43 +315,55 @@ export class WakeSystem {
         const left = this.pack.giants.filter((g) => g.alive && !g.health.dead)
         if (left.every((g) => g.spec.keepAway)) for (const g of left) g.closeIn = true
       }
-    } else {
-      for (const t of this.traces) {
-        if (Math.hypot(p.x - t.x, p.z - t.z) > TRACE_RADIUS) continue
-        const state = this.traceState(t.god)
-        if (state === 'open') this.rouse(t)
-        else if ((state === 'busy' || state === 'sealed' || state === 'later') && this.told !== t.god) {
-          this.told = t.god
-          const waking = this.waking
-          const text = state === 'later' ? LATER_TEXT : waking ? `${josa(godDef(waking).name, '이')} 깨어난 뒤에 응답한다` : this.sealedText()
-          this.ctx.bus.emit('moment', { id: 'traceBusy', text })
-        }
-      }
-    }
+    } else this.watchTraces(dt, p)
     if (this.guardian) {
-      if (!this.guardian.alive) return
+      if (!this.guardian.giant.alive) return
       // 멀리 물러나면 수호자도 물러난다 (다시 다가가면 입은 상처는 그대로, E239)
-      if (this.lair && Math.hypot(p.x - this.lair.x, p.z - this.lair.z) > GUARDIAN_LEASH) this.dismiss()
-    } else if (this.lair && Math.hypot(p.x - this.lair.x, p.z - this.lair.z) <= GUARDIAN_RADIUS) this.summon(this.lair.god)
+      if (Math.hypot(p.x - this.guardian.x, p.z - this.guardian.z) > GUARDIAN_LEASH) this.dismiss()
+    } else {
+      const lair = this.lairs.find((l) => Math.hypot(p.x - l.x, p.z - l.z) <= GUARDIAN_RADIUS)
+      if (lair) this.summon(lair)
+    }
   }
 
-  /** 흔적의 무리·수호자를 세울 세기: 그 땅의 세기와 깨운 신 수에 따른 세기 가운데 큰 쪽 (`wakePower`) */
-  private get power(): number {
-    const { encounter, progress, ending } = this.ctx
-    return wakePower(encounter.power, progress.opened.length, ending.reached)
+  /** 흔적의 고리: 응답하는 흔적 안에 걷지도 싸우지도 않고 `TRACE_DWELL`초 서 있으면 응답한다. 엔딩 뒤에 응답하는 흔적은 한 번 알린다 */
+  private watchTraces(dt: number, p: { x: number; z: number }): void {
+    const t = this.traces.find((tr) => Math.hypot(p.x - tr.x, p.z - tr.z) <= TRACE_RADIUS)
+    const state = t ? this.traceState(t.god) : null
+    if (!t || state !== 'open' || !this.still) {
+      this.dwell = null
+      if (t && state === 'later' && this.told !== t.god) {
+        this.told = t.god
+        this.ctx.bus.emit('moment', { id: 'traceBusy', text: LATER_TEXT })
+      }
+      return
+    }
+    this.dwell = this.dwell?.god === t.god ? { god: t.god, t: this.dwell.t + dt } : { god: t.god, t: 0 }
+    if (this.dwell.t < TRACE_DWELL) return
+    this.dwell = null
+    this.ctx.bus.emit('traceAnswered', { god: t.god })
+    this.rouse(t)
   }
 
-  /** 흔적에 다가갔다: 지키는 무리가 흔적 둘레에서 깨어난다 */
+  /** 그 신의 흔적의 무리·수호자를 세울 세기: 이미 이긴 무리 수(그 신을 빼고)와 그 땅의 세기로 (`wakePower`) */
+  private power(god: God): number {
+    const { encounter, progress, awaken, ending } = this.ctx
+    const beaten = WAKE_GODS.filter((g) => g !== god && (progress.isOpen(g) || awaken.stage(g) >= WAKE_WON)).length
+    return wakePower(encounter.power, beaten, ending.reached, FREE_GODS.includes(god))
+  }
+
+  /** 흔적이 응답했다: 지키는 무리가 흔적 둘레에서 깨어난다 */
   private rouse(t: { god: God; x: number; z: number }): void {
     const def = wakeDef(t.god)!
     const giants: Giant[] = []
     const members = def.pack.flatMap((m) => Array.from({ length: m.count }, () => m.enemy))
+    const power = this.power(t.god)
     members.forEach((enemy, i) => {
       const spec = ENEMIES[enemy]
       if (!spec) return
       const a = (i / members.length) * Math.PI * 2 + 0.4
       const at = { x: t.x + Math.sin(a) * 4, z: t.z + Math.cos(a) * 4 }
-      const giant = this.ctx.encounter.spawn(spec, this.free(at) ?? at, true, this.power)
+      const giant = this.ctx.encounter.spawn(spec, this.free(at) ?? at, true, power)
       giants.push(giant)
       this.ctx.fx.puffs.burst(giant.object.position, 10, 2)
     })
@@ -344,96 +385,87 @@ export class WakeSystem {
   private dismiss(): void {
     if (!this.guardian) return
     // 수호자가 불러낸 졸개도 함께 거둔다 (물러났다 다시 올 때마다 졸개가 쌓이지 않게, E239)
-    const guardian = this.guardian
+    const { god, giant } = this.guardian
     // 깎아 둔 생명은 기억해 둔다 (E239): 다시 나타나면 그동안 조금씩 아문 만큼만
-    if (!guardian.health.dead && this.lair) this.wound = { god: this.lair.god, ratio: guardian.health.ratio, at: this.time, roared: guardian.roared }
-    for (const giant of this.ctx.encounter.alive.filter((g) => g.summoner === guardian)) this.ctx.encounter.remove(giant)
-    if (this.guardian.alive) this.ctx.encounter.remove(this.guardian)
+    if (!giant.health.dead) this.wounds.set(god, { ratio: giant.health.ratio, at: this.time, roared: giant.roared })
+    for (const minion of this.ctx.encounter.alive.filter((g) => g.summoner === giant)) this.ctx.encounter.remove(minion)
+    if (giant.alive) this.ctx.encounter.remove(giant)
     this.guardian = null
     this.ctx.bus.emit('music', { theme: null })
   }
 
-  /** 이미 열린 신의 깨우는 길을 비운다: 수호자와 그 빛기둥을 거두고, 모은 조각을 처음으로 */
+  /** 이미 열린 신의 깨우는 길을 비운다: 그 수호자와 빛기둥을 거두고, 그 신의 단계를 처음으로 */
   private forget(god: God): void {
-    const { awaken, powers, bus } = this.ctx
-    if (this.lair?.god === god) {
-      this.dismiss()
-      this.group.remove(this.lair.beam)
-      this.dispose(this.lair.beam)
-      this.lair = null
-    }
-    if (this.wound?.god === god) this.wound = null
-    if (powers.loadout.waking === god) powers.loadout.waking = null
-    awaken.reset()
+    const { awaken, bus } = this.ctx
+    if (this.guardian?.god === god) this.dismiss()
+    this.dropLair(god)
+    this.wounds.delete(god)
+    awaken.forget(god)
     bus.emit('progressChanged', {})
   }
 
-  /** 무리와 수호자를 거둔다 (땅을 옮김·쓰러짐·전설 시작). 이미 쓰러뜨린 것은 조각으로 */
+  /** 무리와 수호자를 거둔다 (땅을 옮김·쓰러짐·전설 시작). 이미 쓰러뜨린 것은 이긴 것으로 */
   private calm(): void {
     this.settleDeaths(true)
     this.scatter()
     this.dismiss()
     this.told = null
+    this.dwell = null
   }
 
   /**
-   * 흔적을 지키는 무리를 물리쳤다: 그 신을 깨우기 시작한다. 대표 힘을 빌리고, 그 신의 유물이 유물표에 켜지며(땅에 두면 잃을 수 있어 바로)
-   * 그 유물이 깨어난다. 첫 신이면 손에 그 신의 무기를 쥔다 (`RelicSystem`이 조각 2 사건을 듣는다). 다음은 바로 수호자다.
-   * 사냥 단계가 있던 때의 조각 1·조각 2가 이 자리에서 이어서 일어난다: 카드는 한 장으로 (장면 뒤 큰 카드)
+   * 흔적을 지키는 무리를 물리쳤다: 그 신을 만나고(`mythPowers.meet`) 그 신의 수호자가 선다. 대표 힘을 빌리고, 그 신의 유물이 유물표에 켜지며
+   * (땅에 두면 잃을 수 있어 바로) 그 유물이 깨어난다. 무기·패시브 힘은 조각 2 사건을 듣는 다리(`PowerBridge`)가 준다.
+   * 그 신의 한마디 장면 뒤 큰 카드 한 장
    */
   private won(god: God): void {
-    const { awaken, bus, fx, hero, hud, powers } = this.ctx
+    const { awaken, bus, fx, hero, hud, powers, mythPowers } = this.ctx
     if (!awaken.trace(god)) return
+    mythPowers.meet(god)
     const def = godDef(god)
     hud.flash(def.color)
     fx.power.burst(hero.object.position, def.color, 4)
     const relic = mythRelic(god)
-    powers.loadout.waking = god
     if (!powers.loadout.has(relic)) this.give(relic, true)
     const card = { kind: '신의 흔적', title: `${def.name}의 흔적`, color: def.color, icon: classIcon(def.name), lines: traceWonLines(god) }
-    // 흔적에서 그 신이 처음 말을 건다 (E23 장면): 첫 흔적을 고르는 것이 곧 첫 신을 고르는 순간 (`DESIGN.md` 4.2.2)
+    // 흔적에서 그 신이 처음 말을 건다 (E23 장면): 어느 흔적부터 서는지가 곧 어느 신부터 만나는지다 (`DESIGN.md` 4.2.2)
     bus.emit('moment', { id: 'fragment', scene: sceneId('trace', god), card, slow: true })
     bus.emit('fragment', { god, piece: 1 })
     bus.emit('fragment', { god, piece: 2 })
-    this.placeLair()
+    this.placeLairs()
     bus.emit('progressChanged', {})
   }
 
-  /** 수호자 자리에 다가갔다: 수호자가 나타난다 */
-  private summon(god: God): void {
+  /** 수호자 자리에 다가갔다: 그 신의 수호자가 나타난다 */
+  private summon(lair: { god: God; x: number; z: number }): void {
+    const { god } = lair
     const spec = guardianSpec(god)
-    if (!spec || !this.lair) return
-    const at = { x: this.lair.x, z: this.lair.z }
-    this.guardian = this.ctx.encounter.spawn(spec, at, true, this.power)
-    const wound = this.wound?.god === god ? this.wound : null
+    if (!spec) return
+    const giant = this.ctx.encounter.spawn(spec, { x: lair.x, z: lair.z }, true, this.power(god))
+    this.guardian = { god, giant, x: lair.x, z: lair.z }
+    const wound = this.wounds.get(god)
     if (wound) {
-      const health = this.guardian.health
+      const health = giant.health
       health.hp = health.max * Math.min(1, wound.ratio + (this.time - wound.at) * GUARDIAN_MEND)
       // 이미 포효했으면 다시 나타나자마자 또 포효하지 않게
-      this.guardian.roared = wound.roared
+      giant.roared = wound.roared
     }
-    this.wound = null
-    this.ctx.fx.power.burst(this.guardian.object.position, godDef(god).color, 4)
-    this.ctx.fx.puffs.burst(this.guardian.object.position, 30, 4)
+    this.wounds.delete(god)
+    this.ctx.fx.power.burst(giant.object.position, godDef(god).color, 4)
+    this.ctx.fx.puffs.burst(giant.object.position, 30, 4)
     this.ctx.view.shake(0.5)
     this.ctx.bus.emit('music', { theme: 'boss' })
     this.ctx.bus.emit('guardianAppeared', { god })
   }
 
-  /** 수호자를 쓰러뜨렸다. 그 신이 깨어난다 (첫 신이면 세 자리에 들며 장면, 아니면 빈 칸에 큰 카드) */
-  private awaken(): void {
-    const { awaken, progress, powers, bus } = this.ctx
-    const god = awaken.awaken()
+  /** 그 신의 수호자를 쓰러뜨렸다(at: 쓰러진 자리). 그 신이 깨어난다 (첫 신이면 세 자리에 들며 장면, 아니면 큰 카드) */
+  private awaken(god: God, at: Point2): void {
+    const { awaken, progress, bus } = this.ctx
     bus.emit('music', { theme: null })
-    if (this.lair) {
-      this.group.remove(this.lair.beam)
-      this.dispose(this.lair.beam)
-    }
-    this.lair = null
-    powers.loadout.waking = null
-    if (!god || !progress.open(god)) return
+    this.dropLair(god)
+    if (!awaken.awaken(god) || !progress.open(god)) return
     const first = progress.opened.length === 1
-    // 첫 신은 RelicSystem이 손·심장·숨에 넣으며 장면과 「신이 깨어남」 카드를 띄운다. 그다음 신은 빈 칸에 조용히 들어가고 여기서 큰 카드 (번쩍임·빛기둥은 큰 카드가)
+    // 첫 신은 다리가 칸에 넣으며 장면과 「신이 깨어남」 카드를 띄운다. 그다음 신은 빈 칸에 조용히 들어가고 여기서 큰 카드 (번쩍임·빛기둥은 큰 카드가)
     bus.emit('mythOpened', { god, quiet: !first })
     if (!first) {
       const def = godDef(god)
@@ -442,35 +474,39 @@ export class WakeSystem {
       bus.emit('moment', { id: 'godAwakened', card: { kind: '신이 깨어남', title: def.name, color: def.color, icon: classIcon(def.name), lines } })
     }
     bus.emit('fragment', { god, piece: 3 })
+    bus.emit('guardianBeaten', { god, x: at.x, z: at.z })
     bus.emit('progressChanged', {})
   }
 
-  /** 개발 지름길: 깨우는 신이 없으면 god(없으면 응답하는 첫 흔적)의 무리를 이긴 것으로, 깨우는 신이 있으면 수호자를 쓰러뜨린 것으로 */
+  /**
+   * 개발 지름길: god(없으면 서 있는 첫 수호자의 신, 그것도 없으면 응답하는 첫 흔적)의 다음 걸음을 한 것으로.
+   * 수호자가 선 신이면 수호자를 쓰러뜨린 것으로, 응답하는 흔적이면 그 무리를 이긴 것으로. 한 것이 없으면 false
+   */
   skip(god?: God): boolean {
-    if (!this.waking) {
-      const next = god ?? WAKE_GODS.find((g) => this.traceState(g) === 'open')
-      if (!next || this.traceState(next) !== 'open') return false
-      this.calm()
-      this.won(next)
-      return true
-    }
+    const next = god ?? this.waking[0] ?? WAKE_GODS.find((g) => this.traceState(g) === 'open')
+    if (!next) return false
+    const state = this.traceState(next)
+    if (state !== 'open' && state !== 'waking') return false
     this.calm()
-    this.awaken()
+    if (state === 'open') this.won(next)
+    else {
+      const g = wakeDef(next)!.guardian
+      const lair = this.lairs.find((l) => l.god === next)
+      this.awaken(next, lair ? { x: lair.x, z: lair.z } : { x: g.x, z: g.z })
+    }
     return true
   }
 
   /**
-   * 불러온 뒤: 깨우는 신의 유물이 깨어나게 (저장에는 조각만 있다). 흔적·수호자 자리는 refresh가 세운다.
-   * 사냥하던 옛 저장(조각 1)은 조각 2로 읽히니 여기서 유물을 주고, 손이 비었으면 그 신의 무기를 쥐여 준다
+   * 불러온 뒤: 무리를 이긴 신들의 유물이 깨어나게 (저장에는 단계만 있다). 흔적·수호자 자리는 refresh가 세운다.
+   * 사냥하던 옛 저장(조각 1)은 「무리를 이김」으로 읽히니 여기서 유물을 주고, 손이 비었으면 첫 신의 무기를 쥐여 준다
    */
   settle(): void {
-    const { awaken, powers, progress, bus } = this.ctx
+    const { powers, progress, bus } = this.ctx
     const waking = this.waking
-    powers.loadout.waking = waking && awaken.fragments >= 2 ? waking : null
-    if (!powers.loadout.waking) return
     // 유물을 잃었으면(옛 판) 다시 준다
-    if (!powers.loadout.has(mythRelic(powers.loadout.waking))) this.give(mythRelic(powers.loadout.waking), false)
+    for (const god of waking) if (!powers.loadout.has(mythRelic(god))) this.give(mythRelic(god), false)
     // 조용히: 불러올 때마다 플레이 기록에 조각 줄이 찍히지 않게
-    if (!progress.pantheon.hand) bus.emit('fragment', { god: powers.loadout.waking, piece: 2, silent: true })
+    if (waking[0] && !progress.pantheon.hand) bus.emit('fragment', { god: waking[0], piece: 2, silent: true })
   }
 }

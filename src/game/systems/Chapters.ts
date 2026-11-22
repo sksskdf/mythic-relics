@@ -4,12 +4,11 @@ import { breathSlots } from '../../myth/pantheon'
 import { REGIONS } from '../../data/regions'
 import { sceneId } from '../../data/scenes'
 import { missing, nextRecipe } from '../../gear/forge'
-import { wakeDef } from '../../data/wake'
 import { godDef } from '../../relics/data'
 import { josa } from '../../ui/josa'
 import type { GoalView } from '../../ui/ChapterHud'
-import { RETURN_SIGNAL, tracesAwaitReturn } from '../../data/cycle'
-import { returnAskNow, ripeNow } from './Expedition'
+import { RETURN_SIGNAL } from '../../data/cycle'
+import { ripeNow } from './Expedition'
 import { MERGE_COUNT } from '../../gear/merge'
 import type { GameContext } from '../context'
 
@@ -103,11 +102,12 @@ export class ChapterSystem {
 
   /**
    * HUD 목표 한 줄 (E22-04): 지금 목표의 글과, 채워야 하는 목표면 그 비율.
-   * 신 깨우기(E238)는 깨우는 신이 있으면 수호자를 쓰러뜨리는 일을 (사냥 막대와 기세 막대는 2026-11-20에 걷었다: 엔딩 전 깨우는 길에는 「n/m」이 없다),
+   * 신 깨우기(E238)는 특정 신을 가리키지 않는다 (2026-11-22): 수호자가 서 있으면 「수호자를 쓰러뜨린다」, 아니면 「신의 흔적을 찾는다」
+   * (사냥 막대와 기세 막대는 2026-11-20에 걷었다: 엔딩 전 깨우는 길에는 「n/m」이 없다),
    * 벼리기는 재료, 합치기는 같은 부위 희귀 수(E306), 맹세는 건 맹세가 있는지(E306)를 보인다
    */
   goalView(): GoalView | null {
-    const { chapters, progress, build, powers, awaken } = this.ctx
+    const { chapters, progress, build, powers } = this.ctx
     const goal = chapters.goal
     if (!goal) return null
     // 귀환 (E304): 글만 보인다. 목표 글은 움직이는 수(받을 배율 「×1.39」)도 시간 막대도 품지 않는다
@@ -116,19 +116,15 @@ export class ChapterSystem {
     const p = expedition.preview()
     const toReturn = (text: string): GoalView => ({ text, ratio: null })
     if (goal.kind === 'return') return toReturn(goal.goal)
-    // 깨울 신의 흔적이 잠잠하다 (E305-03: 신을 더 깨우려면 귀환이나 장 정복을 더 해야 함): 깨우기 대신 귀환을 안내한다
-    if (this.awaitsReturn()) return toReturn('성소 화로에서 원정을 마친다')
     // 귀환할 수 있나 (`ExpeditionSystem.ripe`와 같은 셈: 여기까지 왔으면 목표가 귀환을 바라지 않으니 이번 원정에서 한 일이 있어야 한다)
     const ripe = ripeNow(this.ctx, false)
     // 귀환 신호 (E306 D10, `DESIGN.md` 5.3): 첫 귀환 뒤로, 귀환할 수 있고 성장이 느려졌거나 받을 배율이 넉넉하면. 합치기 목표 동안은 알리지 않는다 (D8: 모은 희귀가 원형으로 녹는다)
     const quiet = p.seconds - this.levelAt >= RETURN_SIGNAL.quietLevel
     if (goal.kind !== 'merge' && expedition.returns >= 1 && ripe && (quiet || p.next >= p.now * RETURN_SIGNAL.gain)) return toReturn('성소 화로에서 원정을 마친다')
     let ratio: number | null = null
-    const waking = awaken.waking && !progress.isOpen(awaken.waking) ? awaken.waking : null
-    if (goal.kind === 'awaken' && waking) {
-      const path = wakeDef(waking)!
-      const name = godDef(waking).name
-      return { text: `${josa(path.guardian.name, '을')} 쓰러뜨려 ${josa(name, '을')} 깨운다`, ratio: null }
+    if (goal.kind === 'awaken') {
+      const standing = this.ctx.awaken.waking.some((g) => !progress.isOpen(g) && godDef(g).realm === goal.realm)
+      return { text: standing ? GUARDIAN_GOAL : goal.goal, ratio: null }
     }
     // 합치기 (E306): 가방에 든 같은 부위 희귀가 가장 많은 수 ÷ 셋 (합치기는 가방의 것만 받는다, 낀 것은 세지 않는다)
     if (goal.kind === 'merge') {
@@ -155,11 +151,6 @@ export class ChapterSystem {
     return { text: goal.goal, ratio: ratio !== null && ratio < 1 ? ratio : null }
   }
 
-  /** 목표가 신 깨우기인데 깨우는 신이 없고 흔적이 잠잠한가 (귀환해야 다음 신이 응답한다). HUD 한 줄과 작은 지도의 목표 자리가 읽는다 */
-  awaitsReturn(): boolean {
-    return tracesAwaitReturn(returnAskNow(this.ctx))
-  }
-
   /** 불러온 뒤: 알리지 않고 지금 장과 목표를 맞춘다 (기세가 오른 때는 불러온 때부터 잰다) */
   sync(): void {
     this.index = this.ctx.chapters.index
@@ -167,6 +158,9 @@ export class ChapterSystem {
     this.levelAt = this.ctx.expedition.elapsed
   }
 }
+
+/** 신 깨우기의 목표 한 줄 (특정 신을 가리키지 않는다): 그 신화권 신의 수호자가 서 있을 때. 아니면 장 자료의 글(「신의 흔적을 찾는다」) */
+export const GUARDIAN_GOAL = '수호자를 쓰러뜨린다'
 
 /** 장 제목 띠의 색: 그 장 첫 땅의 신화권 (땅이 없는 장은 마을 빛) */
 export function chapterColor(chapter: ChapterDef): string {

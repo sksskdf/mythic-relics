@@ -162,7 +162,7 @@ export function renderMap(ctx: TabContext, body: HTMLElement): void {
       mark.setAttribute('transform', `rotate(45 ${p.x.toFixed(1)} ${p.y.toFixed(1)})`)
       g.append(mark)
     } else g.append(svgEl('circle', 'menu-map__mark', { cx: p.x, cy: p.y, r }))
-    // 신의 흔적 (E238): 그 땅 표시 오른쪽 위에 그 신의 색 십자 (깨우는 중·잠잠한 흔적은 테만)
+    // 신의 흔적 (E238): 그 땅 표시 오른쪽 위에 그 신의 색 십자 (서 있는 수호자·엔딩 뒤에 응답하는 흔적은 테만, 2026-11-22)
     marks.forEach((t, i) => {
       const x = p.x + r + 8 + i * 13
       const y = p.y - r - 3

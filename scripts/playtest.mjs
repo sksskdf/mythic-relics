@@ -8,6 +8,7 @@
 // --ending 을 붙이면 장 흐름을 따라 엔딩까지 가고, 장마다 들어선 시각을 잰다 (E22-06).
 // 판마다 처치가 끊긴 가장 긴 구간(killGap: 첫 신 뒤, 유물을 끼고 시작하면 처음부터)과 그 땅을 남긴다 (E241). --gate면 그 구간이 STALL초를 넘는 순간 그 판을 멈추고 실패로 친다.
 // 판마다 보스·수호자 싸움의 초(bossFights: 그 땅에 들어서 처음 때릴 때까지·처음 때려 쓰러질 때까지)를 남긴다 (E307 0B, 셈은 scripts/lib/curve.mjs).
+// --first=thor|odin|loki|freyr 를 붙이면 장 흐름 봇이 그 신의 흔적부터 간다 (2026-11-22: 신의 차례가 없다. 없으면 가장 가까운 흔적부터).
 // --branch=old 를 붙이면 봇이 귀환 갈래를 옛 고정 차례(승천 → 불꽃 → 승천 → 사냥)로 고른다. 기본은 승천할 신이 있으면 늘 승천 (E307 0C, src/dev/botRules.ts).
 // --oaths 를 붙이면 엔딩 뒤 빌드로 우트가르드에 서서 맹세 여덟을 차례로 걸고 거인 왕을 이겨 지킨 초를 잰다 (E307 0C: 맹세는 엔딩 뒤 장치가 된다).
 //   건 뒤 OATH_LIMIT초가 지나도 못 끝낸 맹세는 풀고 다음으로 간다. --gate의 「처치 없이 STALL초」는 데모 셋을 재는 동안에만 본다.
@@ -48,6 +49,12 @@ const ENDLESS = process.argv.includes('--endless')
 const ENDING = process.argv.includes('--ending')
 /** --god=loki 처럼 붙이면 봇이 그 신 유물만 끼고 승급까지 간다 (E6-08) */
 const GOD = process.argv.find((a) => a.startsWith('--god='))?.slice(6) ?? null
+/** --first=loki: 장 흐름 봇이 그 신의 흔적부터 (2026-11-22) */
+const FIRST = process.argv.find((a) => a.startsWith('--first='))?.slice(8) ?? null
+if (FIRST && !['thor', 'odin', 'loki', 'freyr'].includes(FIRST)) {
+  console.error(`--first=${FIRST}: thor·odin·loki·freyr만 됩니다.`)
+  process.exit(2)
+}
 /** --pantheon=hand:thor;heart:odin;breath:loki+freyr 처럼 붙이면 그 자리 셋으로 시작한다 (E302: 손마다·숨마다 처치 속도). --god과 함께 쓰지 않는다 */
 const PANTHEON = process.argv.find((a) => a.startsWith('--pantheon='))?.slice(11) ?? null
 /** --relics=kusanagi,totsuka,... 처럼 붙이면 그 유물을 끼고(발현한 채) 시작해 제한 시간 동안 처치 속도를 잰다 (클래스 비교) */
@@ -113,6 +120,7 @@ try {
           else Object.assign(window.__autoplay, { deepen: true })
         }, DEPTH_AT)
       if (GOD) await page.evaluate((god) => (window.__autoplay.god = god), GOD)
+      if (FIRST) await page.evaluate((god) => (window.__autoplay.first = god), FIRST)
       if (PANTHEON) {
         const spec = Object.fromEntries(PANTHEON.split(';').map((kv) => kv.split(':')))
         await page.evaluate((s) => window.__game.dev.pantheon({ hand: s.hand || null, heart: s.heart || null, breath: s.breath ? s.breath.split('+') : [] }), spec)
