@@ -63,8 +63,6 @@ export const MOMENTS = {
   fragment: 4,
   chapterBoss: 4,
   chapterChanged: 4,
-  // 두 갈래 카드 (손·심장): 장면이 아니지만 장면의 차례를 탄다. 앞의 장면과 큰 카드가 자리를 내준 뒤에 뜬다
-  swapOffer: 4,
   ending: 4,
 } as const satisfies Record<string, MomentTier>
 

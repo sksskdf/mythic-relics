@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { parseSave, SAVE_VERSION, saveStorage, UNREAD_KEEP, unreadReason } from '../src/save/SaveData'
 import { type SlotCard, unreadLine } from '../src/ui/TitleScreen'
-import FULL from './fixtures/save-v18-full.json?raw'
+import FULL from './fixtures/save-v19-full.json?raw'
 
 /**
  * 읽지 못한 저장 (E307 0B, 리뷰 `save-1`): 더 새 버전이 쓴 저장이나 깨진 글이 든 슬롯은

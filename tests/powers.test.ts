@@ -348,7 +348,7 @@ describe('힘의 저장 검사', () => {
 })
 
 describe('저장 v17 → v18: 신 단위에서 힘으로', () => {
-  const base = { classes: {}, pantheon: { hand: null, heart: null, breath: [] }, waking: null, lit: [], returns: 0 }
+  const base = { classes: {}, pantheon: { hand: null, heart: null, breath: [] }, lit: [], returns: 0 }
 
   it('깨운 신은 만난 신이고 그 신의 힘을 모두 가진다. 흔적과 수호자는 이미 고른 출처다', () => {
     const data = powersFromV17({ ...base, classes: { thor: { level: 2 }, odin: { level: 1 }, freyr: { level: 0 } } })
@@ -359,27 +359,18 @@ describe('저장 v17 → v18: 신 단위에서 힘으로', () => {
     expect(data.slots).toEqual({ weapon: null, ultimate: null, auras: [] })
   })
 
-  it('깨우는 도중인 신은 만난 신이고 무기와 대표 패시브(빌린 힘)를 가진다. 수호자는 아직 고르지 않았다', () => {
-    const data = powersFromV17({ ...base, classes: { thor: { level: 1 } }, waking: 'odin', pantheon: { hand: 'odin', heart: 'thor', breath: ['thor'] } })
-    expect(data.met).toEqual(['thor', 'odin'])
-    expect(data.owned).toEqual([...ids('thor'), weaponId('odin'), partId('odin', 'companions')])
-    expect(data.slots.auras).toContain(partId('odin', 'companions'))
-    expect(data.claimed).toEqual(['trace:thor', 'guardian:thor', 'trace:odin'])
-    expect(data.slots.weapon).toBe(weaponId('odin'))
+  it('깨우는 도중인 신의 힘은 주지 않는다 (P5: 힘은 고른 것만. 그 신의 수호자를 이기면 빛에서 고른다). 켠 유물의 힘은 가진 힘이다', () => {
+    const data = powersFromV17({ ...base, classes: { thor: { level: 1 } }, pantheon: { hand: 'thor', heart: 'thor', breath: ['thor'] }, lit: ['mjolnir', 'gungnir'], returns: 3 })
+    expect(data.met).toEqual(['thor'])
+    expect(data.owned).toEqual(expect.arrayContaining([...ids('thor'), relicPowerId('gungnir')]))
+    expect(data.owned).not.toContain(weaponId('odin'))
+    expect(data.claimed).toEqual(['trace:thor', 'guardian:thor'])
+    // 깨우지도 자리에 넣지도 않은 신의 켠 유물은 가진 힘으로만 남는다
+    expect(data.slots.auras).toEqual([relicPowerId('mjolnir'), partId('thor', 'basicLightning'), partId('thor', 'skyStrike')])
+    expect(data.slots.auras).not.toContain(relicPowerId('gungnir'))
     const p = new PowerProgress()
     p.load(data)
-    expect(p.canClaim('guardian:odin')).toBe(true)
-    expect(p.offer('guardian:odin')).toHaveLength(3)
-  })
-
-  it('깨우는 도중인 신의 켠 유물(조각 2에 함께 온다)도 가진 힘이고 칸에 든다', () => {
-    const data = powersFromV17({ ...base, classes: { thor: { level: 1 } }, waking: 'odin', pantheon: { hand: 'thor', heart: 'thor', breath: ['thor'] }, lit: ['mjolnir', 'gungnir'], returns: 3 })
-    expect(data.owned).toContain(relicPowerId('gungnir'))
-    expect(data.slots.auras).toEqual([relicPowerId('mjolnir'), partId('thor', 'basicLightning'), partId('thor', 'skyStrike'), partId('odin', 'companions'), relicPowerId('gungnir')])
-    // 깨우지도 자리에 넣지도 않은 신의 켠 유물은 가진 힘으로만 남는다
-    const stray = powersFromV17({ ...base, classes: { thor: { level: 1 } }, pantheon: { hand: 'thor', heart: 'thor', breath: ['thor'] }, lit: ['lokiMask'], returns: 3 })
-    expect(stray.owned).toContain(relicPowerId('lokiMask'))
-    expect(stray.slots.auras).not.toContain(relicPowerId('lokiMask'))
+    expect(p.canClaim('trace:odin')).toBe(true)
   })
 
   it('자리 셋에 든 신의 힘을 칸에 끼운다: 손은 무기, 심장은 궁극기, 도는 힘은 손의 신의 켠 유물 → 숨의 패시브 부품 → 나머지 켠 유물', () => {
@@ -406,7 +397,7 @@ describe('저장 v17 → v18: 신 단위에서 힘으로', () => {
   })
 
   it('옮긴 기록은 저장 검사를 그대로 지나고, 같은 옛 저장은 늘 같은 씨앗을 받는다', () => {
-    const o = { ...base, classes: { thor: { level: 2 }, zeus: { level: 1 } }, waking: 'odin', pantheon: { hand: 'thor', heart: 'zeus', breath: ['thor', 'zeus'] }, lit: ['mjolnir', 'keraunos'], returns: 2 }
+    const o = { ...base, classes: { thor: { level: 2 }, zeus: { level: 1 } }, pantheon: { hand: 'thor', heart: 'zeus', breath: ['thor', 'zeus'] }, lit: ['mjolnir', 'keraunos'], returns: 2 }
     const data = powersFromV17(o)
     expect(parsePowers(JSON.parse(JSON.stringify(data)))).toEqual(data)
     expect(powersFromV17(o).seed).toBe(data.seed)

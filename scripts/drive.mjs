@@ -117,7 +117,7 @@ const state = () =>
       gains: text('.hud__gains'),
       toast: text('.hud__toast'),
       tooltips: text('.relic-tooltip'),
-      pick: text('.pick-card, .swap-card'),
+      pick: text('.pick-card, .power-card'),
       menu: text('.menu').map((x) => x.slice(0, 80)),
       dialog: text('.dialog'),
       title: text('.title').map((x) => x.slice(0, 80)),

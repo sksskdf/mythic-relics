@@ -4,7 +4,7 @@ import type { EventBus, GameEvents } from './events'
 export interface PlayEvent {
   /** 게임 시간 (초) */
   t: number
-  type: 'relic' | 'manifest' | 'open' | 'fragment' | 'forge' | 'gear' | 'kill' | 'bossKill' | 'death' | 'promote' | 'hurt' | 'depth' | 'region' | 'oath' | 'endless' | 'chapter' | 'ending' | 'mount' | 'ride' | 'return' | 'merge'
+  type: 'relic' | 'manifest' | 'open' | 'fragment' | 'forge' | 'gear' | 'kill' | 'bossKill' | 'death' | 'promote' | 'hurt' | 'depth' | 'region' | 'oath' | 'endless' | 'chapter' | 'ending' | 'mount' | 'ride' | 'return' | 'merge' | 'offer' | 'power' | 'combo'
   detail?: string
 }
 
@@ -23,7 +23,7 @@ export class PlayLog {
     const record = (type: PlayEvent['type'], detail?: string) => this.record(type, detail)
     bus.on('relicPicked', ({ id }) => record('relic', id))
     bus.on('mythOpened', ({ god }) => record('open', god))
-    bus.on('fragment', ({ god, piece, silent }) => !silent && record('fragment', `${god}:${piece}`))
+    bus.on('fragment', ({ god, piece }) => record('fragment', `${god}:${piece}`))
     bus.on('forged', ({ relic, stage }) => record('forge', `${relic}:${stage}`))
     bus.on('gearPicked', ({ item }) => record('gear', item.grade))
     bus.on('manifested', ({ god }) => record('manifest', god))
@@ -42,6 +42,10 @@ export class PlayLog {
     bus.on('rode', ({ on }) => on && record('ride'))
     // 시각표 재기 (E306 D19): 귀환(원정 번호와 고른 갈래), 영웅·전설 합치기(등급)
     bus.on('expeditionReturned', ({ count, branch }) => record('return', `${count}:${branch}`))
+    // 힘 카드 (P5): 뜬 때(출처), 고른 때(출처=힘), 조합이 처음 켜진 때(이름)
+    bus.on('powerOffered', ({ source }) => record('offer', source))
+    bus.on('powerPicked', ({ source, id }) => id && record('power', `${source}=${id}`))
+    bus.on('moment', ({ id, card }) => id === 'comboLit' && record('combo', card?.title))
     bus.on('gearMerged', ({ item }) => (item.grade === 'hero' || item.grade === 'legend') && record('merge', item.grade))
   }
 

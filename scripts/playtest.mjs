@@ -51,6 +51,12 @@ const ENDING = process.argv.includes('--ending')
 const GOD = process.argv.find((a) => a.startsWith('--god='))?.slice(6) ?? null
 /** --first=loki: 장 흐름 봇이 그 신의 흔적부터 (2026-11-22) */
 const FIRST = process.argv.find((a) => a.startsWith('--first='))?.slice(8) ?? null
+/** --pick=first|last: 봇이 힘 카드에서 늘 첫째·마지막 줄을 고른다 (P5, 없으면 무기 → 궁극기 → 조합 → 첫째 줄) */
+const PICK = process.argv.find((a) => a.startsWith('--pick='))?.slice(7) ?? null
+if (PICK && !['rule', 'first', 'last'].includes(PICK)) {
+  console.error(`--pick=${PICK}: rule·first·last만 됩니다.`)
+  process.exit(2)
+}
 if (FIRST && !['thor', 'odin', 'loki', 'freyr'].includes(FIRST)) {
   console.error(`--first=${FIRST}: thor·odin·loki·freyr만 됩니다.`)
   process.exit(2)
@@ -121,6 +127,7 @@ try {
         }, DEPTH_AT)
       if (GOD) await page.evaluate((god) => (window.__autoplay.god = god), GOD)
       if (FIRST) await page.evaluate((god) => (window.__autoplay.first = god), FIRST)
+      if (PICK) await page.evaluate((pick) => (window.__autoplay.pick = pick), PICK)
       if (PANTHEON) {
         const spec = Object.fromEntries(PANTHEON.split(';').map((kv) => kv.split(':')))
         await page.evaluate((s) => window.__game.dev.pantheon({ hand: s.hand || null, heart: s.heart || null, breath: s.breath ? s.breath.split('+') : [] }), spec)
@@ -220,6 +227,10 @@ try {
         manifest: first('manifest'),
         // 신화 개방 (E12-07): 첫째·둘째 신화가 열린 때와 연 신화 수
         opened: log.filter((e) => e.type === 'open').map((e) => ({ t: e.t, god: e.detail })),
+        // 힘 카드 (P5): 처음 뜬 때, 고른 것(출처=힘)과 때, 처음 켜진 조합과 때
+        firstOffer: first('offer'),
+        picks: log.filter((e) => e.type === 'power').map((e) => ({ t: e.t, what: e.detail })),
+        combos: log.filter((e) => e.type === 'combo').map((e) => ({ t: e.t, name: e.detail })),
         // 신의 조각 (E238): 신:조각(1 흔적·2 사냥·3 수호자)을 얻은 때
         fragments: log.filter((e) => e.type === 'fragment').map((e) => ({ t: e.t, what: e.detail })),
         // 장비와 대장간 (E13-08): 주운 장비 수, 대장간 제작
@@ -287,6 +298,7 @@ try {
           ` | 처치 끊김 ${result.killGap ? `${result.killGap.seconds}초(${fmt(result.killGap.at)} ${result.killGap.region})` : '-'}${stalled ? ' 멈춤' : ''}, 멈춤 끊기 ${result.stallBreaks}` +
           (ENDING ? ` | 고개 ${fmt(result.pass)} · 탈것 ${fmt(result.mount)} · 탄 횟수 ${result.rides}` : '') +
           (ENDING ? ` | 조각 ${result.fragments.map((f) => `${f.what} ${fmt(f.t)}`).join(', ')}` : '') +
+          ` | 첫 카드 ${fmt(result.firstOffer)} · 고름 ${result.picks.length}(${result.picks.map((p) => `${p.what} ${fmt(p.t)}`).join(', ')}) · 조합 ${result.combos.map((c) => `${c.name} ${fmt(c.t)}`).join(', ') || '-'}` +
           (ENDING ? ` | 장 ${result.chapters.map((c) => `${c.id} ${fmt(c.t)}`).join(' → ')} | 엔딩 ${fmt(result.ending)} | 단계 ${result.levels.map((l) => fmt(l.t)).join(', ')} | 제작 ${result.forged.map((f) => `${f.what} ${fmt(f.t)}`).join(', ')}` : '') +
           (ENDING ? ` | 귀환 ${result.timeline.returns.map((r) => `${r.n} ${fmt(r.t)}(${r.branch})`).join(', ')} | 깨어남 ${Object.entries(result.timeline.awakened).map(([g, t]) => `${g} ${fmt(t)}`).join(', ')} | 첫 영웅 ${fmt(result.timeline.firstHero)} | 맹세 지킴 ${fmt(result.timeline.oathKept)}` : '') +
           (ENDING && result.bossFights.length ? ` | 보스·수호자 ${bossText(result.bossFights)}` : '') +

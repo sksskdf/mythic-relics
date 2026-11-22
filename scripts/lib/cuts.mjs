@@ -19,7 +19,7 @@
 export function findCuts() {
   const out = []
   /** 떠서 아래를 가리는 창: 창이 다르면 덮여도 세지 않는다. 창을 새로 만들면 여기에 더한다 */
-  const WINDOWS = '.menu, .pause, .pick-card, .swap-card, .dialog, .title, .rotate-hint, .devpanel'
+  const WINDOWS = '.menu, .pause, .pick-card, .power-card, .dialog, .title, .rotate-hint, .devpanel'
   /** 누르는 요소 (cursor: pointer는 물려받으니 부모가 pointer면 그 부모의 한 부분이다) */
   const PRESSABLE = 'button, a[href], [role="button"], [role="tab"], input, select, textarea, summary'
   const name = (el) => el.getAttribute('class') || el.tagName

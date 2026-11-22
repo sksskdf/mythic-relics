@@ -11,7 +11,6 @@ import { guardianSpec, traceWonLines, WakeSystem } from '../src/game/systems/Wak
 import { mythRelic } from '../src/gear/mythRelic'
 import { WAKE_WON, WakeProgress, parseWake, wakingOf } from '../src/progress/Wake'
 import { godDef } from '../src/relics/data'
-import { swapHandNote } from '../src/ui/SwapCard'
 import { TRACE_WORDS, traceNow, type TraceCardContext } from '../src/ui/traceCard'
 import { TRACE_GLOW, traceGrid } from '../src/voxel/models/traces'
 
@@ -206,17 +205,15 @@ describe('깨우는 진행 (E238, 차례 없음 2026-11-22)', () => {
  * 신을 깨우는 길의 화면 글 (E307 손 QA): 처음 보는 사람이 카드를 읽고 무엇을 하면 되는지 안다
  */
 describe('신을 깨우는 길의 글 (E307 손 QA)', () => {
-  it('흔적의 무리를 이긴 카드 한 장: 빌린 힘, 켜진 유물(깨어난 것은 유물의 힘), 다음은 수호자 (「바로 깨어난다」로 읽히지 않고 사냥을 시키지 않는다)', () => {
-    const thor = traceWonLines('thor')
-    expect(thor[0]).toMatch(/^빌린 힘: /)
-    expect(thor.slice(1)).toEqual(['묠니르가 유물표에 켜졌다 · 유물의 힘이 깨어났다', '다음: 요르문간드를 쓰러뜨리면 토르가 깨어난다'])
+  it('흔적의 무리를 이긴 카드 한 장: 켜진 유물, 다음은 수호자 (힘은 흔적의 카드에서 이미 골랐다 P5. 「바로 깨어난다」로 읽히지 않고 사냥을 시키지 않는다)', () => {
+    expect(traceWonLines('thor')).toEqual(['묠니르가 유물표에 켜졌다', '다음: 요르문간드를 쓰러뜨리면 토르가 깨어난다'])
     for (const god of WAKE_GODS) {
       const lines = traceWonLines(god)
-      expect(lines, god).toHaveLength(3)
-      expect(lines.join(' '), god).not.toMatch(/바로 깨어난다|사냥|\d+\/\d+/)
+      expect(lines, god).toHaveLength(2)
+      expect(lines.join(' '), god).not.toMatch(/바로 깨어난다|사냥|빌린 힘|\d+\/\d+/)
       // 마지막 줄은 수호자의 이름과 그 신의 이름을 댄다
-      expect(lines[2], god).toContain(WAKE[god]!.guardian.name)
-      expect(lines[2], god).toMatch(new RegExp(`쓰러뜨리면 ${godDef(god).name}[이가] 깨어난다$`))
+      expect(lines[1], god).toContain(WAKE[god]!.guardian.name)
+      expect(lines[1], god).toMatch(new RegExp(`쓰러뜨리면 ${godDef(god).name}[이가] 깨어난다$`))
     }
   })
 
@@ -280,16 +277,16 @@ describe('불러온 뒤 깨우는 길 맞추기 (`WakeSystem.settle`)', () => {
     return { given, pieces }
   }
 
-  it('무리를 이긴 신마다 유물을 연출 없이 주고, 빈 손에 먼저 이긴 신의 무기를 조용히 쥐여 준다 (플레이 기록에 줄이 찍히지 않는다)', () => {
+  it('무리를 이긴 신마다 유물을 연출 없이 준다. 빈 손이어도 무기는 쥐여 주지 않는다 (P5: 힘은 카드에서 고른 것만)', () => {
     const r = settled({ waking: ['thor', 'odin'], has: false, hand: null })
     expect(r.given).toEqual([
       [mythRelic('thor'), false],
       [mythRelic('odin'), false],
     ])
-    expect(r.pieces).toEqual([{ god: 'thor', piece: 2, silent: true }])
+    expect(r.pieces).toEqual([])
   })
 
-  it('유물이 있고 손이 차 있으면 아무것도 주지 않는다 (두 갈래 카드도 띄우지 않는다)', () => {
+  it('유물이 있고 손이 차 있으면 아무것도 주지 않는다', () => {
     const r = settled({ waking: ['thor'], has: true, hand: 'odin' })
     expect(r.given).toEqual([])
     expect(r.pieces).toEqual([])
@@ -304,13 +301,5 @@ describe('불러온 뒤 깨우는 길 맞추기 (`WakeSystem.settle`)', () => {
       expect(r.given).toEqual([])
       expect(r.pieces).toEqual([])
     }
-  })
-})
-
-describe('손의 두 갈래 카드 안내 (2026-11-20 손 QA)', () => {
-  it('새 무기는 지금 쥘 수 있다고 적는다: 「무기는 깨어난 뒤부터」로 읽히지 않는다', () => {
-    expect(swapHandNote('오딘')).toBe('오딘의 무기를 지금 쥘 수 있다. 미루면 오딘이 깨어난 뒤 신 탭에서 쥔다.')
-    expect(swapHandNote('토르')).toContain('토르가 깨어난 뒤')
-    expect(swapHandNote('오딘')).not.toMatch(/깨어난 뒤부터/)
   })
 })

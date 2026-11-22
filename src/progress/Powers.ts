@@ -15,6 +15,16 @@ export interface PowerData {
   seed: number
   /** 켜 본 조합 (P3): 처음 켜질 때의 큰 카드는 한 번만. 하나도 없으면 키를 쓰지 않는다 */
   combos?: string[]
+  /** 땅에서 기다리는 빛 (P5): 수호자·장 보스가 쓰러진 자리, 밟으면 카드. 하나도 없으면 키를 쓰지 않는다 */
+  lights?: PowerLight[]
+}
+
+/** 땅에서 기다리는 빛 하나: 그 출처의 카드가 뜰 자리 (그 땅 좌표) */
+export interface PowerLight {
+  source: string
+  region: string
+  x: number
+  z: number
 }
 
 const isGod = (v: unknown): v is God => typeof v === 'string' && Object.hasOwn(GODS, v)
@@ -38,6 +48,8 @@ export class PowerProgress {
   seed: number
   /** 켜 본 조합: 처음 켜질 때만 큰 카드가 뜬다 */
   readonly combos = new Set<string>()
+  /** 땅에서 기다리는 빛 (밟을 때까지 남고 저장된다) */
+  lights: PowerLight[] = []
 
   /** @param returns 귀환 수 (원정 기록에서 읽는다): 도는 힘의 칸 수를 정한다 */
   constructor(
@@ -47,8 +59,10 @@ export class PowerProgress {
     this.seed = seed >>> 0
   }
 
-  /** 점검용 실행(`?relics=`)과 개발 지름길만 켠다: 도는 힘의 칸 상한을 푼다 (엔드게임 빌드처럼 칸을 넘는 점검 상태) */
+  /** 점검용 실행(`?relics=`)과 개발 지름길이 끼우는 동안만 켠다: 도는 힘의 칸 상한을 푼다 (엔드게임 빌드처럼 칸을 넘는 점검 상태) */
   uncapped = false
+  /** 점검용 실행(`?relics=`): 조합이 처음 켜져도 큰 카드를 띄우지 않는다 (재는 값에 카드가 섞이지 않게) */
+  testRun = false
 
   /** 지금 도는 힘의 칸 수 */
   get auraSlots(): number {
@@ -86,6 +100,16 @@ export class PowerProgress {
     return parseSource(source) !== null && !this.claimed.has(source) ? offer(source, this, this.seed) : []
   }
 
+  /** 빈 도는 힘 칸을 가진 도는 힘으로 채운다 (얻은 차례, 귀환으로 칸이 늘었을 때). 채운 것이 있으면 true */
+  fill(): boolean {
+    let filled = false
+    for (const id of this.owned) {
+      if (this.slots.auras.length >= this.auraSlots) break
+      if (power(id)?.kind === 'aura' && this.slot(id)) filled = true
+    }
+    return filled
+  }
+
   /**
    * 그 출처가 내민 힘 하나를 고른다: 가진 힘에 더하고 빈 칸이 있으면 끼운다. 출처는 한 번만.
    * 흔적·수호자에서 고르면 그 신을 만난 것이다. 내밀지 않은 힘·이미 고른 출처면 false
@@ -115,6 +139,7 @@ export class PowerProgress {
     this.claimed.clear()
     this.met = []
     this.combos.clear()
+    this.lights = []
   }
 
   /**
@@ -161,7 +186,8 @@ export class PowerProgress {
 
   toData(): PowerData {
     const combos = this.combos.size ? { combos: [...this.combos] } : {}
-    return { owned: [...this.owned], slots: { weapon: this.slots.weapon, ultimate: this.slots.ultimate, auras: [...this.slots.auras] }, claimed: [...this.claimed], met: [...this.met], seed: this.seed, ...combos }
+    const lights = this.lights.length ? { lights: this.lights.map((l) => ({ ...l })) } : {}
+    return { owned: [...this.owned], slots: { weapon: this.slots.weapon, ultimate: this.slots.ultimate, auras: [...this.slots.auras] }, claimed: [...this.claimed], met: [...this.met], seed: this.seed, ...combos, ...lights }
   }
 
   /** 불러온다. 지금 칸 수를 넘친 도는 힘은 뒤에서부터 칸에서 뺀다 (힘은 그대로 갖는다) */
@@ -174,37 +200,15 @@ export class PowerProgress {
     this.seed = data.seed >>> 0
     this.combos.clear()
     for (const id of data.combos ?? []) this.combos.add(id)
+    this.lights = (data.lights ?? []).filter((l) => !this.claimed.has(l.source)).map((l) => ({ ...l }))
   }
 }
 
 /** 칸 상한을 푼 동안의 칸 수 (힘 전체보다 넉넉하게) */
 const UNCAPPED_SLOTS = 999
 
-/**
- * 저장된 힘에 옛 상태(깨운 신·깨우는 신·자리 셋·켠 유물)에서 셈한 힘을 합친다. `powers` 키가 한 번 쓰인 뒤에도 힘이 굳지 않게:
- * 깨웠는데(또는 깨우는 중인데) 힘의 기록이 아직 모르는 신(만난 신에 없는 신)만, 그 신의 셈한 힘·출처를 더하고 빈 칸을 그 힘으로 채운다.
- * 이미 만난 신의 힘과 칸은 저장된 그대로다 (가졌는데 일부러 뺀 힘을 다시 끼우지 않고, 하나씩 고른 힘에 나머지를 얹지 않는다).
- * 깨운 신은 있는데 힘이 빈 저장(힘이 전투에 꽂히기 전 판에서 쓴 저장)이 맨손·궁극기 없음으로 굳지 않는다
- */
-export function mergePowers(saved: PowerData, derived: PowerData): PowerData {
-  const missing = new Set(derived.met.filter((god) => !saved.met.includes(god)))
-  if (missing.size === 0) return saved
-  const fresh = new Set(derived.owned.filter((id) => !saved.owned.includes(id) && missing.has(power(id)!.god)))
-  const pick = (id: PowerId | null) => (id !== null && fresh.has(id) ? id : null)
-  const claimed = derived.claimed.filter((s) => !saved.claimed.includes(s) && missing.has(parseSource(s)?.arg ?? ''))
-  return {
-    owned: [...saved.owned, ...fresh],
-    slots: {
-      weapon: saved.slots.weapon ?? pick(derived.slots.weapon),
-      ultimate: saved.slots.ultimate ?? pick(derived.slots.ultimate),
-      auras: [...saved.slots.auras, ...derived.slots.auras.filter((id) => fresh.has(id))].slice(0, AURA_SLOTS.max),
-    },
-    claimed: [...saved.claimed, ...claimed],
-    met: [...saved.met, ...missing],
-    seed: saved.seed,
-    ...(saved.combos ? { combos: saved.combos } : {}),
-  }
-}
+/** 땅에서 기다리는 빛을 몇 개까지 읽나 */
+const LIGHTS_CAP = 40
 
 /** 출처 기록을 몇 개까지 읽나 (내미는 곳은 땅마다 열 남짓이다) */
 const CLAIMED_CAP = 1000
@@ -228,5 +232,11 @@ export function parsePowers(raw: unknown, fallbackSeed = 0): PowerData {
   const met = [...new Set(list(o.met).filter(isGod))]
   const seed = typeof o.seed === 'number' && Number.isInteger(o.seed) && o.seed >= 0 && o.seed <= 0xffffffff ? o.seed : fallbackSeed >>> 0
   const combos = [...new Set(list(o.combos).filter(isComboId))]
-  return { owned, slots, claimed, met, seed, ...(combos.length ? { combos } : {}) }
+  const lights = list(o.lights).flatMap((v): PowerLight[] => {
+    const l = (typeof v === 'object' && v !== null ? v : {}) as Record<string, unknown>
+    const ok = typeof l.source === 'string' && parseSource(l.source) !== null && !claimed.includes(l.source) && typeof l.region === 'string' && l.region.length <= 40 && Number.isFinite(l.x) && Number.isFinite(l.z)
+    return ok ? [{ source: l.source as string, region: l.region as string, x: l.x as number, z: l.z as number }] : []
+  })
+  const unique = lights.filter((l, i) => lights.findIndex((m) => m.source === l.source) === i).slice(0, LIGHTS_CAP)
+  return { owned, slots, claimed, met, seed, ...(combos.length ? { combos } : {}), ...(unique.length ? { lights: unique } : {}) }
 }

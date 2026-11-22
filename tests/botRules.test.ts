@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import enemies from '../src/data/enemies.json'
-import { bossTurn, holdOf, OLD_BRANCH_ORDER, returnBranch, selfReturn, soaksFalling, staysInHold } from '../src/dev/botRules'
+import { bossTurn, holdOf, OLD_BRANCH_ORDER, pickPower, returnBranch, selfReturn, soaksFalling, staysInHold } from '../src/dev/botRules'
 import { pickAwaken } from '../src/data/wake'
 import type { God } from '../src/relics/data'
 import { LEASH_REENGAGE } from '../src/enemies/Giant'
@@ -151,5 +151,36 @@ describe('차례 없는 흔적의 봇 (2026-11-22)', () => {
     expect(pick([thor, odin, loki, freyr], 'midgard', 'loki')).toBe('loki')
     expect(pick([thor, odin], 'midgard', 'loki')).toBe('odin')
     expect(pick([], 'midgard')).toBeNull()
+  })
+})
+
+describe('봇이 힘 카드에서 고르는 법 (재미 재설계 P5)', () => {
+  const rows = [
+    { id: 'aura:thor.skyStrike', kind: 'aura' as const },
+    { id: 'ultimate:thor', kind: 'ultimate' as const },
+    { id: 'weapon:thor', kind: 'weapon' as const },
+  ]
+  const empty = { weapon: null, ultimate: null }
+
+  it('기본: 무기 칸이 비었으면 무기, 궁극기 칸이 비었으면 궁극기, 그다음 끼우면 조합이 켜지는 힘, 없으면 첫째 줄', () => {
+    expect(pickPower(rows, empty, 'rule')).toBe('weapon:thor')
+    expect(pickPower(rows, { weapon: 'weapon:odin', ultimate: null }, 'rule')).toBe('ultimate:thor')
+    const full = { weapon: 'weapon:odin', ultimate: 'ultimate:odin' }
+    expect(pickPower(rows, full, 'rule')).toBe('aura:thor.skyStrike')
+    const combo = [rows[0]!, { id: 'relic:mjolnir', kind: 'aura' as const, combo: '돌아오는 천둥' }]
+    expect(pickPower(combo, full, 'rule')).toBe('relic:mjolnir')
+    // 칸이 차서 가진 힘으로만 남는 줄은 조합을 완성하지 못한다
+    expect(pickPower([rows[0]!, { ...combo[1]!, spare: true }], full, 'rule')).toBe('aura:thor.skyStrike')
+    // 첫째 줄은 칸에 바로 드는 줄 가운데 첫째: 찬 무기 칸을 바꿔 끼우는 무기·남기만 하는 도는 힘보다 빈 칸에 드는 도는 힘
+    const trace = [{ id: 'weapon:odin', kind: 'weapon' as const }, { id: 'relic:draupnir', kind: 'aura' as const, spare: true }, { id: 'aura:odin.companions', kind: 'aura' as const }]
+    expect(pickPower(trace, full, 'rule')).toBe('aura:odin.companions')
+    // 다 칸에 들지 못하면 첫째 줄
+    expect(pickPower(trace.slice(0, 2), full, 'rule')).toBe('weapon:odin')
+  })
+
+  it('first·last는 늘 그 줄, 줄이 없으면 null', () => {
+    expect(pickPower(rows, empty, 'first')).toBe('aura:thor.skyStrike')
+    expect(pickPower(rows, empty, 'last')).toBe('weapon:thor')
+    for (const mode of ['rule', 'first', 'last'] as const) expect(pickPower([], empty, mode)).toBeNull()
   })
 })

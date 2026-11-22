@@ -48,6 +48,12 @@ const OUT_FILE = flag('--out=') ?? 'test-results/power-curve.json'
 const BRANCH = flag('--branch=') ?? 'ascend'
 /** 봇이 먼저 갈 신의 흔적 (없으면 가장 가까운 흔적부터) */
 const FIRST = flag('--first=') ?? null
+/** --pick=first|last: 봇이 힘 카드에서 늘 첫째·마지막 줄을 고른다 (P5, 없으면 무기 → 궁극기 → 조합 → 첫째 줄) */
+const PICK = flag('--pick=') ?? null
+if (PICK && !['rule', 'first', 'last'].includes(PICK)) {
+  console.error(`--pick=${PICK}: rule·first·last만 됩니다.`)
+  process.exit(2)
+}
 if (FIRST && !['thor', 'odin', 'loki', 'freyr'].includes(FIRST)) {
   console.error(`--first=${FIRST}: thor·odin·loki·freyr만 됩니다.`)
   process.exit(2)
@@ -181,6 +187,7 @@ try {
     await page.waitForFunction(() => window.__autoplay && window.__game.frame > 2, null, { timeout: 60000 })
     await page.evaluate((branch) => (window.__autoplay.branch = branch), BRANCH)
     if (FIRST) await page.evaluate((god) => (window.__autoplay.first = god), FIRST)
+      if (PICK) await page.evaluate((pick) => (window.__autoplay.pick = pick), PICK)
     if (DEPTH > 0) await page.evaluate(() => {
       // 깊이는 엔딩 뒤 장치 (E21-06): 귀환 카드에서 「+1」
       window.__game.reachEnding()
@@ -435,7 +442,7 @@ try {
       const s = await page.evaluate(
         ([nextTick, chunk]) => {
           const g = window.__game
-          const kind = () => (g.returnCardOpen ? 'return' : g.oathCardOpen ? 'oath' : g.swapOpen ? 'swap' : null)
+          const kind = () => (g.returnCardOpen ? 'return' : g.oathCardOpen ? 'oath' : g.powerPicks.open ? 'power' : null)
           g.timeScale = 1
           window.__autoplay.run(Math.max(1 / 30, Math.min(chunk, nextTick - g.time)), () => {
             const k = kind()

@@ -123,10 +123,8 @@ describe('저장 데이터', () => {
     // 견본은 귀환 셋(도는 힘 여섯 칸): 손의 신이 아닌 토르의 묠니르는 뒤로 밀리고, 토르 둘·로키·오딘·프레이 둘까지 든다
     expect(parseSave(JSON.stringify({ ...legacy, version: 17, pantheon: { hand: 'zeus', heart: 'nobody', breath: ['thor', 'thor', 'nobody'] } }))?.pantheon).toEqual({ hand: null, heart: null, breath: ['thor'] })
     expect(parseSave(JSON.stringify({ ...legacy, version: 17, classes: many, pantheon: { hand: 'loki', heart: 'odin', breath: ['thor', 'loki', 'odin', 'freyr', 'zeus', 'poseidon'] } }))?.pantheon.breath).toEqual(['thor', 'loki', 'odin', 'freyr'])
-    // 손은 깨우는 신(흔적의 무리를 이긴 신)도 쥘 수 있다. 사냥하던 옛 저장(조각 1)도 조각 2로 읽히니 쥔다
-    expect(parseSave(JSON.stringify({ ...legacy, version: 17, awaken: { waking: 'odin', fragments: 2 }, pantheon: { hand: 'odin', heart: null, breath: [] } }))?.pantheon.hand).toBe('odin')
-    expect(parseSave(JSON.stringify({ ...legacy, version: 17, awaken: { waking: 'odin', fragments: 1 }, pantheon: { hand: 'odin', heart: null, breath: [] } }))?.pantheon.hand).toBe('odin')
-    expect(parseSave(JSON.stringify({ ...legacy, version: 17, awaken: { waking: null, fragments: 0 }, pantheon: { hand: 'odin', heart: null, breath: [] } }))?.pantheon.hand).toBeNull()
+    // 깨우는 신(흔적의 무리를 이긴 신)을 손에 쥔 옛 저장도 그 신의 힘은 거저 얻지 않는다 (P5: 힘은 고른 것만). 깨우지 않은 신은 물론 쥐지 않는다
+    for (const awaken of [{ waking: 'odin', fragments: 2 }, { waking: 'odin', fragments: 1 }, { waking: null, fragments: 0 }]) expect(parseSave(JSON.stringify({ ...legacy, version: 17, awaken, pantheon: { hand: 'odin', heart: null, breath: [] } }))?.pantheon.hand, JSON.stringify(awaken)).toBeNull()
     // 단계 0(옛 신화 숙련만 쌓인 신)도 그대로 남고, 신화 경험치는 내보내지 않는다 (v17)
     expect(parseSave(JSON.stringify({ ...sample, classes: { ...sample.classes, zeus: { level: 0, xp: 120 } } }))?.classes.zeus).toEqual({ level: 0 })
   })
@@ -442,19 +440,19 @@ describe('저장 v18: 힘 (재미 재설계)', () => {
     expect(parseSave(JSON.stringify(sample))?.powers).toEqual(sample.powers)
   })
 
-  it('v17 저장(힘의 키 없음)은 깨운 신의 힘을 모두 갖고, 깨우는 도중인 신은 무기와 대표 패시브를, 자리 셋의 힘을 칸에', () => {
+  it('v17 저장(힘의 키 없음)은 깨운 신의 힘을 모두 갖고, 깨우는 도중인 신의 힘은 없이(P5: 고른 것만), 자리 셋의 힘을 칸에', () => {
     const data = parseSave(JSON.stringify({ ...noPowers, version: 17 }))!
     expect(data.version).toBe(SAVE_VERSION)
     // 견본: 토르 2단계(손·심장·숨), 오딘은 깨우는 도중, 묠니르를 켬, 귀환 셋(원정 4)
-    expect(data.powers.met).toEqual(['thor', 'odin'])
-    expect(data.powers.owned).toEqual(['weapon:thor', 'ultimate:thor', 'aura:thor.basicLightning', 'aura:thor.skyStrike', 'relic:mjolnir', 'relic:megingjord', 'relic:jarngreipr', 'weapon:odin', 'aura:odin.companions'])
-    expect(data.powers.slots).toEqual({ weapon: 'weapon:thor', ultimate: 'ultimate:thor', auras: ['relic:mjolnir', 'aura:thor.basicLightning', 'aura:thor.skyStrike', 'aura:odin.companions'] })
-    expect(data.powers.claimed).toEqual(['trace:thor', 'guardian:thor', 'trace:odin'])
+    expect(data.powers.met).toEqual(['thor'])
+    expect(data.powers.owned).toEqual(['weapon:thor', 'ultimate:thor', 'aura:thor.basicLightning', 'aura:thor.skyStrike', 'relic:mjolnir', 'relic:megingjord', 'relic:jarngreipr'])
+    expect(data.powers.slots).toEqual({ weapon: 'weapon:thor', ultimate: 'ultimate:thor', auras: ['relic:mjolnir', 'aura:thor.basicLightning', 'aura:thor.skyStrike'] })
+    expect(data.powers.claimed).toEqual(['trace:thor', 'guardian:thor'])
     // 두 번 읽어도 같은 씨앗, 한 번 옮긴 뒤에는 그대로
     expect(parseSave(JSON.stringify({ ...noPowers, version: 17 }))?.powers.seed).toBe(data.powers.seed)
     expect(parseSave(JSON.stringify(data))?.powers).toEqual(data.powers)
-    // 자리 셋은 옮긴 칸에서 읽는다 (깨우는 오딘의 까마귀가 칸에 들어 숨에 보인다). 신 단계·유물표는 그대로 둔다
-    expect(data.pantheon).toEqual({ hand: 'thor', heart: 'thor', breath: ['thor', 'odin'] })
+    // 자리 셋은 옮긴 칸에서 읽는다. 신 단계·유물표는 그대로 둔다
+    expect(data.pantheon).toEqual({ hand: 'thor', heart: 'thor', breath: ['thor'] })
     expect(data.classes).toEqual(sample.classes)
     expect(data.lit).toEqual(sample.lit)
   })
@@ -572,29 +570,29 @@ describe('저장 v17: 맹세·깊이·자동화·끝없는 원정 (E305)', () =>
   it('원정 기록이 없던 저장(v15 이하)은 원정 번호를 장 진행이 지나온 할 일 「귀환」으로 짐작한다 (명성은 없이, E306 흐름: 귀환 넷)', () => {
     const norse = (n: number) => (realm: string) => (realm === 'norse' ? n : 0)
     // 첫 신을 깨웠다: 바닷가의 귀환 1은 아직 앞에 있다
-    expect(estimateExpeditions({ entered: ['midgard'], bosses: [] }, norse(1), 1)).toBe(1)
+    expect(estimateExpeditions({ entered: ['midgard'], bosses: [] }, norse(1))).toBe(1)
     // 둘째 신을 깨웠다(귀환 1 뒤의 할 일): 귀환 1은 지나왔다
-    expect(estimateExpeditions({ entered: ['midgard'], bosses: [] }, norse(2), 1)).toBe(2)
+    expect(estimateExpeditions({ entered: ['midgard'], bosses: [] }, norse(2))).toBe(2)
     // 요툰헤임에 들어섰다: 철의 숲의 귀환 2도 그 앞의 할 일이라 지나왔다
-    expect(estimateExpeditions({ entered: ['midgard', 'jotunheim'], bosses: [] }, norse(2), 1)).toBe(3)
+    expect(estimateExpeditions({ entered: ['midgard', 'jotunheim'], bosses: [] }, norse(2))).toBe(3)
     // 첫 신만 깨우고 요툰헤임에 들어선 옛 저장(옛 흐름은 첫 신 → 요툰헤임): 둘째 신이 아직 앞에 있어 그 앞의 귀환도 지나오지 않았다 (E306 리뷰)
-    expect(estimateExpeditions({ entered: ['midgard', 'jotunheim'], bosses: [] }, norse(1), 1)).toBe(1)
+    expect(estimateExpeditions({ entered: ['midgard', 'jotunheim'], bosses: [] }, norse(1))).toBe(1)
     // 거인 왕을 이겼다: 고개 성소의 귀환 3은 아직 앞에 있다 (E241)
-    expect(estimateExpeditions({ entered: ['midgard', 'jotunheim', 'utgard'], bosses: ['utgard'] }, norse(2), 1)).toBe(3)
+    expect(estimateExpeditions({ entered: ['midgard', 'jotunheim', 'utgard'], bosses: ['utgard'] }, norse(2))).toBe(3)
     // 올림포스에 들어섰다(고개가 생기기 전의 저장): 고개의 귀환 3은 그 앞의 할 일이라 지나왔다. 제우스 목표는 그대로 남는다 (E241)
-    expect(estimateExpeditions({ entered: ['midgard', 'jotunheim', 'utgard', 'olympus'], bosses: ['utgard'] }, norse(2), 1)).toBe(4)
+    expect(estimateExpeditions({ entered: ['midgard', 'jotunheim', 'utgard', 'olympus'], bosses: ['utgard'] }, norse(2))).toBe(4)
     // 리키아에 닿았다: 리키아 성소의 귀환 4는 종장의 할 일이라 아직 앞에 있다
-    expect(estimateExpeditions({ entered: ['midgard', 'jotunheim', 'utgard', 'olympus', 'delphi', 'lycia'], bosses: ['utgard'] }, norse(2), 1)).toBe(4)
+    expect(estimateExpeditions({ entered: ['midgard', 'jotunheim', 'utgard', 'olympus', 'delphi', 'lycia'], bosses: ['utgard'] }, norse(2))).toBe(4)
     // 키마이라를 이기고 귀환 4보다 먼저 유물을 2단계로 벼렸다: 벼리기는 귀환 없이 할 수 있어 귀환 4를 지나온 근거가 아니다 (E306 리뷰)
     const greek = (realm: string) => (realm === 'norse' ? 2 : realm === 'greek' ? 1 : 0)
-    expect(estimateExpeditions({ entered: ['midgard', 'jotunheim', 'utgard', 'pass', 'olympus', 'delphi', 'lycia'], bosses: ['utgard', 'lycia'] }, greek, 2)).toBe(4)
-    expect(estimateExpeditions({ entered: ['midgard', 'jotunheim', 'utgard', 'pass', 'olympus', 'delphi', 'lycia', 'sky'], bosses: ['utgard', 'lycia'] }, greek, 2)).toBe(5)
+    expect(estimateExpeditions({ entered: ['midgard', 'jotunheim', 'utgard', 'pass', 'olympus', 'delphi', 'lycia'], bosses: ['utgard', 'lycia'] }, greek)).toBe(4)
+    expect(estimateExpeditions({ entered: ['midgard', 'jotunheim', 'utgard', 'pass', 'olympus', 'delphi', 'lycia', 'sky'], bosses: ['utgard', 'lycia'] }, greek)).toBe(5)
   })
 
   it('원정 기록이 있는 저장(v16부터)은 적힌 수와 짐작한 수 가운데 큰 쪽 (E306 D18: 고개에서 귀환 2를 기다리던 v17 저장도 귀환 한 번이면 된다)', () => {
     // 새 흐름의 저장은 늘 짐작 이상이라 그대로
     expect(parseSave(JSON.stringify(asOld(sample, 16)))?.expedition.count).toBe(sample.expedition.count)
-    const pass = { ...sample, classes: { thor: { level: 2 }, odin: { level: 1 } }, chapters: { entered: ['village', 'midgard', 'jotunheim', 'utgard', 'pass'], bosses: ['utgard'] }, mount: true }
+    const pass = { ...sample, version: 18, classes: { thor: { level: 2 }, odin: { level: 1 } }, chapters: { entered: ['village', 'midgard', 'jotunheim', 'utgard', 'pass'], bosses: ['utgard'] }, mount: true }
     const old = parseSave(JSON.stringify({ ...pass, expedition: { ...sample.expedition, count: 2 } }))!
     expect(old.expedition.count).toBe(3)
     expect(old.expedition.renown).toBe(sample.expedition.renown)
@@ -610,6 +608,16 @@ describe('저장 v17: 맹세·깊이·자동화·끝없는 원정 (E305)', () =>
       expedition: { ...sample.expedition, count: 4 },
     }
     expect(parseSave(JSON.stringify(forged))!.expedition.count).toBe(4)
+  })
+
+  it('새 흐름 v19 저장의 원정 번호는 그대로: 귀환 없이 북유럽 신 둘을 깨우고 요툰헤임에 들어섰어도 짐작으로 늘지 않는다 (P5 리뷰)', () => {
+    const fresh = { ...sample, classes: { thor: { level: 1 }, odin: { level: 1 } }, chapters: { entered: ['village', 'midgard', 'jotunheim'], bosses: [] }, expedition: { ...sample.expedition, count: 1 } }
+    expect(fresh.version).toBe(19)
+    const data = parseSave(JSON.stringify(fresh))!
+    expect(data.expedition.count).toBe(1)
+    expect(parseSave(JSON.stringify(data))!.expedition.count).toBe(1)
+    // 같은 모양의 v18 저장은 옛 흐름으로 짐작한다 (그 흐름의 귀환 둘을 지나왔다)
+    expect(parseSave(JSON.stringify({ ...fresh, version: 18 }))!.expedition.count).toBe(3)
   })
 })
 

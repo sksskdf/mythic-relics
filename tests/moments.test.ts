@@ -66,8 +66,8 @@ describe('순간의 크기 (E23-01)', () => {
     expect(Object.keys(MOMENTS)).not.toContain('insight')
     // 3 큰 카드: 신화 단계, 유물 벼리기, 신의 조각 2(유물)와 두 번째 신부터 깨어남 (E238)
     expect(tiers(3)).toEqual(expect.arrayContaining(['mythLevel', 'forged', 'godAwakened', 'mergedHigh']))
-    // 4 장면: 첫 신이 깨어남, 신의 흔적(조각 1, E238), 장 보스 처치, 장 넘어가기, 엔딩. 두 갈래 카드는 장면의 차례를 타 앞의 장면·큰 카드 뒤에 뜬다
-    expect(tiers(4).sort()).toEqual(['chapterBoss', 'chapterChanged', 'ending', 'fragment', 'mythChosen', 'swapOffer'])
+    // 4 장면: 첫 신이 깨어남, 신의 흔적(조각 1, E238), 장 보스 처치, 장 넘어가기, 엔딩. 힘 카드(P5)는 순간이 아니라 기다리는 순간이 다 지나간 뒤에 뜬다 (`tests/powerCard.test.ts`)
+    expect(tiers(4).sort()).toEqual(['chapterBoss', 'chapterChanged', 'ending', 'fragment', 'mythChosen'])
   })
 
   it('장 넘어가기와 장 보스(마지막 보스는 엔딩)의 장면이 모두 있다 (E23-02)', () => {
@@ -133,26 +133,6 @@ describe('순간의 크기 (E23-01)', () => {
     endScene()
     run(0.1)
     expect(calls).toEqual(['장면:downKing', '카드:거인 왕'])
-  })
-
-  it('두 갈래 카드는 흔적의 장면과 큰 카드가 지나간 뒤에 뜬다 (신이 말을 걸기도 전에 고르라고 하지 않는다)', () => {
-    const { calls, emit, card, run, endScene } = setup({ slow: false })
-    let asked = 0
-    // 흔적의 무리를 이긴 프레임: 흔적의 장면(뒤에 큰 카드) → 손이 차 있어 두 갈래 카드
-    emit({ id: 'fragment', scene: 'traceOdin', card: card('오딘의 흔적') })
-    emit({ id: 'swapOffer', after: () => (asked += 1) })
-    run(0.1)
-    expect(calls).toEqual(['장면:traceOdin'])
-    run(2)
-    expect(asked).toBe(0)
-    endScene()
-    run(0.1)
-    expect(calls).toEqual(['장면:traceOdin', '큰 카드:오딘의 흔적'])
-    // 큰 카드가 자리를 지키는 동안에도 아직이다
-    run(CARD_HOLD.big - 0.3)
-    expect(asked).toBe(0)
-    run(0.5)
-    expect(asked).toBe(1)
   })
 
   it('온 차례대로: 보스가 쓰러진 프레임이면 보스 장면 → 장 넘어가기 장면(뒤에 장 제목 띠) → 빌린 힘 카드', () => {

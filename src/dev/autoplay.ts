@@ -12,7 +12,8 @@ import { type God, godDef, relicDef } from '../relics/data'
 import { relicGods } from '../relics/model'
 import type { Point2 } from '../world/colliders'
 import { type BossFight, BossWatch } from './bossWatch'
-import { bossTurn, type BranchMode, type Hold, holdOf, returnBranch, selfReturn, soaksFalling, staysInHold } from './botRules'
+import { power } from '../data/powers'
+import { bossTurn, type BranchMode, type Hold, holdOf, pickPower, type PickMode, returnBranch, selfReturn, soaksFalling, staysInHold } from './botRules'
 
 /** 판단 간격 (초). 사람의 반응 속도쯤으로 둔다. */
 const THINK = 0.25
@@ -63,6 +64,8 @@ export class Autoplayer {
   chapters = false
   /** 귀환 갈래를 고르는 법 (E307 0C): 승천할 신이 있으면 늘 승천. 옛 고정 차례는 `old` (scripts/playtest.mjs·power-curve.mjs --branch=old) */
   branch: BranchMode = 'ascend'
+  /** 힘 카드에서 고르는 법 (P5): 무기 → 궁극기 → 조합을 완성하는 힘 → 첫째 줄. `first`·`last`는 늘 그 줄 (scripts/playtest.mjs·power-curve.mjs --pick=) */
+  pick: PickMode = 'rule'
   /** 마지막 생각이 끝난 단계 (멈춤을 찾을 때) */
   step = 0
   /** 붙잡은 싸움 상대 (E241) */
@@ -196,6 +199,14 @@ export class Autoplayer {
     this.noteKills()
     // 무너지는 중인 적까지 본다 (encounter.alive는 쓰러진 적을 뺀다)
     this.bossWatch.note(this.game.time, this.game.region.id, encounter.giants)
+    // 힘 카드 (P5): 뜨면 무엇보다 먼저 고른다 (사람은 카드가 뜬 동안 게임이 멈춘다)
+    const card = this.game.powerPicks.current
+    if (card) {
+      const rows = card.rows.map((r) => ({ ...r, kind: power(r.id)!.kind }))
+      const id = pickPower(rows, this.game.powerPicks.slots, this.pick)
+      if (id) this.game.powerPicks.choose(id)
+      return void (this.step = 23)
+    }
     if (!combat.alive) return void (this.step = 1)
     const p = hero.object.position
     const here = { x: p.x, z: p.z }
@@ -286,8 +297,17 @@ export class Autoplayer {
       return
     }
 
+    // 3.5 빛 (P5): 수호자·장 보스가 쓰러진 자리의 빛을 밟으러 간다 (싸움이 풀려야 카드가 뜨니 둘레가 비었을 때). 빛이 남은 땅은 떠나지 않는다
+    // 빛 위에 섰는데 카드가 뜨지 않으면(둘레에 깨어 있는 적·멀리서 맞음) 아래 싸움으로 간다: 서서 기다리기만 하면 싸움이 풀리지 않는다
+    const light = this.lightSpot(here)
+    if (light && hp > 0.5 && near.length === 0 && dist(here, light) > 0.8) {
+      if (!hero.isMoving || dist(hero.goal ?? here, light) > 0.5) hero.moveTo(light)
+      this.step = 22
+      return
+    }
+
     // 4. 다른 땅으로 가야 하면 출구로 (마을에서 시작하면 필드로, 승급할 때가 되면 그 신의 땅으로)
-    if (this.travel()) return void (this.step = 7)
+    if (!light && this.travel()) return void (this.step = 7)
 
     // 4.4 끝없는 원정 (E17 균열 → E305-03): 층을 깼으면 다음 층 문으로, 마을이면 나선다
     if (this.endless) {
@@ -327,13 +347,6 @@ export class Autoplayer {
         this.step = 19
         return
       }
-    }
-
-    // 두 갈래 카드 (E302-03): 새 신의 손·심장이 왔는데 자리가 차 있으면, 정한 신이면 새 것을, 아니면 지금 그대로
-    if (this.game.swapOpen) {
-      const incoming = document.querySelector<HTMLElement>('.swap-card__card')?.dataset.god
-      this.game.answerSwap(!!this.god && incoming === this.god)
-      return
     }
 
     // 4.9 귀환 (E304): 장 목표가 귀환이면(깊이 봇은 원정이 무르익을 때마다) 성소 화로로 가서, 카드가 뜨면 갈래를 고른다 (`returnBranch`: 손의 신 승천, 없으면 불꽃 불씨).
@@ -508,6 +521,12 @@ export class Autoplayer {
   private returnDue(): boolean {
     const { expedition, expeditionSystem, sanctuary } = this.game
     return selfReturn({ chapters: this.chapters, deepen: this.deepen, bosses: expedition.bosses, sanctuary: sanctuary.present, canReturn: expeditionSystem.canReturn })
+  }
+
+  /** 지금 땅에서 기다리는 빛 가운데 가장 가까운 것 (P5). 장 흐름을 따르는 봇만 (점검 봇은 제 자리에서 잰다) */
+  private lightSpot(here: Point2): Point2 | null {
+    if (!this.chapters) return null
+    return nearest([...this.game.powerPicks.spots], here)
   }
 
   /** 신 깨우기 목표에서 걸어갈 자리 (지금 땅의 흔적, 수호자가 아직 안 나온 수호자 자리). 장 흐름을 따르지 않으면 null */

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import { DataError } from '../src/data/check'
 import raw from '../src/data/chapters.json'
-import { CHAPTERS, chapterOf, CONQUESTS, GOAL_MAX_CHARS, landScale, parseChapters, TOP_POWER } from '../src/data/chapters'
+import { CHAPTERS, chapterOf, type ChapterStep, CONQUESTS, GOAL_MAX_CHARS, landScale, parseChapters, TOP_POWER } from '../src/data/chapters'
 import { REGIONS } from '../src/data/regions'
 import { ChapterProgress, type ChapterWorld } from '../src/progress/Chapters'
 import { MountProgress } from '../src/progress/Mount'
@@ -84,15 +84,11 @@ describe('장 데이터 (E22-01)', () => {
     expect(CHAPTERS.map((c) => c.steps.at(-1)!.kind)).toEqual(['enter', 'boss', 'boss', 'boss'])
   })
 
-  it('제1장에는 귀환 할 일이 없다(귀환은 수호자 뒤에 스스로), 귀환은 고개(1)·리키아(2) 성소, 합치기는 제1장 요툰헤임·맹세는 제2장 델포이 (2026-11-22)', () => {
+  it('장 할 일에 귀환이 없다(귀환은 강제하지 않는다, P5 리뷰: 처음부터 센 귀환 수로 그리스·종장의 귀환이 저절로 지나갔다), 합치기는 제1장 요툰헤임·맹세는 제2장 델포이', () => {
     const steps = CHAPTERS.flatMap((c) => c.steps)
-    expect(CHAPTERS.find((c) => c.id === 'north')!.steps.some((s) => s.kind === 'return')).toBe(false)
-    expect(steps.filter((s) => s.kind === 'return').map((s) => [s.region, s.n])).toEqual([
-      ['pass', 1],
-      ['lycia', 2],
-    ])
+    expect(steps.filter((s) => s.kind === 'return')).toEqual([])
     expect(steps.filter((s) => s.kind === 'merge' || s.kind === 'oath').map((s) => `${s.kind}:${s.region}:${s.n}`)).toEqual(['merge:jotunheim:1', 'oath:delphi:1'])
-    expect(CHAPTERS.find((c) => c.id === 'finale')!.steps[0]).toMatchObject({ kind: 'return', region: 'lycia', n: 2 })
+    expect(CHAPTERS.find((c) => c.id === 'finale')!.steps[0]).toMatchObject({ kind: 'forge', region: 'village', n: 2 })
   })
 
   it('틀린 데이터는 어디가 왜 틀렸는지 알리며 실패한다', () => {
@@ -106,7 +102,7 @@ describe('장 데이터 (E22-01)', () => {
     bad((d) => (d.north.lands.midgard = 2), /이미 열린 땅/)
     bad((d) => (d.north.steps[2].region = 'olympus'), /열리지 않은 땅/)
     bad((d) => (d.north.steps[3].region = 'midgard'), /보스가 없는 땅/)
-    bad((d) => (d.finale.steps[1].region = 'midgard'), /대장간/)
+    bad((d) => (d.finale.steps[0].region = 'midgard'), /대장간/)
     bad((d) => (d.north.steps[0].n = 9), /n/)
     bad((d) => (d.north.steps[2].realm = 'norse'), /awaken에만/)
     bad((d) => (d.north.steps[0].realm = 'atlantis'), /realm/)
@@ -120,19 +116,18 @@ describe('장 데이터 (E22-01)', () => {
     bad((d) => (d.greek.steps[1].n = 1), /n/)
     // 합치기·맹세 (E306): 수가 있어야 하고, 그 장의 땅에서, 장을 끝내는 일이 될 수 없다
     bad((d) => delete d.north.steps[1].n, /n/)
-    bad((d) => delete d.greek.steps[6].n, /n/)
-    bad((d) => (d.greek.steps[6].n = 9), /n/)
+    bad((d) => delete d.greek.steps[5].n, /n/)
+    bad((d) => (d.greek.steps[5].n = 9), /n/)
     bad((d) => (d.north.steps[1].region = 'midgard'), /그 장의 땅/)
     bad((d) => d.greek.steps.push({ kind: 'oath', region: 'delphi', n: 1, goal: '맹세' }), /장을 끝내는 일/)
     bad((d) => (d.north.steps[1].realm = 'norse'), /awaken에만/)
   })
 
-  it('그리스 장은 고개부터: 고개 → 고개지기 → 고개 성소 귀환 → 올림포스 → 제우스 → 델포이 → 맹세 → 리키아 → 키마이라 (E241, E306, TIMELINE.md 4장)', () => {
+  it('그리스 장은 고개부터: 고개 → 고개지기 → 올림포스 → 제우스 → 델포이 → 맹세 → 리키아 → 키마이라 (E241, E306, 귀환 없이 이어진다 P5 리뷰)', () => {
     const greek = CHAPTERS.find((c) => c.id === 'greek')!
     expect(greek.steps.map((s) => `${s.kind}:${s.region}`)).toEqual([
       'enter:pass',
       'mount:pass',
-      'return:pass',
       'enter:olympus',
       'awaken:olympus',
       'enter:delphi',
@@ -140,8 +135,6 @@ describe('장 데이터 (E22-01)', () => {
       'enter:lycia',
       'boss:lycia',
     ])
-    // 고개 성소 귀환은 귀환이 하나라도 있으면 된다 (제1장의 귀환은 할 일이 아니다, 2026-11-22: 귀환 셋을 몰아 시키지 않게)
-    expect(greek.steps[2]!.n).toBe(1)
     expect(greek.lands.pass).toBeLessThan(greek.lands.olympus!)
   })
 })
@@ -220,7 +213,7 @@ describe('장 진행 (E22-01)', () => {
     expect(chapters.goal).toMatchObject({ kind: 'enter', region: 'utgard' })
   })
 
-  it('그리스와 마지막 무대도 차례로: 올림포스는 고개지기를 만나 고개 성소에서 귀환(1)한 뒤, 델포이는 제우스를 깨운 뒤, 리키아는 델포이에 닿은 뒤(맹세를 못 지켰어도), 갈라진 하늘은 귀환 2와 유물 2단계 뒤 (E241, E306, 2026-11-22)', () => {
+  it('그리스와 마지막 무대도 차례로: 올림포스는 고개지기를 만난 뒤(귀환 없이), 델포이는 제우스를 깨운 뒤, 리키아는 델포이에 닿은 뒤(맹세를 못 지켰어도), 갈라진 하늘은 유물 2단계 뒤 (E241, E306, P5 리뷰)', () => {
     const w = world()
     const chapters = new ChapterProgress(w)
     chapters.enter('midgard')
@@ -234,9 +227,7 @@ describe('장 진행 (E22-01)', () => {
     expect(chapters.isOpen('olympus')).toBe(false)
     w.ret = 0
     w.goat = true
-    expect(chapters.goal).toMatchObject({ kind: 'return', region: 'pass', n: 1 })
-    expect(chapters.isOpen('olympus')).toBe(false)
-    w.ret = 1
+    // 귀환하지 않아도 고개지기를 만나면 올림포스가 열린다
     expect(chapters.isOpen('olympus')).toBe(true)
     expect(chapters.goal?.goal).toBe('올림포스 기슭으로')
     chapters.enter('olympus')
@@ -252,9 +243,6 @@ describe('장 진행 (E22-01)', () => {
     expect(chapters.goal?.goal).toBe('리키아 화산으로')
     chapters.bossDefeated('lycia')
     expect(chapters.chapter?.id).toBe('finale')
-    expect(chapters.goal).toMatchObject({ kind: 'return', region: 'lycia', n: 2 })
-    expect(chapters.isOpen('sky')).toBe(false)
-    w.ret = 2
     expect(chapters.goal?.kind).toBe('forge')
     expect(chapters.isOpen('sky')).toBe(false)
     w.stage = 2
@@ -302,23 +290,18 @@ describe('장 진행 (E22-01)', () => {
     expect(chapters.isOpen('utgard')).toBe(true)
   })
 
-  it('종장에서 귀환 2보다 먼저 유물을 2단계로 벼려도 목표는 귀환 2이고 갈라진 하늘은 닫힌 채 (벼리기는 이어 세는 할 일, E306 리뷰)', () => {
+  it('종장에서 유물을 먼저 2단계로 벼렸으면 벼리기는 바로 지나가 목표는 갈라진 하늘 (귀환 없이, P5 리뷰)', () => {
     const w = world()
     const chapters = new ChapterProgress(w)
     pastNorth(w, chapters)
     for (const id of ['pass', 'olympus', 'delphi', 'lycia']) chapters.enter(id)
     w.goat = true
-    w.ret = 1
     w.heroes = 1
     w.kept = 1
     w.awake.set('greek', 1)
     chapters.bossDefeated('lycia')
     w.stage = 2
     expect(chapters.chapter?.id).toBe('finale')
-    expect(chapters.goal).toMatchObject({ kind: 'return', n: 2 })
-    expect(chapters.isOpen('sky')).toBe(false)
-    // 귀환 2를 마치면 이미 벼린 유물로 벼리기는 바로 지나간다
-    w.ret = 2
     expect(chapters.goal).toMatchObject({ kind: 'enter', region: 'sky' })
     expect(chapters.isOpen('sky')).toBe(true)
   })
@@ -370,7 +353,7 @@ describe('장 진행 (E22-01)', () => {
     expect(chapters.done(step)).toBe(true)
   })
 
-  it('키마이라 뒤 종장: 첫 목표는 리키아 성소의 귀환 2, 갈라진 하늘이 열리고, 마지막 보스를 이기면 끝 (E306)', () => {
+  it('키마이라 뒤 종장: 첫 목표는 대장간 벼리기, 갈라진 하늘이 열리고, 마지막 보스를 이기면 끝 (E306, 귀환 할 일은 P5 리뷰에서 걷음)', () => {
     const w = world()
     const chapters = new ChapterProgress(w)
     chapters.enter('midgard')
@@ -379,8 +362,6 @@ describe('장 진행 (E22-01)', () => {
     chapters.bossDefeated('lycia')
     expect(chapters.chapter?.id).toBe('finale')
     expect(chapters.isOpen('sky')).toBe(false)
-    expect(chapters.goal).toMatchObject({ kind: 'return', region: 'lycia', n: 2 })
-    w.ret = 2
     expect(chapters.goal?.kind).toBe('forge')
     // 2단계로 벼리지 않고 들어서도 목표는 마지막 보스로 넘어간다
     chapters.enter('sky')
@@ -438,6 +419,27 @@ describe('보스 처치를 적는 땅', () => {
     encounter.cross({ id: 'b', camps: [], boss: null }, { x: 0, z: 0 }, [], area)
     expect(encounter.fellRegion(fallen)).toBe('a')
     expect(encounter.fellRegion(standing)).toBeUndefined()
+  })
+})
+
+describe('이웃 땅에 지어 둔 무리의 세기 (P5 리뷰)', () => {
+  it('지어 둔 뒤 땅 세기가 바뀌었으면(만난 신이 늘어 제1장 땅이 세짐) 넘어갈 때 지금 세기로 갈아 낀다: 깎인 생명은 비율 그대로', () => {
+    const area = walkArea([{ minX: -60, maxX: 60, minZ: -30, maxZ: 30 }])
+    let power = 1
+    const encounter = new Encounter({ camps: [], boss: null }, [], area, (id) => (id === 'b' ? power : 1))
+    encounter.reset({ id: 'a', camps: [], boss: null }, [], area)
+    encounter.rng = () => 0.99
+    encounter.setNeighbors([{ id: 'b', layout: { id: 'b', camps: [{ x: 10, z: 0, count: 2 }], boss: null }, offset: { x: 30, z: 0 } }])
+    encounter.flushNeighbors()
+    const [a, b] = encounter.parkedGiants
+    const base = a!.health.max
+    b!.health.hp = b!.health.max / 2
+    power = 4
+    encounter.cross({ id: 'b', camps: [], boss: null }, { x: -30, z: 0 }, [], area)
+    expect(encounter.power).toBe(4)
+    expect(a!.health.max).toBeCloseTo(base * 4)
+    expect(a!.health.ratio).toBeCloseTo(1)
+    expect(b!.health.ratio).toBeCloseTo(0.5)
   })
 })
 
@@ -533,9 +535,11 @@ describe('엔딩 전 깨우는 길의 목표 한 줄 (2026-11-20: 사냥 막대�
     expect(viewOf(chapters, { waking: ['thor'], open: ['thor'] })?.text).toBe('신의 흔적을 찾는다')
   })
 
-  it('귀환 목표는 글만 보인다: 받을 배율(×1.20) 같은 움직이는 수도, 시간 막대도 없다 (2026-11-20 손 QA)', () => {
+  it('귀환 목표는 글만 보인다: 받을 배율(×1.20) 같은 움직이는 수도, 시간 막대도 없다 (2026-11-20 손 QA. 지금 데이터에는 귀환 할 일이 없어 고개에 귀환을 끼운 장으로 본다)', () => {
     const w = world()
-    const chapters = new ChapterProgress(w)
+    const greek = CHAPTERS.find((c) => c.id === 'greek')!
+    const back = { kind: 'return', region: 'pass', n: 1, goal: '고개 성소 화로에서 원정을 마친다' } as ChapterStep
+    const chapters = new ChapterProgress(w, () => false, CHAPTERS.map((c) => (c === greek ? { ...c, steps: [...c.steps.slice(0, 2), back, ...c.steps.slice(2)] } : c)))
     pastNorth(w, chapters)
     chapters.enter('pass')
     w.goat = true

@@ -11,7 +11,7 @@ import { RelicSystem } from '../src/game/systems/Relics'
 import { STAGE_DAMAGE } from '../src/gear/mythRelic'
 import { ClassProgress } from '../src/myth/ClassProgress'
 import { slotsPantheon } from '../src/myth/pantheon'
-import { mergePowers, parsePowers, PowerProgress } from '../src/progress/Powers'
+import { parsePowers, PowerProgress } from '../src/progress/Powers'
 import { godDef } from '../src/relics/data'
 import { parseSave } from '../src/save/SaveData'
 import OLD_TEXT from './fixtures/save-v17-full.json?raw'
@@ -192,7 +192,7 @@ describe('점검용 지름길과 칸 상한', () => {
 describe('P1 리뷰에서 고친 것', () => {
   const empty = { owned: [], slots: { weapon: null, ultimate: null, auras: [] }, claimed: [], met: [], seed: 7 }
 
-  it('깨운 신은 있는데 힘이 빈 v18 저장은 깨운 신·자리 셋에서 셈한 힘으로 채워 읽는다 (맨손으로 굳지 않는다)', () => {
+  it('v18 저장의 힘은 그대로 읽는다: 깨운 신·깨우는 신이 있어도 힘의 기록에 없는 힘을 거저 얹지 않는다 (P5: 힘은 고른 것만)', () => {
     const stale = {
       version: 18,
       classes: { thor: { level: 2 } },
@@ -202,30 +202,24 @@ describe('P1 리뷰에서 고친 것', () => {
       powers: empty,
     }
     const data = parseSave(JSON.stringify(stale))!
-    expect(data.powers.met).toEqual(['thor', 'odin'])
-    expect(data.powers.owned).toEqual(expect.arrayContaining([...godPowers('thor').map((p) => p.id), weaponId('odin'), RAVENS]))
-    expect(data.powers.slots.weapon).toBe(weaponId('thor'))
-    expect(data.powers.slots.ultimate).toBe(ultimateId('thor'))
-    expect(data.powers.slots.auras).toEqual([relicPowerId('mjolnir'), LIGHTNING, partId('thor', 'skyStrike')])
-    expect(data.powers.claimed).toEqual(['trace:thor', 'guardian:thor', 'trace:odin'])
-    // 씨앗은 저장된 것 그대로, 한 번 채운 뒤에는 다시 읽어도 같다
-    expect(data.powers.seed).toBe(7)
-    expect(parseSave(JSON.stringify(data))!.powers).toEqual(data.powers)
-    expect(data.pantheon).toEqual({ hand: 'thor', heart: 'thor', breath: ['thor'] })
+    expect(data.powers).toEqual(empty)
+    expect(data.pantheon).toEqual({ hand: null, heart: null, breath: [] })
+    // 하나를 고른 저장도 고른 그대로
+    const picked = { ...stale, powers: { ...empty, owned: [weaponId('thor')], slots: { weapon: weaponId('thor'), ultimate: null, auras: [] }, claimed: ['trace:thor'], met: ['thor'] } }
+    expect(parseSave(JSON.stringify(picked))!.powers).toEqual(picked.powers)
   })
 
-  it('합칠 때 이미 만난 신의 힘과 칸은 저장된 그대로다: 일부러 뺀 힘을 다시 끼우지 않고, 고른 힘에 나머지를 얹지 않는다', () => {
-    const saved = { owned: [weaponId('thor'), LIGHTNING], slots: { weapon: null, ultimate: null, auras: [] }, claimed: ['trace:thor'], met: ['thor'], seed: 3 }
-    const derived = { owned: [...godPowers('thor'), ...godPowers('odin')].map((p) => p.id), slots: { weapon: weaponId('thor'), ultimate: ultimateId('odin'), auras: [LIGHTNING, RAVENS] }, claimed: ['trace:thor', 'guardian:thor', 'trace:odin', 'guardian:odin'], met: ['thor', 'odin'], seed: 9 }
-    const out = mergePowers(saved, derived)
-    expect(out.owned).toEqual([weaponId('thor'), LIGHTNING, ...godPowers('odin').map((p) => p.id)])
-    // 토르의 무기는 가졌는데 뺀 것이라 그대로 비고, 새로 온 오딘의 힘만 빈 칸에 든다
-    expect(out.slots).toEqual({ weapon: null, ultimate: ultimateId('odin'), auras: [RAVENS] })
-    expect(out.claimed).toEqual(['trace:thor', 'trace:odin', 'guardian:odin'])
-    expect(out.met).toEqual(['thor', 'odin'])
-    expect(out.seed).toBe(3)
-    // 모르는 신이 없으면 저장된 그대로
-    expect(mergePowers(out, derived)).toBe(out)
+  it('땅에서 기다리는 빛은 저장에 남는다: 왕복해도 같고, 이미 고른 출처·모르는 꼴의 빛은 버린다', () => {
+    const p = new PowerProgress(() => 0, 3)
+    p.lights.push({ source: 'guardian:thor', region: 'midgard', x: 4, z: -2 }, { source: 'boss:utgard', region: 'utgard', x: 0, z: 9 })
+    const data = parsePowers(JSON.parse(JSON.stringify(p.toData())))
+    expect(data.lights).toEqual(p.lights)
+    const again = new PowerProgress(() => 0)
+    again.load(data)
+    expect(again.lights).toEqual(p.lights)
+    expect(parsePowers({ claimed: ['boss:utgard'], lights: [...p.lights, { source: 'nope', region: 'x', x: 0, z: 0 }, { source: 'trace:odin', region: 'midgard', x: 'a', z: 0 }] }).lights).toEqual([p.lights[0]])
+    // 빛이 없으면 키를 쓰지 않는다
+    expect('lights' in new PowerProgress().toData()).toBe(false)
   })
 
   it('수호자에서 고르면 그 신을 만난 것이다', () => {
@@ -346,7 +340,7 @@ describe('조합 (재미 재설계 P3)', () => {
     expect(parsePowers({ combos: ['valkyrie', 'nothing', 'valkyrie', 3] }).combos).toEqual(['valkyrie'])
   })
 
-  it('불러올 때 이미 켜져 있던 조합과 점검용 실행(칸 상한을 푼 판)은 카드 없이 켜 본 것으로만 적는다', () => {
+  it('불러올 때 이미 켜져 있던 조합과 점검용 실행(`?relics=`)은 카드 없이 켜 본 것으로만 적는다. 칸 상한을 풀기만 한 판(개발 지름길)은 카드가 뜬다', () => {
     const loaded = game(3)
     loaded.mythPowers.load({ owned: [LIGHTNING, RAVENS], slots: { weapon: null, ultimate: null, auras: [LIGHTNING, RAVENS] }, claimed: [], met: ['thor', 'odin'], seed: 1 })
     loaded.relics.reapply()
@@ -355,50 +349,14 @@ describe('조합 (재미 재설계 P3)', () => {
     expect([...loaded.mythPowers.combos]).toEqual(['valkyrie'])
     const trial = game()
     trial.mythPowers.uncapped = true
+    trial.mythPowers.testRun = true
     trial.take(LIGHTNING)
     trial.take(RAVENS)
     expect(trial.moments).toEqual([])
-  })
-})
-
-describe('임시 다리: 지금의 깨우는 흐름이 힘을 준다 (P2)', () => {
-  it('흔적의 무리를 이기면(조각 2) 그 신을 만나고 무기와 대표 패시브를 갖고 빈 칸에 끼운다. 함께 켜진 유물의 힘도', () => {
-    const { bus, mythPowers, build, relics } = game()
-    relics.equip('mjolnir', false)
-    bus.emit('fragment', { god: 'thor', piece: 2 })
-    expect(mythPowers.met).toEqual(['thor'])
-    expect(mythPowers.owned).toEqual([relicPowerId('mjolnir'), LIGHTNING, weaponId('thor')])
-    expect(mythPowers.slots).toEqual({ weapon: weaponId('thor'), ultimate: null, auras: [relicPowerId('mjolnir'), LIGHTNING] })
-    expect(build.state.attack).toBe(godDef('thor').attack)
-    expect(build.passives().map((p) => p.power)).toEqual([LIGHTNING])
-    // 불러온 뒤 다시 맞추는 조각 2(조용히)는 아무것도 더하지 않는다
-    bus.emit('fragment', { god: 'thor', piece: 2, silent: true })
-    expect(mythPowers.owned).toHaveLength(3)
-  })
-
-  it('둘째 신의 무리를 이기면 무기 칸이 차 있어 두 갈래 카드로 묻고, 고르면 무기 칸만 바뀐다', () => {
-    const { bus, mythPowers, relics, build } = game(1)
-    bus.emit('fragment', { god: 'thor', piece: 2 })
-    const asked: string[] = []
-    let answer: ((take: boolean) => void) | null = null
-    relics.offerSwap = (part, incoming, current, choose) => {
-      asked.push(`${part}:${incoming}:${current}`)
-      answer = choose
-    }
-    let after: (() => void) | undefined
-    bus.on('moment', (m) => {
-      if (m.id === 'swapOffer') after = m.after
-    })
-    bus.emit('fragment', { god: 'odin', piece: 2 })
-    // 힘은 바로 갖고(빈 도는 힘 칸에 까마귀), 무기 칸은 묻기 전까지 그대로
-    expect(mythPowers.has(weaponId('odin'))).toBe(true)
-    expect(mythPowers.slots.weapon).toBe(weaponId('thor'))
-    expect(mythPowers.slots.auras).toEqual([LIGHTNING, RAVENS])
-    after!()
-    expect(asked).toEqual(['hand:odin:thor'])
-    answer!(true)
-    expect(mythPowers.slots.weapon).toBe(weaponId('odin'))
-    expect(build.state.attack).toBe(godDef('odin').attack)
-    expect(mythPowers.slots.auras).toEqual([LIGHTNING, RAVENS])
+    const shortcut = game()
+    shortcut.mythPowers.uncapped = true
+    shortcut.take(LIGHTNING)
+    shortcut.take(RAVENS)
+    expect(shortcut.moments).toEqual(['comboLit:발키리'])
   })
 })

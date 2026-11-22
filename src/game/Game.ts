@@ -73,7 +73,9 @@ import { MountSystem } from './systems/Mount'
 import { TabUnlocks } from '../progress/Tabs'
 import { TabSystem } from './systems/Tabs'
 import { Barriers } from '../world/Barriers'
-import { SwapCard } from '../ui/SwapCard'
+import { PowerCard } from '../ui/PowerCard'
+import { STYLES } from '../combat/styles'
+import { PowerSystem } from './systems/Powers'
 import { ChapterHud } from '../ui/ChapterHud'
 import { AutomationProgress } from '../progress/Automation'
 import { Waypoints } from '../progress/Waypoints'
@@ -173,7 +175,8 @@ export class Game {
   /** 막힌 땅으로 가는 통로의 결계 (E22-02) */
   private readonly barriers = new Barriers()
   /** 두 갈래 카드 (E302-03): 새 신의 손·심장 부품이 왔는데 자리가 차 있을 때 */
-  private readonly swapCard: SwapCard
+  /** 힘을 고르는 카드와 빛 (재미 재설계 P5) */
+  readonly powerPicks: PowerSystem
   private readonly uniqueSystem: UniqueSystem
   /** 원정과 귀환 (E304) */
   readonly expeditionSystem: ExpeditionSystem
@@ -391,7 +394,7 @@ export class Game {
       tabs: this.tabs,
       awaken: this.awaken,
       // 점검용 실행(?relics=)은 도는 힘의 칸 상한을 푼다
-      mythPowers: Object.assign(new PowerProgress(() => this.expedition.returns), { uncapped: options.testRun ?? false }),
+      mythPowers: Object.assign(new PowerProgress(() => this.expedition.returns), { uncapped: options.testRun ?? false, testRun: options.testRun ?? false }),
       mount: this.mount,
       uniques: new UniqueState(),
       build: new Build({ powers: this.powers, progress: this.progress, oaths: this.oaths, oath: () => this.expedition.oath, training: this.training, awaken: this.awaken, expedition: this.expedition }),
@@ -437,9 +440,6 @@ export class Game {
     // 자동화 (E305-03): 귀환 횟수가 연 것과 자동 줍기를 카드로 알린다
     new AutomationSystem(this.ctx)
     this.chapterSystem = new ChapterSystem(this.ctx)
-    this.swapCard = new SwapCard(this.hud.root)
-    // 새 신의 손·심장 부품이 왔는데 자리가 차 있으면 두 갈래 카드 (E302-03)
-    this.relics.offerSwap = (part, incoming, current, choose) => this.swapCard.show(part, incoming, current, choose)
     this.awakening = new WakeSystem(
       this.ctx,
       (p) => this.nav.nearestFree(p),
@@ -452,6 +452,12 @@ export class Game {
     this.chapterFlow = new ChapterFlow({ game: this, fx: this.fx, record: (type) => this.playLog.record(type) })
     this.returnCard = new ReturnCard(this.hud.root)
     this.oathCard = new OathCard(this.hud.root)
+    this.powerPicks = new PowerSystem(this.ctx, this.relics, {
+      card: new PowerCard(this.hud.root),
+      blocked: () => this.scenes.active || this.world.traveling || this.feel.slowLeft > 0 || this.moments.busy || this.returnCard.open || this.oathCard.open,
+      swing: (style) => this.attackFx.swing(STYLES[style].combo.at(-1)!, true),
+      save: () => (this.bus.emit('progressChanged', {}), this.persistence.saveNow()),
+    })
     this.expeditionSystem = new ExpeditionSystem(this.ctx, {
       offer: (view, pick, later) => this.returnCard.show(view, pick, later),
       offering: () => this.returnCard.open,
@@ -500,6 +506,7 @@ export class Game {
       expeditionSystem: this.expeditionSystem,
       mountSystem: this.mountSystem,
       oathSystem: this.oathSystem,
+      powerPicks: this.powerPicks,
     })
     this.audio = new AudioEngine(this.viewport.settings.volume, { mobile: this.touch })
     this.attackFx = new AttackFx({ fx: this.fx, hero: this.hero, combat: this.combat, build: this.ctx.build, audio: this.audio })
@@ -759,22 +766,9 @@ export class Game {
     return this.barriers.spots
   }
 
-  /** 두 갈래 카드에 답한다 (봇·점검용): 그 카드의 「새 것으로」나 「지금 그대로」를 누른다 */
-  answerSwap(take: boolean): boolean {
-    const card = document.querySelectorAll<HTMLButtonElement>('.swap-card__card')[take ? 0 : 1]
-    if (!this.swapCard.open || !card) return false
-    card.click()
-    return true
-  }
-
-  /** 두 갈래 카드가 떠 있나 (봇·점검용) */
-  get swapOpen(): boolean {
-    return this.swapCard.open
-  }
-
-  /** 정보 화면·일시 정지 메뉴·두 갈래 카드가 열려 있어 게임이 멈췄는가 */
+  /** 정보 화면·일시 정지 메뉴·힘 카드가 열려 있어 게임이 멈췄는가 */
   get paused(): boolean {
-    return this.menu.open || (this.pauseMenu?.open ?? false) || (this.swapCard?.open ?? false) || this.suspended()
+    return this.menu.open || (this.pauseMenu?.open ?? false) || (this.powerPicks?.open ?? false) || this.suspended()
   }
 
   /** 그 자리에 낀다 (손·심장은 바꿔 끼고, 숨은 빈 칸에, 점검용. 정보 화면은 `RelicSystem.place`) */
@@ -850,6 +844,7 @@ export class Game {
     this.expeditionSystem.update(dt)
     this.sanctuary.update(dt)
     this.awakening.update(dt)
+    this.powerPicks.update(dt)
     this.oathSystem.update()
     this.endlessSystem.update(dt)
     this.life.update(dt)

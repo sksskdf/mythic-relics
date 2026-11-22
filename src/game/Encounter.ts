@@ -310,9 +310,28 @@ export class Encounter {
         if (home) Object.assign(giant.home, { x: home.x, z: home.z })
       }
       this.load(waiting.herd)
+      this.repower(waiting.herd, waiting.giants)
       this.giants.push(...waiting.giants.filter((g) => !g.gone))
     } else {
       this.place(to)
+    }
+  }
+
+  /**
+   * 넘어간 땅의 세기를 다시 읽는다 (P5 리뷰): 이웃 무리는 지은 때의 세기를 들고 있어, 그 뒤 만난 신이 늘었으면(제1장의 땅 세기) 지금 세기로 갈아 낀다.
+   * 보스는 땅 세기 그대로라 건드리지 않고, 깎인 생명은 비율 그대로 둔다
+   */
+  private repower(herd: Herd, giants: readonly Giant[]): void {
+    const now = this.landPower(this.region ?? undefined)
+    if (now === herd.power) return
+    herd.power = now
+    this.regionPower = now
+    const threat = this.scaled(now)
+    for (const giant of giants) {
+      if (giant === herd.boss || !giant.alive || giant.health.dead) continue
+      const ratio = giant.health.ratio
+      giant.applyThreat(threat)
+      giant.health.hp = giant.health.max * ratio
     }
   }
 

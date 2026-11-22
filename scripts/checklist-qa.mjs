@@ -99,9 +99,9 @@ async function waitCard(page, kind) {
   return cardNow(page)
 }
 
-/** 떠 있는 두 갈래 카드를 「지금 그대로」로 닫는다 (떠 있는 동안은 세계와 순간 줄이 멈춘다) */
+/** 떠 있는 힘 카드를 첫째 줄로 닫는다 (P5, 떠 있는 동안은 세계와 순간 줄이 멈춘다) */
 async function keepSeats(page) {
-  for (let i = 0; i < 4 && (await page.evaluate(() => window.__game.swapOpen && (window.__game.answerSwap(false), true))); i++) await page.waitForTimeout(300)
+  for (let i = 0; i < 4 && (await page.evaluate(() => { const p = window.__game.powerPicks; return !!p.current && p.choose(p.current.rows[0].id) })); i++) await page.waitForTimeout(300)
 }
 
 /** 순간(카드·장면 뒤 할 일)이 다 지나갈 때까지 기다린다 (다음에 찍을 것을 앞 카드가 가리지 않게) */
@@ -162,14 +162,15 @@ const sections = {
         g.encounter.clearAll()
       })
       const swaps = []
-      /** 깨우는 길의 한 걸음(1: 흔적의 무리를 이김, 2: 수호자를 쓰러뜨림. 사냥 걸음은 2026-11-20에 걷었다)을 얻고, 두 갈래 카드가 뜨면 찍은 뒤 「지금 그대로」로 닫는다 (어느 조각에 무슨 카드가 떴는지 남긴다) */
+      /** 깨우는 길의 한 걸음(1: 흔적의 무리를 이김, 2: 수호자를 쓰러뜨림)을 얻고, 그 걸음의 힘 카드(흔적·수호자, P5)를 띄워 찍은 뒤 첫째 줄로 닫는다 */
       const piece = async (n) => {
-        await page2.evaluate(() => window.__game.dev.awaken('odin'))
-        if (!(await page2.waitForFunction(() => window.__game.swapOpen, null, { timeout: 12000 }).then(() => true, () => false))) return
-        await page2.waitForFunction(() => !document.querySelector('.swap-card')?.classList.contains('is-arming'), null, { timeout: 5000 }).catch(() => {})
-        swaps.push({ piece: n, title: await page2.evaluate(() => document.querySelector('.swap-card__title')?.textContent ?? '') })
+        await page2.evaluate((k) => window.__game.dev.offer(k === 1 ? 'trace:odin' : 'guardian:odin'), n)
+        if (!(await page2.waitForFunction(() => window.__game.powerPicks.open, null, { timeout: 12000 }).then(() => true, () => false))) return
+        await page2.waitForFunction(() => !document.querySelector('.power-card')?.classList.contains('is-arming'), null, { timeout: 5000 }).catch(() => {})
+        swaps.push({ piece: n, title: await page2.evaluate(() => document.querySelector('.power-card__title')?.textContent ?? '') })
         await shot(page2, `e12-1-swap${n}`)
         await keepSeats(page2)
+        await page2.evaluate(() => window.__game.dev.awaken('odin'))
       }
       await piece(1)
       await calm(page2)
@@ -697,10 +698,10 @@ const sections = {
         g.oathSystem.swear(null)
         g.encounter.clearAll()
       })
-      // 흔적의 무리를 이기면 손 부품이 오며 두 갈래 카드 (사냥 걸음은 걷었다)
+      // 흔적의 힘 카드 (P5)
       await calm(page)
-      await page.evaluate(() => window.__game.dev.awaken('odin'))
-      r.swap = await snap('swap', () => window.__game.swapOpen)
+      await page.evaluate(() => window.__game.dev.offer('trace:odin'))
+      r.swap = await snap('swap', () => window.__game.powerPicks.open)
       await keepSeats(page)
       // 합치기 (E303): 같은 부위 희귀 넷을 주워 하나는 끼고 셋은 가방에 (희귀는 귀환 3부터 저절로 합쳐지니 아직 손으로 합친다)
       await page.evaluate(() => {
@@ -1127,12 +1128,12 @@ const sections = {
         g.skipGoal()
         g.advance(0.2, 1 / 30)
         if (g.chapters.goal === before) break
-        // 건너뛴 귀환·깨어남이 띄운 고르는 카드(맹세 출발·두 갈래)는 봇처럼 닫는다 (떠 있으면 세계가 멈춘다)
+        // 건너뛴 귀환·깨어남이 띄운 고르는 카드(맹세 출발·힘 카드)는 봇처럼 닫는다 (떠 있으면 세계가 멈춘다)
         if (g.oathCardOpen) {
           g.hideCards()
           g.oathSystem.swear(null)
         }
-        if (g.swapOpen) g.answerSwap(false)
+        if (g.powerPicks.current) g.powerPicks.choose(g.powerPicks.current.rows[0].id)
       }
       return g.chapters.goal
     })

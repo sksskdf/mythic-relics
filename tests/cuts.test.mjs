@@ -4,6 +4,8 @@ import { chromium } from 'playwright-core'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { findCuts } from '../scripts/lib/cuts.mjs'
+import { POWERS } from '../src/data/powers'
+import { powerCardMarkup } from '../src/ui/powerCardView'
 
 // 잘린 요소 검사는 실제 배치(자리·겹침·넘침)를 봐야 해서 브라우저에서 돌린다 (게임은 띄우지 않고 작은 HTML 조각만).
 // 브라우저가 없는 곳에서는 건너뛴다 (CI는 CHROMIUM_PATH, 이 환경은 /opt/pw-browsers)
@@ -257,6 +259,51 @@ describe.skipIf(!BROWSER)('잘린 요소 검사 (scripts/lib/cuts.mjs, E307)', (
       expect(at.minimap.shown).toBe(true)
       expect(Math.round(at.card.top)).toBe(Math.round(720 * 0.18))
       expect(at.card.right).toBeLessThan(at.minimap.left)
+    }, 30000)
+  })
+
+  describe('힘 카드 (실제 CSS, 재미 재설계 P5): 가장 긴 이름·풀이 셋이 한 화면에 든다', () => {
+    const STYLES = ['theme.css', 'parts.css', 'hud.css', 'chapter.css', 'pickCard.css', 'powerCard.css', 'portrait.css']
+    /** 이름·풀이가 가장 긴 힘 셋에, 조합 표시와 「가진 힘으로 남는다」를 모두 붙인 견본 */
+    const longest = [...POWERS].sort((a, b) => b.name.length + b.line.length - (a.name.length + a.line.length)).slice(0, 3)
+    const KINDS = { weapon: '무기', ultimate: '궁극기', aura: '힘' }
+    const card = powerCardMarkup({
+      title: '프레이',
+      say: '내 수호자를 넘었구나. 하나를 더 가져가라',
+      color: '#ffd27a',
+      rows: longest.map((p, i) => ({ id: p.id, kind: KINDS[p.kind], name: p.name, line: p.line, color: '#9fe3ff', combo: '종말의 전령', ...(i > 0 ? { spare: true } : {}) })),
+    })
+    const page = (size) =>
+      `<style>${STYLES.map(css).join('\n')}</style>${size[0] < size[1] ? "<script>document.documentElement.classList.add('is-touch')</script>" : ''}<div class="hud">` +
+      '<div class="hud__status"><div style="width:113px;height:52px"></div></div>' +
+      `<div class="hud__dock"><div class="hud__life ui-bar"></div><div class="hud__slots">${'<div class="hud__slot"></div>'.repeat(4)}</div></div>` +
+      `<canvas class="minimap" width="64" height="64"></canvas><div class="pick-card power-card">${card}</div></div>`
+
+    it.each([
+      [393, 659],
+      [393, 852],
+      [390, 844],
+      [960, 540],
+      [1280, 720],
+    ])('%i×%i: 셋이 밀지 않아도 다 보이고 잘림·덮임이 0, 세로 화면은 아래 묶음 위에서 끝난다', async (width, height) => {
+      const p = await browser.newPage({ viewport: { width, height }, ...(width < height ? { hasTouch: true, isMobile: true } : {}) })
+      try {
+        await p.setContent(`${SHELL}<div id="app">${page([width, height])}</div>`)
+        expect(await p.evaluate(findCuts)).toEqual([])
+        const at = await p.evaluate(() => {
+          const box = (sel) => document.querySelector(sel).getBoundingClientRect()
+          const el = document.querySelector('.power-card')
+          return { card: box('.power-card'), dock: box('.hud__dock'), rows: [...document.querySelectorAll('.power-card__row')].map((r) => r.getBoundingClientRect().bottom), scroll: el.scrollHeight - el.clientHeight }
+        })
+        expect(at.scroll).toBeLessThanOrEqual(0)
+        expect(at.rows).toHaveLength(3)
+        for (const bottom of at.rows) expect(bottom).toBeLessThanOrEqual(height)
+        expect(at.card.left).toBeGreaterThanOrEqual(0)
+        expect(at.card.right).toBeLessThanOrEqual(width)
+        if (width < height) expect(at.card.bottom).toBeLessThanOrEqual(at.dock.top)
+      } finally {
+        await p.close()
+      }
     }, 30000)
   })
 

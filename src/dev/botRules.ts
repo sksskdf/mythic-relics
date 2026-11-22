@@ -85,3 +85,35 @@ export function staysInHold(point: Point2, here: Point2, hold: Hold | null): boo
   const d = Math.hypot(point.x - hold.home.x, point.z - hold.home.z)
   return d <= hold.radius || d < Math.hypot(here.x - hold.home.x, here.z - hold.home.z)
 }
+
+/**
+ * 힘 카드에서 고르는 법 (재미 재설계 P5): `rule`은 무기 칸이 비었으면 무기 → 궁극기 칸이 비었으면 궁극기 → 끼우면 조합이 켜지는 힘 → 첫째 줄.
+ * 첫째 줄은 칸에 바로 드는 줄 가운데 첫째다: 찬 무기·궁극기 칸을 바꿔 끼우는 줄과 「가진 힘으로 남는」 줄은 늘어나는 것이 없어 뒤로 미룬다
+ * (흔적은 무기를 맨 앞에 내밀어, 그대로 첫째 줄을 고르면 둘째 흔적부터 무기만 바꿔 쥐고 도는 힘 칸은 비어 있었다. P5 봇 판 2026-11-22).
+ * `first`·`last`는 늘 첫째·마지막 줄 (봇이 고르는 것에 따라 판이 얼마나 달라지나 잴 때, `--pick=`)
+ */
+export type PickMode = 'rule' | 'first' | 'last'
+
+export const PICK_MODES: readonly PickMode[] = ['rule', 'first', 'last']
+
+/** 카드의 한 줄 가운데 봇이 보는 것: 종류, 끼우면 켜지는 조합, 칸이 차서 가진 힘으로만 남는가 */
+export interface PickRow {
+  id: string
+  kind: 'weapon' | 'ultimate' | 'aura'
+  combo?: string
+  spare?: boolean
+}
+
+/** 봇이 고를 줄의 id. 줄이 없으면 null */
+export function pickPower(rows: readonly PickRow[], slots: { weapon: string | null; ultimate: string | null }, mode: PickMode): string | null {
+  if (rows.length === 0) return null
+  if (mode === 'first') return rows[0]!.id
+  if (mode === 'last') return rows.at(-1)!.id
+  const pick =
+    (slots.weapon === null ? rows.find((r) => r.kind === 'weapon') : undefined) ??
+    (slots.ultimate === null ? rows.find((r) => r.kind === 'ultimate') : undefined) ??
+    rows.find((r) => r.combo !== undefined && !r.spare) ??
+    rows.find((r) => r.kind === 'aura' && !r.spare) ??
+    rows[0]!
+  return pick.id
+}

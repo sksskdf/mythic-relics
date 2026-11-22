@@ -220,6 +220,10 @@ export class DevPanel {
           show()
         }),
         button('지금 칸 보기', show),
+        // 힘 카드 (P5): 그 출처의 카드를 띄운다 (흔적 넷, 수호자 넷, 거인 왕)
+        select('힘 카드 띄우기(출처)', [...DEMO_GODS.flatMap((god) => [[`trace:${god}`, `${godDef(god).name}의 흔적`], [`guardian:${god}`, `${godDef(god).name}의 수호자`]] as const), ['boss:utgard', '거인 왕'] as const], (source) => {
+          if (!g.dev.offer(source)) now.textContent = `${source}: 내밀 힘이 없다`
+        }),
       ),
       now,
     )

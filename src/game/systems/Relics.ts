@@ -17,7 +17,6 @@ import type { LoadoutChange } from '../RelicPowers'
 import { godMoment } from './godMoments'
 import { godPowers, power, type PowerId, powerRelic, ultimateId, weaponId } from '../../data/powers'
 import { inPantheon, MAX_BREATH, oathSlots, type PartKind, slotsPantheon } from '../../myth/pantheon'
-import { PowerBridge } from './PowerBridge'
 
 /** 신이 깨어나 손에 드는 순간 주변 적을 밀어내는 범위와 피해 */
 const MANIFEST_RADIUS = 4
@@ -42,10 +41,6 @@ export class RelicSystem {
   private readonly labelAt = new THREE.Vector3()
   /** 신화를 고를 때 터지는 충격을 다시 쓸 수 있을 때까지 (초) */
   private burstCooldown = 0
-  /** 새 신의 무기·궁극기가 왔는데 그 칸이 차 있을 때 두 갈래 카드를 띄운다 (E302-03, 게임이 정한다). 없으면 그대로 둔다 */
-  offerSwap: ((part: 'hand' | 'heart', incoming: God, current: God, choose: (take: boolean) => void) => void) | null = null
-  /** 임시 다리 (P2): 지금의 깨우는 흐름이 힘을 주게 잇는다. P4·P5가 걷는다 */
-  private readonly bridge: PowerBridge
 
   constructor(private readonly ctx: GameContext) {
     ctx.bus.on('targetKilled', ({ target }) => {
@@ -55,7 +50,6 @@ export class RelicSystem {
     ctx.bus.on('heroRevived', () => {
       this.decoy = null
     })
-    this.bridge = new PowerBridge(ctx, this)
   }
 
   /**
@@ -75,14 +69,14 @@ export class RelicSystem {
 
   /**
    * 조합 (P3): 처음 켜진 조합은 큰 카드 한 번 (이름과 한 줄). 켜 본 조합은 저장에 남아, 꺼졌다 다시 켜져도 뜨지 않는다.
-   * 불러올 때·맹세로 도는 칸이 바뀔 때(quiet)와 점검용 실행(칸 상한을 푼 판)은 카드 없이 켜 본 것으로만 적는다
+   * 불러올 때·맹세로 도는 칸이 바뀔 때(quiet)와 점검용 실행(`?relics=`)은 카드 없이 켜 본 것으로만 적는다
    */
   private litCombos(quiet: boolean): void {
     const { powers, mythPowers, bus } = this.ctx
     for (const combo of powers.combos) {
       if (mythPowers.combos.has(combo.id)) continue
       mythPowers.combos.add(combo.id)
-      if (quiet || mythPowers.uncapped) continue
+      if (quiet || mythPowers.testRun) continue
       const def = godDef(power(combo.needs[0])!.god)
       const parts = combo.needs.map((id) => power(id)!.name).join(' + ')
       bus.emit('moment', { id: 'comboLit', card: { kind: '조합', title: combo.name, color: def.color, icon: classIcon(def.name), lines: [combo.line, parts] } })
@@ -374,8 +368,7 @@ export class RelicSystem {
   equip(id: RelicId, announce: boolean): void {
     this.changed(this.ctx.powers.equip(id), announce, id)
     this.unlock(id, announce)
-    // 유물표에 켠 유물은 그 유물 힘을 갖는다 (임시 다리)
-    if (isRelicId(id)) this.bridge.relicLit(id)
+    // 유물표에 켜도 그 유물 힘은 생기지 않는다 (P5: 힘은 카드에서 고른 것만 가진다)
   }
 
   /**

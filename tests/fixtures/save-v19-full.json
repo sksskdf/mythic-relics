@@ -1,5 +1,5 @@
 {
-  "version": 18,
+  "version": 19,
   "slots": ["g:w1", "g:h1", "g:b1", "g:n1", "g:f1", "g:t1", "g:t2"],
   "bag": ["g:x1", "g:x2", "g:x3"],
   "lit": ["mjolnir", "gungnir", "lokiMask", "keraunos", "triaina"],
@@ -58,13 +58,14 @@
     "deepWin": true
   },
   "tabs": ["relics", "training", "gods", "map", "sources", "oaths"],
-  "awaken": { "gods": { "artemis": 2 } },
+  "awaken": { "gods": { "artemis": 2 }, "power": { "artemis": 7 } },
   "powers": {
     "owned": ["weapon:thor", "ultimate:thor", "aura:thor.basicLightning", "aura:thor.skyStrike", "relic:mjolnir", "relic:megingjord", "relic:jarngreipr", "weapon:odin", "ultimate:odin", "aura:odin.companions", "relic:gungnir", "relic:draupnir", "relic:huginnFeather", "weapon:loki", "ultimate:loki", "aura:loki.companions", "relic:lokiMask", "weapon:zeus", "ultimate:zeus", "aura:zeus.skyStrike", "relic:keraunos", "aura:poseidon.pulse", "relic:triaina", "weapon:artemis"],
     "slots": { "weapon": "weapon:odin", "ultimate": "ultimate:zeus", "auras": ["aura:thor.basicLightning", "aura:odin.companions", "relic:gungnir", "relic:mjolnir", "aura:zeus.skyStrike", "aura:poseidon.pulse"] },
     "claimed": ["trace:thor", "guardian:thor", "trace:odin", "pack:midgard:1", "guardian:odin", "boss:utgard", "trace:loki", "trace:zeus", "guardian:zeus", "trace:poseidon", "trace:artemis"],
     "met": ["thor", "odin", "loki", "zeus", "poseidon", "artemis"],
-    "seed": 2463534242
+    "seed": 2463534242,
+    "lights": [{ "source": "guardian:loki", "region": "jotunheim", "x": 12.5, "z": -8 }]
   },
   "mount": true,
   "region": { "id": "lycia", "x": 3.5, "z": -12 },

@@ -5,14 +5,14 @@ import { STICK_DEAD, TouchGestures } from './touch'
 
 /**
  * 게임 화면을 덮는 창의 클래스 (E307). 모두 `hidden`으로 여닫고, 뜨는 순간에 쥐고 있던 조이스틱을 놓는다 (`coverOpened`).
- * - pausing: 게임을 멈추는 것 (대화 장면·정보 화면·일시 정지 창·두 갈래 카드). 떠 있는 동안은 게임 화면에 닿은 손가락도 받지 않는다
+ * - pausing: 게임을 멈추는 것 (대화 장면·정보 화면·일시 정지 창·힘 카드). 떠 있는 동안은 게임 화면에 닿은 손가락도 받지 않는다
  * - passing: 멈추지 않지만 걸어 나가면 고른 것으로 치고 닫히는 카드 (맹세 출발 카드: 걸어 나가면 「맹세 없이」).
  *   쥔 채로 뜨면 읽기도 전에 닫히니 놓는다. 뜬 뒤에 새로 쥐면 걷는다
  * 귀환 카드(`pick-card return-card`)는 넣지 않는다: 화로에 들어서면 저절로 뜨고 걸어 나가면 닫히는 카드라, 놓으면 조이스틱으로
  * 화로를 지나가기만 해도 그 자리에 서고(탄 채면 내린다) 「아직」을 눌러야 한다. 톡으로 걷는 걸음처럼 그대로 지나가게 둔다
  */
 export const COVER_CLASSES = {
-  pausing: ['dialog', 'menu', 'pause', 'swap-card'],
+  pausing: ['dialog', 'menu', 'pause', 'power-card'],
   passing: ['oath-card'],
 } as const
 

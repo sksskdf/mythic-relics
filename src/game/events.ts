@@ -56,11 +56,18 @@ export interface GameEvents {
    */
   mythOpened: { god: God; quiet?: boolean }
   /** 신을 깨우는 조각을 얻었다 (E238): 1 흔적, 2 사냥(유물), 3 수호자(깨어남) */
-  fragment: { god: God; piece: 1 | 2 | 3; /** 불러온 뒤 맞추는 것 (플레이 기록에 적지 않는다) */ silent?: true }
+  fragment: { god: God; piece: 1 | 2 | 3 }
   /** 신의 수호자가 나타났다 (E238): 처음이면 수호자의 한마디 */
   guardianAppeared: { god: God }
-  /** 신의 흔적이 응답했다 (2026-11-22): 흔적의 고리 안에 1초 서 있었다. 곧바로 지키는 무리가 깨어난다 */
+  /** 신의 흔적이 응답했다 (2026-11-22): 흔적의 고리 안에 1초 서 있었다. 그 흔적에서 아직 고르지 않았으면 힘 카드가 뜨고 고른 뒤에, 골랐으면 곧바로 지키는 무리가 깨어난다 */
   traceAnswered: { god: God }
+  /**
+   * 고르는 카드(P5)에서 힘을 골랐다: 그 출처와 고른 힘. id가 null이면 내밀 힘이 없어 카드 없이 지나갔다.
+   * 흔적은 이 뒤에 지키는 무리가 깨어난다
+   */
+  powerPicked: { source: string; id: string | null }
+  /** 고르는 카드가 떴다 (P5, 플레이 기록) */
+  powerOffered: { source: string }
   /** 신의 수호자를 쓰러뜨렸다 (2026-11-22): 그 신이 깨어났고, 쓰러진 자리(지금 땅 좌표) */
   guardianBeaten: { god: God; x: number; z: number }
   /** 수련의 깨달음을 얻었다 (E236): 새로 얻은 수와 쓰지 않은 수 */

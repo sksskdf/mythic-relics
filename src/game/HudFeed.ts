@@ -64,8 +64,8 @@ export class HudFeed {
       },
       realDt,
     )
-    // 장면과 신화 고르기에는 위아래 검은 띠 (E23-02)
-    this.letterbox.classList.toggle('is-on', game.scenes.active || game.swapOpen)
+    // 장면에는 위아래 검은 띠 (E23-02)
+    this.letterbox.classList.toggle('is-on', game.scenes.active)
     // 목표 한 줄 (E22-04): 보스 막대가 서거나 대화 중이면 잠깐 감춘다
     const fighting = (boss !== null && encounter.bossEngaged) || awakening.fighting !== null
     game.chapterHud.setGoal(game.chapterSystem.goalView(), fighting || game.scenes.active || game.world.traveling)
@@ -74,15 +74,17 @@ export class HudFeed {
   /** 작은 지도 (게임 한 프레임마다, 게임 시간) */
   updateMinimap(dt: number): void {
     const { game } = this.parts
+    // 신 깨우기의 자리는 한 번만 센다 (첫째가 금빛 목표, 나머지는 함께 표시)
+    const spots = this.goalSpots()
     game.minimap.update(dt, {
       hero: game.hero.object.position,
       relics: game.pickups.list,
       // 원정이 무르익으면 성소 화로가 깜빡인다 (E305-03: 성소 전설 대신 귀환)
       sanctuaryReady: game.sanctuary.lit,
-      goal: this.goalSpot(),
-      goals: this.goalSpots().slice(1),
-      // 신의 흔적 (E238): 응답하는 흔적만 그 신의 색으로
-      traces: game.awakening.spots.filter((t) => t.state === 'open').map((t) => ({ x: t.x, z: t.z, color: godDef(t.god).color })),
+      goal: this.goalSpot(spots),
+      goals: spots.slice(1),
+      // 신의 흔적 (E238): 응답하는 흔적만 그 신의 색으로. 땅에서 기다리는 빛(P5)도 같은 표시로
+      traces: [...game.awakening.spots.filter((t) => t.state === 'open').map((t) => ({ x: t.x, z: t.z, color: godDef(t.god).color })), ...game.powerPicks.spots],
     })
   }
 
@@ -109,14 +111,15 @@ export class HudFeed {
     return out
   }
 
-  goalSpot(): { x: number; z: number } | null {
+  /** awakenSpots: 이미 센 신 깨우기의 자리 (`goalSpots`, 없으면 여기서 센다) */
+  goalSpot(awakenSpots?: readonly { x: number; z: number }[]): { x: number; z: number } | null {
     const { game } = this.parts
     const { chapters, world } = game
     const goal = chapters.goal
     const region = world.region
     if (!goal || region.kind === 'endless') return null
     // 신 깨우기 (E238): 다음 할 일 하나(서 있는 수호자, 없으면 가까운 흔적). 나머지 자리는 `goalSpots`가 함께 표시한다
-    if (goal.kind === 'awaken') return this.goalSpots()[0] ?? null
+    if (goal.kind === 'awaken') return (awakenSpots ?? this.goalSpots())[0] ?? null
     // 합치기 (E306): 가방에서 하는 일이라 자리가 없다
     if (goal.kind === 'merge') return null
     // 귀환 (E306 D2): 어느 성소에서 해도 되니 지금 땅에 성소가 있으면 그 화로, 없으면 데이터의 땅으로

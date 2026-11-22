@@ -1,0 +1,90 @@
+/*
+ * 힘 카드 (재미 재설계 P5): 머리줄에 그 신의 이름과 한마디, 세로로 힘 셋. 자리·뜬 직후의 잠금·세로 화면의 띠는 고르는 카드 틀(`pickCard.css`·`portrait.css`)을 그대로 쓴다.
+ * 393×659에서도 셋이 한 화면에 든다 (`tests/cuts.test.mjs`)
+ */
+.pick-card.power-card {
+  align-items: stretch;
+  width: min(360px, calc(100vw - var(--sp-5) * 2));
+  box-sizing: border-box;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+}
+.power-card__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding-bottom: var(--sp-2);
+  border-bottom: 2px solid var(--god);
+}
+.power-card__head img {
+  width: 36px;
+  height: 36px;
+  image-rendering: pixelated;
+}
+.power-card__head > div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+.power-card__title {
+  font: var(--t-title);
+  font-weight: normal;
+  /* 이름은 밝게 (오딘처럼 어두운 신의 색은 어두운 바탕에서 읽히지 않는다): 신의 색은 밑줄과 줄의 왼쪽 띠가 맡는다 */
+  color: var(--c-moon);
+}
+.power-card__say {
+  font: var(--t-small);
+  color: var(--c-ink-2);
+}
+.power-card__rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.power-card__row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-1);
+  width: 100%;
+  padding: var(--sp-3);
+  border: 0;
+  border-left: 4px solid var(--god);
+  background: var(--c-stone-hi);
+  box-shadow: var(--stone-raised);
+  color: var(--c-ink-1);
+  text-align: left;
+  cursor: pointer;
+}
+.power-card__row:hover {
+  background: var(--c-stone-hover);
+}
+.power-card__kind {
+  font: var(--t-small);
+  color: var(--c-ink-3);
+}
+.power-card__row b {
+  font: var(--t-body);
+  font-weight: normal;
+  color: var(--c-gold-soft);
+}
+.power-card__row small {
+  font: var(--t-small);
+  color: var(--c-ink-2);
+}
+.power-card__combo {
+  font: var(--t-small);
+  color: var(--c-gold);
+}
+.power-card__spare {
+  font: var(--t-small);
+  color: var(--c-ink-3);
+}
+/* 가로 화면: 화면 한가운데에 (귀환 카드의 위 30%에 두면 960×540에서 셋째 줄이 화면 밖으로 나간다). 세로 화면은 `portrait.css`의 띠 */
+@media not (max-aspect-ratio: 4/5) {
+  .pick-card.power-card {
+    top: 50%;
+    transform: translate(-50%, -50%);
+  }
+}

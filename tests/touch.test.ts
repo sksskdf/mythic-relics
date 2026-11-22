@@ -12,7 +12,7 @@ import hudCss from '../src/ui/hud.css?raw'
 import hudSource from '../src/ui/Hud.ts?raw'
 import pauseSource from '../src/ui/PauseMenu.ts?raw'
 import returnSource from '../src/ui/ReturnCard.ts?raw'
-import swapSource from '../src/ui/SwapCard.ts?raw'
+import powerCardSource from '../src/ui/PowerCard.ts?raw'
 
 describe('휴대폰 손가락 몸짓 (E235)', () => {
   it('짧게 누르고 거의 움직이지 않고 떼면 톡 (한 번만 읽힌다)', () => {
@@ -447,7 +447,7 @@ describe('게임 화면을 덮는 창과 조이스틱 (E307)', () => {
   const rootClass = (source: string) => source.match(/this\.(?:root|window)(?:\.className = | = el\('div', )'([^']+)'/)?.[1] ?? ''
 
   it('대화 장면·정보 화면·일시 정지 창·두 갈래 카드·맹세 출발 카드가 뜨는 순간 쥐던 조이스틱을 놓는다', () => {
-    for (const source of [dialogSource, menuSource, pauseSource, swapSource, oathSource]) expect(coverOpened([shown(rootClass(source))]), rootClass(source)).toBe(true)
+    for (const source of [dialogSource, menuSource, pauseSource, powerCardSource, oathSource]) expect(coverOpened([shown(rootClass(source))]), rootClass(source)).toBe(true)
     // 다른 요소의 hidden이 함께 바뀌어도 (조이스틱 원 자신, HUD 말풍선) 덮개 하나면 놓는다
     expect(coverOpened([shown('stick'), shown('hud__tip'), shown('menu')])).toBe(true)
   })
@@ -471,7 +471,7 @@ describe('게임 화면을 덮는 창과 조이스틱 (E307)', () => {
   })
 
   it('덮개의 클래스는 그 창을 만드는 코드의 뿌리 클래스이고, 창은 hidden으로 여닫는다 (이름이 바뀌면 여기서 걸린다)', () => {
-    const roots: Record<string, string> = { dialog: dialogSource, menu: menuSource, pause: pauseSource, 'swap-card': swapSource, 'oath-card': oathSource }
+    const roots: Record<string, string> = { dialog: dialogSource, menu: menuSource, pause: pauseSource, 'power-card': powerCardSource, 'oath-card': oathSource }
     expect(Object.keys(roots).sort()).toEqual([...COVER_CLASSES.pausing, ...COVER_CLASSES.passing].sort())
     for (const [cls, source] of Object.entries(roots)) {
       expect(rootClass(source).split(' '), `.${cls}`).toContain(cls)

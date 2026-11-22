@@ -16,7 +16,7 @@ import { type ExpeditionData, parseExpedition } from '../progress/Expedition'
 import { parseTabs } from '../progress/Tabs'
 import { type WakeData, parseWake, wakingOf } from '../progress/Wake'
 import { parseMount } from '../progress/Mount'
-import { mergePowers, parsePowers, type PowerData } from '../progress/Powers'
+import { parsePowers, type PowerData } from '../progress/Powers'
 import { type BodyLook, parseBody } from '../looks/body'
 import { isLookId, lookDef, type LookSlot, STARTING_LOOKS, WARDROBE_SLOTS } from '../looks/catalog'
 import type { LookChoice } from '../looks/outfit'
@@ -66,8 +66,11 @@ import { CONQUESTS } from '../data/chapters'
  * - v18: 힘 (재미 재설계 2026-11-20, `migrate/v18.ts`). powers { owned, slots, claimed, met, seed }: 가진 힘·칸·이미 고른 출처·만난 신·내밀기의 씨앗.
  *   `powers` 키가 없는 저장(v17 이하)은 깨운 신의 힘을 모두 가진 것으로, 깨우는 도중인 신은 무기를 가진 것으로 옮기고, 자리 셋에 든 신의 힘을 칸에 끼운다.
  *   신 단계·자리 셋·유물표는 그대로 둔다 (힘을 전투에 꽂는 갈래까지는 그것들이 전투를 돌린다)
+ * - v19: 고르는 카드 (재미 재설계 P5, 2026-11-22). 모양은 v18과 같고, powers에 땅에서 기다리는 빛(lights)과 awaken에 수호자의 세기(power)가 더해졌다.
+ *   힘은 카드에서 고른 것만 가진다: `powers` 키가 있는 저장은 그대로 읽고(옛 상태에서 셈한 힘을 얹지 않는다), 옮기기는 키가 없는 저장(v17 이하)에서만.
+ *   원정 번호의 짐작(`estimateExpeditions`)은 v18 이하 저장에만 쓴다 (새 흐름은 귀환 없이 신 둘을 깨울 수 있어, 짐작이 하한이면 귀환하지 않은 귀환이 생긴다)
  */
-export const SAVE_VERSION = 18
+export const SAVE_VERSION = 19
 
 export interface SaveData {
   version: typeof SAVE_VERSION
@@ -150,7 +153,7 @@ export function parseSave(text: string | null): SaveData | null {
   }
   if (typeof raw !== 'object' || raw === null) return null
   const data = raw as Record<string, unknown>
-  if (data.version !== SAVE_VERSION && ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17].includes(data.version as number)) return null
+  if (data.version !== SAVE_VERSION && ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18].includes(data.version as number)) return null
   const old = (data.version as number) < 5
 
   // 일반 장비 (v5)
@@ -252,11 +255,11 @@ export function parseSave(text: string | null): SaveData | null {
   const chapters = oldDanger ? oldChapters(region, waypoints, oldDanger.cleared, materials, relicsOwned) : parseChapterData(data.chapters)
   const awaken = openedAwaken(parseWake(data.awaken), myths)
   const pantheon = (data.version as number) < 14 ? fromChosen(parseChosen(data.chosen, legacySlots(data.slots), myths)) : parsePantheon(data.pantheon, myths, wakingOf(awaken)[0] ?? null)
-  const expedition = oldExpedition(data, chapters, myths, stages)
+  const expedition = oldExpedition(data, chapters, myths)
   // 힘 (v18): 키가 없는 저장은 깨운 신·자리 셋에서 옮긴다. 씨앗이 빠진 저장도 옮길 때와 같은 씨앗을 받는다
-  const moved = powersFromV17({ classes: myths, pantheon, waking: wakingOf(awaken)[0] ?? null, lit, returns: expedition.count - 1 })
-  // 키가 있는 저장도 옛 상태에서 셈한 것과 합친다: 깨운 신은 있는데 힘이 빈 저장이 맨손으로 굳지 않게 (`mergePowers`)
-  const powers = typeof data.powers === 'object' && data.powers !== null && !Array.isArray(data.powers) ? mergePowers(parsePowers(data.powers, moved.seed), moved) : moved
+  const moved = powersFromV17({ classes: myths, pantheon, lit, returns: expedition.count - 1 })
+  // 키가 있는 저장은 그대로 읽는다 (P5: 힘은 고른 것만 가진다. 깨운 신의 힘을 거저 얹지 않는다)
+  const powers = typeof data.powers === 'object' && data.powers !== null && !Array.isArray(data.powers) ? parsePowers(data.powers, moved.seed) : moved
   return {
     version: SAVE_VERSION,
     slots: slots.slice(0, SLOT_PARTS.length),
@@ -298,12 +301,13 @@ export function parseSave(text: string | null): SaveData | null {
  * (E306 D18: 장 흐름에 귀환이 늘었다. 새 흐름의 저장은 늘 짐작 이상이라 바뀌지 않고, 명성은 주지 않는다).
  * 성좌판의 별(끝없는 원정 키가 없을 때)과 옛 시련 보상의 피해 몫(맹세 키가 없을 때)은 명성으로 한 번 돌려준다
  */
-function oldExpedition(data: Record<string, unknown>, chapters: ChapterData, classes: SaveData['classes'], stages: SaveData['stages']): ExpeditionData {
+function oldExpedition(data: Record<string, unknown>, chapters: ChapterData, classes: SaveData['classes']): ExpeditionData {
   const has = (key: string) => Object.hasOwn(data, key)
   const expedition = parseExpedition(data.expedition)
   const awakened = (realm: string) => Object.entries(classes).filter(([god, r]) => (r?.level ?? 0) >= 1 && godDef(god).realm === realm).length
-  const estimate = estimateExpeditions(chapters, awakened, Math.max(1, ...Object.values(stages).filter((n): n is number => typeof n === 'number')))
-  expedition.count = has('expedition') ? Math.max(expedition.count, estimate) : estimate
+  const estimate = estimateExpeditions(chapters, awakened)
+  // 짐작은 v18 이하 저장에만 (v19부터는 원정 기록 그대로)
+  if ((data.version as number) < 19) expedition.count = has('expedition') ? Math.max(expedition.count, estimate) : estimate
   let refund = 0
   if (!has('endless')) refund += legacyStarRenown(data.rift, data.cycle, data.version as number)
   if (!has('oaths')) refund += legacyTrialRenown(data.trials, CONQUESTS.filter((r) => chapters.bosses.includes(r)).length)
@@ -321,7 +325,9 @@ function parseUniques(raw: unknown, owned: readonly GearItem[]): string[] {
 
 /** 깨우던 신이 이미 열린 신이면 (어긋난 저장) 그 신의 길은 뺀다 */
 function openedAwaken(awaken: WakeData, classes: SaveData['classes']): WakeData {
-  return { gods: Object.fromEntries(Object.entries(awaken.gods).filter(([god]) => (classes[god as God]?.level ?? 0) < 1)) }
+  const gods = Object.fromEntries(Object.entries(awaken.gods).filter(([god]) => (classes[god as God]?.level ?? 0) < 1))
+  const power = Object.fromEntries(Object.entries(awaken.power ?? {}).filter(([god]) => god in gods))
+  return { gods, ...(Object.keys(power).length ? { power } : {}) }
 }
 
 /** 고른 신화: 열린 신화만. 없으면(옛 저장) 칸의 유물로 1차 스프린트 발현 규칙을 따른다 */

@@ -307,8 +307,8 @@ try {
   if (gearTabs.join() !== 'relics') throw new Error(`탭 차례: 장비를 주운 뒤 열린 탭이 장비 하나가 아닙니다 (${gearTabs.join()})`)
   console.log('탭 차례 확인: 새 판에는 상태 탭만, 장비를 주우면 장비 탭과 카드')
   await lookShot('2-gear')
-  // 신을 깨우는 길 (E238 → E302 → 사냥 단계를 걷음): 흔적의 무리를 이기면 숨·손과 묠니르가 함께 → 수호자(심장, 깨어나 세 자리 모두).
-  // 데모에서는 유물을 가져도 신화가 열리지 않는다
+  // 신을 깨우는 길 (E238 → E302 → 사냥 단계를 걷음): 흔적의 무리를 이기면 묠니르가 유물표에 → 수호자(깨어남).
+  // 점검용 지름길(dev.awaken)은 카드 없이 그 신의 힘을 모두 갖고 끼운다 (P5). 데모에서는 유물을 가져도 신화가 열리지 않는다
   await page.evaluate(() => window.__game.dev.awaken('thor'))
   await page.waitForFunction(() => window.__game.powers.loadout.lit.includes('mjolnir'), null, { timeout: 15000 }).catch(() => {
     throw new Error('신의 흔적: 무리를 이겼는데 묠니르가 유물표에 켜지지 않았습니다.')
@@ -319,11 +319,11 @@ try {
     const g = window.__game
     return { open: g.progress.isOpen('thor'), hand: g.progress.pantheon.hand, heart: g.progress.pantheon.heart, lent: g.ctx.build.passives().map((p) => p.god), awake: g.powers.awake('mjolnir') }
   })
-  if (asleep.open || asleep.heart) throw new Error(`신의 조각: 수호자 전에 토르가 열렸습니다 ${JSON.stringify(asleep)}`)
-  if (asleep.hand !== 'thor') throw new Error(`신의 조각: 조각 2인데 토르의 망치를 손에 쥐지 않았습니다 ${JSON.stringify(asleep)}`)
-  if (!asleep.lent.includes('thor') || !asleep.awake) throw new Error(`신의 조각: 조각 2인데 토르의 힘을 빌리지 않거나 묠니르가 잠들어 있습니다 ${JSON.stringify(asleep)}`)
+  if (asleep.open) throw new Error(`신의 조각: 수호자 전에 토르가 열렸습니다 ${JSON.stringify(asleep)}`)
+  if (asleep.hand !== 'thor' || asleep.heart !== 'thor') throw new Error(`점검용 지름길: 흔적의 무리를 건너뛰었는데 토르의 힘이 칸에 들지 않았습니다 ${JSON.stringify(asleep)}`)
+  if (!asleep.lent.includes('thor') || !asleep.awake) throw new Error(`점검용 지름길: 토르의 패시브 힘이 돌지 않거나 묠니르가 잠들어 있습니다 ${JSON.stringify(asleep)}`)
   await page.evaluate(() => window.__game.dev.awaken())
-  // 칸 (재미 재설계 P2): 수호자를 이기면 토르의 궁극기와 남은 힘이 오고, 빈 칸에 든다. 자리 셋은 칸에서 읽은 모습이다
+  // 칸 (재미 재설계 P2): 무기·궁극기·도는 힘 셋이 칸에 든다. 자리 셋은 칸에서 읽은 모습이다
   const woke = await page.evaluate(() => ({ ...window.__game.progress.pantheon, slots: window.__game.ctx.mythPowers.slots, owned: window.__game.ctx.mythPowers.owned.length }))
   if (woke.hand !== 'thor' || woke.heart !== 'thor' || !woke.breath.includes('thor')) throw new Error(`신화 고르기 실패: 토르의 수호자를 쓰러뜨렸는데 세 자리에 들지 않았습니다 ${JSON.stringify(woke)}`)
   if (woke.slots.weapon !== 'weapon:thor' || woke.slots.ultimate !== 'ultimate:thor' || woke.slots.auras.length !== 3 || !woke.slots.auras.includes('relic:mjolnir') || woke.owned < 7) throw new Error(`힘의 칸: 토르가 깨어났는데 무기·궁극기·도는 힘 셋이 칸에 들지 않았습니다 ${JSON.stringify(woke)}`)
@@ -332,7 +332,7 @@ try {
     throw new Error('신화 고르기: 토르가 깨어났는데 깨어나는 순간(mythChosen)이 없습니다.')
   })
   if (!(await page.evaluate(() => window.__game.progress.isOpen('thor')))) throw new Error('신화 개방: 토르의 수호자를 쓰러뜨렸는데 토르 신화가 열리지 않았습니다.')
-  console.log('신의 조각 확인: 조각 1에 토르의 숨, 조각 2에 망치를 손에 쥐고 묠니르가 깨어나지만 토르는 아직 닫힘, 수호자 뒤에 토르가 손·심장·숨에')
+  console.log('신의 조각 확인: 흔적의 무리를 건너뛰면 묠니르가 유물표에, 지름길이 토르의 힘을 칸에 끼우지만 토르는 아직 닫힘, 수호자 뒤에 토르가 깨어남')
   // 신을 깨워도 내 모습은 그대로다 (E307, 사용자 의견 4): 무기만 손의 신을 따르고, 그 신의 옷·표식은 보관함에 풀릴 뿐이다
   const worn = await page.evaluate(() => ({ outfit: { ...window.__game.hero.rig.outfit }, unlocked: [...window.__game.wardrobe.unlocked] }))
   if (worn.outfit.head !== 'adventurerHair' || worn.outfit.torso !== 'adventurerTunic' || worn.outfit.cape !== null || worn.outfit.mark !== null) throw new Error(`외형: 토르를 깨웠더니 주인공의 모습이 저절로 바뀌었습니다 ${JSON.stringify(worn.outfit)}`)
@@ -670,8 +670,17 @@ try {
 
   // 처음 화면으로: 정보 화면의 단추를 두 번 누르면 저장하고 슬롯 고르기로 돌아가고, 그 슬롯을 누르면 이어 간다.
   await page.click('.menu-button')
+  // 두 번 누르기는 2.5초 안이어야 한다: 소프트웨어 렌더링으로 느린 판에서 두 클릭 사이가 그보다 벌어지면 확인이 풀려 넘어가지 않았다 (시간 경합).
+  // 첫 누름이 확인 상태를 켰는지 본 뒤, 둘째 누름은 같은 순간에 낸다 (한 번만 누르면 넘어가지 않는 것도 함께 본다)
   await page.click('.menu__home')
-  await page.click('.menu__home')
+  const confirm = await page.evaluate(() => {
+    const home = document.querySelector('.menu__home')
+    const armed = home.classList.contains('is-confirm')
+    const stayed = !!window.__game?.playing
+    home.click()
+    return { armed, stayed }
+  })
+  if (!confirm.armed || !confirm.stayed) throw new Error(`처음 화면: 한 번 누르면 확인을 묻고 그대로 있어야 합니다 ${JSON.stringify(confirm)}`)
   await page.waitForSelector('.title-slot:not(.is-empty)', { timeout: 15000 })
   await page.locator('.title-slot:not(.is-empty)').first().click()
   await page.waitForFunction(() => window.__game?.playing, null, { timeout: 15000 })
@@ -1011,7 +1020,15 @@ try {
     const kill = (near) => {
       for (const e of g.encounter.alive) if (near(e)) e.takeHit(1e6, 0, 0, 0)
     }
-    const seen = { answered: [], beaten: [] }
+    const seen = { answered: [], beaten: [], offered: [] }
+    g.ctx.bus.on('powerOffered', ({ source }) => seen.offered.push(source))
+    /** 떠 있는 힘 카드에서 첫째 줄을 고른다 (사람이 누르는 것과 같은 한 곳, P5). 고른 출처 */
+    const pickFirst = () => {
+      const card = g.powerPicks.current
+      if (!card) return null
+      g.powerPicks.choose(card.rows[0].id)
+      return card.source
+    }
     g.ctx.bus.on('traceAnswered', ({ god }) => seen.answered.push(god))
     g.ctx.bus.on('guardianBeaten', ({ god, x, z }) => seen.beaten.push({ god, x: Math.round(x), z: Math.round(z) }))
     // 그리스 셋의 흔적은 데모에서 응답하지 않는다 (E241): 엔딩 전에는 later, 엔딩 뒤에는 open
@@ -1050,6 +1067,12 @@ try {
         g.advance(0.5, 1 / 30)
         woke.half = g.awakening.roused
         g.advance(1, 1 / 30)
+        // 흔적이 응답하면 힘 카드가 먼저 뜬다 (P5): 고르기 전에는 무리가 깨어나지 않고, 고르면 그 힘이 칸에 들고 무리가 깨어난다
+        woke.card = g.powerPicks.current ? { source: g.powerPicks.current.source, rows: g.powerPicks.current.rows.length, paused: g.paused, roused: g.awakening.roused } : null
+        woke.picked = pickFirst()
+        woke.weapon = g.powerPicks.slots.weapon
+        woke.met = g.ctx.mythPowers.met.includes(woke.god)
+        g.advance(0.1, 1 / 30)
         woke.pack = g.awakening.guards.length
         // 무리와 싸우다 워프로 떠나면(마을은 늘 누를 수 있다) 무리는 흩어질 뿐 이긴 것이 아니다 (E239 리뷰)
         g.enterRegion(g.regions.village)
@@ -1059,12 +1082,15 @@ try {
         g.encounter.clearAll()
         g.hero.teleport(spot.x + 1.5, spot.z + 1)
         g.advance(1.6, 1 / 30)
+        // 이미 고른 흔적에 다시 서면 카드 없이 무리만
+        woke.again = { card: g.powerPicks.open, pack: g.awakening.guards.length }
         kill((e) => Math.hypot(e.x - spot.x, e.z - spot.z) < 10)
         // 쓰러진 적은 무너지는 동안(0.55초) 기다렸다가 잡은 것으로 센다
         g.advance(1, 1 / 30)
         woke.piece1 = g.awaken.stage(woke.god)
-        woke.met = g.ctx.mythPowers.met.includes(woke.god)
-        woke.lent = g.ctx.build.passives().map((p) => p.god)
+        // 흔적의 무리를 이긴 자리에 빛 (큰 싸움): 그 자리에 서 있으니 싸움이 풀리면 카드가 뜬다
+        g.advance(2.5, 1 / 30)
+        woke.packCard = pickFirst()
         // 무리를 이긴 그 자리에서 다음은 바로 수호자다: 사냥 단계가 없고 목표 한 줄에 세는 꼴(n/m)이 없다
         woke.next = g.awakening.target('midgard')?.kind ?? null
         woke.line = g.chapterSystem.goalView()?.text ?? ''
@@ -1072,10 +1098,13 @@ try {
         const odin = g.awakening.placed(g.awakening.target('midgard', 'odin'))
         g.encounter.clearAll()
         g.hero.teleport(odin.x + 1.5, odin.z + 1)
-        g.advance(1.6, 1 / 30)
+        g.advance(1.2, 1 / 30)
+        woke.odinCard = pickFirst()
+        g.advance(0.4, 1 / 30)
         woke.second = g.awakening.guards.length
         kill((e) => Math.hypot(e.x - odin.x, e.z - odin.z) < 10)
-        g.advance(1, 1 / 30)
+        g.advance(3, 1 / 30)
+        woke.odinPack = pickFirst()
         woke.both = [...g.awaken.waking].sort()
         // 수호자는 그 신의 땅에서 (E239: 토르는 세계 뱀의 바닷가, 오딘은 철의 숲)
         woke.land = g.awakening.target('midgard', woke.god)?.region ?? null
@@ -1108,8 +1137,25 @@ try {
         g.awakening.fighting?.takeHit(1e6, 0, 0, 0)
         g.advance(1, 1 / 30)
         woke.opened = [...g.progress.opened]
+        // 수호자가 쓰러진 자리에 빛 (P5): 저장에 남고, 싸움 중에는 밟아도 카드가 뜨지 않으며 싸움이 풀린 뒤에 뜬다
+        const light = g.powerPicks.spots.find((l) => l.source === `guardian:${woke.god}`)
+        woke.light = { here: !!light, saved: g.snapshot().powers.lights?.some((l) => l.source === `guardian:${woke.god}`) ?? false }
+        if (light) {
+          g.hero.teleport(light.x, light.z)
+          g.dev.spawn('grunt', light.x + 2.5, light.z)
+          const foe = g.encounter.alive.find((e) => Math.hypot(e.x - light.x, e.z - light.z) < 5)
+          g.advance(0.6, 1 / 30)
+          woke.light.fighting = { awake: foe?.state !== 'idle', card: g.powerPicks.open }
+          kill(() => true)
+          g.hero.teleport(light.x, light.z)
+          g.advance(3, 1 / 30)
+          woke.light.calm = g.powerPicks.current?.source ?? null
+          woke.light.picked = pickFirst()
+          woke.light.left = g.powerPicks.spots.length
+        }
         woke.answered = [...seen.answered]
         woke.beaten = seen.beaten.map((b) => b.god)
+        woke.offered = [...seen.offered]
         // 깨운 신이 하나뿐이면 우트가르드는 아직 닫혀 있다
         woke.utgard = g.chapters.isOpen('utgard')
       }
@@ -1155,13 +1201,20 @@ try {
   if (w.low.quiet || w.low.insights >= 3 || /기세|\d+\/\d+|토르|오딘|로키|프레이/.test(w.low.line)) throw new Error(`신의 흔적: 흔적이 잠잠하거나 목표 한 줄이 무언가를 세거나 특정 신을 가리킵니다 ${JSON.stringify(w.low)}`)
   if (w.passed || w.half) throw new Error(`신의 흔적: 달려 지나가거나 반 초만 서도 흔적이 응답합니다 ${JSON.stringify(w)}`)
   if (w.fled !== 0 || w.fledGuardian || !(w.wound < 0.7)) throw new Error(`신을 깨우는 길: 워프로 떠났는데 이긴 것으로 치거나 수호자의 상처를 잊습니다 ${JSON.stringify(w)}`)
-  if (!w || w.pack < 4 || w.piece1 !== 2 || !w.met || w.next !== 'guardian' || !w.lent.includes(w.god) || w.piece2 !== 2 || !w.relic || !w.guardian || !w.opened.includes(w.god))
+  if (!w.card || w.card.source !== `trace:${w.god}` || w.card.rows !== 3 || !w.card.paused || w.card.roused || w.picked !== `trace:${w.god}` || w.weapon !== `weapon:${w.god}` || !w.met)
+    throw new Error(`힘 카드: 흔적이 응답했는데 카드 셋이 먼저 뜨지 않거나(무리가 먼저 깨어남), 고른 무기가 칸에 들지 않습니다 ${JSON.stringify(w)}`)
+  if (w.again.card || w.again.pack < 4) throw new Error(`힘 카드: 이미 고른 흔적에 다시 섰는데 카드가 또 뜨거나 무리가 깨어나지 않습니다 ${JSON.stringify(w.again)}`)
+  if (!w.light?.here || !w.light.saved || !w.light.fighting?.awake || w.light.fighting.card || w.light.calm !== `guardian:${w.god}` || !w.light.picked || w.light.left !== 0)
+    throw new Error(`빛: 수호자가 쓰러진 자리에 빛이 서지 않거나, 저장에 없거나, 싸움 중에 카드가 뜨거나, 싸움이 풀린 뒤 뜨지 않습니다 ${JSON.stringify(w.light)}`)
+  if (!w || w.pack < 4 || w.piece1 !== 2 || w.next !== 'guardian' || w.piece2 !== 2 || !w.relic || !w.guardian || !w.opened.includes(w.god))
     throw new Error(`신을 깨우는 길: 흔적 → 수호자로 신이 깨어나지 않습니다 ${JSON.stringify(w)}`)
-  if (w.second < 4 || w.both.join() !== 'odin,thor') throw new Error(`신을 깨우는 길: 둘째 흔적이 곧바로 응답하지 않거나 두 신을 함께 깨우는 중일 수 없습니다 ${JSON.stringify(w)}`)
+  if (w.packCard !== `pack:midgard:${w.god}` || w.odinPack !== 'pack:midgard:odin') throw new Error(`빛: 흔적의 무리를 이긴 자리에 빛이 서지 않거나 싸움이 풀린 뒤 카드가 뜨지 않습니다 ${JSON.stringify({ pack: w.packCard, odin: w.odinPack })}`)
+  if (w.odinCard !== 'trace:odin' || w.second < 4 || w.both.join() !== 'odin,thor') throw new Error(`신을 깨우는 길: 둘째 흔적이 곧바로 응답하지 않거나 두 신을 함께 깨우는 중일 수 없습니다 ${JSON.stringify(w)}`)
   // 무리가 흩어진 뒤 다시 서면 다시 응답한다 (토르 둘)
   if ([...new Set(w.answered)].join() !== 'thor,odin' || w.answered.filter((g) => g === 'thor').length !== 2 || w.beaten[0] !== 'thor') throw new Error(`신을 깨우는 길: 응답·수호자 사건이 나지 않습니다 ${JSON.stringify(w)}`)
   if (w.line !== '수호자를 쓰러뜨린다' || w.utgard) throw new Error(`신을 깨우는 길: 무리를 이긴 뒤 목표 한 줄이 「수호자를 쓰러뜨린다」가 아니거나 신 하나로 우트가르드가 열립니다 「${w.line}」 ${w.utgard}`)
-  console.log(`신을 깨우는 길 확인: 북유럽 넷의 흔적이 처음부터 응답(「${w.low.line}」), 달려 지나가면 응답 없음·고리에 1초 서면 무리 ${w.pack} → 이기면 ${w.god}를 만나고 빌린 힘과 유물, 목표는 「${w.line}」 → 오딘의 흔적도 곧바로 응답(수호자 둘이 함께 섬) → ${w.land}의 수호자 「${w.guardian}」 → ${w.god} 깨어남 (싸우다 워프하면 이긴 것 아님, 수호자 상처 ${Math.round(w.wound * 100)}%로 기억, 우트가르드 결계에서 걸음이 막힘)`)
+  console.log(`힘 카드 확인: 흔적에 1초 서면 ${w.god}의 힘 셋(게임이 멈춤) → 고르면 무기가 칸에 들고 무리가 깨어남, 다시 서면 카드 없이 무리만, 흔적의 무리·수호자를 이긴 자리의 빛은 저장에 남고 싸움이 풀린 뒤 밟아야 카드`)
+  console.log(`신을 깨우는 길 확인: 북유럽 넷의 흔적이 처음부터 응답(「${w.low.line}」), 달려 지나가면 응답 없음·고리에 1초 서면 카드 뒤 무리 ${w.pack} → 이기면 유물, 목표는 「${w.line}」 → 오딘의 흔적도 곧바로 응답(수호자 둘이 함께 섬) → ${w.land}의 수호자 「${w.guardian}」 → ${w.god} 깨어남 (싸우다 워프하면 이긴 것 아님, 수호자 상처 ${Math.round(w.wound * 100)}%로 기억, 우트가르드 결계에서 걸음이 막힘)`)
   console.log(`엔딩 확인: ${ending.chapters.join(' → ')} → 갈라진 하늘의 왕을 이기면 엔딩(그리스는 제우스 하나를 깨우고 셋은 엔딩 뒤에 응답), 결계가 모두 풀리고 목표 한 줄이 사라짐 (신 둘을 깨우기 전에는 우트가르드만 막히고 흔적·수호자의 땅은 열림)`)
 
   // 휴대폰 (E235): 세로로 든 터치 기기에서 끌기 = 떠다니는 조이스틱으로 걷기, 떼면 멈춤, 톡 = 그곳까지, 두 손가락 = 확대,

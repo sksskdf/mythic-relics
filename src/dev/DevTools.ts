@@ -50,7 +50,7 @@ export interface DevParts {
   /** 수련 (E236) */
   training: TrainingProgress
   /** 신을 깨우는 길 (E238): 다음 조각을 바로 얻는다. target은 그 신화권에서 깨울 신 */
-  awakening: { skip(god?: string): boolean; target(prefer?: string, first?: null, realm?: string): { god: string } | null }
+  awakening: { skip(god?: string): string | null; target(prefer?: string, first?: null, realm?: string): { god: string } | null }
   /** 깊이 (E305-03): 바로 정하고 배율을 다시 건다 */
   depth: DepthProgress
   applyDepth(): void
@@ -69,6 +69,8 @@ export interface DevParts {
   /** 맹세 (E305-01, E306): 걸고 지킨 것으로 (개발 패널·장 건너뛰기) */
   oathSystem: { available(): readonly OathId[]; swear(id: OathId | null): void; keepNow(): void }
   oaths: { has(id: OathId): boolean }
+  /** 힘 카드 (P5): 그 출처의 카드를 차례에 세운다 */
+  powerPicks: { request(source: string): boolean }
 }
 
 /**
@@ -167,6 +169,11 @@ export class DevTools {
   grant(god: string): void {
     this.parts.mythPowers.grantAll(god)
     this.parts.relics.syncPowers()
+  }
+
+  /** 그 출처(`trace:odin`·`guardian:thor`·`boss:utgard`)의 힘 카드를 띄운다 (P5, 개발 패널·점검). 내밀 힘이 없으면 false */
+  offer(source: string): boolean {
+    return this.parts.powerPicks.request(source)
   }
 
   /** 지금 켜진 조합의 이름 (칸에 든 힘으로 판정) */
@@ -286,6 +293,8 @@ export class DevTools {
       progress.open(g)
       mythPowers.own(g)
     }
+    // 칸 상한은 이 지름길이 끼우는 동안만 푼다 (P5: 판 끝까지 풀면 재는 판의 빌드가 플레이어보다 세진다)
+    const capped = !mythPowers.uncapped
     mythPowers.uncapped = true
     // 이미 칸에 든 유물 힘은 그대로 둔다
     const kept = mythPowers.slots.auras.flatMap((id) => powerRelic(id) ?? [])
@@ -293,6 +302,7 @@ export class DevTools {
     for (const id of next.auras) if (!mythPowers.has(id)) mythPowers.owned.push(id)
     mythPowers.slots = next
     relics.syncPowers()
+    if (capped) mythPowers.uncapped = false
   }
 
   /** 유물 하나를 유물표에서 끄거나 장비 하나를 뺀다. (땅에 내려놓지 않고 없앤다) */
@@ -421,7 +431,7 @@ export class DevTools {
         break
       case 'awaken':
         // 한 걸음씩 (흔적의 무리 → 수호자, 서 있는 수호자부터) 그 할 일을 마칠 때까지
-        for (let i = 0; i < 12 && chapters.goal === goal; i++) if (!awakening.skip(awakening.target(goal.region, null, goal.realm)?.god)) break
+        for (let i = 0; i < 12 && chapters.goal === goal; i++) if (!this.awaken(awakening.target(goal.region, null, goal.realm)?.god)) break
         break
       case 'return': {
         // 귀환 (E304): 떠난 지 2분이 안 됐어도 손의 신 승천(없으면 불꽃 불씨)으로 바로
@@ -459,9 +469,15 @@ export class DevTools {
     chapterSystem.check()
   }
 
-  /** 신을 깨우는 다음 조각을 바로 얻는다 (E238): 깨우는 신이 없으면 god(없으면 응답하는 첫 흔적)부터. 얻었으면 true */
+  /**
+   * 신을 깨우는 다음 걸음을 바로 한다 (E238): 깨우는 신이 없으면 god(없으면 응답하는 첫 흔적)부터. 했으면 true.
+   * 점검용 지름길이라 카드 없이 그 신의 힘을 모두 갖고 칸에 끼운다 (P5: 흔적·빛의 카드를 건너뛴다)
+   */
   awaken(god?: string): boolean {
-    return this.parts.awakening.skip(god)
+    const done = this.parts.awakening.skip(god)
+    if (!done) return false
+    this.grant(done)
+    return true
   }
 
   /** 수련 마디를 찍는다 (점검 스크립트·봇) */
