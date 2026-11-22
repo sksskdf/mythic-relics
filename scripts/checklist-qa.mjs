@@ -457,8 +457,8 @@ const sections = {
       window.__qa.seat('thor')
       // 귀환 1을 마친 원정: 귀환하면 귀환 2 (보통·좋음 자동 합치기, 기세 출발점 1/3)
       Object.assign(g.expedition, { count: 2, elapsed: 300 })
-      g.training.xp = 5000
-      g.expeditionSystem.returnNow('flame:flame')
+      // 엔딩 전 귀환은 고르는 갈래가 없다 (P6): 「돌아간다」 하나, 머리 보상은 도는 힘 칸 하나
+      g.expeditionSystem.returnNow('return')
       // 귀환 2가 띄운 맹세 출발 카드는 닫는다 (떠 있는 동안 얻은 것 카드는 줄에서 기다린다)
       g.hideCards()
       g.oathSystem.swear(null)
@@ -526,9 +526,9 @@ const sections = {
       const g = window.__game
       window.__qa.seat('thor')
       Object.assign(g.expedition, { count: 2, elapsed: 300 })
-      g.training.xp = 5000
       g.oaths.keep('glass', 400)
-      g.expeditionSystem.returnNow('flame:flame')
+      // 엔딩 전 귀환은 「돌아간다」 하나 (P6)
+      g.expeditionSystem.returnNow('return')
     })
     await page.waitForFunction(() => window.__game.oathCardOpen && !document.querySelector('.oath-card')?.classList.contains('is-arming'), null, { timeout: 15000 }).catch(() => {})
     await shot(page, 'e305-oath-card')
@@ -601,16 +601,16 @@ const sections = {
     await step('sources', () => {
       const g = window.__game
       Object.assign(g.expedition, { elapsed: 300 })
-      g.training.xp = 5000
-      g.expeditionSystem.returnNow('flame:flame')
+      // 엔딩 전 귀환은 고르는 갈래가 없다 (P6): 「돌아간다」 하나, 머리 보상은 도는 힘 칸 하나
+      g.expeditionSystem.returnNow('return')
       g.hideCards()
       g.advance(0.5, 1 / 30)
     })
     await step('oaths', () => {
       const g = window.__game
       Object.assign(g.expedition, { elapsed: 300 })
-      g.training.xp = 5000
-      g.expeditionSystem.returnNow('flame:flame')
+      // 엔딩 전 귀환은 고르는 갈래가 없다 (P6): 「돌아간다」 하나, 머리 보상은 도는 힘 칸 하나
+      g.expeditionSystem.returnNow('return')
       // 귀환 2가 띄운 맹세 출발 카드는 닫는다 (떠 있는 동안 얻은 것 카드는 줄에서 기다린다)
       g.hideCards()
       g.oathSystem.swear(null)
@@ -687,8 +687,7 @@ const sections = {
         const g = window.__game
         g.hideCards()
         Object.assign(g.expedition, { count: 2, elapsed: 300 })
-        g.training.xp = 5000
-        g.expeditionSystem.returnNow('flame:flame')
+        g.expeditionSystem.returnNow('return')
       })
       r.oath = await snap('oath', () => window.__game.oathCardOpen)
       // 두 갈래 카드 (E302): 둘째 신의 손·심장 부품이 왔는데 자리가 차 있다

@@ -151,10 +151,11 @@ export class ExpeditionProgress {
 
   /**
    * 귀환한다: 명성을 받고 불씨를 더하고 기록을 남긴 뒤 새 원정을 연다. 받은 명성.
-   * 기세 경험치와 익힌 마디는 다음 출발점·다시 찍기에 쓴다 (지우는 것은 시스템이 한다)
+   * 기세 경험치와 익힌 마디는 다음 출발점·다시 찍기에 쓴다 (지우는 것은 시스템이 한다).
+   * `renown: false`면 명성을 받지 않는다 (P8: 엔딩 전 귀환)
    */
-  return(pick: { flame?: SourceId }, xp: number, taken: readonly string[]): number {
-    const gain = this.gain
+  return(pick: { flame?: SourceId; renown?: boolean }, xp: number, taken: readonly string[]): number {
+    const gain = pick.renown === false ? 0 : this.gain
     this.renown += gain
     if (pick.flame) this.flames[pick.flame] = (this.flames[pick.flame] ?? 0) + 1
     this.best.push(Math.round(this.elapsed))

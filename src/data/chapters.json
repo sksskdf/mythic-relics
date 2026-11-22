@@ -11,7 +11,7 @@
     "name": "서리 거인의 땅",
     "tier": 1,
     "free": true,
-    "lands": { "ironwood": 1.25, "serpentshore": 1.25, "jotunheim": 7.5, "muspel": 8.8, "utgard": 10.7 },
+    "lands": { "ironwood": 1.25, "serpentshore": 1.25, "jotunheim": 3, "muspel": 3.25, "utgard": 3.5 },
     "steps": [
       { "kind": "awaken", "region": "midgard", "realm": "norse", "n": 2, "goal": "신의 흔적을 찾는다" },
       { "kind": "merge", "region": "jotunheim", "n": 1, "goal": "같은 부위 희귀 셋으로 영웅을 만든다" },
@@ -23,7 +23,7 @@
     "title": "제2장",
     "name": "신들의 산",
     "tier": 2,
-    "lands": { "pass": 11, "olympus": 11.7, "delphi": 13, "lycia": 20 },
+    "lands": { "pass": 3.6, "olympus": 3.75, "delphi": 4, "lycia": 4.5 },
     "steps": [
       { "kind": "enter", "region": "pass", "goal": "우트가르드 너머 고개로" },
       { "kind": "mount", "region": "pass", "goal": "고개지기를 만난다" },
@@ -39,7 +39,7 @@
     "title": "종장",
     "name": "갈라진 하늘",
     "tier": 3,
-    "lands": { "sky": 28 },
+    "lands": { "sky": 6 },
     "steps": [
       { "kind": "forge", "region": "village", "n": 2, "goal": "마을 대장간에서 유물을 한 단계 더 벼린다" },
       { "kind": "enter", "region": "sky", "goal": "갈라진 하늘로" },

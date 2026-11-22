@@ -71,7 +71,7 @@ export function renderStatus(ctx: TabContext, body: HTMLElement): void {
   const promoted = after ? `승천 하나마다 최대 생명 +${Math.round(PER_PROMOTION.maxHpPct * 100)}%, ` : ''
   row('heart', '생명', `${Math.round(stats.hp)} / ${stats.maxHp}`, `생명\n${promoted}깨운 신 하나마다 +${PER_OPENED.maxHp}. 오르면 가득 찬다.`)
   const promotedHit = after ? `승천 하나마다 ×${PER_PROMOTION.damage}, ` : ''
-  row('sword', '주는 피해', `×${stats.damage.toFixed(2)}`, `주는 피해\n${promotedHit}모은 유물 하나마다 +${Math.round(PER_LIT * 100)}%, 귀환할수록 곱해진다.`, changed(stats.damage, true))
+  row('sword', '주는 피해', `×${stats.damage.toFixed(2)}`, `주는 피해\n${promotedHit}모은 유물 하나마다 +${Math.round(PER_LIT * 100)}%${after ? ', 귀환할수록 곱해진다' : ''}.`, changed(stats.damage, true))
   row('shield', '받는 피해', `×${stats.damageTaken.toFixed(2)}`, '낀 유물의 지속 효과', changed(stats.damageTaken, false))
   row('boot', '이동 속도', `${Math.round(stats.moveSpeed * 100)}%`, '낀 유물의 지속 효과', changed(stats.moveSpeed, true))
   // 탈것 (E241): 얻은 뒤에만 한 줄

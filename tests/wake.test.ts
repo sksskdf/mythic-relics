@@ -244,16 +244,16 @@ describe('신을 깨우는 길의 글 (E307 손 QA)', () => {
 })
 
 describe('흔적의 무리·수호자의 세기 (2026-11-22: 이미 이긴 무리의 수를 따른다)', () => {
-  it('첫 판의 넷은 이긴 무리 수(그 신을 빼고)에 따라 1 · 2 · 3.5 · 5: 땅의 세기와 상관없다 (요툰헤임 7.5의 로키를 첫 신으로 골라도 1)', () => {
-    expect(ORDER_POWER).toEqual([1, 2, 3.5, 5])
-    expect([0, 1, 2, 3].map((n) => wakePower(7.5, n, false))).toEqual([1, 2, 3.5, 5])
-    expect([0, 1, 2, 3].map((n) => wakePower(1, n, false))).toEqual([1, 2, 3.5, 5])
-    expect(wakePower(1.25, 5, false)).toBe(5)
+  it('첫 판의 넷은 이긴 무리 수(그 신을 빼고)에 따라 1 · 1.6 · 2.5 · 3.5(P8, 그 전 1 · 2 · 3.5 · 5): 땅의 세기와 상관없다 (센 땅의 로키를 첫 신으로 골라도 1)', () => {
+    expect(ORDER_POWER).toEqual([1, 1.6, 2.5, 3.5])
+    expect([0, 1, 2, 3].map((n) => wakePower(7.5, n, false))).toEqual([1, 1.6, 2.5, 3.5])
+    expect([0, 1, 2, 3].map((n) => wakePower(1, n, false))).toEqual([1, 1.6, 2.5, 3.5])
+    expect(wakePower(1.25, 5, false)).toBe(3.5)
   })
 
   it('그 밖의 신(그리스)은 그 땅의 세기와 견줘 큰 쪽, 엔딩 뒤에는 그 땅의 세기 그대로다', () => {
     expect(wakePower(11.7, 2, false, false)).toBe(11.7)
-    expect(wakePower(1, 3, false, false)).toBe(5)
+    expect(wakePower(1, 3, false, false)).toBe(3.5)
     expect(wakePower(1, 1, true)).toBe(1)
     expect(wakePower(13, 2, true, false)).toBe(13)
   })

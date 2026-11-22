@@ -279,7 +279,6 @@
   :root.is-touch button.ui-pill,
   :root.is-touch .menu-train__node,
   :root.is-touch .menu-train__branch,
-  :root.is-touch .menu-tree__node,
   :root.is-touch .menu-src__help,
   :root.is-touch .title-swatch {
     position: relative;
@@ -288,7 +287,6 @@
   :root.is-touch button.ui-pill::before,
   :root.is-touch .menu-train__node::before,
   :root.is-touch .menu-train__branch::before,
-  :root.is-touch .menu-tree__node::before,
   :root.is-touch .menu-src__help::before,
   :root.is-touch .title-swatch::before,
   :root.is-touch .dialog__skip::before {
@@ -324,17 +322,6 @@
   /* 수련 갈래 이름 (누르면 설명): 아래는 트리 판이 덮으니 위로 넓힌다 */
   :root.is-touch .menu-train__branch::before {
     inset: -19px -16px -6px;
-  }
-  /* 신들의 지도 칸: 38px로 조금 키우고 둘레 3px씩 더 받는다 (칸 사이 6px: 38 + 6 = 44). 왕관 칸은 테두리가 3px */
-  :root.is-touch .menu-tree__node {
-    min-width: 38px;
-    height: 38px;
-  }
-  :root.is-touch .menu-tree__node::before {
-    inset: -4px;
-  }
-  :root.is-touch .menu-tree__node.is-crown::before {
-    inset: -6px;
   }
   /* 원천 탭의 「?」 (16px) */
   :root.is-touch .menu-src__help::before {

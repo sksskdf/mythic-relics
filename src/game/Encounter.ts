@@ -335,6 +335,11 @@ export class Encounter {
     }
   }
 
+  /** 지금 땅의 세기를 다시 읽는다 (P8: 처음 무리는 저장을 읽기 전에 지어 만난 신 0의 세기를 든다. 불러온 뒤 한 번 맞춘다) */
+  refreshPower(): void {
+    this.repower(this.herd(), this.giants)
+  }
+
   /** 살아 있는 적들 (주인공의 공격 대상) */
   get alive(): Giant[] {
     return this.giants.filter((g) => g.alive)

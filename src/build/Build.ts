@@ -20,7 +20,7 @@ import { type BuildInputs, type BuildState, computeBuild } from './BuildState'
  * 피해·능력치를 쓰는 곳(Damage, Relics, 정보 화면)은 여기서 값을 읽는다.
  */
 export class Build {
-  constructor(private readonly from: { powers: RelicPowers; progress: ClassProgress; oaths?: OathProgress; oath?: () => OathId | null; training?: TrainingProgress; awaken?: WakeProgress; expedition?: ExpeditionProgress }) {}
+  constructor(private readonly from: { powers: RelicPowers; progress: ClassProgress; oaths?: OathProgress; oath?: () => OathId | null; training?: TrainingProgress; awaken?: WakeProgress; expedition?: ExpeditionProgress; afterEnding?: () => boolean }) {}
 
   /** 지금의 재료 */
   inputs(): BuildInputs {
@@ -40,8 +40,8 @@ export class Build {
       gear: powers.slottedRelics,
       lit: loadout.litCount,
       gearItems,
-      // 원정 (E304): 명성과 원천 불씨
-      renown: this.from.expedition?.renown ?? 0,
+      // 원정 (E304): 명성과 원천 불씨. 명성 배율은 엔딩 뒤 장치다 (P8: 엔딩 전 귀환의 머리 보상은 칸 하나뿐, 옛 저장에 쌓인 명성도 엔딩 전에는 곱하지 않는다)
+      renown: this.from.afterEnding?.() === false ? 0 : (this.from.expedition?.renown ?? 0),
       conquered: this.from.expedition?.conquests() ?? 0,
       flames: this.from.expedition?.flames ?? {},
       bonus: { oaths: { ...this.from.oaths?.rewards() }, training: { ...this.from.training?.stats() } },
@@ -163,7 +163,7 @@ export class Build {
     if (oaths) for (const id of OATH_IDS) out.push(oaths.has(id))
     out.push(training?.stats())
     const expedition = this.from.expedition
-    if (expedition) out.push(expedition.renown, expedition.conquests(), ...SOURCE_IDS.map((s) => expedition.flames[s] ?? 0))
+    if (expedition) out.push(this.from.afterEnding?.() ?? null, expedition.renown, expedition.conquests(), ...SOURCE_IDS.map((s) => expedition.flames[s] ?? 0))
   }
 }
 

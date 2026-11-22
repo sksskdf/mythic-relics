@@ -172,7 +172,7 @@ export class ExpeditionSystem {
     const slots = mythPowers.auraSlots
     return {
       count: expedition.count,
-      // 엔딩 전에는 명성·배율을 보이지 않고 도는 힘 칸만 (P6). 배율은 그대로 쌓여 상태 탭의 「귀환」 층으로 보인다
+      // 엔딩 전에는 명성·배율 없이 도는 힘 칸만 (P6). 명성도 쌓지 않는다 (P8)
       ...(ending.reached ? { renown: { gain: p.gain, now: p.now, next: p.next } } : { slots: { now: slots, next: Math.min(AURA_SLOTS.max, slots + 1) } }),
       time: clock(p.seconds),
       last: p.last === null ? null : clock(p.last),
@@ -206,7 +206,7 @@ export class ExpeditionSystem {
     const slotsBefore = mythPowers.auraSlots
     // 마친 원정에서 깊이 한계 보스를 이겼나 (저장되는 원정 기록, 귀환하면 지워지니 먼저 읽는다)
     const deepWin = expedition.deepWin
-    const gain = expedition.return({ ...(flame ? { flame } : {}) }, training.xp, [...training.taken])
+    const gain = expedition.return({ ...(flame ? { flame } : {}), renown: ending.reached }, training.xp, [...training.taken])
     expedition.lastBranch = chosen === PLAIN_RETURN ? PLAIN_RETURN : id
     // 가보 (귀환 1부터): 낀 일반 장비 가운데 가장 좋은 것을 칸 수만큼 남긴다 (고르는 단추 없이)
     expedition.heirloom = powers.loadout.wornGear

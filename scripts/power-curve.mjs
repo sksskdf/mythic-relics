@@ -100,6 +100,8 @@ async function frames(page, n = 2) {
 /** 저장을 불러 연 새 창 (휴대폰이면 터치 세로) */
 async function openSave(browser, save, viewport, phone = false) {
   const p = await browser.newPage({ viewport, ...(phone ? { hasTouch: true, isMobile: true } : {}) })
+  const errors = []
+  p.on('pageerror', (e) => errors.push(e.stack ?? e.message))
   await p.addInitScript((data) => {
     if (sessionStorage.getItem('loaded')) return
     sessionStorage.setItem('loaded', '1')
@@ -110,7 +112,13 @@ async function openSave(browser, save, viewport, phone = false) {
   // 표준 허수아비 치기(scripts/lib/curve.mjs)를 페이지에 심어 둔다: 재는 평가 한 번 안에서 부른다 (평가를 나누면 그 사이에 게임이 제 걸음으로 흐른다)
   await p.addInitScript(`window.__strikeDummy = ${strikeDummy}`)
   await p.goto(`${BASE}?noscenes`, { timeout: 90000 })
-  await p.waitForFunction(() => (window.__game?.frame ?? 0) > 2 && window.__game.playing, null, { timeout: 90000 })
+  try {
+    await p.waitForFunction(() => (window.__game?.frame ?? 0) > 2 && window.__game.playing, null, { timeout: 90000 })
+  } catch (e) {
+    const seen = await p.evaluate(() => ({ frame: window.__game?.frame ?? null, text: document.body.innerText.slice(0, 120).replace(/\s+/g, ' ') })).catch(() => null)
+    await p.close()
+    throw new Error(`${e.message.split('\n')[0]} · 화면 ${JSON.stringify(seen)} · 오류 ${errors.join(' / ') || '없음'}`)
+  }
   return p
 }
 
@@ -243,7 +251,13 @@ try {
   async function measure(browser, snaps) {
     const rows = []
     for (const s of snaps) {
-      const p = await openSave(browser, s.save, { width: 640, height: 360 })
+      // 열리지 않는 저장은 그 줄을 건너뛰고 까닭을 남긴다 (P8: 한 줄이 막혀 판 전체의 곡선을 잃지 않게. 열리지 않는 저장 자체는 고칠 버그다)
+      const p = await openSave(browser, s.save, { width: 640, height: 360 }).catch(async (e) => {
+        console.error(`저장 ${fmt(s.t)}을 열지 못함: ${e.message.split('\n')[0]}`)
+        writeFileSync(`${OUT_FILE.replace(/\.json$/, '')}-unopened-${s.t | 0}.json`, JSON.stringify(s.save))
+        return null
+      })
+      if (!p) continue
       const m = await p.evaluate(
         ([dummyHp, attackSeconds, finishSeconds, standardFoe]) => {
           const g = window.__game

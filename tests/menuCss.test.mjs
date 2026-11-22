@@ -124,13 +124,6 @@ describe('누르는 자리 44px (E307, portrait.css)', () => {
     expect(css('theme.css')).toMatch(/\.ui-btn,\n\.ui-pill \{[^}]*border: 1px solid/)
     expect(hit(px('button.ui-pill', 'min-height'), 1, 'button.ui-pill')).toBe(44)
     expect(px('button.ui-pill', 'min-width')).toBe(44)
-    // 신들의 지도 칸: 38px, 테두리 1px
-    expect(base('menu.css', '.menu-tree__node')).toContain('border: 1px solid')
-    expect(hit(px('.menu-tree__node', 'height'), 1, '.menu-tree__node')).toBe(44)
-    expect(px('.menu-tree__node', 'min-width')).toBe(38)
-    // 왕관 칸은 테두리가 3px
-    expect(base('menu.css', '.menu-tree__node.is-crown')).toContain('border-width: 3px')
-    expect(hit(px('.menu-tree__node', 'height'), 3, '.menu-tree__node.is-crown')).toBe(44)
     // 색 칸: 36px, 테두리 없음
     expect(base('title.css', '.title-swatch')).toContain('border: 0')
     expect(hit(px('.title-swatch', 'height'), 0, '.title-swatch')).toBe(44)
@@ -141,7 +134,7 @@ describe('누르는 자리 44px (E307, portrait.css)', () => {
     expect(decls('.menu-train__node::before')).toContain('inset: calc((var(--size) - 44px) / 2 - var(--bw))')
     expect(decls('.menu-button::before')).toContain('inset: min(0px, calc((var(--unit) * 6 - 44px) / 2))')
     // ::before를 품는 것은 자리를 잡은 요소여야 한다 (이미 fixed·absolute인 메뉴 단추·「건너뛰기」는 그대로 둔다)
-    for (const s of ['button.ui-pill', '.menu-train__node', '.menu-train__branch', '.menu-tree__node', '.menu-src__help', '.title-swatch']) expect(decls(s), s).toContain('position: relative')
+    for (const s of ['button.ui-pill', '.menu-train__node', '.menu-train__branch', '.menu-src__help', '.title-swatch']) expect(decls(s), s).toContain('position: relative')
     for (const s of ['.menu-button', '.dialog__skip']) expect(decls(s), s).not.toContain('position')
     expect(base('menu.css', '.menu-button')).toContain('position: fixed')
     expect(base('hud.css', '.dialog__skip')).toContain('position: absolute')
@@ -153,9 +146,6 @@ describe('누르는 자리 44px (E307, portrait.css)', () => {
     expect(decls('.title-creator__swatches')).toContain('gap: var(--sp-4)')
     expect(px('button.ui-pill', 'min-height') + space('sp-4')).toBe(44)
     expect(px('.title-swatch', 'width') + space('sp-4')).toBe(44)
-    // 신들의 지도 칸: 38 + 6 (menu.css의 칸 사이 간격)
-    for (const s of ['.menu-tree__gods', '.menu-tree__land']) expect(base('menu.css', s), s).toContain('gap: var(--sp-3)')
-    expect(px('.menu-tree__node', 'height') + space('sp-3')).toBe(44)
     // 설정의 알약은 44px 줄 안에 한 줄로 놓인다
     expect(px('.pause__row', 'min-height')).toBe(44)
     // 신 탭 「자리 · 외형」 줄 바로 아래에는 외형의 부위 칸이 붙는다: 알약이 아래로 더 받는 만큼 띄운다

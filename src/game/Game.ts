@@ -152,7 +152,9 @@ export class Game {
       mounted: () => this.mount.owned,
       merged: () => this.powers.loadout.uniquesSeen.size,
       oathsKept: () => this.oaths.kept.size,
-      met: () => this.ctx.mythPowers.met.length,
+      // 만든 직후의 무리(Encounter)는 ctx보다 먼저 땅 세기를 묻는다: 그때는 0 (불러온 뒤 땅 세기가 바뀌면 무리가 갈아 낀다).
+      // P8: 제1장 땅에서 저장한 판을 불러오면 여기서 멈춰 게임이 뜨지 않았다
+      met: () => this.ctx?.mythPowers.met.length ?? 0,
     },
     // 엔딩 뒤에는 남은 신화권 셋의 결계가 풀린다
     () => this.ending.has('realms'),
@@ -397,7 +399,7 @@ export class Game {
       mythPowers: Object.assign(new PowerProgress(() => this.expedition.returns + this.chapters.conquered), { uncapped: options.testRun ?? false, testRun: options.testRun ?? false }),
       mount: this.mount,
       uniques: new UniqueState(),
-      build: new Build({ powers: this.powers, progress: this.progress, oaths: this.oaths, oath: () => this.expedition.oath, training: this.training, awaken: this.awaken, expedition: this.expedition }),
+      build: new Build({ powers: this.powers, progress: this.progress, oaths: this.oaths, oath: () => this.expedition.oath, training: this.training, awaken: this.awaken, expedition: this.expedition, afterEnding: () => this.ending.reached }),
       skills,
     }
     this.damage = new DamageSystem(this.ctx)
@@ -531,6 +533,7 @@ export class Game {
       // 깊이 배율은 불러온 깊이로 (이미 세운 적도 다시 세운다)
       this.depthSystem.apply()
       if (this.depth.level > 1) this.encounter.resetAll()
+      else this.encounter.refreshPower()
       // 건 맹세 (E305-01): 빈 손·홀로의 도는 자리와 무리 크기
       this.oathSystem.sync()
       // 출발 카드를 고르기 전에 저장된 판: 카드를 다시 띄운다

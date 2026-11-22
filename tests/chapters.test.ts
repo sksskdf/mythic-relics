@@ -146,7 +146,7 @@ describe('땅 세기 (E22-02)', () => {
     expect(landScale(4).hp).toBe(4)
     expect(landScale(4).damage).toBeGreaterThan(1)
     expect(landScale(4).damage).toBeLessThan(4)
-    expect(TOP_POWER).toBe(28)
+    expect(TOP_POWER).toBe(6)
   })
 })
 
@@ -389,7 +389,7 @@ describe('장 진행 (E22-01)', () => {
   it('땅의 세기와 단계: 장 흐름의 땅은 장 데이터, 그 밖의 들판(엔딩 뒤)은 가장 센 땅만큼, 끝없는 원정은 1', () => {
     const chapters = new ChapterProgress(world())
     expect(chapters.power('midgard')).toBe(1)
-    expect(chapters.power('lycia')).toBe(20)
+    expect(chapters.power('lycia')).toBe(4.5)
     expect(chapters.power('sinsi')).toBe(TOP_POWER)
     expect(chapters.power('endless')).toBe(1)
     expect(chapters.power('village')).toBe(1)
@@ -582,22 +582,23 @@ describe('장 진행 시스템과 탈것 (E241)', () => {
 })
 
 describe('어느 땅부터 가도 되는 제1장의 땅 세기 (2026-11-22)', () => {
-  it('제1장의 땅은 데이터 세기와 만난 신 수의 세기(1·2·3.5·5) 가운데 작은 쪽, 거인 왕의 땅은 정한 끝까지: 로키부터 가도 첫 요툰헤임은 1', () => {
+  it('제1장의 땅은 데이터 세기와 만난 신 수의 세기(1·1.6·2.5·3.5, P8) 가운데 작은 쪽, 거인 왕의 땅은 정한 끝까지: 로키부터 가도 첫 요툰헤임은 1', () => {
     let met = 0
     const chapters = new ChapterProgress({ ...world(), met: () => met })
     expect(CHAPTERS.find((c) => c.id === 'north')!.free).toBe(true)
-    // 거인 왕의 땅은 만난 신 수와 상관없이 FREE_BOSS_POWER까지만 (P5 봇: 10.7의 거인 왕과 933초)
+    // 거인 왕의 땅은 만난 신 수와 상관없이 FREE_BOSS_POWER까지만 (P5 봇: 10.7의 거인 왕과 933초, P8: 데이터 세기와 같은 3.5)
     expect(['jotunheim', 'muspel', 'ironwood', 'serpentshore', 'utgard'].map((r) => chapters.power(r))).toEqual([1, 1, 1, 1, FREE_BOSS_POWER])
     expect(FREE_BOSS_POWER).toBeLessThan(10.7)
     met = 1
-    expect(['jotunheim', 'muspel', 'ironwood', 'serpentshore'].map((r) => chapters.power(r))).toEqual([2, 2, 1.25, 1.25])
+    expect(['jotunheim', 'muspel', 'ironwood', 'serpentshore'].map((r) => chapters.power(r))).toEqual([1.6, 1.6, 1.25, 1.25])
     met = 2
-    expect(chapters.power('jotunheim')).toBe(3.5)
+    expect(chapters.power('jotunheim')).toBe(2.5)
     met = 4
-    expect(['jotunheim', 'muspel'].map((r) => chapters.power(r))).toEqual([5, 5])
+    // 데이터 세기가 표보다 낮은 땅은 데이터 그대로 (P8: 요툰헤임 3·무스펠 3.25)
+    expect(['jotunheim', 'muspel'].map((r) => chapters.power(r))).toEqual([3, 3.25])
     // 다른 장과 만난 신 수를 모르는 세계는 데이터 그대로
-    expect(chapters.power('olympus')).toBe(11.7)
-    expect(new ChapterProgress(world()).power('jotunheim')).toBe(7.5)
-    expect(new ChapterProgress(world()).power('utgard')).toBe(10.7)
+    expect(chapters.power('olympus')).toBe(3.75)
+    expect(new ChapterProgress(world()).power('jotunheim')).toBe(3)
+    expect(new ChapterProgress(world()).power('utgard')).toBe(3.5)
   })
 })

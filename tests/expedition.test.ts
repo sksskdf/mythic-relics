@@ -293,10 +293,12 @@ describe('엔딩 전 귀환은 고르는 것 없이 칸 하나 더 (P6)', () => 
     expect(`${view.keeps} ${view.clears}`).not.toMatch(/승천|불씨|유물표|수련|깨달음|신 단계/)
   })
 
-  it('엔딩 전에는 승천·불씨 id가 와도(옛 점검 스크립트) 그냥 돌아간다: 불씨도 승천도 없고 칸이 하나 는다', () => {
+  it('엔딩 전에는 승천·불씨 id가 와도(옛 점검 스크립트) 그냥 돌아간다: 불씨도 승천도 명성도 없고 칸이 하나 는다 (P8: 명성 배율은 엔딩 뒤 장치)', () => {
     const { system, expedition, moments, flames } = rig(false)
-    expect(system.returnNow('flame:stone')).toBeGreaterThan(0)
-    expect(system.returnNow('ascend:thor')).toBeGreaterThan(0)
+    expect(system.returnNow('flame:stone')).toBe(0)
+    expect(system.returnNow('ascend:thor')).toBe(0)
+    expect(expedition.renown).toBe(0)
+    expect(expedition.multiplier).toBe(1)
     expect(expedition.flamePoints().stone).toBe(0)
     expect(flames).toEqual([])
     expect(expedition.lastBranch).toBe('return')
